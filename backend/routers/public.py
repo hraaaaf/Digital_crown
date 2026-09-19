@@ -1,18 +1,20 @@
 """
 Routes publiques (sans authentification) — landing page, demandes de démo.
 """
+import hmac
 import json
 import os
 import logging
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks, Header, Request
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from backend import database, models, schemas
 from backend.config import settings
 from backend.main import invalidate_license_cache
 from backend.services.license_service import LicenseService
+from backend.utils.rate_limit import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +42,11 @@ def _save_requests(requests: list) -> None:
 
 
 class DemoRequestIn(BaseModel):
-    nom: str
+    nom: str = Field(min_length=1, max_length=120)
     email: EmailStr
-    cabinet: str
-    telephone: str = ""
-    message: str = ""
+    cabinet: str = Field(min_length=1, max_length=160)
+    telephone: str = Field(default="", max_length=40)
+    message: str = Field(default="", max_length=2000)
 
 
 def _get_valid_trial_code(db: Session, code_value: str) -> models.TrialActivationCode:
@@ -62,7 +64,8 @@ def _get_valid_trial_code(db: Session, code_value: str) -> models.TrialActivatio
 
 
 @router.post("/demo-request", summary="Soumettre une demande de démo")
-def submit_demo_request(payload: DemoRequestIn):
+def submit_demo_request(payload: DemoRequestIn, request: Request):
+    check_rate_limit(request, scope="public_demo_request")
     requests = _load_requests()
     entry = {
         "id": len(requests) + 1,
@@ -101,16 +104,23 @@ def submit_demo_request(payload: DemoRequestIn):
 
 
 @router.get("/demo-requests", summary="Lister les demandes (super-admin)")
-def list_demo_requests(secret: str = ""):
-    """Protégé par un simple secret en query param pour le super-admin."""
+def list_demo_requests(
+    x_superadmin_secret: str = Header(default="", alias="X-Superadmin-Secret"),
+):
+    """Shared-secret fallback kept out of URLs/log query strings and compared in constant time."""
     expected = os.getenv("SUPERADMIN_SECRET", "")
-    if not expected or secret != expected:
+    if not expected or not x_superadmin_secret or not hmac.compare_digest(x_superadmin_secret, expected):
         raise HTTPException(status_code=403, detail="Forbidden")
     return _load_requests()
 
 
 @router.get("/trial-code/{code}", response_model=schemas.TrialActivationPreview, summary="Prévisualiser un code d'activation")
-def preview_trial_code(code: str, db: Session = Depends(database.get_db)):
+def preview_trial_code(
+    code: str,
+    request: Request,
+    db: Session = Depends(database.get_db),
+):
+    check_rate_limit(request, scope="trial_code_preview")
     trial_code = _get_valid_trial_code(db, code)
     return schemas.TrialActivationPreview(
         email=trial_code.email,
@@ -125,8 +135,10 @@ def preview_trial_code(code: str, db: Session = Depends(database.get_db)):
 async def activate_trial_code(
     payload: schemas.TrialActivationRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(database.get_db),
 ):
+    check_rate_limit(request, scope="trial_code_activation")
     if not payload.accept_terms or not payload.accept_privacy:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

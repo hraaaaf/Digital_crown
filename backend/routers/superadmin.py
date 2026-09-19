@@ -71,12 +71,9 @@ def _serialize_trial_code(code: models.TrialActivationCode) -> TrialActivationCo
 
 
 def _generate_trial_code() -> str:
-    chunks = [
-        secrets.token_hex(2).upper(),
-        secrets.token_hex(2).upper(),
-        secrets.token_hex(2).upper(),
-    ]
-    return f"DC-{chunks[0]}-{chunks[1]}-{chunks[2]}"
+    # 128 bits of entropy; legacy codes remain valid because validation is format-agnostic.
+    chunks = [secrets.token_hex(4).upper() for _ in range(4)]
+    return "DC-" + "-".join(chunks)
 
 
 @router.get("/clients", response_model=List[ClientOut])
