@@ -172,3 +172,19 @@ Status remains IN PROGRESS. Imaging and final deep-control reconciliation remain
     - delete refusal preserves card.
 
 Imaging and clinical-authoritative boundaries are now covered. Remaining work is G4-G reconciliation against all deep controls exposed by G0 and exact-head CI.
+
+
+12. `frontend/src/features/patients/components/Payments.g4Interactive.test.tsx`
+    - QuickPay amount/method gate;
+    - all four payment methods;
+    - exact payment payload;
+    - accounting-context reset only after ACK;
+    - refusal keeps modal/state;
+    - act-specific partial payment with acte_id;
+    - act-payment refusal without false paid callback.
+
+Remaining G4-G reconciliation focus:
+- structured clinical assistant wizards;
+- any PatientFinances deep controls not already proved by payment/installment matrices;
+- final G0 ↔ G4 control reconciliation;
+- exact-head CI/test/build.
