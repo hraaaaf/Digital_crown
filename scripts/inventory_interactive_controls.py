@@ -82,19 +82,19 @@ test_files = [
 ]
 
 def lot_for_route(route: str) -> str:
-    if route.startswith("/mobile") or route in {"/landing", "/download", "/activate", "/login", "/register", "/terms", "/privacy", "/setup"}:
+    if route in {"/landing", "/download", "/activate", "/login", "/register", "/terms", "/privacy", "/setup", "/welcome", "/mobile/onboarding", "/mobile/demo"}:
         return "G1"
-    if route.startswith("/patients") or route == "/dashboard":
+    if route.startswith("/patients") or route in {"/dashboard", "/patient-companion", "/mobile/dashboard", "/mobile/context", "/mobile/dentists"}:
         return "G2"
-    if route == "/agenda":
+    if route in {"/agenda", "/salle-attente"}:
         return "G3"
-    if route in {"/accounting", "/analytics", "/bibliotheque", "/science-hub"}:
+    if route in {"/accounting", "/analytics"}:
         return "G4"
     if route == "/settings":
         return "G5"
-    if route == "/super-admin":
+    if route in {"/super-admin", "/mobile/superadmin"}:
         return "G6"
-    if route.startswith("/stock") or route.startswith("/approvisionnement"):
+    if route.startswith("/stock") or route.startswith("/approvisionnement") or route.startswith("/bibliotheque") or route in {"/science-hub", "/labo"}:
         return "G7"
     return "G8-review"
 
