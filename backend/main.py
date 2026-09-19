@@ -652,26 +652,25 @@ def _serve_protected_file(base_dir: str, rel_path: str) -> FileResponse:
     return FileResponse(abs_path)
 
 def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str, current_user=None):
-    """
-    Vérifie que le fichier appartient au cabinet de l'utilisateur.
-    Stratégie : si un enregistrement DB existe pour ce chemin mais appartient à un
-    autre cabinet → 403. Si aucun enregistrement → laisser passer (fichier legacy
-    non référencé). Empêche le cross-tenant sur tous les fichiers tracés en base.
-    """
+    """Fail closed unless DB provenance proves the requested file belongs to this cabinet."""
     path_col = getattr(model_cls, path_col_name)
-    record = (
+    records = (
         db.query(model_cls)
         .filter(path_col.like(f"%{path_fragment}"))
         .join(models.Patient, getattr(model_cls, "patient_id") == models.Patient.id)
-        .first()
+        .all()
     )
-    if record is not None and record.patient.employer_id != employer_id:
+    if not records:
+        raise HTTPException(status_code=404, detail="Fichier non référencé")
+
+    owner_ids = {record.patient.employer_id for record in records}
+    if owner_ids != {employer_id}:
         if current_user is not None:
             from backend.services.audit_service import audit_service
             audit_service.log(
                 db=db, user_id=current_user.id, employer_id=employer_id,
                 action="MEDIA_ACCESS_DENIED", resource_type=model_cls.__name__, resource_id=path_fragment,
-                severity="WARNING", details=f"Tentative d'accès média cross-tenant : {path_fragment}",
+                severity="WARNING", details="Accès média refusé : ownership cabinet non démontrée",
             )
         raise HTTPException(status_code=403, detail="Accès refusé")
 
@@ -727,16 +726,19 @@ async def serve_acte_attachment(
     if safe != filename or ".." in filename:
         raise HTTPException(status_code=403, detail="Chemin non autorisé")
 
-    # Retrouver le patient propriétaire via la table Acte
-    url_fragment = f"/actes/{safe}"
+    # Retrouver le(s) patient(s) propriétaire(s) via la table Acte.
+    # Aucun fallback disque n'est autorisé si l'ownership DB est absente/ambiguë.
     from sqlalchemy import cast, String
-    acte = (
+    actes = (
         db.query(models.Acte)
         .filter(cast(models.Acte.attachments, String).like(f"%{safe}%"))
         .join(models.Patient, models.Acte.patient_id == models.Patient.id)
-        .first()
+        .all()
     )
-    if acte is not None and acte.patient.employer_id != current_user.get_employer_id():
+    if not actes:
+        raise HTTPException(status_code=404, detail="Fichier non référencé")
+    owner_ids = {acte.patient.employer_id for acte in actes}
+    if owner_ids != {current_user.get_employer_id()}:
         raise HTTPException(status_code=403, detail="Accès refusé")
 
     return _serve_protected_file(os.path.join(UPLOAD_DIR, "actes"), safe)
@@ -747,8 +749,31 @@ async def serve_acte_attachment(
 async def serve_clinic_asset(
     rel_path: str,
     current_user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
 ):
-    return _serve_protected_file(os.path.join(UPLOAD_DIR, "clinics"), rel_path)
+    config = (
+        db.query(models.CabinetConfig)
+        .filter(models.CabinetConfig.owner_id == current_user.get_employer_id())
+        .first()
+    )
+    if config is None:
+        raise HTTPException(status_code=404, detail="Cabinet non configuré")
+
+    normalized = rel_path.replace("\\", "/").strip("/")
+    parts = [part for part in normalized.split("/") if part]
+    public_id = str(config.public_id or "").strip()
+    if (
+        not public_id
+        or len(parts) < 2
+        or parts[0] != public_id
+        or any(part in {".", ".."} for part in parts)
+    ):
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    return _serve_protected_file(
+        os.path.join(UPLOAD_DIR, "clinics", public_id),
+        "/".join(parts[1:]),
+    )
 
 # --- SECURITE P0 : mounts StaticFiles publics supprimés ----------------------
 # Tous les chemins patients (panoramic, radios, archives, documents, actes, clinics)
