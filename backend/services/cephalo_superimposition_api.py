@@ -34,7 +34,11 @@ _DB_RADIO_PREFIX = "api/static/uploads/radios/"
 
 
 def engineering_preview_enabled() -> bool:
-    return os.getenv("DIGITAL_CROWN_F5_ENGINEERING_PREVIEW", "0") == "1"
+    runtime_environment = os.getenv("ENVIRONMENT", "").strip().lower()
+    return (
+        runtime_environment in {"development", "local", "test"}
+        and os.getenv("DIGITAL_CROWN_F5_ENGINEERING_PREVIEW", "0") == "1"
+    )
 
 
 def _public_source(source) -> dict:
