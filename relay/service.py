@@ -11,7 +11,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, create_engin
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from backend.services.patient_companion_relay_contract import (
+from relay.contract import (
     RelayEnvelopeCreate,
     RelayEnvelopeRecord,
     RelayMailboxCredential,
