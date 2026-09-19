@@ -86,7 +86,8 @@ async function capture(viewport, scenario) {
       hasSpecificGoldQuota: text.includes('Quota dentistes atteint — 2 place(s) assistante(s) disponible(s)'),
       hasFalseEmpty: text.includes("Aucun membre dans l'équipe"),
       hasLoadError: text.includes('Équipe non chargée'),
-      hasReactivate: text.includes('Réactiver'),
+      hasReactivateButton: document.querySelector('[title="Réactiver l\\'accès"]') !== null,
+      hasSuspendButton: document.querySelector('[title="Suspendre l\\'accès"]') !== null,
       hasRejectedBadge: text.includes('Refusé'),
     };
   });
