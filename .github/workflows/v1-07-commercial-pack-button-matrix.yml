@@ -17,6 +17,7 @@ on:
       - frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx
       - frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.packButtons.test.tsx
       - frontend/src/features/mobile/superadmin/useMobileSuperAdmin.ts
+      - frontend/src/features/mobile/superadmin/useMobileSuperAdmin.packActions.test.tsx
   workflow_dispatch:
 
 concurrency:
@@ -97,3 +98,4 @@ jobs:
           src/features/admin/TeamManager.buttonMatrix.test.tsx
           src/features/superadmin/SuperAdminDashboard.packButtons.test.tsx
           src/features/mobile/Dashboard/views/MobileSuperAdminView.packButtons.test.tsx
+          src/features/mobile/superadmin/useMobileSuperAdmin.packActions.test.tsx
