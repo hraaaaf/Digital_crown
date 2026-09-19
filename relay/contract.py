@@ -14,6 +14,8 @@ RELAY_MAX_BLOB_BYTES = 256 * 1024
 RELAY_MAX_TTL_SECONDS = 7 * 24 * 60 * 60
 RELAY_MIN_TTL_SECONDS = 60
 RELAY_CAPABILITY_BYTES = 32
+REMOTE_COMMAND_MAX_TTL_SECONDS = 15 * 60
+REMOTE_CLOCK_SKEW_SECONDS = 5 * 60
 
 JOSE_JWS_ALG = "ES256"
 JOSE_JWE_ALG = "ECDH-ES+A256KW"
@@ -88,6 +90,10 @@ class RelayInnerMessage(BaseModel):
             raise ValueError("remote message expired")
         if self.expires_at <= self.sent_at:
             raise ValueError("remote message expiry must be after sent_at")
+        if (self.expires_at - self.sent_at).total_seconds() > REMOTE_COMMAND_MAX_TTL_SECONDS:
+            raise ValueError("remote command TTL exceeds v1 limit")
+        if (self.sent_at - now).total_seconds() > REMOTE_CLOCK_SKEW_SECONDS:
+            raise ValueError("remote message sent_at is too far in the future")
 
 
 def new_mailbox_id() -> uuid.UUID:
