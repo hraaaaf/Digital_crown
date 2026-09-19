@@ -34,3 +34,23 @@ The Inventory Factory is executed by `.github/workflows/g0-global-interactive-in
 
 ## Important
 Rendering/presence-only tests do not prove the business outcome of a control. Critical mutations require, where applicable, success + refusal/error + non-mutation + double-action protection.
+
+## Inventory Factory result — run #35449765657
+
+Exact scanned HEAD: `de4656abb7c29e53108be6b691ebfff2aefb94b2`.
+
+- workflow: **SUCCESS**
+- artifact: `g0-global-interactive-inventory`
+- artifact ID: `10585779417`
+- artifact digest: `sha256:29bcba6ed70f736285dff35856d002d47cab77f568547d2e33fc8bbc84d2c33c`
+- source files scanned: **418**
+- route declarations: **40**
+- unique explicit route paths: **38**
+- raw static interaction/action signals: **3653**
+- literal JSX `<button>` elements: **1035**
+- `<select>` elements: **86**
+- React `Link/NavLink` elements: **57**
+- forms: **28**
+- existing test files discovered: **195**
+
+These figures are machine evidence, **not yet the final semantic denominator**. Shared components can render multiple distinct controls at runtime (for example one `NavItem` implementation rendered for many sidebar destinations), while a single JSX button may emit several overlapping static signals. G0 therefore requires a runtime rendered-control pass before denominator freeze.
