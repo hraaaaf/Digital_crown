@@ -136,3 +136,30 @@ def test_algorithm_confusion_is_rejected_before_domain_payload():
             expected_sender_signing_kid="irrelevant",
             expected_recipient_encryption_kid=recipient_kid,
         )
+
+
+def test_unknown_protected_header_is_rejected():
+    recipient_kid = str(uuid.uuid4())
+    recipient_private, recipient_public = generate_p256_keypair(kid=recipient_kid, use="enc")
+    public_key = jwk.JWK.from_json(json.dumps(recipient_public))
+    token = jwe.JWE(
+        b"not-a-valid-signed-payload",
+        protected=json_encode({
+            "alg": JOSE_JWE_ALG,
+            "enc": JOSE_JWE_ENC,
+            "kid": recipient_kid,
+            "typ": JWE_TYP,
+            "cty": JWE_CTY,
+            "unexpected": "forbidden",
+        }),
+        recipient=public_key,
+    ).serialize(compact=True)
+
+    with pytest.raises(ValueError, match="unexpected JWE protected header"):
+        decrypt_and_verify(
+            token,
+            recipient_encryption_private_jwk=recipient_private,
+            sender_signing_public_jwk=recipient_public,
+            expected_sender_signing_kid="irrelevant",
+            expected_recipient_encryption_kid=recipient_kid,
+        )
