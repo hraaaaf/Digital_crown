@@ -225,9 +225,9 @@ class PatientCompanionRemoteKeyset(Base):
         nullable=False,
         index=True,
     )
-    patient_signing_kid: Mapped[str] = mapped_column(String(36), nullable=False)
+    patient_signing_kid: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
     patient_signing_public_jwk_json: Mapped[str] = mapped_column(Text, nullable=False)
-    patient_encryption_kid: Mapped[str] = mapped_column(String(36), nullable=False)
+    patient_encryption_kid: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
     patient_encryption_public_jwk_json: Mapped[str] = mapped_column(Text, nullable=False)
     cabinet_signing_kid: Mapped[str] = mapped_column(String(36), nullable=False)
     cabinet_encryption_kid: Mapped[str] = mapped_column(String(36), nullable=False)
