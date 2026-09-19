@@ -4,17 +4,19 @@ import hashlib
 import hmac
 import re
 import secrets
+import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, Header, HTTPException
+from jose import JWTError, jwt
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from backend import database, models
 from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
 from backend.routers.auth import has_permission, is_superadmin_user
-from backend.security import SECRET_KEY
+from backend.security import ALGORITHM, SECRET_KEY
 from backend.services.firebase_patient_auth import (
     FirebasePatientAuthInvalid,
     FirebasePatientAuthUnavailable,
@@ -24,6 +26,8 @@ from backend.services.firebase_patient_auth import (
 
 get_db = database.get_db
 PROVIDER = "firebase"
+LOCAL_BRIDGE_PROVIDER = "local_bridge"
+PATIENT_DEVICE_TOKEN_TTL = timedelta(days=30)
 MANUAL_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
 
@@ -147,6 +151,55 @@ def staff_patient_or_404(db: Session, current_user: models.User, patient_id: int
     return patient
 
 
+def create_patient_device_token(identity: PatientCompanionIdentity, access: PatientCompanionAccess) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": identity.subject,
+        "identity_id": identity.id,
+        "access_id": access.public_id,
+        "tenant_id": access.employer_id,
+        "type": "patient_companion",
+        "jti": f"patient-companion:{uuid.uuid4().hex}",
+        "iat": now,
+        "exp": now + PATIENT_DEVICE_TOKEN_TTL,
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def _patient_device_identity(raw_token: str, db: Session) -> PatientCompanionIdentity:
+    err = HTTPException(status_code=401, detail="Session Patient Companion invalide ou expirée.")
+    try:
+        payload = jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "patient_companion":
+            raise err
+        identity_id = int(payload["identity_id"])
+        access_id = str(payload["access_id"])
+        tenant_id = int(payload["tenant_id"])
+        identity = db.query(PatientCompanionIdentity).filter(
+            PatientCompanionIdentity.id == identity_id,
+            PatientCompanionIdentity.provider == LOCAL_BRIDGE_PROVIDER,
+            PatientCompanionIdentity.subject == str(payload["sub"]),
+            PatientCompanionIdentity.revoked_at.is_(None),
+        ).first()
+        if identity is None:
+            raise err
+        access = db.query(PatientCompanionAccess).filter(
+            PatientCompanionAccess.identity_id == identity.id,
+            PatientCompanionAccess.public_id == access_id,
+            PatientCompanionAccess.employer_id == tenant_id,
+            PatientCompanionAccess.revoked_at.is_(None),
+        ).first()
+        if access is None:
+            raise err
+        identity.last_seen_at = datetime.utcnow()
+        db.commit()
+        return identity
+    except HTTPException:
+        raise
+    except (JWTError, KeyError, TypeError, ValueError):
+        raise err from None
+
+
 def patient_credential(
     authorization: str | None = Header(default=None),
 ) -> FirebasePatientCredential:
@@ -167,9 +220,28 @@ def patient_credential(
 
 
 def patient_identity(
-    credential: FirebasePatientCredential = Depends(patient_credential),
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> PatientCompanionIdentity:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authentification patient requise.")
+    scheme, separator, raw = authorization.partition(" ")
+    if not separator or not raw.strip():
+        raise HTTPException(status_code=401, detail="Authentification patient requise.")
+
+    if scheme.lower() == "bearer":
+        return _patient_device_identity(raw.strip(), db)
+
+    if scheme.lower() != "firebase":
+        raise HTTPException(status_code=401, detail="Authentification patient requise.")
+
+    try:
+        credential = verify_patient_id_token(raw.strip())
+    except FirebasePatientAuthUnavailable:
+        raise HTTPException(status_code=503, detail="Authentification patient temporairement indisponible.") from None
+    except FirebasePatientAuthInvalid:
+        raise HTTPException(status_code=401, detail="Authentification patient invalide.") from None
+
     identity = (
         db.query(PatientCompanionIdentity)
         .filter(
