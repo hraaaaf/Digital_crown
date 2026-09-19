@@ -84,3 +84,30 @@ Scenarios:
 
 True BEFORE must be captured from the PR base SHA with the audit-only harness copied into the baseline worktree.
 AFTER must be captured from exact PR HEAD.
+
+
+## Additional G1 blocker — Landing geography truth
+
+### BEFORE — verified source defect
+The public Landing currently says:
+> DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour les dentistes algériens.
+
+This conflicts with the current product market/currency context (Morocco / MAD).
+
+### Goal
+Correct the geography claim without changing layout or CTA hierarchy.
+
+### Target
+> DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour les dentistes marocains.
+
+### Success
+- no `dentistes algériens` remains on the Landing;
+- `dentistes marocains` is visible in the same hero location;
+- same matched BEFORE/AFTER viewports are captured;
+- no horizontal overflow or runtime error is introduced.
+
+### Visual scenario
+Add `landing-geography` to the truth-safety visual harness at:
+- 390 × 844
+- 768 × 1024
+- 1440 × 1000
