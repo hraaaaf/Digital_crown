@@ -8,6 +8,7 @@ on:
       - frontend/scripts/capture-pc01-wallet.mjs
       - frontend/src/features/patient-companion/**
       - docs/ux/PC_01_PATIENT_WALLET_TARGET.md
+      - docs/clinic/patient_companion/**
 
 concurrency:
   group: pc01-wallet-${{ github.ref }}
