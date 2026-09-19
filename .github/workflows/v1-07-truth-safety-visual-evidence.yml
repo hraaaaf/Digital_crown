@@ -1,0 +1,136 @@
+name: V1-07 Truth Safety Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v1-07-truth-safety-visual-evidence.yml
+      - frontend/truth-safety-audit.html
+      - frontend/src/preview/TruthSafetyAuditEntry.tsx
+      - frontend/scripts/capture-truth-safety-audit.mjs
+      - frontend/src/pages/LicenseStatusPage.tsx
+      - frontend/src/pages/StockPage.tsx
+      - docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v1-07-truth-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: BEFORE/AFTER truth-safety evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Record immutable comparison identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+          fi
+          test -n "$BASE_SHA"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install head frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize true baseline worktree with audit-only harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/v1-07-truth-safety-before "$BASE_SHA"
+          cp frontend/truth-safety-audit.html /tmp/v1-07-truth-safety-before/frontend/truth-safety-audit.html
+          mkdir -p /tmp/v1-07-truth-safety-before/frontend/src/preview /tmp/v1-07-truth-safety-before/frontend/scripts
+          cp frontend/src/preview/TruthSafetyAuditEntry.tsx /tmp/v1-07-truth-safety-before/frontend/src/preview/TruthSafetyAuditEntry.tsx
+          cp frontend/scripts/capture-truth-safety-audit.mjs /tmp/v1-07-truth-safety-before/frontend/scripts/capture-truth-safety-audit.mjs
+          cd /tmp/v1-07-truth-safety-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+
+      - name: Capture true BEFORE
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/v1-07-truth-safety-before/frontend
+          npm run dev -- --host 127.0.0.1 --port 5176 >/tmp/truth-safety-before.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5176/truth-safety-audit.html?scenario=license-expired' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5176/truth-safety-audit.html?scenario=license-expired' >/dev/null
+          TRUTH_SAFETY_PHASE=before           TRUTH_SAFETY_URL=http://127.0.0.1:5176/truth-safety-audit.html           TRUTH_SAFETY_DIR="$GITHUB_WORKSPACE/artifacts/v1-07-truth-safety-before"           node scripts/capture-truth-safety-audit.mjs
+
+      - name: Capture exact-head AFTER
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5177 >/tmp/truth-safety-after.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5177/truth-safety-audit.html?scenario=license-expired' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5177/truth-safety-audit.html?scenario=license-expired' >/dev/null
+          TRUTH_SAFETY_PHASE=after           TRUTH_SAFETY_URL=http://127.0.0.1:5177/truth-safety-audit.html           TRUTH_SAFETY_DIR=../artifacts/v1-07-truth-safety-after           node scripts/capture-truth-safety-audit.mjs
+
+      - name: Assert matched BEFORE/AFTER evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          before=json.loads(Path("artifacts/v1-07-truth-safety-before/evidence.json").read_text())
+          after=json.loads(Path("artifacts/v1-07-truth-safety-after/evidence.json").read_text())
+          b={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in before}
+          a={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in after}
+          assert b == a, (sorted(b-a), sorted(a-b))
+          assert len(a) == 9, len(a)
+          print("matched_before_after=9")
+          PY
+
+      - name: Record proof metadata
+        shell: bash
+        run: |
+          printf 'base=%s\nhead=%s\nphase=before\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,stock-read-error,stock-delete-confirm\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-before/result.txt
+          printf 'base=%s\nhead=%s\nphase=after\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,stock-read-error,stock-delete-confirm\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-after/result.txt
+          cp /tmp/truth-safety-before.log artifacts/v1-07-truth-safety-before/vite.log
+          cp /tmp/truth-safety-after.log artifacts/v1-07-truth-safety-after/vite.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v1-07-truth-safety-before
+          path: artifacts/v1-07-truth-safety-before
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v1-07-truth-safety-after
+          path: artifacts/v1-07-truth-safety-after
+          if-no-files-found: error
+          retention-days: 30
