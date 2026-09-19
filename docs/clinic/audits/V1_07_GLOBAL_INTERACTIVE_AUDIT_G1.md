@@ -36,7 +36,7 @@ Required legal consents, exact register payload, pending-validation success stat
 Code preview/prefill, exact activation payload, activation success, preview failure and activation refusal.
 
 ### Public landing/download/legal
-Demo request no-op while incomplete, exact request on success, refusal without false success, canonical login/register/download/activate/mobile/legal links.
+Demo request no-op while incomplete, exact request on success, refusal without false success, canonical login/register/download/activate/mobile/legal links. The public hero geography defect (“dentistes algériens”) is remediated to “dentistes marocains” and covered behaviorally by `LandingPage.g1Interactive.test.tsx`; visual certification is delegated to the shared `landing-geography` BEFORE/AFTER scenario and remains pending until exact-head evidence is green.
 
 ### Cabinet setup
 Step-1 validation, progression, backend-first finalization, persistent theme only after ACK, no reset/navigation on failure, explicit Quitter route.
@@ -48,7 +48,7 @@ Six-digit manual code gating, known/fallback bridge routing, derived-key credent
 Cabinet switch, permission-gated navigation, SuperAdmin visibility, patient dossier subnav, mobile drawer close, attention center, logout confirmation, CrownBot controls, patient intelligence exact id, practitioner context routing.
 
 ## Gate
-Do **not** mark G1 certified until the current PR HEAD has a green CI frontend test/build. If any new test fails, diagnose and fix before continuing to G2.
+Do **not** mark G1 certified until the current PR HEAD has a green CI frontend test/build and the `landing-geography` matched BEFORE/AFTER evidence is green. If any new test fails, diagnose and fix before continuing to G2.
 
 No Vercel deployment. V1-08 remains blocked.
 
