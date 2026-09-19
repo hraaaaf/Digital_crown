@@ -1,0 +1,115 @@
+name: PC-01 Patient Wallet Visual Certification
+
+on:
+  pull_request:
+    branches: [feature/patient-companion-pc00]
+    paths:
+      - .github/workflows/pc01-patient-wallet-visual.yml
+      - frontend/scripts/capture-pc01-wallet.mjs
+      - frontend/src/features/patient-companion/**
+      - docs/ux/PC_01_PATIENT_WALLET_TARGET.md
+
+concurrency:
+  group: pc01-wallet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wallet-evidence:
+    name: matched wallet + offline reload
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Record immutable identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install AFTER frontend and browsers
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Materialize true BEFORE
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/pc01-before "$BASE_SHA"
+          cd /tmp/pc01-before/frontend
+          npm ci
+      - name: Start matched Vite servers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/pc01-before/frontend
+          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/pc01-before.log 2>&1 &
+          cd "$GITHUB_WORKSPACE/frontend"
+          npm run dev -- --host 127.0.0.1 --port 5175 >/tmp/pc01-after.log 2>&1 &
+          for i in {1..60}; do
+            B=0; A=0
+            curl -fsS http://127.0.0.1:5174/ >/dev/null && B=1 || true
+            curl -fsS http://127.0.0.1:5175/ >/dev/null && A=1 || true
+            if [ "$B" = 1 ] && [ "$A" = 1 ]; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Capture PC-01 evidence
+        working-directory: frontend
+        env:
+          PC01_BEFORE_URL: http://127.0.0.1:5174
+          PC01_AFTER_URL: http://127.0.0.1:5175
+          PC01_EVIDENCE_DIR: ../artifacts/pc01-patient-wallet
+        run: node scripts/capture-pc01-wallet.mjs
+      - name: Assert PC-01 evidence contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          items=json.loads(Path("artifacts/pc01-patient-wallet/evidence.json").read_text())
+          assert len(items) == 8, len(items)
+          after=[x for x in items if x["phase"]=="after"]
+          before=[x for x in items if x["phase"]=="before"]
+          assert len(after) == 4 and len(before) == 4
+          for item in items:
+              assert item["horizontalOverflow"] is False, item
+          for item in after:
+              offline=item["offline"]
+              assert offline is not None
+              assert "Contrôle orthodontique" in offline["text"]
+              assert "Ordonnance septembre" in offline["text"]
+              assert offline["apiRequestsAfterReload"] == 0, offline
+              probe=offline["encrypted"]
+              assert probe["hasCiphertext"] is True, probe
+              assert probe["plaintextAppointmentLeak"] is False, probe
+              assert probe["plaintextDocumentLeak"] is False, probe
+              assert probe["tokenLeak"] is False, probe
+              assert probe["keyAlgorithm"] == "AES-GCM", probe
+              assert probe["keyExtractable"] is False, probe
+          print("pc01_wallet_evidence=PASS")
+          PY
+      - name: Record proof metadata
+        shell: bash
+        run: |
+          printf 'base=%s\nhead=%s\nviewports=360x800,390x844\nbrowsers=chromium,webkit\noffline_reload=yes\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/pc01-patient-wallet/result.txt
+          cp /tmp/pc01-before.log artifacts/pc01-patient-wallet/before/vite.log
+          cp /tmp/pc01-after.log artifacts/pc01-patient-wallet/after/vite.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc01-patient-wallet-before-after
+          path: artifacts/pc01-patient-wallet
+          if-no-files-found: error
+          retention-days: 30
