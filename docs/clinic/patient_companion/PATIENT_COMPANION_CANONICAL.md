@@ -16,7 +16,7 @@ WhatsApp is not the canonical clinical transport. It may later be an optional no
 
 PR: #634
 Branch: feature/patient-companion-pc00
-Current verified branch HEAD: 0495ebba61d7b0089159e064d2951942b9951f6f
+Current branch HEAD after latest harness correction: 226b5e74f3417b1f77e542672b0f81d3434747e4
 
 Implemented:
 - /companion patient route outside staff auth;
@@ -43,7 +43,7 @@ PC-00 certification is not declared complete here until its own exact-head gates
 PR: #636 (draft)
 Branch: feature/patient-companion-pc01
 Base branch: feature/patient-companion-pc00
-Current verified HEAD before this canonical update: 0dda8f1d11f45c19db32eaf26c4a3381a43722a1
+Current branch HEAD after latest harness correction: 81b7468fa9b3ecdd6317f3a306262a57e1379df5
 
 Dependency:
 PC-01 development can continue independently, but PC-01 must not merge before PC-00 is certified/merged and PC-01 is reconciled onto the final PC-00 state.
@@ -118,22 +118,22 @@ PC-10 Satisfaction/Testimonials
 
 ## Latest verified passage
 
-PC-01:
-- dedicated workflow added: PC-01 Patient Wallet Visual Certification;
-- matched BEFORE = live PC-00 PR base, AFTER = PC-01;
-- Chromium + WebKit, 360×800 + 390×844;
-- runtime proof requires successful sync, encrypted envelope with no appointment/document/token plaintext, then offline reload with zero API requests;
-- adversarial review added at docs/clinic/patient_companion/PC_01_ADVERSARIAL_REVIEW.md;
-- latest PC-01 implementation carry-forward HEAD before canonical update: 0dda8f1d11f45c19db32eaf26c4a3381a43722a1;
-- dedicated PC-01 workflow was queued on prior exact head; latest docs/test commit has not yet shown runs at the verification instant.
+PC-00:
+- exact-head ad6d8ee41981fef3818ba9d9576092427dce9370 had CI/T2/P7/UX1-C/Agenda/DB/Portability/Settings gates green;
+- dedicated visual run 35468621741 failed during pairing with `Appairage non validé / Load failed`;
+- page/context route interception did not solve the harness failure;
+- latest harness now stubs Patient Companion fetch calls inside the browser runtime, independent of API host/port matching;
+- latest PC-00 HEAD: 226b5e74f3417b1f77e542672b0f81d3434747e4;
+- no visual PASS claimed yet.
 
-PC-00 parallel closeout:
-- visual failure diagnosed: visual harness used a non-JWT fake token after expiry decoding was introduced;
-- fixed harness with syntactically valid expiring JWT;
-- legacy D2 failure diagnosed: test still created legacy email invitation while status intentionally reports canonical local_bridge pending invitation;
-- D2 test updated to local-invitation and to assert raw QR token is not returned at all;
-- latest PC-00 HEAD: c44a0e293e2aea216fbf3ddc03dac9a3c59a5ec8;
-- new exact-head results pending; no PASS claimed.
+PC-01:
+- exact-head 2cb97c5763e439c8d3b32fd3dbcc3793324cefb7 had CI/T2/P7/Agenda green;
+- dedicated visual run 35468624843 failed from harness code: `ReferenceError: target is not defined`;
+- latest harness now uses browser-runtime fetch stubs plus explicit offline-reload API-call counting;
+- latest PC-01 HEAD: 81b7468fa9b3ecdd6317f3a306262a57e1379df5;
+- no visual PASS claimed yet.
+
+No Vercel deployment.
 
 ## Next exact
 
