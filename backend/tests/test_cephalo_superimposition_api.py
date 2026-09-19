@@ -14,8 +14,19 @@ def test_f5_engineering_preview_is_disabled_by_default(monkeypatch):
 
 
 def test_f5_engineering_preview_requires_explicit_opt_in(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("DIGITAL_CROWN_F5_ENGINEERING_PREVIEW", "1")
     assert api_service.engineering_preview_enabled() is True
+
+
+@pytest.mark.parametrize("environment", ["cabinet", "production", ""])
+def test_f5_engineering_preview_stays_disabled_outside_engineering_environments(monkeypatch, environment):
+    if environment:
+        monkeypatch.setenv("ENVIRONMENT", environment)
+    else:
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.setenv("DIGITAL_CROWN_F5_ENGINEERING_PREVIEW", "1")
+    assert api_service.engineering_preview_enabled() is False
 
 
 def test_canonical_path_rejects_non_static_source():
