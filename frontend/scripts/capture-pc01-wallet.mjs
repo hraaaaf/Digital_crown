@@ -23,34 +23,46 @@ async function clearVault(page, base) {
   }));
 }
 
-async function installRoutes(page, mode = 'online') {
-  await target.route('http://127.0.0.1:8005/api/**', async route => {
-    if (mode === 'offline') return route.abort('internetdisconnected');
-    const url = new URL(route.request().url());
-    if (url.pathname === '/api/patient-companion/pair' && route.request().method() === 'POST') {
-      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({
-        access_token: deviceToken,
-        context: { access_id: 'pc01-audit-access', relationship_type: 'SELF', patient: { display_name: 'Aya Audit' } },
-        paired_at: '2026-09-19T18:00:00Z',
-        storage_policy: 'local_encrypted_device',
-      })});
-    }
-    if (url.pathname.endsWith('/appointments')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [
-        { id: 11, datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
-      ]})});
-    }
-    if (url.pathname.endsWith('/shares')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [
-        { share_id: 'share-doc-1', resource_type: 'document', resource_id: 21, title: 'Ordonnance septembre', document_type: 'ORDONNANCE' },
-        { share_id: 'share-media-1', resource_type: 'media', resource_id: 22, title: 'Radiographie de contrôle', asset_type: 'RADIOGRAPH' },
-      ]})});
-    }
-    if (url.pathname.endsWith('/me')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ contexts: [] })});
-    }
-    return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
-  });
+async function installFetchHarness(context) {
+  await context.addInitScript(({ deviceToken }) => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const raw = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+      const url = new URL(raw, window.location.href);
+      if (!url.pathname.startsWith('/api/patient-companion/')) return nativeFetch(input, init);
+
+      const afterReloadKey = 'pc01-api-calls-after-reload';
+      if (sessionStorage.getItem('pc01-offline-reload') === '1') {
+        const count = Number(sessionStorage.getItem(afterReloadKey) || '0') + 1;
+        sessionStorage.setItem(afterReloadKey, String(count));
+        throw new TypeError('Failed to fetch');
+      }
+
+      if (url.pathname === '/api/patient-companion/pair' && (init.method || 'GET').toUpperCase() === 'POST') {
+        return new Response(JSON.stringify({
+          access_token: deviceToken,
+          context: { access_id: 'pc01-audit-access', relationship_type: 'SELF', patient: { display_name: 'Aya Audit' } },
+          paired_at: '2026-09-19T18:00:00Z',
+          storage_policy: 'local_encrypted_device',
+        }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.pathname.endsWith('/appointments')) {
+        return new Response(JSON.stringify({ items: [
+          { id: 11, datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
+        ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.pathname.endsWith('/shares')) {
+        return new Response(JSON.stringify({ items: [
+          { share_id: 'share-doc-1', resource_type: 'document', resource_id: 21, title: 'Ordonnance septembre', document_type: 'ORDONNANCE' },
+          { share_id: 'share-media-1', resource_type: 'media', resource_id: 22, title: 'Radiographie de contrôle', asset_type: 'RADIOGRAPH' },
+        ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.pathname.endsWith('/me')) {
+        return new Response(JSON.stringify({ contexts: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } });
+    };
+  }, { deviceToken });
 }
 
 async function pair(page) {
@@ -105,7 +117,7 @@ async function capture(browserName, browser, phase, viewport) {
       /dev-sw\.js\?dev-sw due to access control checks/i.test(message);
     if (!expectedHarnessNoise) errors.push(message);
   });
-  await installRoutes(page, 'online');
+  await installFetchHarness(context);
   await clearVault(page, base);
   await page.goto(`${base}/companion`, { waitUntil: 'domcontentloaded' });
   await pair(page);
@@ -122,10 +134,10 @@ async function capture(browserName, browser, phase, viewport) {
   let offline = null;
   if (phase === 'after') {
     const encrypted = await probe(page);
-    await context.unroute('http://127.0.0.1:8005/api/**');
-    await installRoutes(page, 'offline');
-    const requestCount = [];
-    page.on('request', request => { if (request.url().includes(':8005/api/')) requestCount.push(request.url()); });
+    await page.evaluate(() => {
+      sessionStorage.setItem('pc01-api-calls-after-reload', '0');
+      sessionStorage.setItem('pc01-offline-reload', '1');
+    });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByText('Contrôle orthodontique', { exact: true }).waitFor();
     const offlineShot = `${browserName}-offline-reload-${viewport.width}x${viewport.height}.png`;
@@ -134,7 +146,7 @@ async function capture(browserName, browser, phase, viewport) {
       screenshot: offlineShot,
       text: await page.locator('body').innerText(),
       encrypted,
-      apiRequestsAfterReload: requestCount.length,
+      apiRequestsAfterReload: Number(await page.evaluate(() => sessionStorage.getItem('pc01-api-calls-after-reload') || '0')),
     };
   }
 
