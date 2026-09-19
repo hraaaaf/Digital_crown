@@ -121,11 +121,80 @@ describe('StockPage G7 interactive matrix', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/stock/items/1', { quantite: 11 }));
   });
 
-  it('deletes the selected item through the current delete control', async () => {
+  it('requires explicit confirmation before permanent deletion', async () => {
     renderStock();
     const row = (await screen.findByText('Gants nitrile')).closest('tr')!;
     fireEvent.click(within(row).getByTitle('Supprimer'));
 
+    expect(screen.getByRole('dialog', { name: 'Supprimer cet article ?' })).toBeTruthy();
+    expect(api.delete).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(screen.queryByRole('dialog', { name: 'Supprimer cet article ?' })).toBeNull();
+    expect(api.delete).not.toHaveBeenCalled();
+
+    fireEvent.click(within(row).getByTitle('Supprimer'));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer définitivement' }));
+
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/stock/items/1'));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Supprimer cet article ?' })).toBeNull());
+  });
+
+  it('fails closed when stock read is unavailable and retries without showing a false empty state', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/stock/items') throw new Error('stock unavailable');
+      if (url === '/stock/alerts') return { data: { count: 0, items: [] } } as never;
+      throw new Error('unexpected GET '+url);
+    });
+
+    renderStock();
+
+    expect(await screen.findByText('Stock indisponible')).toBeTruthy();
+    expect(screen.getByText(/Aucun état vide n’est affiché/i)).toBeTruthy();
+    expect(screen.queryByText(/Aucun article\. Commencez/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(
+      vi.mocked(api.get).mock.calls.filter(([url]) => url === '/stock/items').length
+    ).toBeGreaterThan(1));
+  });
+
+  it('keeps delete confirmation open and surfaces backend detail when deletion is refused', async () => {
+    vi.mocked(api.delete).mockRejectedValueOnce({ response: { data: { detail: 'Suppression refusée' } } });
+    renderStock();
+    const row = (await screen.findByText('Gants nitrile')).closest('tr')!;
+
+    fireEvent.click(within(row).getByTitle('Supprimer'));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer définitivement' }));
+
+    expect(await screen.findByText('Suppression refusée')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Supprimer cet article ?' })).toBeTruthy();
+    expect(screen.getByText('Gants nitrile')).toBeTruthy();
+  });
+
+  it('surfaces quantity mutation refusal instead of pretending the change succeeded', async () => {
+    vi.mocked(api.patch).mockRejectedValueOnce({ response: { data: { detail: 'Quantité refusée' } } });
+    renderStock();
+    const row = (await screen.findByText('Gants nitrile')).closest('tr')!;
+
+    fireEvent.click(within(row).getAllByRole('button')[1]);
+
+    expect(await screen.findByText('Action stock non enregistrée')).toBeTruthy();
+    expect(screen.getByText('Quantité refusée')).toBeTruthy();
+  });
+
+  it('keeps add modal open and surfaces backend detail when creation is refused', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({ response: { data: { detail: 'Article refusé' } } });
+    renderStock();
+    await screen.findByText('Gants nitrile');
+
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter un article/i }));
+    const modal = screen.getByText('Nouvel article').closest('div.fixed')!;
+    const scoped = within(modal as HTMLElement);
+    fireEvent.change(scoped.getByPlaceholderText('Ex: Gants nitrile S'), { target: { value: 'Masques FFP2' } });
+    fireEvent.click(scoped.getByRole('button', { name: 'Ajouter' }));
+
+    expect(await scoped.findByText('Article refusé')).toBeTruthy();
+    expect(screen.getByText('Nouvel article')).toBeTruthy();
   });
 });
