@@ -1,5 +1,10 @@
 """Tests d'intégration — endpoints /api/auth/"""
 
+import pytest
+from pydantic import ValidationError
+
+from backend.schemas.auth import RefreshRequest, UserSignup
+
 
 class TestLogin:
     def test_login_success_returns_tokens(self, client, dentiste):
@@ -171,3 +176,47 @@ def test_signup_firebase_payload_excludes_local_contact_and_db_identifiers():
     assert '"telephone_mobile"' not in payload_block
     assert '"adresse_complete"' not in payload_block
     assert '"local_user_id"' not in payload_block
+
+
+def test_signup_and_refresh_public_payloads_are_bounded():
+    with pytest.raises(ValidationError):
+        UserSignup(
+            email="new@example.com",
+            password="StrongPass123!",
+            nom_complet="N" * 161,
+            accept_terms=True,
+            accept_privacy=True,
+        )
+    with pytest.raises(ValidationError):
+        UserSignup(
+            email="new@example.com",
+            password="StrongPass123!",
+            nom_complet="Dr Test",
+            telephone_mobile="1" * 41,
+            accept_terms=True,
+            accept_privacy=True,
+        )
+    with pytest.raises(ValidationError):
+        UserSignup(
+            email="new@example.com",
+            password="StrongPass123!",
+            nom_complet="Dr Test",
+            adresse_complete="A" * 501,
+            accept_terms=True,
+            accept_privacy=True,
+        )
+    with pytest.raises(ValidationError):
+        RefreshRequest(refresh_token="x" * 4097)
+
+
+def test_signup_is_rate_limited_and_google_callback_checks_team_approval():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "routers" / "auth.py").read_text(encoding="utf-8")
+    signup_start = source.index("async def signup_client")
+    signup_block = source[signup_start:signup_start + 900]
+    assert 'check_rate_limit(request, scope="signup")' in signup_block
+
+    callback_start = source.index("async def google_callback")
+    callback_block = source[callback_start:]
+    assert 'getattr(user, "employer_id", None) is not None and approval != "approved"' in callback_block
