@@ -163,6 +163,21 @@ Completed adversarial checks so far:
 Repository hygiene note:
 - `e2e/node_modules` remains versioned. It is excluded from the cabinet release payload and is classified **POST-V1 CLEANUP**, not a release blocker.
 
+### Pass 3 — residual findings and remediation
+
+The final router/auth/admin/mobile sweep found additional V1 issues after the initial Pass 3 notes. They are part of this audit and must not be hidden behind the earlier green runs.
+
+- **MUST-FIX — public trial activation input bounds.** `TrialActivationRequest` now bounds activation code (128), full name (160) and cabinet name (160); oversized codes are rejected before the DB lookup. Remediation commits: `f8b6942a…`, `57c93713…`; regression contract: `cab63b95…`.
+- **MUST-FIX — unauthenticated signup abuse boundary.** `/api/auth/signup` previously wrote DB state, scheduled emails and attempted a Firebase onboarding write without a rate limit. It now uses the existing scoped/IP limiter. Signup and refresh payload fields are bounded. Remediation: `6d0eed47…`, `ad566062…`; tests: `9b72043…`.
+- **MUST-FIX — legacy team approval parity across Google OAuth.** Local login and refresh rejected non-approved employee accounts; Google callback did not explicitly enforce the same invariant for legacy-inconsistent rows. The callback now rejects employee accounts whose `approval_status` is not `approved`. Remediation: `ad566062…`.
+- **BLOCKER — admin document normalization was a cross-tenant GET mutation.** `GET /api/admin/normalize-docs` executed global `UPDATE document_archives` statements without cabinet scope. It is now POST-only, scoped through patients belonging to the authenticated employer, and no longer returns raw SQL exception strings. Remediation: `59e5105c…`; test: `898e1386…`.
+- **MUST-FIX — backup download path confinement.** The admin backup download route only checked the `.enc` suffix. It now rejects both path separators, resolves the canonical path, requires the resolved parent to equal the dedicated backups directory and requires a regular file. Remediation: `6c30f2a5…`; test: `38b14211…`.
+- **MUST-FIX — mobile legacy identity parity and unbounded auth inputs.** Pairing claim, active mobile identity and rotating refresh now explicitly enforce employee `approval_status=approved`. Pairing token/public-key and refresh-token inputs are bounded. Remediation: `b791f28c…`, `6a60047e…`; test: `8eb33d18…`.
+- **NO FINDING — legacy HTTP mobile URL helper in the secure cabinet runtime.** The literal legacy helper remains HTTP, but the canonical secure runtime installs `mobile_mdns` overrides to `https://digitalcrown.local:8005`; this invariant is already locked by `test_mobile_https_runtime_contract.py`. It is therefore not treated as a runtime plaintext-LAN regression.
+- **NO NEW BLOCKER — documents/media final sweep.** Canonical auth, document permission gates, patient/cabinet ownership checks and fail-closed media provenance remained present on the audited branch.
+
+Code remediation through `8eb33d183aeed94389e4ff2012f15949afcd1a27` is complete for the findings above. This statement is not a certification: the documentation commit containing this section and any later remediation must pass the exact-head gate matrix below.
+
 ## Current freeze gate
 
 V1-08 remains BLOCKED until the exact current remediation HEAD has:
