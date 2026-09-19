@@ -134,3 +134,13 @@ Do not certify until:
    - loading/error/true-empty states.
 
 Status remains IN PROGRESS pending exact-head test/build proof and any remaining AgendaModal secondary-control reconciliation.
+
+
+10. `frontend/src/features/agenda/AgendaModalSecondary.g3Interactive.test.tsx`
+    - patient search/select/create/edit;
+    - WhatsApp reminder action;
+    - quick-add missing act after backend ACK;
+    - on-demand suggestions;
+    - overlap/conflict display.
+
+G3 independent functional matrices are now substantially reconciled. Exact-head CI/test/build remains the certification gate.
