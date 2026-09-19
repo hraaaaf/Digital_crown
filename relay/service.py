@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, create_engine
 from sqlalchemy.exc import IntegrityError
@@ -68,7 +69,7 @@ def _extract_capability(value: str | None) -> str:
     return raw
 
 
-def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
+def create_relay_app(*, database_url: str, bootstrap_secret: str, allowed_origins: tuple[str, ...] = ()) -> FastAPI:
     if len(bootstrap_secret.encode("utf-8")) < 32:
         raise ValueError("relay bootstrap secret must be at least 32 bytes")
 
@@ -78,6 +79,14 @@ def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
     Base.metadata.create_all(bind=engine)
 
     app = FastAPI(title="Digital Crown Opaque Relay", docs_url=None, redoc_url=None)
+    if allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(allowed_origins),
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type"],
+        )
 
     def get_db() -> Iterator[Session]:
         db = SessionLocal()
@@ -107,6 +116,7 @@ def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
 
     @app.post("/v1/mailboxes", response_model=RelayMailboxCredential, status_code=201)
     def provision_mailbox(
+        response: Response,
         x_relay_bootstrap: str | None = Header(default=None),
         db: Session = Depends(get_db),
     ) -> RelayMailboxCredential:
@@ -124,6 +134,7 @@ def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
         )
         db.add(row)
         db.commit()
+        response.headers["Cache-Control"] = "no-store"
         return RelayMailboxCredential(
             mailbox_id=mailbox_id,
             read_capability=read_capability,
@@ -134,6 +145,7 @@ def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
     def push_envelope(
         mailbox_id: str,
         body: RelayEnvelopeCreate,
+        response: Response,
         authorization: str | None = Header(default=None),
         db: Session = Depends(get_db),
     ) -> RelayEnvelopeRecord:
@@ -168,6 +180,7 @@ def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
             db.rollback()
             raise HTTPException(status_code=409, detail="duplicate envelope") from None
 
+        response.headers["Cache-Control"] = "no-store"
         return RelayEnvelopeRecord(
             envelope_id=body.envelope_id,
             blob=body.blob,
@@ -178,6 +191,7 @@ def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
     @app.get("/v1/mailboxes/{mailbox_id}/envelopes", response_model=RelayMailboxList)
     def pull_envelopes(
         mailbox_id: str,
+        response: Response,
         authorization: str | None = Header(default=None),
         limit: int = Query(default=100, ge=1, le=200),
         db: Session = Depends(get_db),
@@ -195,6 +209,7 @@ def create_relay_app(*, database_url: str, bootstrap_secret: str) -> FastAPI:
             .limit(limit)
             .all()
         )
+        response.headers["Cache-Control"] = "no-store"
         return RelayMailboxList(
             items=[
                 RelayEnvelopeRecord(
