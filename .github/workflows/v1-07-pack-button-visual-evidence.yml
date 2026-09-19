@@ -1,0 +1,78 @@
+name: V1-07 Pack Button Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v1-07-pack-button-visual-evidence.yml
+      - frontend/pack-button-audit.html
+      - frontend/src/preview/PackButtonAuditEntry.tsx
+      - frontend/scripts/capture-pack-button-audit.mjs
+      - frontend/src/features/admin/TeamManager.tsx
+      - frontend/src/features/superadmin/SuperAdminDashboard.tsx
+      - docs/ux/V1_07_PACK_BUTTON_STATES_GOAL_UI.md
+
+concurrency:
+  group: v1-07-pack-button-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: BEFORE/AFTER state evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record exact candidate
+        run: |
+          echo "candidate=$(git rev-parse HEAD)"
+          if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start isolated audit preview
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/pack-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5174/pack-button-audit.html?view=team' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/pack-vite.log
+          exit 1
+
+      - name: Capture current-state evidence
+        working-directory: frontend
+        env:
+          PACK_EVIDENCE_PHASE: before
+          PACK_EVIDENCE_URL: http://127.0.0.1:5174/pack-button-audit.html
+          PACK_EVIDENCE_DIR: ../artifacts/v1-07-pack-buttons-before
+        run: node scripts/capture-pack-button-audit.mjs
+
+      - name: Record proof metadata
+        run: |
+          printf 'head=%s\nphase=before\nviewports=1024x900,1440x1000\ndeployment=none\n' "$(git rev-parse HEAD)" > artifacts/v1-07-pack-buttons-before/result.txt
+          cp /tmp/pack-vite.log artifacts/v1-07-pack-buttons-before/vite.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-pack-buttons-before
+          path: artifacts/v1-07-pack-buttons-before
+          if-no-files-found: error
+          retention-days: 30
