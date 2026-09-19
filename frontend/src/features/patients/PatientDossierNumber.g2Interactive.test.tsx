@@ -44,6 +44,6 @@ describe('AddPatientForm G2 dossier-number availability', () => {
     render(<MemoryRouter><AddPatientForm /></MemoryRouter>);
     fireEvent.change(await screen.findByPlaceholderText('P-XXXXXX'), { target: { value: 'P-ERR' } });
 
-    expect(await screen.findByText(/Impossible de vérifier la disponibilité/i, {}, { timeout: 2000 })).toBeTruthy();
+    expect(await screen.findByText(/Disponibilité non vérifiée/i, {}, { timeout: 2000 })).toBeTruthy();
   });
 });
