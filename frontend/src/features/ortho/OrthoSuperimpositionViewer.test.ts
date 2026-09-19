@@ -80,3 +80,13 @@ describe('Ortho F5 activation boundary', () => {
     expect(file).toContain('F5_ENGINEERING_PREVIEW && (() => {');
   });
 });
+
+
+describe('Ortho F5 responsive metadata', () => {
+  it('prevents the long method identifier from colliding with calibration metadata', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoSuperimpositionViewer.tsx'), 'utf8');
+    expect(file).toContain('sm:grid-cols-2 lg:grid-cols-[1.15fr_0.85fr_1fr]');
+    expect(file).toContain('data-f5-method-metadata');
+    expect(file).toContain('break-all font-mono');
+  });
+});

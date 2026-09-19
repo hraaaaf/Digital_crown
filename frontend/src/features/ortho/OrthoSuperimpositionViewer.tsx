@@ -435,10 +435,14 @@ export const OrthoSuperimpositionViewer = ({
                 </div>
               </div>
 
-              <div className="grid gap-2 rounded-2xl border border-border-main bg-card p-3 text-[11px] sm:grid-cols-3">
-                <div><span className="font-black text-main">Méthode</span><p className="mt-0.5 font-bold text-text-muted">{context.method_id} v{context.method_version}</p></div>
-                <div><span className="font-black text-main">Calibration</span><p className="mt-0.5 font-bold text-text-muted">T{fromTimepoint.ordinal} {context.from_source.is_calibrated ? 'calibrée' : 'non calibrée'} · T{toTimepoint.ordinal} {context.to_source.is_calibrated ? 'calibrée' : 'non calibrée'}</p></div>
-                <div><span className="font-black text-main">Statut</span><p className="mt-0.5 font-bold text-text-muted">ENGINE_ESTIMATE_ONLY · validation clinique non établie</p></div>
+              <div className="grid gap-2 rounded-2xl border border-border-main bg-card p-3 text-[11px] sm:grid-cols-2 lg:grid-cols-[1.15fr_0.85fr_1fr]">
+                <div className="min-w-0" data-f5-method-metadata>
+                  <span className="font-black text-main">Méthode</span>
+                  <p className="mt-0.5 font-bold text-text-muted">Base crânienne antérieure · similarité 2D</p>
+                  <p className="mt-0.5 break-all font-mono text-[9px] font-bold text-text-muted">{context.method_id} · v{context.method_version}</p>
+                </div>
+                <div className="min-w-0"><span className="font-black text-main">Calibration</span><p className="mt-0.5 font-bold text-text-muted">T{fromTimepoint.ordinal} {context.from_source.is_calibrated ? 'calibrée' : 'non calibrée'} · T{toTimepoint.ordinal} {context.to_source.is_calibrated ? 'calibrée' : 'non calibrée'}</p></div>
+                <div className="min-w-0"><span className="font-black text-main">Statut</span><p className="mt-0.5 font-bold text-text-muted">ENGINE_ESTIMATE_ONLY · validation clinique non établie</p></div>
               </div>
 
               <button
