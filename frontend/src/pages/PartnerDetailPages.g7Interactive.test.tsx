@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PartnerSupplierPage } from './PartnerSupplierPage';
@@ -131,7 +131,7 @@ describe('Partner detail pages G7 interactive matrix', () => {
     renderSupplier();
     await screen.findByText('Composite universel');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Endodontie' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Endodontie' })[0]);
     expect(screen.getByText('Produit arrêté')).toBeTruthy();
     expect(screen.queryByText('Composite universel')).toBeNull();
 
@@ -156,9 +156,8 @@ describe('Partner detail pages G7 interactive matrix', () => {
     expect(api.get).toHaveBeenCalledWith('/partner-catalog/products/101');
     expect(api.get).toHaveBeenCalledWith('/partner-catalog/suppliers/11');
 
-    const plus = screen.getByRole('button', { name: '' });
-    const plusCandidates = screen.getAllByRole('button').filter(b => b.querySelector('svg') && b.textContent === '');
-    const quantityButtons = plusCandidates.slice(-2);
+    const cartBox = screen.getByText('Ajout au panier').parentElement!;
+    const quantityButtons = within(cartBox).getAllByRole('button');
     fireEvent.click(quantityButtons[1]);
 
     await waitFor(() => {
