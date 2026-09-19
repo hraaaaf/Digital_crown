@@ -56,10 +56,11 @@ Certification still depends on exact-head tests/build.
 ## Freeze blockers
 
 G9 cannot freeze while any of these remain:
-1. G6/G7 remediations are not yet backed by green matched exact-head visual evidence.
+1. G1/G6/G7 remediations are not yet backed by green matched exact-head visual evidence.
 2. Exact-head frontend tests/build are not green for the final reconciled HEAD.
 3. G0 final rerun/reconciliation has not been adjudicated semantically.
 4. The semantic denominator is not frozen after final source changes.
+5. The independent pre-freeze adversarial gate (`V1_07_PREFREEZE_TRIPLE_CHECK.md`) has not been reconciled to the same final candidate; its security/runtime findings are not part of the interactive denominator but remain mandatory before V1-08.
 
 ## Evidence reconciliation seed
 `scripts/reconcile_interactive_evidence.py` generates a conservative **inspection seed**, never a coverage score or semantic denominator.
