@@ -321,7 +321,11 @@ export const TeamManager: React.FC = () => {
               <span className="break-words">
                 {quota.plan === 'ELITE'
                   ? 'Capacité temporairement indisponible — vérifiez les comptes en attente'
-                  : `Quota atteint pour ${!quota.can_add_dentiste && !quota.can_add_secretaire ? 'les dentistes et assistantes' : !quota.can_add_dentiste ? 'les dentistes' : 'les assistantes'} — ajustez l’équipe ou le pack`}
+                  : !quota.can_add_dentiste && quota.can_add_secretaire
+                    ? `Quota dentistes atteint — ${Math.max(0, (quota.secretaires_max ?? quota.secretaires_used) - quota.secretaires_used)} place(s) assistante(s) disponible(s)`
+                    : quota.can_add_dentiste && !quota.can_add_secretaire
+                      ? `Quota assistantes atteint — ${Math.max(0, (quota.dentistes_max ?? quota.dentistes_used) - quota.dentistes_used)} place(s) dentiste(s) disponible(s)`
+                      : 'Quotas dentistes et assistantes atteints — ajustez l’équipe ou le pack'}
               </span>
             </div>
           )}
@@ -681,20 +685,22 @@ export const TeamManager: React.FC = () => {
                   <Lock size={14} />
                   <span className="hidden xl:inline">Permissions</span>
                 </button>
-                <button
-                  onClick={() => toggleActive(member)}
-                  disabled={mutationKey !== null}
-                  className={cn(
-                    "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
-                    member.is_active
-                      ? "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
-                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200"
-                  )}
-                  title={member.is_active ? "Suspendre l'accès" : "Réactiver l'accès"}
-                >
-                  <Shield size={16} />
-                  <span className="hidden xl:inline">{member.is_active ? 'Suspendre' : 'Réactiver'}</span>
-                </button>
+                {member.approval_status !== 'rejected' && (
+                  <button
+                    onClick={() => toggleActive(member)}
+                    disabled={mutationKey !== null}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
+                      member.is_active
+                        ? "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
+                        : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200"
+                    )}
+                    title={member.is_active ? "Suspendre l'accès" : "Réactiver l'accès"}
+                  >
+                    <Shield size={16} />
+                    <span className="hidden xl:inline">{member.is_active ? 'Suspendre' : 'Réactiver'}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => deleteMember(member)}
                   disabled={mutationKey !== null}
