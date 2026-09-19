@@ -82,7 +82,7 @@ test_files = [
 ]
 
 def lot_for_route(route: str) -> str:
-    if route in {"/landing", "/download", "/activate", "/login", "/register", "/terms", "/privacy", "/setup", "/welcome", "/mobile/onboarding", "/mobile/demo"}:
+    if route in {"/", "/*", "*", "/landing", "/download", "/activate", "/login", "/register", "/terms", "/privacy", "/setup", "/welcome", "/mobile/onboarding", "/mobile/demo"}:
         return "G1"
     if route.startswith("/patients") or route in {"/dashboard", "/patient-companion", "/mobile/dashboard", "/mobile/context", "/mobile/dentists"}:
         return "G2"
@@ -122,6 +122,7 @@ manifest = {
         "Static inventory only: candidates need semantic reconciliation before becoming the applicable control denominator.",
         "Signals can overlap; candidate_signal_count is not a coverage denominator.",
         "Runtime/config-generated controls are reconciled during G1-G8 behavior passes.",
+        "Native and custom-control regexes are intentionally broad discovery signals; semantic reconciliation decides applicability.",
     ],
 }
 (OUT_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
