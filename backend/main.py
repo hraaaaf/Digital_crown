@@ -596,6 +596,9 @@ app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Super Adm
 from backend.routers import public as public_router
 app.include_router(public_router.router, prefix="/api/public", tags=["Public"])
 
+from backend.routers import patient_companion
+app.include_router(patient_companion.router, prefix="/api/patient-companion", tags=["Patient Companion"])
+
 # --- HEALTH CHECK ---
 @app.get("/health", include_in_schema=False)
 async def health_check():
