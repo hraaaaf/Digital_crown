@@ -155,13 +155,25 @@ It does **not** certify clinical use.
 
 ## Post-merge certification
 
-Pending at closeout-file creation.
+Temporary certification PR:
+- #622
+- base: exact merged F5 SHA `2cfb0dc53b71daa9f8cbb63e966a5cab4481fc10`
+- cert HEAD: `d7de7c23278fff7b89c1293e5d90c6a6d808b4ac`
+- certification-only file: `docs/clinic/certifications/V1_05_F5_POSTMERGE_CERT.md`
+- MUST NOT MERGE
 
-Required proof:
-- `master` remains at merged product SHA or a docs-only descendant
+Runs at launch:
+- CI `35432362856` — QUEUED
+- T2 Runtime Browser Certification `35432362901` — IN PROGRESS
+- Agenda A5 Visual Evidence `35432362881` — IN PROGRESS
+- PR Merge Summary `35432362857` — IN PROGRESS
+
+Required proof before final close:
 - post-merge CI green
 - post-merge T2 green
-- no regression in F5 BEFORE/AFTER contracts where applicable
+- Agenda A5 green
+- PR Merge Summary green where applicable
+- close #622 without merge
 
 ## Next
 
