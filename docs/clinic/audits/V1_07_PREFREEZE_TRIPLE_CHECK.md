@@ -190,3 +190,17 @@ V1-08 remains BLOCKED until the exact current remediation HEAD has:
 6. canonical Notion/roadmap/audit synchronization.
 
 No real cabinet mutation and no Vercel deployment are authorized.
+
+
+### Pass 3 — V1-05 Ortho Journey re-audit residual
+
+A dedicated V1-05 double/triple check found one additional pre-freeze MUST-FIX in F5: the backend engineering-preview gate previously trusted only `DIGITAL_CROWN_F5_ENGINEERING_PREVIEW=1` and did not enforce that the runtime itself was an engineering environment. The service wording already said engineering-only, so cabinet/production exposure through accidental configuration was inconsistent with the intended fail-closed boundary.
+
+Remediation on branch `audit/v1-05-ortho-triple-check-f5-gate`:
+- F5 preview now requires `ENVIRONMENT` in `development | local | test` plus the explicit preview flag;
+- cabinet, production, and missing environment deny the preview even when the flag is set;
+- regression coverage locks this behavior.
+
+Canonical dedicated audit: `docs/clinic/audits/V1_05_ORTHO_JOURNEY_DOUBLE_TRIPLE_CHECK_2026-09-19.md`.
+
+This finding is not considered closed until exact-head certification and master integration are green.
