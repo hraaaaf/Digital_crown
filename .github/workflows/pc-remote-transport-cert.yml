@@ -1,0 +1,90 @@
+name: Patient Companion Remote Transport Gate
+
+on:
+  pull_request:
+    paths:
+      - "relay/**"
+      - "backend/services/patient_companion_key_protection.py"
+      - "backend/services/patient_companion_remote_*.py"
+      - "backend/routers/patient_companion_pairing.py"
+      - "backend/models_patient_companion.py"
+      - "backend/tests/test_patient_companion_remote_*.py"
+      - "backend/tests/test_patient_companion_dpapi_runtime.py"
+      - "backend/scripts/certify_patient_companion_remote_interop.py"
+      - "frontend/src/features/patient-companion/**"
+      - "frontend/scripts/certify-pc-remote-interop.mjs"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "alembic/versions/pcrt0000009_add_pc_remote_transport_state.py"
+      - "docs/clinic/patient_companion/REMOTE_TRANSPORT_*.md"
+      - ".github/workflows/pc-remote-transport-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relay-and-interop:
+    name: Opaque relay + Python/JS JOSE interoperability
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install focused Python certification dependencies
+        run: >-
+          python -m pip install
+          pytest==9.0.3
+          pydantic==2.6.3
+          fastapi==0.115.6
+          SQLAlchemy==2.0.28
+          httpx==0.28.1
+          jwcrypto==1.6.1
+
+      - name: Install locked browser dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Relay contract and service certification
+        run: >-
+          python -m pytest
+          backend/tests/test_patient_companion_relay_contract.py
+          backend/tests/test_patient_companion_relay_service.py
+          backend/tests/test_patient_companion_remote_crypto.py
+          backend/tests/test_patient_companion_remote_freshness.py
+          -q
+
+      - name: Python to JavaScript JOSE
+        run: python backend/scripts/certify_patient_companion_remote_interop.py emit "$RUNNER_TEMP/python-to-js.json"
+
+      - name: JavaScript verifies Python and emits JavaScript JOSE
+        working-directory: frontend
+        run: node scripts/certify-pc-remote-interop.mjs "$RUNNER_TEMP/python-to-js.json" "$RUNNER_TEMP/js-to-python.json"
+
+      - name: Python verifies JavaScript JOSE
+        run: python backend/scripts/certify_patient_companion_remote_interop.py verify "$RUNNER_TEMP/js-to-python.json"
+
+  windows-dpapi:
+    name: Windows DPAPI cabinet-key protection
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install focused test dependency
+        run: python -m pip install pytest==9.0.3
+
+      - name: Real current-user DPAPI roundtrip
+        run: python -m pytest backend/tests/test_patient_companion_dpapi_runtime.py -q
