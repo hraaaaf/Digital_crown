@@ -71,9 +71,9 @@ def test_staff_status_is_read_only_safe_projection_and_qr_is_ephemeral(client, d
     headers = _headers(client, owner)
 
     invitation = client.post(
-        f"/api/patient-companion/admin/patients/{patient.id}/invitation",
+        f"/api/patient-companion/admin/patients/{patient.id}/local-invitation",
         headers=headers,
-        json={"recipient_type": "email", "recipient": "patient@example.test"},
+        json={"relationship_type": "SELF"},
     )
     assert invitation.status_code == 201, invitation.text
     payload = invitation.json()
