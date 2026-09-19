@@ -78,3 +78,14 @@ G9 is complete only when:
 - zero known critical untested controls remain.
 
 No coverage percentage is claimed before that point.
+
+
+## Blocker remediation status
+Previously identified G6/G7 product defects are now remediated in code and behavioral tests.
+
+They are not yet removed from the G9 freeze gate until:
+- matched BEFORE/AFTER visual evidence is green;
+- exact-head frontend tests/build are green;
+- G0 is rerun on that final candidate.
+
+No coverage percentage is claimed yet.
