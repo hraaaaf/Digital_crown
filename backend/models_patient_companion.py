@@ -268,3 +268,63 @@ class PatientCompanionRemoteReceipt(Base):
     response_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+
+class PatientCompanionRemoteKeySet(Base):
+    """Patient-device public keys enrolled during a trusted cabinet-local ceremony."""
+
+    __tablename__ = "patient_companion_remote_key_sets"
+    __table_args__ = (
+        UniqueConstraint("access_id", "signing_kid", name="uq_pc_remote_keys_access_signing_kid"),
+        UniqueConstraint("access_id", "encryption_kid", name="uq_pc_remote_keys_access_encryption_kid"),
+        Index(
+            "uq_pc_remote_keys_one_active_per_access",
+            "access_id",
+            unique=True,
+            sqlite_where=text("state = 'ACTIVE'"),
+            postgresql_where=text("state = 'ACTIVE'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, index=True, nullable=False, default=lambda: str(uuid.uuid4())
+    )
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    signing_kid: Mapped[str] = mapped_column(String(36), nullable=False)
+    signing_public_jwk: Mapped[str] = mapped_column(Text, nullable=False)
+    encryption_kid: Mapped[str] = mapped_column(String(36), nullable=False)
+    encryption_public_jwk: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    retired_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionRemoteMessageReceipt(Base):
+    """Durable replay/idempotency ledger for verified remote commands."""
+
+    __tablename__ = "patient_companion_remote_message_receipts"
+    __table_args__ = (
+        UniqueConstraint("message_id", name="uq_pc_remote_message_id"),
+        UniqueConstraint("access_id", "idempotency_key", name="uq_pc_remote_idempotency"),
+        Index("ix_pc_remote_receipt_access_received", "access_id", "received_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    message_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(36), nullable=False)
+    operation: Mapped[str] = mapped_column(String(64), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING")
+    result_digest: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
