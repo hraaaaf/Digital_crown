@@ -43,6 +43,32 @@ Rules:
 - deleted/revoked resources stop future sync;
 - remote revocation cannot claim to erase a patient-held offline copy.
 
+## Cabinet connection model — decision recorded at PC-00
+
+Two different meanings of “connected” must stay separate:
+
+1. **Paired / trusted device** — the phone keeps its encrypted local Patient Companion vault and device credential. This survives cabinet downtime and app reopen.
+2. **Cabinet reachable now** — the phone can currently reach the on-prem Digital Crown API and synchronize. PC-00 exposes an explicit on-demand reachability check; PC-01 will own actual sync/freshness.
+
+Current device credential lifetime is finite (30 days). PC-01 must add a safe renewal/re-pairing policy before claiming persistent long-term connectivity.
+
+### WhatsApp
+
+WhatsApp is **not** the canonical clinical transport between Patient Companion and Digital Crown.
+
+Allowed use:
+- optional notification/deep-link channel (“votre cabinet vous a envoyé une mise à jour”, appointment reminder, invitation to open Patient Companion);
+- no clinical payload, document, photo, medical questionnaire, payment history or secure chat content in the WhatsApp message itself;
+- never the source of truth for appointment state.
+
+Why:
+- it introduces a third-party messaging dependency into a product whose clinical source is on-prem;
+- it does not solve the authenticated synchronization problem between the patient vault and cabinet;
+- it would fragment the audit trail if used as the real two-way clinical channel.
+
+Therefore: **do not implement WhatsApp transport in PC-00 or PC-01.**
+Revisit WhatsApp only after the remote transport gate, as an optional notification surface rather than the clinical data plane.
+
 ## REMOTE TRANSPORT GATE — before PC-02
 
 PC-02+ introduces actions initiated while the patient may be outside the cabinet LAN.
