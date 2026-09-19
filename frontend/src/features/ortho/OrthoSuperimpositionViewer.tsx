@@ -361,7 +361,7 @@ export const OrthoSuperimpositionViewer = ({
       aria-label="Superposition scientifique"
       data-ortho-f5-viewer
     >
-      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden bg-card-bg shadow-2xl sm:rounded-[2rem] sm:border sm:border-border-main">
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden bg-card shadow-2xl sm:rounded-[2rem] sm:border sm:border-border-main">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border-main px-4 py-3 sm:px-6 sm:py-4">
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-[0.16em] text-text-muted sm:text-[10px]">F5 · Superposition structurale</p>
@@ -426,7 +426,7 @@ export const OrthoSuperimpositionViewer = ({
                       type="button"
                       onClick={() => setMode(value)}
                       className={`min-h-10 rounded-xl border px-3 text-[10px] font-black uppercase tracking-wide focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                        mode === value ? 'border-primary/30 bg-primary/5 text-primary' : 'border-border-main bg-card-bg text-main'
+                        mode === value ? 'border-primary/30 bg-primary/5 text-primary' : 'border-border-main bg-card text-main'
                       }`}
                     >
                       {label}
@@ -435,7 +435,7 @@ export const OrthoSuperimpositionViewer = ({
                 </div>
               </div>
 
-              <div className="grid gap-2 rounded-2xl border border-border-main bg-card-bg p-3 text-[11px] sm:grid-cols-3">
+              <div className="grid gap-2 rounded-2xl border border-border-main bg-card p-3 text-[11px] sm:grid-cols-3">
                 <div><span className="font-black text-main">Méthode</span><p className="mt-0.5 font-bold text-text-muted">{context.method_id} v{context.method_version}</p></div>
                 <div><span className="font-black text-main">Calibration</span><p className="mt-0.5 font-bold text-text-muted">T{fromTimepoint.ordinal} {context.from_source.is_calibrated ? 'calibrée' : 'non calibrée'} · T{toTimepoint.ordinal} {context.to_source.is_calibrated ? 'calibrée' : 'non calibrée'}</p></div>
                 <div><span className="font-black text-main">Statut</span><p className="mt-0.5 font-bold text-text-muted">ENGINE_ESTIMATE_ONLY · validation clinique non établie</p></div>

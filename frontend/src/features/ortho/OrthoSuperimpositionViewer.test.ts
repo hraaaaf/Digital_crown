@@ -62,3 +62,12 @@ describe('Ortho F5 frontend permission boundary', () => {
     expect(file).toContain('Permission céphalométrie requise pour ouvrir F5.');
   });
 });
+
+
+describe('Ortho F5 opaque work surface', () => {
+  it('uses the actual semantic card token instead of the legacy unmapped bg-card-bg utility', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoSuperimpositionViewer.tsx'), 'utf8');
+    expect(file).toContain('overflow-hidden bg-card shadow-2xl');
+    expect(file).not.toContain('bg-card-bg');
+  });
+});
