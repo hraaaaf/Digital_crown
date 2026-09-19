@@ -21,6 +21,12 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact product HEAD
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -35,14 +41,17 @@ jobs:
       - name: Capture F4 AFTER
         working-directory: frontend
         run: |
-          PRODUCT_HEAD="$GITHUB_SHA" node scripts/capture-ortho-f4-after.mjs
+          PRODUCT_HEAD="${{ github.event.pull_request.head.sha || github.sha }}" node scripts/capture-ortho-f4-after.mjs
       - name: Verify AFTER contract
         working-directory: frontend
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           const report = JSON.parse(await readFile('ortho-f4-after-artifacts/report.json','utf8'));
           if (report.phase !== 'AFTER') throw new Error('Wrong phase');
+          if (report.productHead !== process.env.EXPECTED_HEAD) throw new Error('Wrong product HEAD');
           if (report.invalidCount !== 0) throw new Error('Invalid AFTER captures');
           if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
           if (report.captures.length !== 3) throw new Error('Expected three viewports');
