@@ -369,7 +369,7 @@ function App() {
           </MobileProtectedRoute>
         } />
 
-        {/* Patient Companion: separate patient-facing Firebase boundary */}
+        {/* Patient Companion: local-first patient boundary paired by one-time QR/code */}
         <Route path="/companion" element={<Suspense fallback={<PageLoader />}><PatientCompanionApp /></Suspense>} />
 
         {/* Page marketing publique (avant connexion) */}
