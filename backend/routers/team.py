@@ -324,6 +324,15 @@ def update_team_member(
     if updates.telephone_mobile is not None:
         member.telephone_mobile = updates.telephone_mobile
     if updates.is_active is not None:
+        approval_status = getattr(member, "approval_status", "approved") or "approved"
+        if updates.is_active and approval_status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Ce compte ne peut pas etre reactive tant que son statut "
+                    "d'approbation n'est pas 'approved'."
+                ),
+            )
         member.is_active = updates.is_active
     if updates.new_password is not None:
         member.hashed_password = get_password_hash(updates.new_password)
