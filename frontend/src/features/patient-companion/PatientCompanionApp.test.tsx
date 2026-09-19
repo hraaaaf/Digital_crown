@@ -167,8 +167,8 @@ describe('PatientCompanionApp PC-00 local-first', () => {
           version: 1,
           accessId: 'wallet-access',
           syncedAt: '2026-09-19T18:30:00Z',
-          appointments: [{ id: 4, datetime_start: '2026-09-21T09:00:00Z', motif: 'Contrôle', status: 'CONFIRME' }],
-          shares: [{ share_id: 's1', resource_type: 'document', resource_id: 5, title: 'Ordonnance', document_type: 'ORDONNANCE' }],
+          appointments: [{ datetime_start: '2026-09-21T09:00:00Z', motif: 'Contrôle', status: 'CONFIRME' }],
+          shares: [{ share_id: 's1', resource_type: 'document', title: 'Ordonnance', document_type: 'ORDONNANCE' }],
         },
       },
     });
