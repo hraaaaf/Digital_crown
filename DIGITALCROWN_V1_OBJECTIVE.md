@@ -1,6 +1,6 @@
 # Digital Crown — V1 Objective
 
-Status: **CANONICAL / PRE-FREEZE / NOT YET SELECTED**
+Status: **CANONICAL / V1-08 FREEZE IN PROGRESS / NOT YET SELECTED**
 
 ## Goal
 
@@ -9,8 +9,8 @@ Produce one exact immutable V1 candidate SHA from the reconciled and stabilized 
 ## Current state
 
 - canonical roadmap: `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`
-- current stabilization lot: **V1-07**
-- current master at creation: `b891f0a7130a5993cee61f7b8340ba641c532647`
+- current lot: **V1-08 — Freeze exact V1 candidate**
+- stabilized master before V1-07 closeout: `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
 - V1 candidate SHA: **NOT SELECTED**
 - installability status: **NOT CERTIFIED**
 - V1 operational status: **NOT OPERATIONAL**
@@ -58,4 +58,4 @@ They are not part of the mandatory V1 candidate unless the canonical roadmap is 
 
 ## Next exact
 
-Complete V1-07 stabilization on current master. If green, V1-08 may freeze the resulting exact master SHA.
+Merge the V1-07 closeout, then freeze that resulting exact master SHA as the sole V1 candidate identity. Record the same 40-character SHA here and in the canonical roadmap.

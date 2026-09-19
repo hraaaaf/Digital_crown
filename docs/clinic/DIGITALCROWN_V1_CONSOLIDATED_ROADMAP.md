@@ -427,7 +427,7 @@ V1-06 Success criterion is satisfied. V1-07 is unlocked.
 
 ### LOT V1-07 — Master stabilization
 
-Status: **IN_PROGRESS — UNLOCKED BY V1-06 CLOSEOUT**
+Status: **CLOSED — MASTER STABILIZED AND CERTIFIED**
 
 Goal: establish a stable pre-candidate master.
 
@@ -435,9 +435,21 @@ Success: required global CI/regressions green; migrations coherent; no known unr
 
 Proof: exact master SHA + required global run IDs + regression evidence + final pre-freeze audit.
 
+V1-07 final result — 2026-09-19:
+- stabilized master: `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`;
+- PR #625 exact-head checks: CI `35436004878` SUCCESS; T2 `35436004961` SUCCESS; Agenda A5 `35436005056` SUCCESS; PR Merge Summary `35436005087` SUCCESS;
+- PR #625 merged as `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`;
+- exact-master certification PR #626, base exact master above, closed without merge after CI `35436544430`, T2 `35436544247`, Agenda A5 `35436544228`, PR Merge Summary `35436544199` — SUCCESS;
+- open PR invariant re-proven: #618 / #383 / #289 / #288 only, all parked;
+- runtime/migration head coherence: `ojf20000008`;
+- `DIGITALCROWN_V1_OBJECTIVE.md` created and aligned;
+- no mandatory V1 product blocker demonstrated.
+
+V1-07 Success criterion is satisfied.
+
 ### LOT V1-08 — Freeze exact V1 candidate
 
-Status: **BLOCKED BY V1-07**
+Status: **IN_PROGRESS — UNLOCKED BY V1-07 CLOSEOUT**
 
 Goal: intentionally select one immutable exact 40-character SHA as V1 candidate.
 
@@ -484,17 +496,18 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-07 — Master stabilization / IN_PROGRESS**
-- previous lot: **V1-06 — Pre-freeze repository reconciliation — CLOSED**
-- certified reconciliation base: `master@f05b9dc7c176a5752448793c8a0a585dfb728679`
-- V1-06 proof: #623 exact-head CI `35435256394` SUCCESS / T2 `35435256380` SUCCESS / Agenda A5 `35435256377` SUCCESS / PR Merge Summary `35435256371` SUCCESS.
+- active lot: **V1-08 — Freeze exact V1 candidate / IN_PROGRESS**
+- previous lot: **V1-07 — Master stabilization — CLOSED**
+- stabilized master: `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
+- V1-07 exact-master certification: CI `35436544430` SUCCESS / T2 `35436544247` SUCCESS / Agenda A5 `35436544228` SUCCESS / PR Merge Summary `35436544199` SUCCESS.
 - remaining open PRs are explicitly parked: #618, #383, #289, #288.
-- V1-07 Goal: establish one stable pre-candidate master with required global regressions green, coherent migrations/docs, no unresolved mandatory V1 blocker.
+- V1-08 Goal: intentionally select one immutable exact 40-character SHA as the V1 candidate.
 - V1 candidate SHA: **NOT SELECTED**
+- installability status: **NOT CERTIFIED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
 - Vercel deployment: **NOT AUTHORIZED**
-- Next exact: certify current master globally, inspect migrations/roadmap coherence/open-PR invariants, repair only proven blockers, then close V1-07 before freezing V1-08.
+- Next exact: freeze the post-closeout master SHA after this closeout merges; record it identically in roadmap and `DIGITALCROWN_V1_OBJECTIVE.md`; any later release-identity change creates a new candidate and restarts certification.
 
 ## 7. Maintenance rule
 

@@ -1,6 +1,6 @@
 # V1-07 — Master Stabilization Closeout
 
-Status: **PENDING POST-MASTER CERTIFICATION**
+Status: **CLOSED — MASTER STABILIZED AND CERTIFIED**
 
 ## Goal
 Establish one stable pre-candidate master with required global regressions green, coherent migrations/docs, no unresolved mandatory V1 blocker.
@@ -35,15 +35,22 @@ Certification PR #626:
 - base exact master: `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
 - certification HEAD: `f5d3f0429410a98e270ed00e211d27e3231957d2`
 - MUST NOT MERGE
-- final required run conclusions: **PENDING**
+- PR Merge Summary `35436544199` — SUCCESS
+- CI `35436544430` — SUCCESS
+- T2 Runtime Browser Certification `35436544247` — SUCCESS
+- Agenda A5 Visual Evidence `35436544228` — SUCCESS
+- M6-I `35436544208` — SKIPPED as expected
+- PR #626 closed without merge after green certification
 
-## Closeout gate
-Do not mark V1-07 CLOSED until:
-1. #626 required checks are SUCCESS;
-2. #626 is closed without merge;
-3. open PR invariant is re-queried;
-4. roadmap/objective/migration coherence is rechecked;
-5. this closeout records exact final proof.
+## Final revalidation
+- master remained exactly `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`;
+- open PR set after closing #626 is exactly #618 / #383 / #289 / #288;
+- all four remain explicitly parked;
+- `DIGITALCROWN_V1_OBJECTIVE.md` exists and preserves exact-SHA identity;
+- runtime and migration heads both equal `ojf20000008`;
+- no mandatory V1 product blocker was demonstrated.
 
-## Next after green
-Update this file + roadmap, merge docs closeout, then V1-08 may freeze one exact SHA.
+## Decision
+V1-07 Goal / Success / Proof are satisfied.
+
+V1-08 — Freeze exact V1 candidate is unlocked.
