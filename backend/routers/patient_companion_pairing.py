@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from jose import jwt
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
