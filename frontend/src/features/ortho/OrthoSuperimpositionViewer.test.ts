@@ -90,3 +90,14 @@ describe('Ortho F5 responsive metadata', () => {
     expect(file).toContain('break-all font-mono');
   });
 });
+
+
+describe('Ortho F5 visible provenance and applicability', () => {
+  it('shows canonical source ids and adult engineering scope in the viewer', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoSuperimpositionViewer.tsx'), 'utf8');
+    expect(file).toContain('data-f5-source-provenance');
+    expect(file).toContain('cephalo_analysis_id');
+    expect(file).toContain('data-f5-applicability');
+    expect(file).toContain('Portée : adulte · engineering uniquement');
+  });
+});

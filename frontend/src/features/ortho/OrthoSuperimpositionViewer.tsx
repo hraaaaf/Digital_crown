@@ -440,9 +440,17 @@ export const OrthoSuperimpositionViewer = ({
                   <span className="font-black text-main">Méthode</span>
                   <p className="mt-0.5 font-bold text-text-muted">Base crânienne antérieure · similarité 2D</p>
                   <p className="mt-0.5 break-all font-mono text-[9px] font-bold text-text-muted">{context.method_id} · v{context.method_version}</p>
+                  <p className="mt-1 font-bold text-text-muted" data-f5-source-provenance>
+                    Sources : T{fromTimepoint.ordinal} · analyse #{context.from_source.cephalo_analysis_id} ↔ T{toTimepoint.ordinal} · analyse #{context.to_source.cephalo_analysis_id}
+                  </p>
                 </div>
                 <div className="min-w-0"><span className="font-black text-main">Calibration</span><p className="mt-0.5 font-bold text-text-muted">T{fromTimepoint.ordinal} {context.from_source.is_calibrated ? 'calibrée' : 'non calibrée'} · T{toTimepoint.ordinal} {context.to_source.is_calibrated ? 'calibrée' : 'non calibrée'}</p></div>
-                <div className="min-w-0"><span className="font-black text-main">Statut</span><p className="mt-0.5 font-bold text-text-muted">ENGINE_ESTIMATE_ONLY · validation clinique non établie</p><p className="mt-0.5 font-bold text-amber-700">Protocole d’acquisition : non vérifié</p></div>
+                <div className="min-w-0 sm:col-span-2 lg:col-span-1" data-f5-applicability>
+                  <span className="font-black text-main">Statut</span>
+                  <p className="mt-0.5 font-bold text-text-muted">ENGINE_ESTIMATE_ONLY · validation clinique non établie</p>
+                  <p className="mt-0.5 font-bold text-text-muted">Portée : adulte · engineering uniquement</p>
+                  <p className="mt-0.5 font-bold text-amber-700">Protocole d’acquisition : non vérifié</p>
+                </div>
               </div>
 
               <button

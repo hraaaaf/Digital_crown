@@ -231,12 +231,14 @@ for(const viewport of viewports){
         })(),
         hasEngineeringStatus:text.includes('engine_estimate_only')&&text.includes('validation clinique non établie'),
         hasAcquisitionWarning:text.includes('protocole d’acquisition')&&text.includes('non vérifié'),
+        hasSourceProvenance:text.includes('analyse #31')&&text.includes('analyse #32'),
+        hasApplicability:text.includes('portée : adulte')&&text.includes('engineering uniquement'),
         forbidden:['amélior','aggrav','succès thérapeutique','echec thérapeutique','échec thérapeutique','worsen','improv'].filter(k=>text.includes(k)),
       };
     });
     const pageErrors=[...carryPageErrors,...activePageErrors];
     const consoleErrors=[...carryConsoleErrors,...activeConsoleErrors];
-    const valid=response?.status()===200&&!metrics.horizontalOverflow&&!metrics.methodMetadataOverflow&&metrics.hasCompareSurface&&metrics.hasT0&&metrics.hasT1&&metrics.hasEvidence&&metrics.hasNumericCaption&&metrics.hasDelta&&metrics.hasF5Viewer&&metrics.hasF5Canvas&&metrics.hasEngineeringStatus&&metrics.hasAcquisitionWarning&&metrics.forbidden.length===0&&consoleErrors.length===0&&pageErrors.length===0;
+    const valid=response?.status()===200&&!metrics.horizontalOverflow&&!metrics.methodMetadataOverflow&&metrics.hasCompareSurface&&metrics.hasT0&&metrics.hasT1&&metrics.hasEvidence&&metrics.hasNumericCaption&&metrics.hasDelta&&metrics.hasF5Viewer&&metrics.hasF5Canvas&&metrics.hasEngineeringStatus&&metrics.hasAcquisitionWarning&&metrics.hasSourceProvenance&&metrics.hasApplicability&&metrics.forbidden.length===0&&consoleErrors.length===0&&pageErrors.length===0;
     await page.screenshot({path:path.join(OUTPUT_DIR,`after-superimposition-${viewport.name}.png`),fullPage:false});
     captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics,consoleErrors,pageErrors,valid});
   }catch(error){
