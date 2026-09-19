@@ -46,6 +46,9 @@ jobs:
           if (report.invalidCount !== 0) throw new Error('Invalid AFTER captures');
           if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
           if (report.captures.length !== 3) throw new Error('Expected three viewports');
+          if (!report.accessibility?.closeInitiallyFocused) throw new Error('F5 close control did not receive initial focus');
+          if (!report.accessibility?.escapeClosedViewer) throw new Error('Escape did not close F5 viewer');
+          if (!report.accessibility?.focusRestoredToTrigger) throw new Error('Focus was not restored to F5 trigger');
           for (const c of report.captures) {
             if (!c.valid) throw new Error('Invalid '+c.viewport);
             if (c.metrics.horizontalOverflow) throw new Error('Overflow '+c.viewport);
