@@ -123,3 +123,16 @@ G4 Documents can close only when:
 - dynamic controls revealed by actions are appended and reconciled;
 - exact-head build/browser runs are green;
 - a final post-action inventory finds zero unclassified critical control.
+
+
+## Executable action-pass probes added
+
+The next candidate embeds direct Chromium action probes into the already isolated T2 runtime certification:
+- `frontend/scripts/certify-v1-07-g4-ordonnance-actions.mjs`
+- `frontend/scripts/certify-v1-07-g4-honoraires-actions.mjs`
+
+Ordonnance probe exercises type toggle, add/reorder/remove, repaired manual-form chooser, dose/NS/structured+free posology, indication/legal toggle, clinical-context save and explicit IE evaluation across 390×844 and 1280×900.
+
+Honoraires probe exercises odontogram open/adult-pediatric, all adult quick groups, representative grouped/custom acts, targeted tooth treatment with price+notes, general-care actions, manual line order/delete, treasury status/payment/global-plan controls, and directly proves whether the current `Confirmer l'Encaissement` action performs a persistence request.
+
+No status is promoted to PASS until the exact-head T2 artifact succeeds.
