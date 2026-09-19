@@ -466,6 +466,36 @@ async def license_check_middleware(request: Request, call_next):
     return await call_next(request)
 
 _MAX_URLENCODED_BODY_BYTES = 64 * 1024
+_MAX_PUBLIC_JSON_BODY_BYTES = 64 * 1024
+_BOUNDED_PUBLIC_JSON_PATHS = {
+    "/api/auth/signup",
+    "/api/auth/refresh",
+    "/api/public/demo-request",
+    "/api/public/activate-trial",
+    "/api/mobile/claim-token",
+    "/api/mobile/refresh-token",
+}
+
+
+@app.middleware("http")
+async def public_json_body_limit_middleware(request: Request, call_next):
+    """Reject oversized/chunked auth-public JSON before FastAPI parses it."""
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if request.url.path in _BOUNDED_PUBLIC_JSON_PATHS and content_type == "application/json":
+        raw_length = request.headers.get("content-length")
+        if raw_length is None:
+            return JSONResponse(
+                status_code=411,
+                content={"detail": "Content-Length requis pour ce type de requête"},
+            )
+        try:
+            content_length = int(raw_length)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Content-Length invalide"})
+        if content_length < 0 or content_length > _MAX_PUBLIC_JSON_BODY_BYTES:
+            return JSONResponse(status_code=413, content={"detail": "Corps JSON trop volumineux"})
+
+    return await call_next(request)
 
 
 @app.middleware("http")
