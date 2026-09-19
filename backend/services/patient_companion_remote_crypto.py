@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import uuid
 from typing import Any
 
 from jwcrypto import jwe, jwk, jws
@@ -79,14 +80,12 @@ def sign_and_encrypt(
     return encrypted.serialize(compact=True)
 
 
-def decrypt_and_verify(
+def decrypt_to_signed_jws(
     compact_jwe: str,
     *,
     recipient_encryption_private_jwk: dict[str, Any],
-    sender_signing_public_jwk: dict[str, Any],
-    expected_sender_signing_kid: str,
     expected_recipient_encryption_kid: str,
-) -> dict[str, Any]:
+) -> str:
     jwe_header = _protected_header(compact_jwe, 5)
     expected_jwe = {
         "alg": JOSE_JWE_ALG,
@@ -103,27 +102,44 @@ def decrypt_and_verify(
     epk = jwe_header.get("epk")
     if (
         not isinstance(epk, dict)
+        or set(epk) != {"kty", "crv", "x", "y"}
         or epk.get("kty") != "EC"
         or epk.get("crv") != "P-256"
         or not isinstance(epk.get("x"), str)
         or not isinstance(epk.get("y"), str)
-        or "d" in epk
     ):
         raise ValueError("invalid ECDH ephemeral public key")
 
     recipient_key = jwk.JWK.from_json(_json(recipient_encryption_private_jwk))
     encrypted = jwe.JWE(algs=[JOSE_JWE_ALG, JOSE_JWE_ENC])
     encrypted.deserialize(compact_jwe, key=recipient_key)
-    compact_jws = encrypted.payload.decode("utf-8")
+    try:
+        return encrypted.payload.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("decrypted JOSE payload is not UTF-8") from exc
 
-    jws_header = _protected_header(compact_jws, 3)
-    expected_jws = {
-        "alg": JOSE_JWS_ALG,
-        "kid": expected_sender_signing_kid,
-        "typ": JWS_TYP,
-    }
-    if jws_header != expected_jws:
+
+def inspect_signed_jws_kid(compact_jws: str) -> str:
+    header = _protected_header(compact_jws, 3)
+    if set(header) != {"alg", "kid", "typ"}:
         raise ValueError("unexpected JWS protected header")
+    if header.get("alg") != JOSE_JWS_ALG or header.get("typ") != JWS_TYP:
+        raise ValueError("unexpected JWS protected header")
+    try:
+        return str(uuid.UUID(str(header.get("kid"))))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("invalid JWS key identifier") from exc
+
+
+def verify_signed_jws(
+    compact_jws: str,
+    *,
+    sender_signing_public_jwk: dict[str, Any],
+    expected_sender_signing_kid: str,
+) -> dict[str, Any]:
+    observed_kid = inspect_signed_jws_kid(compact_jws)
+    if observed_kid != str(uuid.UUID(expected_sender_signing_kid)):
+        raise ValueError("unexpected JWS signing key")
 
     sender_key = jwk.JWK.from_json(_json(sender_signing_public_jwk))
     signed = jws.JWS()
@@ -135,3 +151,23 @@ def decrypt_and_verify(
     if not isinstance(payload, dict):
         raise ValueError("remote payload must be a JSON object")
     return payload
+
+
+def decrypt_and_verify(
+    compact_jwe: str,
+    *,
+    recipient_encryption_private_jwk: dict[str, Any],
+    sender_signing_public_jwk: dict[str, Any],
+    expected_sender_signing_kid: str,
+    expected_recipient_encryption_kid: str,
+) -> dict[str, Any]:
+    compact_jws = decrypt_to_signed_jws(
+        compact_jwe,
+        recipient_encryption_private_jwk=recipient_encryption_private_jwk,
+        expected_recipient_encryption_kid=expected_recipient_encryption_kid,
+    )
+    return verify_signed_jws(
+        compact_jws,
+        sender_signing_public_jwk=sender_signing_public_jwk,
+        expected_sender_signing_kid=expected_sender_signing_kid,
+    )
