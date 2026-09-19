@@ -92,3 +92,15 @@ Passing unit tests, CI, visual screenshots or an AI scientific review does not e
 
 ## Reviewer decision rule
 Any untraceable scientific claim, hidden clinical threshold, population overreach, source/license ambiguity that affects implementation, or mismatch between contract/code/tests must block merge or activation until resolved.
+
+
+## Scite external evidence audit — 2026-09-19
+
+A separate external evidence audit is recorded at:
+`docs/clinic/audits/V1_05_F5_SCITE_EVIDENCE_AUDIT.md`
+
+New evidence items:
+- Danz et al. 2024 — `10.3389/froh.2024.1419481`
+- Vasileiou et al. 2026 — `10.1093/ejo/cjag008`
+
+The audit conditionally supports the engineering-preview direction, but **does not satisfy this packet's reviewer-independence requirement**. A named independent reviewer remains required before clinical activation.
