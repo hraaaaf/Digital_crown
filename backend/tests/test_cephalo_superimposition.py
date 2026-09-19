@@ -1,4 +1,5 @@
 import math
+from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 import numpy as np
@@ -138,3 +139,28 @@ def test_config_rejects_invalid_algorithm_parameters():
         RegistrationConfig(ransac_reproj_threshold_px=0.0).validate()
     with pytest.raises(SuperimpositionError):
         RegistrationConfig(confidence=1.0).validate()
+
+
+def test_concurrent_replay_is_deterministic():
+    reference = _feature_canvas()
+    forward = _similarity_matrix(angle_degrees=2.5, scale=1.01, tx=6.0, ty=-4.0)
+    moving = cv2.warpAffine(reference, forward, (512, 512), flags=cv2.INTER_LINEAR)
+    roi = ImageROI(55, 55, 405, 405)
+
+    def run_once(_):
+        result = register_acb_similarity(
+            reference,
+            moving,
+            reference_roi=roi,
+            moving_roi=roi,
+        )
+        return np.asarray(result.matrix), result.inlier_count, result.good_match_count
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(run_once, range(8)))
+
+    first_matrix, first_inliers, first_matches = results[0]
+    for matrix, inliers, matches in results[1:]:
+        np.testing.assert_allclose(matrix, first_matrix, atol=1e-8)
+        assert inliers == first_inliers
+        assert matches == first_matches

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import threading
 from typing import Any
 
 import cv2
@@ -30,6 +31,10 @@ import numpy as np
 METHOD_ID = "ACB_STRUCTURAL_FEATURE_SIMILARITY"
 METHOD_VERSION = "1"
 QUALITY_STATUS = "ENGINE_ESTIMATE_ONLY"
+
+# OpenCV uses process-global RNG state for RANSAC. Serialize the seed+estimate
+# region so concurrent requests cannot perturb deterministic replay.
+_RANSAC_LOCK = threading.Lock()
 
 
 class SuperimpositionError(ValueError):
@@ -253,19 +258,24 @@ def register_acb_similarity(
         [keypoints_ref[match.trainIdx].pt for match in good_matches]
     ).reshape(-1, 1, 2)
 
-    cv2.setRNGSeed(config.rng_seed)
-    matrix, inlier_mask = cv2.estimateAffinePartial2D(
-        moving_points,
-        reference_points,
-        method=cv2.RANSAC,
-        ransacReprojThreshold=config.ransac_reproj_threshold_px,
-        maxIters=config.max_iters,
-        confidence=config.confidence,
-        refineIters=config.refine_iters,
-    )
+    with _RANSAC_LOCK:
+        cv2.setRNGSeed(config.rng_seed)
+        matrix, inlier_mask = cv2.estimateAffinePartial2D(
+            moving_points,
+            reference_points,
+            method=cv2.RANSAC,
+            ransacReprojThreshold=config.ransac_reproj_threshold_px,
+            maxIters=config.max_iters,
+            confidence=config.confidence,
+            refineIters=config.refine_iters,
+        )
     scale, rotation_deg, tx, ty = _validate_similarity_matrix(matrix)
 
     inlier_count = int(np.asarray(inlier_mask).sum()) if inlier_mask is not None else 0
+    if inlier_count < 2:
+        raise SuperimpositionError(
+            "Registration produced fewer than two inlier correspondences."
+        )
     matrix_tuple = (
         (float(matrix[0, 0]), float(matrix[0, 1]), float(matrix[0, 2])),
         (float(matrix[1, 0]), float(matrix[1, 1]), float(matrix[1, 2])),

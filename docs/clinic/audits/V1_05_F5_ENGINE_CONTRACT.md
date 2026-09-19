@@ -37,3 +37,9 @@ After unit tests are green:
 3. carry calibration provenance without assuming scale;
 4. add API contract only after service-level fail-closed tests;
 5. UI later, with BEFORE/mockup/AFTER sequence.
+
+
+## Concurrency determinism
+OpenCV RANSAC uses process-global RNG state. F5 serializes the seed+estimate section with a process lock so concurrent requests cannot perturb deterministic replay. This lock protects only transform estimation; image decoding and SIFT extraction remain outside it.
+
+A returned estimate must also contain at least two RANSAC inlier correspondences. This is a mathematical computability gate, not a clinical quality threshold.
