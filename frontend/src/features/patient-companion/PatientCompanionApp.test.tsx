@@ -97,4 +97,32 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     expect(screen.getByText(/Coffre local actif/i)).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
+  it('forces an explicit context choice when several patient contexts are stored', async () => {
+    storageMocks.load.mockResolvedValue({
+      version: 1,
+      activeAccessId: 'a1',
+      pairings: [
+        { accessToken: 't1', context: { access_id: 'a1', relationship_type: 'SELF', patient: { display_name: 'Aya Test' } }, pairedAt: '2026-09-19T18:00:00Z' },
+        { accessToken: 't2', context: { access_id: 'a2', relationship_type: 'PARENT', patient: { display_name: 'Yazan Test' } }, pairedAt: '2026-09-19T18:01:00Z' },
+      ],
+      cache: {},
+    });
+    storageMocks.setActive.mockResolvedValue({
+      version: 1,
+      activeAccessId: 'a2',
+      pairings: [
+        { accessToken: 't1', context: { access_id: 'a1', relationship_type: 'SELF', patient: { display_name: 'Aya Test' } }, pairedAt: '2026-09-19T18:00:00Z' },
+        { accessToken: 't2', context: { access_id: 'a2', relationship_type: 'PARENT', patient: { display_name: 'Yazan Test' } }, pairedAt: '2026-09-19T18:01:00Z' },
+      ],
+      cache: {},
+    });
+
+    render(<PatientCompanionApp />);
+
+    expect(await screen.findByText('Choisir un dossier')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Yazan Test'));
+    await waitFor(() => expect(storageMocks.setActive).toHaveBeenCalledWith('a2'));
+    expect(await screen.findByText('Mon espace')).toBeInTheDocument();
+  });
+
 });
