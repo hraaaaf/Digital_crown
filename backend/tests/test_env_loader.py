@@ -55,7 +55,8 @@ def test_environment_aware_override_pattern_prod_does_not_override(tmp_path, mon
     env_file.write_text("SECRET_KEY=from-file-secret\n")
 
     monkeypatch.setenv("ENVIRONMENT", "production")
-    monkeypatch.setenv("SECRET_KEY", "orchestrator-injected-secret")
+    monkeypatch.setenv("SECRET_KEY", "orchestrator-injected-secret-value-1234567890")
+    monkeypatch.setenv("CABINET_MASTER_KEY_HEX", "11" * 32)
 
     with patch("backend.env_loader.BASE_DIR", tmp_path):
         load_backend_env(override=False)
@@ -63,3 +64,54 @@ def test_environment_aware_override_pattern_prod_does_not_override(tmp_path, mon
             load_backend_env(override=True)
 
     assert os.environ["SECRET_KEY"] == "orchestrator-injected-secret"
+
+
+def test_cabinet_rejects_weak_jwt_secret_even_with_strong_master_key(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "ENVIRONMENT=cabinet\n"
+        "SECRET_KEY=SET_A_REAL_SECRET_KEY_IN_ENV\n"
+        f"CABINET_MASTER_KEY_HEX={'22' * 32}\n"
+    )
+    monkeypatch.setenv("ENVIRONMENT", "cabinet")
+
+    with patch("backend.env_loader.BASE_DIR", tmp_path):
+        try:
+            load_backend_env(override=True)
+        except RuntimeError as exc:
+            assert "SECRET_KEY" in str(exc)
+        else:
+            raise AssertionError("weak cabinet JWT secret was accepted")
+
+
+def test_cabinet_rejects_missing_or_malformed_master_key(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "ENVIRONMENT=cabinet\n"
+        "SECRET_KEY=strong-jwt-secret-0123456789-abcdef-XYZ\n"
+        "CABINET_MASTER_KEY_HEX=not-hex\n"
+    )
+    monkeypatch.setenv("ENVIRONMENT", "cabinet")
+
+    with patch("backend.env_loader.BASE_DIR", tmp_path):
+        try:
+            load_backend_env(override=True)
+        except RuntimeError as exc:
+            assert "CABINET_MASTER_KEY_HEX" in str(exc)
+        else:
+            raise AssertionError("malformed cabinet master key was accepted")
+
+
+def test_production_enforces_both_security_keys(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "ENVIRONMENT=production\n"
+        "SECRET_KEY=strong-production-jwt-secret-0123456789\n"
+        f"CABINET_MASTER_KEY_HEX={'33' * 32}\n"
+    )
+
+    with patch("backend.env_loader.BASE_DIR", tmp_path):
+        loaded = load_backend_env(override=True)
+
+    assert loaded == env_file
+    assert os.environ["ENVIRONMENT"] == "production"
