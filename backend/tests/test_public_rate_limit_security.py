@@ -83,3 +83,23 @@ def test_trial_code_lookup_rejects_oversized_path_input_before_db_query():
         Path(__file__).resolve().parents[1] / "routers" / "public.py"
     ).read_text(encoding="utf-8")
     assert "len(normalized) > 128" in source
+
+
+def test_small_public_json_routes_have_preparse_body_limit():
+    source = (
+        Path(__file__).resolve().parents[1] / "main.py"
+    ).read_text(encoding="utf-8")
+
+    assert "_MAX_PUBLIC_JSON_BODY_BYTES = 64 * 1024" in source
+    for path in (
+        "/api/auth/signup",
+        "/api/auth/refresh",
+        "/api/public/demo-request",
+        "/api/public/activate-trial",
+        "/api/mobile/claim-token",
+        "/api/mobile/refresh-token",
+    ):
+        assert f'"{path}"' in source
+    assert 'status_code=411' in source
+    assert 'status_code=413' in source
+    assert '"Corps JSON trop volumineux"' in source
