@@ -40,7 +40,7 @@ async function installRoutes(page) {
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify({
-          access_token: 'pc00-audit-device-token',
+          access_token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzAwLWRldmljZSIsImV4cCI6MTc5MDIwMDAwMH0.audit',
           context: {
             access_id: 'pc00-audit-access',
             relationship_type: 'SELF',
@@ -113,10 +113,10 @@ async function capture(browserName, browser, phase, scenario, viewport) {
       storageProbe = {
         envelopeVersion: envelope?.version ?? null,
         hasCiphertext: typeof envelope?.ciphertext === 'string' && envelope.ciphertext.length > 20,
-        envelopeLeaksAccessToken: JSON.stringify(envelope || {}).includes('pc00-audit-device-token'),
+        envelopeLeaksAccessToken: JSON.stringify(envelope || {}).includes('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzAwLWRldmljZSIsImV4cCI6MTc5MDIwMDAwMH0.audit'),
         keyAlgorithm: deviceKey?.algorithm?.name ?? null,
         keyExtractable: deviceKey?.extractable ?? null,
-        webStorageLeaksAccessToken: webStorage.includes('pc00-audit-device-token'),
+        webStorageLeaksAccessToken: webStorage.includes('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzAwLWRldmljZSIsImV4cCI6MTc5MDIwMDAwMH0.audit'),
         webStorageLeaksManualCode: webStorage.includes('ABCD-EFGH-JKLM'),
       };
     }
