@@ -8,8 +8,10 @@ on:
       - frontend/truth-safety-audit.html
       - frontend/src/preview/TruthSafetyAuditEntry.tsx
       - frontend/scripts/capture-truth-safety-audit.mjs
+      - frontend/src/pages/LandingPage.tsx
       - frontend/src/pages/LicenseStatusPage.tsx
       - frontend/src/pages/StockPage.tsx
+      - docs/ux/V1_07_G1_LANDING_GEOGRAPHY_GOAL_UI.md
       - docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md
   workflow_dispatch:
 
@@ -107,15 +109,15 @@ jobs:
           b={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in before}
           a={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in after}
           assert b == a, (sorted(b-a), sorted(a-b))
-          assert len(a) == 18, len(a)
-          print("matched_before_after=18")
+          assert len(a) == 21, len(a)
+          print("matched_before_after=21")
           PY
 
       - name: Record proof metadata
         shell: bash
         run: |
           printf 'base=%s\nhead=%s\nphase=before\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,landing-geography,stock-read-error,stock-delete-confirm,stock-quantity-refusal,stock-add-refusal,stock-delete-refusal\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-before/result.txt
-          printf 'base=%s\nhead=%s\nphase=after\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,stock-read-error,stock-delete-confirm\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-after/result.txt
+          printf 'base=%s\nhead=%s\nphase=after\nviewports=390x844,768x1024,1440x1000\nscenarios=license-expired,landing-geography,stock-read-error,stock-delete-confirm,stock-quantity-refusal,stock-add-refusal,stock-delete-refusal\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-truth-safety-after/result.txt
           cp /tmp/truth-safety-before.log artifacts/v1-07-truth-safety-before/vite.log
           cp /tmp/truth-safety-after.log artifacts/v1-07-truth-safety-after/vite.log
 
