@@ -106,8 +106,9 @@ jobs:
                   assert y["hasFalseEmpty"] is False
                   assert y["hasLoadError"] is True
               elif x["scenario"]=="rejected":
-                  assert x["hasReactivate"] is True
-                  assert y["hasReactivate"] is False
+                  assert x["hasReactivateButton"] is True
+                  assert y["hasReactivateButton"] is False
+                  assert y["hasSuspendButton"] is False
                   assert y["hasRejectedBadge"] is True
           print("matched_before_after=6 target_deltas=PASS")
           PY
