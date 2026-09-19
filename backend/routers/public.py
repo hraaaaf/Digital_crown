@@ -51,6 +51,8 @@ class DemoRequestIn(BaseModel):
 
 def _get_valid_trial_code(db: Session, code_value: str) -> models.TrialActivationCode:
     normalized = code_value.strip().upper()
+    if not normalized or len(normalized) > 128:
+        raise HTTPException(status_code=404, detail="Code d'activation introuvable.")
     code = db.query(models.TrialActivationCode).filter(models.TrialActivationCode.code == normalized).first()
     if not code:
         raise HTTPException(status_code=404, detail="Code d'activation introuvable.")
