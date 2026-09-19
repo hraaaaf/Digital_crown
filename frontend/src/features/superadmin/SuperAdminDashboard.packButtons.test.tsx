@@ -144,6 +144,33 @@ describe('SuperAdminDashboard commercial pack buttons', () => {
     ));
   });
 
+  it('enforces archived/suspended desktop states without exposing mutable pack actions', async () => {
+    const archivedSuspended = {
+      ...clients[0],
+      is_archived: true,
+      is_suspended: true,
+    };
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/superadmin/clients') return { data: [archivedSuspended] } as never;
+      if (url === '/superadmin/trial-codes') return { data: [] } as never;
+      if (url.endsWith('/license-history')) return { data: [] } as never;
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    await renderDashboard();
+    const card = screen.getByText('Dr Gold').closest('.group');
+    if (!card) throw new Error('Archived Gold client card not found');
+    const scoped = within(card as HTMLElement);
+
+    expect((scoped.getByDisplayValue('GOLD') as HTMLSelectElement).disabled).toBe(true);
+    for (const label of ['+ 1 MOIS', '+ 3 MOIS', '+ 6 MOIS', '+ 1 AN']) {
+      expect((scoped.getByRole('button', { name: new RegExp(label.replace('+', '\\+')) }) as HTMLButtonElement).disabled).toBe(true);
+    }
+    expect((scoped.getByTitle('WhatsApp de relance') as HTMLButtonElement).disabled).toBe(true);
+    expect(scoped.getByTitle('Réactiver')).toBeTruthy();
+    expect(scoped.getByTitle('Désarchiver')).toBeTruthy();
+  });
+
   it('wires licence, notes, history, renewal, suspend and archive buttons on desktop', async () => {
     await renderDashboard();
 
