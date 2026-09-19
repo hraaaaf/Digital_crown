@@ -63,6 +63,27 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await plan.click();
   await page.getByRole('button', { name: 'Adulte', exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('button', { name: 'Enfant', exact: true }).click();
+  const pediatricTeeth = [51,52,53,54,55,61,62,63,64,65,71,72,73,74,75,81,82,83,84,85];
+  for (const tooth of pediatricTeeth) {
+    await page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') }).click();
+    const title = page.getByText('Dent ' + tooth, { exact: true });
+    await title.waitFor({ state: 'visible', timeout: 10000 });
+    const selector = title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+    await selector.locator('button').first().click();
+    await title.waitFor({ state: 'hidden', timeout: 10000 });
+  }
+  actions.push('all-20-pediatric-teeth-open-close');
+
+  await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
+  for (const group of ['Q5','Q6','Q7','Q8']) {
+    await page.getByRole('button', { name: group, exact: true }).click();
+    await page.getByText(/dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
+    await page.getByRole('button', { name: group, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  }
+  actions.push('pediatric-quick-groups-reset');
+
+  await page.getByRole('button', { name: /Soins Ciblés/i }).click();
   await page.getByRole('button', { name: 'Adulte', exact: true }).click();
 
   await page.getByRole('button', { name: 'Réduire Schéma', exact: true }).click();
@@ -164,7 +185,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   ]) {
     await page.getByRole('button', { name: act, exact: true }).click();
   }
-  actions.push('global-care-actions');
+  await page.getByRole('button', { name: /Acte personnalisé/i }).click();
+  if (!(await page.getByPlaceholder('Rechercher ou saisir un acte...').count())) throw new Error('General-care custom act did not create a line');
+  actions.push('global-care-actions-and-custom');
 
   await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
   const descriptions = page.getByPlaceholder('Rechercher ou saisir un acte...');
@@ -247,7 +270,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 await browser.close();
 await api.dispose();
 
-const expectedActionGroups = 11;
+const expectedActionGroups = 13;
 for (const row of evidence) {
   if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
 }
