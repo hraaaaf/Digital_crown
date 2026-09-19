@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <rect width="1280" height="760" fill="#f8fafc"/>
+  <text x="40" y="42" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#0f172a">F5 Scientific Superimposition — target wireframe</text>
+  <text x="40" y="66" font-family="Arial,sans-serif" font-size="12" fill="#64748b">Hierarchy reference only — use existing Digital Crown semantic tokens in implementation</text>
+
+  <!-- F3 source card -->
+  <rect x="40" y="95" width="420" height="600" rx="28" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="66" y="130" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#64748b">SUIVI LONGITUDINAL</text>
+  <text x="66" y="157" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#0f172a">Comparaison orthodontique</text>
+  <text x="66" y="180" font-family="Arial,sans-serif" font-size="12" fill="#64748b">F3 conservé comme source numérique factuelle</text>
+
+  <rect x="66" y="205" width="165" height="86" rx="14" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="82" y="228" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#64748b">REPÈRE INITIAL</text>
+  <text x="82" y="258" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#0f172a">T0</text>
+
+  <rect x="269" y="205" width="165" height="86" rx="14" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="285" y="228" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#64748b">REPÈRE COMPARÉ</text>
+  <text x="285" y="258" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#0f172a">T1</text>
+
+  <rect x="66" y="312" width="368" height="130" rx="16" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="84" y="337" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#0f172a">Preuves canoniques</text>
+  <line x1="84" y1="356" x2="416" y2="356" stroke="#e2e8f0"/>
+  <text x="84" y="380" font-family="Arial,sans-serif" font-size="12" fill="#475569">T0 · Céphalométrie #31 · calibrée</text>
+  <text x="84" y="408" font-family="Arial,sans-serif" font-size="12" fill="#475569">T1 · Céphalométrie #32 · calibrée</text>
+
+  <rect x="66" y="465" width="368" height="135" rx="16" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="84" y="490" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#64748b">MESURES COMMUNES</text>
+  <text x="84" y="520" font-family="Arial,sans-serif" font-size="12" fill="#334155">SNA    82° → 83.2°    Δ +1.2°</text>
+  <text x="84" y="548" font-family="Arial,sans-serif" font-size="12" fill="#334155">SNB    80° → 79.5°    Δ -0.5°</text>
+  <text x="84" y="576" font-family="Arial,sans-serif" font-size="11" fill="#64748b">Interprétation clinique par le praticien</text>
+
+  <rect x="66" y="622" width="368" height="48" rx="14" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  <text x="126" y="652" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#0f172a">Superposition scientifique  →</text>
+
+  <!-- Viewer -->
+  <rect x="490" y="95" width="750" height="600" rx="28" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+  <text x="520" y="130" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#64748b">SUPERPOSITION SCIENTIFIQUE</text>
+  <text x="520" y="158" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#0f172a">T0 · 18 mars 2026  ↔  T1 · 18 sept. 2026</text>
+  <text x="520" y="181" font-family="Arial,sans-serif" font-size="12" fill="#64748b">Comparaison visuelle · aucune interprétation automatique</text>
+
+  <rect x="520" y="205" width="690" height="360" rx="18" fill="#0f172a"/>
+  <ellipse cx="830" cy="383" rx="135" ry="155" fill="none" stroke="#94a3b8" stroke-width="3"/>
+  <path d="M760 270 Q820 235 900 278 Q955 330 935 405 Q900 500 815 520 Q740 490 715 400 Q700 325 760 270" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+  <path d="M768 279 Q829 245 907 286 Q950 337 928 407 Q893 493 817 510 Q748 483 724 400 Q708 330 768 279" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="7 5"/>
+  <rect x="540" y="225" width="190" height="34" rx="10" fill="#ffffff" opacity="0.9"/>
+  <text x="553" y="247" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#0f172a">ACB ROI · confirmée praticien</text>
+
+  <text x="520" y="595" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#64748b">OPACITÉ</text>
+  <line x1="590" y1="591" x2="780" y2="591" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="690" cy="591" r="8" fill="#334155"/>
+  <rect x="805" y="575" width="115" height="34" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="832" y="596" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#334155">T0 / T1</text>
+  <rect x="932" y="575" width="135" height="34" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="954" y="596" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#334155">Alterner</text>
+
+  <rect x="520" y="625" width="690" height="45" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="538" y="644" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#64748b">MÉTHODE</text>
+  <text x="538" y="660" font-family="Arial,sans-serif" font-size="11" fill="#334155">ACB structural feature similarity v1 · calibrations visibles · ENGINE_ESTIMATE_ONLY</text>
+</svg>
