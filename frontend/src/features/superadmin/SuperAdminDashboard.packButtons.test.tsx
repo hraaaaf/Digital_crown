@@ -128,7 +128,7 @@ describe('SuperAdminDashboard commercial pack buttons', () => {
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith(`Pack ${to} attribué.`);
   });
 
-  it('shows the current generic desktop error when a downgrade is refused by the server', async () => {
+  it('surfaces the precise server reason when a downgrade is refused', async () => {
     vi.mocked(api.patch).mockRejectedValueOnce({
       response: {
         status: 409,
@@ -139,8 +139,9 @@ describe('SuperAdminDashboard commercial pack buttons', () => {
     await renderDashboard();
     fireEvent.change(screen.getByDisplayValue('ELITE'), { target: { value: 'GOLD' } });
 
-    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Erreur lors du changement de pack.'));
-    expect(vi.mocked(toast.error)).not.toHaveBeenCalledWith(expect.stringContaining('équipe réservée'));
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      expect.stringContaining('équipe réservée'),
+    ));
   });
 
   it('wires licence, notes, history, renewal, suspend and archive buttons on desktop', async () => {
@@ -178,7 +179,7 @@ describe('SuperAdminDashboard commercial pack buttons', () => {
     expect(screen.getByText('grant')).toBeTruthy();
 
     vi.mocked(api.post).mockClear();
-    fireEvent.click(scoped.getByTitle('Email de relance'));
+    fireEvent.click(scoped.getByTitle('WhatsApp de relance'));
     await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith(
       '/superadmin/clients/101/send-renewal-email',
       { message: 'Votre licence expire bientôt.' },
@@ -202,5 +203,23 @@ describe('SuperAdminDashboard commercial pack buttons', () => {
     confirmMock.mockReturnValueOnce(true);
     fireEvent.click(scoped.getByTitle('Archiver'));
     await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalledWith('/superadmin/clients/101/archive'));
+  });
+});
+
+
+describe('SuperAdmin renewal feedback truth', () => {
+  it('uses WhatsApp wording and surfaces the backend transport detail', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({
+      response: { data: { detail: "Aucun numéro de téléphone trouvé pour l'envoi WhatsApp." } },
+    } as never);
+    await renderDashboard();
+
+    const card = screen.getByText('Dr Gold').closest('.group');
+    if (!card) throw new Error('Gold client card not found');
+    fireEvent.click(within(card as HTMLElement).getByTitle('WhatsApp de relance'));
+
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      "Aucun numéro de téléphone trouvé pour l'envoi WhatsApp.",
+    ));
   });
 });

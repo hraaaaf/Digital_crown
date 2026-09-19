@@ -233,6 +233,31 @@ describe('TeamManager commercial pack button matrix', () => {
     await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/11'));
   });
 
+  it('shows an explicit load error instead of a false empty-team state', async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error('load failed'));
+    render(<TeamManager />);
+
+    expect(await screen.findByText('Équipe non chargée')).toBeTruthy();
+    expect(screen.queryByText("Aucun membre dans l'équipe")).toBeNull();
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeTruthy();
+  });
+
+  it('locks a member mutation against accidental double click', async () => {
+    membersState = [activeMember];
+    let resolvePut: ((value: unknown) => void) | null = null;
+    vi.mocked(api.put).mockImplementationOnce(() => new Promise((resolve) => { resolvePut = resolve; }) as never);
+
+    render(<TeamManager />);
+    expect(await screen.findByText('Active User')).toBeTruthy();
+
+    const suspend = screen.getByTitle("Suspendre l'accès");
+    fireEvent.click(suspend);
+    fireEvent.click(suspend);
+    expect(vi.mocked(api.put)).toHaveBeenCalledTimes(1);
+
+    resolvePut?.({ data: {} });
+  });
+
   it('shows and dismisses a mutation error instead of silently failing', async () => {
     membersState = [activeMember];
     vi.mocked(api.put).mockRejectedValueOnce(new Error('network'));

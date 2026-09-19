@@ -146,8 +146,8 @@ export const SuperAdminDashboard: React.FC = () => {
       await api.patch(`/superadmin/clients/${userId}/plan`, null, { params: { plan } });
       toast.success(`Pack ${plan} attribué.`);
       fetchClients();
-    } catch (err) {
-      toast.error("Erreur lors du changement de pack.");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Erreur lors du changement de pack.");
     }
   };
 
@@ -173,10 +173,10 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const handleSendRenewalEmail = async (userId: number) => {
     try {
-      await api.post(`/superadmin/clients/${userId}/send-renewal-email`, { message: "Votre licence expire bientôt." });
-      toast.success("Email de relance envoyé !");
-    } catch (err) {
-      toast.error("Erreur lors de l'envoi de l'email");
+      const response = await api.post(`/superadmin/clients/${userId}/send-renewal-email`, { message: "Votre licence expire bientôt." });
+      toast.success(response.data?.message || "WhatsApp de relance envoyé.");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Erreur lors de l'envoi WhatsApp.");
     }
   };
 
@@ -500,7 +500,7 @@ export const SuperAdminDashboard: React.FC = () => {
                       <button onClick={() => openHistory(client.id)} title="Historique Licences" className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
                         <History size={14} />
                       </button>
-                      <button onClick={() => handleSendRenewalEmail(client.id)} title="Email de relance" disabled={client.is_archived} className="p-2 bg-slate-100 hover:bg-blue-100 hover:text-blue-600 text-slate-600 rounded-lg transition-colors disabled:opacity-50">
+                      <button onClick={() => handleSendRenewalEmail(client.id)} title="WhatsApp de relance" disabled={client.is_archived} className="p-2 bg-slate-100 hover:bg-blue-100 hover:text-blue-600 text-slate-600 rounded-lg transition-colors disabled:opacity-50">
                         <Mail size={14} />
                       </button>
                       <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_suspended ? 'réactiver' : 'suspendre'} ce client ?`)) handleToggleSuspend(client.id); }} title={client.is_suspended ? 'Réactiver' : 'Suspendre'} className={`p-2 rounded-lg transition-colors ${client.is_suspended ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-600'}`}>
