@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DEMO_SUPERADMIN } from '../../superadmin/previewData';
@@ -37,7 +37,7 @@ describe('MobileSuperAdmin commercial pack buttons', () => {
     ['Cabinet Atlas Démo', 'ELITE'],
     ['Clinique Horizon Test', 'PREMIUM'],
     ['Centre Dentaire Démonstration', 'GOLD'],
-  ])('exercises every pack selector outcome from %s (%s)', (cabinetName, currentPlan) => {
+  ])('exercises every pack selector outcome from %s (%s)', async (cabinetName, currentPlan) => {
     renderPreview();
     const dialog = openClient(cabinetName);
     const select = within(dialog).getByRole('combobox') as HTMLSelectElement;
@@ -46,9 +46,10 @@ describe('MobileSuperAdmin commercial pack buttons', () => {
 
     for (const target of ['GOLD', 'PREMIUM', 'ELITE']) {
       fireEvent.change(select, { target: { value: target } });
-      const confirmation = screen.getByRole('alertdialog', { name: new RegExp(`Passer en ${target}`) });
+      const confirmation = await screen.findByRole('alertdialog', { name: new RegExp(`Passer en ${target}`) });
       expect(within(confirmation).getByText(/sera modifié côté serveur/)).toBeTruthy();
       fireEvent.click(within(confirmation).getByRole('button', { name: 'Changer le pack' }));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
       expect(screen.getByRole('status').textContent).toContain(`Pack ${target} attribué`);
     }
   });
