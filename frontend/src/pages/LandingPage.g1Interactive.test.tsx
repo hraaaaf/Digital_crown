@@ -19,6 +19,11 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('LandingPage G1 interactive matrix', () => {
+  it('states the Morocco target truthfully in the public hero', () => {
+    renderPage();
+    expect(screen.getByText(/dentistes marocains/i)).toBeTruthy();
+    expect(screen.queryByText(/dentistes algériens/i)).toBeNull();
+  });
   it('does not mutate demo endpoint while required business fields are incomplete', () => {
     renderPage();
     fireEvent.submit(screen.getByRole('button', { name: /Envoyer ma demande/i }).closest('form')!);
