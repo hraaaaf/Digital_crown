@@ -68,18 +68,51 @@ async function capture(phase, scenario, viewport) {
   const screenshot = `${scenario}-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outputRoot, phase, screenshot), fullPage: false });
 
-  const snapshot = await page.evaluate(() => {
+  const snapshot = await page.evaluate(async ({ phase, scenario }) => {
     const touchTargets = [...document.querySelectorAll('button,a,input,select')].map(element => {
       const rect = element.getBoundingClientRect();
       return { tag: element.tagName, width: Math.round(rect.width), height: Math.round(rect.height) };
     }).filter(item => item.width > 0 && item.height > 0);
+
+    let storageProbe = null;
+    if (phase === 'after' && scenario === 'home') {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('digital-crown-patient-companion', 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const read = key => new Promise((resolve, reject) => {
+        const tx = db.transaction('vault', 'readonly');
+        const request = tx.objectStore('vault').get(key);
+        request.onsuccess = () => resolve(request.result ?? null);
+        request.onerror = () => reject(request.error);
+      });
+      const envelope = await read('companion-state');
+      const deviceKey = await read('device-aes-key');
+      db.close();
+      const webStorage = [
+        ...Object.values(localStorage),
+        ...Object.values(sessionStorage),
+      ].join('|');
+      storageProbe = {
+        envelopeVersion: envelope?.version ?? null,
+        hasCiphertext: typeof envelope?.ciphertext === 'string' && envelope.ciphertext.length > 20,
+        envelopeLeaksAccessToken: JSON.stringify(envelope || {}).includes('pc00-audit-device-token'),
+        keyAlgorithm: deviceKey?.algorithm?.name ?? null,
+        keyExtractable: deviceKey?.extractable ?? null,
+        webStorageLeaksAccessToken: webStorage.includes('pc00-audit-device-token'),
+        webStorageLeaksManualCode: webStorage.includes('ABCD-EFGH-JKLM'),
+      };
+    }
+
     return {
       pathname: window.location.pathname,
       text: document.body.innerText,
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
       touchTargets,
+      storageProbe,
     };
-  });
+  }, { phase, scenario });
 
   if (snapshot.horizontalOverflow) throw new Error(`${phase}/${scenario}/${viewport.width}: horizontal overflow`);
   if (runtimeErrors.length) throw new Error(`${phase}/${scenario}/${viewport.width}: ${runtimeErrors.join(' | ')}`);
