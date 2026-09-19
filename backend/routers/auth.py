@@ -490,14 +490,13 @@ async def signup_client(
         
         firebase_db = LicenseService()._db
         if firebase_db:
+            # Cloud boundary: Firebase stores only identity/licensing onboarding
+            # metadata. Contact/address and local database identifiers stay local.
             firebase_db.collection('pending_clients').document(req.email).set({
                 "email": req.email,
                 "nom_complet": req.nom_complet,
-                "telephone_mobile": req.telephone_mobile,
-                "adresse_complete": req.adresse_complete,
                 "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                "local_user_id": new_user.id
             })
             logger.info(f"Demande d'inscription envoyée sur Firebase pour {req.email}")
     except Exception as e:

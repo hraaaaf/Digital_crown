@@ -122,3 +122,13 @@ Signup writes cabinet-owner onboarding identity/contact fields to Firebase. This
 PR #627 was closed without merge because this mandatory audit invalidated the prior V1-07 closeout assumption.
 
 V1-08 remains blocked until this audit closes green.
+
+
+### MUST-FIX — Firebase onboarding minimization
+
+Pass 1 confirmed that `pending_clients` cloud writes were not consumed by the cabinet runtime but included phone, full address and the local DB user id.
+
+Remediation applied on the audit branch:
+- cloud payload restricted to onboarding identity/licensing metadata: email, display name, pending status, timestamp;
+- phone/address remain local;
+- local database identifiers are not exported.

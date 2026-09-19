@@ -157,3 +157,17 @@ class TestUrlencodedBodyLimit:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         assert response.status_code == 401
+
+
+def test_signup_firebase_payload_excludes_local_contact_and_db_identifiers():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "routers" / "auth.py").read_text(encoding="utf-8")
+    start = source.index("firebase_db.collection('pending_clients')")
+    payload_block = source[start:start + 700]
+
+    assert '"email": req.email' in payload_block
+    assert '"nom_complet": req.nom_complet' in payload_block
+    assert '"telephone_mobile"' not in payload_block
+    assert '"adresse_complete"' not in payload_block
+    assert '"local_user_id"' not in payload_block
