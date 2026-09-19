@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from backend.services import cephalo_superimposition_api as api_service
 from backend.tests.conftest import make_user
@@ -112,3 +113,37 @@ def test_f5_routes_require_cephalo_permission_not_general_patient_access(client,
 
     assert context.status_code == 403
     assert estimate.status_code == 403
+
+
+def test_f5_http_schema_cannot_claim_clinical_validation():
+    from backend.schemas.ortho_superimposition import OrthoSuperimpositionContextOut
+
+    payload = {
+        "patient_id": 1,
+        "ortho_case_id": 2,
+        "from_source": {
+            "timepoint_id": 10,
+            "timepoint_ordinal": 0,
+            "occurred_at": "2026-01-01T10:00:00",
+            "cephalo_analysis_id": 31,
+            "is_calibrated": False,
+            "mm_per_pixel": None,
+        },
+        "to_source": {
+            "timepoint_id": 11,
+            "timepoint_ordinal": 1,
+            "occurred_at": "2026-06-01T10:00:00",
+            "cephalo_analysis_id": 32,
+            "is_calibrated": False,
+            "mm_per_pixel": None,
+        },
+        "quantitative_mm_allowed": False,
+        "applicability_status": "ADULT_ENGINEERING_SCOPE_ONLY",
+        "method_id": "ACB_STRUCTURAL_FEATURE_SIMILARITY",
+        "method_version": "1",
+        "quality_status": "ENGINE_ESTIMATE_ONLY",
+        "clinically_validated": True,
+    }
+
+    with pytest.raises(ValidationError):
+        OrthoSuperimpositionContextOut.model_validate(payload)

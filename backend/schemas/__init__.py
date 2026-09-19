@@ -246,6 +246,9 @@ from .ortho_superimposition import (
     OrthoSuperimpositionSourceOut,
     OrthoSuperimpositionContextOut,
     OrthoSuperimpositionEstimateRequest,
+    SuperimpositionImageSize,
+    SuperimpositionTranslation,
+    OrthoSuperimpositionRegistrationOut,
     OrthoSuperimpositionEstimateOut,
 )
 
@@ -326,4 +329,9 @@ __all__ = [
     "OrthoCockpitCaseOut", "OrthoCockpitControlOut",
     "OrthoCockpitAppointmentOut", "OrthoCockpitTimepointOut",
     "OrthoCockpitEvidenceOut", "OrthoCockpitOut",
+    # ortho scientific superimposition
+    "SuperimpositionPixelROI", "OrthoSuperimpositionSourceOut",
+    "OrthoSuperimpositionContextOut", "OrthoSuperimpositionEstimateRequest",
+    "SuperimpositionImageSize", "SuperimpositionTranslation",
+    "OrthoSuperimpositionRegistrationOut", "OrthoSuperimpositionEstimateOut",
 ]
