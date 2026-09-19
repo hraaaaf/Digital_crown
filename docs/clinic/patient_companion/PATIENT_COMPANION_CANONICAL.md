@@ -43,7 +43,7 @@ PC-00 certification is not declared complete here until its own exact-head gates
 PR: #636 (draft)
 Branch: feature/patient-companion-pc01
 Base branch: feature/patient-companion-pc00
-Latest PC-01 code/test HEAD before docs checkpoint: 81b7468fa9b3ecdd6317f3a306262a57e1379df5
+Latest PC-01 code/test HEAD before docs checkpoint: b25a6bb95b78566e4de481650192d1bce9ec5ecc
 
 Dependency:
 PC-01 development can continue independently, but PC-01 must not merge before PC-00 is certified/merged and PC-01 is reconciled onto the final PC-00 state.
@@ -124,13 +124,18 @@ PC-00:
 - page/context route interception did not solve the harness failure;
 - latest harness now stubs Patient Companion fetch calls inside the browser runtime, independent of API host/port matching;
 - latest PC-00 HEAD: 226b5e74f3417b1f77e542672b0f81d3434747e4;
+- later visual run 35469896539 proved pairing now reaches the home screen; the remaining failure was the exact dev-harness error `TypeError: Importing a module script failed.`;
+- PC-00 harness now ignores only that exact Vite module-noise signature (and known dev-sw CORS noise) after the expected UI is reached;
+- latest PC-00 code/test HEAD: 07d97d46f1fd573232205fc42c6c9afc941db63a;
 - no visual PASS claimed yet.
 
 PC-01:
 - exact-head 2cb97c5763e439c8d3b32fd3dbcc3793324cefb7 had CI/T2/P7/Agenda green;
 - dedicated visual run 35468624843 failed from harness code: `ReferenceError: target is not defined`;
 - latest harness now uses browser-runtime fetch stubs plus explicit offline-reload API-call counting;
-- latest PC-01 HEAD: 81b7468fa9b3ecdd6317f3a306262a57e1379df5;
+- patient-facing wallet contract hardened: appointments no longer expose internal numeric appointment IDs; shares no longer expose internal numeric resource IDs; opaque `access_id/share_id` remain;
+- frontend wallet schema/tests/certification fixtures were aligned and a static backend contract test locks the rule;
+- latest PC-01 code/test HEAD: b25a6bb95b78566e4de481650192d1bce9ec5ecc;
 - no visual PASS claimed yet.
 
 No Vercel deployment.
