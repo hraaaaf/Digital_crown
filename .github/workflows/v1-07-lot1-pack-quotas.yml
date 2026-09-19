@@ -9,6 +9,7 @@ on:
       - "backend/routers/team.py"
       - "backend/routers/superadmin.py"
       - ".github/workflows/v1-07-lot1-pack-quotas.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
