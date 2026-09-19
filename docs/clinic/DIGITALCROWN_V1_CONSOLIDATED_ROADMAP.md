@@ -427,7 +427,7 @@ V1-06 Success criterion is satisfied. V1-07 is unlocked.
 
 ### LOT V1-07 — Master stabilization
 
-Status: **IN_PROGRESS — UNLOCKED BY V1-06 CLOSEOUT**
+Status: **IN_PROGRESS — PRE-FREEZE TRIPLE-CHECK / V1-08 BLOCKED**
 
 Goal: establish a stable pre-candidate master.
 
@@ -435,13 +435,22 @@ Success: required global CI/regressions green; migrations coherent; no known unr
 
 Proof: exact master SHA + required global run IDs + regression evidence + final pre-freeze audit.
 
+Additional mandatory gate approved 2026-09-19:
+- Pass 1 broad audit;
+- Pass 2 evidence double-check;
+- Pass 3 adversarial re-audit;
+- every finding classified BLOCKER / MUST-FIX / ACCEPTED-RISK / POST-V1;
+- every V1 BLOCKER and MUST-FIX resolved and re-certified before V1-08.
+
+Canonical audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`.
+
 ### LOT V1-08 — Freeze exact V1 candidate
 
 Status: **BLOCKED BY V1-07**
 
 Goal: intentionally select one immutable exact 40-character SHA as V1 candidate.
 
-Success: candidate SHA recorded here and in `DIGITALCROWN_V1_OBJECTIVE.md`; moving branch names are not install identity.
+Success: candidate SHA recorded here and in `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md`; moving branch names are not install identity.
 
 Rule: any code change after freeze creates a new candidate SHA and restarts candidate certification.
 
@@ -484,17 +493,19 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-07 — Master stabilization / IN_PROGRESS**
+- active lot: **V1-07 — Master stabilization / PRE-FREEZE TRIPLE-CHECK IN PROGRESS**
 - previous lot: **V1-06 — Pre-freeze repository reconciliation — CLOSED**
-- certified reconciliation base: `master@f05b9dc7c176a5752448793c8a0a585dfb728679`
-- V1-06 proof: #623 exact-head CI `35435256394` SUCCESS / T2 `35435256380` SUCCESS / Agenda A5 `35435256377` SUCCESS / PR Merge Summary `35435256371` SUCCESS.
-- remaining open PRs are explicitly parked: #618, #383, #289, #288.
-- V1-07 Goal: establish one stable pre-candidate master with required global regressions green, coherent migrations/docs, no unresolved mandatory V1 blocker.
+- audit base master: `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
+- V1-07 ordinary stabilization certification was green, but the product owner added a mandatory adversarial triple-check before freeze.
+- prior closeout PR #627 was closed without merge as premature.
+- canonical objective: `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md`
+- V1-08 freeze: **BLOCKED**
 - V1 candidate SHA: **NOT SELECTED**
+- installability status: **NOT CERTIFIED**
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
 - Vercel deployment: **NOT AUTHORIZED**
-- Next exact: certify current master globally, inspect migrations/roadmap coherence/open-PR invariants, repair only proven blockers, then close V1-07 before freezing V1-08.
+- Next exact: remediate Pass 1 BLOCKER/MUST-FIX findings, then Pass 2 + Pass 3 and exact-head re-certification.
 
 ## 7. Maintenance rule
 

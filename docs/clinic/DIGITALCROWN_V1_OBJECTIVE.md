@@ -1,6 +1,6 @@
 # Digital Crown — V1 objective
 
-Status: FROZEN OBJECTIVE — execution roadmap locked — candidate SHA not yet selected
+Status: CANONICAL OBJECTIVE — V1-07 PRE-FREEZE TRIPLE-CHECK IN PROGRESS — candidate SHA not yet selected
 
 ## Execution authority
 
@@ -67,6 +67,16 @@ Before the real cabinet update, rollback must be executable by restoring the ver
 
 - Canonical V0: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
 - sole roadmap: `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`
-- active lot: `V1-00 — Foundation / CI / Windows / dependency contract`
-- V1 candidate SHA: NOT SELECTED
-- V1 status: EXECUTION LOCKED / NOT OPERATIONAL
+- active lot: **V1-07 — Master stabilization / mandatory pre-freeze triple-check**
+- audit base: `master@ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
+- V1-08 freeze: **BLOCKED** until all V1 BLOCKER/MUST-FIX findings are remediated and re-certified
+- V1 candidate SHA: **NOT SELECTED**
+- installability status: **NOT CERTIFIED**
+- V1 status: **EXECUTION LOCKED / NOT OPERATIONAL**
+- production/cabinet mutation: **NOT AUTHORIZED**
+- Vercel deployment: **NOT AUTHORIZED**
+- audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`
+
+## Current next exact
+
+Complete Pass 1 remediation, Pass 2 evidence double-check and Pass 3 adversarial re-audit on one exact HEAD. Only after all V1 BLOCKER/MUST-FIX findings are green may V1-07 close and V1-08 select an immutable candidate SHA.
