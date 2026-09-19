@@ -155,6 +155,50 @@ describe('TeamManager commercial pack button matrix', () => {
     expect(screen.queryByText('Nouveau sous-compte')).toBeNull();
   });
 
+  it.each([
+    ['GOLD', 1, 1, 0, 2, false, true],
+    ['PREMIUM', 1, 2, 0, 6, true, true],
+    ['ELITE', 7, null, 18, null, true, true],
+  ])('creates an assistant successfully on %s when assistant capacity is available', async (
+    plan,
+    dentistsUsed,
+    dentistsMax,
+    assistantsUsed,
+    assistantsMax,
+    canDentist,
+    canAssistant,
+  ) => {
+    quotaState = {
+      plan,
+      dentistes_used: dentistsUsed,
+      dentistes_max: dentistsMax,
+      secretaires_used: assistantsUsed,
+      secretaires_max: assistantsMax,
+      pending_count: 0,
+      can_add_dentiste: canDentist,
+      can_add_secretaire: canAssistant,
+    };
+
+    render(<TeamManager />);
+    await screen.findByText(plan);
+
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter un membre/i }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Fatima Zahra'), { target: { value: `Assistant ${plan}` } });
+    fireEvent.change(screen.getByPlaceholderText('assistante@cabinet.com'), { target: { value: `assistant-${String(plan).toLowerCase()}@example.com` } });
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'TestPass123!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le compte' }));
+
+    await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith(
+      '/team/',
+      expect.objectContaining({
+        role: 'SECRETAIRE',
+        email: `assistant-${String(plan).toLowerCase()}@example.com`,
+      }),
+    ));
+    expect(await screen.findByText(`Compte créé pour Assistant ${plan} !`)).toBeTruthy();
+    expect(screen.queryByText('Nouveau sous-compte')).toBeNull();
+  });
+
   it('surfaces the backend quota refusal from Create account without false success', async () => {
     vi.mocked(api.post).mockRejectedValueOnce({
       response: { data: { detail: 'Quota assistantes atteint (2/2) pour le plan GOLD. Passez au plan superieur pour ajouter une assistante.' } },
@@ -248,13 +292,60 @@ describe('TeamManager commercial pack button matrix', () => {
     expect(screen.getByTitle('Supprimer définitivement')).toBeTruthy();
   });
 
-  it('shows an explicit load error instead of a false empty-team state', async () => {
-    vi.mocked(api.get).mockRejectedValueOnce(new Error('load failed'));
+  it('shows an explicit load error and Retry recovers to the real empty state', async () => {
+    let failFirstTeamLoad = true;
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.startsWith('/team/?') && failFirstTeamLoad) {
+        failFirstTeamLoad = false;
+        throw new Error('load failed');
+      }
+      if (url.startsWith('/team/?')) return { data: membersState } as never;
+      if (url === '/team/quota') return { data: quotaState } as never;
+      throw new Error(`Unexpected GET ${url}`);
+    });
     render(<TeamManager />);
 
     expect(await screen.findByText('Équipe non chargée')).toBeTruthy();
     expect(screen.queryByText("Aucun membre dans l'équipe")).toBeNull();
-    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+
+    expect(await screen.findByText("Aucun membre dans l'équipe")).toBeTruthy();
+    expect(screen.queryByText('Équipe non chargée')).toBeNull();
+  });
+
+  it('closes the permissions modal through both Cancel and the explicit close button', async () => {
+    membersState = [activeMember];
+    render(<TeamManager />);
+    expect(await screen.findByText('Active User')).toBeTruthy();
+
+    fireEvent.click(screen.getByTitle('Gérer les permissions'));
+    expect(screen.getByText(/Droits d'accès : Active User/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(screen.queryByText(/Droits d'accès : Active User/)).toBeNull();
+
+    fireEvent.click(screen.getByTitle('Gérer les permissions'));
+    expect(screen.getByText(/Droits d'accès : Active User/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer les permissions' }));
+    expect(screen.queryByText(/Droits d'accès : Active User/)).toBeNull();
+  });
+
+  it('locks Validate against accidental double click', async () => {
+    membersState = [pendingMember];
+    let releaseApprove: () => void = () => {};
+    vi.mocked(api.post).mockImplementationOnce(
+      () => new Promise((resolve) => { releaseApprove = () => resolve({ data: {} }); }) as never,
+    );
+
+    render(<TeamManager />);
+    expect(await screen.findByText('Pending User')).toBeTruthy();
+
+    const validate = screen.getByRole('button', { name: 'Valider' });
+    fireEvent.click(validate);
+    fireEvent.click(validate);
+    expect(vi.mocked(api.post)).toHaveBeenCalledTimes(1);
+
+    releaseApprove();
   });
 
   it('locks a member mutation against accidental double click', async () => {
@@ -286,7 +377,7 @@ describe('TeamManager commercial pack button matrix', () => {
     const message = await screen.findByText('Erreur lors de la modification du statut.');
     const banner = message.parentElement;
     expect(banner).toBeTruthy();
-    fireEvent.click(within(banner!).getByRole('button'));
+    fireEvent.click(within(banner!).getByRole('button', { name: "Fermer l'erreur" }));
     expect(screen.queryByText('Erreur lors de la modification du statut.')).toBeNull();
   });
 });
