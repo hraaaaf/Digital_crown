@@ -158,6 +158,9 @@ await page.route('**/*',async route=>{
 });
 
 let response = null;
+let closeInitiallyFocused = false;
+let escapeClosedViewer = false;
+let focusRestoredToTrigger = false;
 try {
   await waitForServer(`${BASE_URL}/ortho-f5-after.html`);
   response=await page.goto(`${BASE_URL}/ortho-f5-after.html`,{waitUntil:'domcontentloaded',timeout:30000});
@@ -165,6 +168,9 @@ try {
   await page.getByText(/Variation numérique/i).waitFor({state:'visible',timeout:30000});
   await page.getByRole('button',{name:/Superposition scientifique/i}).click();
   await page.locator('[data-ortho-f5-viewer]').waitFor({state:'visible',timeout:30000});
+  closeInitiallyFocused = await page.evaluate(
+    () => document.activeElement?.getAttribute('aria-label') === 'Fermer la superposition'
+  );
   const drawRoi = async (selector) => {
     const box = await page.locator(selector).boundingBox();
     if(!box) throw new Error('Missing ROI box '+selector);
@@ -181,10 +187,12 @@ try {
   activePageErrors.push(error instanceof Error?error.message:String(error));
 }
 
+let firstViewport = true;
 for(const viewport of viewports){
   currentViewportName = viewport.name;
+  const carryConsoleErrors = firstViewport ? [...activeConsoleErrors] : [];
+  const carryPageErrors = firstViewport ? [...activePageErrors] : [];
   activeConsoleErrors = [];
-  const carryPageErrors = [...activePageErrors];
   activePageErrors = [];
   await page.setViewportSize({width:viewport.width,height:viewport.height});
   await page.waitForTimeout(150);
@@ -206,21 +214,41 @@ for(const viewport of viewports){
       };
     });
     const pageErrors=[...carryPageErrors,...activePageErrors];
-    const consoleErrors=[...activeConsoleErrors];
+    const consoleErrors=[...carryConsoleErrors,...activeConsoleErrors];
     const valid=response?.status()===200&&!metrics.horizontalOverflow&&metrics.hasCompareSurface&&metrics.hasT0&&metrics.hasT1&&metrics.hasEvidence&&metrics.hasNumericCaption&&metrics.hasDelta&&metrics.hasF5Viewer&&metrics.hasF5Canvas&&metrics.hasEngineeringStatus&&metrics.forbidden.length===0&&consoleErrors.length===0&&pageErrors.length===0;
     await page.screenshot({path:path.join(OUTPUT_DIR,`after-superimposition-${viewport.name}.png`),fullPage:true});
     captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics,consoleErrors,pageErrors,valid});
   }catch(error){
     const pageErrors=[...carryPageErrors,...activePageErrors,error instanceof Error?error.message:String(error)];
-    captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics:null,consoleErrors:[...activeConsoleErrors],pageErrors,valid:false});
+    captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics:null,consoleErrors:[...carryConsoleErrors,...activeConsoleErrors],pageErrors,valid:false});
   }
+  firstViewport = false;
 }
+
+try {
+  await page.keyboard.press('Escape');
+  await page.locator('[data-ortho-f5-viewer]').waitFor({state:'detached',timeout:3000});
+  escapeClosedViewer = true;
+  focusRestoredToTrigger = await page.evaluate(
+    () => (document.activeElement?.textContent || '').toLowerCase().includes('superposition scientifique')
+  );
+} catch {}
+
 await context.close().catch(()=>{});
 await browser.close().catch(()=>{});
 if(!server.killed)server.kill('SIGTERM'); await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});
 await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8');
 const invalid=captures.filter(c=>!c.valid);
-const report={lot:'V1-05-F5',phase:'AFTER',productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),captures,blockedExternalRequests,invalidCount:invalid.length};
+const report={
+  lot:'V1-05-F5',
+  phase:'AFTER',
+  productHead:PRODUCT_HEAD,
+  viewports:viewports.map(v=>v.name),
+  captures,
+  blockedExternalRequests,
+  accessibility:{closeInitiallyFocused,escapeClosedViewer,focusRestoredToTrigger},
+  invalidCount:invalid.length,
+};
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8');
 console.log(JSON.stringify(report,null,2));
 if(invalid.length||blockedExternalRequests.length)process.exitCode=1;
