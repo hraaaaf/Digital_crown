@@ -23,7 +23,7 @@ useAuthStore.setState({
   isAuthenticated: true,
   isLoading: false,
   error: null,
-  logout: () => {},
+  logout: async () => {},
 });
 
 const client = new QueryClient({
