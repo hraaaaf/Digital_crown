@@ -438,6 +438,12 @@ async def license_check_middleware(request: Request, call_next):
         except (TypeError, ValueError):
             return JSONResponse(status_code=401, content={"detail": "TOKEN_INVALID"})
         is_ok, reason = await get_mobile_user_license_status(mobile_user_id)
+    elif token_type == "patient_companion":
+        try:
+            patient_tenant_id = int(payload["tenant_id"])
+        except (TypeError, ValueError, KeyError):
+            return JSONResponse(status_code=401, content={"detail": "TOKEN_INVALID"})
+        is_ok, reason = await get_mobile_user_license_status(patient_tenant_id)
     else:
         email = subject
         # SuperAdmin : bypass total, jamais bloqué
@@ -474,6 +480,7 @@ _BOUNDED_PUBLIC_JSON_PATHS = {
     "/api/public/activate-trial",
     "/api/mobile/claim-token",
     "/api/mobile/refresh-token",
+    "/api/patient-companion/pair",
 }
 
 
