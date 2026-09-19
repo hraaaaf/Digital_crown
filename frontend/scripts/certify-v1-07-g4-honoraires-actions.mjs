@@ -114,6 +114,32 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: /Dent 11,/i }).click();
   await page.getByText('Dent 11', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   const search = page.getByPlaceholder('Rechercher un acte (Composite, Extraction, Couronne...)');
+  const categoryBar = search.locator('xpath=../following-sibling::div[1]');
+  const categoryButtons = categoryBar.getByRole('button');
+  const categoryLabels = (await categoryButtons.allInnerTexts()).map(label => label.trim()).filter(Boolean);
+  if (categoryLabels.length < 3) throw new Error('TreatmentSelector categories missing');
+  for (const label of categoryLabels) {
+    await categoryBar.getByRole('button', { name: label, exact: true }).click();
+  }
+
+  const specialty = categoryLabels.find(label => !['Favoris', 'Tous les actes'].includes(label));
+  if (!specialty) throw new Error('No specialty category available');
+  await categoryBar.getByRole('button', { name: specialty, exact: true }).click();
+  const addCatalogAct = page.getByRole('button', { name: new RegExp('Ajouter un acte à ' + specialty) });
+  await addCatalogAct.click();
+  await page.getByPlaceholder("Nom de l'acte...").fill('G4 annulé ' + viewport.width);
+  await page.getByPlaceholder('Prix MAD').fill('123');
+  await page.getByRole('button', { name: '✕', exact: true }).click();
+  if (await page.getByPlaceholder("Nom de l'acte...").count()) throw new Error('Custom catalog act cancel failed');
+
+  await addCatalogAct.click();
+  const catalogActName = 'G4 Catalogue ' + viewport.width;
+  await page.getByPlaceholder("Nom de l'acte...").fill(catalogActName);
+  await page.getByPlaceholder('Prix MAD').fill('456');
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByText(catalogActName, { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+  actions.push('treatment-selector-categories-custom-catalog-act');
+
   await search.fill('Composite 1 face');
   const treatmentRow = page.locator('tr').filter({ hasText: 'Composite 1 face' }).first();
   await treatmentRow.click();
@@ -169,12 +195,21 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Unique', exact: true }).click();
   await page.getByRole('button', { name: /Global \/ Planifié/i }).click();
   await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
-  const installment = page.getByDisplayValue('Versement 1');
-  await installment.fill('Échéance G4');
-  const row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
+  let installment = page.getByDisplayValue('Versement 1');
+  await installment.fill('Échéance G4 supprimée');
+  let row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
   await row.locator('input[type="date"]').fill('2026-10-15');
   await row.locator('input[type="number"]').fill('500');
-  actions.push('treasury-configuration');
+  await row.locator('button').click();
+  if (await page.getByDisplayValue('Échéance G4 supprimée').count()) throw new Error('Treasury installment delete failed');
+
+  await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
+  installment = page.getByDisplayValue('Versement 1');
+  await installment.fill('Échéance G4');
+  row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
+  await row.locator('input[type="date"]').fill('2026-10-15');
+  await row.locator('input[type="number"]').fill('500');
+  actions.push('treasury-configuration-add-edit-delete');
 
   const persistenceRequests = [];
   const requestListener = req => {
@@ -190,9 +225,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('treasury-confirm-local-only');
 
   await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  const treasuryTitle = page.getByText('Encaissement', { exact: true });
+  const treasuryOverlay = treasuryTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+  await treasuryOverlay.locator('button').first().click();
+  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury top close failed');
+
+  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
   await page.getByRole('button', { name: 'Fermer', exact: true }).click();
-  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury close failed');
-  actions.push('treasury-close');
+  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury footer close failed');
+  actions.push('treasury-close-controls');
 
   const scene = await snapshot(page, viewport, 'final');
   if (scene.overflow) throw new Error('Horizontal overflow detected');
@@ -206,7 +247,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 await browser.close();
 await api.dispose();
 
-const expectedActionGroups = 10;
+const expectedActionGroups = 11;
 for (const row of evidence) {
   if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
 }
