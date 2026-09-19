@@ -9,7 +9,7 @@ Close V1-07 only after G0→G9 are certified on one exact final HEAD, then merge
 All of the following are observable on the same final candidate:
 1. G0 final inventory run is green.
 2. G1→G8 canonical audit files are certified or explicitly reconciled with verified reusable proof.
-3. G6/G7 UI remediations have matched true BEFORE/AFTER evidence at the required viewports and a recorded visual comparison/score.
+3. G1 Landing + G6/G7 UI remediations have matched true BEFORE/AFTER evidence at the required viewports and a recorded visual comparison/score.
 4. G9 semantic denominator is frozen with zero known critical untested controls.
 5. Frontend tests + build are green on exact HEAD.
 6. Relevant visual/runtime certifications required by changed surfaces are green.
@@ -22,7 +22,7 @@ All of the following are observable on the same final candidate:
 ## Current blockers
 - exact-head CI is pending;
 - exact-head G0 rerun is pending;
-- G6/G7 matched BEFORE/AFTER workflow is pending;
+- G1/G6/G7 matched BEFORE/AFTER workflow is pending (21 matched captures required: 7 scenarios × 3 viewports);
 - visual comparison/score is not yet recorded;
 - G9 semantic denominator is not frozen.
 
@@ -30,7 +30,7 @@ All of the following are observable on the same final candidate:
 1. Read exact-head CI, G0 and truth-safety visual evidence.
 2. Diagnose/fix any failure and repeat on the new exact HEAD.
 3. Inspect BEFORE/AFTER artifacts and record matched scenarios/viewports + visual score.
-4. Update G6/G7/G8 canonical statuses only to the level proved.
+4. Update G1/G6/G7/G8 canonical statuses only to the level proved.
 5. Reconcile final G0 output with G1→G8 proof registry.
 6. Freeze G9 semantic denominator and verify zero known critical gaps.
 7. Update all canonical audit files and Notion.
