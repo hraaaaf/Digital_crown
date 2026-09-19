@@ -6,7 +6,7 @@ import logging
 import subprocess
 import base64
 import argparse
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -44,13 +44,13 @@ def _mask_database_url(db_url: str) -> str:
 
 def _parse_postgres_url(db_url: str) -> tuple[str, str, str | None, str, str]:
     parsed = urlparse(db_url)
-    if parsed.scheme != "postgresql":
+    if parsed.scheme.split("+", 1)[0] not in {"postgres", "postgresql"}:
         raise ValueError(f"Unsupported scheme: {parsed.scheme}")
     host = parsed.hostname or ""
     port = str(parsed.port) if parsed.port else None
-    dbname = parsed.path.lstrip("/")
-    user = parsed.username or ""
-    password = parsed.password or ""
+    dbname = unquote(parsed.path.lstrip("/"))
+    user = unquote(parsed.username or "")
+    password = unquote(parsed.password or "")
     return user, password, host, port, dbname
 
 

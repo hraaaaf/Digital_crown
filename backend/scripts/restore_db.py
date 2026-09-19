@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_backend_env(override=True)
 
 from backend.config import settings
-from backend.scripts.backup_db import get_cipher, find_pg_binary
+from backend.scripts.backup_db import get_cipher, find_pg_binary, _parse_postgres_url
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("restore")
@@ -58,24 +58,25 @@ def restore_db(backup_path: str, confirm: bool = False, target_db: str = None):
             f.write(decrypted_data)
         logger.info("✅ Restore SQLite terminé.")
 
-    elif db_url.startswith("postgresql"):
+    elif db_url.startswith(("postgresql://", "postgres://", "postgresql+")):
         try:
-            auth_part, host_part = db_url.replace("postgresql://", "").split("@")
-            user, password = auth_part.split(":")
-            host_db = host_part.split("/")
-            host = host_db[0]
-            dbname = target_db or host_db[1].split("?")[0]
+            user, password, host, port, source_dbname = _parse_postgres_url(db_url)
+            dbname = target_db or source_dbname
         except Exception as e:
-            logger.error(f"Erreur lors du parsing de DATABASE_URL : {e}")
+            logger.error("Erreur lors du parsing de DATABASE_URL : %s", type(e).__name__)
             sys.exit(1)
 
         env = os.environ.copy()
         env["PGPASSWORD"] = password
 
-        logger.warning(f"Écrasement de la base PostgreSQL : {dbname} (--clean dans le dump gère le DROP)")
+        logger.warning("Écrasement de la base PostgreSQL : %s (--clean dans le dump gère le DROP)", dbname)
+        psql_cmd = [find_pg_binary("psql"), "-U", user, "-h", host]
+        if port:
+            psql_cmd += ["-p", port]
+        psql_cmd += ["-d", dbname]
         try:
             process = subprocess.run(
-                [find_pg_binary("psql"), "-U", user, "-h", host, "-d", dbname],
+                psql_cmd,
                 input=decrypted_data,
                 env=env,
                 capture_output=True,
