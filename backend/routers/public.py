@@ -15,30 +15,30 @@ from backend.config import settings
 from backend.main import invalidate_license_cache
 from backend.services.license_service import LicenseService
 from backend.utils.rate_limit import check_rate_limit
+from backend.core.paths import AppPaths
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Public"])
 
-_DEMO_REQUESTS_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), "data", "demo_requests.json"
-)
+_DEMO_REQUESTS_FILE = AppPaths.get_user_data_dir() / "demo_requests.json"
 
 
 def _load_requests() -> list:
-    if not os.path.exists(_DEMO_REQUESTS_FILE):
+    if not _DEMO_REQUESTS_FILE.exists():
         return []
     try:
-        with open(_DEMO_REQUESTS_FILE, "r", encoding="utf-8") as f:
+        with _DEMO_REQUESTS_FILE.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return []
 
 
 def _save_requests(requests: list) -> None:
-    os.makedirs(os.path.dirname(_DEMO_REQUESTS_FILE), exist_ok=True)
-    with open(_DEMO_REQUESTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(requests, f, ensure_ascii=False, indent=2)
+    _DEMO_REQUESTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temp = _DEMO_REQUESTS_FILE.with_name(f".{_DEMO_REQUESTS_FILE.name}.tmp")
+    temp.write_text(json.dumps(requests, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temp, _DEMO_REQUESTS_FILE)
 
 
 class DemoRequestIn(BaseModel):
@@ -92,13 +92,15 @@ def submit_demo_request(payload: DemoRequestIn, request: Request):
             f"Message : {entry['message']}\n"
             f"Date : {entry['submitted_at']}"
         )
-        email_service.send_email(
-            to_email="contact@digitalcrown.dz",
-            subject=f"[DÉMO] {entry['nom']} — {entry['cabinet']}",
-            body=body,
-        )
-    except Exception:
-        pass  # Email optionnel — on ne bloque pas si non configuré
+        admin_email = settings.ADMIN_NOTIFICATION_EMAIL.strip()
+        if admin_email:
+            email_service.send_email(
+                to_email=admin_email,
+                subject=f"[DÉMO] {entry['nom']} — {entry['cabinet']}",
+                text=body,
+            )
+    except Exception as exc:
+        logger.warning("Notification démo non envoyée: %s", type(exc).__name__)
 
     return {"success": True, "message": "Votre demande a bien été reçue. Nous vous contacterons sous 24h."}
 
