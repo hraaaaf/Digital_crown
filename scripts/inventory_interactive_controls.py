@@ -13,30 +13,30 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CODE_EXTS = {".tsx", ".ts", ".jsx", ".js"}
 EXCLUDED_PARTS = {"node_modules", "dist", "build", "coverage", "__snapshots__", "preview", "test"}
-TEST_RE = re.compile(r"(?:\\.test|\\.spec)\\.[jt]sx?$")
-ROUTE_RE = re.compile(r'<Route\\b[^>]*\\bpath\\s*=\\s*["\\']([^"\\']+)["\\']', re.S)
+TEST_RE = re.compile(r"(?:\.test|\.spec)\.[jt]sx?$")
+ROUTE_RE = re.compile(r'<Route\b[^>]*\bpath\s*=\s*["\']([^"\']+)["\']', re.S)
 
 PATTERNS = {
-    "button": re.compile(r"<button\\b", re.I),
-    "input_button": re.compile(r'<input\\b[^>]*\\btype\\s*=\\s*["\\'](?:button|submit|reset)["\\']', re.I | re.S),
-    "select": re.compile(r"<select\\b", re.I),
-    "textarea": re.compile(r"<textarea\\b", re.I),
-    "form": re.compile(r"<form\\b", re.I),
-    "link": re.compile(r"<(?:Link|NavLink)\\b"),
-    "onclick": re.compile(r"\\bonClick\\s*="),
-    "onchange": re.compile(r"\\bonChange\\s*="),
-    "onsubmit": re.compile(r"\\bonSubmit\\s*="),
-    "role_button": re.compile(r'\\brole\\s*=\\s*["\\']button["\\']'),
-    "dialog_signal": re.compile(r"(?:<CrownDialog\\b|<Dialog\\b|<Modal\\b|\\bmodal\\b)", re.I),
-    "drawer_signal": re.compile(r"(?:<Drawer\\b|\\bdrawer\\b)", re.I),
-    "tab_signal": re.compile(r"(?:role\\s*=\\s*[\"\\']tab[\"\\']|<Tabs?\\b|\\bactiveTab\\b|\\bsetActiveTab\\b)", re.I),
-    "menu_signal": re.compile(r"(?:<Menu\\b|<Dropdown\\b|\\bmenuOpen\\b|\\bsetMenuOpen\\b)", re.I),
-    "navigate_signal": re.compile(r"(?:\\bnavigate\\s*\\(|<Navigate\\b)"),
-    "mutating_api_signal": re.compile(r"\\b(?:api|axios|authService|cabinetApi)\\.(?:post|put|patch|delete)\\b", re.I),
+    "button": re.compile(r"<button\b", re.I),
+    "input_button": re.compile(r'<input\b[^>]*\btype\s*=\s*["\'](?:button|submit|reset)["\']', re.I | re.S),
+    "select": re.compile(r"<select\b", re.I),
+    "textarea": re.compile(r"<textarea\b", re.I),
+    "form": re.compile(r"<form\b", re.I),
+    "link": re.compile(r"<(?:Link|NavLink)\b"),
+    "onclick": re.compile(r"\bonClick\s*="),
+    "onchange": re.compile(r"\bonChange\s*="),
+    "onsubmit": re.compile(r"\bonSubmit\s*="),
+    "role_button": re.compile(r'\brole\s*=\s*["\']button["\']'),
+    "dialog_signal": re.compile(r"(?:<CrownDialog\b|<Dialog\b|<Modal\b|\bmodal\b)", re.I),
+    "drawer_signal": re.compile(r"(?:<Drawer\b|\bdrawer\b)", re.I),
+    "tab_signal": re.compile(r"(?:role\s*=\s*[\"\']tab[\"\']|<Tabs?\b|\bactiveTab\b|\bsetActiveTab\b)", re.I),
+    "menu_signal": re.compile(r"(?:<Menu\b|<Dropdown\b|\bmenuOpen\b|\bsetMenuOpen\b)", re.I),
+    "navigate_signal": re.compile(r"(?:\bnavigate\s*\(|<Navigate\b)"),
+    "mutating_api_signal": re.compile(r"\b(?:api|axios|authService|cabinetApi)\.(?:post|put|patch|delete)\b", re.I),
 }
 
 def line_number(text: str, pos: int) -> int:
-    return text.count("\\n", 0, pos) + 1
+    return text.count("\n", 0, pos) + 1
 
 def relevant_code_files():
     for path in SRC.rglob("*"):
@@ -73,7 +73,7 @@ main_path = SRC / "main.tsx"
 bootstrap_surfaces = []
 if main_path.exists():
     text = main_path.read_text(encoding="utf-8", errors="ignore")
-    bootstrap_surfaces = sorted(set(re.findall(r'["\\'](/(?:mobile|patient-companion)[^"\\']*)["\\']', text)))
+    bootstrap_surfaces = sorted(set(re.findall(r'["\'](/(?:mobile|patient-companion)[^"\']*)["\']', text)))
 
 test_files = [
     p.relative_to(ROOT).as_posix()
@@ -124,7 +124,7 @@ manifest = {
         "Runtime/config-generated controls are reconciled during G1-G8 behavior passes.",
     ],
 }
-(OUT_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+(OUT_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 lines = [
     "# Digital Crown — G0 Global Interactive Inventory",
@@ -159,7 +159,7 @@ lines += [
     "4. Declare denominator/coverage only after reconciliation.",
     "5. Route GAPs to G1→G8, then G9/G10.",
 ]
-(OUT_DIR / "summary.md").write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+(OUT_DIR / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 print(json.dumps({
     "source_files_scanned": manifest["source_files_scanned"],
     "unique_route_count": manifest["unique_route_count"],
