@@ -13,9 +13,14 @@ class LogoProcessor:
         et le texte d'origine sans utiliser de détourage IA (qui supprime souvent le texte).
         """
         try:
-            # 1. Ouverture avec Pillow
+            # 1. Ouverture avec Pillow. Le MIME client n'est jamais une preuve du
+            # format réel : refuser explicitement tout format actif/non attendu.
             img = Image.open(io.BytesIO(image_bytes))
-            
+            if img.format not in {"PNG", "JPEG"}:
+                raise ValueError(f"Unsupported logo image format: {img.format}")
+            if img.width * img.height > 20_000_000:
+                raise ValueError("Logo dimensions are unreasonably large")
+
             # 2. Préservation de la transparence
             if img.mode not in ('RGBA', 'LA'):
                 if 'transparency' in img.info:

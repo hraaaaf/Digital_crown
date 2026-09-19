@@ -235,9 +235,9 @@ async def upload_clinic_logo(
     current_user: models.User = Depends(require_permission("settings"))
 ):
     """Uploader le logo du cabinet."""
-    allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
+    allowed_types = ["image/png", "image/jpeg", "image/jpg"]
     if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG, JPG ou SVG")
+        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG ou JPG")
 
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
@@ -249,17 +249,16 @@ async def upload_clinic_logo(
     clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
     os.makedirs(clinic_dir, exist_ok=True)
 
-    file_ext = file.filename.split(".")[-1].lower()
     file_bytes = await file.read()
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 5Mo)")
 
-    if file.content_type == "image/svg+xml":
-        final_bytes = file_bytes
-        file_ext = "svg"
-    else:
-        png_bytes = LogoProcessor.process_logo(file_bytes)
-        final_bytes = png_bytes
-        file_ext = "png"
+    try:
+        final_bytes = LogoProcessor.process_logo(file_bytes)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Image PNG/JPG invalide") from None
 
+    file_ext = "png"
     unique_name = f"logo_{uuid.uuid4().hex[:8]}.{file_ext}"
     file_path = os.path.join(clinic_dir, unique_name)
 

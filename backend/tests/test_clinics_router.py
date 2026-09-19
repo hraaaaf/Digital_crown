@@ -173,6 +173,26 @@ class TestLogoUpload:
         assert r.status_code == 400
 
 
+    def test_upload_svg_is_rejected_as_active_content(self, client, auth_headers):
+        import io
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        r = client.post(
+            f"{BASE}/me/logo",
+            files={"file": ("logo.svg", io.BytesIO(svg), "image/svg+xml")},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_upload_fake_png_with_non_image_bytes_returns_400(self, client, auth_headers, configured_cabinet):
+        import io
+        r = client.post(
+            f"{BASE}/me/logo",
+            files={"file": ("logo.png", io.BytesIO(b"not-a-real-png"), "image/png")},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+
 class TestLetterheadUpload:
     pytestmark = pytest.mark.usefixtures("configured_cabinet")
 
