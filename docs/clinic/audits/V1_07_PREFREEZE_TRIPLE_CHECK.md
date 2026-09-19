@@ -132,3 +132,45 @@ Remediation applied on the audit branch:
 - cloud payload restricted to onboarding identity/licensing metadata: email, display name, pending status, timestamp;
 - phone/address remain local;
 - local database identifiers are not exported.
+
+
+## Pass 2 — evidence double-check findings
+
+The remediation was re-read against current code rather than trusting green intent.
+
+Additional findings:
+- the first edit of `cabinet-release-certification.yml` corrupted the dependency-install block; repaired before closeout;
+- clinic logo hardening did not initially cover letterhead uploads; letterheads are now always decoded and normalized to inert PNG;
+- packaged install/update path could silently bootstrap a new cabinet environment and fall back to SQLite when the real V0 PostgreSQL env was not selected. The installer now copies files only and does not auto-start/register a startup task; frozen first boot requires an existing explicit env or the explicit `--initialize-new-cabinet` fresh-install intent;
+- document download manually decoded access JWTs without consulting the revocation store; it now uses canonical `get_current_user`;
+- token revocation lookup itself failed open on persistent-store errors; it now denies on unreadable revocation state and surfaces explicit revoke persistence failures.
+
+Pass 2 result: remediation required additional corrections; prior state was not freeze-safe.
+
+## Pass 3 — adversarial re-audit status
+
+Completed adversarial checks so far:
+- sensitive committed-file inventory: no committed .env / Firebase credentials / PEM / private-key / PFX/P12 artifact detected in the exact audited tree;
+- ZERO-LLM filename/dependency surface remains absent for OpenAI/Anthropic/Gemini/Ollama legacy runtime components;
+- critical router review found local guards where static heuristics initially reported false positives;
+- mobile JWT decode paths reviewed retain token type/JTI/device/tenant revocation checks;
+- document-download revoked-token bypass fixed;
+- upload active-content paths reviewed for logo + letterhead;
+- legacy-media unknown/ambiguous ownership now fails closed;
+- cabinet plaintext non-loopback exposure now fails closed;
+- Firebase onboarding egress minimized to identity/licensing metadata.
+
+Repository hygiene note:
+- `e2e/node_modules` remains versioned. It is excluded from the cabinet release payload and is classified **POST-V1 CLEANUP**, not a release blocker.
+
+## Current freeze gate
+
+V1-08 remains BLOCKED until the exact current remediation HEAD has:
+1. targeted auth/media/upload/runtime tests green;
+2. general CI green;
+3. Windows dependency/runtime gates green;
+4. PostgreSQL Alembic certification green;
+5. no new BLOCKER/MUST-FIX from the final exact-head Pass 3 read;
+6. canonical Notion/roadmap/audit synchronization.
+
+No real cabinet mutation and no Vercel deployment are authorized.
