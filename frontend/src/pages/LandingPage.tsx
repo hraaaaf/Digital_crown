@@ -131,7 +131,7 @@ export const LandingPage: React.FC = () => {
           <span className="text-[#003380]">avec intelligence.</span>
         </h1>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10 font-medium">
-          DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour les dentistes algériens.
+          DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour les dentistes marocains.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a

@@ -1,0 +1,137 @@
+name: V1-07 G4 Browser Control Inventory
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/patients/**"
+      - "frontend/src/features/ortho/**"
+      - "frontend/src/features/panoramic/**"
+      - "frontend/src/features/admin/DocumentHub.tsx"
+      - "frontend/src/features/admin/DocumentStudio/**"
+      - "frontend/scripts/inventory-v1-07-g4-browser-controls.mjs"
+      - "scripts/t2_runtime_server.py"
+      - "requirements.txt"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/v1-07-g4-browser-inventory.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: v1-07-g4-browser-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    name: Enumerate real G4 controls in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v1-07-g4-browser-inventory-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact product HEAD
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          ACTUAL_HEAD="$(git rev-parse HEAD)"
+          echo "expected=$EXPECTED_HEAD"
+          echo "actual=$ACTUAL_HEAD"
+          test "$ACTUAL_HEAD" = "$EXPECTED_HEAD"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate isolated runtime credential
+        shell: bash
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-g4-browser.txt
+          pip install -r /tmp/requirements-g4-browser.txt
+          pip install httpx==0.27.2 pytest
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build exact frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start isolated backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/g4-browser-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-browser-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/g4-browser-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-browser-frontend.log
+          exit 1
+
+      - name: Enumerate G4 controls in real Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/v1-07-g4-browser-inventory
+          node scripts/inventory-v1-07-g4-browser-controls.mjs 2>&1 | tee ../artifacts/v1-07-g4-browser-inventory/runner.log
+
+      - name: Dump runtime logs on failure
+        if: failure()
+        run: |
+          echo "===== BACKEND ====="
+          cat /tmp/g4-browser-backend.log || true
+          echo "===== FRONTEND ====="
+          cat /tmp/g4-browser-frontend.log || true
+
+      - name: Upload G4 browser inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-g4-browser-control-inventory
+          path: artifacts/v1-07-g4-browser-inventory
+          if-no-files-found: error
+          retention-days: 14

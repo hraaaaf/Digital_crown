@@ -26,7 +26,7 @@ export const LicenseStatusPage = () => {
       iconBg: "bg-red-500/20",
       iconBorder: "border-red-500/30",
       title: "Licence Expirée",
-      description: `Votre licence Elite a expiré le ${user?.license_expires_at ? new Date(user.license_expires_at).toLocaleDateString() : '---'}. L'accès aux fonctionnalités cliniques est suspendu.`,
+      description: `Votre licence a expiré le ${user?.license_expires_at ? new Date(user.license_expires_at).toLocaleDateString() : '---'}. L'accès aux fonctionnalités cliniques est suspendu.`,
       buttonText: "Renouveler maintenant",
       buttonColor: "bg-blue-600 hover:bg-blue-500",
       buttonIcon: <CreditCard className="w-5 h-5" />

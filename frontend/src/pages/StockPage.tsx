@@ -37,6 +37,11 @@ const CATEGORIE_LABELS: Record<string, string> = {
   EQUIPEMENT:  'Équipement',
 };
 
+const mutationErrorMessage = (error: any, fallback: string) => {
+  const detail = error?.response?.data?.detail;
+  return typeof detail === 'string' && detail.trim() ? detail : fallback;
+};
+
 const CATEGORIE_COLORS: Record<string, string> = {
   CONSOMMABLE: 'bg-blue-50 text-blue-700 border-blue-200',
   MATERIAU:    'bg-purple-50 text-purple-700 border-purple-200',
@@ -65,10 +70,12 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
     notes:         item?.notes         ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       const payload = {
         ...form,
@@ -84,6 +91,8 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
         await api.post('/stock/items', payload);
       }
       onSaved();
+    } catch (err: any) {
+      setError(mutationErrorMessage(err, isEdit ? "La modification n'a pas été enregistrée." : "L'article n'a pas été ajouté."));
     } finally {
       setSaving(false);
     }
@@ -153,6 +162,12 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
             />
           </div>
 
+          {error && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -184,8 +199,10 @@ export const StockPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [modalItem, setModalItem] = useState<Partial<StockItem> | null | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StockItem | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const { data: items = [], isLoading } = useQuery<StockItem[]>({
+  const { data: items = [], isLoading, isError, refetch } = useQuery<StockItem[]>({
     queryKey: ['stock-items'],
     queryFn: () => api.get('/stock/items').then(r => r.data),
   });
@@ -202,15 +219,24 @@ export const StockPage = () => {
 
   const adjustQuantite = async (item: StockItem, delta: number) => {
     const next = Math.max(0, item.quantite + delta);
-    await api.patch(`/stock/items/${item.id}`, { quantite: next });
-    invalidate();
+    setMutationError(null);
+    try {
+      await api.patch(`/stock/items/${item.id}`, { quantite: next });
+      invalidate();
+    } catch (err: any) {
+      setMutationError(mutationErrorMessage(err, "La quantité n'a pas été enregistrée."));
+    }
   };
 
   const handleDelete = async (id: number) => {
     setDeletingId(id);
+    setMutationError(null);
     try {
       await api.delete(`/stock/items/${id}`);
       invalidate();
+      setDeleteTarget(null);
+    } catch (err: any) {
+      setMutationError(mutationErrorMessage(err, "L'article n'a pas été supprimé."));
     } finally {
       setDeletingId(null);
     }
@@ -225,6 +251,24 @@ export const StockPage = () => {
 
   if (isLoading) {
     return <EliteGhostLoader text="Chargement du stock…" size="medium" />;
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-xl font-black tracking-tight text-slate-800">Gestion du Stock</h1>
+        </div>
+        <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-amber-200 bg-amber-50/70 px-6 text-center">
+          <AlertTriangle size={40} className="text-amber-500" />
+          <div>
+            <h2 className="font-black text-slate-800">Stock indisponible</h2>
+            <p className="mt-1 max-w-xl text-sm text-slate-600">Impossible de confirmer le contenu du stock. Aucun état vide n’est affiché tant que la lecture n’a pas réussi.</p>
+          </div>
+          <button type="button" onClick={() => void refetch()} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-wider text-white">Réessayer</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -265,6 +309,16 @@ export const StockPage = () => {
             <p className="text-[10px] font-medium text-red-500 mt-0.5">
               {alertsData!.items.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(' · ')}
             </p>
+          </div>
+        </div>
+      )}
+
+      {mutationError && (
+        <div role="alert" className="flex items-start gap-3 rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-red-700">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-black">Action stock non enregistrée</p>
+            <p className="mt-0.5 text-xs font-semibold">{mutationError}</p>
           </div>
         </div>
       )}
@@ -388,7 +442,7 @@ export const StockPage = () => {
                         <Edit2 size={13} className="text-slate-500" />
                       </button>
                       <button
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => { setMutationError(null); setDeleteTarget(item); }}
                         disabled={deletingId === item.id}
                         className="p-2 rounded-xl border border-red-100 hover:bg-red-50 transition-colors disabled:opacity-50"
                         title="Supprimer"
@@ -403,6 +457,20 @@ export const StockPage = () => {
           </table>
         )}
       </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+          <section role="dialog" aria-modal="true" aria-labelledby="stock-delete-title" className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
+            <h2 id="stock-delete-title" className="text-lg font-black text-slate-800">Supprimer cet article ?</h2>
+            <p className="mt-2 text-sm font-semibold text-slate-600">{deleteTarget.nom} sera supprimé définitivement du stock.</p>
+            {mutationError && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{mutationError}</div>}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => { if (deletingId === null) { setDeleteTarget(null); setMutationError(null); } }} disabled={deletingId !== null} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-50">Annuler</button>
+              <button type="button" onClick={() => void handleDelete(deleteTarget.id)} disabled={deletingId === deleteTarget.id} className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50">{deletingId === deleteTarget.id ? 'Suppression…' : 'Supprimer définitivement'}</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Modal */}
       {modalItem !== undefined && (

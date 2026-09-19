@@ -7,6 +7,8 @@ from backend.routers import mobile, mobile_legacy, mobile_waiting_room
 def test_waiting_room_status_round_trips_exactly():
     assert mobile_legacy._MOBILE_TO_BACKEND_STATUS["EN_ATTENTE"] == models.AppointmentStatus.EN_SALLE_ATTENTE
     assert mobile_legacy._BACKEND_TO_MOBILE_STATUS[models.AppointmentStatus.EN_SALLE_ATTENTE] == "EN_ATTENTE"
+    assert mobile_legacy._MOBILE_TO_BACKEND_STATUS["EN_COURS"] == models.AppointmentStatus.EN_FAUTEUIL
+    assert mobile_legacy._BACKEND_TO_MOBILE_STATUS[models.AppointmentStatus.EN_FAUTEUIL] == "EN_COURS"
 
 
 def test_waiting_room_facade_replaces_only_mobile_get_views():
