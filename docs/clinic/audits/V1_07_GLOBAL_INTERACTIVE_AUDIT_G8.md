@@ -58,3 +58,28 @@ Do not certify G8 until:
 2. cross-lot error/empty/refusal/permission evidence is reconciled;
 3. exact-head tests + build are green;
 4. inherited open product-truth defects are either remediated or explicitly block G9.
+
+
+## Additional G8 proof
+
+`frontend/src/test/CriticalMutationSingleFlight.g8Interactive.test.tsx`
+- QuickPay submit becomes disabled after first dispatch and second click cannot dispatch a second payment;
+- Frontdesk request creation is single-flight;
+- RVG upload save is single-flight.
+
+## Functional reconciliation
+Cross-lot evidence now covers:
+- true empty vs unverified/error states;
+- mutation refusal without false success;
+- permission/deep-link fail-closed;
+- modal focus/keyboard/scroll accessibility;
+- offline queued-action truth;
+- compact responsive reachability;
+- representative critical mutation single-flight.
+
+Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUILD.
+
+Inherited blockers remain:
+- G6 LicenseStatus hardcoded plan wording;
+- G7 Stock read/delete/mutation-error defects.
+These prevent G9 freeze until resolved.
