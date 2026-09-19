@@ -1,0 +1,56 @@
+name: V1-07 LOT1 Pack Quotas
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "backend/tests/test_v1_07_lot1_pack_quotas.py"
+      - "backend/services/subscription_policy.py"
+      - "backend/routers/team.py"
+      - "backend/routers/superadmin.py"
+      - ".github/workflows/v1-07-lot1-pack-quotas.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lot1-pack-quotas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Record exact candidate
+        shell: bash
+        run: |
+          echo "candidate=$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          python -m pip check
+
+      - name: Run LOT1 commercial pack quota matrix
+        shell: bash
+        run: python -m pytest backend/tests/test_v1_07_lot1_pack_quotas.py -q --maxfail=1
