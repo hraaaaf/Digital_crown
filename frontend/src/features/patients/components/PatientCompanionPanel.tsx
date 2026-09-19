@@ -9,7 +9,6 @@ import {
   Link2,
   Link2Off,
   Loader2,
-  Mail,
   QrCode,
   RefreshCcw,
   ShieldCheck,
@@ -40,7 +39,7 @@ type CompanionStatus = {
   pending_invitation: null | {
     invitation_id: string;
     relationship_type: string;
-    recipient_type: 'email' | 'phone';
+    recipient_type: string;
     created_at: string;
     expires_at: string;
   };
@@ -101,7 +100,6 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [recipient, setRecipient] = useState(patientEmail || '');
   const [relationshipType, setRelationshipType] = useState('SELF');
   const [expiresInMinutes, setExpiresInMinutes] = useState(15);
   const [ephemeralInvitation, setEphemeralInvitation] = useState<EphemeralInvitation | null>(null);
@@ -126,7 +124,6 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
   }, [patientId]);
 
   useEffect(() => {
-    setRecipient(patientEmail || '');
     setEphemeralInvitation(null);
     void load();
   }, [load, patientEmail, patientId]);
@@ -155,13 +152,9 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
   );
 
   const createInvitation = async () => {
-    const email = recipient.trim();
-    if (!email) return void toast.error("Renseignez l'e-mail vérifié du patient");
     setBusyKey('invite');
     try {
-      const response = await api.post(`/patient-companion/admin/patients/${patientId}/invitation`, {
-        recipient_type: 'email',
-        recipient: email,
+      const response = await api.post(`/patient-companion/admin/patients/${patientId}/local-invitation`, {
         relationship_type: relationshipType,
         expires_in_minutes: expiresInMinutes,
       });
@@ -266,7 +259,7 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
             <div>
               <div className="flex items-center gap-2 text-primary"><ShieldCheck size={20} /><span className="text-[11px] font-black uppercase tracking-[0.16em]">Accès patient</span></div>
               <h2 className="mt-1.5 text-xl sm:mt-2 sm:text-2xl font-black text-main">Patient Companion</h2>
-              <p className="hidden sm:block mt-1 text-sm font-medium text-text-muted">Administration sécurisée de l’accès mobile, sans dupliquer le dossier patient.</p>
+              <p className="hidden sm:block mt-1 text-sm font-medium text-text-muted">Pont QR local-first : le cabinet reste source clinique et le téléphone conserve son coffre patient chiffré.</p>
             </div>
             <button type="button" onClick={() => void load()} className="h-10 px-3 rounded-xl border border-border-main bg-card-bg text-text-muted hover:text-primary transition-colors flex items-center gap-2 text-xs font-black uppercase tracking-wider">
               <RefreshCcw size={15} /><span className="hidden sm:inline">Actualiser</span>
@@ -287,9 +280,9 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
         </div>
 
         <div className="bg-card-bg rounded-2xl sm:rounded-[1.75rem] border border-border-main shadow-elite p-4 sm:p-5 md:p-6">
-          <div className="flex items-center gap-2 text-primary"><Mail size={19} /><span className="text-[11px] font-black uppercase tracking-[0.16em]">Invitation</span></div>
+          <div className="flex items-center gap-2 text-primary"><QrCode size={19} /><span className="text-[11px] font-black uppercase tracking-[0.16em]">Pont local</span></div>
           <div className="mt-4 space-y-3">
-            <label className="block"><span className="text-[10px] font-black uppercase tracking-widest text-text-muted">E-mail Firebase vérifié</span><input value={recipient} onChange={event => setRecipient(event.target.value)} type="email" autoComplete="off" className="mt-1.5 w-full h-11 px-3 rounded-xl border border-border-main bg-background text-main font-bold text-sm outline-none focus:ring-2 focus:ring-primary/20" placeholder="patient@email.com" /></label>
+            <div className="rounded-2xl border border-primary/15 bg-primary/5 px-3.5 py-3 text-xs font-bold text-text-muted">Le QR appaire directement le téléphone du patient au cabinet. Aucun compte cloud n’est nécessaire pour transporter les données cliniques.</div>
             <div className="grid grid-cols-2 gap-3">
               <label><span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Lien</span><select value={relationshipType} onChange={event => setRelationshipType(event.target.value)} className="mt-1.5 w-full h-11 px-3 rounded-xl border border-border-main bg-background text-main font-bold text-sm"><option value="SELF">Patient</option><option value="PARENT">Parent</option><option value="GUARDIAN">Tuteur</option><option value="CAREGIVER">Aidant</option></select></label>
               <label><span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Validité</span><select value={expiresInMinutes} onChange={event => setExpiresInMinutes(Number(event.target.value))} className="mt-1.5 w-full h-11 px-3 rounded-xl border border-border-main bg-background text-main font-bold text-sm"><option value={15}>15 min</option><option value={30}>30 min</option><option value={60}>60 min</option></select></label>

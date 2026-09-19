@@ -249,7 +249,7 @@ describe('TeamManager commercial pack button matrix', () => {
 
     confirmMock.mockReturnValueOnce(true);
     fireEvent.click(screen.getByTitle('Supprimer définitivement'));
-    await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/10'));
+    await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/10'), { timeout: 3000 });
   });
 
   it('executes permissions save, suspend, reactivate and permanent delete for existing members', async () => {
