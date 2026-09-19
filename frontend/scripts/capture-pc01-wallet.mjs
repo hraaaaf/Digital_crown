@@ -8,7 +8,7 @@ const outputRoot = process.env.PC01_EVIDENCE_DIR || '../artifacts/pc01-patient-w
 const viewports = [{ width: 360, height: 800 }, { width: 390, height: 844 }];
 const browsers = { chromium, webkit };
 const evidence = [];
-const deviceToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzAxLWRldmljZSIsImV4cCI6MTc5MDIwMDAwMH0.audit';
+const deviceToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzAxLWRldmljZSIsImV4cCI6MjAwMDAwMDAwMH0.audit';
 
 await fs.mkdir(path.join(outputRoot, 'before'), { recursive: true });
 await fs.mkdir(path.join(outputRoot, 'after'), { recursive: true });
@@ -61,7 +61,7 @@ async function pair(page) {
 }
 
 async function probe(page) {
-  return page.evaluate(async () => {
+  return page.evaluate(async ({ deviceToken }) => {
     const db = await new Promise((resolve, reject) => {
       const request = indexedDB.open('digital-crown-patient-companion', 1);
       request.onsuccess = () => resolve(request.result);
@@ -87,7 +87,7 @@ async function probe(page) {
       keyAlgorithm: key?.algorithm?.name ?? null,
       keyExtractable: key?.extractable ?? null,
     };
-  });
+  }, { deviceToken });
 }
 
 async function capture(browserName, browser, phase, viewport) {
@@ -121,10 +121,10 @@ async function capture(browserName, browser, phase, viewport) {
     const encrypted = await probe(page);
     await page.unroute('**/api/**');
     await installRoutes(page, 'offline');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.getByText('Contrôle orthodontique', { exact: true }).waitFor();
     const requestCount = [];
     page.on('request', request => { if (request.url().includes('/api/')) requestCount.push(request.url()); });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByText('Contrôle orthodontique', { exact: true }).waitFor();
     const offlineShot = `${browserName}-offline-reload-${viewport.width}x${viewport.height}.png`;
     await page.screenshot({ path: path.join(outputRoot, phase, offlineShot), fullPage: true });
     offline = {
