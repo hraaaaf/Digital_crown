@@ -342,6 +342,16 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             elif "static/" in pdf_url:
                 pdf_url = pdf_url[pdf_url.find("static/"):]
         
+        if preview and isinstance(pdf_url, str) and pdf_url.startswith("static/documents/"):
+            from backend.services.document_preview_token import create_document_preview_token
+
+            rel_preview_path = pdf_url[len("static/documents/"):]
+            preview_token = create_document_preview_token(
+                current_user.get_employer_id(),
+                rel_preview_path,
+            )
+            pdf_url = f"{pdf_url}?preview_token={preview_token}"
+
         # Apprentissage des habitudes d'actes uniquement après archivage réel.
         if should_learn_financial_document(req.type, bool(should_archive), preview):
             from backend.services.accounting_service import accounting_service
@@ -435,6 +445,16 @@ async def generate_sample_preview(
             pdf_url = "static" + pdf_url.split(media_path_str)[1]
         elif "static/" in pdf_url:
             pdf_url = pdf_url[pdf_url.find("static/"):]
+
+        if isinstance(pdf_url, str) and pdf_url.startswith("static/documents/"):
+            from backend.services.document_preview_token import create_document_preview_token
+
+            rel_preview_path = pdf_url[len("static/documents/"):]
+            preview_token = create_document_preview_token(
+                current_user.get_employer_id(),
+                rel_preview_path,
+            )
+            pdf_url = f"{pdf_url}?preview_token={preview_token}"
             
         return {"pdf_url": pdf_url}
     except Exception as e:

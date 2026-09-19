@@ -686,8 +686,8 @@ def _serve_protected_file(base_dir: str, rel_path: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
     return FileResponse(abs_path)
 
-def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str, current_user=None):
-    """Fail closed unless DB provenance proves the requested file belongs to this cabinet."""
+def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str, current_user=None, *, allow_missing: bool = False) -> bool:
+    """Fail closed unless DB provenance proves ownership; optionally report a missing row."""
     path_col = getattr(model_cls, path_col_name)
     records = (
         db.query(model_cls)
@@ -696,6 +696,8 @@ def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name
         .all()
     )
     if not records:
+        if allow_missing:
+            return False
         raise HTTPException(status_code=404, detail="Fichier non référencé")
 
     owner_ids = {record.patient.employer_id for record in records}
@@ -743,10 +745,26 @@ async def serve_archives(
 @app.get("/api/static/documents/{rel_path:path}", include_in_schema=False)
 async def serve_documents(
     rel_path: str,
+    request: Request,
     current_user=Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
-    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path, current_user)
+    employer_id = current_user.get_employer_id()
+    owned = _assert_media_tenant(
+        db,
+        employer_id,
+        models.DocumentArchive,
+        "file_path",
+        rel_path,
+        current_user,
+        allow_missing=True,
+    )
+    if not owned:
+        from backend.services.document_preview_token import verify_document_preview_token
+
+        preview_token = request.query_params.get("preview_token")
+        if not verify_document_preview_token(preview_token, employer_id, rel_path):
+            raise HTTPException(status_code=404, detail="Fichier non référencé")
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "documents"), rel_path)
 
 # Pièces jointes d'actes — AUTH + tenant requis (stockées dans uploads/actes/).

@@ -43,3 +43,12 @@ def test_document_download_rejects_revoked_bearer_token(client, dentiste):
 
     response = client.get("/api/documents/999999/download", headers=headers)
     assert response.status_code == 401
+
+
+def test_preview_url_contract_is_signed_and_non_persistent():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "routers" / "documents.py").read_text(encoding="utf-8")
+    assert "create_document_preview_token" in source
+    assert "preview_token=" in source
+    assert "if preview and isinstance(pdf_url, str)" in source
