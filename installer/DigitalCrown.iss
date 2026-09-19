@@ -61,14 +61,10 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{sys}\schtasks.exe"; \
-    Parameters: "/create /tn ""{#MyAppTaskName}"" /tr ""\""{app}\{#MyAppExeName}\"""" /sc onlogon /rl limited /f"; \
-    Flags: runhidden; StatusMsg: "Configuration du démarrage automatique..."
-
-; Premier lancement. DigitalCrown.exe refuse lui-même de démarrer si le bundle
-; INSTALLABLE_CERTIFIED n'est pas cohérent avant toute écriture first-boot.
-Filename: "{app}\{#MyAppExeName}"; Description: "Lancer {#MyAppName}"; \
-    Flags: nowait postinstall skipifsilent runasoriginaluser
+; V1 managed update safety:
+; copying the certified program files MUST NOT auto-start the application or create
+; a startup task. Activation happens only after PREUPDATE backup/rehearsal and an
+; explicit cabinet environment has been selected by the controlled update path.
 
 [UninstallRun]
 Filename: "{sys}\schtasks.exe"; Parameters: "/delete /tn ""{#MyAppTaskName}"" /f"; \

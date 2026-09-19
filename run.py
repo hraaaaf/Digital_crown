@@ -23,12 +23,22 @@ def _first_boot_bootstrap() -> None:
     if not getattr(sys, "frozen", False):
         return
 
+    from pathlib import Path
     from backend.core.paths import AppPaths
     from backend.core.platform import get_platform_adapter
 
-    env_path = AppPaths.get_env_path()
+    explicit_env = os.getenv("DIGITALCROWN_ENV_FILE", "").strip()
+    env_path = Path(explicit_env) if explicit_env else AppPaths.get_env_path()
     if env_path.exists():
         return
+
+    if "--initialize-new-cabinet" not in sys.argv:
+        raise RuntimeError(
+            "SECURITE : aucun environnement cabinet existant n'a été trouvé. "
+            "Une mise à jour ne doit jamais créer silencieusement une nouvelle base. "
+            "Utilisez DIGITALCROWN_ENV_FILE pour un cabinet existant ou "
+            "--initialize-new-cabinet uniquement pour une installation neuve."
+        )
 
     import secrets
     import socket

@@ -104,3 +104,22 @@ def test_schema_gate_does_not_create_missing_sqlite_file(tmp_path):
     with pytest.raises(RuntimeError, match="fichier SQLite absent"):
         assert_database_at_current_head(engine)
     assert not database_path.exists()
+
+
+def test_frozen_first_boot_requires_explicit_new_cabinet_or_existing_env_source():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[2] / "run.py").read_text(encoding="utf-8")
+    assert 'explicit_env = os.getenv("DIGITALCROWN_ENV_FILE", "").strip()' in source
+    assert '"--initialize-new-cabinet" not in sys.argv' in source
+    assert "Une mise à jour ne doit jamais créer silencieusement une nouvelle base" in source
+
+
+def test_installer_never_auto_starts_or_registers_runtime_before_controlled_activation():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[2] / "installer" / "DigitalCrown.iss").read_text(encoding="utf-8")
+    run_section = source.split("[Run]", 1)[1].split("[UninstallRun]", 1)[0]
+    assert "DigitalCrown.exe" not in run_section
+    assert "schtasks.exe" not in run_section
+    assert "explicit cabinet environment" in run_section
