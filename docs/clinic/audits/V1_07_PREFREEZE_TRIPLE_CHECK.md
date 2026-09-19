@@ -25,69 +25,64 @@ V1-07 can close only when:
 
 ### BLOCKER — legacy media ownership can fail open
 
-`backend/main.py::_assert_media_tenant` currently allows a file when no DB row can prove ownership. Legacy acte attachments behave similarly. Clinic branding routes require authentication but do not prove requested `public_id` belongs to the authenticated cabinet.
+Original finding: media paths could fail open when DB provenance was absent/ambiguous; legacy acte attachments and clinic branding needed the same tenant proof.
 
-Risk: an authenticated user who can guess an orphan/legacy path may receive a file whose tenant cannot be proven.
+Current remediation re-check:
+- `_assert_media_tenant` returns 404 when provenance is missing and 403 when ownership is foreign/ambiguous;
+- legacy acte attachments require an owning `Acte → Patient → employer_id` chain and fail closed when absent;
+- clinic branding resolves the authenticated employer's `CabinetConfig` and requires the requested first path segment to equal that cabinet's `public_id`;
+- orphan panoramic/acte, document preview-token and clinic-source contracts exist in `backend/tests/test_media_security.py`.
 
-Required remediation:
-- unknown ownership => fail closed;
-- foreign/ambiguous ownership => fail closed;
-- clinic asset path must be bound to the authenticated cabinet public_id;
-- adversarial tests for orphan and cross-tenant paths.
+Status: **REMEDIATED IN CODE/TEST — EXACT-HEAD CERTIFICATION PENDING**.
 
 ### BLOCKER — cabinet HTTP/LAN exposure with non-Secure cookies
 
-Verified:
-- `DigitalCrown.spec` packages `run.py`;
-- `run.py` defaults cabinet host to `0.0.0.0` and starts uvicorn without TLS;
-- first-boot cabinet env is HTTP;
-- auth cookies are Secure only in `production`, not cabinet;
-- controlled real launcher also defaults `BindHost=0.0.0.0` even when TLS is absent.
+Original finding: packaged/controlled cabinet runtime could expose plain HTTP on LAN and cabinet cookies were not guaranteed Secure.
 
-Required remediation:
-- loopback-only default when TLS is absent;
-- non-loopback cabinet binding allowed only with explicit HTTPS and cert/key;
-- packaged runtime supports the explicit TLS contract;
-- cabinet auth cookies Secure when HTTPS is enabled;
-- regression tests.
+Current remediation re-check:
+- packaged first boot writes `CABINET_HOST=127.0.0.1`;
+- cabinet/production non-loopback bind is refused unless HTTPS is explicitly enabled;
+- HTTPS requires an existing cert/key pair and is wired into uvicorn;
+- controlled real launcher binds `0.0.0.0` only when the HTTPS contract is enabled, otherwise loopback;
+- cabinet auth cookies become Secure when cabinet HTTPS is enabled;
+- `test_mobile_https_runtime_contract.py` locks the runtime/LAN contract.
+
+Status: **REMEDIATED IN CODE/TEST — EXACT-HEAD CERTIFICATION PENDING**.
 
 ### MUST-FIX — Google OAuth state/CSRF binding missing
 
-`/api/auth/google/authorize` emits no OAuth `state`; callback performs no state validation.
+Original finding: Google authorize/callback lacked state binding.
 
-Required remediation:
-- cryptographically random state;
-- short-lived HttpOnly state cookie;
-- constant-time callback validation;
-- one-shot deletion;
-- mismatch/missing/success contract tests.
+Current remediation re-check:
+- authorize emits a cryptographically random `secrets.token_urlsafe(32)` state;
+- state is bound to a 300-second HttpOnly, SameSite=Lax cookie;
+- callback requires cookie + query state and compares them with `hmac.compare_digest` before token exchange;
+- every failure branch and the successful callback clear the state cookie;
+- `test_google_oauth_https_runtime_contract.py` now covers authorize binding, mismatch, missing state and successful one-shot consumption.
+
+Status: **REMEDIATED IN CODE/TEST — EXACT-HEAD CERTIFICATION PENDING**.
 
 ### MUST-FIX — cabinet certification dependency drift
 
-Canonical runtime/CI pins:
-- torch 2.10.0
-- torchvision 0.25.0
-- torchaudio 2.10.0
+Original finding: cabinet certification mixed incompatible torch/vision/audio pins.
 
-`cabinet-release-certification.yml` still installs torch 2.12.0 / torchvision 0.27.0 and then consumes torchaudio 2.10.0.
+Current remediation re-check:
+- `cabinet-release-certification.yml` installs torch 2.10.0 / torchvision 0.25.0 / torchaudio 2.10.0 together;
+- all three are excluded before installing the remaining requirements;
+- `python -m pip check` is mandatory.
 
-Required remediation:
-- use the canonical pinned trio;
-- exclude all three before installing the remainder;
-- `pip check`.
+Status: **REMEDIATED IN WORKFLOW — FINAL CABINET CERTIFICATION PENDING**.
 
 ### MUST-FIX — competing V1 objective documents
 
-Both exist:
-- `DIGITALCROWN_V1_OBJECTIVE.md`
-- `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md`
+Original finding: root and clinic objective files could compete for V1 authority.
 
-The clinic document predates the root duplicate and is referenced by the V0→V1 handover as source of truth.
+Current remediation re-check:
+- `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md` is the sole canonical objective;
+- root `DIGITALCROWN_V1_OBJECTIVE.md` explicitly declares itself a **NON-AUTHORITATIVE POINTER**;
+- it points to the canonical objective and the consolidated execution roadmap and carries no independent candidate/gate state.
 
-Required remediation:
-- `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md` remains canonical;
-- root file becomes a non-authoritative pointer or is removed;
-- all roadmap references become explicit.
+Status: **REMEDIATED IN DOCUMENT CONTRACT — FINAL DOC COHERENCE CHECK PENDING**.
 
 ### MUST-FIX — implicit Sentry cloud observability
 
@@ -104,15 +99,21 @@ Status: **REMEDIATED IN CODE/TEST — EXACT-HEAD CERTIFICATION PENDING**.
 
 ### MUST-FIX (low) — raw health exception disclosure
 
-Unauthenticated health endpoints return raw DB/storage exception strings.
+Original finding: unauthenticated health failures could expose raw DB/storage exception strings.
 
-Required remediation:
-- generic external error state;
-- detailed exception only in server logs.
+Current remediation re-check:
+- `/api/health/db` and `/api/health/storage` already returned generic external errors and logged details server-side;
+- residual `/health` leakage was found during this triple-check and fixed on PR #633;
+- `/health` now logs the exception server-side and returns only `{"status":"degraded","db":"error"}`;
+- `test_root_health_error_does_not_expose_exception_detail` injects a credential-bearing connection string and proves it is absent from the response.
+
+Status: **REMEDIATED IN CODE/TEST — EXACT-HEAD CERTIFICATION PENDING**.
 
 ### REVIEW — Firebase pending_clients onboarding
 
-Signup writes cabinet-owner onboarding identity/contact fields to Firebase. This is not patient clinical data, but Pass 2 must explicitly reconcile it with the “identity/licensing only” cloud boundary.
+Re-check result: cloud onboarding is restricted to identity/licensing metadata only: email, display name, pending status and timestamp. Phone, full address, local DB id and password material remain local. `test_signup_pending_clients_cloud_payload_is_minimized` now locks this allow-list/deny-list contract.
+
+Status: **REVIEW RESOLVED / REMEDIATED — EXACT-HEAD CERTIFICATION PENDING**.
 
 ## Existing positive controls
 
@@ -208,4 +209,4 @@ Remediation on branch `audit/v1-05-ortho-triple-check-f5-gate`:
 
 Canonical dedicated audit: `docs/clinic/audits/V1_05_ORTHO_JOURNEY_DOUBLE_TRIPLE_CHECK_2026-09-19.md`.
 
-This finding is not considered closed until exact-head certification and master integration are green.
+The F5 gate is now present on the synchronized audit branch: `engineering_preview_enabled()` requires `ENVIRONMENT` in `development | local | test` plus the explicit preview flag. It remains uncertified until the final exact-head gates are green.
