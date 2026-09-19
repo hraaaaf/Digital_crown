@@ -125,4 +125,33 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     expect(await screen.findByText('Mon espace')).toBeInTheDocument();
   });
 
+  it('scrubs a deep-link pairing secret from the URL before the network request', async () => {
+    const context = {
+      access_id: 'deep-link-access',
+      relationship_type: 'SELF',
+      patient: { display_name: 'Aya DeepLink' },
+    };
+    window.history.replaceState({}, '', '/companion?token=super-secret-qr-token');
+    vi.mocked(fetch).mockImplementation(async () => {
+      expect(window.location.pathname).toBe('/companion');
+      expect(window.location.search).toBe('');
+      return {
+        ok: true,
+        json: async () => ({ access_token: 'device-session', context, paired_at: '2026-09-19T18:00:00Z' }),
+      } as Response;
+    });
+    storageMocks.savePairing.mockResolvedValue({
+      version: 1,
+      activeAccessId: 'deep-link-access',
+      pairings: [{ accessToken: 'device-session', context, pairedAt: '2026-09-19T18:00:00Z' }],
+      cache: {},
+    });
+
+    render(<PatientCompanionApp />);
+
+    expect(await screen.findByText('Aya DeepLink')).toBeInTheDocument();
+    expect(window.location.search).toBe('');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
 });
