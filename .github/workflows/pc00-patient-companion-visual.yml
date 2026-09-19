@@ -46,7 +46,7 @@ jobs:
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
 
       - name: Materialize true BEFORE
         shell: bash
@@ -88,17 +88,18 @@ jobs:
           import json
           from pathlib import Path
           items=json.loads(Path("artifacts/pc00-patient-companion/evidence.json").read_text())
-          assert len(items) == 8, len(items)
-          keys={(x["phase"],x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in items}
-          for phase in ("before","after"):
-              for scenario in ("welcome","home"):
-                  for width,height in ((360,800),(390,844)):
-                      assert (phase,scenario,width,height) in keys
+          assert len(items) == 16, len(items)
+          keys={(x["browser"],x["phase"],x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in items}
+          for browser in ("chromium","webkit"):
+              for phase in ("before","after"):
+                  for scenario in ("welcome","home"):
+                      for width,height in ((360,800),(390,844)):
+                          assert (browser,phase,scenario,width,height) in keys
           after=[x for x in items if x["phase"]=="after"]
           assert all(not x["horizontalOverflow"] for x in after)
           assert all("Patient Companion" in x["text"] for x in after)
           homes=[x for x in after if x["scenario"]=="home"]
-          assert len(homes) == 2
+          assert len(homes) == 4
           for item in homes:
               probe=item["storageProbe"]
               assert probe["envelopeVersion"] == 1, probe
