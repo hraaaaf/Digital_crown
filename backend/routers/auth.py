@@ -41,11 +41,13 @@ def is_superadmin_user(user: models.User | None) -> bool:
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     """Pose les tokens en cookies HttpOnly — sécurisés en prod, non-Secure en dev."""
-    is_prod = getattr(settings, 'ENVIRONMENT', 'development').lower() == 'production'
+    environment = getattr(settings, "ENVIRONMENT", "development").lower()
+    cabinet_https = os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
+    secure_cookie = environment == "production" or (environment == "cabinet" and cabinet_https)
     cookie_kwargs = dict(
         httponly=True,
         samesite="lax",
-        secure=is_prod,
+        secure=secure_cookie,
         path="/",
     )
     response.set_cookie(

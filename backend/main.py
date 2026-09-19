@@ -477,13 +477,18 @@ async def security_headers_middleware(request: Request, call_next):
 # --- INCLUSION DES ROUTERS ---
 from backend.config import settings as _settings
 ALLOWED_ORIGINS = [o.strip() for o in _settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+_RUNTIME_ENV = str(_settings.ENVIRONMENT).strip().lower()
+_DEV_LAN_ORIGIN_REGEX = (
+    r"https?://((192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):5173"
+    if _RUNTIME_ENV in {"development", "local", "test"}
+    else None
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    # http ET https : le LAN tourne en HTTP par défaut (HTTPS seulement si certs).
-    # Couvre toute IP LAN privée sur :5173 → robuste aux changements d'IP DHCP
-    # (évite de devoir mettre à jour ALLOWED_ORIGINS dans .env à chaque bail DHCP).
-    allow_origin_regex=r"https?://((192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):5173",
+    # Broad private-LAN CORS is a development convenience only. Cabinet mobile
+    # access is same-origin HTTPS on :8005 and must not trust arbitrary LAN origins.
+    allow_origin_regex=_DEV_LAN_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],

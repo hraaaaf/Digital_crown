@@ -11,7 +11,7 @@ param(
     [string]$RealEnvFile = "C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\.env.local",
     [int]$Port = 8005,
     [string]$VenvPython = "C:\Users\lenovo\Documents\Cabinet\DigitalCrown\venv\Scripts\python.exe",
-    [string]$BindHost = "0.0.0.0",
+    [string]$BindHost = "",
     [string]$TlsCertFile = "",
     [string]$TlsKeyFile = ""
 )
@@ -139,6 +139,12 @@ $keyExists = Test-Path $TlsKeyFile
 if ($certExists -xor $keyExists) { Fail "incomplete TLS configuration: cert/key must both exist or both be absent" }
 $httpsEnabled = $certExists -and $keyExists
 if ($httpsEnabled -and $Port -ne 8005) { Fail "HTTPS mobile/WebAuthn contract requires the real runtime on port 8005" }
+if ([string]::IsNullOrWhiteSpace($BindHost)) {
+    $BindHost = if ($httpsEnabled) { "0.0.0.0" } else { "127.0.0.1" }
+}
+if (-not $httpsEnabled -and $BindHost -notin @("127.0.0.1", "localhost", "::1")) {
+    Fail "non-loopback cabinet binding requires HTTPS cert/key"
+}
 
 $env:PORT = "$Port"
 $env:DIGITALCROWN_HTTPS_PORT = "$Port"
