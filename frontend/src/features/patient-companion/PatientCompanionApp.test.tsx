@@ -1,31 +1,100 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const storageMocks = vi.hoisted(() => ({
+  load: vi.fn(),
+  savePairing: vi.fn(),
+  setActive: vi.fn(),
+  clear: vi.fn(),
+}));
+
+vi.mock('./PatientCompanionStorage', () => ({
+  PatientCompanionStorage: storageMocks,
+}));
+
+vi.mock('html5-qrcode', () => ({
+  Html5QrcodeSupportedFormats: { QR_CODE: 0 },
+  Html5QrcodeScanner: class {
+    render() {}
+    clear() { return Promise.resolve(); }
+  },
+}));
+
 import { PatientCompanionApp } from './PatientCompanionApp';
 
-afterEach(() => { vi.restoreAllMocks(); window.history.replaceState({}, '', '/companion'); });
+const emptyState = { version: 1, activeAccessId: null, pairings: [], cache: {} };
 
-describe('PatientCompanionApp PC-00', () => {
-  it('does not persist the Firebase credential and exposes no staff shell', () => {
+beforeEach(() => {
+  storageMocks.load.mockReset();
+  storageMocks.savePairing.mockReset();
+  storageMocks.setActive.mockReset();
+  storageMocks.clear.mockReset();
+  storageMocks.load.mockResolvedValue(emptyState);
+  vi.stubGlobal('fetch', vi.fn());
+  window.history.replaceState({}, '', '/companion');
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe('PatientCompanionApp PC-00 local-first', () => {
+  it('starts from QR/manual pairing with no Firebase credential field', async () => {
     render(<PatientCompanionApp />);
-    expect(screen.getByText('Patient Companion')).toBeInTheDocument();
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
-    expect(localStorage.length).toBe(0);
+    expect(await screen.findByText('Appairer ce téléphone')).toBeInTheDocument();
+    expect(screen.getByText('Scanner le QR')).toBeInTheDocument();
+    expect(screen.getByLabelText('Code manuel')).toBeInTheDocument();
+    expect(screen.queryByText(/Firebase/i)).not.toBeInTheDocument();
   });
 
-  it('loads an authorized context after identity verification', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ contexts: [{ access_id: 'opaque-access', relationship_type: 'SELF', patient: { prenom: 'Aya', nom: 'Test' } }] }) }));
+  it('pairs by one-time code and persists the returned context in the encrypted vault', async () => {
+    const context = {
+      access_id: 'opaque-access',
+      relationship_type: 'SELF',
+      patient: { display_name: 'Aya Test', prenom: 'Aya', nom: 'Test' },
+    };
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'device-session', context, paired_at: '2026-09-19T18:00:00Z' }),
+    } as Response);
+    storageMocks.savePairing.mockResolvedValue({
+      version: 1,
+      activeAccessId: 'opaque-access',
+      pairings: [{ accessToken: 'device-session', context, pairedAt: '2026-09-19T18:00:00Z' }],
+      cache: {},
+    });
+
     render(<PatientCompanionApp />);
-    fireEvent.change(screen.getByLabelText('Jeton Firebase'), { target: { value: 'firebase-id-token' } });
-    fireEvent.click(screen.getByText('Continuer'));
-    await waitFor(() => expect(screen.getByText('Aya Test')).toBeInTheDocument());
-    expect(localStorage.getItem('firebase-id-token')).toBeNull();
+    await screen.findByText('Appairer ce téléphone');
+    fireEvent.change(screen.getByLabelText('Code manuel'), { target: { value: 'ABCD-EFGH-JKLM' } });
+    fireEvent.click(screen.getByText('Appairer avec le code'));
+
+    await waitFor(() => expect(storageMocks.savePairing).toHaveBeenCalledTimes(1));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/patient-companion/pair'),
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(await screen.findByText('Aya Test')).toBeInTheDocument();
   });
 
-  it('falls back to activation when no active context exists', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ contexts: [] }) }));
+  it('opens the locally stored patient space without contacting the cabinet', async () => {
+    const context = {
+      access_id: 'local-access',
+      relationship_type: 'PARENT',
+      patient: { display_name: 'Yazan Test' },
+    };
+    storageMocks.load.mockResolvedValue({
+      version: 1,
+      activeAccessId: 'local-access',
+      pairings: [{ accessToken: 'encrypted-at-rest', context, pairedAt: '2026-09-19T18:00:00Z' }],
+      cache: {},
+    });
+
     render(<PatientCompanionApp />);
-    fireEvent.change(screen.getByLabelText('Jeton Firebase'), { target: { value: 'firebase-id-token' } });
-    fireEvent.click(screen.getByText('Continuer'));
-    await waitFor(() => expect(screen.getByText('Activer mon accès')).toBeInTheDocument());
+
+    expect(await screen.findByText('Yazan Test')).toBeInTheDocument();
+    expect(screen.getByText(/Coffre local actif/i)).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
