@@ -20,12 +20,12 @@ Success:
 
 Repo: hraaaaf/Digital_crown
 PC-00 branch: feature/patient-companion-pc00
-PC-00 latest code/test HEAD: 226b5e74f3417b1f77e542672b0f81d3434747e4
+PC-00 latest code/test HEAD: 07d97d46f1fd573232205fc42c6c9afc941db63a
 PC-00 PR: #634
 
 PC-01 branch: feature/patient-companion-pc01
 PC-01 PR: #636 draft, base feature/patient-companion-pc00
-PC-01 latest code/test HEAD before docs checkpoint: 81b7468fa9b3ecdd6317f3a306262a57e1379df5
+PC-01 latest code/test HEAD before docs checkpoint: b25a6bb95b78566e4de481650192d1bce9ec5ecc
 
 Exact-head runs for 9b24efbc:
 - CI 35461919616 SUCCESS
@@ -63,15 +63,17 @@ Exact-head runs for 9b24efbc:
 ## In progress
 
 PC-00 dedicated visual:
-- exact-head ad6d8ee41981fef3818ba9d9576092427dce9370 had all major non-PC00 visual gates green;
-- run 35468621741 failed during pairing with `Load failed`;
-- latest browser-runtime fetch harness code HEAD: 226b5e74f3417b1f77e542672b0f81d3434747e4;
+- exact-head 226b5e74f3417b1f77e542672b0f81d3434747e4 had all major non-PC00 visual gates green;
+- run 35469896539 passed pairing and reached home; it failed only on exact dev-harness noise `TypeError: Importing a module script failed.`;
+- harness noise handling is now bounded to that exact Vite signature after render;
+- latest PC-00 code/test HEAD: 07d97d46f1fd573232205fc42c6c9afc941db63a;
 - exact-head visual outcome pending.
 
 PC-01 dedicated visual:
-- exact-head 2cb97c5763e439c8d3b32fd3dbcc3793324cefb7 had CI/T2/P7/Agenda green;
-- run 35468624843 failed from harness code `ReferenceError: target is not defined`;
-- latest browser-runtime fetch harness code HEAD: 81b7468fa9b3ecdd6317f3a306262a57e1379df5;
+- prior route-harness failure was replaced by browser-runtime fetch stubs;
+- patient wallet API contract is now opaque-only for client-visible identifiers: internal numeric appointment/resource IDs removed;
+- frontend types/tests/visual fixtures aligned; backend static contract test added;
+- latest PC-01 code/test HEAD: b25a6bb95b78566e4de481650192d1bce9ec5ecc;
 - exact-head visual outcome pending.
 
 No Vercel deployment.
