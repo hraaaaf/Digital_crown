@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Camera, CheckCircle2, KeyRound, Loader2, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { API_BASE } from '../../services/api';
 import {
@@ -25,11 +24,12 @@ const relationshipLabel = (value: string) => ({
 }[value] || value);
 
 export const PatientCompanionApp = () => {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
   const [vault, setVault] = useState<PatientCompanionVaultState>(emptyVault);
   const [manualCode, setManualCode] = useState('');
   const [error, setError] = useState('');
+  const [selectingContext, setSelectingContext] = useState(false);
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -42,6 +42,7 @@ export const PatientCompanionApp = () => {
       .then(state => {
         if (cancelled) return;
         setVault(state);
+        setSelectingContext(state.pairings.length > 1);
         const urlToken = new URLSearchParams(window.location.search).get('token')?.trim();
         if (urlToken) {
           setPhase('pairing');
@@ -69,32 +70,42 @@ export const PatientCompanionApp = () => {
       return undefined;
     }
 
-    const scanner = new Html5QrcodeScanner(
-      'patient-companion-reader',
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-      },
-      false,
-    );
-    scannerRef.current = scanner;
-    scanner.render(
-      decoded => {
-        void scanner.clear().catch(() => null);
-        const credential = extractCredential(decoded);
-        if (!credential) {
-          setError('QR Patient Companion non reconnu.');
-          setPhase('error');
-          return;
-        }
-        setPhase('pairing');
-        void pairDevice(credential, false);
-      },
-      () => undefined,
-    );
+    let cancelled = false;
+    void import('html5-qrcode').then(({ Html5QrcodeScanner, Html5QrcodeSupportedFormats }) => {
+      if (cancelled) return;
+      const scanner = new Html5QrcodeScanner(
+        'patient-companion-reader',
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1,
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        },
+        false,
+      );
+      scannerRef.current = scanner;
+      scanner.render(
+        decoded => {
+          void scanner.clear().catch(() => null);
+          const credential = extractCredential(decoded);
+          if (!credential) {
+            setError('QR Patient Companion non reconnu.');
+            setPhase('error');
+            return;
+          }
+          setPhase('pairing');
+          void pairDevice(credential, false);
+        },
+        () => undefined,
+      );
+    }).catch(() => {
+      if (!cancelled) {
+        setError('Le scanner QR est indisponible sur cet appareil. Utilisez le code manuel.');
+        setPhase('error');
+      }
+    });
     return () => {
+      cancelled = true;
       scannerRef.current?.clear().catch(() => null);
       scannerRef.current = null;
     };
@@ -132,6 +143,7 @@ export const PatientCompanionApp = () => {
       const next = await PatientCompanionStorage.savePairing(pairing);
       window.history.replaceState({}, '', '/companion');
       setVault(next);
+      setSelectingContext(false);
       setManualCode('');
       setPhase('home');
     } catch (err) {
@@ -155,6 +167,7 @@ export const PatientCompanionApp = () => {
     try {
       const next = await PatientCompanionStorage.setActive(accessId);
       setVault(next);
+      setSelectingContext(false);
     } catch {
       setError('Impossible d’ouvrir ce contexte patient.');
       setPhase('error');
@@ -164,6 +177,7 @@ export const PatientCompanionApp = () => {
   const clearDevice = async () => {
     await PatientCompanionStorage.clear();
     setVault(emptyVault);
+    setSelectingContext(false);
     setManualCode('');
     setPhase('welcome');
   };
@@ -212,7 +226,7 @@ export const PatientCompanionApp = () => {
           </Card>
         )}
 
-        {phase === 'home' && vault.pairings.length > 1 && !activePairing && (
+        {phase === 'home' && vault.pairings.length > 1 && selectingContext && (
           <Card title="Choisir un dossier" icon={<ShieldCheck size={20} />}>
             {vault.pairings.map(pairing => (
               <button key={pairing.context.access_id} data-pc00-context onClick={() => void selectContext(pairing.context.access_id)} className="mb-2 min-h-[62px] w-full rounded-2xl border border-border-main bg-card-bg px-4 text-left">
@@ -223,7 +237,7 @@ export const PatientCompanionApp = () => {
           </Card>
         )}
 
-        {phase === 'home' && activePairing && (
+        {phase === 'home' && activePairing && !selectingContext && (
           <>
             <Card title="Mon espace" icon={<CheckCircle2 size={20} />}>
               <p className="text-xl font-black">{activePairing.context.patient.display_name || `${activePairing.context.patient.prenom || ''} ${activePairing.context.patient.nom || ''}`.trim()}</p>
@@ -234,7 +248,8 @@ export const PatientCompanionApp = () => {
               <Placeholder label="Mes rendez-vous" />
               <Placeholder label="Mes documents" />
             </section>
-            <div className="mt-5 grid grid-cols-2 gap-3">
+            {vault.pairings.length > 1 && <button onClick={() => setSelectingContext(true)} className="mt-4 min-h-[48px] w-full rounded-2xl border border-primary/20 bg-primary/5 text-primary text-xs font-black">Changer de dossier</button>}
+            <div className="mt-3 grid grid-cols-2 gap-3">
               <button onClick={() => setPhase('welcome')} className="min-h-[48px] rounded-2xl border border-border-main text-xs font-black">Ajouter un dossier</button>
               <button onClick={() => void clearDevice()} className="min-h-[48px] rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black inline-flex items-center justify-center gap-2"><Trash2 size={15} /> Effacer ce téléphone</button>
             </div>
