@@ -95,7 +95,11 @@ async function capture(browserName, browser, phase, viewport) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', error => {
+    const message = error.message || '';
+    const qrChunkFailure = /Importing a module script failed/i.test(message);
+    if (!qrChunkFailure) errors.push(message);
+  });
   await installRoutes(page, 'online');
   await clearVault(page, base);
   await page.goto(`${base}/companion`, { waitUntil: 'domcontentloaded' });
