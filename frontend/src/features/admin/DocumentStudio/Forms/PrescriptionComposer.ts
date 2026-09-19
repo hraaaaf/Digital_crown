@@ -74,7 +74,7 @@ const normalize = (text: string) => text
 const amountFromText = (text: string): string => {
   const endToken = '(?=\\s|[,.;:)]|$)';
   const rules: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
-    [new RegExp(`\\b(?:1\\/2|0[,.]5)\\s*(?:cp|comprim[eé])${endToken}`, 'i'), () => '½ comprimé'],
+    [new RegExp(`(?:\\b(?:1\\/2|0[,.]5)|½)\\s*(?:cp|comprim[eé])${endToken}`, 'i'), () => '½ comprimé'],
     [new RegExp(`\\b(\\d+)\\s*(?:cp|comprim[eé]s?)${endToken}`, 'i'), m => `${m[1]} comprimé${Number(m[1]) > 1 ? 's' : ''}`],
     [new RegExp(`\\b(\\d+)\\s*(?:g[eé]l|g[eé]lule?s?)${endToken}`, 'i'), m => `${m[1]} gélule${Number(m[1]) > 1 ? 's' : ''}`],
     [new RegExp(`\\b(\\d+)\\s*(?:sach|sachet?s?)${endToken}`, 'i'), m => `${m[1]} sachet${Number(m[1]) > 1 ? 's' : ''}`],
