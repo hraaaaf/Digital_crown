@@ -40,11 +40,11 @@ class UserSignup(BaseModel):
 
 
 class TrialActivationRequest(BaseModel):
-    code: str = Field(min_length=6)
+    code: str = Field(min_length=6, max_length=128)
     email: EmailStr
     password: str = _password_field()
-    nom_complet: str = Field(min_length=2)
-    cabinet_name: Optional[str] = None
+    nom_complet: str = Field(min_length=2, max_length=160)
+    cabinet_name: Optional[str] = Field(default=None, max_length=160)
     accept_terms: bool
     accept_privacy: bool
 
