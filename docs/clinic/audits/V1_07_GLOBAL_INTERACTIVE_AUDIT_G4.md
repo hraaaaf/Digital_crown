@@ -243,3 +243,32 @@ Observed G4 behavioral matrices now cover:
 No additional independent G4 deep-control gap is currently known from the reconciled source inventory.
 
 Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUILD.
+
+
+## Additional imaging reconciliation
+
+- `frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx`
+  - upload/calibration fallback when no image;
+  - magnifier;
+  - soft-tissue / 3D face toggles;
+  - T1/T2 projection toggle;
+  - canonical scientific-analysis event.
+
+- `frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx`
+  - archive prerequisites;
+  - preview boundary;
+  - draft PDF after silent save;
+  - just-in-time backend coherence validation before archive;
+  - fatal validation blocks archive;
+  - explicit validation refresh;
+  - photo upload + practitioner therapeutic metadata.
+
+- `frontend/src/features/patients/RvgImaging.g4Interactive.test.tsx`
+  - RVG panel load error vs truthful empty + retry;
+  - upload flow integrated into patient panel;
+  - upload refusal preserves modal;
+  - blob open/download;
+  - delete confirmation/cancel/ACK;
+  - delete refusal preserves RVG.
+
+These complement, rather than replace, the higher-level CephaloWorkspace and RVG deep matrices.
