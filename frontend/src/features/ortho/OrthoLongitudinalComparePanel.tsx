@@ -15,6 +15,8 @@ import {
   type OrthoCompareEvidence,
 } from './orthoLongitudinalCompare';
 
+const F5_ENGINEERING_PREVIEW = import.meta.env.VITE_F5_ENGINEERING_PREVIEW === '1';
+
 interface Props {
   patientId: number;
 }
@@ -242,7 +244,7 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
             )}
           </div>
 
-          {(() => {
+          {F5_ENGINEERING_PREVIEW && (() => {
             const fromCephalo = comparison.from_timepoint.evidences.filter((item) => item.kind === 'CEPHALO');
             const toCephalo = comparison.to_timepoint.evidences.filter((item) => item.kind === 'CEPHALO');
             const chronological = comparison.from_timepoint.ordinal < comparison.to_timepoint.ordinal;

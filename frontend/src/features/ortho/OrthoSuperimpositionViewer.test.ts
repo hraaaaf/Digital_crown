@@ -71,3 +71,12 @@ describe('Ortho F5 opaque work surface', () => {
     expect(file).not.toContain('bg-card-bg');
   });
 });
+
+
+describe('Ortho F5 activation boundary', () => {
+  it('keeps the F5 entry point hidden unless the explicit frontend engineering preview flag is enabled', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoLongitudinalComparePanel.tsx'), 'utf8');
+    expect(file).toContain("import.meta.env.VITE_F5_ENGINEERING_PREVIEW === '1'");
+    expect(file).toContain('F5_ENGINEERING_PREVIEW && (() => {');
+  });
+});

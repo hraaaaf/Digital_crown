@@ -39,3 +39,13 @@ No F5 result table is introduced. This remains a recalculable derived operation 
 Both F5 context and estimation endpoints require the canonical `cephalo` permission, not merely general patient access.
 
 The engineering API validates both source paths before returning context to the browser. The viewer accepts only canonical local radiograph paths under `api/static/uploads/radios/`; arbitrary HTTP(S) image URLs are rejected to prevent unintended external egress.
+
+
+## Engineering-preview activation boundary
+F5 remains hidden and unavailable by default.
+
+Both sides require explicit engineering opt-in:
+- backend: `DIGITAL_CROWN_F5_ENGINEERING_PREVIEW=1`;
+- frontend: `VITE_F5_ENGINEERING_PREVIEW=1`.
+
+Without the frontend flag, the F5 entry point is not rendered. Without the backend flag, F5 endpoints return 404. These flags are engineering gates only and must not be interpreted as clinical approval.

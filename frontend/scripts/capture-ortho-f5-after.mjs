@@ -134,7 +134,7 @@ await writeFile(path.join(FRONTEND_DIR,'src','ortho-f5-after-entry.tsx'),entrySo
 await writeFile(path.join(FRONTEND_DIR,'ortho-f5-after.html'),htmlSource,'utf8');
 
 const viteBin=path.join(FRONTEND_DIR,'node_modules','.bin',process.platform==='win32'?'vite.cmd':'vite');
-const server=spawn(viteBin,['--force','--host','127.0.0.1','--port',String(PORT)],{cwd:FRONTEND_DIR,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
+const server=spawn(viteBin,['--force','--host','127.0.0.1','--port',String(PORT)],{cwd:FRONTEND_DIR,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005',VITE_F5_ENGINEERING_PREVIEW:'1'},stdio:['ignore','pipe','pipe']});
 let serverLog=''; server.stdout.on('data',x=>serverLog+=x.toString()); server.stderr.on('data',x=>serverLog+=x.toString());
 const captures=[]; const blockedExternalRequests=[];
 
