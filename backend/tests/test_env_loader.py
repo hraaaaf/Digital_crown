@@ -115,3 +115,28 @@ def test_production_enforces_both_security_keys(tmp_path, monkeypatch):
 
     assert loaded == env_file
     assert os.environ["ENVIRONMENT"] == "production"
+
+
+def test_cabinet_rejects_missing_database_url(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "ENVIRONMENT=cabinet\n"
+        "SECRET_KEY=strong-cabinet-jwt-secret-0123456789\n"
+        f"CABINET_MASTER_KEY_HEX={'44' * 32}\n"
+    )
+    monkeypatch.setenv("ENVIRONMENT", "cabinet")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    with patch("backend.env_loader.BASE_DIR", tmp_path):
+        try:
+            load_backend_env(override=True)
+        except RuntimeError as exc:
+            assert "DATABASE_URL" in str(exc)
+        else:
+            raise AssertionError("cabinet startup accepted an implicit database fallback")
+
+
+def test_superadmin_identity_has_no_hardcoded_default():
+    from backend.config import Settings
+
+    assert Settings.model_fields["SUPERADMIN_EMAIL"].default == ""

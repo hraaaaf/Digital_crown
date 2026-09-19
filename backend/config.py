@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     APP_PUBLIC_URL: str = "http://localhost:5173"
     SUPPORT_EMAIL: str = "support@digitalcrown.local"
-    SUPERADMIN_EMAIL: str = "benmoussa.achraf@gmail.com"
+    SUPERADMIN_EMAIL: str = ""
 
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"

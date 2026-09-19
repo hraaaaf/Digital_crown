@@ -65,6 +65,13 @@ def _enforce_cabinet_crypto_secret() -> None:
             "contenir exactement 32 octets aléatoires encodés en 64 caractères hexadécimaux."
         )
 
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if not database_url:
+        raise RuntimeError(
+            "SECURITE : cabinet/production refuse. DATABASE_URL doit être fournie explicitement ; "
+            "aucun fallback de développement n'est autorisé."
+        )
+
 
 def load_backend_env(override: bool = True) -> Path:
     """Load backend env vars from explicit, repository-dev, then platform config."""
