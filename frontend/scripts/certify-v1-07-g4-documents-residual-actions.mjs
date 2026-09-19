@@ -100,7 +100,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const organize = page.getByRole('button', { name: /Organiser par phases/i });
   await organize.click();
-  if (!(await page.getByText(/PHASE/i).count())) throw new Error('Devis phase organization produced no phase separator');
+  const phaseSeparators = page.locator('input[placeholder="Rechercher ou saisir un acte..."]:disabled');
+  if (!(await phaseSeparators.count())) throw new Error('Devis phase organization produced no disabled phase separator');
+  const phaseValues = await phaseSeparators.evaluateAll(nodes => nodes.map(node => node.value));
+  if (!phaseValues.some(value => /^--- .+ ---$/.test(value))) throw new Error('Devis phase separator format missing');
   actions.push('devis-manual-lines-phase-sequencing');
 
   // SUIVI PAIEMENT — create balanced plan, save, persisted row controls.
@@ -130,22 +133,35 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const firstRow = persistedRows.first();
   const paymentSelect = firstRow.locator('select');
-  if (await paymentSelect.count()) {
-    await paymentSelect.selectOption('ESPECES');
-    const collect = firstRow.getByRole('button', { name: 'Encaisser', exact: true });
-    if (await collect.isDisabled()) throw new Error('Installment collect remained disabled after explicit payment mode');
-  }
+  if (!(await paymentSelect.count())) throw new Error('Persisted installment payment mode missing');
+  await paymentSelect.selectOption('ESPECES');
 
   const reminder = firstRow.locator('input[type="checkbox"]');
-  if (await reminder.count()) {
-    await reminder.check();
-    await firstRow.getByTitle('Ouvrir WhatsApp avec le rappel prérempli').waitFor({ state: 'visible', timeout: 5000 });
-  }
-  actions.push('installment-generate-save-persisted-controls');
+  if (!(await reminder.count())) throw new Error('Persisted installment reminder control missing');
+  await reminder.check();
+  const whatsapp = firstRow.getByTitle('Ouvrir WhatsApp avec le rappel prérempli');
+  await whatsapp.waitFor({ state: 'visible', timeout: 5000 });
+  await page.evaluate(() => {
+    window.__g4OpenedUrls = [];
+    window.open = (url) => {
+      window.__g4OpenedUrls.push(String(url || ''));
+      return null;
+    };
+  });
+  await whatsapp.click();
+  const openedUrls = await page.evaluate(() => window.__g4OpenedUrls || []);
+  if (!openedUrls.some(urlValue => urlValue.startsWith('https://wa.me/'))) throw new Error('WhatsApp reminder action did not build wa.me URL');
+
+  const collect = firstRow.getByRole('button', { name: 'Encaisser', exact: true });
+  if (await collect.isDisabled()) throw new Error('Installment collect remained disabled after explicit payment mode');
+  await collect.click();
+  await firstRow.getByText('PAYÉ', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+  actions.push('installment-generate-save-reminder-collect');
 
   // LIBRE — controls not already covered by P6.
   await gotoTab(page, 'libre');
-  await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').fill('G4 Libre résiduel');
+  const libreTitle = 'G4 Libre résiduel ' + viewport.width;
+  await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').fill(libreTitle);
   await page.getByPlaceholder('Ex: À qui de droit...').fill('À qui de droit');
   await page.getByPlaceholder('Ex: Rabat, le 12/05/2026').fill('Rabat, le 19/09/2026');
   const hideHeader = page.locator('#hideHeader');
@@ -160,33 +176,93 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await editor.selectText();
   for (const title of ['Gras', 'Italique', 'Souligné', 'Agrandir']) {
     await page.getByTitle(title).click();
+    await page.waitForTimeout(25);
   }
   await page.getByTitle('Tableau').click();
+  await page.waitForTimeout(25);
   const editorValue = await editor.inputValue();
   for (const marker of ['<b>', '<i>', '<u>', '<font size="16">', '| Colonne 1 |']) {
     if (!editorValue.includes(marker)) throw new Error('Libre toolbar marker missing: ' + marker);
   }
   actions.push('libre-recipient-date-header-alignment-toolbar');
 
-  // HISTORIQUE — search + menu edit/trash + view/download on a canonical document.
+  // HISTORIQUE — act on the exact Libre document created by this viewport pass.
+  const archiveResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url().includes('/api/documents/generate?archive=true'),
+    { timeout: 30000 },
+  );
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
-  await page.waitForTimeout(1200);
+  const archiveResponse = await archiveResponsePromise;
+  if (!archiveResponse.ok()) throw new Error('Libre archive request failed');
+
+  const docsAfter = await api.get('/api/patients/' + patient.id + '/documents', { headers });
+  if (!docsAfter.ok()) throw new Error('History reconciliation fetch failed');
+  const generated = (await docsAfter.json()).find(doc =>
+    doc.clinical_data?.title === libreTitle
+  );
+  if (!generated) throw new Error('New Libre archive not found by exact clinical title');
+
   await page.goto('http://127.0.0.1:5173/patients/' + patient.id + '?tab=archives', { waitUntil: 'networkidle', timeout: 90000 });
   const searchHistory = page.getByPlaceholder("Rechercher dans l'historique...");
-  await searchHistory.fill('G4 Libre résiduel');
-  const cards = page.locator('[data-document-kind="canonical"]');
-  await cards.first().waitFor({ state: 'visible', timeout: 30000 });
-  const card = cards.first();
-  const actionButton = card.getByRole('button', { name: /Actions du document/i });
-  await actionButton.click();
-  await card.locator('[data-document-action="edit"]').waitFor({ state: 'visible', timeout: 5000 });
-  await card.locator('[data-document-action="trash"]').waitFor({ state: 'visible', timeout: 5000 });
-  await actionButton.click();
+  await searchHistory.fill(generated.name);
 
-  const viewButton = card.getByRole('button', { name: 'Voir', exact: true });
-  const downloadButton = card.getByRole('button', { name: 'Fichier', exact: true });
-  if (!(await viewButton.count()) || !(await downloadButton.count())) throw new Error('History view/download controls missing');
-  actions.push('history-search-menu-view-download-presence');
+  const exactAction = page.getByRole('button', { name: 'Actions du document ' + generated.name, exact: true });
+  await exactAction.waitFor({ state: 'visible', timeout: 30000 });
+  let card = exactAction.locator('xpath=ancestor::div[@data-document-kind][1]');
+
+  // Voir: real download API + browser-open path, with navigation neutralized.
+  await page.evaluate(() => {
+    window.__g4OpenedUrls = [];
+    window.open = (url) => {
+      window.__g4OpenedUrls.push(String(url || ''));
+      return null;
+    };
+  });
+  const viewResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'GET' && response.url().includes('/api/documents/' + generated.id + '/download'),
+    { timeout: 15000 },
+  );
+  await card.getByRole('button', { name: 'Voir', exact: true }).click();
+  const viewResponse = await viewResponsePromise;
+  if (!viewResponse.ok()) throw new Error('History view download API failed');
+  const viewOpenUrls = await page.evaluate(() => window.__g4OpenedUrls || []);
+  if (!viewOpenUrls.some(urlValue => urlValue.startsWith('blob:'))) throw new Error('History view did not open generated blob URL');
+
+  // Fichier: actual browser download event.
+  const browserDownload = page.waitForEvent('download', { timeout: 15000 });
+  await card.getByRole('button', { name: 'Fichier', exact: true }).click();
+  const download = await browserDownload;
+  if (!download.suggestedFilename()) throw new Error('History file download has no filename');
+
+  // Signature: generated canonical doc must expose practitioner signature action.
+  await exactAction.click();
+  let sign = card.locator('[data-document-action="sign"]');
+  if (!(await sign.count())) throw new Error('Generated canonical document has no practitioner signature action');
+  page.once('dialog', dialog => dialog.accept());
+  await sign.click();
+  await page.getByText('Signature praticien enregistrée', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+
+  // Edit: real action must restore a structured editable document.
+  const actionAfterSign = page.getByRole('button', { name: 'Actions du document ' + generated.name, exact: true });
+  await actionAfterSign.click();
+  card = actionAfterSign.locator('xpath=ancestor::div[@data-document-kind][1]');
+  await card.locator('[data-document-action="edit"]').click();
+  await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').waitFor({ state: 'visible', timeout: 15000 });
+  if ((await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').inputValue()) !== libreTitle) {
+    throw new Error('History edit did not restore exact Libre title');
+  }
+
+  // Return to history, locate exact document again, then trash with explicit confirmation.
+  await page.goto('http://127.0.0.1:5173/patients/' + patient.id + '?tab=archives', { waitUntil: 'networkidle', timeout: 90000 });
+  await page.getByPlaceholder("Rechercher dans l'historique...").fill(generated.name);
+  const actionForTrash = page.getByRole('button', { name: 'Actions du document ' + generated.name, exact: true });
+  await actionForTrash.waitFor({ state: 'visible', timeout: 15000 });
+  card = actionForTrash.locator('xpath=ancestor::div[@data-document-kind][1]');
+  await actionForTrash.click();
+  page.once('dialog', dialog => dialog.accept());
+  await card.locator('[data-document-action="trash"]').click();
+  await actionForTrash.waitFor({ state: 'hidden', timeout: 15000 });
+  actions.push('history-search-view-download-sign-edit-trash');
 
   const shot = await noRuntimeFailure(page, pageErrors, http5xx, viewport, 'final');
   evidence.push({ viewport, actions, screenshot: shot, pageErrors, http5xx });
