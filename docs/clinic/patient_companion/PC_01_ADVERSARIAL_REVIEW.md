@@ -77,3 +77,18 @@ Status: enforced procedurally.
 10. canonical/Notion/handover closeout.
 
 No PASS is asserted until all gates are proven.
+
+
+## Additional hardening — 2026-09-19
+
+A follow-up contract inspection found that the media branch of `GET /contexts/{access_id}/shares` still returned the internal numeric `ClinicalAsset.id`, despite the document branch and frontend wallet schema having been hardened.
+
+Remediation:
+- removed the media `resource_id` from the patient-facing response;
+- retained opaque `share_id` as the patient-visible share handle;
+- static contract test now rejects `"resource_id": resource.id` in the patient shares router.
+
+Latest code/test HEAD before this documentation checkpoint:
+`ef2ba3113a34199ae921099a1a61175985bdcd5f`
+
+Exact-head CI/visual certification is pending. No PASS is claimed for this new HEAD yet.
