@@ -12,6 +12,7 @@ import './styles/patientCompanionTheme.css'
 import './features/mobile/mobileRuntimeTheme.css'
 import './features/mobile/mobileQuickIntent.css'
 import * as Sentry from '@sentry/react'
+import { isFrontendCloudTelemetryEnabled } from './telemetryPolicy.ts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { registerSW } from 'virtual:pwa-register'
 
@@ -36,9 +37,13 @@ if (isPreviewRequest && (previewPath === '/mobile/demo' || previewPath === '/mob
   document.head.appendChild(policy)
 }
 
-// Patient Companion can render patient identity and explicitly shared health-data metadata.
-// Keep it outside the existing Sentry Replay surface until a patient-specific telemetry policy exists.
-if (!isPreviewRequest && !isPatientCompanionRequest && import.meta.env.VITE_SENTRY_DSN) {
+// Cloud observability is fail-closed: a DSN alone must never activate telemetry.
+// Patient Companion remains outside Sentry Replay until a patient-specific telemetry policy exists.
+const frontendTelemetryEnabled = isFrontendCloudTelemetryEnabled({
+  VITE_TELEMETRY_ENABLED: import.meta.env.VITE_TELEMETRY_ENABLED,
+  VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
+})
+if (!isPreviewRequest && !isPatientCompanionRequest && frontendTelemetryEnabled) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [
