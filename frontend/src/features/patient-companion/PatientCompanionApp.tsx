@@ -1,93 +1,260 @@
-import { useEffect, useMemo, useState } from 'react';
-import { KeyRound, Loader2, ShieldCheck, Smartphone } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Camera, CheckCircle2, KeyRound, Loader2, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { API_BASE } from '../../services/api';
+import {
+  PatientCompanionStorage,
+  type PatientCompanionVaultState,
+  type PatientPairing,
+} from './PatientCompanionStorage';
 
-type Context = {
-  access_id: string;
-  patient: { nom?: string; prenom?: string; numero_dossier?: string | null };
-  relationship_type: string;
+type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
+
+const emptyVault: PatientCompanionVaultState = {
+  version: 1,
+  activeAccessId: null,
+  pairings: [],
+  cache: {},
 };
 
-const tokenFromUrl = () => new URLSearchParams(window.location.search).get('token')?.trim() || '';
+const relationshipLabel = (value: string) => ({
+  SELF: 'Patient',
+  PARENT: 'Parent',
+  GUARDIAN: 'Tuteur',
+  CAREGIVER: 'Aidant',
+}[value] || value);
 
 export const PatientCompanionApp = () => {
-  const [idToken, setIdToken] = useState('');
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [vault, setVault] = useState<PatientCompanionVaultState>(emptyVault);
   const [manualCode, setManualCode] = useState('');
-  const [contexts, setContexts] = useState<Context[]>([]);
-  const [selected, setSelected] = useState<Context | null>(null);
-  const [phase, setPhase] = useState<'identity'|'activation'|'loading'|'home'|'error'>('identity');
   const [error, setError] = useState('');
-  const qrToken = useMemo(tokenFromUrl, []);
+
+  const activePairing = useMemo(
+    () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
+    [vault],
+  );
 
   useEffect(() => {
-    if (qrToken) setPhase('identity');
-  }, [qrToken]);
+    let cancelled = false;
+    PatientCompanionStorage.load()
+      .then(state => {
+        if (cancelled) return;
+        setVault(state);
+        const urlToken = new URLSearchParams(window.location.search).get('token')?.trim();
+        if (urlToken) {
+          setPhase('pairing');
+          void pairDevice(urlToken, false);
+          return;
+        }
+        setPhase(state.pairings.length ? 'home' : 'welcome');
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Le coffre local Patient Companion est indisponible sur cet appareil.');
+          setPhase('error');
+        }
+      });
+    return () => { cancelled = true; };
+  // Pairing is intentionally resolved once at entry.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const request = async (path: string, init?: RequestInit) => {
-    const response = await fetch(`${API_BASE}/patient-companion${path}`, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken.trim()}`, ...(init?.headers || {}) },
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.detail || 'Action impossible.');
-    return payload;
-  };
-
-  const loadContexts = async () => {
-    setPhase('loading'); setError('');
-    try {
-      const payload = await request('/me');
-      const items = Array.isArray(payload.contexts) ? payload.contexts : [];
-      if (!items.length) { setPhase('activation'); return; }
-      setContexts(items);
-      if (items.length === 1) { setSelected(items[0]); setPhase('home'); }
-      else setPhase('home');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Identité patient invalide.');
+  useEffect(() => {
+    if (phase !== 'scanning') return undefined;
+    if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      setError('La caméra nécessite une connexion sécurisée. Utilisez le code manuel remis par le cabinet.');
       setPhase('error');
+      return undefined;
     }
-  };
 
-  const continueIdentity = () => {
-    if (!idToken.trim()) { setError('Jeton Firebase vérifié requis.'); setPhase('error'); return; }
-    void loadContexts();
-  };
+    const scanner = new Html5QrcodeScanner(
+      'patient-companion-reader',
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      },
+      false,
+    );
+    scannerRef.current = scanner;
+    scanner.render(
+      decoded => {
+        void scanner.clear().catch(() => null);
+        const credential = extractCredential(decoded);
+        if (!credential) {
+          setError('QR Patient Companion non reconnu.');
+          setPhase('error');
+          return;
+        }
+        setPhase('pairing');
+        void pairDevice(credential, false);
+      },
+      () => undefined,
+    );
+    return () => {
+      scannerRef.current?.clear().catch(() => null);
+      scannerRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
-  const activate = async () => {
-    if (!manualCode.trim() && !qrToken) { setError('Saisissez le code remis par le cabinet.'); setPhase('error'); return; }
-    setPhase('loading'); setError('');
+  function extractCredential(decoded: string): string {
+    const trimmed = decoded.trim();
+    if (!trimmed) return '';
     try {
-      await request('/activate', { method: 'POST', body: JSON.stringify(qrToken ? { token: qrToken } : { manual_code: manualCode.trim() }) });
+      const url = new URL(trimmed);
+      return url.searchParams.get('token')?.trim() || '';
+    } catch {
+      return trimmed.length <= 256 ? trimmed : '';
+    }
+  }
+
+  async function pairDevice(credential: string, manual: boolean) {
+    setError('');
+    try {
+      const response = await fetch(`${API_BASE}/api/patient-companion/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(manual ? { manual_code: credential } : { token: credential }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || 'Appairage impossible.');
+      if (!payload.access_token || !payload.context?.access_id) throw new Error('Réponse d’appairage incomplète.');
+
+      const pairing: PatientPairing = {
+        accessToken: payload.access_token,
+        context: payload.context,
+        pairedAt: payload.paired_at || new Date().toISOString(),
+      };
+      const next = await PatientCompanionStorage.savePairing(pairing);
       window.history.replaceState({}, '', '/companion');
-      await loadContexts();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invitation invalide ou expirée.');
+      setVault(next);
+      setManualCode('');
+      setPhase('home');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invitation invalide ou expirée.');
+      setPhase('error');
+    }
+  }
+
+  const submitManual = () => {
+    const code = manualCode.trim();
+    if (!code) {
+      setError('Saisissez le code remis par le cabinet.');
+      setPhase('error');
+      return;
+    }
+    setPhase('pairing');
+    void pairDevice(code, true);
+  };
+
+  const selectContext = async (accessId: string) => {
+    try {
+      const next = await PatientCompanionStorage.setActive(accessId);
+      setVault(next);
+    } catch {
+      setError('Impossible d’ouvrir ce contexte patient.');
       setPhase('error');
     }
   };
 
-  const reset = () => { setSelected(null); setContexts([]); setManualCode(''); setError(''); setPhase('identity'); };
+  const clearDevice = async () => {
+    await PatientCompanionStorage.clear();
+    setVault(emptyVault);
+    setManualCode('');
+    setPhase('welcome');
+  };
 
-  return <main data-pc00-shell className="min-h-[100dvh] bg-background text-text-main font-outfit px-4 py-[max(1rem,env(safe-area-inset-top))]">
-    <div className="mx-auto max-w-md">
-      <header className="pt-5 pb-6"><div className="flex items-center gap-2 text-primary"><ShieldCheck size={19}/><span className="text-[10px] font-black uppercase tracking-[0.18em]">Digital Crown</span></div><h1 className="mt-2 text-3xl font-black tracking-tight">Patient Companion</h1><p className="mt-2 text-sm font-bold text-text-muted">Votre espace sécurisé, relié directement à votre cabinet.</p></header>
-      {phase === 'identity' && <Card title="Accès sécurisé" icon={<Smartphone size={20}/>}>
-        <p className="text-sm font-medium text-text-muted">Identifiez-vous avec le compte Firebase vérifié associé à l’invitation du cabinet.</p>
-        <label className="mt-5 block"><span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Jeton Firebase</span><input data-pc00-id-token type="password" autoComplete="off" value={idToken} onChange={e=>setIdToken(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-border-main bg-background px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20" /></label>
-        <button data-pc00-continue onClick={continueIdentity} className="mt-4 min-h-[54px] w-full rounded-2xl bg-primary text-white font-black">Continuer</button>
-        <p className="mt-3 text-center text-[11px] font-bold text-text-muted">Le jeton n’est pas enregistré par Patient Companion.</p>
-      </Card>}
-      {phase === 'activation' && <Card title="Activer mon accès" icon={<KeyRound size={20}/>}>
-        {qrToken ? <p className="text-sm font-bold text-emerald-700">Invitation QR détectée. Confirmez pour activer votre accès.</p> : <label className="block"><span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Code remis par le cabinet</span><input data-pc00-manual-code value={manualCode} onChange={e=>setManualCode(e.target.value)} autoComplete="one-time-code" className="mt-2 h-12 w-full rounded-2xl border border-border-main bg-background px-4 text-center text-lg font-black tracking-[0.12em] uppercase" /></label>}
-        <button data-pc00-activate onClick={()=>void activate()} className="mt-4 min-h-[54px] w-full rounded-2xl bg-primary text-white font-black">Activer Patient Companion</button>
-      </Card>}
-      {phase === 'loading' && <Card title="Vérification" icon={<Loader2 className="animate-spin" size={20}/>}><p className="text-sm font-bold text-text-muted">Vérification sécurisée de votre accès…</p></Card>}
-      {phase === 'error' && <Card title="Accès non validé" icon={<ShieldCheck size={20}/>}><p role="alert" className="text-sm font-bold text-rose-700">{error}</p><button onClick={()=>setPhase(idToken.trim()?'activation':'identity')} className="mt-4 min-h-[52px] w-full rounded-2xl border border-border-main font-black">Réessayer</button></Card>}
-      {phase === 'home' && !selected && contexts.length > 1 && <Card title="Choisir un dossier" icon={<ShieldCheck size={20}/>}>{contexts.map(c=><button key={c.access_id} data-pc00-context onClick={()=>setSelected(c)} className="mb-2 min-h-[62px] w-full rounded-2xl border border-border-main bg-card-bg px-4 text-left"><span className="block font-black">{c.patient?.prenom} {c.patient?.nom}</span><span className="text-xs font-bold text-text-muted">{c.relationship_type}</span></button>)}</Card>}
-      {phase === 'home' && selected && <><Card title="Bonjour" icon={<ShieldCheck size={20}/>}><p className="text-xl font-black">{selected.patient?.prenom} {selected.patient?.nom}</p><p className="mt-1 text-xs font-bold text-text-muted">{selected.relationship_type}</p></Card><section className="mt-4 grid grid-cols-2 gap-3" aria-label="Fonctions Patient Companion"><Placeholder label="Mes rendez-vous" /><Placeholder label="Mes documents" /></section><button onClick={reset} className="mt-6 min-h-[48px] w-full text-xs font-black uppercase tracking-widest text-text-muted">Changer de compte</button></>}
-    </div>
-  </main>;
+  return (
+    <main data-pc00-shell className="min-h-[100dvh] bg-background text-text-main font-outfit px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto max-w-md">
+        <header className="pt-5 pb-6">
+          <div className="flex items-center gap-2 text-primary">
+            <ShieldCheck size={19} />
+            <span className="text-[10px] font-black uppercase tracking-[0.18em]">Digital Crown</span>
+          </div>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">Patient Companion</h1>
+          <p className="mt-2 text-sm font-bold text-text-muted">Vos informations restent dans votre cabinet et sur cet appareil.</p>
+        </header>
+
+        {phase === 'loading' && <Card title="Ouverture du coffre" icon={<Loader2 className="animate-spin" size={20} />}><p className="text-sm font-bold text-text-muted">Lecture locale sécurisée…</p></Card>}
+
+        {phase === 'welcome' && (
+          <Card title="Appairer ce téléphone" icon={<Smartphone size={20} />}>
+            <p className="text-sm font-medium text-text-muted">Scannez le QR à usage unique affiché par votre cabinet. Après appairage, votre espace est conservé localement sur ce téléphone.</p>
+            <button data-pc00-scan onClick={() => setPhase('scanning')} className="mt-5 min-h-[56px] w-full rounded-2xl bg-primary text-white font-black inline-flex items-center justify-center gap-2"><Camera size={18} /> Scanner le QR</button>
+            <div className="my-4 flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-text-muted"><span className="h-px flex-1 bg-border-main" />ou<span className="h-px flex-1 bg-border-main" /></div>
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Code manuel</span>
+              <input data-pc00-manual-code aria-label="Code manuel" value={manualCode} onChange={event => setManualCode(event.target.value)} autoComplete="one-time-code" className="mt-2 h-12 w-full rounded-2xl border border-border-main bg-background px-4 text-center text-lg font-black tracking-[0.12em] uppercase" />
+            </label>
+            <button data-pc00-pair-manual onClick={submitManual} className="mt-3 min-h-[52px] w-full rounded-2xl border border-primary/25 bg-primary/5 text-primary font-black inline-flex items-center justify-center gap-2"><KeyRound size={17} /> Appairer avec le code</button>
+            <p className="mt-4 text-[11px] font-bold text-text-muted">Le QR/code expire et ne sert qu’une fois. Il n’est jamais conservé après l’appairage.</p>
+          </Card>
+        )}
+
+        {phase === 'scanning' && (
+          <Card title="Scanner le QR cabinet" icon={<Camera size={20} />}>
+            <div id="patient-companion-reader" className="overflow-hidden rounded-2xl" />
+            <button onClick={() => setPhase('welcome')} className="mt-4 min-h-[48px] w-full rounded-2xl border border-border-main font-black">Utiliser le code manuel</button>
+          </Card>
+        )}
+
+        {phase === 'pairing' && <Card title="Appairage sécurisé" icon={<Loader2 className="animate-spin" size={20} />}><p className="text-sm font-bold text-text-muted">Le cabinet vérifie le QR puis prépare votre coffre local…</p></Card>}
+
+        {phase === 'error' && (
+          <Card title="Appairage non validé" icon={<ShieldCheck size={20} />}>
+            <p role="alert" className="text-sm font-bold text-rose-700">{error}</p>
+            <button onClick={() => { setError(''); setPhase(vault.pairings.length ? 'home' : 'welcome'); }} className="mt-4 min-h-[52px] w-full rounded-2xl border border-border-main font-black">Réessayer</button>
+          </Card>
+        )}
+
+        {phase === 'home' && vault.pairings.length > 1 && !activePairing && (
+          <Card title="Choisir un dossier" icon={<ShieldCheck size={20} />}>
+            {vault.pairings.map(pairing => (
+              <button key={pairing.context.access_id} data-pc00-context onClick={() => void selectContext(pairing.context.access_id)} className="mb-2 min-h-[62px] w-full rounded-2xl border border-border-main bg-card-bg px-4 text-left">
+                <span className="block font-black">{pairing.context.patient.display_name || `${pairing.context.patient.prenom || ''} ${pairing.context.patient.nom || ''}`.trim()}</span>
+                <span className="text-xs font-bold text-text-muted">{relationshipLabel(pairing.context.relationship_type)}</span>
+              </button>
+            ))}
+          </Card>
+        )}
+
+        {phase === 'home' && activePairing && (
+          <>
+            <Card title="Mon espace" icon={<CheckCircle2 size={20} />}>
+              <p className="text-xl font-black">{activePairing.context.patient.display_name || `${activePairing.context.patient.prenom || ''} ${activePairing.context.patient.nom || ''}`.trim()}</p>
+              <p className="mt-1 text-xs font-bold text-text-muted">{relationshipLabel(activePairing.context.relationship_type)}</p>
+              <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[11px] font-black text-emerald-800">Coffre local actif · utilisable même si le cabinet est momentanément hors ligne</div>
+            </Card>
+            <section className="mt-4 grid grid-cols-2 gap-3" aria-label="Fonctions Patient Companion">
+              <Placeholder label="Mes rendez-vous" />
+              <Placeholder label="Mes documents" />
+            </section>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button onClick={() => setPhase('welcome')} className="min-h-[48px] rounded-2xl border border-border-main text-xs font-black">Ajouter un dossier</button>
+              <button onClick={() => void clearDevice()} className="min-h-[48px] rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black inline-flex items-center justify-center gap-2"><Trash2 size={15} /> Effacer ce téléphone</button>
+            </div>
+          </>
+        )}
+      </div>
+    </main>
+  );
 };
 
-const Card=({title,icon,children}:{title:string;icon:React.ReactNode;children:React.ReactNode})=><section className="rounded-[1.75rem] border border-border-main bg-card-bg p-5 shadow-elite"><div className="flex items-center gap-2 text-primary">{icon}<h2 className="font-black text-text-main">{title}</h2></div><div className="mt-4">{children}</div></section>;
-const Placeholder=({label}:{label:string})=><div className="min-h-[92px] rounded-2xl border border-border-main bg-card-bg p-4 opacity-70"><p className="font-black">{label}</p><p className="mt-1 text-[10px] font-black uppercase tracking-widest text-text-muted">Bientôt disponible</p></div>;
+const Card = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  <section className="rounded-[1.75rem] border border-border-main bg-card-bg p-5 shadow-elite">
+    <div className="flex items-center gap-2 text-primary">{icon}<h2 className="font-black text-text-main">{title}</h2></div>
+    <div className="mt-4">{children}</div>
+  </section>
+);
+
+const Placeholder = ({ label }: { label: string }) => (
+  <div className="min-h-[92px] rounded-2xl border border-border-main bg-card-bg p-4 opacity-70">
+    <p className="font-black">{label}</p>
+    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-text-muted">PC-01</p>
+  </div>
+);
