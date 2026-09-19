@@ -129,6 +129,10 @@ export const PatientCompanionApp = () => {
   async function pairDevice(credential: string, manual: boolean) {
     setError('');
     try {
+      const loopback = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!window.isSecureContext && !loopback) {
+        throw new Error('Appairage refusé : ouvrez Patient Companion via la connexion HTTPS sécurisée du cabinet.');
+      }
       const response = await fetch(`${API_BASE}/api/patient-companion/pair`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
