@@ -97,6 +97,17 @@ jobs:
           after=[x for x in items if x["phase"]=="after"]
           assert all(not x["horizontalOverflow"] for x in after)
           assert all("Patient Companion" in x["text"] for x in after)
+          homes=[x for x in after if x["scenario"]=="home"]
+          assert len(homes) == 2
+          for item in homes:
+              probe=item["storageProbe"]
+              assert probe["envelopeVersion"] == 1, probe
+              assert probe["hasCiphertext"] is True, probe
+              assert probe["envelopeLeaksAccessToken"] is False, probe
+              assert probe["keyAlgorithm"] == "AES-GCM", probe
+              assert probe["keyExtractable"] is False, probe
+              assert probe["webStorageLeaksAccessToken"] is False, probe
+              assert probe["webStorageLeaksManualCode"] is False, probe
           before=[x for x in items if x["phase"]=="before"]
           assert all(x["pathname"].startswith("/login") for x in before), [x["pathname"] for x in before]
           print("pc00_visual_contract=PASS")
