@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/v1-07-commercial-pack-button-matrix.yml
       - backend/routers/team.py
+      - backend/routers/auth.py
       - backend/routers/superadmin.py
       - backend/services/subscription_policy.py
       - backend/tests/test_commercial_pack_button_matrix.py
