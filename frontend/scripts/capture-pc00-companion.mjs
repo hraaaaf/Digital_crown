@@ -27,13 +27,13 @@ async function clearPatientVault(page) {
   }));
 }
 
-async function installRoutes(page) {
-  await page.route('**/health', route => route.fulfill({
+async function installRoutes(target) {
+  await target.route('**/health', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ status: 'ok' }),
   }));
-  await page.route('http://127.0.0.1:8005/api/**', async route => {
+  await target.route('http://127.0.0.1:8005/api/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/patient-companion/pair' && route.request().method() === 'POST') {
       return route.fulfill({
@@ -70,7 +70,7 @@ async function capture(browserName, browser, phase, scenario, viewport) {
   });
   const base = phase === 'before' ? beforeUrl : afterUrl;
   if (phase === 'after') await clearPatientVault(page);
-  await installRoutes(page);
+  await installRoutes(context);
   await page.goto(`${base}/companion`, { waitUntil: 'domcontentloaded' });
 
   if (phase === 'before') {
