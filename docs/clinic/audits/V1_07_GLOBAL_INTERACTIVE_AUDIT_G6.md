@@ -68,3 +68,15 @@ Do not certify G6 until:
 `LicenseStatusPage.tsx` hardcodes “Votre licence Elite a expiré” for every expired account. `AppUser` exposes no subscription-plan field, so the UI cannot truthfully name a plan here. This remains an open product-truth defect requiring UI BEFORE/AFTER protocol before visible copy remediation.
 
 G6 is not certified while this defect and exact-head CI remain open.
+
+
+## Remediation candidate
+The hardcoded Elite wording was removed from `LicenseStatusPage.tsx`; expired copy is now plan-neutral and covered by `LicenseStatusPage.g6Interactive.test.tsx`.
+
+UI target/reference:
+- `docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md`
+
+Visual evidence workflow:
+- `.github/workflows/v1-07-truth-safety-visual-evidence.yml`
+
+Status: CODE REMEDIATED — CERTIFICATION PENDING matched BEFORE/AFTER evidence + exact-head tests/build.
