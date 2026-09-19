@@ -90,8 +90,10 @@ def normalize_patient_public_jwk(
         "kid": expected_kid,
         "use": expected_use,
     }
-    # Let the maintained JOSE implementation validate the normalized EC point.
-    jwk.JWK.from_json(_json(normalized))
+    # Let the maintained JOSE implementation materialize the EC point for
+    # the exact public operation. Invalid/off-curve coordinates fail here.
+    parsed = jwk.JWK.from_json(_json(normalized))
+    parsed.get_op_key("verify" if expected_use == "sig" else "encrypt")
     return normalized
 
 
