@@ -3,6 +3,8 @@
 **Date:** 2026-09-19  
 **Status:** REQUIRED BEFORE CLINICAL ACTIVATION
 
+**Agreement-method registry:** `bland-altman-1986`; scientific-method records are listed in F5-MDR-001.
+
 ## Goal
 Demonstrate numerical correctness, reproducibility, explicit failure behavior and clinically acceptable agreement against an expert structural-superimposition reference before F5 is activated for clinical use.
 

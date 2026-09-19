@@ -4,6 +4,8 @@
 **Date:** 2026-09-19  
 **Status:** ACCEPTED FOR ENGINEERING VALIDATION — NOT CLINICALLY VALIDATED
 
+**Registered evidence:** `abo-superimpositions-structural-method`, `graf-cephalo-superimposition-review-2022`, `jiang-feature-matching-superimposition-2020`, `zhao-feature-matching-superimposition-2025`, `opencv-bfmatcher-4-13`.
+
 ## Decision
 Digital Crown F5 will use **Anterior Cranial Base Structural Feature Registration** as the initial scientific method family.
 

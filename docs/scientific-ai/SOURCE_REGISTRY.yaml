@@ -1052,3 +1052,148 @@ sources:
     reviewed_by: pharmacology-baseline-agent
     reviewed_at: "2026-07-18"
     approval_evidence: "none; candidate research record only"
+
+  - source_id: abo-superimpositions-structural-method
+    domain: cephalometry
+    title: "Superimpositions"
+    organization: "American Board of Orthodontics"
+    authors: []
+    publication_date: "not_verified"
+    version: "accessed-2026-09-19"
+    accessed_at: "2026-09-19"
+    source_type: professional-society-guideline
+    jurisdiction: "United States"
+    population: {description: "Orthodontic case records submitted for board clinical examination", age_range: "source-defined", sex: "all", geography: "United States / professional standard"}
+    url: "https://www.americanboardortho.com/orthodontists/become-certified/clinical-exam/mail-in-cre-submission-procedure/case-record-preparation/superimpositions/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "ABO requires cranial-base, maxillary and mandibular superimpositions using the structural method and stable anatomical structures."
+      - "The clinician remains responsible for the accuracy of software-rendered landmarks, planes and angles."
+    limitations:
+      - "Professional certification guidance, not an algorithm-validation study."
+      - "Does not specify a Digital Crown implementation or clinical acceptance threshold."
+    contradictions: []
+    implementation_targets: ["V1-05-F5-method-family", "V1-05-F5-human-review-boundary"]
+    status: candidate
+    reviewed_by: "f5-scientific-research"
+    reviewed_at: "2026-09-19"
+    approval_evidence: "none; candidate research record only"
+
+  - source_id: graf-cephalo-superimposition-review-2022
+    domain: cephalometry
+    title: "Reliability of cephalometric superimposition for the assessment of craniofacial changes: a systematic review"
+    organization: "European Journal of Orthodontics / Oxford University Press"
+    authors: ["Carmen Camila Graf", "Konstantinos Dritsas", "Mohammed Ghamri", "Nikolaos Gkantidis"]
+    publication_date: "2022-02-17"
+    version: "44(5):477-490"
+    accessed_at: "2026-09-19"
+    source_type: systematic-review
+    jurisdiction: "International"
+    population: {description: "Serial human cephalometric radiographs across treatment/growth studies", age_range: "mixed/source-defined", sex: "mixed", geography: "International"}
+    url: "https://academic.oup.com/ejo/article/44/5/477/6530110"
+    doi_or_identifier: "10.1093/ejo/cjab082"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: partial
+    claims_supported:
+      - "The cephalometric-superimposition evidence base is heterogeneous and mostly at high risk of bias."
+      - "No cephalometric superimposition method has been proven to deliver accurate results universally."
+      - "Individual-case agreement and reproducibility require explicit validation."
+    limitations:
+      - "Evidence quality prevents a universal accuracy claim or universal acceptance threshold."
+    contradictions: []
+    implementation_targets: ["V1-05-F5-validation-strategy", "V1-05-F5-non-oracle-boundary"]
+    status: candidate
+    reviewed_by: "f5-scientific-research"
+    reviewed_at: "2026-09-19"
+    approval_evidence: "none; candidate research record only"
+
+  - source_id: jiang-feature-matching-superimposition-2020
+    domain: cephalometry
+    title: "The application and accuracy of feature matching on automated cephalometric superimposition"
+    organization: "BMC Medical Imaging"
+    authors: ["Yiran Jiang", "Guangying Song", "Xiaonan Yu"]
+    publication_date: "2020-03-19"
+    version: "20:31"
+    accessed_at: "2026-09-19"
+    source_type: original-publication
+    jurisdiction: "China"
+    population: {description: "28 longitudinal pre/post-treatment lateral-cephalogram pairs", age_range: "source-defined", sex: "source-defined", geography: "China"}
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7083061/"
+    doi_or_identifier: "10.1186/s12880-020-00432-z"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Feature matching can be used for automated structural cephalometric superimposition on stable regions."
+      - "The study compared automated feature matching with independent traditional hand superimpositions."
+    limitations:
+      - "Small sample and controlled acquisition context."
+      - "Does not establish universal individual-case or cross-machine accuracy."
+    contradictions: []
+    implementation_targets: ["V1-05-F5-feature-matching-candidate"]
+    status: candidate
+    reviewed_by: "f5-scientific-research"
+    reviewed_at: "2026-09-19"
+    approval_evidence: "none; candidate research record only"
+
+  - source_id: zhao-feature-matching-superimposition-2025
+    domain: cephalometry
+    title: "Evaluation of an Automatic Cephalometric Superimposition Method Based on Feature Matching"
+    organization: "Journal of Digital Imaging"
+    authors: ["L Zhao et al."]
+    publication_date: "2025"
+    version: "38(6):4138-4147"
+    accessed_at: "2026-09-19"
+    source_type: original-publication
+    jurisdiction: "China"
+    population: {description: "178 longitudinal lateral-cephalogram pairs from adult orthodontic patients", age_range: "adult", sex: "source-defined", geography: "China"}
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC12701167/"
+    doi_or_identifier: "10.1007/s10278-025-01447-0"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: partial
+    claims_supported:
+      - "An adult automated-superimposition study used stable-region feature matching and compared it with Sella-Nasion superimposition."
+      - "The method family uses SIFT features, KNN ratio filtering below 0.7, and a four-degree-of-freedom similarity transformation."
+    limitations:
+      - "Adult and study-specific acquisition context; growing patients and materially different acquisition protocols require separate validation."
+      - "The study includes a learned stable-region detector that Digital Crown F5 v1 intentionally does not adopt."
+    contradictions:
+      - "The article describes Hamming distance together with SIFT descriptors; OpenCV documentation recommends L1/L2 for SIFT and Hamming for binary descriptors."
+    implementation_targets: ["V1-05-F5-feature-matching-candidate", "V1-05-F5-adult-engineering-scope"]
+    status: needs_review
+    reviewed_by: "f5-scientific-research"
+    reviewed_at: "2026-09-19"
+    approval_evidence: "none; candidate research record only"
+
+  - source_id: opencv-bfmatcher-4-13
+    domain: testing-and-safety
+    title: "BFMatcher documentation"
+    organization: "OpenCV"
+    authors: []
+    publication_date: "not_verified"
+    version: "4.13.0"
+    accessed_at: "2026-09-19"
+    source_type: other
+    jurisdiction: "International"
+    population: {description: "Software descriptor matching API", age_range: "not_applicable", sex: "not_applicable", geography: "International"}
+    url: "https://docs.opencv.org/4.13.0/javadoc/org/opencv/features2d/BFMatcher.html"
+    doi_or_identifier: "OpenCV-4.13.0-BFMatcher"
+    license: "OpenCV software/documentation terms; reuse not independently reviewed"
+    evidence_level: C
+    applicability_to_morocco: not_applicable
+    claims_supported:
+      - "L1/L2 are the preferable norm choices for SIFT/SURF descriptors; Hamming is for binary descriptors such as ORB/BRISK/BRIEF."
+    limitations:
+      - "Software API documentation; it does not validate clinical cephalometric superimposition."
+    contradictions:
+      - "Differs from the Hamming wording reported alongside SIFT in Zhao 2025."
+    implementation_targets: ["V1-05-F5-SIFT-matcher"]
+    status: candidate
+    reviewed_by: "f5-scientific-research"
+    reviewed_at: "2026-09-19"
+    approval_evidence: "none; candidate implementation record only"
