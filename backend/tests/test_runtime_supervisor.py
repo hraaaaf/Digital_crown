@@ -118,3 +118,10 @@ def test_open_ui_only_after_readiness(tmp_path):
         assert supervisor.open_ui_when_ready(timeout=3.0) is True
     wait.assert_called_once_with(timeout=3.0)
     opener.assert_called_once_with("http://127.0.0.1:8005")
+
+
+def test_supervisor_uses_https_origin_when_explicitly_enabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
+    supervisor = RuntimeSupervisor(8005, adapter=PlatformAdapter(home=tmp_path), runtime_dir=tmp_path)
+    assert supervisor.ui_url == "https://127.0.0.1:8005"
+    assert supervisor.health_url == "https://127.0.0.1:8005/health"

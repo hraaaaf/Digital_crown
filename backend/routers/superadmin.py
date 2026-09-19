@@ -71,12 +71,9 @@ def _serialize_trial_code(code: models.TrialActivationCode) -> TrialActivationCo
 
 
 def _generate_trial_code() -> str:
-    chunks = [
-        secrets.token_hex(2).upper(),
-        secrets.token_hex(2).upper(),
-        secrets.token_hex(2).upper(),
-    ]
-    return f"DC-{chunks[0]}-{chunks[1]}-{chunks[2]}"
+    # 128 bits of entropy; legacy codes remain valid because validation is format-agnostic.
+    chunks = [secrets.token_hex(4).upper() for _ in range(4)]
+    return "DC-" + "-".join(chunks)
 
 
 @router.get("/clients", response_model=List[ClientOut])
@@ -358,16 +355,30 @@ def send_renewal_email(user_id: int, data: SendRenewalEmailRequest, db: Session 
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
     phone = user.telephone_mobile or user.telephone_fixe
-    if phone:
-        msg = f"Bonjour Dr. {user.nom_complet}, votre licence Digital Crown expire bientôt. {data.message}"
-        notification_service.send_whatsapp_via_whatsmate(phone, msg)
-        message_status = f"WhatsApp de relance envoyé avec succès à {phone}."
-    else:
-        message_status = "Aucun numéro de téléphone trouvé pour l'envoi WhatsApp."
+    if not phone:
+        add_license_history(db, user_id, admin.id, "renewal_whatsapp_skipped_no_phone")
+        db.commit()
+        raise HTTPException(
+            status_code=409,
+            detail="Aucun numéro de téléphone trouvé pour l'envoi WhatsApp.",
+        )
+
+    msg = f"Bonjour Dr. {user.nom_complet}, votre licence Digital Crown expire bientôt. {data.message}"
+    sent = notification_service.send_whatsapp_via_whatsmate(phone, msg)
+    if not sent:
+        add_license_history(db, user_id, admin.id, "renewal_whatsapp_failed")
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail="Échec de l'envoi WhatsApp de relance.",
+        )
 
     add_license_history(db, user_id, admin.id, "renewal_whatsapp_sent")
     db.commit()
-    return {"status": "success", "message": message_status}
+    return {
+        "status": "success",
+        "message": f"WhatsApp de relance envoyé avec succès à {phone}.",
+    }
 
 
 # Marketplace P10 mounts only after the legacy SuperAdmin module itself is loaded,

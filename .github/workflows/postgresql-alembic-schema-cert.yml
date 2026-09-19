@@ -64,7 +64,7 @@ jobs:
             "pydantic[email]==2.6.3" \
             pydantic-settings==2.2.1 \
             fastapi==0.110.0 \
-            python-multipart==0.0.9 \
+            python-multipart==0.0.31 \
             python-dotenv \
             cryptography \
             PyYAML==6.0.3 \

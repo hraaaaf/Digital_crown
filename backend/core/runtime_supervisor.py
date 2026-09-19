@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -19,6 +20,7 @@ class RuntimeSupervisor:
         adapter: PlatformAdapter | None = None,
         runtime_dir: str | Path | None = None,
         request_timeout: float = 1.5,
+        scheme: str | None = None,
     ) -> None:
         if not 1 <= int(port) <= 65535:
             raise ValueError("port must be between 1 and 65535")
@@ -26,10 +28,18 @@ class RuntimeSupervisor:
         self.adapter = adapter or get_platform_adapter()
         self.runtime_dir = Path(runtime_dir) if runtime_dir is not None else self.adapter.runtime_dir()
         self.request_timeout = max(0.1, float(request_timeout))
+        resolved_scheme = scheme or (
+            "https"
+            if os.environ.get("DIGITALCROWN_ENABLE_HTTPS", "").strip().lower() in {"1", "true", "yes", "on"}
+            else "http"
+        )
+        if resolved_scheme not in {"http", "https"}:
+            raise ValueError("scheme must be http or https")
+        self.scheme = resolved_scheme
 
     @property
     def ui_url(self) -> str:
-        return f"http://127.0.0.1:{self.port}"
+        return f"{self.scheme}://127.0.0.1:{self.port}"
 
     @property
     def health_url(self) -> str:

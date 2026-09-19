@@ -1,0 +1,134 @@
+name: V1-07 Pack Button Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v1-07-pack-button-visual-evidence.yml
+      - frontend/pack-button-audit.html
+      - frontend/src/preview/PackButtonAuditEntry.tsx
+      - frontend/scripts/capture-pack-button-audit.mjs
+      - frontend/src/features/admin/TeamManager.tsx
+      - frontend/src/features/superadmin/SuperAdminDashboard.tsx
+      - docs/ux/V1_07_PACK_BUTTON_STATES_GOAL_UI.md
+
+concurrency:
+  group: v1-07-pack-button-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: BEFORE/AFTER state evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Record immutable comparison identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+          test -n "$BASE_SHA"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install head frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize baseline worktree with audit-only harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/v1-07-pack-before "$BASE_SHA"
+          cp frontend/pack-button-audit.html /tmp/v1-07-pack-before/frontend/pack-button-audit.html
+          mkdir -p /tmp/v1-07-pack-before/frontend/src/preview /tmp/v1-07-pack-before/frontend/scripts
+          cp frontend/src/preview/PackButtonAuditEntry.tsx /tmp/v1-07-pack-before/frontend/src/preview/PackButtonAuditEntry.tsx
+          cp frontend/scripts/capture-pack-button-audit.mjs /tmp/v1-07-pack-before/frontend/scripts/capture-pack-button-audit.mjs
+          cd /tmp/v1-07-pack-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+
+      - name: Capture true BEFORE on base SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/v1-07-pack-before/frontend
+          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/pack-vite-before.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5174/pack-button-audit.html?view=team' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5174/pack-button-audit.html?view=team' >/dev/null
+          PACK_EVIDENCE_PHASE=before \
+          PACK_EVIDENCE_URL=http://127.0.0.1:5174/pack-button-audit.html \
+          PACK_EVIDENCE_DIR="$GITHUB_WORKSPACE/artifacts/v1-07-pack-buttons-before" \
+          node scripts/capture-pack-button-audit.mjs
+
+      - name: Capture AFTER on exact PR head
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5175 >/tmp/pack-vite-after.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5175/pack-button-audit.html?view=team' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5175/pack-button-audit.html?view=team' >/dev/null
+          PACK_EVIDENCE_PHASE=after \
+          PACK_EVIDENCE_URL=http://127.0.0.1:5175/pack-button-audit.html \
+          PACK_EVIDENCE_DIR=../artifacts/v1-07-pack-buttons-after \
+          node scripts/capture-pack-button-audit.mjs
+
+      - name: Assert matched viewport/scenario evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          before=json.loads(Path("artifacts/v1-07-pack-buttons-before/evidence.json").read_text())
+          after=json.loads(Path("artifacts/v1-07-pack-buttons-after/evidence.json").read_text())
+          b={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in before}
+          a={(x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in after}
+          assert b == a, (sorted(b-a), sorted(a-b))
+          assert len(a) == 10, len(a)
+          print("matched_before_after=10")
+          PY
+
+      - name: Record proof metadata
+        shell: bash
+        run: |
+          printf 'base=%s\nhead=%s\nphase=before\nviewports=1024x900,1440x1000\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-pack-buttons-before/result.txt
+          printf 'base=%s\nhead=%s\nphase=after\nviewports=1024x900,1440x1000\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-pack-buttons-after/result.txt
+          cp /tmp/pack-vite-before.log artifacts/v1-07-pack-buttons-before/vite.log
+          cp /tmp/pack-vite-after.log artifacts/v1-07-pack-buttons-after/vite.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-pack-buttons-before
+          path: artifacts/v1-07-pack-buttons-before
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-pack-buttons-after
+          path: artifacts/v1-07-pack-buttons-after
+          if-no-files-found: error
+          retention-days: 30

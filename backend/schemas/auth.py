@@ -17,7 +17,7 @@ class Token(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(min_length=1, max_length=4096)
 
 
 class TokenData(BaseModel):
@@ -32,19 +32,19 @@ class UserLogin(BaseModel):
 class UserSignup(BaseModel):
     email: EmailStr
     password: str = _password_field()
-    nom_complet: str = Field(min_length=2)
-    telephone_mobile: Optional[str] = None
-    adresse_complete: Optional[str] = None
+    nom_complet: str = Field(min_length=2, max_length=160)
+    telephone_mobile: Optional[str] = Field(default=None, max_length=40)
+    adresse_complete: Optional[str] = Field(default=None, max_length=500)
     accept_terms: bool
     accept_privacy: bool
 
 
 class TrialActivationRequest(BaseModel):
-    code: str = Field(min_length=6)
+    code: str = Field(min_length=6, max_length=128)
     email: EmailStr
     password: str = _password_field()
-    nom_complet: str = Field(min_length=2)
-    cabinet_name: Optional[str] = None
+    nom_complet: str = Field(min_length=2, max_length=160)
+    cabinet_name: Optional[str] = Field(default=None, max_length=160)
     accept_terms: bool
     accept_privacy: bool
 

@@ -138,3 +138,29 @@ class TestTokenBlacklist:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         bl1.revoke(token)
         assert not bl2.is_revoked(payload["jti"])
+
+
+class _BrokenRevocationDB:
+    def query(self, *_args, **_kwargs):
+        raise RuntimeError("synthetic revocation-store outage")
+
+    def merge(self, *_args, **_kwargs):
+        raise RuntimeError("synthetic revocation-store outage")
+
+    def commit(self):
+        raise RuntimeError("synthetic revocation-store outage")
+
+    def rollback(self):
+        return None
+
+
+def test_revocation_lookup_fails_closed_when_persistent_store_is_unavailable():
+    bl = TokenBlacklist()
+    assert bl.is_revoked("synthetic-jti", db=_BrokenRevocationDB()) is True
+
+
+def test_revoke_surfaces_persistence_failure_when_db_is_explicit():
+    bl = TokenBlacklist()
+    token = create_access_token({"sub": "a@b.com"})
+    with pytest.raises(RuntimeError, match="revocation persistence unavailable"):
+        bl.revoke(token, db=_BrokenRevocationDB())

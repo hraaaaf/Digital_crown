@@ -63,41 +63,43 @@ class TokenBlacklist:
     def revoke(self, token: str, db=None) -> None:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            jti = payload.get("jti")
-            exp = payload.get("exp")
-            if jti and exp:
-                expires_at = datetime.fromtimestamp(exp, tz=timezone.utc).replace(tzinfo=None)
-                self._store[jti] = expires_at
-
-                import sys
-                is_testing = "pytest" in sys.modules
-                if db is not None or not is_testing:
-                    try:
-                        from backend.database import SessionLocal
-                        from backend.models import RevokedToken
-
-                        db_session = db
-                        own_session = False
-                        if db_session is None:
-                            db_session = SessionLocal()
-                            own_session = True
-
-                        try:
-                            revoked = RevokedToken(jti=jti, expires_at=expires_at)
-                            db_session.merge(revoked)
-                            db_session.commit()
-                        except Exception:
-                            if own_session:
-                                db_session.rollback()
-                        finally:
-                            if own_session:
-                                db_session.close()
-                    except Exception:
-                        pass
-
-                self._purge(db)
         except Exception:
-            pass
+            return
+
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+        if not jti or not exp:
+            return
+
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc).replace(tzinfo=None)
+        self._store[jti] = expires_at
+
+        import sys
+        is_testing = "pytest" in sys.modules
+        if db is not None or not is_testing:
+            from backend.database import SessionLocal
+            from backend.models import RevokedToken
+
+            db_session = db
+            own_session = False
+            if db_session is None:
+                db_session = SessionLocal()
+                own_session = True
+            try:
+                revoked = RevokedToken(jti=jti, expires_at=expires_at)
+                db_session.merge(revoked)
+                db_session.commit()
+            except Exception as exc:
+                try:
+                    db_session.rollback()
+                except Exception:
+                    pass
+                raise RuntimeError("Token revocation persistence unavailable") from exc
+            finally:
+                if own_session:
+                    db_session.close()
+
+        self._purge(db)
 
     @staticmethod
     def _parse_mobile_jti(jti: str) -> tuple[int, int] | None:
@@ -214,7 +216,12 @@ class TokenBlacklist:
         mobile_identity = self._parse_mobile_jti(jti)
         if mobile_identity is not None:
             employer_id, issued_us = mobile_identity
-            cutoff = self._mobile_cutoff(employer_id, db)
+            try:
+                cutoff = self._mobile_cutoff(employer_id, db)
+            except Exception:
+                # Revocation state is security-critical. An unavailable store
+                # must deny rather than silently accept a possibly revoked token.
+                return True
             if cutoff is not None and issued_us <= cutoff:
                 return True
 
@@ -238,7 +245,8 @@ class TokenBlacklist:
                     if own_session:
                         db_session.close()
             except Exception:
-                return False
+                # Fail closed when persistence-backed revocation cannot be read.
+                return True
         return False
 
     def _purge(self, db=None) -> None:

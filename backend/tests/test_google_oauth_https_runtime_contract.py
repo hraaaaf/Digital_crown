@@ -26,3 +26,32 @@ def test_legacy_http_loopback_remains_only_as_non_https_fallback() -> None:
 
     assert '_GOOGLE_LOCAL_HTTP_ORIGIN = "http://127.0.0.1:8005"' in source
     assert 'return _GOOGLE_LOCAL_HTTPS_ORIGIN if _cabinet_https_enabled() else _GOOGLE_LOCAL_HTTP_ORIGIN' in source
+
+
+def test_google_oauth_authorize_binds_state_to_http_only_cookie(client, monkeypatch) -> None:
+    from urllib.parse import parse_qs, urlparse
+    from backend.routers import auth
+
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_ID", "synthetic-client")
+    response = client.get("/api/auth/google/authorize", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    state = parse_qs(urlparse(response.headers["location"]).query)["state"][0]
+    assert state
+    assert client.cookies.get("google_oauth_state") == state
+    assert "httponly" in response.headers["set-cookie"].lower()
+
+
+def test_google_oauth_callback_rejects_state_mismatch_before_token_exchange(client, monkeypatch) -> None:
+    from backend.routers import auth
+
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_ID", "synthetic-client")
+    authorize = client.get("/api/auth/google/authorize", follow_redirects=False)
+    assert authorize.status_code in {302, 307}
+
+    response = client.get(
+        "/api/auth/google/callback?code=synthetic-code&state=wrong-state",
+        follow_redirects=False,
+    )
+    assert response.status_code in {302, 307}
+    assert "google_state_invalid" in response.headers["location"]

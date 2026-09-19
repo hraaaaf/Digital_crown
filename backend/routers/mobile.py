@@ -8,7 +8,7 @@ import uuid
 
 from fastapi import Depends, HTTPException
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, contains_eager
 
@@ -462,7 +462,7 @@ def snooze_mobile_notification(
 
 
 class MobileRefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(min_length=1, max_length=4096)
 
 
 @router.post('/refresh-token', summary='Renouveler la session mobile appairée')
@@ -493,7 +493,14 @@ def refresh_mobile_credentials(
         models.MobilePairedDevice.revoked_at.is_(None),
     ).first()
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not device or not user or not user.is_active or user.get_employer_id() != tenant_id:
+    approval = getattr(user, "approval_status", "approved") if user else None
+    if (
+        not device
+        or not user
+        or not user.is_active
+        or user.get_employer_id() != tenant_id
+        or (getattr(user, "employer_id", None) is not None and (approval or "approved") != "approved")
+    ):
         raise err
     if device.refresh_jti != jti:
         device.revoked_at = datetime.utcnow()

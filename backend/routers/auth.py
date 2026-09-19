@@ -1,5 +1,7 @@
+import hmac
 import logging
 import os
+import secrets
 from typing import Union, List
 from datetime import timedelta
 
@@ -41,11 +43,13 @@ def is_superadmin_user(user: models.User | None) -> bool:
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     """Pose les tokens en cookies HttpOnly — sécurisés en prod, non-Secure en dev."""
-    is_prod = getattr(settings, 'ENVIRONMENT', 'development').lower() == 'production'
+    environment = getattr(settings, "ENVIRONMENT", "development").lower()
+    cabinet_https = os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
+    secure_cookie = environment == "production" or (environment == "cabinet" and cabinet_https)
     cookie_kwargs = dict(
         httponly=True,
         samesite="lax",
-        secure=is_prod,
+        secure=secure_cookie,
         path="/",
     )
     response.set_cookie(
@@ -107,6 +111,9 @@ async def get_current_user(
         raise credentials_exception
 
     if user is None or not user.is_active:
+        raise credentials_exception
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
         raise credentials_exception
     return user
 
@@ -364,6 +371,9 @@ async def refresh_access_token(
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None or not user.is_active:
         raise credentials_exception
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
+        raise credentials_exception
 
     token_blacklist.revoke(refresh_token_value, db)
     new_access = create_access_token(data={"sub": user.email})
@@ -433,8 +443,10 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
 async def signup_client(
     req: schemas.UserSignup,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(get_db)
 ):
+    check_rate_limit(request, scope="signup")
     from backend.security import get_password_hash
     if not req.accept_terms or not req.accept_privacy:
         raise HTTPException(
@@ -486,14 +498,13 @@ async def signup_client(
         
         firebase_db = LicenseService()._db
         if firebase_db:
+            # Cloud boundary: Firebase stores only identity/licensing onboarding
+            # metadata. Contact/address and local database identifiers stay local.
             firebase_db.collection('pending_clients').document(req.email).set({
                 "email": req.email,
                 "nom_complet": req.nom_complet,
-                "telephone_mobile": req.telephone_mobile,
-                "adresse_complete": req.adresse_complete,
                 "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                "local_user_id": new_user.id
             })
             logger.info(f"Demande d'inscription envoyée sur Firebase pour {req.email}")
     except Exception as e:
@@ -526,14 +537,24 @@ def _google_redirect_uri() -> str:
     return f"{_google_local_origin()}/api/auth/google/callback"
 
 
+_GOOGLE_STATE_COOKIE = "google_oauth_state"
+_GOOGLE_STATE_MAX_AGE_SECONDS = 300
+_GOOGLE_STATE_COOKIE_PATH = "/api/auth/google"
+
+
+def _google_clear_state_cookie(response: Response) -> None:
+    response.delete_cookie(_GOOGLE_STATE_COOKIE, path=_GOOGLE_STATE_COOKIE_PATH)
+
+
 @router.get("/google/authorize", summary="Démarrer la connexion Google")
-async def google_authorize(response: Response):
+async def google_authorize():
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(
             status_code=501,
             detail="Google OAuth non configuré. Ajoutez GOOGLE_CLIENT_ID dans backend/.env.local (ou dans le fichier d’environnement actif).",
         )
 
+    state = secrets.token_urlsafe(32)
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
         "redirect_uri": _google_redirect_uri(),
@@ -541,13 +562,27 @@ async def google_authorize(response: Response):
         "scope": "openid email profile",
         "access_type": "offline",
         "prompt": "select_account",
+        "state": state,
     }
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=f"{_GOOGLE_AUTH_URL}?{urlencode(params)}")
+
+    redirect = RedirectResponse(url=f"{_GOOGLE_AUTH_URL}?{urlencode(params)}")
+    redirect.set_cookie(
+        _GOOGLE_STATE_COOKIE,
+        state,
+        max_age=_GOOGLE_STATE_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=_cabinet_https_enabled(),
+        samesite="lax",
+        path=_GOOGLE_STATE_COOKIE_PATH,
+    )
+    return redirect
 
 
 @router.get("/google/callback", summary="Callback Google OAuth")
 async def google_callback(
+    request: Request,
+    state: str = None,
     code: str = None,
     error: str = None,
     db: Session = Depends(get_db),
@@ -560,8 +595,16 @@ async def google_callback(
     else:
         frontend_url = resolve_frontend_url(settings.FRONTEND_URL)
 
+    expected_state = request.cookies.get(_GOOGLE_STATE_COOKIE, "")
+    if not state or not expected_state or not hmac.compare_digest(state, expected_state):
+        redirect = RedirectResponse(url=f"{frontend_url}/login?error=google_state_invalid")
+        _google_clear_state_cookie(redirect)
+        return redirect
+
     if error or not code:
-        return RedirectResponse(url=f"{frontend_url}/login?error=google_cancelled")
+        redirect = RedirectResponse(url=f"{frontend_url}/login?error=google_cancelled")
+        _google_clear_state_cookie(redirect)
+        return redirect
 
     async with httpx.AsyncClient() as client:
         token_res = await client.post(_GOOGLE_TOKEN_URL, data={
@@ -572,7 +615,9 @@ async def google_callback(
             "grant_type": "authorization_code",
         })
         if token_res.status_code != 200:
-            return RedirectResponse(url=f"{frontend_url}/login?error=google_token_failed")
+            redirect = RedirectResponse(url=f"{frontend_url}/login?error=google_token_failed")
+            _google_clear_state_cookie(redirect)
+            return redirect
 
         google_tokens = token_res.json()
         access_token_google = google_tokens.get("access_token")
@@ -582,7 +627,9 @@ async def google_callback(
             headers={"Authorization": f"Bearer {access_token_google}"},
         )
         if userinfo_res.status_code != 200:
-            return RedirectResponse(url=f"{frontend_url}/login?error=google_userinfo_failed")
+            redirect = RedirectResponse(url=f"{frontend_url}/login?error=google_userinfo_failed")
+            _google_clear_state_cookie(redirect)
+            return redirect
 
         userinfo = userinfo_res.json()
 
@@ -590,15 +637,27 @@ async def google_callback(
     nom_complet = userinfo.get("name", "")
 
     if not email:
-        return RedirectResponse(url=f"{frontend_url}/login?error=google_no_email")
+        redirect = RedirectResponse(url=f"{frontend_url}/login?error=google_no_email")
+        _google_clear_state_cookie(redirect)
+        return redirect
 
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         params = urlencode({"email": email, "full_name": nom_complet, "google_signup": "true"})
-        return RedirectResponse(url=f"{frontend_url}/register?{params}")
+        redirect = RedirectResponse(url=f"{frontend_url}/register?{params}")
+        _google_clear_state_cookie(redirect)
+        return redirect
 
     if not user.is_active:
-        return RedirectResponse(url=f"{frontend_url}/login?error=account_inactive")
+        redirect = RedirectResponse(url=f"{frontend_url}/login?error=account_inactive")
+        _google_clear_state_cookie(redirect)
+        return redirect
+
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
+        redirect = RedirectResponse(url=f"{frontend_url}/login?error=account_inactive")
+        _google_clear_state_cookie(redirect)
+        return redirect
 
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
@@ -614,5 +673,6 @@ async def google_callback(
     )
 
     redirect = RedirectResponse(url=f"{frontend_url}/login?google=success")
+    _google_clear_state_cookie(redirect)
     _set_auth_cookies(redirect, access_token, refresh_token)
     return redirect

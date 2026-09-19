@@ -44,11 +44,14 @@ from backend.services.license_service import LicenseService
 import sentry_sdk
 
 sentry_dsn = os.getenv("SENTRY_DSN")
-if sentry_dsn:
+if sentry_dsn and app_settings.TELEMETRY_ENABLED:
+    # Cloud observability is opt-in, like every other cabinet egress path.
+    # Error reporting remains useful without exporting request traces/profiles.
     sentry_sdk.init(
         dsn=sentry_dsn,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
+        traces_sample_rate=0.0,
+        profiles_sample_rate=0.0,
+        send_default_pii=False,
     )
 
 # --- CONFIGURATION LOGGING ---
@@ -462,6 +465,60 @@ async def license_check_middleware(request: Request, call_next):
 
     return await call_next(request)
 
+_MAX_URLENCODED_BODY_BYTES = 64 * 1024
+_MAX_PUBLIC_JSON_BODY_BYTES = 64 * 1024
+_BOUNDED_PUBLIC_JSON_PATHS = {
+    "/api/auth/signup",
+    "/api/auth/refresh",
+    "/api/public/demo-request",
+    "/api/public/activate-trial",
+    "/api/mobile/claim-token",
+    "/api/mobile/refresh-token",
+}
+
+
+@app.middleware("http")
+async def public_json_body_limit_middleware(request: Request, call_next):
+    """Reject oversized/chunked auth-public JSON before FastAPI parses it."""
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if request.url.path in _BOUNDED_PUBLIC_JSON_PATHS and content_type == "application/json":
+        raw_length = request.headers.get("content-length")
+        if raw_length is None:
+            return JSONResponse(
+                status_code=411,
+                content={"detail": "Content-Length requis pour ce type de requête"},
+            )
+        try:
+            content_length = int(raw_length)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Content-Length invalide"})
+        if content_length < 0 or content_length > _MAX_PUBLIC_JSON_BODY_BYTES:
+            return JSONResponse(status_code=413, content={"detail": "Corps JSON trop volumineux"})
+
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def urlencoded_body_limit_middleware(request: Request, call_next):
+    """Bound Starlette's legacy urlencoded form parser before endpoint parsing."""
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type == "application/x-www-form-urlencoded":
+        raw_length = request.headers.get("content-length")
+        if raw_length is None:
+            return JSONResponse(
+                status_code=411,
+                content={"detail": "Content-Length requis pour ce type de requête"},
+            )
+        try:
+            content_length = int(raw_length)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Content-Length invalide"})
+        if content_length < 0 or content_length > _MAX_URLENCODED_BODY_BYTES:
+            return JSONResponse(status_code=413, content={"detail": "Corps de formulaire trop volumineux"})
+
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     response = await call_next(request)
@@ -477,13 +534,18 @@ async def security_headers_middleware(request: Request, call_next):
 # --- INCLUSION DES ROUTERS ---
 from backend.config import settings as _settings
 ALLOWED_ORIGINS = [o.strip() for o in _settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+_RUNTIME_ENV = str(_settings.ENVIRONMENT).strip().lower()
+_DEV_LAN_ORIGIN_REGEX = (
+    r"https?://((192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):5173"
+    if _RUNTIME_ENV in {"development", "local", "test"}
+    else None
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    # http ET https : le LAN tourne en HTTP par défaut (HTTPS seulement si certs).
-    # Couvre toute IP LAN privée sur :5173 → robuste aux changements d'IP DHCP
-    # (évite de devoir mettre à jour ALLOWED_ORIGINS dans .env à chaque bail DHCP).
-    allow_origin_regex=r"https?://((192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):5173",
+    # Broad private-LAN CORS is a development convenience only. Cabinet mobile
+    # access is same-origin HTTPS on :8005 and must not trust arbitrary LAN origins.
+    allow_origin_regex=_DEV_LAN_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
@@ -568,8 +630,9 @@ async def api_health_check():
         with database.SessionLocal() as db:
             from sqlalchemy import text
             db.execute(text("SELECT 1"))
-    except Exception as e:
-        db_status = f"error: {e}"
+    except Exception:
+        logger.exception("Health database probe failed")
+        db_status = "error"
 
     payload = {
         "status": "ok" if db_status == "ok" else "degraded",
@@ -589,8 +652,9 @@ async def api_health_db():
             from sqlalchemy import text
             db.execute(text("SELECT 1"))
         return {"status": "ok"}
-    except Exception as e:
-        return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
+    except Exception:
+        logger.exception("Database health probe failed")
+        return JSONResponse(status_code=503, content={"status": "error", "detail": "Database unavailable"})
 
 
 @app.get("/api/health/storage", include_in_schema=False)
@@ -603,8 +667,9 @@ async def api_health_storage():
         probe.write_text("ok")
         probe.unlink()
         return {"status": "ok"}
-    except Exception as e:
-        return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
+    except Exception:
+        logger.exception("Storage health probe failed")
+        return JSONResponse(status_code=503, content={"status": "error", "detail": "Storage unavailable"})
 
 # --- STATIC FILES & UI ---
 
@@ -651,27 +716,28 @@ def _serve_protected_file(base_dir: str, rel_path: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
     return FileResponse(abs_path)
 
-def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str, current_user=None):
-    """
-    Vérifie que le fichier appartient au cabinet de l'utilisateur.
-    Stratégie : si un enregistrement DB existe pour ce chemin mais appartient à un
-    autre cabinet → 403. Si aucun enregistrement → laisser passer (fichier legacy
-    non référencé). Empêche le cross-tenant sur tous les fichiers tracés en base.
-    """
+def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str, current_user=None, *, allow_missing: bool = False) -> bool:
+    """Fail closed unless DB provenance proves ownership; optionally report a missing row."""
     path_col = getattr(model_cls, path_col_name)
-    record = (
+    records = (
         db.query(model_cls)
         .filter(path_col.like(f"%{path_fragment}"))
         .join(models.Patient, getattr(model_cls, "patient_id") == models.Patient.id)
-        .first()
+        .all()
     )
-    if record is not None and record.patient.employer_id != employer_id:
+    if not records:
+        if allow_missing:
+            return False
+        raise HTTPException(status_code=404, detail="Fichier non référencé")
+
+    owner_ids = {record.patient.employer_id for record in records}
+    if owner_ids != {employer_id}:
         if current_user is not None:
             from backend.services.audit_service import audit_service
             audit_service.log(
                 db=db, user_id=current_user.id, employer_id=employer_id,
                 action="MEDIA_ACCESS_DENIED", resource_type=model_cls.__name__, resource_id=path_fragment,
-                severity="WARNING", details=f"Tentative d'accès média cross-tenant : {path_fragment}",
+                severity="WARNING", details="Accès média refusé : ownership cabinet non démontrée",
             )
         raise HTTPException(status_code=403, detail="Accès refusé")
 
@@ -709,10 +775,26 @@ async def serve_archives(
 @app.get("/api/static/documents/{rel_path:path}", include_in_schema=False)
 async def serve_documents(
     rel_path: str,
+    request: Request,
     current_user=Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
-    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path, current_user)
+    employer_id = current_user.get_employer_id()
+    owned = _assert_media_tenant(
+        db,
+        employer_id,
+        models.DocumentArchive,
+        "file_path",
+        rel_path,
+        current_user,
+        allow_missing=True,
+    )
+    if not owned:
+        from backend.services.document_preview_token import verify_document_preview_token
+
+        preview_token = request.query_params.get("preview_token")
+        if not verify_document_preview_token(preview_token, employer_id, rel_path):
+            raise HTTPException(status_code=404, detail="Fichier non référencé")
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "documents"), rel_path)
 
 # Pièces jointes d'actes — AUTH + tenant requis (stockées dans uploads/actes/).
@@ -727,16 +809,19 @@ async def serve_acte_attachment(
     if safe != filename or ".." in filename:
         raise HTTPException(status_code=403, detail="Chemin non autorisé")
 
-    # Retrouver le patient propriétaire via la table Acte
-    url_fragment = f"/actes/{safe}"
+    # Retrouver le(s) patient(s) propriétaire(s) via la table Acte.
+    # Aucun fallback disque n'est autorisé si l'ownership DB est absente/ambiguë.
     from sqlalchemy import cast, String
-    acte = (
+    actes = (
         db.query(models.Acte)
         .filter(cast(models.Acte.attachments, String).like(f"%{safe}%"))
         .join(models.Patient, models.Acte.patient_id == models.Patient.id)
-        .first()
+        .all()
     )
-    if acte is not None and acte.patient.employer_id != current_user.get_employer_id():
+    if not actes:
+        raise HTTPException(status_code=404, detail="Fichier non référencé")
+    owner_ids = {acte.patient.employer_id for acte in actes}
+    if owner_ids != {current_user.get_employer_id()}:
         raise HTTPException(status_code=403, detail="Accès refusé")
 
     return _serve_protected_file(os.path.join(UPLOAD_DIR, "actes"), safe)
@@ -747,8 +832,31 @@ async def serve_acte_attachment(
 async def serve_clinic_asset(
     rel_path: str,
     current_user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
 ):
-    return _serve_protected_file(os.path.join(UPLOAD_DIR, "clinics"), rel_path)
+    config = (
+        db.query(models.CabinetConfig)
+        .filter(models.CabinetConfig.owner_id == current_user.get_employer_id())
+        .first()
+    )
+    if config is None:
+        raise HTTPException(status_code=404, detail="Cabinet non configuré")
+
+    normalized = rel_path.replace("\\", "/").strip("/")
+    parts = [part for part in normalized.split("/") if part]
+    public_id = str(config.public_id or "").strip()
+    if (
+        not public_id
+        or len(parts) < 2
+        or parts[0] != public_id
+        or any(part in {".", ".."} for part in parts)
+    ):
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    return _serve_protected_file(
+        os.path.join(UPLOAD_DIR, "clinics", public_id),
+        "/".join(parts[1:]),
+    )
 
 # --- SECURITE P0 : mounts StaticFiles publics supprimés ----------------------
 # Tous les chemins patients (panoramic, radios, archives, documents, actes, clinics)

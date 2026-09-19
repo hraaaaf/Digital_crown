@@ -29,18 +29,47 @@ def _appdata_env_path() -> Path:
     return _cabinet_env_path()
 
 
+def _is_strong_secret(value: str) -> bool:
+    candidate = str(value or "").strip()
+    return bool(candidate) and candidate not in _WEAK_SECRETS and len(candidate) >= 32
+
+
+def _is_valid_master_key_hex(value: str) -> bool:
+    candidate = str(value or "").strip()
+    if len(candidate) != 64:
+        return False
+    try:
+        bytes.fromhex(candidate)
+    except ValueError:
+        return False
+    return True
+
+
 def _enforce_cabinet_crypto_secret() -> None:
-    """Fail before database import can ever use a predictable SQLCipher fallback."""
-    if os.getenv("ENVIRONMENT", "development").strip().lower() != "cabinet":
+    """Fail closed unless JWT signing and cabinet encryption have independent strong keys."""
+    environment = os.getenv("ENVIRONMENT", "development").strip().lower()
+    if environment not in {"cabinet", "production"}:
         return
 
-    dedicated = os.getenv("CABINET_MASTER_KEY_HEX", "").strip()
-    shared = os.getenv("SECRET_KEY", "").strip()
-    candidate = dedicated or shared
-    if not candidate or candidate in _WEAK_SECRETS or len(candidate) < 32:
+    jwt_secret = os.getenv("SECRET_KEY", "").strip()
+    if not _is_strong_secret(jwt_secret):
         raise RuntimeError(
-            "SECURITE : mode cabinet refuse. Définissez CABINET_MASTER_KEY_HEX "
-            "ou une SECRET_KEY forte (>= 32 caractères) avant toute ouverture de la base."
+            "SECURITE : cabinet/production refuse. SECRET_KEY doit être forte "
+            "(>= 32 caractères) et ne peut pas utiliser une valeur par défaut."
+        )
+
+    master_key = os.getenv("CABINET_MASTER_KEY_HEX", "").strip()
+    if not _is_valid_master_key_hex(master_key):
+        raise RuntimeError(
+            "SECURITE : cabinet/production refuse. CABINET_MASTER_KEY_HEX doit "
+            "contenir exactement 32 octets aléatoires encodés en 64 caractères hexadécimaux."
+        )
+
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if not database_url:
+        raise RuntimeError(
+            "SECURITE : cabinet/production refuse. DATABASE_URL doit être fournie explicitement ; "
+            "aucun fallback de développement n'est autorisé."
         )
 
 

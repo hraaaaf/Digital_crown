@@ -121,7 +121,9 @@ def _source_contract() -> None:
     assert "target=supervisor.open_ui_when_ready" in run_source
     assert "DIGITALCROWN_RESTORE_RESTART" in run_source
     assert "open_existing=not suppress_browser" in run_source
-    assert "_load_launcher_environment()\n    host, port = _resolve_host_port()" in run_source
+    assert "_load_launcher_environment()\n    host, port, https_enabled, cert_file, key_file = _resolve_runtime_network()" in run_source
+    assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in run_source
+    assert "ssl_certfile=cert_file if https_enabled else None" in run_source
     assert "load_backend_env(override=False)" in run_source
     assert "http://127.0.0.1:8000" not in main_source
     assert "webbrowser.open(" not in main_source

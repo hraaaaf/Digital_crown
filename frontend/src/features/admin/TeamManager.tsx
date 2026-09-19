@@ -89,6 +89,8 @@ export const TeamManager: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [editingPermissionsMember, setEditingPermissionsMember] = useState<TeamMember | null>(null);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [mutationKey, setMutationKey] = useState<string | null>(null);
 
   const [form, setForm] = useState<CreateForm>({
     email: '',
@@ -110,6 +112,8 @@ export const TeamManager: React.FC = () => {
   });
 
   const fetchMembers = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const [membersRes, quotaRes] = await Promise.all([
         api.get(`/team/?_t=${Date.now()}`),
@@ -123,6 +127,7 @@ export const TeamManager: React.FC = () => {
       setQuota(quotaRes.data);
     } catch {
       console.error("Erreur chargement équipe");
+      setLoadError("Impossible de charger l'équipe. Les données affichées ne sont pas considérées comme à jour.");
     } finally {
       setLoading(false);
     }
@@ -148,15 +153,19 @@ export const TeamManager: React.FC = () => {
   };
 
   const rejectMember = async (member: TeamMember) => {
+    if (mutationKey) return;
     if (!confirm(`Refuser l'accès de ${member.nom_complet || member.email} ?`)) return;
+    setMutationKey(`reject:${member.id}`);
     setError(null);
     try {
       await api.post(`/team/${member.id}/reject`);
       setSuccess(`Demande de ${member.nom_complet || member.email} refusée.`);
-      fetchMembers();
+      await fetchMembers();
       setTimeout(() => setSuccess(null), 4000);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Erreur lors du refus.");
+    } finally {
+      setMutationKey(null);
     }
   };
 
@@ -220,23 +229,31 @@ export const TeamManager: React.FC = () => {
   };
 
   const toggleActive = async (member: TeamMember) => {
+    if (mutationKey) return;
+    setMutationKey(`active:${member.id}`);
     try {
       await api.put(`/team/${member.id}`, { is_active: !member.is_active });
-      fetchMembers();
+      await fetchMembers();
     } catch {
       setError("Erreur lors de la modification du statut.");
+    } finally {
+      setMutationKey(null);
     }
   };
 
   const deleteMember = async (member: TeamMember) => {
+    if (mutationKey) return;
     if (!confirm(`Supprimer définitivement le compte de ${member.nom_complet || member.email} ?`)) return;
+    setMutationKey(`delete:${member.id}`);
     try {
       await api.delete(`/team/${member.id}`);
       setSuccess("Compte supprimé.");
-      fetchMembers();
+      await fetchMembers();
       setTimeout(() => setSuccess(null), 3000);
     } catch {
       setError("Erreur lors de la suppression.");
+    } finally {
+      setMutationKey(null);
     }
   };
 
@@ -301,7 +318,15 @@ export const TeamManager: React.FC = () => {
           {(!quota.can_add_dentiste || !quota.can_add_secretaire) && (
             <div className="sm:ml-auto max-w-full flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-black">
               <TrendingUp size={14} className="shrink-0" />
-              <span className="break-words">Quota atteint — passez au plan supérieur</span>
+              <span className="break-words">
+                {quota.plan === 'ELITE'
+                  ? 'Capacité temporairement indisponible — vérifiez les comptes en attente'
+                  : !quota.can_add_dentiste && quota.can_add_secretaire
+                    ? `Quota dentistes atteint — ${Math.max(0, (quota.secretaires_max ?? quota.secretaires_used) - quota.secretaires_used)} place(s) assistante(s) disponible(s)`
+                    : quota.can_add_dentiste && !quota.can_add_secretaire
+                      ? `Quota assistantes atteint — ${Math.max(0, (quota.dentistes_max ?? quota.dentistes_used) - quota.dentistes_used)} place(s) dentiste(s) disponible(s)`
+                      : 'Quotas dentistes et assistantes atteints — ajustez l’équipe ou le pack'}
+              </span>
             </div>
           )}
         </div>
@@ -318,7 +343,7 @@ export const TeamManager: React.FC = () => {
         <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 animate-in fade-in duration-300">
           <AlertTriangle size={20} />
           <span className="font-bold text-sm">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto"><X size={16} /></button>
+          <button onClick={() => setError(null)} aria-label="Fermer l'erreur" className="ml-auto"><X size={16} /></button>
         </div>
       )}
 
@@ -544,6 +569,7 @@ export const TeamManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => rejectMember(member)}
+                  disabled={mutationKey !== null}
                   className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 text-xs font-black rounded-xl transition-all hover:bg-rose-100 flex items-center gap-2"
                 >
                   <XCircle size={14} />
@@ -551,6 +577,7 @@ export const TeamManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => deleteMember(member)}
+                  disabled={mutationKey !== null}
                   className="p-2.5 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
@@ -566,6 +593,19 @@ export const TeamManager: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={40} />
+        </div>
+      ) : loadError ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center">
+          <AlertTriangle className="mx-auto text-rose-500" size={32} />
+          <h4 className="mt-3 text-lg font-black text-rose-800">Équipe non chargée</h4>
+          <p className="mt-2 text-sm font-medium text-rose-700">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => fetchMembers()}
+            className="mt-4 px-4 py-2 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-black hover:bg-rose-100"
+          >
+            Réessayer
+          </button>
         </div>
       ) : members.length === 0 ? (
         <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-16 text-center">
@@ -645,21 +685,25 @@ export const TeamManager: React.FC = () => {
                   <Lock size={14} />
                   <span className="hidden xl:inline">Permissions</span>
                 </button>
-                <button
-                  onClick={() => toggleActive(member)}
-                  className={cn(
-                    "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
-                    member.is_active
-                      ? "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
-                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200"
-                  )}
-                  title={member.is_active ? "Suspendre l'accès" : "Réactiver l'accès"}
-                >
-                  <Shield size={16} />
-                  <span className="hidden xl:inline">{member.is_active ? 'Suspendre' : 'Réactiver'}</span>
-                </button>
+                {member.approval_status !== 'rejected' && (
+                  <button
+                    onClick={() => toggleActive(member)}
+                    disabled={mutationKey !== null}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
+                      member.is_active
+                        ? "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
+                        : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200"
+                    )}
+                    title={member.is_active ? "Suspendre l'accès" : "Réactiver l'accès"}
+                  >
+                    <Shield size={16} />
+                    <span className="hidden xl:inline">{member.is_active ? 'Suspendre' : 'Réactiver'}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => deleteMember(member)}
+                  disabled={mutationKey !== null}
                   className="p-2.5 bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
@@ -677,6 +721,7 @@ export const TeamManager: React.FC = () => {
           <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 space-y-6">
             <button
               onClick={() => setEditingPermissionsMember(null)}
+              aria-label="Fermer les permissions"
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-xl transition-all"
             >
               <X size={20} />
@@ -747,7 +792,10 @@ export const TeamManager: React.FC = () => {
               </button>
               <button
                 type="button"
+                disabled={mutationKey !== null}
                 onClick={async () => {
+                  if (mutationKey) return;
+                  setMutationKey(`permissions:${editingPermissionsMember.id}`);
                   try {
                     await api.put(`/team/${editingPermissionsMember.id}`, {
                       permissions: editingPermissionsMember.permissions
@@ -758,6 +806,8 @@ export const TeamManager: React.FC = () => {
                     setTimeout(() => setSuccess(null), 3000);
                   } catch (err: any) {
                     setError(err.response?.data?.detail || "Erreur de mise à jour.");
+                  } finally {
+                    setMutationKey(null);
                   }
                 }}
                 className="px-6 py-2.5 text-xs font-black text-white rounded-xl shadow-md transition-all hover:brightness-110"

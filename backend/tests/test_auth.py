@@ -1,5 +1,10 @@
 """Tests d'intégration — endpoints /api/auth/"""
 
+import pytest
+from pydantic import ValidationError
+
+from backend.schemas.auth import RefreshRequest, UserSignup
+
 
 class TestLogin:
     def test_login_success_returns_tokens(self, client, dentiste):
@@ -138,3 +143,80 @@ class TestSignup:
         assert body["email"] == "new-client@cabinet.ma"
         assert body["is_active"] is False
         assert body["is_licensed"] is False
+
+
+class TestUrlencodedBodyLimit:
+    def test_oversized_urlencoded_login_is_rejected_before_form_parser(self, client):
+        body = "username=" + ("a" * (64 * 1024)) + "&password=x"
+        response = client.post(
+            "/api/auth/login",
+            content=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 413
+
+    def test_normal_urlencoded_login_still_reaches_auth_handler(self, client):
+        response = client.post(
+            "/api/auth/login",
+            content="username=missing%40example.invalid&password=x",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 401
+
+
+def test_signup_firebase_payload_excludes_local_contact_and_db_identifiers():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "routers" / "auth.py").read_text(encoding="utf-8")
+    start = source.index("firebase_db.collection('pending_clients')")
+    payload_block = source[start:start + 700]
+
+    assert '"email": req.email' in payload_block
+    assert '"nom_complet": req.nom_complet' in payload_block
+    assert '"telephone_mobile"' not in payload_block
+    assert '"adresse_complete"' not in payload_block
+    assert '"local_user_id"' not in payload_block
+
+
+def test_signup_and_refresh_public_payloads_are_bounded():
+    with pytest.raises(ValidationError):
+        UserSignup(
+            email="new@example.com",
+            password="StrongPass123!",
+            nom_complet="N" * 161,
+            accept_terms=True,
+            accept_privacy=True,
+        )
+    with pytest.raises(ValidationError):
+        UserSignup(
+            email="new@example.com",
+            password="StrongPass123!",
+            nom_complet="Dr Test",
+            telephone_mobile="1" * 41,
+            accept_terms=True,
+            accept_privacy=True,
+        )
+    with pytest.raises(ValidationError):
+        UserSignup(
+            email="new@example.com",
+            password="StrongPass123!",
+            nom_complet="Dr Test",
+            adresse_complete="A" * 501,
+            accept_terms=True,
+            accept_privacy=True,
+        )
+    with pytest.raises(ValidationError):
+        RefreshRequest(refresh_token="x" * 4097)
+
+
+def test_signup_is_rate_limited_and_google_callback_checks_team_approval():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "routers" / "auth.py").read_text(encoding="utf-8")
+    signup_start = source.index("async def signup_client")
+    signup_block = source[signup_start:signup_start + 900]
+    assert 'check_rate_limit(request, scope="signup")' in signup_block
+
+    callback_start = source.index("async def google_callback")
+    callback_block = source[callback_start:]
+    assert 'getattr(user, "employer_id", None) is not None and approval != "approved"' in callback_block

@@ -88,3 +88,73 @@ def test_appointment_count_unchanged(db):
     count = db.query(models.Appointment).count()
     assert isinstance(count, int)
     assert count >= 0
+
+
+def test_authenticated_orphan_panoramic_fails_closed(client, auth_headers, tmp_path, monkeypatch):
+    """Un fichier disque sans provenance DB ne doit jamais devenir lisible par simple authentification."""
+    upload_root = tmp_path / "uploads"
+    target = upload_root / "panoramic" / "orphan.jpg"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"synthetic-orphan")
+
+    monkeypatch.setattr("backend.main.UPLOAD_DIR", str(upload_root))
+    response = client.get("/api/static/uploads/panoramic/orphan.jpg", headers=auth_headers)
+
+    assert response.status_code == 404
+    assert response.content != b"synthetic-orphan"
+
+
+def test_authenticated_orphan_acte_attachment_fails_closed(client, auth_headers, tmp_path, monkeypatch):
+    upload_root = tmp_path / "uploads"
+    target = upload_root / "actes" / "orphan.pdf"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"synthetic-orphan-acte")
+
+    monkeypatch.setattr("backend.main.UPLOAD_DIR", str(upload_root))
+    response = client.get("/api/static/uploads/actes/orphan.pdf", headers=auth_headers)
+
+    assert response.status_code == 404
+    assert response.content != b"synthetic-orphan-acte"
+
+
+def test_clinic_asset_route_is_bound_to_authenticated_cabinet_source():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    assert "models.CabinetConfig.owner_id == current_user.get_employer_id()" in source
+    assert 'parts[0] != public_id' in source
+    assert 'os.path.join(UPLOAD_DIR, "clinics", public_id)' in source
+
+
+def test_authenticated_orphan_document_requires_valid_preview_token(client, auth_headers, dentiste, tmp_path, monkeypatch):
+    from backend.services.document_preview_token import create_document_preview_token
+
+    media_root = tmp_path / "media"
+    target = media_root / "documents" / "2026" / "09" / "preview.pdf"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"%PDF-synthetic-preview")
+
+    monkeypatch.setattr("backend.main.MEDIA_DIR", media_root)
+    rel_path = "2026/09/preview.pdf"
+
+    denied = client.get(f"/api/static/documents/{rel_path}", headers=auth_headers)
+    assert denied.status_code == 404
+
+    token = create_document_preview_token(dentiste.get_employer_id(), rel_path)
+    allowed = client.get(
+        f"/api/static/documents/{rel_path}",
+        params={"preview_token": token},
+        headers=auth_headers,
+    )
+    assert allowed.status_code == 200
+    assert allowed.content.startswith(b"%PDF")
+
+
+def test_document_preview_token_is_tenant_bound_and_expires():
+    from backend.services.document_preview_token import create_document_preview_token, verify_document_preview_token
+
+    token = create_document_preview_token(11, "2026/09/p.pdf", now=1_000)
+    assert verify_document_preview_token(token, 11, "2026/09/p.pdf", now=1_001)
+    assert not verify_document_preview_token(token, 12, "2026/09/p.pdf", now=1_001)
+    assert not verify_document_preview_token(token, 11, "2026/09/other.pdf", now=1_001)
+    assert not verify_document_preview_token(token, 11, "2026/09/p.pdf", now=2_000)
