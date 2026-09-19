@@ -233,6 +233,12 @@ from .ortho_journey import (
     OrthoCompareTimepointOut,
     OrthoMeasurementDeltaOut,
     OrthoLongitudinalCompareOut,
+    OrthoCockpitCaseOut,
+    OrthoCockpitControlOut,
+    OrthoCockpitAppointmentOut,
+    OrthoCockpitTimepointOut,
+    OrthoCockpitEvidenceOut,
+    OrthoCockpitOut,
 )
 
 __all__ = [
@@ -309,4 +315,7 @@ __all__ = [
     "OrthoTimepointEvidenceOut", "OrthoTimepointOut",
     "OrthoCompareEvidenceOut", "OrthoCompareTimepointOut",
     "OrthoMeasurementDeltaOut", "OrthoLongitudinalCompareOut",
+    "OrthoCockpitCaseOut", "OrthoCockpitControlOut",
+    "OrthoCockpitAppointmentOut", "OrthoCockpitTimepointOut",
+    "OrthoCockpitEvidenceOut", "OrthoCockpitOut",
 ]
