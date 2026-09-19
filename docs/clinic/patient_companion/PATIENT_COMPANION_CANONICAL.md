@@ -1,6 +1,6 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-19
+Last verified update: 2026-09-19 — PC-01 visual certification batch
 Active lot: PC-01 — Local Patient Wallet Sync
 
 ## Product doctrine
@@ -43,7 +43,7 @@ PC-00 certification is not declared complete here until its own exact-head gates
 PR: #636 (draft)
 Branch: feature/patient-companion-pc01
 Base branch: feature/patient-companion-pc00
-Current verified HEAD: 9b24efbce62266cec2e6738d30d0eb89b8e9d156
+Current verified HEAD before this canonical update: 0dda8f1d11f45c19db32eaf26c4a3381a43722a1
 
 Dependency:
 PC-01 development can continue independently, but PC-01 must not merge before PC-00 is certified/merged and PC-01 is reconciled onto the final PC-00 state.
@@ -116,15 +116,34 @@ Wave D:
 PC-09 Teleconsultation
 PC-10 Satisfaction/Testimonials
 
+## Latest verified passage
+
+PC-01:
+- dedicated workflow added: PC-01 Patient Wallet Visual Certification;
+- matched BEFORE = live PC-00 PR base, AFTER = PC-01;
+- Chromium + WebKit, 360×800 + 390×844;
+- runtime proof requires successful sync, encrypted envelope with no appointment/document/token plaintext, then offline reload with zero API requests;
+- adversarial review added at docs/clinic/patient_companion/PC_01_ADVERSARIAL_REVIEW.md;
+- latest PC-01 implementation carry-forward HEAD before canonical update: 0dda8f1d11f45c19db32eaf26c4a3381a43722a1;
+- dedicated PC-01 workflow was queued on prior exact head; latest docs/test commit has not yet shown runs at the verification instant.
+
+PC-00 parallel closeout:
+- visual failure diagnosed: visual harness used a non-JWT fake token after expiry decoding was introduced;
+- fixed harness with syntactically valid expiring JWT;
+- legacy D2 failure diagnosed: test still created legacy email invitation while status intentionally reports canonical local_bridge pending invitation;
+- D2 test updated to local-invitation and to assert raw QR token is not returned at all;
+- latest PC-00 HEAD: c44a0e293e2aea216fbf3ddc03dac9a3c59a5ec8;
+- new exact-head results pending; no PASS claimed.
+
 ## Next exact
 
-1. build PC-01 dedicated matched BEFORE/AFTER certification from PC-00 candidate to PC-01 at 360×800 and 390×844, Chromium + WebKit;
-2. prove encrypted wallet persists and reloads offline after sync;
-3. adversarial review PC-01;
-4. inspect PC-00 latest CI/artifacts and fix/close it;
-5. merge PC-00 with expected-head guard when fully proven;
-6. reconcile PC-01 on final PC-00;
-7. certify/merge PC-01;
+1. read exact-head PC-01 visual/CI results when available and fix any red gate;
+2. inspect PC-01 screenshots/artifact when workflow is green and record visual comparison/score;
+3. read exact-head PC-00 corrected gates and close remaining red gates;
+4. merge PC-00 only after all required proof is green;
+5. reconcile PC-01 onto final PC-00;
+6. final exact-head PC-01 certification and merge;
+7. update canonical + Notion + handover;
 8. stop at Remote Transport Gate before PC-02 unless architecture is explicitly decided.
 
 ## Canonical references
