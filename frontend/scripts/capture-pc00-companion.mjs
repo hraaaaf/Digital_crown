@@ -27,19 +27,15 @@ async function clearPatientVault(page) {
   }));
 }
 
-async function installRoutes(target) {
-  await target.route('**/health', route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ status: 'ok' }),
-  }));
-  await target.route('http://127.0.0.1:8005/api/**', async route => {
-    const url = new URL(route.request().url());
-    if (url.pathname === '/api/patient-companion/pair' && route.request().method() === 'POST') {
-      return route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
+async function installFetchHarness(context) {
+  await context.addInitScript(() => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const raw = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+      const url = new URL(raw, window.location.href);
+      if (!url.pathname.startsWith('/api/patient-companion/')) return nativeFetch(input, init);
+      if (url.pathname === '/api/patient-companion/pair' && (init.method || 'GET').toUpperCase() === 'POST') {
+        return new Response(JSON.stringify({
           access_token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzAwLWRldmljZSIsImV4cCI6MjAwMDAwMDAwMH0.audit',
           context: {
             access_id: 'pc00-audit-access',
@@ -48,10 +44,13 @@ async function installRoutes(target) {
           },
           paired_at: '2026-09-19T18:00:00Z',
           storage_policy: 'local_encrypted_device',
-        }),
+        }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ detail: 'Not authenticated' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
       });
-    }
-    return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'Not authenticated' }) });
+    };
   });
 }
 
@@ -70,7 +69,7 @@ async function capture(browserName, browser, phase, scenario, viewport) {
   });
   const base = phase === 'before' ? beforeUrl : afterUrl;
   if (phase === 'after') await clearPatientVault(page);
-  await installRoutes(context);
+  await installFetchHarness(context);
   await page.goto(`${base}/companion`, { waitUntil: 'domcontentloaded' });
 
   if (phase === 'before') {
