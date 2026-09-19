@@ -68,10 +68,9 @@ async function capture(browserName, browser, phase, scenario, viewport) {
        /dev-sw\.js\?dev-sw due to access control checks/i.test(message));
     if (!expectedHarnessNoise) runtimeErrors.push(message);
   });
-  await installRoutes(page);
-
   const base = phase === 'before' ? beforeUrl : afterUrl;
   if (phase === 'after') await clearPatientVault(page);
+  await installRoutes(page);
   await page.goto(`${base}/companion`, { waitUntil: 'domcontentloaded' });
 
   if (phase === 'before') {
