@@ -43,3 +43,23 @@ Certify Stock, partner marketplace/procurement, Library/Science Hub and remainin
 
 ## Certification gate
 Do not certify G7 until all exposed controls have behavioral mapping and exact-head frontend tests/build are green.
+
+
+## Stock behavioral proof
+
+`frontend/src/pages/StockPage.g7Interactive.test.tsx`
+- load stock + alerts;
+- search/category filters;
+- add with numeric/null payload normalization;
+- edit via PATCH;
+- increment/decrement quantity;
+- delete current control;
+- query refresh after mutation ACK.
+
+## Open Stock defects
+
+1. Stock read failure currently falls through to `items = []`, so an unavailable backend can be rendered as “Aucun article” instead of an explicit unverified/error state.
+2. Permanent stock deletion currently executes immediately from the trash button with no confirmation.
+3. Stock add/edit/delete/quantity mutation failures have no explicit user-facing refusal/error state in this page.
+
+These are product-truth/safety defects. G7 cannot be certified while they remain unresolved.
