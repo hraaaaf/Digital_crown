@@ -132,3 +132,21 @@ All inspected G7 families now map to behavioral proof:
 - Science Hub.
 
 G7 remains **IN PROGRESS / NOT CERTIFIED** because the three documented Stock product defects remain open and exact-head frontend tests/build have not yet been proven green.
+
+
+## Stock remediation candidate
+The three Stock blockers were remediated in code:
+1. read failure now renders explicit unverified/error state + Retry;
+2. delete now requires an explicit in-app confirmation dialog;
+3. add/edit/quantity/delete refusal is surfaced visibly without false success.
+
+Behavioral proof:
+- `frontend/src/pages/StockPage.g7Interactive.test.tsx`
+
+UI target/reference:
+- `docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md`
+
+Visual evidence workflow:
+- `.github/workflows/v1-07-truth-safety-visual-evidence.yml`
+
+Status: CODE REMEDIATED — CERTIFICATION PENDING matched BEFORE/AFTER evidence + exact-head tests/build.
