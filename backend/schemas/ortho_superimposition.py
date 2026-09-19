@@ -6,15 +6,18 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class SuperimpositionPixelROI(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class _F5StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+
+class SuperimpositionPixelROI(_F5StrictModel):
     x: int = Field(ge=0)
     y: int = Field(ge=0)
     width: int = Field(gt=0)
     height: int = Field(gt=0)
 
 
-class OrthoSuperimpositionSourceOut(BaseModel):
+class OrthoSuperimpositionSourceOut(_F5StrictModel):
     timepoint_id: int
     timepoint_ordinal: int
     occurred_at: datetime.datetime
@@ -23,7 +26,7 @@ class OrthoSuperimpositionSourceOut(BaseModel):
     mm_per_pixel: float | None = None
 
 
-class OrthoSuperimpositionContextOut(BaseModel):
+class OrthoSuperimpositionContextOut(_F5StrictModel):
     patient_id: int
     ortho_case_id: int
     from_source: OrthoSuperimpositionSourceOut
@@ -36,25 +39,24 @@ class OrthoSuperimpositionContextOut(BaseModel):
     clinically_validated: Literal[False] = False
 
 
-class OrthoSuperimpositionEstimateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class OrthoSuperimpositionEstimateRequest(_F5StrictModel):
     from_timepoint_id: int
     to_timepoint_id: int
     reference_roi: SuperimpositionPixelROI
     moving_roi: SuperimpositionPixelROI
 
 
-class SuperimpositionImageSize(BaseModel):
+class SuperimpositionImageSize(_F5StrictModel):
     width: int = Field(gt=0)
     height: int = Field(gt=0)
 
 
-class SuperimpositionTranslation(BaseModel):
+class SuperimpositionTranslation(_F5StrictModel):
     x: float
     y: float
 
 
-class OrthoSuperimpositionRegistrationOut(BaseModel):
+class OrthoSuperimpositionRegistrationOut(_F5StrictModel):
     method_id: Literal["ACB_STRUCTURAL_FEATURE_SIMILARITY"]
     method_version: Literal["1"]
     quality_status: Literal["ENGINE_ESTIMATE_ONLY"]
@@ -76,6 +78,6 @@ class OrthoSuperimpositionRegistrationOut(BaseModel):
     algorithm: dict[str, Any]
 
 
-class OrthoSuperimpositionEstimateOut(BaseModel):
+class OrthoSuperimpositionEstimateOut(_F5StrictModel):
     context: OrthoSuperimpositionContextOut
     registration: OrthoSuperimpositionRegistrationOut

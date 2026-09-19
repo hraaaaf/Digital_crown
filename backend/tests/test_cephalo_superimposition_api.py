@@ -147,3 +147,29 @@ def test_f5_http_schema_cannot_claim_clinical_validation():
 
     with pytest.raises(ValidationError):
         OrthoSuperimpositionContextOut.model_validate(payload)
+
+
+def test_f5_http_schema_rejects_non_finite_registration_values():
+    from backend.schemas.ortho_superimposition import OrthoSuperimpositionRegistrationOut
+
+    payload = {
+        "method_id": "ACB_STRUCTURAL_FEATURE_SIMILARITY",
+        "method_version": "1",
+        "quality_status": "ENGINE_ESTIMATE_ONLY",
+        "clinically_validated": False,
+        "transform_direction": "moving_to_reference",
+        "matrix": [[float("nan"), 0.0, 0.0], [0.0, 1.0, 0.0]],
+        "rotation_degrees": 0.0,
+        "uniform_scale": 1.0,
+        "translation_px": {"x": 0.0, "y": 0.0},
+        "good_match_count": 2,
+        "inlier_count": 2,
+        "reference_roi": {"x": 0, "y": 0, "width": 10, "height": 10},
+        "moving_roi": {"x": 0, "y": 0, "width": 10, "height": 10},
+        "reference_size_px": {"width": 100, "height": 100},
+        "moving_size_px": {"width": 100, "height": 100},
+        "algorithm": {},
+    }
+
+    with pytest.raises(ValidationError):
+        OrthoSuperimpositionRegistrationOut.model_validate(payload)
