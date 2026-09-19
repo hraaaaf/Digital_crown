@@ -48,9 +48,10 @@ Reconciled from behavioral matrices across G1→G7, including:
 - SuperAdmin/licences;
 - Marketplace/library.
 
-## Open transverse defects inherited from prior gates
-- G6 LicenseStatus hardcoded Elite wording remains unresolved under UI protocol.
-- G7 Stock read failure/delete confirmation/mutation refusal UI defects remain unresolved under UI protocol.
+## Inherited remediation state
+- G1 Landing geography truth defect is remediated in code/tests; matched visual proof remains pending.
+- G6 LicenseStatus hardcoded-plan defect is remediated in code/tests; matched visual proof remains pending.
+- G7 Stock read/delete/mutation-refusal defects are remediated in code/tests; matched visual proof remains pending.
 
 ## Certification gate
 Do not certify G8 until:
@@ -79,7 +80,9 @@ Cross-lot evidence now covers:
 
 Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUILD.
 
-Inherited blockers remain:
-- G6 LicenseStatus hardcoded plan wording;
-- G7 Stock read/delete/mutation-error defects.
-These prevent G9 freeze until resolved.
+Inherited product defects are remediated. G8 remains uncertified until exact-head tests/build and the required G1/G6/G7 matched visual evidence are green.
+
+## Pre-freeze adversarial inheritance
+The separate canonical `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md` remains an independent release-safety prerequisite. It covers non-interactive security/runtime boundaries that this interactive denominator must not pretend to certify, including media tenant ownership, OAuth state/CSRF, cabinet LAN/TLS/cookies, telemetry opt-in, backup/document confinement, mobile/auth bounds and release dependency/runtime integrity.
+
+These checks do **not** inflate the interactive-control denominator. However, V1-08 remains blocked until the final candidate also satisfies the pre-freeze exact-head/runtime gates recorded in G10.
