@@ -191,8 +191,6 @@ def _patient_device_identity(raw_token: str, db: Session) -> PatientCompanionIde
         ).first()
         if access is None:
             raise err
-        identity.last_seen_at = datetime.utcnow()
-        db.commit()
         return identity
     except HTTPException:
         raise
