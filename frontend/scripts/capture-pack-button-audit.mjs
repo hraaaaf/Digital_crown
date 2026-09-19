@@ -125,14 +125,13 @@ async function capture(viewport, scenario) {
   }
   if (scenario === 'superadmin-downgrade') {
     await page.getByText('Dr Audit Pack', { exact: true }).waitFor();
-    const clientCard = page.getByText('Dr Audit Pack', { exact: true }).locator('xpath=ancestor::div[contains(@class,"rounded-2xl") or contains(@class,"rounded")]').first();
-    const planSelect = clientCard.locator('select').filter({ has: page.locator('option[value="ELITE"]') }).first();
+    const planSelect = page.locator('select').filter({ has: page.locator('option[value="ELITE"]') }).last();
     await planSelect.selectOption('GOLD');
     await page.waitForTimeout(150);
   }
   if (scenario === 'superadmin-renewal') {
     await page.getByText('Dr Audit Pack', { exact: true }).waitFor();
-    await page.getByTitle('Email de relance').click();
+    await page.locator('[title="WhatsApp de relance"], [title="Email de relance"]').first().click();
     await page.waitForTimeout(150);
   }
 
