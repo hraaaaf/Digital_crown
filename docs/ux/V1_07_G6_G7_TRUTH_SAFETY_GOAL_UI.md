@@ -22,7 +22,7 @@ Make licence/stock UI truth-preserving and destructive-stock actions explicit wi
 - stock delete requires an explicit in-app confirmation dialog;
 - cancel is non-mutating;
 - delete refusal keeps the article and dialog, with explicit backend/generic error;
-- quantity/add/edit refusal is visible and no false success is shown;
+- quantity/add/edit refusal is visible and no false success is shown;\n- delete refusal keeps the confirmation dialog open and surfaces the backend/generic error;
 - matched BEFORE/AFTER screenshots exist at the same viewports;
 - exact-head tests/build are green.
 
@@ -68,7 +68,7 @@ Matched viewports:
 Scenarios:
 - expired licence;
 - stock read failure;
-- stock delete confirmation.
+- stock delete confirmation;\n- stock quantity refusal;\n- stock add refusal;\n- stock delete refusal.
 
 True BEFORE must be captured from the PR base SHA with the audit-only harness copied into the baseline worktree.
 AFTER must be captured from exact PR HEAD.
