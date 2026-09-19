@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     env:
       SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: "sqlite:///:memory:"
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: "true"
       TELEMETRY_ENABLED: "false"
