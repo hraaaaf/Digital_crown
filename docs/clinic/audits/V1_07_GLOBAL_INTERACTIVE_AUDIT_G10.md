@@ -45,9 +45,10 @@ No Vercel deployment is part of V1-07 closeout unless explicitly authorized by t
 
 
 ## Candidate PR composition
-Observed on PR #633 candidate `cc70c989d85e3192afa34d51ac6b8cc52b96d698`:
-- changed files: **91**;
+Observed on PR #633 candidate `7f27fe52e85cf1e1b9c75aa6d7eff4b944cdd355`:
+- changed files: **93**;
 - direct product-source changes currently limited to:
+  - `frontend/src/pages/LandingPage.tsx`;
   - `frontend/src/pages/LicenseStatusPage.tsx`;
   - `frontend/src/pages/StockPage.tsx`;
 - other changes are audit behavioral tests, canonical docs, inventory/reconciliation scripts, visual-evidence harness/workflows, plus a waiting-room backend test;
