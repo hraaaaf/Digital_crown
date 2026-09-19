@@ -268,7 +268,11 @@ export const PatientCompanionStorage = {
   },
 
   async clear(): Promise<void> {
-    await deleteValue(STATE_ID);
-    await deleteValue(DEVICE_KEY_ID);
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error || new Error('Suppression du coffre Patient Companion impossible.'));
+      request.onblocked = () => reject(new Error('Suppression du coffre Patient Companion bloquée.'));
+    });
   },
 };
