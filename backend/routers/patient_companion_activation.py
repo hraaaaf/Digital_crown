@@ -79,6 +79,7 @@ def get_patient_companion_staff_status(
     invitation = db.query(PatientCompanionInvitation).filter(
         PatientCompanionInvitation.employer_id == employer_id,
         PatientCompanionInvitation.patient_id == patient.id,
+        PatientCompanionInvitation.recipient_type == "local_bridge",
         PatientCompanionInvitation.consumed_at.is_(None),
         PatientCompanionInvitation.revoked_at.is_(None),
         PatientCompanionInvitation.expires_at > now,

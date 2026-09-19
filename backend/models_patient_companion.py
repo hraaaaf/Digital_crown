@@ -11,7 +11,7 @@ from backend.models_base import Base
 
 
 class PatientCompanionIdentity(Base):
-    """External patient identity. Never a cabinet User."""
+    """External patient/device identity. Never a cabinet User."""
 
     __tablename__ = "patient_companion_identities"
     __table_args__ = (
@@ -80,7 +80,7 @@ class PatientCompanionAccess(Base):
 
 
 class PatientCompanionInvitation(Base):
-    """Short-lived single-use cabinet invitation for pairing a verified Firebase identity."""
+    """Short-lived single-use cabinet invitation for local device pairing or legacy verified identity activation."""
 
     __tablename__ = "patient_companion_invitations"
     __table_args__ = (
