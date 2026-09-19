@@ -13,12 +13,22 @@ on:
 permissions:
   contents: read
 
+env:
+  F5_BEFORE_BASE: 20bfe3349399bf49a2f5ece14c5f70526e9d4a1b
+
 jobs:
   visual-before:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout certified F4 baseline
+        run: |
+          git cat-file -e "$F5_BEFORE_BASE^{commit}"
+          git checkout --detach "$F5_BEFORE_BASE"
+          test "$(git rev-parse HEAD)" = "$F5_BEFORE_BASE"
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -30,10 +40,10 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0
           npx playwright install --with-deps chromium
-      - name: Capture exact current F3 as F5 BEFORE
+      - name: Capture certified F4/F3 surface as F5 BEFORE
         working-directory: frontend
         run: |
-          PRODUCT_HEAD="$GITHUB_SHA" node scripts/capture-ortho-f3-after.mjs
+          PRODUCT_HEAD="$F5_BEFORE_BASE" node scripts/capture-ortho-f3-after.mjs
           mkdir -p ortho-f5-before-artifacts
           for viewport in 390x844 768x1024 1280x900; do
             cp "ortho-f3-after-artifacts/after-overview-$viewport.png" "ortho-f5-before-artifacts/before-overview-$viewport.png"
@@ -45,6 +55,7 @@ jobs:
           report.lot = 'V1-05-F5';
           report.phase = 'BEFORE';
           report.sourceHarness = 'capture-ortho-f3-after.mjs';
+          report.baselineCommit = process.env.F5_BEFORE_BASE;
           await writeFile('ortho-f5-before-artifacts/report.json', JSON.stringify(report,null,2));
           NODE
       - name: Verify BEFORE contract
@@ -54,6 +65,8 @@ jobs:
           import { readFile } from 'node:fs/promises';
           const report = JSON.parse(await readFile('ortho-f5-before-artifacts/report.json','utf8'));
           if (report.phase !== 'BEFORE') throw new Error('Wrong phase');
+          if (report.productHead !== process.env.F5_BEFORE_BASE) throw new Error('BEFORE is not pinned to certified F4 base');
+          if (report.baselineCommit !== process.env.F5_BEFORE_BASE) throw new Error('Missing certified baseline proof');
           if (report.invalidCount !== 0) throw new Error('Invalid BEFORE captures');
           if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
           if (report.captures.length !== 3) throw new Error('Expected three viewports');
