@@ -95,3 +95,9 @@ They are not yet removed from the G9 freeze gate until:
 - G0 is rerun on that final candidate.
 
 No coverage percentage is claimed yet.
+
+
+## Additional G1 remediation
+The Landing geography mismatch (“dentistes algériens”) was found during final truth review and remediated to “dentistes marocains”.
+
+It remains part of the G9 freeze gate until the matched BEFORE/AFTER visual scenario and exact-head tests/build are green.
