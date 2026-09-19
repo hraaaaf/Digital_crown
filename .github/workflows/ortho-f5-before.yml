@@ -46,7 +46,8 @@ jobs:
         working-directory: baseline/frontend
         run: |
           test "$(git rev-parse HEAD)" = "$F5_BEFORE_BASE"
-          PRODUCT_HEAD="$F5_BEFORE_BASE" F5_BEFORE_BASE="$F5_BEFORE_BASE" node ../../proof-head/frontend/scripts/capture-ortho-f5-before.mjs
+          cp ../../proof-head/frontend/scripts/capture-ortho-f5-before.mjs scripts/capture-ortho-f5-before.mjs
+          PRODUCT_HEAD="$F5_BEFORE_BASE" F5_BEFORE_BASE="$F5_BEFORE_BASE" node scripts/capture-ortho-f5-before.mjs
       - name: Verify BEFORE contract
         working-directory: baseline/frontend
         run: |
