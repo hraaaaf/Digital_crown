@@ -3,7 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
+from backend.schemas.auth import TrialActivationRequest
 from backend.utils import rate_limit
 
 
@@ -54,3 +56,30 @@ def test_trial_codes_use_128_bits_of_entropy():
     ).read_text(encoding="utf-8")
     assert "secrets.token_hex(4)" in source
     assert "for _ in range(4)" in source
+
+
+def test_trial_activation_public_fields_are_bounded():
+    base = {
+        "code": "ABCD1234-EFGH5678-IJKL9012-MNOP3456",
+        "email": "cabinet@example.com",
+        "password": "StrongPass123!",
+        "nom_complet": "Dr Test",
+        "cabinet_name": "Cabinet Test",
+        "accept_terms": True,
+        "accept_privacy": True,
+    }
+
+    for field, oversized in (
+        ("code", "X" * 129),
+        ("nom_complet", "N" * 161),
+        ("cabinet_name", "C" * 161),
+    ):
+        with pytest.raises(ValidationError):
+            TrialActivationRequest(**{**base, field: oversized})
+
+
+def test_trial_code_lookup_rejects_oversized_path_input_before_db_query():
+    source = (
+        Path(__file__).resolve().parents[1] / "routers" / "public.py"
+    ).read_text(encoding="utf-8")
+    assert "len(normalized) > 128" in source
