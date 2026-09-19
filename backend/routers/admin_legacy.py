@@ -22,17 +22,34 @@ import base64
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Admin & Dashboard"])
 
-@router.get("/normalize-docs")
+@router.post("/normalize-docs")
 def normalize_docs(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
-    """Normalise les types de documents en DB."""
+    """Normalise uniquement les types de documents du cabinet authentifié."""
+    employer_id = current_user.get_employer_id()
+    tenant_scope = "patient_id IN (SELECT id FROM patients WHERE employer_id = :employer_id)"
     try:
-        db.execute(text("UPDATE document_archives SET document_type = 'NOTE_HONORAIRES' WHERE document_type::text IN ('note_honoraires', 'note_honoraire', 'NOTE_HONORAIRE');"))
-        db.execute(text("UPDATE document_archives SET document_type = 'RAPPORT_CEPHALO' WHERE document_type::text IN ('bilan', 'BILAN', 'rapport_cephalo');"))
+        db.execute(
+            text(
+                "UPDATE document_archives SET document_type = 'NOTE_HONORAIRES' "
+                "WHERE " + tenant_scope + " "
+                "AND document_type::text IN ('note_honoraires', 'note_honoraire', 'NOTE_HONORAIRE');"
+            ),
+            {"employer_id": employer_id},
+        )
+        db.execute(
+            text(
+                "UPDATE document_archives SET document_type = 'RAPPORT_CEPHALO' "
+                "WHERE " + tenant_scope + " "
+                "AND document_type::text IN ('bilan', 'BILAN', 'rapport_cephalo');"
+            ),
+            {"employer_id": employer_id},
+        )
         db.commit()
         return {"status": "success"}
-    except Exception as e:
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(e)}
+        logger.exception("Document type normalization failed for employer_id=%s", employer_id)
+        raise HTTPException(status_code=500, detail="Échec de normalisation des documents")
 
 @router.get("/audit-logs")
 def get_audit_logs(
