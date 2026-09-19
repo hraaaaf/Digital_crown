@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
 Last verified update: 2026-09-19 — PC-01 visual certification batch
-Active lot: PC-01 — Local Patient Wallet Sync
+Active lot: REMOTE TRANSPORT GATE — E2E opaque relay
 
 ## Product doctrine
 
@@ -184,3 +184,8 @@ PC-00 documentation closeout was then committed on its branch; latest PC-00 docs
 PC-01 exact-head `a463ee89fc04bc6172a33626f7dd580068be5576` already has Visual `35470229496`, CI, T2, P7 and Agenda SUCCESS, but it must be reconciled onto the merged PC-00 base before final certification/merge.
 
 No Vercel deployment.
+
+
+## Remote transport gate B — 2026-09-19
+
+Option B approved. PR #638 on `feature/patient-companion-e2e-relay-gate` defines threat model, JOSE sign-then-encrypt protocol, opaque mailbox capabilities, isolated relay package and negative tests. Base master includes merged PC-00/PC-01. No deployment. Exact-head CI/adversarial certification pending before PC-02.
