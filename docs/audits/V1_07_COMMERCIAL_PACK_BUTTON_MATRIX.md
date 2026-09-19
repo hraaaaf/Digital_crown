@@ -3,28 +3,29 @@
 Date: 2026-09-19  
 Repository: `hraaaaf/Digital_crown`  
 Baseline: `master@ceae1624c5f1311eb7ffcf512785b8a30fe438fc`  
-Audit PR: #628  
-Audit branch: `audit/v1-07-commercial-pack-button-matrix`
+Canonical remediation PR: #629  
+Original combined audit PR: #628
 
 ## Goal
 
-Verify the observable outcome of the commercial-pack actions for GOLD, PREMIUM and ELITE across success, capacity, pending, rejection, suspension, deletion, confirmation/cancel, duplicate action, backend refusal and stale-auth states.
+Verify the observable outcome of the commercial-pack actions for GOLD, PREMIUM and ELITE across success, capacity, pending, rejection, suspension, deletion, confirmation/cancel, duplicate action, backend refusal, archived/suspended states and stale-auth states.
 
 ## Success
 
 The pack/button surface is ready for V1 freeze only when:
 
 1. GOLD/PREMIUM/ELITE seat semantics match the canonical commercial policy.
-2. A pending member reserves capacity and approval does not double-count the seat.
+2. Pending members reserve capacity and approval does not double-count.
 3. Rejection/deletion frees capacity.
 4. Incompatible downgrades are refused before mutation.
-5. A rejected or otherwise unapproved team identity cannot be reactivated through the generic status endpoint and cannot reuse stale access/refresh tokens.
-6. UI actions call the intended endpoint and do not report success when the backend refused the action.
-7. Load/error/confirmation states cannot be confused with an empty/success state.
+5. Rejected/unapproved team identities cannot be reactivated or reuse stale access/refresh tokens.
+6. UI actions call the intended endpoint and never report success after backend refusal.
+7. Load/error/confirmation states cannot be confused with empty/success.
 8. Mutation buttons are safe against accidental duplicate submission.
-9. The same server refusal is intelligible on desktop and mobile.
+9. Desktop/mobile expose intelligible server refusal details.
+10. Visual state changes are proven by matched BEFORE/AFTER viewports where UI changed.
 
-## Canonical pack policy verified from code
+## Canonical pack policy
 
 | Pack | Dentists total | Assistants | Unlimited semantics |
 | --- | ---: | ---: | --- |
@@ -34,118 +35,136 @@ The pack/button surface is ready for V1 freeze only when:
 
 Reserved usage = approved + pending. Rejected members are excluded.
 
+## Isolation strategy
+
+The original #628 became too broad for causal diagnosis, so the matrix was split into three independent proof lots:
+
+| Lot | Scope | PR | Current proof |
+| --- | --- | --- | --- |
+| LOT1 | backend packs / quotas / downgrade invariants | #630 | dedicated `V1-07 LOT1 Pack Quotas` exact-head SUCCESS on `ed68623732b923f074d974509609d9f9a551d413`; T2 + Agenda also SUCCESS |
+| LOT2 | TeamManager cabinet buttons + rejected identity safety | #631 | latest exact-head rerun required after coverage/accessibility additions |
+| LOT3 | SuperAdmin desktop/mobile pack/licence/renewal actions | #632 | functional gate was SUCCESS before the final archived/suspended coverage addition; latest exact-head rerun required |
+
+#629 is the intended reconciliation branch because it already contains the wider V1-07 adversarial remediation. Isolated lot PRs are proof/debug vehicles until exact deltas are reconciled.
+
 ## Executable matrix
 
 | Surface | Action/state | GOLD | PREMIUM | ELITE | Proof |
 | --- | --- | --- | --- | --- | --- |
-| Team backend | create dentist until cap | owner already 1/1 → 402 | +1 then 402 | repeated creates allowed | targeted pytest |
-| Team backend | create assistant until cap | 2 then 402 | 6 then 402 | repeated creates allowed | targeted pytest |
-| Team backend | pending reserves seat | yes | yes | yes | targeted pytest |
-| Team backend | approve pending | no double count | no double count | no double count | targeted pytest |
-| Team backend | reject pending | frees seat | frees seat | capacity remains unlimited | targeted pytest |
-| Team backend | delete member | frees seat | frees seat | capacity remains unlimited | targeted pytest |
-| Team backend | duplicate create | 409, no extra reservation | 409 | 409 | targeted pytest |
-| Team backend | suspend/reactivate approved | reserved usage preserved | preserved | preserved | targeted pytest |
-| Team backend | permission update | sanitized | sanitized | sanitized | targeted pytest |
-| Team backend | rejected → generic reactivate | **409 after audit fix** | same invariant | same invariant | targeted pytest |
-| Auth | stale access after rejection | **401 after audit fix** | same invariant | same invariant | targeted pytest |
-| Auth | stale refresh after rejection | **401 after audit fix** | same invariant | same invariant | targeted pytest |
-| SuperAdmin backend | target pack compatible | success | success | success | targeted pytest |
-| SuperAdmin backend | finite downgrade over capacity | 409, no mutation | 409, no mutation | n/a | targeted pytest |
-| TeamManager UI | add/cancel + password reveal | exercised | exercised | exercised | Vitest |
-| TeamManager UI | quota refusal on create | exact backend detail | exact backend detail | n/a | Vitest |
-| TeamManager UI | approve/reject/delete | exercised | exercised | exercised | Vitest |
-| TeamManager UI | permissions/suspend/reactivate/delete | exercised | exercised | exercised | Vitest |
-| Desktop SuperAdmin | pack selector | GOLD↔others | PREMIUM↔others | ELITE↔others | Vitest |
-| Desktop SuperAdmin | +1m/+3m/+6m/+1y | exercised | exercised | exercised | Vitest |
-| Desktop SuperAdmin | notes/history/renewal/suspend/archive | exercised | exercised | exercised | Vitest |
-| Mobile SuperAdmin | pack selector confirmation | exercised | exercised | exercised | Vitest |
-| Mobile SuperAdmin | licence/CRM/sensitive confirmations | exercised | exercised | exercised | Vitest |
-| Mobile request layer | real set-plan request | exercised | exercised | exercised | hook Vitest |
-| Mobile request layer | downgrade 409 detail | surfaced | surfaced | n/a | hook Vitest |
+| Team backend | create dentist until cap | owner already 1/1 → 402 | +1 then 402 | repeated creates allowed | LOT1 pytest |
+| Team backend | create assistant until cap | 2 then 402 | 6 then 402 | repeated creates allowed | LOT1 pytest |
+| Team backend | pending reserves seat | yes | yes | yes | LOT1 pytest |
+| Team backend | approve pending | no double count | no double count | no double count | LOT1 pytest |
+| Team backend | reject/delete | frees seat | frees seat | unlimited remains unlimited | LOT1 pytest |
+| Team backend | suspend/reactivate approved | reserved usage preserved | preserved | preserved | LOT1 pytest |
+| SuperAdmin backend | compatible target pack | success | success | success | LOT1 pytest |
+| SuperAdmin backend | incompatible finite downgrade | 409 + non-mutation | 409 + non-mutation | n/a | LOT1 pytest |
+| TeamManager UI | add / cancel / password reveal | exercised | exercised | exercised | LOT2 Vitest |
+| TeamManager UI | successful assistant create | exercised | exercised | exercised | LOT2 Vitest |
+| TeamManager UI | quota refusal | exact backend detail | exact backend detail | n/a | LOT2 Vitest |
+| TeamManager UI | approve / reject / delete | exercised | exercised | exercised | LOT2 Vitest |
+| TeamManager UI | retry after load error | recovers to true state | same | same | LOT2 Vitest |
+| TeamManager UI | permissions open / save / cancel / close | exercised | exercised | exercised | LOT2 Vitest |
+| TeamManager UI | suspend / reactivate approved | exercised | exercised | exercised | LOT2 Vitest |
+| TeamManager UI | rejected identity | no Reactivate/Suspend | same invariant | same invariant | LOT2 Vitest + BEFORE/AFTER |
+| TeamManager UI | rapid duplicate mutation | single-flight | single-flight | single-flight | LOT2 Vitest |
+| Auth | stale access after rejection | 401 | same invariant | same invariant | LOT2 pytest |
+| Auth | stale refresh after rejection | 401 | same invariant | same invariant | LOT2 pytest |
+| Desktop SuperAdmin | pack selector | GOLD↔others | PREMIUM↔others | ELITE↔others | LOT3 Vitest |
+| Desktop SuperAdmin | incompatible downgrade detail | exact 409 | exact 409 | source state | LOT3 Vitest + BEFORE/AFTER |
+| Desktop SuperAdmin | +1m/+3m/+6m/+1y | exercised | exercised | exercised | LOT3 Vitest |
+| Desktop SuperAdmin | notes/history/renewal/suspend/archive | exercised | exercised | exercised | LOT3 Vitest |
+| Desktop SuperAdmin | archived/suspended state | pack/licence/renewal disabled; Reactivate/Désarchiver exposed | same | same | LOT3 Vitest |
+| Mobile SuperAdmin | pack selector confirmation | exercised | exercised | exercised | LOT3 Vitest |
+| Mobile SuperAdmin | licence/CRM/sensitive confirmations | exercised | exercised | exercised | LOT3 Vitest |
+| Mobile request layer | real set-plan request | exercised | exercised | exercised | LOT3 hook Vitest |
+| Mobile request layer | downgrade 409 detail | surfaced | surfaced | n/a | LOT3 hook Vitest |
+| Renewal backend | no phone | 409 | 409 | 409 | LOT3 pytest |
+| Renewal backend | transport failure | 502 | 502 | 502 | LOT3 pytest |
+| Renewal backend | confirmed transport success | success only after `send_whatsapp_via_whatsmate() == true` | same | same | LOT3 pytest |
 
-## Confirmed findings
+## Findings
 
-### PACK-BTN-01 — BLOCKER — rejected identity could be reactivated into an inconsistent active state
+### PACK-BTN-01 — BLOCKER — rejected identity could be reactivated
+Implemented:
+- generic reactivation refuses non-`approved` sub-accounts with 409;
+- access/refresh auth fail closed for unapproved sub-accounts;
+- stale-token regression test covers an intentionally corrupted `rejected + active` row;
+- TeamManager no longer exposes Reactivate/Suspend on a rejected identity.
 
-Observed pre-fix:
-- `reject_member` sets `approval_status=rejected`, `is_active=false`.
-- generic `PUT /team/{id}` accepted `is_active=true` without checking approval state.
-- `get_current_user` and refresh validation only required `is_active`.
-- a previously approved collaborator could therefore retain stale tokens, be rejected, then regain token usability if put back into the contradictory rejected+active state.
+Status: **IMPLEMENTED — LOT2 exact-head proof pending.**
 
-Candidate correction on PR #628:
-- generic activation now refuses any team account whose approval status is not `approved`;
-- access and refresh token validation fail closed for team accounts whose approval status is not `approved`;
-- regression test covers an intentionally corrupted legacy rejected+active row.
+### PACK-BTN-02 — MUST-FIX — load failure looked like an empty team
+Implemented:
+- explicit `Équipe non chargée` state;
+- retry button performs a real refetch;
+- empty-team illustration is not shown while load failed.
 
-Status: **FIX CANDIDATE — exact-head CI required before closure.**
+Status: **IMPLEMENTED — LOT2 exact-head proof pending.**
 
-### PACK-BTN-02 — MUST-FIX — TeamManager load failure is rendered as a false empty team
+### PACK-BTN-03 — MUST-FIX — GOLD partial quota banner was misleading
+Implemented:
+- saturated role is named;
+- remaining opposite-role capacity is shown;
+- GOLD 1/1 dentist + 0/2 assistants now says that two assistant places remain.
 
-`fetchMembers` catches the request failure, logs to console, then sets `loading=false`. Since `members` defaults to `[]`, the user sees “Aucun membre dans l'équipe”.
+Status: **IMPLEMENTED — LOT2 exact-head proof pending.**
 
-Risk: network/API failure is indistinguishable from a real empty team.
+### PACK-BTN-04 — MUST-FIX — duplicate TeamManager mutations
+Implemented:
+- single-flight lock for reject/delete/suspend/reactivate/permission-save;
+- Validate retains its dedicated busy lock;
+- rapid double-click tests cover status mutation and Validate.
 
-Status: **OPEN.**
+Status: **IMPLEMENTED — LOT2 exact-head proof pending.**
 
-### PACK-BTN-03 — MUST-FIX — quota banner can mislead GOLD owners
+### PACK-BTN-05 — MUST-FIX — desktop downgrade hid server detail
+Implemented:
+- desktop surfaces backend 409 `detail`;
+- mobile already preserved the detail;
+- matched visual evidence checks generic BEFORE vs precise AFTER.
 
-On GOLD the owner consumes the single dentist seat by design. Therefore `can_add_dentiste=false` from the start, even while the two assistant seats remain available. The current generic banner is displayed when either role is full and says only “Quota atteint — passez au plan supérieur”.
+Status: **IMPLEMENTED — LOT3 latest exact-head proof pending.**
 
-Risk: valid assistant capacity is visually presented as if the whole pack were exhausted.
+### PACK-BTN-06 — MUST-FIX — renewal action could report false success
+Implemented:
+- UI wording is WhatsApp;
+- no phone → 409 + skipped audit event;
+- transport false → 502 + failed audit event;
+- success only after confirmed transport true + sent audit event.
 
-Status: **OPEN.**
+Status: **IMPLEMENTED — LOT3 latest exact-head proof pending.**
 
-### PACK-BTN-04 — MUST-FIX — several TeamManager mutations lack a duplicate-action lock
+### PACK-BTN-07 — BUILD REGRESSION IN TEST — TypeScript deferred inferred as `never`
+Observed on #629 through unrelated Mobile Stock/Library certifications:
+- their own mobile contracts were green;
+- both failed at global `npm run build`;
+- root cause: `TeamManager.buttonMatrix.test.tsx` deferred resolver invocation triggered TS2349.
 
-Create and Approve have busy locks. Reject, Delete, Suspend/Reactivate and Save permissions do not.
+Corrected:
+- deferred changed to a stable callable `releasePut` closure;
+- fix synchronized to LOT2, #628 and #629.
 
-Risk: rapid double activation can issue duplicate POST/PUT/DELETE calls and surface a second failure after the first success.
+Status: **CORRECTED — #629 build rerun required.**
 
-Status: **OPEN.**
+## Visual evidence protocol
 
-### PACK-BTN-05 — MUST-FIX — desktop hides the actionable downgrade refusal
+LOT2 uses matched 1024×900 and 1440×1000 BEFORE/AFTER captures for:
+1. GOLD partial quota;
+2. Team load failure;
+3. rejected identity action row.
 
-Backend returns exact 409 detail with current reserved team and target limits. Mobile request handling surfaces that detail. Desktop replaces it with the generic “Erreur lors du changement de pack.”
+LOT3 uses the same matched viewports for:
+1. incompatible ELITE → GOLD downgrade;
+2. renewal with no phone.
 
-Risk: SuperAdmin cannot tell what must be changed before retrying the downgrade.
-
-Status: **OPEN.**
-
-### PACK-BTN-06 — MUST-FIX — desktop “Email de relance” does not match the backend action
-
-Desktop title/success copy says email. Backend endpoint actually sends WhatsApp when a phone is present. If no phone exists, backend still returns HTTP success with “Aucun numéro…” while desktop unconditionally reports “Email de relance envoyé !”. The audit history action is also currently `renewal_whatsapp_sent` even when no phone exists.
-
-Risk: false operational success and inaccurate audit trail.
-
-Status: **OPEN.**
-
-## Current executable proof
-
-Dedicated workflow: `V1-07 Commercial Pack Button Matrix`.
-
-The workflow checks out the exact PR head and runs:
-- targeted backend pytest matrix;
-- TeamManager real-click Vitest;
-- desktop SuperAdmin real-click Vitest;
-- mobile SuperAdmin confirmation/button Vitest;
-- mobile SuperAdmin real request-layer action Vitest.
-
-First meaningful frontend run before synchronization fix:
-- 19 tests total;
-- 16 passed;
-- 3 failed;
-- all 3 failures came from the same test race: the next pack selection ran while the confirmation dialog still showed `Traitement…`.
-- No product defect was inferred from that failure; the test now waits for the async confirmation to close before the next target.
-
-Latest exact-head evidence must be recorded here only after the run completes.
+Assertions include exact expected textual delta, no horizontal overflow and no runtime page error.
 
 ## Freeze decision
 
-**NOT READY TO CLOSE.**
+**NOT READY TO CLOSE YET.**
 
-The pack quota engine is internally coherent in the inspected paths, but the button-state surface still has open MUST-FIX findings. V1-08 must not use a green test run as a substitute for closing those findings.
+LOT1 is proven. LOT2, LOT3 and the reconciled #629 exact head still need their final reruns after the latest coverage/test corrections. V1-08 remains blocked until those proofs are green and #629 has no unexplained required red checks.
 
 ## No deployment
 
