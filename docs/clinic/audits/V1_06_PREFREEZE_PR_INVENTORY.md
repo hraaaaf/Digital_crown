@@ -54,3 +54,13 @@ Any additional open PR appearing after this snapshot must be separately classifi
 3. re-query open PRs and prove only explicitly parked items remain;
 4. inventory non-PR branches that could contaminate freeze;
 5. close V1-06 only after branch/PR reconciliation is documented and current master is coherent.
+
+
+## Cleanup actions executed
+
+Closed without merge after evidence extraction / supersession proof:
+- #593 — CLOSED / merged=false.
+- #607 — CLOSED / merged=false.
+- #575 — CLOSED / merged=false.
+
+Their branch refs may remain as historical Git refs; they are not canonical and must not be merged by branch name.
