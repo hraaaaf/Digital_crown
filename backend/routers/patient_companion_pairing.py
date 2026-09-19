@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -29,6 +29,11 @@ from backend.routers.patient_companion_common import (
     token_hash,
 )
 from backend.services.audit_service import audit_service
+from backend.services.patient_companion_key_protection import OsKeyProtectionUnavailable
+from backend.services.patient_companion_remote_keys import (
+    enroll_remote_keyset,
+    public_keyset_response,
+)
 from backend.services.qr_service import qr_service
 from backend.utils.rate_limit import check_rate_limit
 
@@ -40,9 +45,21 @@ class LocalInvitationRequest(BaseModel):
     expires_in_minutes: int = Field(default=15, ge=5, le=60)
 
 
+class RemoteKeyEnrollmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    signing_kid: str = Field(min_length=36, max_length=36)
+    signing_public_jwk: dict
+    encryption_kid: str = Field(min_length=36, max_length=36)
+    encryption_public_jwk: dict
+
+
 class LocalPairRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     token: str | None = Field(default=None, max_length=256)
     manual_code: str | None = Field(default=None, max_length=32)
+    remote_keys: RemoteKeyEnrollmentRequest | None = None
 
 
 @router.post("/admin/patients/{patient_id}/local-invitation", status_code=201)
@@ -161,6 +178,35 @@ def pair_local_patient_device(
     db.add(access)
     db.flush()
 
+    remote_keyset = None
+    cabinet_signing_key = None
+    cabinet_encryption_key = None
+    if body.remote_keys is not None:
+        try:
+            remote_keyset, cabinet_signing_key, cabinet_encryption_key = enroll_remote_keyset(
+                db,
+                access=access,
+                patient_signing_kid=body.remote_keys.signing_kid,
+                patient_signing_public_jwk=body.remote_keys.signing_public_jwk,
+                patient_encryption_kid=body.remote_keys.encryption_kid,
+                patient_encryption_public_jwk=body.remote_keys.encryption_public_jwk,
+            )
+        except OsKeyProtectionUnavailable as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=503,
+                detail="Protection OS des clés distantes indisponible sur ce cabinet.",
+            ) from exc
+        except OSError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=503,
+                detail="Protection OS des clés distantes indisponible sur ce cabinet.",
+            ) from exc
+        except ValueError as exc:
+            db.rollback()
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+
     consumed = db.query(PatientCompanionInvitation).filter(
         PatientCompanionInvitation.id == invitation.id,
         PatientCompanionInvitation.consumed_at.is_(None),
@@ -191,9 +237,24 @@ def pair_local_patient_device(
         details="Local-first patient device paired by one-time QR/manual code.",
     )
     response.headers["Cache-Control"] = "no-store"
+    remote_transport = {"status": "not_enrolled"}
+    if (
+        remote_keyset is not None
+        and cabinet_signing_key is not None
+        and cabinet_encryption_key is not None
+    ):
+        remote_transport = {
+            "status": "enrolled",
+            **public_keyset_response(
+                remote_keyset,
+                cabinet_signing_key,
+                cabinet_encryption_key,
+            ),
+        }
     return {
         "access_token": access_token,
         "context": safe_patient_context(access, patient),
         "paired_at": datetime.now(timezone.utc),
         "storage_policy": "local_encrypted_device",
+        "remote_transport": remote_transport,
     }
