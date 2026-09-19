@@ -59,7 +59,7 @@ beforeEach(() => {
 
   Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true });
   vi.mocked(generateClientKeyPair).mockResolvedValue({
-    privateKey: {} as CryptoKey,
+    privateKey: new Uint8Array(32),
     publicKeyHex: 'client-key',
   });
   vi.mocked(deriveMasterKey).mockResolvedValue('a'.repeat(64));
