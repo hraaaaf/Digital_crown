@@ -14,11 +14,23 @@ export type PatientCompanionContext = {
   };
 };
 
+export type PatientRemoteTransportBinding = {
+  version: 1;
+  keysetId: string;
+  signingKid: string;
+  encryptionKid: string;
+  cabinetSigningKid: string;
+  cabinetSigningPublicJwk: JsonWebKey;
+  cabinetEncryptionKid: string;
+  cabinetEncryptionPublicJwk: JsonWebKey;
+};
+
 export type PatientPairing = {
   accessToken: string;
   context: PatientCompanionContext;
   pairedAt: string;
   expiresAt?: string;
+  remoteTransport?: PatientRemoteTransportBinding;
 };
 
 export type PatientAppointment = {
