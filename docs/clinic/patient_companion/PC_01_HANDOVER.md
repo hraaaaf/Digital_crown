@@ -1,6 +1,6 @@
 # HANDOVER — Digital Crown Patient Companion — PC-01
 
-Updated: 2026-09-19
+Updated: 2026-09-19 — visual certification batch
 
 ## Goal
 
@@ -20,12 +20,12 @@ Success:
 
 Repo: hraaaaf/Digital_crown
 PC-00 branch: feature/patient-companion-pc00
-PC-00 current HEAD: 0495ebba61d7b0089159e064d2951942b9951f6f
+PC-00 current HEAD: c44a0e293e2aea216fbf3ddc03dac9a3c59a5ec8
 PC-00 PR: #634
 
 PC-01 branch: feature/patient-companion-pc01
 PC-01 PR: #636 draft, base feature/patient-companion-pc00
-PC-01 implementation HEAD before this handover update: 9b24efbce62266cec2e6738d30d0eb89b8e9d156
+PC-01 latest code/test HEAD before docs checkpoint: 0dda8f1d11f45c19db32eaf26c4a3381a43722a1
 
 Exact-head runs for 9b24efbc:
 - CI 35461919616 SUCCESS
@@ -62,27 +62,23 @@ Exact-head runs for 9b24efbc:
 
 ## In progress
 
-PC-01 dedicated visual/runtime certification has not yet been created/run.
-PC-00 latest corrective exact-head must still be inspected and closed.
+PC-01 dedicated visual/runtime certification workflow is now created and has been triggered; latest exact-head outcome is not yet verified.
+PC-01 adversarial review is created and remains IN PROGRESS until evidence is inspected.
+PC-00 visual/D2 failures were diagnosed and corrected on PC-00 branch; new exact-head outcomes remain pending.
 
 ## Remaining
 
-1. create PC-01 matched BEFORE/AFTER workflow:
-   - BEFORE = PC-00 candidate
-   - AFTER = PC-01
-   - 360×800 and 390×844
-   - Chromium + WebKit
-2. deterministic sync payload then reload with network unavailable;
-3. inspect IndexedDB envelope remains ciphertext after PC-01 snapshot;
-4. visual comparison + score;
-5. PC-01 adversarial review;
-6. inspect/close PC-00 #634 exact-head;
-7. merge PC-00 only if all gates proven;
-8. reconcile PC-01 onto final PC-00;
-9. exact-head PC-01 certification;
-10. merge PC-01;
-11. update canonical + Notion + handover;
-12. stop at Remote Transport Gate before PC-02.
+1. inspect PC-01 dedicated visual/CI exact-head results;
+2. if red, diagnose and correct immediately;
+3. if green, download/inspect BEFORE/AFTER artifact and record visual score;
+4. inspect PC-00 corrected exact-head gates;
+5. fix any remaining PC-00 red gate;
+6. merge PC-00 only after proof is complete;
+7. reconcile PC-01 onto final PC-00;
+8. rerun final PC-01 exact-head certification;
+9. merge PC-01;
+10. update canonical + Notion + handover;
+11. stop at Remote Transport Gate before PC-02.
 
 ## Real blocker
 
@@ -91,7 +87,7 @@ Merge dependency only: PC-01 cannot merge before PC-00.
 
 ## Next exact
 
-Create the dedicated PC-01 BEFORE/AFTER + offline-reload certification workflow and execute it.
+Read the dedicated PC-01 exact-head visual/CI result; fix any red gate, otherwise inspect the generated artifact.
 
 ## Remaining sequence
 
