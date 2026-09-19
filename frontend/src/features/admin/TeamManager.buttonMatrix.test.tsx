@@ -134,8 +134,12 @@ describe('TeamManager commercial pack button matrix', () => {
     expect(await screen.findByText(plan)).toBeTruthy();
     expect(screen.getByText(quota.dentists)).toBeTruthy();
     expect(screen.getByText(quota.assistants)).toBeTruthy();
-    if (warning) expect(screen.getByText(/Quota atteint/i)).toBeTruthy();
-    else expect(screen.queryByText(/Quota atteint/i)).toBeNull();
+    if (warning) {
+      expect(screen.getByText(/Quota dentistes atteint/i)).toBeTruthy();
+      expect(screen.getByText(/2 place\(s\) assistante\(s\) disponible\(s\)/i)).toBeTruthy();
+    } else {
+      expect(screen.queryByText(/Quota .* atteint/i)).toBeNull();
+    }
 
     fireEvent.click(screen.getByRole('button', { name: /Ajouter un membre/i }));
     expect(screen.getByText('Nouveau sous-compte')).toBeTruthy();
@@ -231,6 +235,17 @@ describe('TeamManager commercial pack button matrix', () => {
     vi.mocked(api.delete).mockClear();
     fireEvent.click(screen.getAllByTitle('Supprimer définitivement')[0]);
     await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/11'));
+  });
+
+  it('does not expose Reactivate or Suspend for a rejected identity', async () => {
+    membersState = [{ ...inactiveMember, id: 77, nom_complet: 'Rejected User', approval_status: 'rejected' }];
+
+    render(<TeamManager />);
+    expect(await screen.findByText('Rejected User')).toBeTruthy();
+    expect(screen.getByText('Refusé')).toBeTruthy();
+    expect(screen.queryByTitle("Réactiver l'accès")).toBeNull();
+    expect(screen.queryByTitle("Suspendre l'accès")).toBeNull();
+    expect(screen.getByTitle('Supprimer définitivement')).toBeTruthy();
   });
 
   it('shows an explicit load error instead of a false empty-team state', async () => {
