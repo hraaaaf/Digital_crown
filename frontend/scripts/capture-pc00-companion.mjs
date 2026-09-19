@@ -33,7 +33,7 @@ async function installRoutes(page) {
     contentType: 'application/json',
     body: JSON.stringify({ status: 'ok' }),
   }));
-  await page.route('**/api/**', async route => {
+  await page.route('**:8005/api/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/patient-companion/pair' && route.request().method() === 'POST') {
       return route.fulfill({
