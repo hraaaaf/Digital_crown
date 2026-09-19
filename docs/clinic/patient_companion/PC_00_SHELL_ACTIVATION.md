@@ -1,91 +1,150 @@
-# Patient Companion — PC-00 Shell & Activation
+# Patient Companion — PC-00 Local Bridge & Encrypted Device Vault
 
-Status: APPROVED / IMPLEMENTATION START
+Status: APPROVED / IMPLEMENTATION IN PROGRESS
 
 ## Goal
 
-Deliver the patient-facing shell that exposes the already-merged Patient Companion security boundary without duplicating the clinical record.
+Deliver the patient-facing Patient Companion shell using the Digital Crown local-first doctrine:
+
+**Cabinet source of truth → one-time QR bridge → encrypted vault on the patient's phone.**
+
+Patient clinical data must not require a cloud patient portal. Firebase is not used as the transport or storage plane for Patient Companion clinical data.
 
 ## Success
 
-A Firebase-authenticated invited patient can:
-1. open the Patient Companion entry point;
-2. activate exactly one invitation by QR token or manual code;
-3. resolve only the patient contexts authorized to that Firebase identity;
-4. enter a mobile-first home shell for the selected context;
-5. recover safely from invalid, expired, revoked, offline, and unauthenticated states.
+A patient can:
+1. receive a one-time QR/manual pairing secret from the cabinet;
+2. pair the phone without a staff account or cabinet JWT;
+3. store the resulting Patient Companion context/session inside an encrypted device-local vault;
+4. reopen the paired shell while the cabinet is temporarily offline;
+5. hold more than one patient context without exposing numeric patient IDs in public URLs;
+6. lose future server access immediately when the cabinet revokes the corresponding access.
 
-No self-service scheduling, questionnaire, payment, remote signature, chat, video consultation, or emergency-photo workflow is introduced in PC-00.
+Observable proof:
+- no raw Firebase token field in the patient UI;
+- no Patient Companion secret in localStorage/sessionStorage;
+- paired state is stored as AES-GCM ciphertext in IndexedDB;
+- the AES key is generated non-extractable by WebCrypto and stored as a CryptoKey;
+- /api/patient-companion/pair consumes a single-use invitation;
+- patient device JWT is scoped to one opaque access_id and cabinet tenant;
+- backend router is actually mounted at runtime.
 
-## Existing backend reused
+## Corrected BEFORE baseline
 
-- `POST /patient-companion/activate`
-- `GET /patient-companion/me`
-- invitation QR/manual code issued by staff UI
-- Firebase patient identity verification
-- SELF / PARENT / GUARDIAN / CAREGIVER access
-- tenant-scoped access + revocation
+The V1 repository already contained:
+- Patient Companion models;
+- staff administration UI;
+- Firebase-oriented activation code;
+- appointment/share read APIs.
 
-## UI target before implementation
+But the audit found two concrete blockers:
+1. backend/main.py did **not** mount patient_companion.router; those endpoints were therefore code-present but not runtime-reachable through the canonical app.
+2. the first PC-00 draft exposed a raw Firebase token input and behaved like a cloud portal, contradicting the intended local-first bridge architecture.
 
-Mobile-first PWA flow:
+Both findings invalidate any earlier claim that the complete Patient Companion flow was already live.
 
-`Welcome / Firebase identity` → `Activate invitation` → `Context picker when >1` → `Companion Home shell`
+## Architecture
+
+### Pairing plane
+
+Staff:
+Patient dossier → Companion → Generate local invitation
+
+Patient:
+ /companion → Scan QR or enter manual code → POST /api/patient-companion/pair
+
+Properties:
+- invitation is high-entropy / manual fallback;
+- one use;
+- short lifetime;
+- cabinet licence checked locally before binding;
+- no Firebase patient token required for local pairing;
+- no cabinet staff JWT is ever issued to the patient.
+
+### Device identity plane
+
+Successful pairing creates:
+- provider: local_bridge;
+- random device subject;
+- opaque Patient Companion access;
+- signed patient-device token containing only device/access/tenant scope.
+
+Every later server read must re-check:
+- active device identity;
+- active access;
+- matching tenant;
+- cabinet licence policy.
+
+Revocation stops future synchronization. It does **not** pretend to remotely erase data already and legitimately stored on the patient's offline device.
+
+### Local storage plane
+
+Browser storage:
+- dedicated IndexedDB database: digital-crown-patient-companion;
+- random AES-256-GCM CryptoKey generated on-device;
+- key marked extractable: false;
+- Patient Companion state encrypted before persistence;
+- QR/manual secret discarded after pairing;
+- no access token copied to localStorage/sessionStorage.
+
+PC-01 must extend this same encrypted vault for synced appointments/documents/media metadata and encrypted payloads. It must not create an unencrypted parallel cache.
+
+## UI target
+
+Baseline viewports:
+- 360×800
+- 390×844
+
+Flow:
+Welcome → QR scanner/manual code → Pairing → Home
+and, when multiple contexts exist:
+Home entry → Context picker → Home
 
 ### Welcome
-- Digital Crown / Patient Companion identity.
-- Explicit patient-facing wording; no staff navigation.
-- Primary action: continue with verified identity.
-- Secondary activation entry for manual code.
-- Safe-area aware, 360×800 and 390×844 baseline viewports.
+- clear statement that data stays with cabinet + this phone;
+- primary action: Scan QR;
+- manual code fallback;
+- no email/password/Firebase token field.
 
-### Activation
-- QR/deep-link token when supplied.
-- Manual code fallback.
-- Loading, expired, invalid, recipient mismatch and already-consumed states.
-- Never persist/display the invitation secret after successful activation.
+### Pairing
+- explicit one-time bridge language;
+- spinner only while the cabinet verifies the invitation;
+- invalid/expired/reused invitation fails closed.
 
-### Context picker
-- Shown only when the identity owns more than one active context.
-- Patient name + relationship label only.
-- No clinical data in the picker.
-
-### Home shell
-- Patient identity/context header.
-- Empty navigation slots reserved for PC-01 resources and appointments.
-- Sign-out / switch-context affordance.
-- No fake data and no disabled controls presented as working features.
+### Home
+- patient display name + relationship;
+- visible local-vault status;
+- PC-01 appointment/document slots clearly marked as not active yet;
+- add another patient context;
+- explicit “erase this phone” action.
 
 ## Security invariants
 
-- Firebase credential remains the authentication source.
-- No cabinet JWT is exposed to the patient shell.
-- No patient numeric identifier in public URLs.
-- Access is derived from server-returned opaque `access_id`.
-- Revoked access fails closed.
-- No invitation secret in logs, analytics, local storage, or post-activation UI.
-- No clinical mutation in PC-00.
+- No clinical data through Firebase.
+- No staff auth/session on patient phone.
+- No numeric patient ID in public URL.
+- No raw invitation secret after successful pairing.
+- No plaintext patient session in Web Storage.
+- No fake PC-01+ functionality.
+- No Vercel deployment in this lot.
+- Offline local possession is intentional; revocation prevents new sync but cannot retroactively delete an offline patient-owned copy.
 
-## Required evidence
+## Required evidence before close
 
 BEFORE:
-- current V1 has staff-side Companion administration and patient APIs but no patient-facing route in the main frontend router.
+- route absent from canonical backend mount;
+- no patient-facing route in V1;
+- first draft Firebase-token field documented as rejected architecture.
 
 AFTER:
-- same 360×800 and 390×844 viewports for Welcome, Activation and Home;
-- route/guard tests;
-- activation state tests;
-- revoked/invalid/offline tests;
-- static secret-leak checks;
-- existing Patient Companion backend tests remain green.
+- 360×800 and 390×844 captures for Welcome, Manual Code, Home;
+- frontend tests for local-first shell;
+- backend contract tests for mount, one-time pairing, scope and revocation;
+- build/typecheck;
+- exact-head CI;
+- adversarial security review;
+- canonical Notion + roadmap update.
 
 ## Gate
 
-PC-00 closes only with:
-- code + tests;
-- visual BEFORE/AFTER evidence;
-- exact-head CI green;
-- adversarial review;
-- canonical documentation updated.
-
-No Vercel deployment is authorized by this lot.
+PC-00 closes only when all required evidence above exists and no raw Firebase/cloud patient portal dependency remains in the active patient UI.
