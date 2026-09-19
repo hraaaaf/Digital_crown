@@ -21,11 +21,40 @@ export type PatientPairing = {
   expiresAt?: string;
 };
 
+export type PatientAppointment = {
+  id: number;
+  datetime_start: string;
+  duration_minutes?: number | null;
+  motif: string;
+  status: string;
+  scheduling_type?: string | null;
+};
+
+export type PatientShare = {
+  share_id: string;
+  resource_type: 'document' | 'media';
+  resource_id: number;
+  title?: string | null;
+  document_type?: string | null;
+  asset_type?: string | null;
+  mime_type?: string | null;
+  captured_at?: string | null;
+  created_at?: string | null;
+};
+
+export type PatientWalletSnapshot = {
+  version: 1;
+  accessId: string;
+  syncedAt: string;
+  appointments: PatientAppointment[];
+  shares: PatientShare[];
+};
+
 export type PatientCompanionVaultState = {
   version: 1;
   activeAccessId: string | null;
   pairings: PatientPairing[];
-  cache: Record<string, unknown>;
+  cache: Record<string, PatientWalletSnapshot>;
 };
 
 type VaultEnvelope = {
@@ -196,6 +225,19 @@ export const PatientCompanionStorage = {
       throw new Error('Contexte Patient Companion inconnu.');
     }
     const next = { ...current, activeAccessId: accessId };
+    await writeValue(STATE_ID, await encryptState(next));
+    return next;
+  },
+
+  async saveWallet(snapshot: PatientWalletSnapshot): Promise<PatientCompanionVaultState> {
+    const current = await this.load();
+    if (!current.pairings.some(item => item.context.access_id === snapshot.accessId)) {
+      throw new Error('Contexte Patient Companion inconnu.');
+    }
+    const next: PatientCompanionVaultState = {
+      ...current,
+      cache: { ...current.cache, [snapshot.accessId]: snapshot },
+    };
     await writeValue(STATE_ID, await encryptState(next));
     return next;
   },
