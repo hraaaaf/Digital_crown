@@ -159,6 +159,15 @@ def _resolve_cephalo_for_timepoint(
         )
 
     _validate_calibration_integrity(analysis)
+    is_calibrated = bool(analysis.is_calibrated)
+    # Legacy rows may retain an old ratio after calibration was invalidated.
+    # Never surface that stale scale as usable metadata when the canonical flag
+    # says the source is uncalibrated.
+    effective_mm_per_pixel = (
+        float(analysis.mm_per_pixel)
+        if is_calibrated and analysis.mm_per_pixel is not None
+        else None
+    )
 
     return ResolvedCephaloSource(
         timepoint_id=timepoint.id,
@@ -166,8 +175,8 @@ def _resolve_cephalo_for_timepoint(
         occurred_at=timepoint.occurred_at,
         cephalo_analysis_id=analysis.id,
         image_original_path=image_path,
-        is_calibrated=bool(analysis.is_calibrated),
-        mm_per_pixel=float(analysis.mm_per_pixel) if analysis.mm_per_pixel is not None else None,
+        is_calibrated=is_calibrated,
+        mm_per_pixel=effective_mm_per_pixel,
     )
 
 

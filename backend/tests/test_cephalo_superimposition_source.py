@@ -140,6 +140,30 @@ def test_uncalibrated_source_allows_visual_source_resolution_but_blocks_mm(db, d
     assert pair.from_source.mm_per_pixel is None
 
 
+def test_uncalibrated_legacy_stale_ratio_is_never_exposed(db, dentiste):
+    patient, case, t0, t1, a0, _ = _seed_pair(
+        db,
+        dentiste,
+        calibrated_from=False,
+        calibrated_to=True,
+    )
+    a0.mm_per_pixel = 0.125
+    db.commit()
+
+    pair = resolve_superimposition_pair(
+        db,
+        patient_id=patient.id,
+        case_id=case.id,
+        employer_id=dentiste.id,
+        from_timepoint_id=t0.id,
+        to_timepoint_id=t1.id,
+    )
+
+    assert pair.quantitative_mm_allowed is False
+    assert pair.from_source.is_calibrated is False
+    assert pair.from_source.mm_per_pixel is None
+
+
 def test_growing_patient_fails_closed(db, dentiste):
     patient, case, t0, t1, _, _ = _seed_pair(
         db,

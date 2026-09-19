@@ -1,6 +1,6 @@
 # V1-05 / F5 — Canonical Source Contract
 
-**Status:** implemented as a service-level source resolver; no API/UI activation yet.
+**Status:** implemented as a service-level source resolver; engineering API/UI remain preview-gated.
 
 ## Chain
 `OrthoCase -> OrthoTimepoint -> OrthoTimepointEvidence -> CephaloAnalysis -> image_original_path`
@@ -20,6 +20,10 @@ F5 never searches the media library heuristically and never duplicates the sourc
 
 ## Calibration rule
 An uncalibrated source does **not** fabricate scale. Source resolution may still permit an engineering visual overlay, but `quantitative_mm_allowed=false`. Millimetric displacement is not exposed.
+
+If a legacy row is marked `is_calibrated=false` but still contains a stale `mm_per_pixel`, F5 normalizes the public source metadata to `mm_per_pixel=null`. The stale ratio is never surfaced as usable scale.
+
+A row marked `is_calibrated=true` without a finite positive `mm_per_pixel` fails closed with `INVALID_CALIBRATION`.
 
 ## Ambiguity rule
 If a timepoint has multiple CephaloAnalysis evidences, F5 fails with `CEPHALO_EVIDENCE_AMBIGUOUS`; it never guesses the intended radiograph.
