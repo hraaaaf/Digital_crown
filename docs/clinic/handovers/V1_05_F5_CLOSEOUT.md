@@ -1,6 +1,6 @@
 # V1-05 Ortho Journey — F5 Closeout
 
-Status: **MERGED — POST-MERGE CERTIFICATION PENDING**
+Status: **MERGED — POST-MERGE CERTIFIED (ENGINEERING PREVIEW ONLY)**
 
 ## Scope
 
@@ -162,18 +162,13 @@ Temporary certification PR:
 - certification-only file: `docs/clinic/certifications/V1_05_F5_POSTMERGE_CERT.md`
 - MUST NOT MERGE
 
-Runs at launch:
-- CI `35432362856` — QUEUED
-- T2 Runtime Browser Certification `35432362901` — IN PROGRESS
-- Agenda A5 Visual Evidence `35432362881` — IN PROGRESS
-- PR Merge Summary `35432362857` — IN PROGRESS
+Final post-merge runs:
+- CI `35432362856` — SUCCESS
+- T2 Runtime Browser Certification `35432362901` — SUCCESS
+- Agenda A5 Visual Evidence `35432362881` — SUCCESS
+- PR Merge Summary `35432362857` — SUCCESS
 
-Required proof before final close:
-- post-merge CI green
-- post-merge T2 green
-- Agenda A5 green
-- PR Merge Summary green where applicable
-- close #622 without merge
+Certification PR #622 was closed without merge after all required checks were green.
 
 ## Next
 
