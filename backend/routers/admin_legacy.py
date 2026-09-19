@@ -472,18 +472,24 @@ def trigger_backup(current_user: models.User = Depends(require_permission("admin
 
 @router.get("/backups/download/{filename}")
 def download_backup(filename: str, current_user: models.User = Depends(require_permission("admin"))):
-    """Télécharge un fichier de sauvegarde."""
+    """Télécharge uniquement un backup direct du dossier cabinet dédié."""
     from backend.core.paths import AppPaths
     from fastapi.responses import FileResponse
-    import os
-    
-    if not filename.endswith(".enc"):
+
+    if (
+        not filename.endswith(".enc")
+        or "/" in filename
+        or "\\" in filename
+        or filename in {".", ".."}
+    ):
         raise HTTPException(status_code=400, detail="Fichier invalide.")
-        
-    backups_dir = AppPaths.get_user_data_dir() / "backups"
-    file_path = backups_dir / filename
-    
-    if not file_path.exists():
+
+    backups_dir = (AppPaths.get_user_data_dir() / "backups").resolve()
+    file_path = (backups_dir / filename).resolve()
+    if file_path.parent != backups_dir:
+        raise HTTPException(status_code=400, detail="Fichier invalide.")
+
+    if not file_path.is_file():
         raise HTTPException(status_code=404, detail="Fichier introuvable.")
 
     return FileResponse(path=file_path, filename=filename, media_type="application/octet-stream")
