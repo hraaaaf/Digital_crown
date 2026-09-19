@@ -1,0 +1,39 @@
+name: G0 Global Interactive Inventory
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - scripts/inventory_interactive_controls.py
+      - .github/workflows/g0-global-interactive-inventory.yml
+      - frontend/src/**
+  workflow_dispatch:
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Record exact head
+        run: |
+          echo "head=$(git rev-parse HEAD)"
+          if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          fi
+
+      - name: Generate G0 inventory
+        run: python scripts/inventory_interactive_controls.py
+
+      - name: Show summary
+        run: cat artifacts/g0-interactive-inventory/summary.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: g0-global-interactive-inventory
+          path: artifacts/g0-interactive-inventory
+          if-no-files-found: error
+          retention-days: 30
