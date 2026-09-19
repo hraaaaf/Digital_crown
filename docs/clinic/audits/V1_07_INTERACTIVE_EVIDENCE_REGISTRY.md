@@ -13,7 +13,7 @@ This registry links audit gates to behavioral proof families. It does not freeze
 | G5 | Cabinet/settings/team | SettingsContainer, ProfileTab, BrandingTab, CatalogTab, AgendaTab, IATab, SecurityTab, ClinicPractitionerBar, TeamManager LOT2 matrix | functionally reconciled; exact-head CI pending |
 | G6 | SuperAdmin/licences | SuperAdmin pack matrix, trial codes, LicenseStatusPage | code remediated; visual + CI pending |
 | G7 | Stock/marketplace/library | StockPage, PartnerMarketplacePage, PartnerDetailPages, PartnerCatalogAdminPage, marketplace hook, EliteLibrary, EliteScienceHub | code remediated; visual + CI pending |
-| G8 | Transverse/adversarial | CrownDialog, OfflineQueueViewer, responsive contracts, CriticalMutationSingleFlight, cross-gate refusal/error/permission proofs | functionally reconciled; exact-head CI pending |
+| G8 | Transverse/adversarial | CrownDialog, OfflineQueueViewer, telemetryPolicy fail-closed, responsive contracts, CriticalMutationSingleFlight, cross-gate refusal/error/permission proofs | functionally reconciled; exact-head CI pending |
 
 ## Denominator freeze rule
 The final denominator is not the number of files, tests, buttons, or raw static signals.
