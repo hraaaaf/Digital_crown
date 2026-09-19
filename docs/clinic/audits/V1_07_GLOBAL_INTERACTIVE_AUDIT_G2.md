@@ -153,3 +153,38 @@ G1 may remain pending independently while G2 work proceeds.
    - post-appointment Ghost Action lifecycle.
 
 Status remains IN PROGRESS until exact-head tests + build are green.
+
+
+## Additional G2 behavioral proof
+
+7. `frontend/src/features/patients/CsvImportModal.g2Interactive.test.tsx`
+   - file required;
+   - multipart upload;
+   - created/duplicate/error result truth;
+   - backend refusal has no false success;
+   - close resets transient state.
+
+8. `frontend/src/features/patients/PatientListSearchSort.g2Interactive.test.tsx`
+   - patient-name and dossier-number filtering;
+   - A→Z / Z→A sort;
+   - keyboard row activation.
+
+9. `frontend/src/features/patients/AddPatientVariants.g2Interactive.test.tsx`
+   - extra phone numbers;
+   - private insurance;
+   - complementary insurance;
+   - orthodontic activation propagated to create payload.
+
+10. `frontend/src/features/patients/EditPatientVariants.g2Interactive.test.tsx`
+    - extra phone numbers and insurance variants propagated to update payload.
+
+11. `frontend/src/features/patients/PatientDossierNumber.g2Interactive.test.tsx`
+    - dossier number taken;
+    - dossier number available;
+    - availability verification unavailable.
+
+12. `frontend/src/features/patients/PatientDetails.g2Interactive.test.tsx` extended
+    - patient-load error + retry;
+    - Documents create/history boundary.
+
+G2 functional implementation work is now substantially covered. Certification still requires exact-head tests + build to pass.
