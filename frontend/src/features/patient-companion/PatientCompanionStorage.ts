@@ -189,6 +189,21 @@ function normalizePairing(pairing: PatientPairing): PatientPairing {
   };
 }
 
+function migrateState(state: PatientCompanionVaultState): PatientCompanionVaultState {
+  return {
+    ...state,
+    pairings: state.pairings.map(pairing => {
+      if (pairing.expiresAt) return pairing;
+      try {
+        return normalizePairing(pairing);
+      } catch {
+        return pairing;
+      }
+    }),
+    cache: state.cache || {},
+  };
+}
+
 const emptyState = (): PatientCompanionVaultState => ({
   version: 1,
   activeAccessId: null,
@@ -199,7 +214,7 @@ const emptyState = (): PatientCompanionVaultState => ({
 export const PatientCompanionStorage = {
   async load(): Promise<PatientCompanionVaultState> {
     const envelope = await readValue<VaultEnvelope>(STATE_ID);
-    return envelope ? decryptState(envelope) : emptyState();
+    return envelope ? migrateState(await decryptState(envelope)) : emptyState();
   },
 
   async savePairing(pairing: PatientPairing): Promise<PatientCompanionVaultState> {
