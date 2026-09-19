@@ -1025,6 +1025,81 @@ def compare_patient_ortho_timepoints(
     )
 
 @router.get(
+    "/{patient_id}/ortho-case/{case_id}/superimposition/context",
+    response_model=schemas.OrthoSuperimpositionContextOut,
+)
+def get_patient_ortho_superimposition_context(
+    patient_id: int,
+    case_id: int,
+    from_timepoint_id: int,
+    to_timepoint_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import cephalo_superimposition_api as f5_service
+    from backend.services.cephalo_superimposition_source import SuperimpositionSourceError
+
+    if not f5_service.engineering_preview_enabled():
+        raise HTTPException(status_code=404, detail="F5 engineering preview disabled.")
+    try:
+        return f5_service.build_context(
+            db,
+            patient_id=patient_id,
+            case_id=case_id,
+            employer_id=current_user.get_employer_id(),
+            from_timepoint_id=from_timepoint_id,
+            to_timepoint_id=to_timepoint_id,
+        )
+    except SuperimpositionSourceError as exc:
+        status_code = 404 if exc.code in {
+            "PATIENT_NOT_FOUND", "CASE_NOT_FOUND", "TIMEPOINT_NOT_FOUND", "CEPHALO_ANALYSIS_MISSING"
+        } else 409
+        raise HTTPException(status_code=status_code, detail={"code": exc.code, "message": str(exc)}) from exc
+
+
+@router.post(
+    "/{patient_id}/ortho-case/{case_id}/superimposition/estimate",
+    response_model=schemas.OrthoSuperimpositionEstimateOut,
+)
+def estimate_patient_ortho_superimposition(
+    patient_id: int,
+    case_id: int,
+    payload: schemas.OrthoSuperimpositionEstimateRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import cephalo_superimposition_api as f5_service
+    from backend.services.cephalo_superimposition import ImageROI, SuperimpositionError
+    from backend.services.cephalo_superimposition_source import SuperimpositionSourceError
+
+    if not f5_service.engineering_preview_enabled():
+        raise HTTPException(status_code=404, detail="F5 engineering preview disabled.")
+    try:
+        return f5_service.estimate_pair(
+            db,
+            patient_id=patient_id,
+            case_id=case_id,
+            employer_id=current_user.get_employer_id(),
+            from_timepoint_id=payload.from_timepoint_id,
+            to_timepoint_id=payload.to_timepoint_id,
+            reference_roi=ImageROI(**payload.reference_roi.model_dump()),
+            moving_roi=ImageROI(**payload.moving_roi.model_dump()),
+        )
+    except SuperimpositionSourceError as exc:
+        status_code = 404 if exc.code in {
+            "PATIENT_NOT_FOUND", "CASE_NOT_FOUND", "TIMEPOINT_NOT_FOUND", "CEPHALO_ANALYSIS_MISSING"
+        } else 409
+        raise HTTPException(status_code=status_code, detail={"code": exc.code, "message": str(exc)}) from exc
+    except SuperimpositionError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "REGISTRATION_NOT_COMPUTABLE", "message": str(exc)},
+        ) from exc
+
+
+@router.get(
     "/{patient_id}/ortho-cockpit",
     response_model=schemas.OrthoCockpitOut,
 )
