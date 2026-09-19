@@ -41,6 +41,14 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index(
+        "uq_pc_cabinet_remote_key_one_active_per_use",
+        "patient_companion_cabinet_remote_keys",
+        ["employer_id", "key_use"],
+        unique=True,
+        sqlite_where=sa.text("status = 'ACTIVE'"),
+        postgresql_where=sa.text("status = 'ACTIVE'"),
+    )
+    op.create_index(
         "ix_patient_companion_cabinet_remote_keys_employer_id",
         "patient_companion_cabinet_remote_keys",
         ["employer_id"],
@@ -91,6 +99,14 @@ def upgrade() -> None:
         "patient_companion_remote_keysets",
         ["access_id", "status"],
         unique=False,
+    )
+    op.create_index(
+        "uq_pc_remote_keyset_one_active_per_access",
+        "patient_companion_remote_keysets",
+        ["access_id"],
+        unique=True,
+        sqlite_where=sa.text("status = 'ACTIVE'"),
+        postgresql_where=sa.text("status = 'ACTIVE'"),
     )
     op.create_index(
         "ix_patient_companion_remote_keysets_patient_signing_kid",
@@ -177,6 +193,7 @@ def downgrade() -> None:
     op.drop_index("ix_patient_companion_remote_keysets_access_id", table_name="patient_companion_remote_keysets")
     op.drop_index("ix_patient_companion_remote_keysets_patient_encryption_kid", table_name="patient_companion_remote_keysets")
     op.drop_index("ix_patient_companion_remote_keysets_patient_signing_kid", table_name="patient_companion_remote_keysets")
+    op.drop_index("uq_pc_remote_keyset_one_active_per_access", table_name="patient_companion_remote_keysets")
     op.drop_index("ix_pc_remote_keyset_access_status", table_name="patient_companion_remote_keysets")
     op.drop_table("patient_companion_remote_keysets")
 
@@ -184,5 +201,6 @@ def downgrade() -> None:
     op.drop_index("ix_patient_companion_cabinet_remote_keys_status", table_name="patient_companion_cabinet_remote_keys")
     op.drop_index("ix_patient_companion_cabinet_remote_keys_kid", table_name="patient_companion_cabinet_remote_keys")
     op.drop_index("ix_patient_companion_cabinet_remote_keys_employer_id", table_name="patient_companion_cabinet_remote_keys")
+    op.drop_index("uq_pc_cabinet_remote_key_one_active_per_use", table_name="patient_companion_cabinet_remote_keys")
     op.drop_index("ix_pc_cabinet_remote_key_tenant_use_status", table_name="patient_companion_cabinet_remote_keys")
     op.drop_table("patient_companion_cabinet_remote_keys")
