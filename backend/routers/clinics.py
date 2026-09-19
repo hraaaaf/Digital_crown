@@ -274,43 +274,43 @@ async def upload_clinic_logo(
 
 def _process_letterhead_file(content: bytes, content_type: str,
                              strip_body: bool, header_pct: float, footer_pct: float) -> tuple[bytes, bool]:
-    """Prépare le fichier letterhead et retourne (octets finaux, was_processed)."""
-    was_processed = False
+    """Normalise tout letterhead accepté en PNG inerte avant stockage."""
+    try:
+        import io as _io
+        from PIL import Image, ImageDraw
 
-    if content_type == "application/pdf":
-        try:
+        if content_type == "application/pdf":
             import fitz
             pdf = fitz.open(stream=content, filetype="pdf")
-            if pdf.page_count == 0:
+            try:
+                if pdf.page_count == 0:
+                    raise HTTPException(status_code=400, detail="PDF vide — aucune page à utiliser comme modèle")
+                pix = pdf[0].get_pixmap(dpi=150)
+                content = pix.tobytes("png")
+            finally:
                 pdf.close()
-                raise HTTPException(status_code=400, detail="PDF vide — aucune page à utiliser comme modèle")
-            pix = pdf[0].get_pixmap(dpi=150)
-            content = pix.tobytes("png")
-            pdf.close()
-            was_processed = True
-        except HTTPException:
-            raise
-        except Exception:
-            raise HTTPException(status_code=400, detail="PDF illisible — impossible de le convertir en image")
 
-    if strip_body:
-        try:
-            import io as _io
-            from PIL import Image, ImageDraw
-            img = Image.open(_io.BytesIO(content)).convert("RGB")
+        img = Image.open(_io.BytesIO(content))
+        if img.format not in {"PNG", "JPEG"}:
+            raise ValueError(f"Unsupported letterhead image format: {img.format}")
+        if img.width * img.height > 40_000_000:
+            raise ValueError("Letterhead dimensions are unreasonably large")
+        img = img.convert("RGB")
+
+        if strip_body:
             w, h = img.size
             header_px = int(h * max(5.0, min(header_pct, 45.0)) / 100.0)
             footer_px = int(h * max(5.0, min(footer_pct, 45.0)) / 100.0)
             draw = ImageDraw.Draw(img)
             draw.rectangle([0, header_px, w, h - footer_px], fill="white")
-            buf = _io.BytesIO()
-            img.save(buf, format="PNG")
-            content = buf.getvalue()
-            was_processed = True
-        except Exception:
-            raise HTTPException(status_code=400, detail="Image illisible — impossible de nettoyer le corps du document")
 
-    return content, was_processed
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        return buf.getvalue(), True
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Papier en-tête illisible ou invalide") from None
 
 
 @router.post("/me/letterhead")
@@ -349,7 +349,8 @@ async def upload_clinic_letterhead(
     clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
     os.makedirs(clinic_dir, exist_ok=True)
 
-    file_ext = "png" if was_processed else file.filename.split(".")[-1].lower()
+    # _process_letterhead_file always returns inert PNG bytes.
+    file_ext = "png"
     unique_name = f"letterhead_{uuid.uuid4().hex[:8]}.{file_ext}"
     file_path = os.path.join(clinic_dir, unique_name)
 
