@@ -115,3 +115,9 @@ ABO structural methodology is an established professional standard, but the 2022
 Engineering may now implement the deterministic registration primitive and synthetic numerical tests.
 
 Clinical activation remains blocked pending the Validation Strategy and independent scientific review.
+
+
+## Acquisition comparability amendment — 2026-09-19
+The evidence does not justify assuming cross-machine/cross-protocol equivalence. Jiang 2020 used paired cephalograms from the same X-ray machine; Zhao 2025 used the same X-ray machine with identical resolution and quality.
+
+Digital Crown currently lacks acquisition-device/protocol provenance in `CephaloAnalysis`. F5 therefore marks acquisition protocol as `UNVERIFIED` and remains engineering-only. Clinical activation requires either traceable acquisition comparability or dedicated cross-protocol validation; no equivalence is inferred from image dimensions or calibration alone.

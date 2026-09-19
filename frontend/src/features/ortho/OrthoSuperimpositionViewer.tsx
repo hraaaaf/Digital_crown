@@ -442,7 +442,7 @@ export const OrthoSuperimpositionViewer = ({
                   <p className="mt-0.5 break-all font-mono text-[9px] font-bold text-text-muted">{context.method_id} · v{context.method_version}</p>
                 </div>
                 <div className="min-w-0"><span className="font-black text-main">Calibration</span><p className="mt-0.5 font-bold text-text-muted">T{fromTimepoint.ordinal} {context.from_source.is_calibrated ? 'calibrée' : 'non calibrée'} · T{toTimepoint.ordinal} {context.to_source.is_calibrated ? 'calibrée' : 'non calibrée'}</p></div>
-                <div className="min-w-0"><span className="font-black text-main">Statut</span><p className="mt-0.5 font-bold text-text-muted">ENGINE_ESTIMATE_ONLY · validation clinique non établie</p></div>
+                <div className="min-w-0"><span className="font-black text-main">Statut</span><p className="mt-0.5 font-bold text-text-muted">ENGINE_ESTIMATE_ONLY · validation clinique non établie</p><p className="mt-0.5 font-bold text-amber-700">Protocole d’acquisition : non vérifié</p></div>
               </div>
 
               <button

@@ -59,6 +59,7 @@ jobs:
             if (c.metrics.methodMetadataOverflow) throw new Error('Method metadata overflow '+c.viewport);
             if (!c.metrics.hasF5Viewer || !c.metrics.hasF5Canvas) throw new Error('Missing F5 viewer '+c.viewport);
             if (!c.metrics.hasEngineeringStatus) throw new Error('Missing scientific status '+c.viewport);
+            if (!c.metrics.hasAcquisitionWarning) throw new Error('Missing acquisition-protocol warning '+c.viewport);
             if (c.metrics.forbidden.length) throw new Error('Forbidden interpretation '+c.viewport);
           }
           NODE

@@ -74,3 +74,14 @@ Before merge/activation:
 
 ## Activation rule
 Passing unit tests is **not** scientific validation. If the clinical reference gate is not completed, F5 may remain an experimental/engineering capability only.
+
+
+## Acquisition-protocol gate
+Before clinical activation, validation must explicitly stratify or control:
+- X-ray device / cephalostat identity;
+- acquisition protocol and projection geometry;
+- native resolution / resampling;
+- calibration provenance;
+- same-machine versus cross-machine pairs.
+
+Current product data cannot prove these conditions, so engineering preview reports `acquisition_protocol_status=UNVERIFIED`. A successful similarity transform is not evidence that acquisition protocols were clinically comparable.

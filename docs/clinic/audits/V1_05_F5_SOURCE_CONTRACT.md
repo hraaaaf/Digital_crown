@@ -49,3 +49,9 @@ Both sides require explicit engineering opt-in:
 - frontend: `VITE_F5_ENGINEERING_PREVIEW=1`.
 
 Without the frontend flag, the F5 entry point is not rendered. Without the backend flag, F5 endpoints return 404. These flags are engineering gates only and must not be interpreted as clinical approval.
+
+
+## Acquisition-protocol provenance gap
+The current `CephaloAnalysis` model does not persist X-ray device identity, acquisition protocol, resolution provenance, or an explicit cross-timepoint comparability record.
+
+F5 therefore exposes `acquisition_protocol_status=UNVERIFIED` in every engineering-preview context. This is not a cosmetic warning: the feature-matching studies used controlled same-machine acquisition conditions. The current F5 preview must not be presented as clinically validated across unknown machines/protocols until provenance is added or a separate cross-protocol validation demonstrates acceptable agreement.

@@ -33,6 +33,7 @@ class OrthoSuperimpositionContextOut(_F5StrictModel):
     to_source: OrthoSuperimpositionSourceOut
     quantitative_mm_allowed: bool
     applicability_status: Literal["ADULT_ENGINEERING_SCOPE_ONLY"]
+    acquisition_protocol_status: Literal["UNVERIFIED"]
     method_id: Literal["ACB_STRUCTURAL_FEATURE_SIMILARITY"]
     method_version: Literal["1"]
     quality_status: Literal["ENGINE_ESTIMATE_ONLY"]

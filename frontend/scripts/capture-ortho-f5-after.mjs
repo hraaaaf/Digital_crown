@@ -93,6 +93,7 @@ const f5Context = {
   to_source:{timepoint_id:11,timepoint_ordinal:1,occurred_at:'2026-09-18T10:00:00',cephalo_analysis_id:32,is_calibrated:true,mm_per_pixel:0.1},
   quantitative_mm_allowed:true,
   applicability_status:'ADULT_ENGINEERING_SCOPE_ONLY',
+  acquisition_protocol_status:'UNVERIFIED',
   method_id:'ACB_STRUCTURAL_FEATURE_SIMILARITY',
   method_version:'1',
   quality_status:'ENGINE_ESTIMATE_ONLY',
@@ -229,12 +230,13 @@ for(const viewport of viewports){
           return element ? element.scrollWidth > element.clientWidth + 1 : true;
         })(),
         hasEngineeringStatus:text.includes('engine_estimate_only')&&text.includes('validation clinique non établie'),
+        hasAcquisitionWarning:text.includes('protocole d’acquisition')&&text.includes('non vérifié'),
         forbidden:['amélior','aggrav','succès thérapeutique','echec thérapeutique','échec thérapeutique','worsen','improv'].filter(k=>text.includes(k)),
       };
     });
     const pageErrors=[...carryPageErrors,...activePageErrors];
     const consoleErrors=[...carryConsoleErrors,...activeConsoleErrors];
-    const valid=response?.status()===200&&!metrics.horizontalOverflow&&!metrics.methodMetadataOverflow&&metrics.hasCompareSurface&&metrics.hasT0&&metrics.hasT1&&metrics.hasEvidence&&metrics.hasNumericCaption&&metrics.hasDelta&&metrics.hasF5Viewer&&metrics.hasF5Canvas&&metrics.hasEngineeringStatus&&metrics.forbidden.length===0&&consoleErrors.length===0&&pageErrors.length===0;
+    const valid=response?.status()===200&&!metrics.horizontalOverflow&&!metrics.methodMetadataOverflow&&metrics.hasCompareSurface&&metrics.hasT0&&metrics.hasT1&&metrics.hasEvidence&&metrics.hasNumericCaption&&metrics.hasDelta&&metrics.hasF5Viewer&&metrics.hasF5Canvas&&metrics.hasEngineeringStatus&&metrics.hasAcquisitionWarning&&metrics.forbidden.length===0&&consoleErrors.length===0&&pageErrors.length===0;
     await page.screenshot({path:path.join(OUTPUT_DIR,`after-superimposition-${viewport.name}.png`),fullPage:false});
     captures.push({viewport:viewport.name,httpStatus:response?.status()??null,metrics,consoleErrors,pageErrors,valid});
   }catch(error){

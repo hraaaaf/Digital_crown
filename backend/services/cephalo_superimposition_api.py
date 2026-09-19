@@ -56,6 +56,7 @@ def context_from_pair(pair: ResolvedSuperimpositionPair) -> dict:
         "to_source": _public_source(pair.to_source),
         "quantitative_mm_allowed": pair.quantitative_mm_allowed,
         "applicability_status": pair.applicability_status,
+        "acquisition_protocol_status": "UNVERIFIED",
         "method_id": METHOD_ID,
         "method_version": METHOD_VERSION,
         "quality_status": QUALITY_STATUS,

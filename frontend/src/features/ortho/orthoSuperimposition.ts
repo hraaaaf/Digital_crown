@@ -22,7 +22,8 @@ export interface OrthoSuperimpositionContext {
   from_source: OrthoSuperimpositionSource;
   to_source: OrthoSuperimpositionSource;
   quantitative_mm_allowed: boolean;
-  applicability_status: string;
+  applicability_status: 'ADULT_ENGINEERING_SCOPE_ONLY';
+  acquisition_protocol_status: 'UNVERIFIED';
   method_id: string;
   method_version: string;
   quality_status: 'ENGINE_ESTIMATE_ONLY';

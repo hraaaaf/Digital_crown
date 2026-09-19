@@ -139,6 +139,7 @@ def test_f5_http_schema_cannot_claim_clinical_validation():
         },
         "quantitative_mm_allowed": False,
         "applicability_status": "ADULT_ENGINEERING_SCOPE_ONLY",
+        "acquisition_protocol_status": "UNVERIFIED",
         "method_id": "ACB_STRUCTURAL_FEATURE_SIMILARITY",
         "method_version": "1",
         "quality_status": "ENGINE_ESTIMATE_ONLY",
@@ -173,3 +174,26 @@ def test_f5_http_schema_rejects_non_finite_registration_values():
 
     with pytest.raises(ValidationError):
         OrthoSuperimpositionRegistrationOut.model_validate(payload)
+
+
+def test_f5_context_marks_acquisition_protocol_unverified(monkeypatch):
+    class Source:
+        timepoint_id = 1
+        timepoint_ordinal = 0
+        occurred_at = None
+        cephalo_analysis_id = 10
+        image_original_path = "api/static/uploads/radios/a.png"
+        is_calibrated = False
+        mm_per_pixel = None
+
+    class Pair:
+        patient_id = 1
+        ortho_case_id = 2
+        from_source = Source()
+        to_source = Source()
+        quantitative_mm_allowed = False
+        applicability_status = "ADULT_ENGINEERING_SCOPE_ONLY"
+
+    context = api_service.context_from_pair(Pair())
+    assert context["acquisition_protocol_status"] == "UNVERIFIED"
+    assert context["clinically_validated"] is False
