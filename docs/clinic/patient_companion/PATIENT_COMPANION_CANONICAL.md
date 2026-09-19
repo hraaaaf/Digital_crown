@@ -43,7 +43,7 @@ PC-00 certification is not declared complete here until its own exact-head gates
 PR: #636 (draft)
 Branch: feature/patient-companion-pc01
 Base branch: feature/patient-companion-pc00
-Current branch HEAD after latest harness correction: 81b7468fa9b3ecdd6317f3a306262a57e1379df5
+Latest PC-01 code/test HEAD before docs checkpoint: 81b7468fa9b3ecdd6317f3a306262a57e1379df5
 
 Dependency:
 PC-01 development can continue independently, but PC-01 must not merge before PC-00 is certified/merged and PC-01 is reconciled onto the final PC-00 state.
