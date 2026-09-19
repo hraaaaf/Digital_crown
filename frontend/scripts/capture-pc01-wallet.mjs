@@ -24,7 +24,7 @@ async function clearVault(page, base) {
 }
 
 async function installRoutes(page, mode = 'online') {
-  await page.route('**/api/**', async route => {
+  await page.route('**:8005/api/**', async route => {
     if (mode === 'offline') return route.abort('internetdisconnected');
     const url = new URL(route.request().url());
     if (url.pathname === '/api/patient-companion/pair' && route.request().method() === 'POST') {
@@ -122,10 +122,10 @@ async function capture(browserName, browser, phase, viewport) {
   let offline = null;
   if (phase === 'after') {
     const encrypted = await probe(page);
-    await page.unroute('**/api/**');
+    await page.unroute('**:8005/api/**');
     await installRoutes(page, 'offline');
     const requestCount = [];
-    page.on('request', request => { if (request.url().includes('/api/')) requestCount.push(request.url()); });
+    page.on('request', request => { if (request.url().includes(':8005/api/')) requestCount.push(request.url()); });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByText('Contrôle orthodontique', { exact: true }).waitFor();
     const offlineShot = `${browserName}-offline-reload-${viewport.width}x${viewport.height}.png`;
