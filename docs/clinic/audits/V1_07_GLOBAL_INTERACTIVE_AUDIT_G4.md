@@ -272,3 +272,29 @@ Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUI
   - delete refusal preserves RVG.
 
 These complement, rather than replace, the higher-level CephaloWorkspace and RVG deep matrices.
+
+
+## Browser-truth escalation — Playwright control inventory
+
+Product-owner audit standard was tightened on 2026-09-19: G4 is not considered certified merely because component tests exercise handlers or because a browser screenshot proves a surface renders. The target is now browser-level exercise of every applicable visible G4 control on the isolated patient fixture.
+
+New first-stage evidence path:
+- `frontend/scripts/inventory-v1-07-g4-browser-controls.mjs`
+- `.github/workflows/v1-07-g4-browser-inventory.yml`
+
+The inventory runs against the real isolated backend + Vite application in Chromium at 390×844 and 1280×900. It enumerates visible buttons, inputs, selects, textareas, links, switches, tabs, checkbox/radio/slider/combobox roles and focusable controls across:
+- patient overview;
+- clinical odontogram + exams;
+- all 9 structured clinical assistants;
+- media/RVG/panoramic/cephalometry;
+- all 6 Document Studio tabs;
+- document history;
+- finances.
+
+Artifact contract:
+- `inventory.json` — machine-readable per-surface controls + runtime evidence;
+- `inventory.md` — deduplicated human-readable control registry;
+- screenshots for every surface/viewport;
+- `summary.json` — surface count, unique control-signature count and runtime failures.
+
+This is deliberately **not certification**. Its output becomes the denominator for the next stage: each enabled control must be mapped to a Playwright action and an observable expected business result or refusal/non-mutation proof. P7 browser evidence remains valid surface/persistence evidence but does not replace this deeper control-by-control gate.
