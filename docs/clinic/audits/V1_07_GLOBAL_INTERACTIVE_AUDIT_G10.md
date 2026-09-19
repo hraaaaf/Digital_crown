@@ -54,13 +54,13 @@ No Vercel deployment is part of V1-07 closeout unless explicitly authorized by t
 
 
 ## Candidate PR composition
-Observed on PR #633 candidate `7f27fe52e85cf1e1b9c75aa6d7eff4b944cdd355`:
-- changed files: **93**;
-- direct product-source changes currently limited to:
-  - `frontend/src/pages/LandingPage.tsx`;
-  - `frontend/src/pages/LicenseStatusPage.tsx`;
-  - `frontend/src/pages/StockPage.tsx`;
-- other changes are audit behavioral tests, canonical docs, inventory/reconciliation scripts, visual-evidence harness/workflows, plus a waiting-room backend test;
-- no Vercel deployment configuration change is present.
+Do not pin an intermediate SHA/file count here. Recompute PR composition only after the final candidate is intentionally stabilized.
 
-This is candidate evidence only. Recompute before final closeout because the HEAD may still change.
+Expected direct runtime/product mutations currently include:
+- `frontend/src/pages/LandingPage.tsx`;
+- `frontend/src/pages/LicenseStatusPage.tsx`;
+- `frontend/src/pages/StockPage.tsx`;
+- `frontend/src/main.tsx` + `telemetryPolicy.ts` for explicit frontend telemetry opt-in;
+- `backend/main.py` for root health exception redaction.
+
+All other changes must remain explainable as audit tests, evidence harness/workflows, inventory/reconciliation tooling, canonical documentation, or explicitly inherited master synchronization. Recompute and verify this claim from the final PR diff before closeout.
