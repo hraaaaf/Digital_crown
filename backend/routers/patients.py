@@ -1034,7 +1034,7 @@ def get_patient_ortho_superimposition_context(
     from_timepoint_id: int,
     to_timepoint_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients")),
+    current_user: models.User = Depends(require_permission("cephalo")),
 ):
     assert_patient_access(patient_id, current_user, db)
     from backend.services import cephalo_superimposition_api as f5_service
@@ -1067,7 +1067,7 @@ def estimate_patient_ortho_superimposition(
     case_id: int,
     payload: schemas.OrthoSuperimpositionEstimateRequest,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients")),
+    current_user: models.User = Depends(require_permission("cephalo")),
 ):
     assert_patient_access(patient_id, current_user, db)
     from backend.services import cephalo_superimposition_api as f5_service

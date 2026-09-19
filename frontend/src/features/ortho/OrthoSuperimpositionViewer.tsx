@@ -28,8 +28,9 @@ interface Props {
 
 const resolveImageSrc = (imagePath?: string) => {
   if (!imagePath) return undefined;
-  if (/^https?:\/\//i.test(imagePath)) return imagePath;
-  return `${API_BASE.replace(/\/$/, '')}/${imagePath.replace(/^\//, '')}`;
+  const normalized = imagePath.replace(/^\/+/, '');
+  if (!normalized.startsWith('api/static/uploads/radios/')) return undefined;
+  return `${API_BASE.replace(/\/$/, '')}/${normalized}`;
 };
 
 const RoiPicker = ({

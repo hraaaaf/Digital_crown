@@ -14,7 +14,7 @@ F5 never searches the media library heuristically and never duplicates the sourc
 - two distinct ordered timepoints belong to that same case;
 - each selected timepoint has exactly one cephalometric evidence candidate;
 - evidence resolves to a CephaloAnalysis owned by the same patient;
-- original image path is present;
+- original image path is present and resolves under the canonical local `api/static/uploads/radios/` root before browser use;
 - calibrated analyses have a finite positive `mm_per_pixel`;
 - F5-MDR-001 adult applicability is satisfied at both timepoints.
 
@@ -33,3 +33,9 @@ F5-MDR-001 is adult-only for the initial validation scope. Any timepoint acquire
 
 ## Persistence
 No F5 result table is introduced. This remains a recalculable derived operation pending evidence that persistence is needed.
+
+
+## Permission and privacy boundary
+Both F5 context and estimation endpoints require the canonical `cephalo` permission, not merely general patient access.
+
+The engineering API validates both source paths before returning context to the browser. The viewer accepts only canonical local radiograph paths under `api/static/uploads/radios/`; arbitrary HTTP(S) image URLs are rejected to prevent unintended external egress.

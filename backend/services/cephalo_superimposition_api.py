@@ -79,6 +79,11 @@ def build_context(
         from_timepoint_id=from_timepoint_id,
         to_timepoint_id=to_timepoint_id,
     )
+    # Context is consumed by the browser before estimation. Validate both
+    # source paths here so a forged/legacy external URL can never trigger
+    # browser egress from the F5 viewer.
+    _canonical_local_path(pair.from_source.image_original_path)
+    _canonical_local_path(pair.to_source.image_original_path)
     return context_from_pair(pair)
 
 

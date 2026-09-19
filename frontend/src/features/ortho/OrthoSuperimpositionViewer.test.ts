@@ -31,3 +31,12 @@ describe('Ortho F5 UI safety contract', () => {
     expect(file).toContain("ctx.setTransform(m00, m10, m01, m11, m02, m12)");
   });
 });
+
+
+describe('Ortho F5 source privacy boundary', () => {
+  it('does not allow arbitrary external image URLs in the viewer', () => {
+    const file = fs.readFileSync(path.join(root, 'src/features/ortho/OrthoSuperimpositionViewer.tsx'), 'utf8');
+    expect(file).toContain("startsWith('api/static/uploads/radios/')");
+    expect(file).not.toContain("if (/^https?:\\/\\//i.test(imagePath)) return imagePath");
+  });
+});

@@ -39,3 +39,36 @@ def test_canonical_path_resolves_only_existing_media(monkeypatch, tmp_path):
 
     assert resolved == image.resolve()
     assert isinstance(resolved, Path)
+
+
+def test_context_rejects_external_or_noncanonical_source_before_browser_use(monkeypatch):
+    class Source:
+        timepoint_id = 1
+        timepoint_ordinal = 0
+        occurred_at = None
+        cephalo_analysis_id = 10
+        image_original_path = "https://example.invalid/patient.png"
+        is_calibrated = False
+        mm_per_pixel = None
+
+    class Pair:
+        patient_id = 1
+        ortho_case_id = 2
+        from_source = Source()
+        to_source = Source()
+        quantitative_mm_allowed = False
+        applicability_status = "ADULT_ENGINEERING_SCOPE_ONLY"
+
+    monkeypatch.setattr(api_service, "resolve_superimposition_pair", lambda *args, **kwargs: Pair())
+
+    with pytest.raises(SuperimpositionSourceError) as error:
+        api_service.build_context(
+            object(),
+            patient_id=1,
+            case_id=2,
+            employer_id=3,
+            from_timepoint_id=4,
+            to_timepoint_id=5,
+        )
+
+    assert error.value.code == "SOURCE_PATH_UNSUPPORTED"
