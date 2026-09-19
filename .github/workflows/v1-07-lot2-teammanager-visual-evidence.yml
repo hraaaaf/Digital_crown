@@ -1,0 +1,134 @@
+name: V1-07 LOT2 TeamManager Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/v1-07-lot2-teammanager-visual-evidence.yml"
+      - "frontend/teammanager-lot2-audit.html"
+      - "frontend/src/preview/TeamManagerLot2AuditEntry.tsx"
+      - "frontend/scripts/capture-teammanager-lot2.mjs"
+      - "frontend/src/features/admin/TeamManager.tsx"
+      - "docs/ux/V1_07_LOT2_TEAMMANAGER_GOAL_UI.md"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Record immutable identities
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install head frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Materialize true baseline with audit-only harness
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/v1-07-lot2-before "$BASE_SHA"
+          cp frontend/teammanager-lot2-audit.html /tmp/v1-07-lot2-before/frontend/teammanager-lot2-audit.html
+          mkdir -p /tmp/v1-07-lot2-before/frontend/src/preview /tmp/v1-07-lot2-before/frontend/scripts
+          cp frontend/src/preview/TeamManagerLot2AuditEntry.tsx /tmp/v1-07-lot2-before/frontend/src/preview/TeamManagerLot2AuditEntry.tsx
+          cp frontend/scripts/capture-teammanager-lot2.mjs /tmp/v1-07-lot2-before/frontend/scripts/capture-teammanager-lot2.mjs
+          cd /tmp/v1-07-lot2-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+
+      - name: Capture BEFORE
+        run: |
+          set -euo pipefail
+          cd /tmp/v1-07-lot2-before/frontend
+          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/lot2-before.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5174/teammanager-lot2-audit.html' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5174/teammanager-lot2-audit.html' >/dev/null
+          LOT2_EVIDENCE_PHASE=before LOT2_EVIDENCE_URL=http://127.0.0.1:5174/teammanager-lot2-audit.html LOT2_EVIDENCE_DIR="$GITHUB_WORKSPACE/artifacts/v1-07-lot2-before" node scripts/capture-teammanager-lot2.mjs
+
+      - name: Capture AFTER
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5175 >/tmp/lot2-after.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS 'http://127.0.0.1:5175/teammanager-lot2-audit.html' >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5175/teammanager-lot2-audit.html' >/dev/null
+          LOT2_EVIDENCE_PHASE=after LOT2_EVIDENCE_URL=http://127.0.0.1:5175/teammanager-lot2-audit.html LOT2_EVIDENCE_DIR=../artifacts/v1-07-lot2-after node scripts/capture-teammanager-lot2.mjs
+
+      - name: Assert matched BEFORE/AFTER and target deltas
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          before=json.loads(Path("artifacts/v1-07-lot2-before/evidence.json").read_text())
+          after=json.loads(Path("artifacts/v1-07-lot2-after/evidence.json").read_text())
+          key=lambda x:(x["scenario"],x["viewport"]["width"],x["viewport"]["height"])
+          b={key(x):x for x in before}
+          a={key(x):x for x in after}
+          assert set(b)==set(a)
+          assert len(a)==6
+          for k,x in b.items():
+              y=a[k]
+              if x["scenario"]=="gold-partial":
+                  assert x["hasGenericQuota"] is True
+                  assert y["hasGenericQuota"] is False
+                  assert y["hasSpecificGoldQuota"] is True
+              elif x["scenario"]=="load-error":
+                  assert x["hasFalseEmpty"] is True
+                  assert x["hasLoadError"] is False
+                  assert y["hasFalseEmpty"] is False
+                  assert y["hasLoadError"] is True
+              elif x["scenario"]=="rejected":
+                  assert x["hasReactivate"] is True
+                  assert y["hasReactivate"] is False
+                  assert y["hasRejectedBadge"] is True
+          print("matched_before_after=6 target_deltas=PASS")
+          PY
+
+      - name: Record proof metadata
+        run: |
+          printf 'base=%s\nhead=%s\nphase=before\nviewports=1024x900,1440x1000\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-lot2-before/result.txt
+          printf 'base=%s\nhead=%s\nphase=after\nviewports=1024x900,1440x1000\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/v1-07-lot2-after/result.txt
+          cp /tmp/lot2-before.log artifacts/v1-07-lot2-before/vite.log
+          cp /tmp/lot2-after.log artifacts/v1-07-lot2-after/vite.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-lot2-teammanager-before
+          path: artifacts/v1-07-lot2-before
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v1-07-lot2-teammanager-after
+          path: artifacts/v1-07-lot2-after
+          if-no-files-found: error
+          retention-days: 30
