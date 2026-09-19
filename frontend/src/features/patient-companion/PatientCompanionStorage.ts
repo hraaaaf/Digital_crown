@@ -18,6 +18,7 @@ export type PatientPairing = {
   accessToken: string;
   context: PatientCompanionContext;
   pairedAt: string;
+  expiresAt: string;
 };
 
 export type PatientCompanionVaultState = {
@@ -139,6 +140,26 @@ async function decryptState(envelope: VaultEnvelope): Promise<PatientCompanionVa
   return state;
 }
 
+function decodeJwtExpiry(rawToken: string): string {
+  try {
+    const [, payload] = rawToken.split('.');
+    if (!payload) throw new Error('payload missing');
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    const decoded = JSON.parse(atob(normalized)) as { exp?: number };
+    if (!decoded.exp || !Number.isFinite(decoded.exp)) throw new Error('exp missing');
+    return new Date(decoded.exp * 1000).toISOString();
+  } catch {
+    throw new Error('Session Patient Companion invalide.');
+  }
+}
+
+function normalizePairing(pairing: PatientPairing): PatientPairing {
+  return {
+    ...pairing,
+    expiresAt: pairing.expiresAt || decodeJwtExpiry(pairing.accessToken),
+  };
+}
+
 const emptyState = (): PatientCompanionVaultState => ({
   version: 1,
   activeAccessId: null,
@@ -154,13 +175,14 @@ export const PatientCompanionStorage = {
 
   async savePairing(pairing: PatientPairing): Promise<PatientCompanionVaultState> {
     const current = await this.load();
+    const normalized = normalizePairing(pairing);
     const pairings = [
-      ...current.pairings.filter(item => item.context.access_id !== pairing.context.access_id),
-      pairing,
+      ...current.pairings.filter(item => item.context.access_id !== normalized.context.access_id),
+      normalized,
     ];
     const next: PatientCompanionVaultState = {
       ...current,
-      activeAccessId: pairing.context.access_id,
+      activeAccessId: normalized.context.access_id,
       pairings,
     };
     await writeValue(STATE_ID, await encryptState(next));
