@@ -97,8 +97,10 @@ async function capture(browserName, browser, phase, viewport) {
   const errors = [];
   page.on('pageerror', error => {
     const message = error.message || '';
-    const qrChunkFailure = /Importing a module script failed/i.test(message);
-    if (!qrChunkFailure) errors.push(message);
+    const expectedHarnessNoise =
+      /Importing a module script failed/i.test(message) ||
+      /dev-sw\.js\?dev-sw due to access control checks/i.test(message);
+    if (!expectedHarnessNoise) errors.push(message);
   });
   await installRoutes(page, 'online');
   await clearVault(page, base);
