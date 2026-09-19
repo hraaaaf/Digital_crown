@@ -298,3 +298,25 @@ Artifact contract:
 - `summary.json` — surface count, unique control-signature count and runtime failures.
 
 This is deliberately **not certification**. Its output becomes the denominator for the next stage: each enabled control must be mapped to a Playwright action and an observable expected business result or refusal/non-mutation proof. P7 browser evidence remains valid surface/persistence evidence but does not replace this deeper control-by-control gate.
+
+
+## Exact browser denominator — run #35468756588
+
+Verified exact-head Chromium inventory on `e46bb2587acbb8435bee364d63e1d6b4c4b2d3a5`:
+- 24 G4/patient surfaces × 2 viewports = 48 surface runs;
+- 1,255 surface/control signatures;
+- 220 semantic controls after exact attribute-level deduplication;
+- 31 shared patient-shell controls;
+- 189 non-shared G4 controls;
+- 210 enabled / 10 disabled in the captured fixture state;
+- 0 runtime failures.
+
+This is a browser-observed denominator, not final certification. Dynamic controls revealed only after prior clicks/modals must be added during the action pass.
+
+### First action-pass defect — Ordonnance manual form
+The deep inventory exposed a misleading enabled control:
+- `DrugRowV1.tsx` exposes an enabled trigger titled `Choisir la forme manuellement`;
+- pre-fix `PrescriptionAgenticStudioV1.tsx` wired it to a no-op callback;
+- this violates the G4 rule that a visible enabled control must produce its promised result.
+
+Remediation is in progress under `docs/ux/V1_07_G4_ORDONNANCE_FORME_GOAL_UI.md`, reusing the existing canonical `FORMES` list and legacy chooser interaction as the reference. G4 remains NOT CERTIFIED until direct browser action proof passes on the corrected candidate.
