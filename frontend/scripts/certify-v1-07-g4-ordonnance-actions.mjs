@@ -106,13 +106,18 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await names.nth(0).fill('FIRST G4');
   await names.nth(1).fill('SECOND G4');
   const moveUp = page.getByRole('button', { name: 'Monter le médicament' });
-  await moveUp.nth(1).click();
-  names = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...');
-  if ((await names.first().inputValue()) !== 'SECOND G4') throw new Error('Move up failed');
   const moveDown = page.getByRole('button', { name: 'Descendre le médicament' });
-  await moveDown.first().click();
-  names = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...');
-  if ((await names.nth(1).inputValue()) !== 'SECOND G4') throw new Error('Move down failed');
+  if (viewport.width >= 1024) {
+    if (await moveUp.count() !== 2 || await moveDown.count() !== 2) throw new Error('Desktop reorder controls missing');
+    await moveUp.nth(1).click();
+    names = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...');
+    if ((await names.first().inputValue()) !== 'SECOND G4') throw new Error('Move up failed');
+    await moveDown.first().click();
+    names = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...');
+    if ((await names.nth(1).inputValue()) !== 'SECOND G4') throw new Error('Move down failed');
+  } else {
+    if (await moveUp.count() !== 0 || await moveDown.count() !== 0) throw new Error('Mobile unexpectedly exposes desktop-only reorder controls');
+  }
   await page.getByRole('button', { name: 'Supprimer le médicament' }).nth(1).click();
   if (await page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...').count() !== 1) throw new Error('Remove row failed');
   actions.push('add-reorder-remove');

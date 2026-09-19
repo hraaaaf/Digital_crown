@@ -149,6 +149,27 @@ jobs:
           set -o pipefail
           node scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-honoraires-actions-runner.log
 
+      - name: Certify G4 remaining document actions
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-remaining-documents.mjs 2>&1 | tee ../artifacts/t2-browser/g4-remaining-documents-runner.log
+
+      - name: Certify G4 Devis and History actions
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-devis-history.mjs 2>&1 | tee ../artifacts/t2-browser/g4-devis-history-runner.log
+
+      - name: Inventory G4 dynamic controls
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/inventory-v1-07-g4-dynamic-controls.mjs 2>&1 | tee ../artifacts/t2-browser/g4-dynamic-inventory-runner.log
+
       - name: Dump runtime logs on failure
         if: failure()
         run: |

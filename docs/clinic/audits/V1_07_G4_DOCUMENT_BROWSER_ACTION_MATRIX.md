@@ -136,3 +136,34 @@ Ordonnance probe exercises type toggle, add/reorder/remove, repaired manual-form
 Honoraires probe exercises odontogram open/adult-pediatric, all adult quick groups, representative grouped/custom acts, targeted tooth treatment with price+notes, general-care actions, manual line order/delete, treasury status/payment/global-plan controls, and directly proves whether the current `Confirmer l'Encaissement` action performs a persistence request.
 
 No status is promoted to PASS until the exact-head T2 artifact succeeds.
+
+
+## Deep action candidate — consolidated coverage expansion
+
+Latest direct diagnosis from T2 run `#35472380685`:
+- all pre-existing T2 runtime/browser/PDF gates were green;
+- the new Ordonnance probe failed only because it attempted desktop-only reorder buttons at 390 px;
+- exact failure: timeout on `Monter le médicament` at the mobile viewport;
+- source contract confirms those controls are rendered inside `hidden lg:flex`.
+
+Harness correction:
+- at <1024 px, the probe now asserts that desktop-only reorder controls are absent;
+- at >=1024 px, it requires both reorder controls, clicks Monter then Descendre, and verifies row order;
+- this is a probe correction, not a product behavior waiver.
+
+The next consolidated T2 candidate also includes:
+- `certify-v1-07-g4-remaining-documents.mjs` — Certificate, Suivi Paiement, Libre residual;
+- `certify-v1-07-g4-devis-history.mjs` — Devis output + real History actions;
+- `inventory-v1-07-g4-dynamic-controls.mjs` — automatic denominator expansion for controls mounted only after user actions.
+
+Exact initial Documents denominator reconciliation remains:
+- 18 already proven by earlier browser evidence;
+- 51 exercised by Ordonnance/Honoraires action probes;
+- 26 exercised by remaining-document/Devis/History probes;
+- 0 initial semantic controls unmapped.
+
+Two product-truth targets are prepared but **not yet implemented**:
+- Honoraires `Confirmer l'Encaissement` source currently closes the configuration modal without persistence → target label `Appliquer à la note` only after direct browser non-mutation proof;
+- Suivi Paiement footer `Enregistrer` source routes to `/installments/generate-preview`, while `Enregistrer le plan` is the real persistence action → target label `Générer PDF` only after direct browser proof.
+
+G4 Documents remains NOT CERTIFIED until the consolidated exact-head T2 action pass and dynamic denominator are green, and any truth-label defects are remediated and re-proved.
