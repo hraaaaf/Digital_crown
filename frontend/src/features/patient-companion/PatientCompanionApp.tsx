@@ -16,12 +16,14 @@ const emptyVault: PatientCompanionVaultState = {
   cache: {},
 };
 
-const relationshipLabel = (value: string) => ({
+const RELATIONSHIP_LABELS: Record<string, string> = {
   SELF: 'Patient',
   PARENT: 'Parent',
   GUARDIAN: 'Tuteur',
   CAREGIVER: 'Aidant',
-}[value] || value);
+};
+
+const relationshipLabel = (value: string) => RELATIONSHIP_LABELS[value] || value;
 
 export const PatientCompanionApp = () => {
   const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
@@ -45,6 +47,7 @@ export const PatientCompanionApp = () => {
         setSelectingContext(state.pairings.length > 1);
         const urlToken = new URLSearchParams(window.location.search).get('token')?.trim();
         if (urlToken) {
+          window.history.replaceState({}, '', '/companion');
           setPhase('pairing');
           void pairDevice(urlToken, false);
           return;
