@@ -144,9 +144,9 @@ lines = [
     "|---|---|---|",
 ]
 for r in route_rows:
-    lines.append(f"| \`{r['path']}\` | {r['lot']} | \`{r['file']}:{r['line']}\` |")
+    lines.append(f"| `{r['path']}` | {r['lot']} | `{r['file']}:{r['line']}` |")
 if bootstrap_surfaces:
-    lines += ["", "## Bootstrap-only surfaces", ""] + [f"- \`{s}\`" for s in bootstrap_surfaces]
+    lines += ["", "## Bootstrap-only surfaces", ""] + [f"- `{s}`" for s in bootstrap_surfaces]
 lines += ["", "## Static signal counts", ""]
 for key, value in sorted(category_counts.items()):
     lines.append(f"- {key}: **{value}**")
