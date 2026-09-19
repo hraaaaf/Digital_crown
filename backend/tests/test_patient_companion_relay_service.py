@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -10,8 +12,9 @@ BOOTSTRAP = "b" * 32
 
 
 def _client(tmp_path):
+    db_path = tmp_path / "relay.db"
     app = create_relay_app(
-        database_url=f"sqlite:///{tmp_path / 'relay.db'}",
+        database_url=f"sqlite:///{db_path}",
         bootstrap_secret=BOOTSTRAP,
         allowed_origins=("https://digitalcrown.local:8005",),
         create_schema=True,
@@ -165,3 +168,41 @@ def test_relay_responses_are_no_store_and_cors_is_origin_allowlisted(tmp_path):
         },
     )
     assert denied.headers.get("access-control-allow-origin") is None
+
+
+def test_relay_database_stores_only_capability_hashes(tmp_path):
+    client = _client(tmp_path)
+    box = _mailbox(client)
+
+    db_path = tmp_path / "relay.db"
+    with sqlite3.connect(db_path) as db:
+        row = db.execute(
+            "SELECT read_capability_hash, write_capability_hash FROM relay_mailboxes WHERE id = ?",
+            (box["mailbox_id"],),
+        ).fetchone()
+
+    assert row is not None
+    assert len(row[0]) == 64 and len(row[1]) == 64
+    assert box["read_capability"] not in row
+    assert box["write_capability"] not in row
+
+
+def test_expired_envelope_is_not_returned(tmp_path):
+    client = _client(tmp_path)
+    box = _mailbox(client)
+    envelope_id = str(uuid.uuid4())
+    base = f"/v1/mailboxes/{box['mailbox_id']}/envelopes"
+    body = {"envelope_id": envelope_id, "blob": "opaque.jwe.value", "ttl_seconds": 60}
+    assert client.post(base, json=body, headers=_auth(box["write_capability"])).status_code == 201
+
+    expired = (datetime.utcnow() - timedelta(seconds=1)).isoformat(sep=" ")
+    with sqlite3.connect(tmp_path / "relay.db") as db:
+        db.execute(
+            "UPDATE relay_envelopes SET expires_at = ? WHERE envelope_id = ?",
+            (expired, envelope_id),
+        )
+        db.commit()
+
+    pulled = client.get(base, headers=_auth(box["read_capability"]))
+    assert pulled.status_code == 200
+    assert pulled.json()["items"] == []
