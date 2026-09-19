@@ -60,7 +60,7 @@ describe('MainLayout G1 shell matrix', () => {
     expect(screen.getByText('Sidebar closed')).toBeTruthy();
   });
 
-  it('opens and closes floating CrownBot without leaving current page', () => {
+  it('opens and closes floating CrownBot without leaving current page', async () => {
     renderAt('/dashboard');
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
