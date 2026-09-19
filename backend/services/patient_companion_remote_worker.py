@@ -164,7 +164,11 @@ def process_remote_envelope(
                 response={"code": "UNSUPPORTED_OPERATION"},
             )
         else:
-            result = handler(db, access, message.payload)
+            try:
+                result = handler(db, access, message.payload)
+            except Exception:
+                db.rollback()
+                raise
             if result.status not in {"ACCEPTED", "REJECTED"}:
                 db.rollback()
                 raise RemoteTransportRejected("domain handler returned invalid status")
@@ -180,7 +184,11 @@ def process_remote_envelope(
             response=result.response,
         )
         # The claim, domain mutation and receipt completion are one transaction.
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
     return sign_and_encrypt(
         ack.model_dump(mode="json"),
