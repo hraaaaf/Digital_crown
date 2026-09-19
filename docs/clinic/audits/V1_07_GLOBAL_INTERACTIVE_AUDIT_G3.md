@@ -73,3 +73,64 @@ Do not certify until:
 2. exact-head frontend test suite passes;
 3. exact-head frontend build passes;
 4. evidence is recorded here and in Notion.
+
+
+## Behavioral proof added
+
+1. `frontend/src/features/agenda/AgendaStudio.g3Interactive.test.tsx`
+   - day/week/month/multi switching;
+   - multi-practitioner fetch;
+   - Frontdesk and Google import modal open/close;
+   - pending request section/filter;
+   - holiday blocking after backend ACK;
+   - patient-prefill appointment modal.
+
+2. `frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx`
+   - create/update/delete appointment mutations;
+   - scheduling type and status payload;
+   - backend refusal without false success;
+   - explicit delete confirmation.
+
+3. `frontend/src/features/agenda/FrontdeskModal.g3Interactive.test.tsx`
+   - exact pending-request payload;
+   - backend refusal;
+   - cancel non-mutation.
+
+4. `frontend/src/features/agenda/PendingRequestCard.g3Interactive.test.tsx`
+   - request-confirmation / confirm / reject after ACK;
+   - reject cancel;
+   - refusal preserves pending state.
+
+5. `frontend/src/features/mobile/Dashboard/views/FrontdeskView.g3Interactive.test.tsx`
+   - load/refresh;
+   - confirm/reject/request-confirmation;
+   - explicit reject dialog;
+   - backend refusal preservation.
+
+6. `frontend/src/features/mobile/Dashboard/views/NotificationsView.g3Interactive.test.tsx`
+   - load/refresh/filter;
+   - finance/patient navigation;
+   - read/snooze after ACK;
+   - mutation refusal preservation;
+   - load error vs truthful empty.
+
+7. `frontend/src/features/agenda/GoogleImportModal.g3Interactive.test.tsx`
+   - ICS parse;
+   - selection controls;
+   - exact bulk payload;
+   - invalid file;
+   - backend refusal;
+   - cancel/change-file non-mutation.
+
+8. `backend/tests/test_mobile_waiting_room.py` extended
+   - EN_ATTENTE ↔ EN_SALLE_ATTENTE;
+   - EN_COURS ↔ EN_FAUTEUIL.
+
+9. `frontend/src/features/mobile/Dashboard/views/AgendaView.g3Interactive.test.tsx`
+   - day/week/month controls;
+   - date selection;
+   - add appointment modal;
+   - delegated status/WhatsApp/delete/signature actions;
+   - loading/error/true-empty states.
+
+Status remains IN PROGRESS pending exact-head test/build proof and any remaining AgendaModal secondary-control reconciliation.
