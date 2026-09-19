@@ -1121,7 +1121,7 @@ sources:
     accessed_at: "2026-09-19"
     source_type: original-publication
     jurisdiction: "China"
-    population: {description: "28 longitudinal pre/post-treatment lateral-cephalogram pairs", age_range: "source-defined", sex: "source-defined", geography: "China"}
+    population: {description: "28 longitudinal pre/post-treatment lateral-cephalogram pairs", age_range: "T1 12-27 years; T2 14-29 years", sex: "21 female / 7 male", geography: "China"}
     url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7083061/"
     doi_or_identifier: "10.1186/s12880-020-00432-z"
     license: "not_verified"
@@ -1131,7 +1131,7 @@ sources:
       - "Feature matching can be used for automated structural cephalometric superimposition on stable regions."
       - "The study compared automated feature matching with independent traditional hand superimpositions."
     limitations:
-      - "Small sample and controlled acquisition context."
+      - "Small sample; all paired cephalograms were acquired on the same X-ray machine."
       - "Does not establish universal individual-case or cross-machine accuracy."
     contradictions: []
     implementation_targets: ["V1-05-F5-feature-matching-candidate"]
@@ -1169,6 +1169,65 @@ sources:
     reviewed_by: "f5-scientific-research"
     reviewed_at: "2026-09-19"
     approval_evidence: "none; candidate research record only"
+
+  - source_id: danz-dic-superimposition-2024
+    domain: cephalometry
+    title: "Precision and accuracy of craniofacial growth and orthodontic treatment evaluation by digital image correlation: a prospective cohort study"
+    organization: "Frontiers in Oral Health"
+    authors: ["Jan Christian Danz", "Simone Stöckli", "Christian Per Rank", "et al."]
+    publication_date: "2024-07-26"
+    version: "5"
+    accessed_at: "2026-09-19"
+    source_type: original-publication
+    jurisdiction: "International"
+    population: {description: "30 consecutive longitudinal cephalometric patients", age_range: "source-defined", sex: "source-defined", geography: "source-defined"}
+    url: "https://doi.org/10.3389/froh.2024.1419481"
+    doi_or_identifier: "10.3389/froh.2024.1419481"
+    license: "open-access"
+    evidence_level: B
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Method choice inside structural superimposition materially affects precision and bias."
+      - "In this prospective cohort, Walker's point plus lamina cribrosa (WPLC) gave the best precision among the compared DIC regions."
+    limitations:
+      - "Thirty-patient cohort; does not validate Digital Crown's SIFT implementation or cross-machine acquisition."
+      - "Scite full text was not indexed in this session; conclusions were checked from the abstract."
+    contradictions:
+      - "Systematic bias was observed between WPLC and whole-cranial-base methods for image rotation and most landmarks, arguing against treating all structural ROIs as interchangeable."
+    implementation_targets: ["V1-05-F5-validation-strategy", "V1-05-F5-stable-region-contract"]
+    status: candidate
+    reviewed_by: "scite-evidence-audit"
+    reviewed_at: "2026-09-19"
+    approval_evidence: "none; external evidence audit only"
+
+  - source_id: vasileiou-2d-structural-superimposition-2026
+    domain: cephalometry
+    title: "Validity of digital manual and automated 2D structural superimposition on the anterior cranial base"
+    organization: "European Journal of Orthodontics / Oxford University Press"
+    authors: ["Dimitrios Vasileiou", "Konstantina Tsironi", "Dimitrios Konstantonis", "et al."]
+    publication_date: "2026-04-03"
+    version: "48(3)"
+    accessed_at: "2026-09-19"
+    source_type: original-publication
+    jurisdiction: "International"
+    population: {description: "2D cephalometric anterior-cranial-base structural superimposition study", age_range: "not_verified", sex: "not_verified", geography: "not_verified"}
+    url: "https://doi.org/10.1093/ejo/cjag008"
+    doi_or_identifier: "10.1093/ejo/cjag008"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: partial
+    claims_supported:
+      - "A 2026 study directly evaluates validity of digital manual and automated Bjork-style 2D anterior-cranial-base structural superimposition."
+      - "This is highly relevant validation evidence that must be incorporated before any clinical activation decision."
+    limitations:
+      - "Scite did not expose readable full text in this session; only bibliographic metadata and the study objective were retrievable."
+      - "The paper currently has very low forward-citation coverage, so citation topology is not mature."
+    contradictions: []
+    implementation_targets: ["V1-05-F5-validation-strategy", "V1-05-F5-independent-review"]
+    status: needs_review
+    reviewed_by: "scite-evidence-audit"
+    reviewed_at: "2026-09-19"
+    approval_evidence: "none; full-text expert review still required"
 
   - source_id: opencv-bfmatcher-4-13
     domain: testing-and-safety

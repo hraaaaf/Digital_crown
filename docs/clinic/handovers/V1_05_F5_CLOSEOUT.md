@@ -184,3 +184,14 @@ Required proof before final close:
 5. perform named human clinical validation before any clinical activation
 
 No F6 handover is declared here because no canonical F6 file or scope exists in the repository at this merge point.
+
+
+## Scite external evidence audit
+
+Completed 2026-09-19 after merge:
+- audit: `docs/clinic/audits/V1_05_F5_SCITE_EVIDENCE_AUDIT.md`
+- result: conditional support for engineering preview
+- no rollback signal found
+- new validation-relevant sources: Danz 2024 and Vasileiou 2026
+- clinical activation remains blocked
+- this external evidence audit does not substitute for a named independent reviewer
