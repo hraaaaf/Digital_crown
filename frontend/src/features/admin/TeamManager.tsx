@@ -343,7 +343,7 @@ export const TeamManager: React.FC = () => {
         <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 animate-in fade-in duration-300">
           <AlertTriangle size={20} />
           <span className="font-bold text-sm">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto"><X size={16} /></button>
+          <button onClick={() => setError(null)} aria-label="Fermer l'erreur" className="ml-auto"><X size={16} /></button>
         </div>
       )}
 
@@ -721,6 +721,7 @@ export const TeamManager: React.FC = () => {
           <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 space-y-6">
             <button
               onClick={() => setEditingPermissionsMember(null)}
+              aria-label="Fermer les permissions"
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-xl transition-all"
             >
               <X size={20} />
