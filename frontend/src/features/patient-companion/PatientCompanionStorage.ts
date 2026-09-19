@@ -21,11 +21,38 @@ export type PatientPairing = {
   expiresAt?: string;
 };
 
+export type PatientAppointment = {
+  datetime_start: string;
+  duration_minutes?: number | null;
+  motif: string;
+  status: string;
+  scheduling_type?: string | null;
+};
+
+export type PatientShare = {
+  share_id: string;
+  resource_type: 'document' | 'media';
+  title?: string | null;
+  document_type?: string | null;
+  asset_type?: string | null;
+  mime_type?: string | null;
+  captured_at?: string | null;
+  created_at?: string | null;
+};
+
+export type PatientWalletSnapshot = {
+  version: 1;
+  accessId: string;
+  syncedAt: string;
+  appointments: PatientAppointment[];
+  shares: PatientShare[];
+};
+
 export type PatientCompanionVaultState = {
   version: 1;
   activeAccessId: string | null;
   pairings: PatientPairing[];
-  cache: Record<string, unknown>;
+  cache: Record<string, PatientWalletSnapshot>;
 };
 
 type VaultEnvelope = {
@@ -160,6 +187,21 @@ function normalizePairing(pairing: PatientPairing): PatientPairing {
   };
 }
 
+function migrateState(state: PatientCompanionVaultState): PatientCompanionVaultState {
+  return {
+    ...state,
+    pairings: state.pairings.map(pairing => {
+      if (pairing.expiresAt) return pairing;
+      try {
+        return normalizePairing(pairing);
+      } catch {
+        return pairing;
+      }
+    }),
+    cache: state.cache || {},
+  };
+}
+
 const emptyState = (): PatientCompanionVaultState => ({
   version: 1,
   activeAccessId: null,
@@ -170,7 +212,7 @@ const emptyState = (): PatientCompanionVaultState => ({
 export const PatientCompanionStorage = {
   async load(): Promise<PatientCompanionVaultState> {
     const envelope = await readValue<VaultEnvelope>(STATE_ID);
-    return envelope ? decryptState(envelope) : emptyState();
+    return envelope ? migrateState(await decryptState(envelope)) : emptyState();
   },
 
   async savePairing(pairing: PatientPairing): Promise<PatientCompanionVaultState> {
@@ -196,6 +238,19 @@ export const PatientCompanionStorage = {
       throw new Error('Contexte Patient Companion inconnu.');
     }
     const next = { ...current, activeAccessId: accessId };
+    await writeValue(STATE_ID, await encryptState(next));
+    return next;
+  },
+
+  async saveWallet(snapshot: PatientWalletSnapshot): Promise<PatientCompanionVaultState> {
+    const current = await this.load();
+    if (!current.pairings.some(item => item.context.access_id === snapshot.accessId)) {
+      throw new Error('Contexte Patient Companion inconnu.');
+    }
+    const next: PatientCompanionVaultState = {
+      ...current,
+      cache: { ...current.cache, [snapshot.accessId]: snapshot },
+    };
     await writeValue(STATE_ID, await encryptState(next));
     return next;
   },

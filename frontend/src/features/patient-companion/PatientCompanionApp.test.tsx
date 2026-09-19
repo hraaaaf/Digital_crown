@@ -6,6 +6,7 @@ const storageMocks = vi.hoisted(() => ({
   savePairing: vi.fn(),
   setActive: vi.fn(),
   clear: vi.fn(),
+  saveWallet: vi.fn(),
 }));
 
 vi.mock('./PatientCompanionStorage', () => ({
@@ -29,6 +30,7 @@ beforeEach(() => {
   storageMocks.savePairing.mockReset();
   storageMocks.setActive.mockReset();
   storageMocks.clear.mockReset();
+  storageMocks.saveWallet.mockReset();
   storageMocks.load.mockResolvedValue(emptyState);
   vi.stubGlobal('fetch', vi.fn());
   window.history.replaceState({}, '', '/companion');
@@ -152,6 +154,32 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     expect(await screen.findByText('Aya DeepLink')).toBeInTheDocument();
     expect(window.location.search).toBe('');
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the last encrypted wallet snapshot offline without contacting the cabinet', async () => {
+    const context = { access_id: 'wallet-access', relationship_type: 'SELF', patient: { display_name: 'Aya Wallet' } };
+    storageMocks.load.mockResolvedValue({
+      version: 1,
+      activeAccessId: 'wallet-access',
+      pairings: [{ accessToken: 'offline-token', context, pairedAt: '2026-09-19T18:00:00Z', expiresAt: '2026-10-19T18:00:00Z' }],
+      cache: {
+        'wallet-access': {
+          version: 1,
+          accessId: 'wallet-access',
+          syncedAt: '2026-09-19T18:30:00Z',
+          appointments: [{ datetime_start: '2026-09-21T09:00:00Z', motif: 'Contrôle', status: 'CONFIRME' }],
+          shares: [{ share_id: 's1', resource_type: 'document', title: 'Ordonnance', document_type: 'ORDONNANCE' }],
+        },
+      },
+    });
+
+    render(<PatientCompanionApp />);
+
+    expect(await screen.findByText('Aya Wallet')).toBeInTheDocument();
+    expect(screen.getByText('Contrôle')).toBeInTheDocument();
+    expect(screen.getByText('Ordonnance')).toBeInTheDocument();
+    expect(screen.getByText(/Dernière synchronisation/)).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
 });

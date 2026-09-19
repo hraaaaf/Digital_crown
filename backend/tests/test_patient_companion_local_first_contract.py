@@ -30,3 +30,10 @@ def test_patient_device_token_is_scoped_to_active_access_and_tenant():
     assert '"tenant_id": access.employer_id' in source
     assert 'PatientCompanionAccess.revoked_at.is_(None)' in source
     assert 'PatientCompanionIdentity.provider == LOCAL_BRIDGE_PROVIDER' in source
+
+
+def test_patient_wallet_does_not_expose_internal_numeric_ids():
+    activation = (ROOT / "routers" / "patient_companion_activation.py").read_text(encoding="utf-8")
+    shares = (ROOT / "routers" / "patient_companion_shares.py").read_text(encoding="utf-8")
+    assert '"id": row.id' not in activation
+    assert '"resource_id": resource.id' not in shares
