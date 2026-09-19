@@ -166,3 +166,21 @@ At every significant work passage:
 2. update this canonical file with only verified state;
 3. update the Digital Crown Notion page;
 4. update PC_01_HANDOVER.md with Goal, verified state, done/in-progress/remaining, decisions, exact refs, blocker, Next exact and remaining sequence.
+
+
+## PC-00 certification checkpoint — 2026-09-19
+
+PC-00 product/test candidate `3cfceca5601c7562cb30992ee571d8b736f12ffc` is certified by:
+- visual `35471266296` SUCCESS;
+- CI `35471266310` SUCCESS;
+- T2/P7/UX1-C/Button Matrix SUCCESS;
+- artifact `10592874065`, digest `sha256:e4f0ff1e392e8a598011ff19afcd8075e1943a28aaf14dedc91f8d6be918da19`;
+- 16 Chromium/WebKit BEFORE/AFTER captures manually inspected;
+- encrypted vault probes passed;
+- visual scope score 8.7/10.
+
+PC-00 documentation closeout was then committed on its branch; latest PC-00 docs HEAD is `c6a84743aee65a6e68437b254d75c6919567080d`. Its docs-only exact-head workflows are currently running and must be green before merge.
+
+PC-01 exact-head `a463ee89fc04bc6172a33626f7dd580068be5576` already has Visual `35470229496`, CI, T2, P7 and Agenda SUCCESS, but it must be reconciled onto the merged PC-00 base before final certification/merge.
+
+No Vercel deployment.
