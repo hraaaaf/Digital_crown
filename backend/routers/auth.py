@@ -443,8 +443,10 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
 async def signup_client(
     req: schemas.UserSignup,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(get_db)
 ):
+    check_rate_limit(request, scope="signup")
     from backend.security import get_password_hash
     if not req.accept_terms or not req.accept_privacy:
         raise HTTPException(
@@ -647,6 +649,12 @@ async def google_callback(
         return redirect
 
     if not user.is_active:
+        redirect = RedirectResponse(url=f"{frontend_url}/login?error=account_inactive")
+        _google_clear_state_cookie(redirect)
+        return redirect
+
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
         redirect = RedirectResponse(url=f"{frontend_url}/login?error=account_inactive")
         _google_clear_state_cookie(redirect)
         return redirect
