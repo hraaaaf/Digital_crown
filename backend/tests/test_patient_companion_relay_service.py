@@ -13,6 +13,8 @@ def _client(tmp_path):
     app = create_relay_app(
         database_url=f"sqlite:///{tmp_path / 'relay.db'}",
         bootstrap_secret=BOOTSTRAP,
+        allowed_origins=("https://digitalcrown.local:8005",),
+        create_schema=True,
     )
     return TestClient(app)
 
@@ -136,3 +138,30 @@ def test_relay_package_has_no_cabinet_backend_imports():
     assert "import backend" not in source
     assert "models_patient" not in source
     assert "get_db" not in source
+
+
+def test_relay_responses_are_no_store_and_cors_is_origin_allowlisted(tmp_path):
+    client = _client(tmp_path)
+    box_response = client.post("/v1/mailboxes", headers={"X-Relay-Bootstrap": BOOTSTRAP})
+    assert box_response.headers["cache-control"] == "no-store"
+    box = box_response.json()
+
+    preflight = client.options(
+        f"/v1/mailboxes/{box['mailbox_id']}/envelopes",
+        headers={
+            "Origin": "https://digitalcrown.local:8005",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == "https://digitalcrown.local:8005"
+
+    denied = client.options(
+        f"/v1/mailboxes/{box['mailbox_id']}/envelopes",
+        headers={
+            "Origin": "https://evil.example",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert denied.headers.get("access-control-allow-origin") is None
