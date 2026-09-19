@@ -141,7 +141,7 @@ The three Stock blockers were remediated in code:
 3. add/edit/quantity/delete refusal is surfaced visibly without false success.
 
 Behavioral proof:
-- `frontend/src/pages/StockPage.g7Interactive.test.tsx`
+- `frontend/src/pages/StockPage.g7Interactive.test.tsx` — read-error/Retry, delete confirm/cancel/refusal, quantity refusal, add refusal and edit refusal with state preserved.
 
 UI target/reference:
 - `docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md`
