@@ -14,8 +14,8 @@ beforeEach(() => {
 describe('PatientCompanionSync PC-01', () => {
   it('fetches only the active opaque context and persists one encrypted wallet snapshot', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [{ id: 7, datetime_start: '2026-09-20T09:00:00', motif: 'Contrôle', status: 'CONFIRME' }] }) } as Response)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [{ share_id: 'share-1', resource_type: 'document', resource_id: 8, title: 'Ordonnance' }] }) } as Response);
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [{ datetime_start: '2026-09-20T09:00:00', motif: 'Contrôle', status: 'CONFIRME' }] }) } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [{ share_id: 'share-1', resource_type: 'document', title: 'Ordonnance' }] }) } as Response);
     storage.saveWallet.mockResolvedValue({});
 
     const result = await PatientCompanionSync.sync({
