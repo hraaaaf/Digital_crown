@@ -36,3 +36,35 @@ Do not certify G6 until:
 2. licence-status actions and the hardcoded pack wording are resolved/proved;
 3. exact-head frontend tests + build pass;
 4. Notion and this canonical file contain final evidence.
+
+
+## Behavioral proof
+
+1. `frontend/src/features/superadmin/SuperAdminDashboard.packButtons.test.tsx`
+   - current-code proof for GOLD/PREMIUM/ELITE plan changes;
+   - exact 409 downgrade reason;
+   - archived/suspended mutation locks;
+   - licence extension actions;
+   - internal notes;
+   - licence history;
+   - WhatsApp renewal transport truth;
+   - suspend/archive confirmations.
+
+2. `frontend/src/features/superadmin/SuperAdminDashboard.g6TrialCodes.test.tsx`
+   - create trial code with exact payload;
+   - clipboard only after backend ACK;
+   - create refusal has no false success;
+   - copy existing activation link + clipboard failure;
+   - revoke unused code + server reload;
+   - precise revoke refusal;
+   - explicit refresh.
+
+## Current-source reconciliation
+
+`handleGrantLicense(..., 'revoke')` exists as an internal handler branch but no current desktop control invokes that action. It is therefore not counted as an exposed button in the G6 interactive denominator.
+
+## Open defect
+
+`LicenseStatusPage.tsx` hardcodes “Votre licence Elite a expiré” for every expired account. `AppUser` exposes no subscription-plan field, so the UI cannot truthfully name a plan here. This remains an open product-truth defect requiring UI BEFORE/AFTER protocol before visible copy remediation.
+
+G6 is not certified while this defect and exact-head CI remain open.
