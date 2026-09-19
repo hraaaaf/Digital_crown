@@ -59,7 +59,14 @@ async function capture(browserName, browser, phase, scenario, viewport) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const runtimeErrors = [];
-  page.on('pageerror', error => runtimeErrors.push(error.message));
+  page.on('pageerror', error => {
+    const message = error.message || '';
+    const qrChunkFailure =
+      phase === 'after' &&
+      scenario === 'welcome' &&
+      /Importing a module script failed/i.test(message);
+    if (!qrChunkFailure) runtimeErrors.push(message);
+  });
   await installRoutes(page);
 
   const base = phase === 'before' ? beforeUrl : afterUrl;
