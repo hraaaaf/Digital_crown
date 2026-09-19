@@ -18,7 +18,7 @@ export type PatientPairing = {
   accessToken: string;
   context: PatientCompanionContext;
   pairedAt: string;
-  expiresAt: string;
+  expiresAt?: string;
 };
 
 export type PatientCompanionVaultState = {
