@@ -144,3 +144,13 @@ Status remains IN PROGRESS pending exact-head test/build proof and any remaining
     - overlap/conflict display.
 
 G3 independent functional matrices are now substantially reconciled. Exact-head CI/test/build remains the certification gate.
+
+
+11. `frontend/src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx`
+    - waiting-only filtering;
+    - chronological order;
+    - truthful waiting count;
+    - Au fauteuil → EN_COURS delegation;
+    - truthful empty state.
+
+G3 functional matrices are now consolidated. Certification remains blocked only by exact-head tests/build and any failures they reveal.
