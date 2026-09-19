@@ -44,11 +44,14 @@ from backend.services.license_service import LicenseService
 import sentry_sdk
 
 sentry_dsn = os.getenv("SENTRY_DSN")
-if sentry_dsn:
+if sentry_dsn and app_settings.TELEMETRY_ENABLED:
+    # Cloud observability is opt-in, like every other cabinet egress path.
+    # Error reporting remains useful without exporting request traces/profiles.
     sentry_sdk.init(
         dsn=sentry_dsn,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
+        traces_sample_rate=0.0,
+        profiles_sample_rate=0.0,
+        send_default_pii=False,
     )
 
 # --- CONFIGURATION LOGGING ---
@@ -573,8 +576,9 @@ async def api_health_check():
         with database.SessionLocal() as db:
             from sqlalchemy import text
             db.execute(text("SELECT 1"))
-    except Exception as e:
-        db_status = f"error: {e}"
+    except Exception:
+        logger.exception("Health database probe failed")
+        db_status = "error"
 
     payload = {
         "status": "ok" if db_status == "ok" else "degraded",
@@ -594,8 +598,9 @@ async def api_health_db():
             from sqlalchemy import text
             db.execute(text("SELECT 1"))
         return {"status": "ok"}
-    except Exception as e:
-        return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
+    except Exception:
+        logger.exception("Database health probe failed")
+        return JSONResponse(status_code=503, content={"status": "error", "detail": "Database unavailable"})
 
 
 @app.get("/api/health/storage", include_in_schema=False)
@@ -608,8 +613,9 @@ async def api_health_storage():
         probe.write_text("ok")
         probe.unlink()
         return {"status": "ok"}
-    except Exception as e:
-        return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
+    except Exception:
+        logger.exception("Storage health probe failed")
+        return JSONResponse(status_code=503, content={"status": "error", "detail": "Storage unavailable"})
 
 # --- STATIC FILES & UI ---
 

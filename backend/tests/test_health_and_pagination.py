@@ -98,3 +98,37 @@ def test_patient_list_tenant_isolation(client, db):
     assert resp.status_code == 200
     for p in resp.json():
         assert p["employer_id"] == doc_a.id
+
+
+def test_health_db_error_does_not_expose_exception_detail(client, monkeypatch):
+    def _explode():
+        raise RuntimeError("postgresql://secret-user:secret-password@private-host/db")
+
+    monkeypatch.setattr("backend.main.database.SessionLocal", _explode)
+    response = client.get("/api/health/db")
+
+    assert response.status_code == 503
+    assert "secret-password" not in response.text
+    assert response.json()["detail"] == "Database unavailable"
+
+
+def test_health_storage_error_does_not_expose_private_path(client, monkeypatch):
+    def _explode():
+        raise RuntimeError("C:/Users/Private/Cabinet/Patients")
+
+    monkeypatch.setattr("backend.main.get_media_root", _explode)
+    response = client.get("/api/health/storage")
+
+    assert response.status_code == 503
+    assert "Private/Cabinet" not in response.text
+    assert response.json()["detail"] == "Storage unavailable"
+
+
+def test_sentry_requires_explicit_telemetry_opt_in():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    assert "if sentry_dsn and app_settings.TELEMETRY_ENABLED:" in source
+    assert "send_default_pii=False" in source
+    assert "traces_sample_rate=0.0" in source
+    assert "profiles_sample_rate=0.0" in source
