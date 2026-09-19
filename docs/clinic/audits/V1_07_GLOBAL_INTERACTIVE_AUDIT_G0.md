@@ -54,3 +54,12 @@ Exact scanned HEAD: `de4656abb7c29e53108be6b691ebfff2aefb94b2`.
 - existing test files discovered: **195**
 
 These figures are machine evidence, **not yet the final semantic denominator**. Shared components can render multiple distinct controls at runtime (for example one `NavItem` implementation rendered for many sidebar destinations), while a single JSX button may emit several overlapping static signals. G0 therefore requires a runtime rendered-control pass before denominator freeze.
+
+## Final-factory hardening after initial run
+The initial successful run above is historical evidence only and **does not freeze G0**. Before the final rerun, the factory was broadened to avoid silent omissions:
+- generic native `<input>` controls (not only input buttons);
+- plain HTML `<a>` anchors;
+- native `<summary>`, `contentEditable`, keyboard actions and common custom-control roles/components;
+- root/wildcard shell routes explicitly classified under G1 instead of falling through to G8 review.
+
+These additions may increase raw signal counts. That increase is expected and is **not** a regression or a coverage percentage; only G9 semantic adjudication can freeze the denominator.
