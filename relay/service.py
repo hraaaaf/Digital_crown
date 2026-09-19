@@ -69,14 +69,21 @@ def _extract_capability(value: str | None) -> str:
     return raw
 
 
-def create_relay_app(*, database_url: str, bootstrap_secret: str, allowed_origins: tuple[str, ...] = ()) -> FastAPI:
+def create_relay_app(
+    *,
+    database_url: str,
+    bootstrap_secret: str,
+    allowed_origins: tuple[str, ...] = (),
+    create_schema: bool = False,
+) -> FastAPI:
     if len(bootstrap_secret.encode("utf-8")) < 32:
         raise ValueError("relay bootstrap secret must be at least 32 bytes")
 
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
     engine = create_engine(database_url, future=True, connect_args=connect_args)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
-    Base.metadata.create_all(bind=engine)
+    if create_schema:
+        Base.metadata.create_all(bind=engine)
 
     app = FastAPI(title="Digital Crown Opaque Relay", docs_url=None, redoc_url=None)
     if allowed_origins:
