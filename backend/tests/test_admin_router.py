@@ -4,12 +4,16 @@
 # ── normalize-docs ────────────────────────────────────────────────────────────
 
 class TestNormalizeDocs:
-    def test_requires_auth(self, client):
-        r = client.get("/api/admin/normalize-docs")
+    def test_get_is_not_allowed(self, client, auth_headers):
+        r = client.get("/api/admin/normalize-docs", headers=auth_headers)
+        assert r.status_code == 405
+
+    def test_post_requires_auth(self, client):
+        r = client.post("/api/admin/normalize-docs")
         assert r.status_code == 401
 
-    def test_returns_success(self, client, auth_headers):
-        r = client.get("/api/admin/normalize-docs", headers=auth_headers)
+    def test_post_returns_success(self, client, auth_headers):
+        r = client.post("/api/admin/normalize-docs", headers=auth_headers)
         assert r.status_code == 200
         assert r.json()["status"] in ("success", "error")
 
