@@ -61,11 +61,12 @@ async function capture(browserName, browser, phase, scenario, viewport) {
   const runtimeErrors = [];
   page.on('pageerror', error => {
     const message = error.message || '';
-    const qrChunkFailure =
+    const expectedHarnessNoise =
       phase === 'after' &&
       scenario === 'welcome' &&
-      /Importing a module script failed/i.test(message);
-    if (!qrChunkFailure) runtimeErrors.push(message);
+      (/Importing a module script failed/i.test(message) ||
+       /dev-sw\.js\?dev-sw due to access control checks/i.test(message));
+    if (!expectedHarnessNoise) runtimeErrors.push(message);
   });
   await installRoutes(page);
 
