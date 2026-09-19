@@ -102,3 +102,54 @@ Do not certify G2 until:
 4. G2 evidence is recorded here and in Notion.
 
 G1 may remain pending independently while G2 work proceeds.
+
+
+## Behavioral proof added
+
+1. `frontend/src/features/patients/PatientList.g2Interactive.test.tsx`
+   - patient navigation/edit;
+   - exact-name delete confirmation;
+   - backend-delete ACK before local/cache removal;
+   - delete failure preserves patient;
+   - CSV import open;
+   - search-driven create;
+   - table/grid persistence.
+
+2. `frontend/src/features/patients/AddPatientForm.g2Interactive.test.tsx`
+   - identity validation + duplicate pre-check;
+   - duplicate-check outage fails closed;
+   - duplicate detected = no automatic creation;
+   - explicit force-create;
+   - open existing dossier;
+   - cancel non-mutating.
+
+3. `frontend/src/features/patients/EditPatientForm.g2Interactive.test.tsx`
+   - backend truth hydration;
+   - read failure + retry;
+   - save then navigate only after ACK;
+   - 409 conflict stays on form;
+   - generic save failure has no false success.
+
+4. `frontend/src/features/patients/PatientDetails.g2Interactive.test.tsx`
+   - owner/admin tab access;
+   - forbidden clinical / finance / companion deep-links normalize to tracking;
+   - forbidden cephalo/panoramic deep-link fails closed to RVG;
+   - ortho activation unlocks cephalo only after backend ACK;
+   - activation failure remains locked;
+   - Modifier / RDV / Document quick actions.
+
+5. `frontend/src/features/dashboard/DashboardInteractions.g2Interactive.test.tsx`
+   - patient search;
+   - quick-add menu;
+   - permission-hidden controls;
+   - waiting-room refresh and state transitions;
+   - unavailable vs truthful empty waiting room;
+   - proactive-alert navigation/snooze/read;
+   - marketplace visibility/navigation.
+
+6. `frontend/src/features/dashboard/DashboardPage.g2Interactive.test.tsx`
+   - management panel toggle;
+   - mobile security dialog open/close;
+   - post-appointment Ghost Action lifecycle.
+
+Status remains IN PROGRESS until exact-head tests + build are green.
