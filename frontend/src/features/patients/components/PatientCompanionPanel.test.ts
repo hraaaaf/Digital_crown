@@ -8,13 +8,13 @@ const details = readFileSync(resolve(process.cwd(), 'src/features/patients/Patie
 describe('Patient Companion D2 staff surface', () => {
   it('reuses D0 staff contracts and keeps invitation secrets memory-only', () => {
     expect(panel).toContain('/patient-companion/admin/patients/${patientId}/status');
-    expect(panel).toContain('/patient-companion/admin/patients/${patientId}/invitation');
+    expect(panel).toContain('/patient-companion/admin/patients/${patientId}/local-invitation');
     expect(panel).toContain('/patient-companion/admin/patients/${patientId}/shares');
     expect(panel).toContain('/patient-companion/admin/accesses/${access.access_id}/revoke');
     expect(panel).toContain('qr_data_url');
     expect(panel).not.toContain('localStorage');
     expect(panel).not.toContain('sessionStorage');
-    expect(panel).toContain("recipient_type: 'email'");
+    expect(panel).toContain('relationship_type: relationshipType');
     expect(panel).toContain('setEphemeralInvitation(null)');
   });
 
