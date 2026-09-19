@@ -492,38 +492,13 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
 
 @router.get("/{document_id}/download")
 def download_document(
-    document_id: str, 
-    request: Request,
-    db: Session = Depends(database.get_db)
+    document_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    from backend.routers.auth import SECRET_KEY, ALGORITHM
-    from jose import jwt, JWTError
-    
-    # 1. Extraction du token — Authorization header uniquement.
-    # Les tokens en query string sont interdits : ils peuvent fuiter dans
-    # l'historique navigateur, les logs intermédiaires et les referrers.
-    auth_header = request.headers.get("Authorization")
-    token = None
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ", 1)[1]
-        
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant")
-        
-    # 2. Validation du token
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if not email or payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Token invalide")
-            
-        current_user = db.query(models.User).filter(models.User.email == email).first()
-        if not current_user or not current_user.is_active:
-            raise HTTPException(status_code=401, detail="Utilisateur inactif")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token corrompu ou expiré")
+    # Canonical auth dependency enforces token type, expiry, JTI revocation,
+    # account activity and mobile/access identity rules consistently.
 
-    # 3. Logique de téléchargement
     if str(document_id).startswith("legacy:"):
         parts = str(document_id).split(":")
         patient_id = int(parts[1])
