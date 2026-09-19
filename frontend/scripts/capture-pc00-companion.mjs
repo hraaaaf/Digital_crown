@@ -62,8 +62,7 @@ async function capture(browserName, browser, phase, scenario, viewport) {
     const message = error.message || '';
     const expectedHarnessNoise =
       phase === 'after' &&
-      scenario === 'welcome' &&
-      (/Importing a module script failed/i.test(message) ||
+      (/^TypeError: Importing a module script failed\.?$/i.test(message) ||
        /dev-sw\.js\?dev-sw due to access control checks/i.test(message));
     if (!expectedHarnessNoise) runtimeErrors.push(message);
   });
