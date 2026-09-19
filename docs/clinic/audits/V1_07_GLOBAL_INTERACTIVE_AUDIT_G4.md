@@ -220,3 +220,26 @@ G4-G reconciliation now focuses on verifying that every deep module exposed by G
 | Cephalometry | `CephaloWorkspace.g4Interactive.test.tsx` |
 
 Based on the inspected G4 surfaces, no known deep module is currently left without a behavioral proof file. This is not certification yet: exact-head frontend tests/build must still pass, and any CI failure must be resolved before G4 can be marked certified.
+
+
+## Functional reconciliation
+Observed G4 behavioral matrices now cover:
+- Document Studio shell/navigation/generation;
+- Prescription;
+- Certificate/Libre;
+- Honorarium/accounting;
+- Installments;
+- Devis + accounting odontogram;
+- Patient finance screen;
+- global and act-specific payments;
+- clinical authoritative odontogram;
+- practitioner conclusions;
+- treatment-plan mutations;
+- 9 structured clinical wizards;
+- RVG;
+- panoramic;
+- cephalometry.
+
+No additional independent G4 deep-control gap is currently known from the reconciled source inventory.
+
+Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUILD.
