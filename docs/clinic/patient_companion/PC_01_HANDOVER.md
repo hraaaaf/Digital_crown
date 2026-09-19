@@ -20,12 +20,12 @@ Success:
 
 Repo: hraaaaf/Digital_crown
 PC-00 branch: feature/patient-companion-pc00
-PC-00 current HEAD: c44a0e293e2aea216fbf3ddc03dac9a3c59a5ec8
+PC-00 latest code/test HEAD: 226b5e74f3417b1f77e542672b0f81d3434747e4
 PC-00 PR: #634
 
 PC-01 branch: feature/patient-companion-pc01
 PC-01 PR: #636 draft, base feature/patient-companion-pc00
-PC-01 latest code/test HEAD before docs checkpoint: 0dda8f1d11f45c19db32eaf26c4a3381a43722a1
+PC-01 latest code/test HEAD before docs checkpoint: 81b7468fa9b3ecdd6317f3a306262a57e1379df5
 
 Exact-head runs for 9b24efbc:
 - CI 35461919616 SUCCESS
@@ -62,9 +62,19 @@ Exact-head runs for 9b24efbc:
 
 ## In progress
 
-PC-01 dedicated visual/runtime certification workflow is now created and has been triggered; latest exact-head outcome is not yet verified.
-PC-01 adversarial review is created and remains IN PROGRESS until evidence is inspected.
-PC-00 visual/D2 failures were diagnosed and corrected on PC-00 branch; new exact-head outcomes remain pending.
+PC-00 dedicated visual:
+- exact-head ad6d8ee41981fef3818ba9d9576092427dce9370 had all major non-PC00 visual gates green;
+- run 35468621741 failed during pairing with `Load failed`;
+- latest browser-runtime fetch harness code HEAD: 226b5e74f3417b1f77e542672b0f81d3434747e4;
+- exact-head visual outcome pending.
+
+PC-01 dedicated visual:
+- exact-head 2cb97c5763e439c8d3b32fd3dbcc3793324cefb7 had CI/T2/P7/Agenda green;
+- run 35468624843 failed from harness code `ReferenceError: target is not defined`;
+- latest browser-runtime fetch harness code HEAD: 81b7468fa9b3ecdd6317f3a306262a57e1379df5;
+- exact-head visual outcome pending.
+
+No Vercel deployment.
 
 ## Remaining
 
@@ -87,7 +97,7 @@ Merge dependency only: PC-01 cannot merge before PC-00.
 
 ## Next exact
 
-Read the dedicated PC-01 exact-head visual/CI result; fix any red gate, otherwise inspect the generated artifact.
+Read the new exact-head PC-00 and PC-01 visual results. Red → diagnose/fix immediately. Green → inspect BEFORE/AFTER artifact, encrypted-vault probe and offline-reload proof before certifying.
 
 ## Remaining sequence
 
