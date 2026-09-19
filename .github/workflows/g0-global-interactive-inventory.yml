@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - scripts/inventory_interactive_controls.py
+      - scripts/reconcile_interactive_evidence.py
+      - docs/clinic/audits/V1_07_GLOBAL_INTERACTIVE_AUDIT_G*.md
       - .github/workflows/g0-global-interactive-inventory.yml
       - frontend/src/**
   workflow_dispatch:
@@ -28,8 +30,13 @@ jobs:
       - name: Generate G0 inventory
         run: python scripts/inventory_interactive_controls.py
 
+      - name: Generate G0→G9 evidence reconciliation seed
+        run: python scripts/reconcile_interactive_evidence.py
+
       - name: Show summary
-        run: cat artifacts/g0-interactive-inventory/summary.md
+        run: |
+          cat artifacts/g0-interactive-inventory/summary.md
+          cat artifacts/g0-interactive-inventory/evidence_reconciliation_seed.md
 
       - uses: actions/upload-artifact@v4
         with:
