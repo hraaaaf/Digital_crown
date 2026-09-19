@@ -5,9 +5,11 @@ import {
   PatientCompanionStorage,
   type PatientCompanionVaultState,
   type PatientPairing,
+  type PatientRemoteTransportBinding,
   type PatientWalletSnapshot,
 } from './PatientCompanionStorage';
 import { PatientCompanionSync } from './PatientCompanionSync';
+import { PatientCompanionRemoteCrypto } from './PatientCompanionRemoteCrypto';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 
@@ -142,24 +144,67 @@ export const PatientCompanionApp = () => {
 
   async function pairDevice(credential: string, manual: boolean) {
     setError('');
+    let preparedRemote = null as Awaited<ReturnType<typeof PatientCompanionRemoteCrypto.prepareEnrollment>>;
     try {
       const loopback = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       if (!window.isSecureContext && !loopback) {
         throw new Error('Appairage refusé : ouvrez Patient Companion via la connexion HTTPS sécurisée du cabinet.');
       }
+
+      try {
+        preparedRemote = await PatientCompanionRemoteCrypto.prepareEnrollment();
+      } catch {
+        preparedRemote = null;
+      }
+
+      const baseBody = manual ? { manual_code: credential } : { token: credential };
       const response = await fetch(`${API_BASE}/api/patient-companion/pair`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(manual ? { manual_code: credential } : { token: credential }),
+        body: JSON.stringify(
+          preparedRemote
+            ? { ...baseBody, remote_keys: preparedRemote.request }
+            : baseBody,
+        ),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || 'Appairage impossible.');
       if (!payload.access_token || !payload.context?.access_id) throw new Error('Réponse d’appairage incomplète.');
 
+      let remoteTransport: PatientRemoteTransportBinding | undefined;
+      const remote = payload.remote_transport;
+      if (
+        preparedRemote
+        && remote?.status === 'enrolled'
+        && remote.protocol_version === 'dc-pc-remote-v1'
+        && typeof remote.keyset_id === 'string'
+        && remote.patient_signing_kid === preparedRemote.signingKid
+        && remote.patient_encryption_kid === preparedRemote.encryptionKid
+        && typeof remote.cabinet?.signing?.kid === 'string'
+        && remote.cabinet.signing.public_jwk
+        && typeof remote.cabinet?.encryption?.kid === 'string'
+        && remote.cabinet.encryption.public_jwk
+      ) {
+        remoteTransport = {
+          version: 1,
+          keysetId: remote.keyset_id,
+          signingKid: preparedRemote.signingKid,
+          encryptionKid: preparedRemote.encryptionKid,
+          cabinetSigningKid: remote.cabinet.signing.kid,
+          cabinetSigningPublicJwk: remote.cabinet.signing.public_jwk,
+          cabinetEncryptionKid: remote.cabinet.encryption.kid,
+          cabinetEncryptionPublicJwk: remote.cabinet.encryption.public_jwk,
+        };
+      } else if (preparedRemote) {
+        await PatientCompanionRemoteCrypto.discardEnrollment(preparedRemote);
+        preparedRemote = null;
+      }
+
       const pairing: PatientPairing = {
         accessToken: payload.access_token,
         context: payload.context,
         pairedAt: payload.paired_at || new Date().toISOString(),
+        remoteTransport,
       };
       const next = await PatientCompanionStorage.savePairing(pairing);
       window.history.replaceState({}, '', '/companion');
@@ -168,6 +213,9 @@ export const PatientCompanionApp = () => {
       setManualCode('');
       setPhase('home');
     } catch (err) {
+      if (preparedRemote) {
+        await PatientCompanionRemoteCrypto.discardEnrollment(preparedRemote).catch(() => undefined);
+      }
       setError(err instanceof Error ? err.message : 'Invitation invalide ou expirée.');
       setPhase('error');
     }
