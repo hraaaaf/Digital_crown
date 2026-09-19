@@ -6,6 +6,11 @@ on:
       - feature/patient-companion-e2e-relay-gate
     paths:
       - ".github/workflows/tmp-jose-lock.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/tmp-jose-lock.yml"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
   workflow_dispatch:
 
 permissions:
