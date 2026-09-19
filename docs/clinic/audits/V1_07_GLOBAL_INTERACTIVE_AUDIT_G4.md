@@ -88,3 +88,54 @@ Do not certify G4 until:
 2. critical mutations have success + refusal/non-mutation proof;
 3. exact-head frontend tests + build pass;
 4. evidence is recorded here and in Notion.
+
+
+## Behavioral proof added
+
+1. `DocumentStudioShell.g4Interactive.test.tsx`
+   - all document tabs;
+   - preview/save/print contracts;
+   - direct-print confirmation.
+
+2. `PrescriptionForm.g4Interactive.test.tsx`
+   - quick protocols;
+   - medication fields;
+   - pharmaceutical form/package;
+   - add/remove medication;
+   - explicit suggestion apply;
+   - validation/safety warnings.
+
+3. `CertificateLibre.g4Interactive.test.tsx`
+   - certificate type/content/duration/start-date;
+   - free-document metadata/header/format/alignment;
+   - formatting controls and validation.
+
+4. `InstallmentStudio.g4Interactive.test.tsx`
+   - exact balanced allocation;
+   - save after ACK;
+   - draft add/remove;
+   - explicit payment collection;
+   - refusal non-mutation;
+   - WhatsApp reminder.
+
+5. `Honoraires.g4Interactive.test.tsx`
+   - honorarium line editing/order/removal/total;
+   - treasury status/mode/accounting;
+   - partial-payment guard;
+   - unique/global billing and planned installments.
+
+6. `DevisOdontogram.g4Interactive.test.tsx`
+   - adult/pediatric and odontogram modes;
+   - tooth treatment to priced devis line;
+   - quick tooth groups and grouped treatment;
+   - catalog-price precedence;
+   - phase organization.
+
+7. `DocumentGeneration.g4Interactive.test.tsx`
+   - real honorarium archive/PDF pipeline;
+   - refusal preserves accounting state;
+   - duplicate force retry;
+   - ordonnance generation payload;
+   - invalid prescription blocked before backend mutation.
+
+Status remains IN PROGRESS. Imaging and final deep-control reconciliation remain.
