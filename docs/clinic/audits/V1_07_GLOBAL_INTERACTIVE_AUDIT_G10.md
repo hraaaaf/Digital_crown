@@ -42,3 +42,15 @@ All of the following are observable on the same final candidate:
 
 ## Deployment
 No Vercel deployment is part of V1-07 closeout unless explicitly authorized by the product owner.
+
+
+## Candidate PR composition
+Observed on PR #633 candidate `cc70c989d85e3192afa34d51ac6b8cc52b96d698`:
+- changed files: **91**;
+- direct product-source changes currently limited to:
+  - `frontend/src/pages/LicenseStatusPage.tsx`;
+  - `frontend/src/pages/StockPage.tsx`;
+- other changes are audit behavioral tests, canonical docs, inventory/reconciliation scripts, visual-evidence harness/workflows, plus a waiting-room backend test;
+- no Vercel deployment configuration change is present.
+
+This is candidate evidence only. Recompute before final closeout because the HEAD may still change.
