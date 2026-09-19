@@ -122,3 +122,17 @@ def test_relay_mailbox_revocation_destroys_queue_and_access(tmp_path):
     assert client.post(f"{base}/envelopes", json=body, headers=_auth(box["write_capability"])).status_code == 201
     assert client.delete(base, headers={"X-Relay-Bootstrap": BOOTSTRAP}).status_code == 204
     assert client.get(f"{base}/envelopes", headers=_auth(box["read_capability"])).status_code == 404
+
+
+def test_relay_package_has_no_cabinet_backend_imports():
+    from pathlib import Path
+
+    relay_root = Path(__file__).resolve().parents[2] / "relay"
+    source = "\n".join(
+        p.read_text(encoding="utf-8")
+        for p in relay_root.glob("*.py")
+    )
+    assert "from backend" not in source
+    assert "import backend" not in source
+    assert "models_patient" not in source
+    assert "get_db" not in source
