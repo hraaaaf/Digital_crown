@@ -6,7 +6,7 @@ This registry links audit gates to behavioral proof families. It does not freeze
 
 | Gate | Domain | Primary behavioral proof families | Current gate state |
 |---|---|---|---|
-| G1 | Shell/auth/onboarding | Login, Register, Landing, ActivateTrial, PublicNavigation, SetupWizard, OnboardingScanner, Sidebar, Header, MainLayout | functional proof present; exact-head CI pending |
+| G1 | Shell/auth/onboarding | Login, Register, Landing, ActivateTrial, PublicNavigation, SetupWizard, OnboardingScanner, Sidebar, Header, MainLayout | functional proof present; Landing geography visual + exact-head CI pending |
 | G2 | Dashboard/patients/dossier | DashboardInteractions, DashboardPage, PatientList, PatientListSearchSort, CsvImportModal, Add/Edit patient + variants, PatientDossierNumber, PatientDetails | functional proof present; exact-head CI pending |
 | G3 | Agenda/frontdesk/notifications | AgendaStudio, AgendaModal, AgendaModalSecondary, FrontdeskModal, PendingRequestCard, GoogleImportModal, AgendaView, FrontdeskView, NotificationsView, WaitingRoomView | functional proof present; exact-head CI pending |
 | G4 | Deep clinical/business | DocumentStudioShell, PrescriptionForm, CertificateLibre, DevisOdontogram, Honoraires, InstallmentStudio, DocumentGeneration, PatientFinances, Payments, ClinicalHubCore, ClinicalWizards, RVG, PanoramicStudio, CephaloWorkspace | functionally reconciled; exact-head CI pending |
