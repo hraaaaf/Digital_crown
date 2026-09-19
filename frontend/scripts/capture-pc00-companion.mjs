@@ -16,6 +16,17 @@ await fs.mkdir(path.join(outputRoot, 'after'), { recursive: true });
 const browserTypes = { chromium, webkit };
 const evidence = [];
 
+async function clearPatientVault(page) {
+  await page.goto('about:blank');
+  await page.goto(afterUrl, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase('digital-crown-patient-companion');
+    request.onsuccess = () => resolve(null);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => resolve(null);
+  }));
+}
+
 async function installRoutes(page) {
   await page.route('**/health', route => route.fulfill({
     status: 200,
@@ -52,6 +63,7 @@ async function capture(browserName, browser, phase, scenario, viewport) {
   await installRoutes(page);
 
   const base = phase === 'before' ? beforeUrl : afterUrl;
+  if (phase === 'after') await clearPatientVault(page);
   await page.goto(`${base}/companion`, { waitUntil: 'domcontentloaded' });
 
   if (phase === 'before') {
