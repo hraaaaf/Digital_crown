@@ -96,12 +96,11 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
     }
   }
   const saveOdonto=page.getByRole('button',{name:'Enregistrer',exact:true}).first();
-  if(!(await saveOdonto.isDisabled())){
-    const saveResp=page.waitForResponse(r=>r.url().includes(`/api/patients/${patient.id}/odontogram`)&&['POST','PUT'].includes(r.request().method()),{timeout:15000}).catch(()=>null);
-    await saveOdonto.click();
-    const resp=await saveResp;
-    if(resp && !resp.ok()) throw new Error('odontogram save failed');
-  }
+  if(await saveOdonto.isDisabled()) throw new Error('odontogram save unexpectedly disabled after edits');
+  const saveResp=page.waitForResponse(r=>r.url().includes(`/api/patients/${patient.id}/odontogram`)&&['POST','PUT'].includes(r.request().method()),{timeout:15000});
+  await saveOdonto.click();
+  const odontoResp=await saveResp;
+  if(!odontoResp.ok()) throw new Error(`odontogram save failed: ${odontoResp.status()}`);
   actions.push('odontogram-toolbar-save');
 
   await page.getByText('Étape G4 clinique',{exact:true}).waitFor({state:'visible',timeout:10000});
@@ -179,13 +178,24 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   actions.push('conclusions-reload');
 
   const deleteStep=page.getByRole('button',{name:'Supprimer l’étape'}).first();
-  if(await deleteStep.count()) await deleteStep.click();
+  if(!(await deleteStep.count())) throw new Error('master-plan delete control missing');
+  await deleteStep.click();
+  actions.push('master-plan-delete');
+
   const resetPlan=page.getByRole('button',{name:'Réinitialiser',exact:true});
   if(await resetPlan.count() && !(await resetPlan.isDisabled())){
     page.once('dialog',d=>d.accept());
     await resetPlan.click();
+    actions.push('master-plan-reset');
   }
-  actions.push('master-plan-delete-reset');
+
+  const expectedAssistantCount=assistants.length;
+  const expectedOptionCount=assistants.reduce((sum,item)=>sum+item.options.length,0);
+  const countPrefix=prefix=>actions.filter(action=>action.startsWith(prefix)).length;
+  if(countPrefix('assistant-cancel:')!==expectedAssistantCount) throw new Error('assistant cancel coverage incomplete');
+  if(countPrefix('assistant-option:')!==expectedOptionCount) throw new Error('assistant option coverage incomplete');
+  if(countPrefix('assistant-complete:')!==expectedAssistantCount) throw new Error('assistant completion coverage incomplete');
+  if(countPrefix('assistant-conclusion:')!==expectedAssistantCount) throw new Error('assistant conclusion coverage incomplete');
 
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
   const shot=`g4-clinical-${viewport.width}x${viewport.height}-final.png`;
