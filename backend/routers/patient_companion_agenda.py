@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.models_patient_companion import (
+    PatientCompanionAccess,
     PatientCompanionAppointmentRef,
     PatientCompanionIdentity,
     PatientCompanionPractitionerRef,
@@ -36,7 +37,15 @@ def patient_agenda_remote_command(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, scope="patient-companion-agenda-remote-command")
-    access, _patient = principal_for_access(db, identity, access_id)
+    principal, _patient = principal_for_access(db, identity, access_id)
+    access = db.query(PatientCompanionAccess).filter(
+        PatientCompanionAccess.public_id == principal.access_id,
+        PatientCompanionAccess.identity_id == principal.identity_id,
+        PatientCompanionAccess.employer_id == principal.employer_id,
+        PatientCompanionAccess.revoked_at.is_(None),
+    ).first()
+    if access is None:
+        raise HTTPException(status_code=404, detail="Contexte patient introuvable.")
     keyset = db.query(PatientCompanionRemoteKeyset).filter(
         PatientCompanionRemoteKeyset.access_id == access.id,
         PatientCompanionRemoteKeyset.status == "ACTIVE",

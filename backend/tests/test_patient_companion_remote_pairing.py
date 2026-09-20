@@ -24,7 +24,12 @@ from backend.services.patient_companion_remote_keys import enroll_remote_keyset 
 def focused_client(db):
     """Focused Patient Companion app: real routers/dependencies, no global backend.main bootstrap."""
     from backend.routers import auth as auth_router
-    from backend.routers import patient_companion_agenda, patient_companion_common, patient_companion_pairing
+    from backend.routers import (
+        patient_companion_agenda,
+        patient_companion_common,
+        patient_companion_pairing,
+        patient_companion_shares,
+    )
 
     app = FastAPI()
 
@@ -35,6 +40,7 @@ def focused_client(db):
     app.dependency_overrides[auth_router.get_db] = _override_get_db
     app.include_router(patient_companion_pairing.router, prefix="/api/patient-companion")
     app.include_router(patient_companion_agenda.router, prefix="/api/patient-companion")
+    app.include_router(patient_companion_shares.router, prefix="/api/patient-companion")
 
     with TestClient(app, raise_server_exceptions=True) as test_client:
         yield test_client
