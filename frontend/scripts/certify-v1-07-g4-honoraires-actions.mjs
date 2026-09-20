@@ -93,7 +93,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: /Soins Ciblés/i }).click();
   const adultButton = page.getByRole('button', { name: 'Adulte', exact: true });
   if (await adultButton.first().isVisible().catch(() => false)) {
-    await adultButton.first().click();
+    await adultButton.first().focus();
+    await page.keyboard.press('Enter');
   }
 
   await page.getByRole('button', { name: 'Réduire Schéma', exact: true }).click();
