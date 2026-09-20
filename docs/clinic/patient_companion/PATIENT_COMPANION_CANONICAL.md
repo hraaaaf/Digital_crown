@@ -223,3 +223,20 @@ Code/test/docs candidate before exact-head certification:
 `ca30bd599ed9a74a3c5f4130a1d1ad3c2343c755`
 
 This canonical update supersedes that SHA as the final docs-inclusive candidate. Read the branch HEAD after this commit and use only that exact SHA for final certification evidence.
+
+
+## Remote Transport Gate B — closeout candidate — 2026-09-20
+
+Verified code/test SHA: `6843f4ccd0ca40afe372a96ba7bfee92598ef098`.
+
+Evidence:
+- Remote Transport Gate `35504753520` — SUCCESS.
+- Linux job `106062570707` — SUCCESS: relay certification, Python→JavaScript JOSE, JavaScript verification/emission, JavaScript→Python JOSE.
+- Windows DPAPI job `106062570833` — SUCCESS.
+- CI `35504753506` — SUCCESS.
+- PostgreSQL/Alembic `35504753494` — SUCCESS.
+- all other triggered non-skipped regression gates — SUCCESS.
+
+The current branch HEAD after this docs-only closeout supersedes the code/test SHA as the merge candidate and requires exact-head certification before PR #638 may merge.
+
+No deployment performed.
