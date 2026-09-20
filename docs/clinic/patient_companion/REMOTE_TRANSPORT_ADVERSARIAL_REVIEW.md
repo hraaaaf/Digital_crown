@@ -148,6 +148,28 @@ The staff access-revocation flow now marks the active remote keyset REVOKED in t
 
 Status: implemented with regression test; exact-head CI pending.
 
+### F-13 — Concurrent cabinet key creation
+Severity: high
+
+Risk:
+Two simultaneous first remote pairings for the same cabinet could both observe no ACTIVE cabinet key and race on the partial unique index.
+
+Remediation:
+Cabinet key creation now uses a nested transaction/savepoint. The DB unique index remains authoritative; the loser re-queries and reuses the committed ACTIVE key instead of surfacing an uncontrolled 500.
+
+Status: implemented; exact-head certification pending.
+
+### F-14 — ACK operation could exceed protocol bound
+Severity: medium
+
+Risk:
+A maximum-length inbound operation (64 chars) followed by the old `.result` suffix could make ACK construction fail after domain handling.
+
+Remediation:
+ACK operation is now the fixed bounded value `command.result`; the original operation is carried inside the signed/encrypted payload as `request_operation`. Regression test uses a 64-character request operation.
+
+Status: implemented; exact-head certification pending.
+
 ## Remaining gates
 
 1. exact-head dedicated Remote Transport Gate green on Linux and Windows;
