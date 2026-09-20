@@ -230,10 +230,11 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
 
           {/* Note */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="rvg-note" className="block text-sm font-medium text-gray-700 mb-2">
               Note (optionnel)
             </label>
             <textarea
+              id="rvg-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               disabled={loading}
