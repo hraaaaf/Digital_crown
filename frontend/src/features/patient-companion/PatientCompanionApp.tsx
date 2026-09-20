@@ -199,6 +199,33 @@ export const PatientCompanionApp = () => {
         && typeof remote.cabinet?.encryption?.kid === 'string'
         && remote.cabinet.encryption.public_jwk
       ) {
+        const relay = remote.relay;
+        let relayBinding;
+        if (relay !== undefined) {
+          const relayUrl = typeof relay?.relay_url === 'string' ? relay.relay_url.trim().replace(/\/$/, '') : '';
+          const cabinetInboxId = typeof relay?.cabinet_inbox?.mailbox_id === 'string' ? relay.cabinet_inbox.mailbox_id : '';
+          const cabinetWriteCapability = typeof relay?.cabinet_inbox?.write_capability === 'string' ? relay.cabinet_inbox.write_capability : '';
+          const patientInboxId = typeof relay?.patient_inbox?.mailbox_id === 'string' ? relay.patient_inbox.mailbox_id : '';
+          const patientReadCapability = typeof relay?.patient_inbox?.read_capability === 'string' ? relay.patient_inbox.read_capability : '';
+          if (
+            relay.protocol_version !== 'dc-relay-v1'
+            || !relayUrl.startsWith('https://')
+            || !/^[0-9a-f-]{36}$/i.test(cabinetInboxId)
+            || !/^[0-9a-f-]{36}$/i.test(patientInboxId)
+            || cabinetWriteCapability.length < 43
+            || patientReadCapability.length < 43
+          ) {
+            throw new Error('Configuration relay Patient Companion invalide.');
+          }
+          relayBinding = {
+            protocolVersion: 'dc-relay-v1' as const,
+            relayUrl,
+            cabinetInboxId,
+            cabinetWriteCapability,
+            patientInboxId,
+            patientReadCapability,
+          };
+        }
         remoteTransport = {
           version: 1,
           keysetId: remote.keyset_id,
@@ -208,6 +235,7 @@ export const PatientCompanionApp = () => {
           cabinetSigningPublicJwk: remote.cabinet.signing.public_jwk,
           cabinetEncryptionKid: remote.cabinet.encryption.kid,
           cabinetEncryptionPublicJwk: remote.cabinet.encryption.public_jwk,
+          relay: relayBinding,
         };
       } else if (preparedRemote) {
         await PatientCompanionRemoteCrypto.discardEnrollment(preparedRemote);
