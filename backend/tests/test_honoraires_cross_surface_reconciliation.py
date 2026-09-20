@@ -179,10 +179,15 @@ def test_note_trash_cancels_only_its_pending_installments_and_restore_is_exact(
     before = accounting_service.get_treasury_summary(db, dentiste.id)
     assert any(alert["amount"] == 400.0 for alert in before["proactive_alerts"])
 
-    ArchiveService(db).move_to_trash(doc.id)
+    service = ArchiveService(db)
+    service.move_to_trash(doc.id)
+    first_trash_at = doc.deleted_at
+    service.move_to_trash(doc.id)
+    db.refresh(doc)
     db.refresh(first)
     db.refresh(second)
 
+    assert doc.deleted_at == first_trash_at
     assert first.status == "ANNULE"
     assert (first.notes or "").startswith(f"__DC_TRASH_DOC__:{doc.id}\n")
     assert second.status == "ANNULE"
