@@ -26,7 +26,7 @@ describe('PatientCompanionSync PC-01', () => {
 
     expect(fetch).toHaveBeenNthCalledWith(
       1,
-      expect.stringContaining('/contexts/opaque-access/appointments'),
+      expect.stringContaining('/contexts/opaque-access/agenda'),
       expect.objectContaining({ headers: { Authorization: 'Bearer device-token' }, cache: 'no-store' }),
     );
     expect(fetch).toHaveBeenNthCalledWith(
