@@ -12,6 +12,7 @@ from backend.models_media_core import ClinicalAsset
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionIdentity,
+    PatientCompanionRelayBinding,
     PatientCompanionRemoteKeyset,
     PatientCompanionShareGrant,
 )
@@ -227,6 +228,14 @@ def revoke_patient_access(
                 PatientCompanionRemoteKeyset.status: "REVOKED",
                 PatientCompanionRemoteKeyset.revoked_at: now,
             },
+            synchronize_session=False,
+        )
+        db.query(PatientCompanionRelayBinding).filter(
+            PatientCompanionRelayBinding.access_id == access.id,
+            PatientCompanionRelayBinding.status == "ACTIVE",
+            PatientCompanionRelayBinding.revoked_at.is_(None),
+        ).update(
+            {PatientCompanionRelayBinding.status: "REVOKE_PENDING"},
             synchronize_session=False,
         )
         db.commit()
