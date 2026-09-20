@@ -191,7 +191,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await page.keyboard.press('Enter');
   }
 
-  const specialty = categoryLabels.find(label => !['Favoris', 'Tous les actes'].includes(label));
+  const specialty = categoryLabels.find(label => {
+    const normalized = label.toLocaleLowerCase('fr-FR');
+    return !['favoris', 'tous les actes'].includes(normalized);
+  });
   if (!specialty) throw new Error('No specialty category available');
   const specialtyButton = page.getByRole('button', { name: specialty, exact: true }).last();
   await specialtyButton.waitFor({ state: 'visible', timeout: 10000 });
