@@ -10,7 +10,13 @@ from backend.models_patient_companion import (
     PatientCompanionAppointmentRef,
     PatientCompanionIdentity,
 )
-from backend.services.patient_companion_agenda import cancel_appointment, create_appointment, issue_slots, reschedule_appointment
+from backend.services.patient_companion_agenda import (
+    cancel_appointment,
+    create_appointment,
+    issue_slots,
+    list_appointments,
+    reschedule_appointment,
+)
 
 
 def _access(db, dentiste):
@@ -136,3 +142,38 @@ def test_practitioner_alias_is_opaque_and_tenant_scoped(db, dentiste):
     assert alias.public_id != str(dentiste.id)
     uuid.UUID(alias.public_id)
     assert alias.employer_id == dentiste.id
+
+
+def test_list_appointments_returns_only_patient_safe_opaque_fields(db, dentiste):
+    patient, access = _access(db, dentiste)
+    appointment = models.Appointment(
+        patient_id=patient.id,
+        patient_name="Aya Agenda",
+        datetime_start=datetime(2030, 1, 5, 9, 30),
+        duration_minutes=30,
+        status=models.AppointmentStatus.CONFIRME,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        employer_id=dentiste.id,
+        praticien_id=dentiste.id,
+        motif="Contrôle",
+    )
+    db.add(appointment)
+    db.flush()
+
+    result = list_appointments(db, access, {})
+    assert result.status == "ACCEPTED"
+    items = result.response["items"]
+    assert len(items) == 1
+    item = items[0]
+    assert set(item) == {
+        "appointment_ref",
+        "datetime_start",
+        "duration_minutes",
+        "motif",
+        "status",
+        "scheduling_type",
+    }
+    uuid.UUID(item["appointment_ref"])
+    assert "appointment_id" not in item
+    assert "patient_id" not in item
+    assert "employer_id" not in item
