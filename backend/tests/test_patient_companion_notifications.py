@@ -461,3 +461,28 @@ def test_pc05_signed_consent_does_not_resurface_same_share_as_generic_document(d
 
     projected = project_notifications(db, access)
     assert projected["items"] == []
+
+
+def test_pc05_mismatched_consent_share_is_fail_closed(db, dentiste, tmp_path):
+    patient, _identity, access = _patient_access(db, dentiste, "MISMATCH")
+    document_a, _share_a = _document_share(db, dentiste, patient, tmp_path, "Document A")
+    document_b, share_b = _document_share(db, dentiste, patient, tmp_path, "Document B")
+    consent = PatientCompanionConsentRequest(
+        employer_id=dentiste.id,
+        patient_id=patient.id,
+        document_id=document_a.id,
+        share_grant_id=share_b.id,
+        document_group_id=str(document_a.document_group_id),
+        document_version=1,
+        document_file_hash=str(document_a.file_hash),
+        document_file_size=int(document_a.file_size),
+        created_by_user_id=dentiste.id,
+        status="PENDING",
+    )
+    db.add(consent)
+    db.commit()
+
+    projected = project_notifications(db, access)
+    kinds = {item["kind"] for item in projected["items"]}
+    assert "CONSENT_PENDING" not in kinds
+    assert "DOCUMENT_SHARED" in kinds
