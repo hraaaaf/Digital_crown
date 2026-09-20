@@ -302,6 +302,8 @@ def _receipt_for_source(
 ) -> PatientCompanionNotificationReceipt:
     row = db.query(PatientCompanionNotificationReceipt).filter(
         PatientCompanionNotificationReceipt.access_id == access.id,
+        PatientCompanionNotificationReceipt.employer_id == access.employer_id,
+        PatientCompanionNotificationReceipt.patient_id == access.patient_id,
         PatientCompanionNotificationReceipt.source_key == source_key,
     ).first()
     if row is None:
