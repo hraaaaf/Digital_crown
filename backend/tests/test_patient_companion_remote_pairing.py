@@ -142,3 +142,52 @@ def test_access_revocation_revokes_remote_keyset_in_same_cabinet_flow(
     db.refresh(keyset)
     assert keyset.status == "REVOKED"
     assert keyset.revoked_at is not None
+
+
+def test_agenda_remote_command_requires_active_keyset_and_dispatches_ciphertext(
+    client, db, dentiste, monkeypatch
+):
+    from backend.routers import patient_companion_agenda, patient_companion_pairing
+
+    monkeypatch.setattr(patient_companion_pairing, "check_rate_limit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(patient_companion_agenda, "check_rate_limit", lambda *args, **kwargs: None)
+
+    def enroll_with_test_protector(*args, **kwargs):
+        return real_enroll(
+            *args,
+            **kwargs,
+            protect=lambda clear: b"test-protected:" + clear,
+        )
+
+    monkeypatch.setattr(patient_companion_pairing, "enroll_remote_keyset", enroll_with_test_protector)
+    raw, _invitation_row = _invitation(db, dentiste, "0004")
+    paired = client.post(
+        "/api/patient-companion/pair",
+        json={"token": raw, "remote_keys": _remote_keys()},
+    )
+    assert paired.status_code == 201, paired.text
+    payload = paired.json()
+    access_id = payload["context"]["access_id"]
+    token = payload["access_token"]
+
+    observed = {}
+
+    def fake_process(db_arg, *, access, keyset, compact_jwe):
+        observed["db"] = db_arg
+        observed["access_id"] = access.public_id
+        observed["keyset_access_id"] = keyset.access_id
+        observed["blob"] = compact_jwe
+        return "opaque-signed-encrypted-ack"
+
+    monkeypatch.setattr(patient_companion_agenda, "process_remote_envelope", fake_process)
+
+    response = client.post(
+        f"/api/patient-companion/contexts/{access_id}/agenda/remote-command",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"blob": "opaque-signed-encrypted-command"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {"blob": "opaque-signed-encrypted-ack"}
+    assert observed["access_id"] == access_id
+    assert observed["blob"] == "opaque-signed-encrypted-command"
+    assert observed["keyset_access_id"] == db.query(PatientCompanionAccess).one().id
