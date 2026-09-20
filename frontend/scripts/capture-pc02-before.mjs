@@ -47,7 +47,7 @@ async function installFetchHarness(context) {
           storage_policy: 'local_encrypted_device',
         }), { status: 201, headers: { 'Content-Type': 'application/json' } });
       }
-      if (url.pathname.endsWith('/appointments')) {
+      if (url.pathname.endsWith('/appointments') || url.pathname.endsWith('/agenda')) {
         return new Response(JSON.stringify({ items: [
           { datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
         ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
