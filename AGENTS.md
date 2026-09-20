@@ -50,7 +50,7 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
 - Backend : FastAPI + SQLAlchemy.
 - Frontend : React 19 + Vite + TypeScript + Zustand.
-- Mobile : PWA appairée au cabinet, réseau local, cache/offline ; tout wrapper natif futur reste un scope séparé tant qu'il n'est pas présent et certifié.
+- Mobile : PWA appairée au cabinet, réseau local, cache/offline. Un wrapper Tauri 2 est présent dans `frontend/src-tauri/`, mais il ne doit pas être présenté comme une distribution native cabinet/mobile certifiée sans preuve dédiée de build, packaging et certification.
 - Automatisation : modèles locaux et moteurs déterministes.
 - LLM : aucune dépendance LLM requise dans l'architecture courante.
 - Packaging : PyInstaller + Inno Setup.
