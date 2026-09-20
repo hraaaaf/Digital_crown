@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 
 from PIL import Image, ImageDraw
@@ -12,12 +12,14 @@ from backend import models
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionConsentEvidence,
+    PatientCompanionConsentRequest,
     PatientCompanionIdentity,
     PatientCompanionShareGrant,
 )
 from backend.routers.patient_companion_consents import (
     ConsentCreateRequest,
     create_patient_consent,
+    revoke_patient_consent,
 )
 from backend.services.patient_companion_consents import handle_consent_sign
 
@@ -179,3 +181,97 @@ def test_pc04_second_distinct_sign_command_never_replaces_existing_evidence(db, 
     db.refresh(evidence)
     assert evidence.signature_sha256 == first_hash
     assert evidence.signed_at == first_signed_at
+
+
+def test_pc04_reissue_preserves_revoked_request_history(db, dentiste, tmp_path):
+    patient, _identity, _access, document, _share = _context(db, dentiste, tmp_path)
+    first = create_patient_consent(
+        patient_id=patient.id,
+        body=ConsentCreateRequest(document_id=document.id),
+        db=db,
+        current_user=dentiste,
+    )
+    revoked = revoke_patient_consent(
+        patient_id=patient.id,
+        consent_id=first["consent_id"],
+        db=db,
+        current_user=dentiste,
+    )
+    assert revoked["status"] == "REVOKED"
+
+    second = create_patient_consent(
+        patient_id=patient.id,
+        body=ConsentCreateRequest(document_id=document.id),
+        db=db,
+        current_user=dentiste,
+    )
+    assert second["consent_id"] != first["consent_id"]
+    rows = db.query(PatientCompanionConsentRequest).order_by(PatientCompanionConsentRequest.created_at.asc()).all()
+    assert len(rows) == 2
+    assert rows[0].public_id == first["consent_id"]
+    assert rows[0].status == "REVOKED"
+    assert rows[0].revoked_at is not None
+    assert rows[1].public_id == second["consent_id"]
+    assert rows[1].status == "PENDING"
+
+
+def test_pc04_rejects_non_pdf_document_even_when_hash_integrity_matches(db, dentiste, tmp_path):
+    patient, _identity, _access, document, _share = _context(db, dentiste, tmp_path)
+    raw = b"not-a-pdf"
+    with open(document.file_path, "wb") as handle:
+        handle.write(raw)
+    document.file_hash = hashlib.sha256(raw).hexdigest()
+    document.file_size = len(raw)
+    db.commit()
+
+    import pytest
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc:
+        create_patient_consent(
+            patient_id=patient.id,
+            body=ConsentCreateRequest(document_id=document.id),
+            db=db,
+            current_user=dentiste,
+        )
+    assert exc.value.status_code == 409
+    assert "PDF" in str(exc.value.detail)
+
+
+def test_pc04_invalid_signature_is_encrypted_domain_rejection_not_exception(db, dentiste, tmp_path):
+    patient, _identity, access, document, _share = _context(db, dentiste, tmp_path)
+    created = create_patient_consent(
+        patient_id=patient.id,
+        body=ConsentCreateRequest(document_id=document.id),
+        db=db,
+        current_user=dentiste,
+    )
+    result = handle_consent_sign(
+        db,
+        access,
+        {"consent_id": created["consent_id"], "signature_base64": "data:image/png;base64,***"},
+    )
+    assert result.status == "REJECTED"
+    assert result.response["code"] == "INVALID_SIGNATURE"
+    assert db.query(PatientCompanionConsentEvidence).count() == 0
+
+
+def test_pc04_consent_handler_rejects_extra_payload_fields(db, dentiste, tmp_path):
+    patient, _identity, access, document, _share = _context(db, dentiste, tmp_path)
+    created = create_patient_consent(
+        patient_id=patient.id,
+        body=ConsentCreateRequest(document_id=document.id),
+        db=db,
+        current_user=dentiste,
+    )
+    result = handle_consent_sign(
+        db,
+        access,
+        {
+            "consent_id": created["consent_id"],
+            "signature_base64": _signature_data_url(),
+            "patient_id": patient.id,
+        },
+    )
+    assert result.status == "REJECTED"
+    assert result.response["code"] == "INVALID_REQUEST"
