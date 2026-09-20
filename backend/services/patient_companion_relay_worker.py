@@ -13,7 +13,10 @@ from backend.models_patient_companion import (
     PatientCompanionRemoteKeyset,
 )
 from backend.services.patient_companion_key_protection import unprotect_os_bound
-from backend.services.patient_companion_relay_client import cabinet_relay_capabilities
+from backend.services.patient_companion_relay_client import (
+    cabinet_relay_capabilities,
+    deprovision_relay_mailboxes,
+)
 from backend.services.patient_companion_remote_receipts import RemoteCommandBusy
 from backend.services.patient_companion_remote_worker import process_remote_envelope
 
@@ -89,8 +92,7 @@ def process_relay_binding_once(
 
     access, keyset = _active_keyset(db, binding)
     if access is None or keyset is None:
-        binding.status = "REVOKED"
-        binding.revoked_at = datetime.utcnow()
+        binding.status = "REVOKE_PENDING"
         db.commit()
         return {"processed": 0, "delivered": 0, "invalid": 0}
 
@@ -216,18 +218,36 @@ def poll_relay_bindings_once(
     *,
     client: httpx.Client | None = None,
     unprotect=unprotect_os_bound,
+    bootstrap_secret: str = "",
 ) -> dict[str, int]:
     owned_client = client is None
     client = client or httpx.Client(timeout=10.0)
     totals = {"bindings": 0, "processed": 0, "delivered": 0, "invalid": 0, "failed": 0}
     try:
         bindings = db.query(PatientCompanionRelayBinding).filter(
-            PatientCompanionRelayBinding.status == "ACTIVE",
-            PatientCompanionRelayBinding.revoked_at.is_(None),
+            PatientCompanionRelayBinding.status.in_(["ACTIVE", "REVOKE_PENDING"]),
         ).all()
         for binding in bindings:
             totals["bindings"] += 1
             try:
+                if binding.status == "REVOKE_PENDING":
+                    if not bootstrap_secret:
+                        totals["failed"] += 1
+                        continue
+                    revoked = deprovision_relay_mailboxes(
+                        relay_url=binding.relay_url,
+                        bootstrap_secret=bootstrap_secret,
+                        mailbox_ids=(binding.cabinet_inbox_id, binding.patient_inbox_id),
+                        client=client,
+                    )
+                    if revoked:
+                        binding.status = "REVOKED"
+                        binding.revoked_at = datetime.utcnow()
+                        db.commit()
+                    else:
+                        totals["failed"] += 1
+                    continue
+
                 result = process_relay_binding_once(
                     db,
                     binding=binding,
@@ -236,6 +256,22 @@ def poll_relay_bindings_once(
                 )
                 for key in ("processed", "delivered", "invalid"):
                     totals[key] += result[key]
+                if binding.status == "REVOKE_PENDING":
+                    if not bootstrap_secret:
+                        totals["failed"] += 1
+                        continue
+                    revoked = deprovision_relay_mailboxes(
+                        relay_url=binding.relay_url,
+                        bootstrap_secret=bootstrap_secret,
+                        mailbox_ids=(binding.cabinet_inbox_id, binding.patient_inbox_id),
+                        client=client,
+                    )
+                    if revoked:
+                        binding.status = "REVOKED"
+                        binding.revoked_at = datetime.utcnow()
+                        db.commit()
+                    else:
+                        totals["failed"] += 1
             except Exception:
                 db.rollback()
                 totals["failed"] += 1
