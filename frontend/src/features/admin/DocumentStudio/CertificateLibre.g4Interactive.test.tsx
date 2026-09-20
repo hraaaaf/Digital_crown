@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CertificateForm as CertificateFormInner } from './Forms/CertificateFormInner';
 import { LibreForm } from './Forms/LibreForm';
+import { CERTIFICATE_TYPE_FREE, CERTIFICATE_TYPE_WORK_STOP } from './CertificatePolicy';
 
 afterEach(() => cleanup());
 
@@ -35,7 +36,7 @@ describe('Certificate G4 interactive controls', () => {
     render(
       <CertificateFormInner
         patientId=""
-        certifType="CERTIFICAT_MEDICAL"
+        certifType={CERTIFICATE_TYPE_FREE}
         setCertifType={vi.fn()}
         certifDays={0}
         setCertifDays={vi.fn()}
@@ -60,7 +61,7 @@ describe('Certificate G4 interactive controls', () => {
     render(
       <CertificateFormInner
         patientId=""
-        certifType="ARRET_TRAVAIL"
+        certifType={CERTIFICATE_TYPE_WORK_STOP}
         setCertifType={vi.fn()}
         certifDays={0}
         setCertifDays={setDays}
