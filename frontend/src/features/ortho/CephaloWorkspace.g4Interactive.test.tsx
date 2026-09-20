@@ -79,6 +79,11 @@ vi.mock('./CephaloHistory', () => ({
   </div>
 }));
 
+Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+  configurable: true,
+  value: vi.fn(),
+});
+
 beforeEach(()=>{
   vi.clearAllMocks();
   state.analysisId=99;
