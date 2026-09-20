@@ -168,7 +168,9 @@ try {
           'stock-delete-refusal',
         ].includes(scenario);
         const unexpected = runtimeErrors.filter(error => {
-          if (error.startsWith('pageerror:')) return true;
+          if (error.startsWith('pageerror:')) {
+            return !(phase === 'before' && expectedFailureScenario && error.includes('503'));
+          }
           if (expectedFailureScenario && error.startsWith('console:')) return false;
           return !error.includes('503');
         });
