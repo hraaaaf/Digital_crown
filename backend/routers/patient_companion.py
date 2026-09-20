@@ -6,5 +6,6 @@ from backend.routers import patient_companion_activation, patient_companion_agen
 router = APIRouter(tags=["Patient Companion"])
 router.include_router(patient_companion_activation.router)
 router.include_router(patient_companion_agenda.router)
-router.include_router(patient_companion_pairing.router)\nrouter.include_router(patient_companion_questionnaires.router)
+router.include_router(patient_companion_pairing.router)
+router.include_router(patient_companion_questionnaires.router)
 router.include_router(patient_companion_shares.router)
