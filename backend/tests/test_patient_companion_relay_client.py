@@ -89,3 +89,40 @@ def test_relay_provisioning_splits_patient_and_cabinet_capabilities(db, dentiste
     assert caps["cabinet_write"] not in binding.protected_cabinet_read_cap_b64
     assert caps["patient_read"] not in binding.protected_patient_write_cap_b64
     assert db.query(PatientCompanionRelayBinding).filter_by(access_id=access.id).count() == 1
+
+
+def test_revoke_pending_becomes_revoked_only_after_both_mailboxes_are_deprovisioned(db, dentiste):
+    from backend.services.patient_companion_relay_worker import poll_relay_bindings_once
+
+    access = _access(db, dentiste)
+    binding = PatientCompanionRelayBinding(
+        access_id=access.id,
+        relay_url="https://relay.test",
+        cabinet_inbox_id=str(uuid.uuid4()),
+        patient_inbox_id=str(uuid.uuid4()),
+        protected_cabinet_read_cap_b64="unused",
+        protected_patient_write_cap_b64="unused",
+        status="REVOKE_PENDING",
+    )
+    db.add(binding)
+    db.commit()
+
+    deleted = []
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            deleted.append(request.url.path)
+            return httpx.Response(204)
+        return httpx.Response(404)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    result = poll_relay_bindings_once(
+        db,
+        client=client,
+        bootstrap_secret="s" * 32,
+    )
+    db.refresh(binding)
+
+    assert binding.status == "REVOKED"
+    assert binding.revoked_at is not None
+    assert len(deleted) == 2
+    assert result["failed"] == 0
