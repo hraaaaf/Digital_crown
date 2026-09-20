@@ -2,7 +2,6 @@ import { chromium, webkit } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const beforeUrl = process.env.PC02_AFTER_URL || 'http://127.0.0.1:5174';
 const afterUrl = process.env.PC02_AFTER_URL || 'http://127.0.0.1:5175';
 const phases = ['after'];
 const outputRoot = process.env.PC02_EVIDENCE_DIR || '../artifacts/pc02-agenda-after';
@@ -49,7 +48,7 @@ async function installFetchHarness(context) {
       }
       if (url.pathname.endsWith('/agenda')) {
         return new Response(JSON.stringify({ items: [
-          { datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
+          { appointment_ref: '8fd11a5e-4a63-4d8a-bca8-2d4b6ef3a901', datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
         ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       if (url.pathname.endsWith('/shares')) {
@@ -107,7 +106,7 @@ async function probe(page) {
 }
 
 async function capture(browserName, browser, phase, viewport) {
-  const base = phase === 'before' ? beforeUrl : afterUrl;
+  const base = afterUrl;
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const errors = [];
