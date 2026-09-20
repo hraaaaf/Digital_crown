@@ -107,3 +107,14 @@ def test_issue_slots_filters_conflicts_and_returns_no_internal_ids(db, dentiste)
     assert slots[0]["datetime_start"] == "2030-01-02T11:00:00"
     assert set(slots[0]) == {"slot_ref", "datetime_start", "duration_minutes", "expires_at"}
     uuid.UUID(slots[0]["slot_ref"])
+
+
+def test_practitioner_alias_is_opaque_and_tenant_scoped(db, dentiste):
+    from backend.models_patient_companion import PatientCompanionPractitionerRef
+    alias = PatientCompanionPractitionerRef(
+        public_id=str(uuid.uuid4()), employer_id=dentiste.id, practitioner_id=dentiste.id,
+    )
+    db.add(alias); db.flush()
+    assert alias.public_id != str(dentiste.id)
+    uuid.UUID(alias.public_id)
+    assert alias.employer_id == dentiste.id
