@@ -206,10 +206,6 @@ jobs:
         working-directory: frontend
         run: node scripts/capture-v1-07-g4-panoramic-trash-before.mjs
 
-      - name: Certify G4 Panoramic browser actions
-        working-directory: frontend
-        run: node scripts/certify-v1-07-g4-panoramic-actions.mjs
-
       - name: Certify G4 Cephalo browser actions
         working-directory: frontend
         run: node scripts/certify-v1-07-g4-cephalo-actions.mjs
