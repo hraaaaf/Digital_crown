@@ -1,6 +1,6 @@
 # PC-04 — Consent Vault patient-facing — CLOSEOUT
 
-Status: RECERTIFICATION REQUIRED AFTER DOUBLE/TRIPLE CHECK
+Status: FINAL CLOSEOUT CANDIDATE — RECERTIFY THIS DOC COMMIT BEFORE MERGE
 Branch: feature/patient-companion-pc04-consent-vault
 PR: #641
 Previously certified product HEAD: 614256f33f33bec88ba96654ae028f9c131cb280 (superseded for merge decision by double/triple-check corrections)
@@ -101,3 +101,48 @@ It MUST NOT be used to authorize merge of the corrected branch.
 
 ## Current merge gate
 Fresh exact-head certification is mandatory after all double/triple-check corrections and documentation are committed.
+
+
+## Final strengthened candidate certification — c5dc157e67fe62e3347f6801278bd12dcd187c8c
+
+Double/triple-check corrections are included in this exact product candidate.
+
+Exact-head results:
+- CI: 35537667919 — SUCCESS
+- Patient P7 Final Certification: 35537667879 — SUCCESS
+- T2 Runtime Browser Certification: 35537667977 — SUCCESS
+- PostgreSQL Alembic Schema Certification: 35537667837 — SUCCESS
+- Patient Companion Remote Transport Gate: 35537667834 — SUCCESS
+- PC-00 Patient Companion Visual Certification: 35537667818 — SUCCESS
+- PC-02 BEFORE Visual Evidence: 35537667858 — SUCCESS
+- PC-02 AFTER Visual Evidence: 35537667850 — SUCCESS
+- PC-03 AFTER Visual Evidence: 35537668021 — SUCCESS
+- Agenda A5 Visual Evidence: 35537667887 — SUCCESS
+- PC-04 BEFORE Visual Evidence: 35537667828 — SUCCESS
+- PC-04 AFTER Visual Evidence: 35537668040 — SUCCESS after one rerun of a harness-only startup timeout
+- PC-03 BEFORE Visual Evidence: skipped as expected outside PC-03
+- M6-I Biometric Passkey Certification: skipped as expected
+- PR Merge Summary: skipped as expected
+
+Final exact-head visual artifacts:
+- BEFORE artifact 10613344549
+- BEFORE digest: sha256:9ceffd9f1a1c2c221b1c361a41381356f50638baa4dcaf90919c7698b26b2a90
+- AFTER artifact 10614115300
+- AFTER digest: sha256:14800bcb4e14af26a59470a37a847dde2dc5e5efcdb2c1f888d8908dd0cd513e
+
+Final visual inspection:
+- Chromium 360x800 / 390x844
+- WebKit 360x800 / 390x844
+- horizontalOverflow=false in every BEFORE and AFTER evidence row
+- controls remain readable and touch-sized
+- read-before-sign state is visually explicit
+- application-evidence / non-qualified-signature boundary remains visible
+- main reserve remains vertical density when the signature panel is open
+
+Final severe visual score: 9.0/10.
+
+Reserve disposition:
+- vertical-density polish is explicitly assigned to PC-FINAL — Polish & Visual Consistency.
+
+## Final merge gate
+This closeout documentation commit itself must pass the exact-head certification matrix before PR #641 is marked ready and merged.
