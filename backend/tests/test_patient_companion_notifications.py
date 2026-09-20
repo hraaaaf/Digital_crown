@@ -3,6 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+
+import pytest
+from fastapi import HTTPException
 from datetime import datetime, timedelta, timezone
 
 from backend import models
@@ -19,6 +22,7 @@ from backend.models_patient_companion_notifications import (
     PatientCompanionNotificationPreference,
     PatientCompanionNotificationReceipt,
 )
+from backend.routers.patient_companion_notifications import _active_access
 from backend.services.patient_companion_remote_crypto import decrypt_and_verify, generate_p256_keypair, sign_and_encrypt
 from backend.services.patient_companion_remote_keys import enroll_remote_keyset
 from backend.services.patient_companion_remote_worker import process_remote_envelope
@@ -142,6 +146,8 @@ def test_pc05_projection_is_deterministic_and_uses_canonical_sources(db, dentist
     second = project_notifications(db, access, now=now)
 
     assert first == second
+    assert db.query(PatientCompanionNotificationReceipt).count() == 0
+    assert db.query(PatientCompanionNotificationPreference).count() == 0
     assert len(first["items"]) == 3
     assert {item["kind"] for item in first["items"]} == {
         "APPOINTMENT_REMINDER",
@@ -401,3 +407,35 @@ def test_pc05_remote_registry_replays_same_idempotency_result_without_second_mut
         models.AuditLog.action == "PATIENT_COMPANION_REMOTE_COMMAND",
         models.AuditLog.resource_id == access.public_id,
     ).count() == 1
+
+
+def test_pc05_future_refused_or_expired_appointment_does_not_notify(db, dentiste):
+    patient, _identity, access = _patient_access(db, dentiste, "STATUS")
+    now = datetime.utcnow()
+    db.add_all([
+        models.Appointment(
+            patient_id=patient.id,
+            employer_id=dentiste.id,
+            datetime_start=now + timedelta(hours=2),
+            status=models.AppointmentStatus.REFUSE,
+        ),
+        models.Appointment(
+            patient_id=patient.id,
+            employer_id=dentiste.id,
+            datetime_start=now + timedelta(hours=3),
+            status=models.AppointmentStatus.EXPIRE,
+        ),
+    ])
+    db.commit()
+
+    assert project_notifications(db, access, now=now)["items"] == []
+
+
+def test_pc05_revoked_access_fails_closed_before_projection(db, dentiste):
+    _patient, identity, access = _patient_access(db, dentiste, "REVOKED")
+    access.revoked_at = datetime.utcnow()
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        _active_access(db, identity, access.public_id)
+    assert exc.value.status_code in {404, 410}
