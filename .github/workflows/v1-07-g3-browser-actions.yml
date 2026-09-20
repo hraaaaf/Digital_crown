@@ -7,6 +7,8 @@ on:
       - "frontend/src/features/mobile/Dashboard/views/FrontdeskView.tsx"
       - "frontend/src/features/mobile/Dashboard/views/NotificationsView.tsx"
       - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.tsx"
+      - "frontend/src/features/mobile/Dashboard/MobileG3BrowserCertHarness.tsx"
+      - "frontend/src/main.tsx"
       - "frontend/scripts/certify-v1-07-g3-browser-actions.mjs"
       - "scripts/t2_runtime_server.py"
       - ".github/workflows/v1-07-g3-browser-actions.yml"
@@ -64,6 +66,8 @@ jobs:
           cat /tmp/g3-backend.log; exit 1
       - name: Start frontend
         working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
         run: |
           npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/g3-frontend.log 2>&1 &
           for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
