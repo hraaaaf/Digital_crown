@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend import models
-from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionAppointmentRef, PatientCompanionAgendaSlot
+from backend.models_patient_companion import (
+    PatientCompanionAccess,
+    PatientCompanionAgendaSlot,
+    PatientCompanionAppointmentRef,
+    PatientCompanionPractitionerRef,
+)
 from backend.services.agenda_availability import validate_appointment_availability
 from backend.services.agenda_resource_conflicts import assert_resource_available
 from backend.services.patient_companion_remote_worker import RemoteDomainResult
@@ -278,8 +283,75 @@ def cancel_appointment(db: Session, access: PatientCompanionAccess, payload: dic
     )
 
 
+def list_practitioners(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
+    if payload:
+        return _reject("INVALID_REQUEST")
+    practitioners = db.query(models.User).filter(
+        models.User.is_active.is_(True),
+        models.User.role.in_([models.UserRole.DENTISTE, models.UserRole.ADMIN]),
+        ((models.User.id == access.employer_id) | (models.User.employer_id == access.employer_id)),
+    ).order_by(models.User.nom_complet.asc(), models.User.id.asc()).all()
+    items = []
+    for practitioner in practitioners:
+        alias = db.query(PatientCompanionPractitionerRef).filter(
+            PatientCompanionPractitionerRef.employer_id == access.employer_id,
+            PatientCompanionPractitionerRef.practitioner_id == practitioner.id,
+        ).first()
+        if alias is None:
+            alias = PatientCompanionPractitionerRef(
+                public_id=str(uuid.uuid4()),
+                employer_id=access.employer_id,
+                practitioner_id=practitioner.id,
+            )
+            db.add(alias)
+            db.flush()
+        if alias.revoked_at is None:
+            items.append({
+                "practitioner_ref": alias.public_id,
+                "display_name": practitioner.nom_complet or "Praticien",
+            })
+    return RemoteDomainResult(status="ACCEPTED", response={"items": items})
+
+
+def list_slots(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
+    if set(payload) != {"practitioner_ref", "day", "duration_minutes"}:
+        return _reject("INVALID_REQUEST")
+    try:
+        practitioner_ref = str(uuid.UUID(str(payload["practitioner_ref"])))
+        day = date.fromisoformat(str(payload["day"]))
+        duration_minutes = int(payload["duration_minutes"])
+    except (TypeError, ValueError):
+        return _reject("INVALID_REQUEST")
+    if duration_minutes < 10 or duration_minutes > 180:
+        return _reject("INVALID_REQUEST")
+    alias = db.query(PatientCompanionPractitionerRef).filter(
+        PatientCompanionPractitionerRef.public_id == practitioner_ref,
+        PatientCompanionPractitionerRef.employer_id == access.employer_id,
+        PatientCompanionPractitionerRef.revoked_at.is_(None),
+    ).first()
+    if alias is None:
+        return _reject("PRACTITIONER_NOT_FOUND")
+
+    starts = []
+    cursor = datetime.combine(day, time(hour=8))
+    end = datetime.combine(day, time(hour=20))
+    while cursor < end:
+        starts.append(cursor)
+        cursor += timedelta(minutes=30)
+    items = issue_slots(
+        db,
+        access=access,
+        starts=starts,
+        duration_minutes=duration_minutes,
+        practitioner_id=alias.practitioner_id,
+    )
+    return RemoteDomainResult(status="ACCEPTED", response={"items": items})
+
+
 PC02_REMOTE_HANDLERS = {
     "agenda.create": create_appointment,
     "agenda.reschedule": reschedule_appointment,
     "agenda.cancel": cancel_appointment,
+    "agenda.practitioners": list_practitioners,
+    "agenda.slots": list_slots,
 }
