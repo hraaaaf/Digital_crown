@@ -188,3 +188,7 @@ Status remains IN PROGRESS until exact-head tests + build are green.
     - Documents create/history boundary.
 
 G2 functional implementation work is now substantially covered. Certification still requires exact-head tests + build to pass.
+
+
+## Browser escalation
+G2 is no longer certifiable from component matrices + CI alone. Dashboard, Patients and Patient dossier controls must be enumerated and exercised in real Chromium. The shared G1→G7 browser factory supplies the runtime denominator; a G2 Playwright action pass must reconcile Dashboard/Patients controls to observable navigation, mutation ACK/refusal and non-mutation outcomes before certification.
