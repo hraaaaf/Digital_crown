@@ -58,9 +58,31 @@ def upgrade():
     op.create_index("ix_pc_agenda_slot_expires_at", "patient_companion_agenda_slots", ["expires_at"], unique=False)
     op.create_index("ix_pc_agenda_slot_revoked_at", "patient_companion_agenda_slots", ["revoked_at"], unique=False)
     op.create_index("ix_pc_agenda_slot_tenant_expiry", "patient_companion_agenda_slots", ["employer_id", "expires_at"], unique=False)
+    op.create_table(
+        "patient_companion_practitioner_refs",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("public_id", sa.String(length=36), nullable=False),
+        sa.Column("employer_id", sa.Integer(), nullable=False),
+        sa.Column("practitioner_id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["employer_id"], ["users.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["practitioner_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("employer_id", "practitioner_id", name="uq_pc_practitioner_ref_tenant_practitioner"),
+    )
+    op.create_index("ix_pc_practitioner_ref_public_id", "patient_companion_practitioner_refs", ["public_id"], unique=True)
+    op.create_index("ix_pc_practitioner_ref_employer_id", "patient_companion_practitioner_refs", ["employer_id"], unique=False)
+    op.create_index("ix_pc_practitioner_ref_practitioner_id", "patient_companion_practitioner_refs", ["practitioner_id"], unique=False)
+    op.create_index("ix_pc_practitioner_ref_revoked_at", "patient_companion_practitioner_refs", ["revoked_at"], unique=False)
 
 
 def downgrade():
+    op.drop_index("ix_pc_practitioner_ref_revoked_at", table_name="patient_companion_practitioner_refs")
+    op.drop_index("ix_pc_practitioner_ref_practitioner_id", table_name="patient_companion_practitioner_refs")
+    op.drop_index("ix_pc_practitioner_ref_employer_id", table_name="patient_companion_practitioner_refs")
+    op.drop_index("ix_pc_practitioner_ref_public_id", table_name="patient_companion_practitioner_refs")
+    op.drop_table("patient_companion_practitioner_refs")
     op.drop_index("ix_pc_agenda_slot_tenant_expiry", table_name="patient_companion_agenda_slots")
     op.drop_index("ix_pc_agenda_slot_revoked_at", table_name="patient_companion_agenda_slots")
     op.drop_index("ix_pc_agenda_slot_expires_at", table_name="patient_companion_agenda_slots")
