@@ -135,3 +135,7 @@ G5 functional surfaces inspected are now mapped to behavioral proof. Certificati
 All currently identified G5 interactive surfaces are mapped to behavioral proof or verified LOT2 reuse.
 
 Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUILD.
+
+
+## Browser escalation
+G5 is no longer certifiable from component matrices + CI alone. Every visible Settings tab/control, Team action and Backup/Restore gate must be reconciled against the real Chromium denominator and exercised by Playwright with observable staged-save, ACK/refusal, restore-state and non-mutation proof.
