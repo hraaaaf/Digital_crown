@@ -154,3 +154,7 @@ G3 independent functional matrices are now substantially reconciled. Exact-head 
     - truthful empty state.
 
 G3 functional matrices are now consolidated. Certification remains blocked only by exact-head tests/build and any failures they reveal.
+
+
+## Browser escalation
+G3 requires a real Chromium action pass in addition to component matrices: Agenda navigation/views, appointment create/edit/delete, Frontdesk, import, notifications and waiting-room actions must be exercised with observable ACK/refusal/non-mutation outcomes. Runtime-discovered dynamic controls join the denominator.
