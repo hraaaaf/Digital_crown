@@ -468,13 +468,20 @@ export const PatientCompanionApp = () => {
         setAgendaMessage(operation === 'agenda.cancel'
           ? 'Annulation confirmée par le cabinet.'
           : 'Demande confirmée par le cabinet.');
-        const snapshot = await PatientCompanionSync.sync(activePairing);
-        const next = await PatientCompanionStorage.load();
-        setVault(next);
-        setCabinetReachability('online');
-        setSyncState(snapshot ? 'synced' : 'idle');
         setAgendaOpen(false);
         setCancelAppointmentRef(null);
+        try {
+          const snapshot = await PatientCompanionSync.sync(activePairing);
+          const next = await PatientCompanionStorage.load();
+          setVault(next);
+          setCabinetReachability('online');
+          setSyncState(snapshot ? 'synced' : 'idle');
+        } catch {
+          // The signed cabinet ACK is authoritative. A later wallet refresh
+          // failure must never demote a confirmed command back to queued.
+          setCabinetReachability('offline');
+          setSyncState('offline');
+        }
       } else {
         setAgendaMessage(`Demande refusée par le cabinet · ${String(result.result.code || 'raison non précisée')}.`);
       }
