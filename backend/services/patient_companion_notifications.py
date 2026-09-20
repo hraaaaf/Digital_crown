@@ -107,6 +107,8 @@ def _consent_candidates(
             PatientCompanionShareGrant.id == row.share_grant_id,
             PatientCompanionShareGrant.employer_id == access.employer_id,
             PatientCompanionShareGrant.patient_id == access.patient_id,
+            PatientCompanionShareGrant.resource_type == "document",
+            PatientCompanionShareGrant.resource_id == row.document_id,
             PatientCompanionShareGrant.revoked_at.is_(None),
         ).first()
         if share is None:
