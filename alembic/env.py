@@ -9,6 +9,8 @@ from alembic.script import ScriptDirectory
 from backend.core.postgresql_alembic_baseline import bootstrap_empty_postgresql_to_head
 from backend.core.sqlite_alembic_baseline import bootstrap_empty_sqlite_to_head
 from backend.models import Base
+from backend import models_patient_companion as _models_patient_companion  # noqa: F401
+from backend import models_patient_companion_notifications as _models_patient_companion_notifications  # noqa: F401
 # The catalog tables are declared by the service module rather than the legacy
 # model module. Importing the module registers metadata only; schema creation is
 # still performed solely by versioned Alembic operator actions.
