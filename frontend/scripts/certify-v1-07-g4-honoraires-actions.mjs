@@ -193,15 +193,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const specialty = categoryLabels.find(label => !['Favoris', 'Tous les actes'].includes(label));
   if (!specialty) throw new Error('No specialty category available');
-  const specialtyActivated = await categoryBar.evaluate((bar, label) => {
-    const button = Array.from(bar.querySelectorAll('button')).find(
-      (candidate) => (candidate.textContent || '').trim() === label,
-    );
-    if (!button) return false;
-    button.click();
-    return true;
-  }, specialty);
-  if (!specialtyActivated) throw new Error('Specialty category button missing after traversal');
+  const specialtyButton = page.getByRole('button', { name: specialty, exact: true }).last();
+  await specialtyButton.waitFor({ state: 'visible', timeout: 10000 });
+  await specialtyButton.focus();
+  await page.keyboard.press('Enter');
   const addCatalogAct = page.getByRole('button', { name: /^Ajouter un acte à / }).last();
   await addCatalogAct.waitFor({ state: 'visible', timeout: 10000 });
   await addCatalogAct.focus();
