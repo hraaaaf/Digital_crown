@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.models_patient_companion import PatientCompanionAppointmentRef, PatientCompanionIdentity
 from backend.routers.patient_companion_common import get_db, patient_identity, principal_for_access
-from backend.services.patient_companion_agenda import issue_slots
 
 router = APIRouter()
 
