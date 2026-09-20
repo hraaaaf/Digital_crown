@@ -85,41 +85,149 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Test suite — shard 1/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=1/12
+      - name: Test suite — shard 1/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=1/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 2/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=2/12
+      - name: Test suite — shard 2/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=2/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 3/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=3/12
+      - name: Test suite — shard 3/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=3/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 4/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=4/12
+      - name: Test suite — shard 4/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=4/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 5/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=5/12
+      - name: Test suite — shard 5/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=5/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 6/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=6/12
+      - name: Test suite — shard 6/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=6/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 7/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=7/12
+      - name: Test suite — shard 7/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=7/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 8/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=8/12
+      - name: Test suite — shard 8/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=8/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 9/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=9/12
+      - name: Test suite — shard 9/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=9/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 10/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=10/12
+      - name: Test suite — shard 10/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=10/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 11/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=11/12
+      - name: Test suite — shard 11/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=11/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
-      - name: Test suite — shard 12/12
-        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=12/12
+      - name: Test suite — shard 12/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=12/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
       - name: Build
         run: npm run build
