@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -24,7 +25,7 @@ from backend.routers.patient_companion_common import (
     staff_patient_or_404,
 )
 from backend.services.audit_service import audit_service
-from backend.services.document_signature_p3 import verify_document_integrity
+from backend.services.document_signature_p3 import resolve_document_storage_path, verify_document_integrity
 from backend.services.patient_companion_consents import effective_consent_state
 from backend.services.patient_companion_remote_worker import process_remote_envelope
 from backend.utils.rate_limit import check_rate_limit
@@ -208,6 +209,59 @@ def list_patient_consents(
             "qualified_electronic_signature": False,
         })
     return {"items": items}
+
+
+@router.get("/contexts/{access_id}/consents/{consent_id}/document")
+def read_patient_consent_document(
+    access_id: str,
+    consent_id: str,
+    identity: PatientCompanionIdentity = Depends(patient_identity),
+    db: Session = Depends(get_db),
+):
+    principal, _patient = principal_for_access(db, identity, access_id)
+    row = db.query(PatientCompanionConsentRequest).filter(
+        PatientCompanionConsentRequest.public_id == consent_id,
+        PatientCompanionConsentRequest.employer_id == principal.employer_id,
+        PatientCompanionConsentRequest.patient_id == principal.patient_id,
+    ).first()
+    if row is None or effective_consent_state(row) in {"REVOKED", "EXPIRED"}:
+        raise HTTPException(status_code=404, detail="Consentement indisponible.")
+
+    share = db.query(PatientCompanionShareGrant).filter(
+        PatientCompanionShareGrant.id == row.share_grant_id,
+        PatientCompanionShareGrant.employer_id == principal.employer_id,
+        PatientCompanionShareGrant.patient_id == principal.patient_id,
+        PatientCompanionShareGrant.resource_type == "document",
+        PatientCompanionShareGrant.resource_id == row.document_id,
+        PatientCompanionShareGrant.revoked_at.is_(None),
+    ).first()
+    if share is None:
+        raise HTTPException(status_code=404, detail="Document non partagé.")
+
+    document = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == row.document_id,
+        models.DocumentArchive.patient_id == principal.patient_id,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+    ).first()
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document indisponible.")
+    if (
+        str(document.document_group_id) != str(row.document_group_id)
+        or int(document.version_number) != int(row.document_version)
+        or str(document.file_hash) != str(row.document_file_hash)
+        or int(document.file_size) != int(row.document_file_size)
+    ):
+        raise HTTPException(status_code=409, detail="La version du document a changé.")
+
+    integrity_ok, integrity_reason = verify_document_integrity(document)
+    if not integrity_ok:
+        raise HTTPException(status_code=409, detail=f"Intégrité du document invalide : {integrity_reason}")
+    path = resolve_document_storage_path(document)
+    return FileResponse(
+        path=str(path),
+        media_type="application/pdf",
+        filename=document.original_filename or document.filename,
+    )
 
 
 @router.post("/contexts/{access_id}/consents/remote-command")
