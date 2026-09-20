@@ -79,13 +79,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('all-20-pediatric-teeth-open-close');
 
   await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-  for (const group of ['Q5','Q6','Q7','Q8']) {
-    await page.getByRole('button', { name: group, exact: true }).click();
+  const quickGroups = page.getByRole('button').filter({ hasText: /^Q[1-8]$/ });
+  const quickGroupNames = await quickGroups.allTextContents();
+  if (quickGroupNames.length === 0) throw new Error('no Bridge & Prothèses quick groups exposed at runtime');
+  for (const group of quickGroupNames) {
+    await page.getByRole('button', { name: group.trim(), exact: true }).click();
     await page.getByText(/dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
-    await page.getByRole('button', { name: group, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   }
-  actions.push('pediatric-quick-groups-reset');
+  actions.push('bridge-quick-groups-runtime-all-reset:' + quickGroupNames.map(x => x.trim()).join(','));
 
   await page.getByRole('button', { name: /Soins Ciblés/i }).click();
   await page.getByRole('button', { name: 'Adulte', exact: true }).click();
