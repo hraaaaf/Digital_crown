@@ -1,234 +1,306 @@
-# Digital Crown — SANINOVA Edition
+# Digital Crown
 
-## Plateforme de gestion dentaire & orthodontique — local-first
+## Le cockpit clinique et administratif du cabinet dentaire
 
-Digital Crown est une application de gestion de cabinet dentaire et orthodontique conçue pour fonctionner **sur le poste du cabinet ou sur son LAN**, et non comme un SaaS hébergeant les données patients à distance.
+Digital Crown rassemble dans un même environnement les fonctions essentielles du cabinet : organisation quotidienne, dossier patient, suivi clinique, imagerie, documents, paiements, indicateurs et continuité de suivi.
 
-- **Backend** : FastAPI + SQLAlchemy
-- **Frontend** : React 19 + Vite + TypeScript + Zustand
-- **Mode cabinet solo** : SQLite/SQLCipher local autorisé
-- **Mode production serveur** : PostgreSQL requis
-- **Mobile** : compagnon PWA/Capacitor appairé au cabinet
-- **Imagerie** : modèles locaux ONNX / moteurs déterministes
-- **LLM** : aucune dépendance LLM requise dans l'architecture clinique courante
-- **Firebase** : identité/licence et services associés, jamais source de vérité des dossiers patients
+L’objectif est simple : **réduire la friction au quotidien tout en améliorant la traçabilité et la lisibilité clinique**.
 
-> La source de vérité opérationnelle et les risques ouverts vivent dans `STATE.md`.
-> `AGENTS.md` et `CLAUDE.md` décrivent les règles de développement à respecter avant toute modification.
+Digital Crown est conçu selon une architecture **local-first** : les données métier du cabinet restent sous le contrôle de l’installation du cabinet, avec des accès authentifiés et une organisation pensée pour un usage professionnel.
 
 ---
 
-## Architecture d'exécution
+## Pourquoi Digital Crown ?
 
-### Environnements
+### Gagner du temps
 
-- `development` / `local` / `test` : environnements de développement et de test.
-- `cabinet` : environnement production-like pour installation locale ; `DEBUG` et CORS wildcard sont interdits, SQLite/SQLCipher reste autorisé.
-- `production` : mêmes exigences de durcissement, avec PostgreSQL obligatoire.
+Le praticien et son équipe retrouvent dans un même cockpit les informations utiles au rendez-vous, au dossier clinique, aux documents et au suivi administratif.
 
-Les invariants de démarrage sont appliqués par `backend/main.py::validate_environment_invariants()`.
+### Centraliser le dossier du patient
 
-### Données patients
+Les informations administratives, cliniques, radiologiques, documentaires et financières sont reliées au même patient afin de limiter les doubles saisies et les recherches dispersées.
 
-- Backend = autorité métier.
-- Frontend = client non fiable.
-- Isolation cabinet par `employer_id`.
-- Toute route patient doit faire respecter l'accès via les guards backend appropriés, notamment `assert_patient_access(...)` lorsque le flux est patient-scopé.
-- Les médias patients sont servis via des routes authentifiées, pas via un répertoire statique public.
-- Les données cliniques ne doivent pas être envoyées dans un service LLM externe.
+### Renforcer la traçabilité
 
----
+Les actes, documents, événements cliniques, suivis orthodontiques et principales actions restent structurés dans le temps.
 
-## Modules principaux
+### Garder le contrôle
 
-### Agenda & patients
-
-- Agenda multi-praticien et statuts de rendez-vous
-- Dossier patient longitudinal
-- Patient Journey
-- Actes, paiements et échéanciers
-- Documents et archives
-- Scoring et signaux administratifs
-
-### Céphalométrie
-
-- Import / landmarks / correction manuelle
-- Calculs géométriques locaux
-- SNA, SNB, ANB, IMPA, I-Francfort, Tweed/FMA, Wits et mesures associées
-- Registre normatif versionné : définitions, profils, règles de classification et bornes de plausibilité
-- Refus des classifications normatives ambiguës, quarantined ou non autoritatives
-
-**État scientifique important :** une partie du registre historique reste explicitement marquée `LEGACY_UNVALIDATED`. L'existence d'une valeur historique dans le registre ne constitue donc pas une validation scientifique.
-
-### Panoramique
-
-- Studio panoramique local
-- Détection/localisation assistée
-- Annotation et validation praticien
-- Rapport déterministe et archivage
-- Protection d'accès aux médias patients
-
-Le chemin clinique courant doit conserver la séparation suivante : **assistance machine ≠ diagnostic autonome**.
-
-### Documents
-
-- Ordonnances
-- Certificats
-- Devis
-- Notes d'honoraires
-- Documents libres / lettres
-- Échéanciers
-- Rapports céphalométriques et panoramiques
-- Archivage, versioning et génération PDF
-
-### Comptabilité
-
-- Actes
-- Paiements
-- Échéanciers
-- Impayés
-- Forecasts et analytics
-- Export et reporting
-
-### Proactivité
-
-- Alertes quotidiennes
-- Snooze / lecture / expiration
-- Risque de no-show
-- Traitement non commencé
-- Suivi post-soin
-- Gaps orthodontiques
-- Signaux de pression agenda / matériaux
-
-Les automatismes administratifs peuvent proposer une action. Les automatismes cliniques doivent rester des **signaux à vérifier par le praticien**, pas devenir une décision thérapeutique autonome.
-
-### Mobile
-
-- Appairage LAN
-- ECDH P-256 / HKDF / AES-GCM pour l'échange de secrets
-- Dashboard mobile
-- Agenda, finance, labo et sécurité
-- Cache/offline queue
-- Révocation des accès mobiles
-
-Le stockage local des credentials mobiles doit être traité comme une surface de sécurité séparée du chiffrement réseau.
+Digital Crown assiste le cabinet sans remplacer le jugement du praticien. Une donnée absente reste absente ; une mesure calculée reste identifiable comme telle ; les décisions cliniques restent sous contrôle humain.
 
 ---
 
-## Paramètres cabinet
+# Les principaux modules
 
-Le centre de paramètres couvre actuellement :
+## Tableau de bord
 
-1. Profil cabinet
-2. Branding / design
-3. Catalogue des actes
-4. Horaires & agenda
-5. Intelligence & performance
-6. Sécurité & backup
-7. Équipe
+Le tableau de bord donne une lecture rapide de l’activité du cabinet et des éléments nécessitant l’attention de l’équipe.
 
----
+**Bénéfice :** commencer la journée avec une vision claire des priorités et des actions utiles.
 
-## Sécurité
+## Agenda & organisation
 
-Mesures présentes dans le code :
+Digital Crown centralise les rendez-vous et l’organisation du planning du cabinet, avec gestion des praticiens et des ressources lorsque le contexte l’exige.
 
-- JWT et contrôle d'accès backend
-- RBAC
-- isolation tenant
-- audit logs
-- CORS borné
-- headers de sécurité
-- protection anti-path-traversal des médias
-- health checks
-- garde de configuration production
-- tokens d'appairage mobiles temporaires
-- rotation/révocation d'accès mobile
+**Bénéfice :** mieux organiser la journée, réduire les conflits de planning et garder une vision cohérente de l’activité.
 
-### Doctrine
+## Dossier patient
 
-- Ne jamais exposer un média patient anonymement.
-- Ne jamais accepter un `employer_id` client comme autorité d'isolation.
-- Ne jamais inventer une donnée patient manquante.
-- Ne jamais transformer une approximation en écriture financière réelle.
-- Une base locale attendue chiffrée ne doit pas être considérée sûre uniquement parce qu'une tentative de chiffrement a été effectuée.
-- Un test vert ne constitue pas à lui seul une validation scientifique ou clinique.
+Chaque patient dispose d’un dossier longitudinal regroupant les informations utiles à son suivi : données administratives, clinique, imagerie, documents, archives et finances.
 
----
+**Bénéfice :** retrouver rapidement l’historique et le contexte utile sans naviguer entre plusieurs outils.
 
-## Gouvernance scientifique
+## Documents
 
-Les changements touchant prescription, diagnostic, céphalométrie, panoramique, radiologie ou logique clinique sont régis par :
+Digital Crown permet de préparer et archiver les principaux documents du cabinet : ordonnances, devis, certificats, notes d’honoraires, échéanciers, lettres et rapports.
 
-- `.claude/rules/scientific-engineering.md`
-- `.claude/skills/audit-prescription-flow/SKILL.md`
-- `.claude/skills/audit-clinical-diagnosis-flow/SKILL.md`
-- `.claude/skills/audit-panoramic-report-pipeline/SKILL.md`
-- `.claude/skills/validate-cephalo-pipeline/SKILL.md`
-- les skills d'implémentation/review scientifiques correspondant au domaine
+**Bénéfice :** produire des documents cohérents à partir du dossier patient et conserver une trace structurée de leur émission.
 
-Les audits sont **read-only**. Un finding d'audit doit être corrigé dans une mission distincte, testée puis revue indépendamment.
+## Comptabilité & finances
+
+Le cabinet peut suivre les actes, paiements, échéanciers, impayés et principaux indicateurs financiers liés à l’activité.
+
+**Bénéfice :** relier plus simplement l’activité clinique au suivi administratif et financier.
+
+## Indicateurs
+
+Les écrans d’indicateurs permettent d’observer l’activité du cabinet à partir des données disponibles.
+
+**Bénéfice :** disposer d’une lecture synthétique de l’activité sans sortir du cockpit.
+
+## Bibliothèque clinique & Science Hub
+
+Digital Crown intègre des surfaces de consultation de références et ressources cliniques destinées à accompagner le praticien.
+
+**Bénéfice :** garder les ressources utiles proches du contexte de travail.
+
+Ces ressources sont des outils d’aide et ne remplacent pas l’analyse clinique du praticien.
+
+## Approvisionnement
+
+Le cockpit intègre également une surface d’approvisionnement et de consultation des partenaires et produits référencés.
+
+**Bénéfice :** rapprocher certaines tâches d’approvisionnement de l’environnement quotidien du cabinet.
 
 ---
 
-## Tests & CI
+# Imagerie & orthodontie
 
-Workflow : `.github/workflows/ci.yml`.
+## Céphalométrie
 
-Le pipeline versionné comprend actuellement :
+Digital Crown permet d’importer une étude, de travailler avec des repères céphalométriques, de corriger les landmarks et de calculer des mesures géométriques disponibles dans le système.
 
-- backend : installation, `prod_safety_check.py`, `pytest backend/tests`
-- frontend : `npm ci`, tests, build
-- garde production négatif : une configuration faible doit être refusée
+Les résultats restent traçables et doivent toujours être interprétés dans leur contexte clinique.
 
-Commandes usuelles :
+**Bénéfice :** centraliser l’étude céphalométrique dans le dossier patient tout en gardant visibles les mesures et leur provenance.
 
-```bash
-# Backend
-python -m pytest backend/tests -q
-python scripts/prod_safety_check.py
+## Panoramique
 
-# Frontend
-npm --prefix frontend test
-npm --prefix frontend run build
-```
+Le studio panoramique permet de travailler sur l’imagerie, les annotations et les éléments de rapport prévus par le produit.
 
-Pour un changement sur un chemin API ou un générateur PDF, une validation live/rehearsal adaptée au risque est requise en plus des tests unitaires.
+**Bénéfice :** rapprocher l’imagerie du dossier patient et du reste du suivi clinique.
 
----
+## Suivi orthodontique longitudinal
 
-## Packaging cabinet
+Le suivi orthodontique structure la chronologie du traitement : phases, contrôles, événements, timepoints et comparaisons disponibles entre différents moments du traitement.
 
-Le packaging Windows s'appuie sur :
+**Bénéfice :** suivre l’évolution dans le temps sans créer un dossier parallèle au dossier patient.
 
-- `DigitalCrown.spec` / PyInstaller
-- `installer/DigitalCrown.iss` / Inno Setup
-- les scripts de runtime et release immuable sous `backend/scripts/`
-
-Voir `docs/CABINET_ONPREM_GUIDE.md` et les runbooks associés avant toute opération sur une installation réelle.
+Une variation numérique n’est pas automatiquement interprétée comme une amélioration, un échec ou une indication thérapeutique. L’interprétation appartient au praticien.
 
 ---
 
-## Contraintes non négociables
+# Digital Crown au quotidien
 
-- Jamais de perte de données patients.
-- Jamais de seed/demo sur une base cabinet réelle.
-- Jamais de secret, token, mot de passe ou master key dans les logs.
-- Jamais de test d'écriture supposé isolé sans vérifier explicitement le fichier d'environnement et la DB réellement ciblée.
-- Jamais de diagnostic automatique confirmé sans état clinique explicite et validation praticien.
-- Jamais de constante clinique non sourcée introduite silencieusement.
+Un parcours type peut se résumer ainsi :
+
+1. **Le patient arrive au cabinet** : l’équipe retrouve son rendez-vous et son dossier.
+2. **Le praticien ouvre le dossier patient** : contexte, historique, clinique, imagerie et éléments utiles sont accessibles dans le même environnement.
+3. **L’acte et les documents sont réalisés** : les informations et documents associés sont structurés dans le dossier.
+4. **Le suivi administratif est enregistré** : paiement, échéancier ou éléments financiers sont reliés au parcours du patient.
+5. **Le suivi continue** : rendez-vous, alertes, contrôles, documents et événements successifs enrichissent l’historique.
 
 ---
 
-## État courant
+# Extensions mobiles
 
-Ce README décrit l'architecture et les invariants, pas le statut de certification d'une release.
+## Digital Crown Mobile
 
-Pour reprendre le projet ou décider du prochain lot, lire dans cet ordre :
+La PWA mobile est une extension du cockpit du cabinet. Elle peut être appairée à l’installation Digital Crown afin d’accéder aux surfaces mobiles prévues par le produit.
 
-1. `STATE.md`
-2. `AGENTS.md` ou `CLAUDE.md` selon l'agent utilisé
-3. la règle/`SKILL.md` correspondant au domaine modifié
-4. les fichiers scientifiques ou runbooks référencés par ce skill
+Elle est conçue comme un complément au poste principal, notamment pour certaines consultations rapides, vues de contexte et usages mobiles du cabinet.
 
-**Dernière révision canonique : 13 août 2026.**
+## Patient Companion
+
+Patient Companion constitue une interface séparée destinée au patient pour les interactions et informations explicitement partagées par le cabinet dans ce cadre.
+
+Son accès repose sur un mécanisme d’appairage/autorisation dédié et ne transforme pas le patient en utilisateur du dossier clinique complet du cabinet.
+
+---
+
+# Données, confidentialité et sécurité
+
+Digital Crown est conçu selon un principe **local-first**.
+
+Selon l’installation retenue :
+
+- les données métier sont conservées sous l’autorité de l’installation du cabinet ;
+- les accès sont authentifiés ;
+- les droits utilisateurs limitent l’accès aux fonctions selon le rôle ;
+- les dossiers et médias sensibles ne sont pas exposés comme de simples fichiers publics ;
+- les sauvegardes font partie de la stratégie normale de continuité du cabinet.
+
+Certaines fonctions d’identité, de licence ou certains services associés peuvent nécessiter une connexion Internet. Le cœur métier reste conçu autour du fonctionnement local du cabinet.
+
+---
+
+# Sauvegarde & continuité
+
+Une installation professionnelle doit être accompagnée d’une stratégie de sauvegarde régulière.
+
+Le cabinet doit notamment veiller à :
+
+- conserver des sauvegardes selon la politique définie lors de l’installation ;
+- vérifier régulièrement qu’elles sont exploitables ;
+- protéger les supports ou destinations de sauvegarde ;
+- ne jamais improviser une restauration sur la base de travail sans procédure adaptée.
+
+Les opérations de restauration ou de migration importantes doivent suivre les procédures de maintenance prévues.
+
+---
+
+# Praticien et équipe du cabinet
+
+Digital Crown est pensé pour un usage partagé entre le praticien et les membres autorisés de son équipe.
+
+Les droits et surfaces accessibles peuvent différer selon le rôle de l’utilisateur afin de limiter les actions aux besoins réels du cabinet.
+
+---
+
+# Prise en main rapide
+
+1. **Configurer le cabinet** et les principaux paramètres de fonctionnement.
+2. **Créer ou retrouver un patient** depuis la liste des patients.
+3. **Organiser les rendez-vous** dans l’agenda.
+4. **Utiliser le dossier patient** pour les informations cliniques, l’imagerie, les documents et le suivi.
+5. **Mettre en place la sauvegarde** et vérifier que l’équipe connaît les procédures essentielles.
+
+Les procédures détaillées d’installation, de maintenance et de restauration sont fournies séparément lorsque nécessaire.
+
+---
+
+# Prérequis minimums
+
+L’environnement exact dépend du mode d’installation retenu. De manière générale, le cabinet doit disposer :
+
+- d’un poste principal compatible avec l’installation Digital Crown ;
+- d’un réseau local fonctionnel lorsque plusieurs postes ou extensions mobiles doivent communiquer avec le poste/serveur du cabinet ;
+- d’une stratégie de sauvegarde adaptée ;
+- des périphériques utiles au fonctionnement du cabinet selon ses usages : imprimante, scanner ou équipements d’imagerie lorsqu’ils font partie du workflow.
+
+---
+
+# Cadre d’utilisation
+
+Digital Crown est un outil d’assistance au fonctionnement du cabinet.
+
+Il ne remplace pas :
+
+- l’examen clinique ;
+- le diagnostic du praticien ;
+- la décision thérapeutique ;
+- la vérification des données avant utilisation clinique ;
+- les obligations professionnelles et réglementaires applicables au cabinet.
+
+Lorsqu’une information n’est pas disponible ou qu’une fonction ne possède pas un niveau de preuve suffisant pour produire une interprétation clinique automatique, Digital Crown doit conserver cette limite visible plutôt que fabriquer une conclusion.
+
+---
+
+# En cours de construction
+
+Digital Crown continue d’évoluer. Les modules suivants appartiennent à la prochaine étape produit et sont **en cours de construction** :
+
+### SteriTrace
+Traçabilité du cycle de stérilisation et des instruments.
+
+### Implant Passport
+Traçabilité des implants, biomatériaux, références et lots associés.
+
+### Consent Vault
+Gestion de consentements structurés, signés et versionnés.
+
+### Post-Op
+Suivi postopératoire structuré après certains actes.
+
+### Referral Loop
+Suivi des correspondants et des parcours d’adressage.
+
+### PhotoCase
+Photographie clinique standardisée et suivi avant/après.
+
+### Evidence Pack
+Constitution d’un dossier médico-administratif chronologique et exportable.
+
+Deux surfaces complémentaires du produit sont également **en cours de construction** dans la version actuelle : **Module Labo** et **Salle d’attente**.
+
+La présence d’un module dans cette section ne signifie pas qu’il est déjà livré ni qu’une date de disponibilité est garantie.
+
+---
+
+# Support & maintenance
+
+Digital Crown est prévu pour être accompagné d’un suivi de maintenance adapté à l’installation du cabinet.
+
+Ce suivi peut comprendre selon le contrat et le contexte :
+
+- accompagnement à la prise en main ;
+- maintenance corrective ;
+- mises à jour du produit ;
+- vérification de la stratégie de sauvegarde ;
+- assistance lors d’opérations techniques importantes.
+
+Les coordonnées et conditions contractuelles de support sont communiquées séparément afin que ce document reste valable indépendamment de l’organisation commerciale.
+
+---
+
+# Questions fréquentes
+
+### Mes données sont-elles stockées dans un SaaS distant ?
+
+Le fonctionnement métier de Digital Crown est conçu en local-first : la source de vérité du cabinet reste sous le contrôle de l’installation locale prévue.
+
+### Digital Crown fonctionne-t-il sans Internet ?
+
+Le cœur métier est conçu pour fonctionner localement. Certaines fonctions d’identité, de licence ou certains services associés peuvent nécessiter une connexion.
+
+### Puis-je utiliser Digital Crown sur plusieurs postes ?
+
+Oui lorsque l’installation et le réseau local du cabinet sont configurés pour cet usage.
+
+### Existe-t-il une version mobile ?
+
+Oui. Digital Crown comprend une extension mobile appairée au cabinet, ainsi qu’un Patient Companion séparé pour les interactions patient prévues.
+
+### Qui réalise les sauvegardes ?
+
+La politique de sauvegarde doit être définie avec le cabinet lors de l’installation et de la maintenance. Une sauvegarde n’est considérée utile que si sa restauration peut être vérifiée.
+
+### Les fonctions d’imagerie donnent-elles automatiquement un diagnostic ?
+
+Non. Elles fournissent des outils, mesures, annotations ou signaux selon la fonction concernée. La décision clinique appartient au praticien.
+
+### Comment sont gérées les mises à jour ?
+
+Les mises à jour doivent suivre le processus de maintenance prévu pour l’installation du cabinet afin de protéger les données et la continuité de fonctionnement.
+
+---
+
+## À retenir
+
+**Digital Crown est un cockpit clinique et administratif conçu pour réunir le fonctionnement quotidien du cabinet autour d’un dossier patient structuré, local-first et traçable.**
+
+Le produit cherche un équilibre simple : **moins de friction administrative, plus de continuité dans l’information, sans retirer au praticien le contrôle de la décision clinique.**
+
+---
+
+*Document client — Digital Crown — révision du 20 septembre 2026.*
