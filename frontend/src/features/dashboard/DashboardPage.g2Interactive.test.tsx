@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from '../../pages/Dashboard';
@@ -75,7 +75,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('Dashboard G2 page orchestration matrix', () => {
-  it('expands and collapses the management panel', () => {
+  it('expands and collapses the management panel', async () => {
     render(<MemoryRouter><Dashboard /></MemoryRouter>);
 
     const button = screen.getByRole('button', { name: /Pilotage du cabinet/i });
@@ -87,10 +87,10 @@ describe('Dashboard G2 page orchestration matrix', () => {
     expect(screen.getByText('Business insights')).toBeTruthy();
 
     fireEvent.click(button);
-    expect(screen.queryByText('Finance summary')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Finance summary')).toBeNull());
   });
 
-  it('opens and closes the mobile security dialog', () => {
+  it('opens and closes the mobile security dialog', async () => {
     render(<MemoryRouter><Dashboard /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole('button', { name: 'Open mobile security' }));
@@ -98,16 +98,18 @@ describe('Dashboard G2 page orchestration matrix', () => {
     expect(screen.getByText('Mobile security content')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Fermer la fenêtre de sécurité mobile' }));
-    expect(screen.queryByRole('dialog', { name: 'Sécurité mobile' })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sécurité mobile' })).toBeNull());
   });
 
-  it('creates the discharge ghost checklist only after a completed appointment callback and closes explicitly', () => {
+  it('creates the discharge ghost checklist only after a completed appointment callback and closes explicitly', async () => {
     render(<MemoryRouter><Dashboard /></MemoryRouter>);
 
     expect(screen.queryByText(/Patient Sortant/)).toBeNull();
     expect(state.completedCb).toBeTypeOf('function');
 
-    state.completedCb!({ nom: 'BENALI', prenom: 'Sara' });
+    act(() => {
+      state.completedCb!({ nom: 'BENALI', prenom: 'Sara' });
+    });
 
     expect(screen.getByText(/Patient Sortant : BENALI Sara/)).toBeTruthy();
     expect(screen.getByText('Encaisser les soins du jour')).toBeTruthy();
@@ -115,6 +117,6 @@ describe('Dashboard G2 page orchestration matrix', () => {
     expect(screen.getByText('Fixer le RDV de contrôle')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Fermer les actions de sortie patient' }));
-    expect(screen.queryByText(/Patient Sortant : BENALI Sara/)).toBeNull();
+    await waitFor(() => expect(screen.queryByText(/Patient Sortant : BENALI Sara/)).toBeNull());
   });
 });
