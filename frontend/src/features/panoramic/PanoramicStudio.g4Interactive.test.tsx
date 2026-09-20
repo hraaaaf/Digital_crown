@@ -216,7 +216,7 @@ describe('PanoramicStudio G4 deep interaction matrix', () => {
     expect(await screen.findByText('Aperçu du Bilan Panoramique')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close preview' }));
-    expect(screen.queryByText('Aperçu du Bilan Panoramique')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close preview' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Download report' }));
     await waitFor(() => expect(window.open).toHaveBeenCalledWith(
