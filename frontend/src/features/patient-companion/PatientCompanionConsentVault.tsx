@@ -216,6 +216,13 @@ export function PatientCompanionConsentVault({
           ) : (
             <div className="mt-3">
               <SignaturePad onSave={signature => void sign(signature)} onCancel={() => setOpenId(null)} />
+              <button
+                type="button"
+                onClick={() => setOpenId(null)}
+                className="mt-2 min-h-[48px] w-full rounded-xl border border-border-main bg-card-bg text-xs font-black text-text-muted"
+              >
+                Fermer sans signer
+              </button>
             </div>
           )}
         </div>
