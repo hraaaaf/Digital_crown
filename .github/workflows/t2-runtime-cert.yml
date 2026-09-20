@@ -184,6 +184,13 @@ jobs:
           set -o pipefail
           node scripts/certify-media-c4-browser.mjs 2>&1 | tee ../artifacts/t2-browser/g4-imaging-media-runner.log
 
+      - name: Certify G4 Panoramic browser actions
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-panoramic-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-panoramic-actions-runner.log
+
       - name: Certify G4 RVG browser actions
         working-directory: frontend
         shell: bash
