@@ -38,6 +38,23 @@ async function snapshot(page, viewport, scene) {
   return { screenshot, overflow };
 }
 
+async function waitForPointerBlockingToasts(page) {
+  await page.waitForFunction(() => {
+    const toaster = document.querySelector('[data-rht-toaster]');
+    if (!toaster) return true;
+    return !Array.from(toaster.children).some((node) => {
+      if (!(node instanceof HTMLElement)) return false;
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      return style.pointerEvents !== 'none'
+        && style.visibility !== 'hidden'
+        && Number(style.opacity || '1') > 0
+        && rect.width > 0
+        && rect.height > 0;
+    });
+  }, null, { timeout: 10000 });
+}
+
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
   const context = await browser.newContext({ viewport, colorScheme: 'light' });
   const page = await context.newPage();
@@ -277,6 +294,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const accountedLabel = page.getByText('Comptabiliser CA', { exact: true });
   await accountedLabel.locator('..').getByRole('button').click();
+  // A prior successful catalog action may still have a transient toast over the
+  // treasury status row. Do not force the click: wait until the real pointer
+  // path is available, then exercise the visible control normally.
+  await waitForPointerBlockingToasts(page);
   await page.getByRole('button', { name: 'Attente', exact: true }).click();
   await page.getByRole('button', { name: 'Partiel', exact: true }).click();
   await page.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
