@@ -249,6 +249,62 @@ export const PatientCompanionApp = () => {
     }
   };
 
+  const agendaPayloadForRequest = (request: PatientAgendaRequestState): Record<string, unknown> | null => {
+    if (request.operation === 'agenda.create' && request.slotRef) {
+      return { slot_ref: request.slotRef };
+    }
+    if (request.operation === 'agenda.reschedule' && request.slotRef && request.appointmentRef) {
+      return { appointment_ref: request.appointmentRef, slot_ref: request.slotRef };
+    }
+    if (request.operation === 'agenda.cancel' && request.appointmentRef) {
+      return { appointment_ref: request.appointmentRef };
+    }
+    return null;
+  };
+
+  const retryQueuedAgendaRequests = async (pairing: PatientPairing): Promise<boolean> => {
+    if (!pairing.remoteTransport) return false;
+    const state = await PatientCompanionStorage.load();
+    const wallet = state.cache[pairing.context.access_id];
+    const requests = wallet?.agendaRequests || [];
+    if (!requests.some(item => item.state === 'local_queued' || item.state === 'remote_pending')) return false;
+
+    let accepted = false;
+    const updated: PatientAgendaRequestState[] = [];
+    for (const request of requests) {
+      if (request.state !== 'local_queued' && request.state !== 'remote_pending') {
+        updated.push(request);
+        continue;
+      }
+      const payload = agendaPayloadForRequest(request);
+      if (!payload) {
+        updated.push({ ...request, state: 'rejected', updatedAt: new Date().toISOString(), errorCode: 'INVALID_LOCAL_REQUEST' });
+        continue;
+      }
+      try {
+        const result = await PatientCompanionAgendaTransport.sendAgendaCommand(
+          pairing,
+          request.operation,
+          payload,
+          request.id,
+        );
+        const nextRequest: PatientAgendaRequestState = {
+          ...request,
+          state: result.status === 'ACCEPTED' ? 'confirmed' : 'rejected',
+          updatedAt: new Date().toISOString(),
+          errorCode: result.status === 'REJECTED' ? String(result.result.code || 'REJECTED') : undefined,
+        };
+        accepted ||= result.status === 'ACCEPTED';
+        updated.push(nextRequest);
+      } catch {
+        updated.push({ ...request, state: 'local_queued', updatedAt: new Date().toISOString() });
+      }
+    }
+    const next = await PatientCompanionStorage.saveAgendaRequests(pairing.context.access_id, updated);
+    setVault(next);
+    return accepted;
+  };
+
   const syncWallet = async () => {
     if (!activePairing) return;
     if (sessionExpired) {
@@ -257,7 +313,9 @@ export const PatientCompanionApp = () => {
     }
     setSyncState('syncing');
     try {
-      const snapshot = await PatientCompanionSync.sync(activePairing);
+      let snapshot = await PatientCompanionSync.sync(activePairing);
+      const acceptedQueued = await retryQueuedAgendaRequests(activePairing);
+      if (acceptedQueued) snapshot = await PatientCompanionSync.sync(activePairing);
       const next = await PatientCompanionStorage.load();
       setVault(next);
       setCabinetReachability('online');
@@ -570,6 +628,29 @@ export const PatientCompanionApp = () => {
                 <p className="mt-2 text-[10px] font-bold text-text-muted">Hors connexion, la demande reste enregistrée localement et n’est jamais affichée comme rendez-vous confirmé.</p>
               </div>}
               {agendaMessage && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800">{agendaMessage}</p>}
+              {activeWallet?.agendaRequests?.length ? (
+                <div data-pc02-request-states className="mt-3 border-t border-border-main pt-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-text-muted">Demandes récentes</p>
+                  <div className="mt-2 grid gap-2">
+                    {activeWallet.agendaRequests.slice(-3).reverse().map(request => {
+                      const label = request.state === 'confirmed'
+                        ? 'Confirmée par le cabinet'
+                        : request.state === 'rejected'
+                          ? 'Refusée par le cabinet'
+                          : request.state === 'remote_pending'
+                            ? 'Envoyée · réponse cabinet en attente'
+                            : 'Enregistrée localement · non envoyée';
+                      return (
+                        <div key={request.id} className="rounded-xl border border-border-main bg-background px-3 py-2.5">
+                          <p className="text-xs font-black">{request.operation === 'agenda.create' ? 'Nouveau rendez-vous' : request.operation === 'agenda.reschedule' ? 'Déplacement' : 'Annulation'}</p>
+                          <p className="mt-1 text-[10px] font-bold text-text-muted">{label}</p>
+                          {request.errorCode && <p className="mt-1 text-[10px] font-black text-rose-700">{request.errorCode}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </section>
             <section className="mt-3 grid gap-3" aria-label="Portefeuille Patient Companion">
               <WalletSection title="Mes documents & médias" empty="Aucun document ou média partagé.">
