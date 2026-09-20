@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EliteScienceHub } from './EliteScienceHub';
 
-const articles = [
+const articles = vi.hoisted(() => [
   {
     id: 'endo-1',
     category: 'ENDODONTIE',
@@ -24,7 +24,7 @@ const articles = [
     summary: 'Evidence ortho',
     url: 'https://example.org/ortho',
   },
-];
+]);
 
 vi.mock('../../data/science_articles', () => ({ scienceArticles: articles }));
 
