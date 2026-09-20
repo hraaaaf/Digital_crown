@@ -102,7 +102,10 @@ describe('EliteLibrary G7 interactive matrix', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Difficulté' }));
     fireEvent.click(screen.getByRole('button', { name: 'Discipline' }));
-    expect(screen.getByText('3 protocoles')).toBeTruthy();
+    const countLabel = screen.getByText((_, element) =>
+      element?.tagName === 'DIV' && element.textContent?.replace(/\s+/g, ' ').trim() === '3 protocoles'
+    );
+    expect(countLabel).toBeTruthy();
   });
 
   it('opens protocol deep-link, records recent, navigates next/previous and closes to library root', () => {
