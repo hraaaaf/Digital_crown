@@ -283,3 +283,46 @@ class PatientCompanionRemoteReceipt(Base):
     response_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class PatientCompanionAppointmentRef(Base):
+    """Opaque patient-facing reference for one cabinet appointment row."""
+
+    __tablename__ = "patient_companion_appointment_refs"
+    __table_args__ = (
+        UniqueConstraint(
+            "employer_id",
+            "appointment_id",
+            name="uq_pc_appointment_ref_tenant_appointment",
+        ),
+        Index(
+            "ix_pc_appointment_ref_tenant_patient",
+            "employer_id",
+            "patient_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36),
+        unique=True,
+        nullable=False,
+        index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    appointment_id: Mapped[int] = mapped_column(
+        ForeignKey("appointments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
