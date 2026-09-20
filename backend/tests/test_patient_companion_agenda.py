@@ -10,7 +10,7 @@ from backend.models_patient_companion import (
     PatientCompanionAppointmentRef,
     PatientCompanionIdentity,
 )
-from backend.services.patient_companion_agenda import cancel_appointment, create_appointment, reschedule_appointment
+from backend.services.patient_companion_agenda import cancel_appointment, create_appointment, issue_slots, reschedule_appointment
 
 
 def _access(db, dentiste):
@@ -84,3 +84,26 @@ def test_expired_slot_fails_closed(db, dentiste):
     result = create_appointment(db, access, {"slot_ref": slot.public_id})
     assert result.status == "REJECTED"
     assert result.response["code"] == "SLOT_NOT_FOUND"
+
+
+def test_issue_slots_filters_conflicts_and_returns_no_internal_ids(db, dentiste):
+    patient, access = _access(db, dentiste)
+    busy = models.Appointment(
+        patient_id=patient.id, datetime_start=datetime(2030, 1, 2, 10, 0),
+        duration_minutes=30, status=models.AppointmentStatus.CONFIRME,
+        scheduling_type=models.SchedulingType.EXACT_TIME, employer_id=dentiste.id,
+        praticien_id=dentiste.id,
+    )
+    db.add(busy); db.flush()
+
+    slots = issue_slots(
+        db,
+        access=access,
+        starts=[datetime(2030, 1, 2, 10, 0), datetime(2030, 1, 2, 11, 0)],
+        duration_minutes=30,
+        practitioner_id=dentiste.id,
+    )
+    assert len(slots) == 1
+    assert slots[0]["datetime_start"] == "2030-01-02T11:00:00"
+    assert set(slots[0]) == {"slot_ref", "datetime_start", "duration_minutes", "expires_at"}
+    uuid.UUID(slots[0]["slot_ref"])
