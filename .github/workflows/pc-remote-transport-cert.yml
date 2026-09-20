@@ -71,19 +71,37 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Relay contract and service certification
-        run: >-
-          python -m pytest
-          backend/tests/test_patient_companion_relay_contract.py
-          backend/tests/test_patient_companion_relay_service.py
-          backend/tests/test_patient_companion_remote_crypto.py
-          backend/tests/test_patient_companion_remote_freshness.py
-          backend/tests/test_patient_companion_remote_keys.py
-          backend/tests/test_patient_companion_remote_pairing.py
-          backend/tests/test_patient_companion_remote_receipts.py
-          backend/tests/test_patient_companion_remote_worker.py
-          backend/tests/test_patient_companion_relay_client.py
-          backend/tests/test_patient_companion_agenda.py
-          -q
+        shell: bash
+        run: |
+          python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
+          import pytest
+
+          root = Path.cwd()
+          for name, package_path in (
+              ("backend", root / "backend"),
+              ("backend.routers", root / "backend" / "routers"),
+          ):
+              package = types.ModuleType(name)
+              package.__path__ = [str(package_path)]
+              sys.modules[name] = package
+
+          raise SystemExit(pytest.main([
+              "backend/tests/test_patient_companion_relay_contract.py",
+              "backend/tests/test_patient_companion_relay_service.py",
+              "backend/tests/test_patient_companion_remote_crypto.py",
+              "backend/tests/test_patient_companion_remote_freshness.py",
+              "backend/tests/test_patient_companion_remote_keys.py",
+              "backend/tests/test_patient_companion_remote_pairing.py",
+              "backend/tests/test_patient_companion_remote_receipts.py",
+              "backend/tests/test_patient_companion_remote_worker.py",
+              "backend/tests/test_patient_companion_relay_client.py",
+              "backend/tests/test_patient_companion_agenda.py",
+              "-q",
+          ]))
+          PY
 
       - name: Patient Companion frontend transport tests
         working-directory: frontend
@@ -119,9 +137,26 @@ jobs:
         run: |
           @'
           import importlib.util
+          import sys
+          import types
           from pathlib import Path
 
-          path = Path("backend/services/patient_companion_key_protection.py")
+          root = Path.cwd()
+          backend_pkg = types.ModuleType("backend")
+          backend_pkg.__path__ = [str(root / "backend")]
+          core_pkg = types.ModuleType("backend.core")
+          core_pkg.__path__ = [str(root / "backend" / "core")]
+          sys.modules["backend"] = backend_pkg
+          sys.modules["backend.core"] = core_pkg
+
+          platform_path = root / "backend" / "core" / "platform.py"
+          platform_spec = importlib.util.spec_from_file_location("backend.core.platform", platform_path)
+          platform_module = importlib.util.module_from_spec(platform_spec)
+          assert platform_spec.loader is not None
+          sys.modules["backend.core.platform"] = platform_module
+          platform_spec.loader.exec_module(platform_module)
+
+          path = root / "backend" / "services" / "patient_companion_key_protection.py"
           spec = importlib.util.spec_from_file_location("pc_key_protection", path)
           module = importlib.util.module_from_spec(spec)
           assert spec.loader is not None
