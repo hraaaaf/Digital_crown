@@ -25,6 +25,7 @@ import backend.utils.rate_limit as rate_limit
 rate_limit.MAX_ATTEMPTS = 100
 
 from backend import database, models
+from backend.models_imaging_p4 import ImagingTrashRecord  # noqa: F401 - register table in Base metadata
 from backend.security import get_password_hash
 
 runtime_password = os.environ.get("T2_PASSWORD")
