@@ -34,6 +34,11 @@ from backend.services.patient_companion_remote_keys import (
     enroll_remote_keyset,
     public_keyset_response,
 )
+from backend.services.patient_companion_relay_client import (
+    deprovision_relay_mailboxes,
+    provision_relay_binding,
+)
+from backend.config import settings
 from backend.services.qr_service import qr_service
 from backend.utils.rate_limit import check_rate_limit
 
@@ -181,6 +186,7 @@ def pair_local_patient_device(
     remote_keyset = None
     cabinet_signing_key = None
     cabinet_encryption_key = None
+    relay_bootstrap = None
     if body.remote_keys is not None:
         try:
             remote_keyset, cabinet_signing_key, cabinet_encryption_key = enroll_remote_keyset(
@@ -207,6 +213,29 @@ def pair_local_patient_device(
             db.rollback()
             raise HTTPException(status_code=422, detail=str(exc)) from None
 
+        relay_url = settings.PATIENT_COMPANION_RELAY_URL.strip()
+        relay_secret = settings.PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET.strip()
+        if bool(relay_url) != bool(relay_secret):
+            db.rollback()
+            raise HTTPException(
+                status_code=503,
+                detail="Configuration relay Patient Companion incomplète.",
+            )
+        if relay_url and relay_secret:
+            try:
+                _binding, relay_bootstrap = provision_relay_binding(
+                    db,
+                    access=access,
+                    relay_url=relay_url,
+                    bootstrap_secret=relay_secret,
+                )
+            except Exception as exc:
+                db.rollback()
+                raise HTTPException(
+                    status_code=503,
+                    detail="Relay Patient Companion indisponible pour cet appairage.",
+                ) from exc
+
     consumed = db.query(PatientCompanionInvitation).filter(
         PatientCompanionInvitation.id == invitation.id,
         PatientCompanionInvitation.consumed_at.is_(None),
@@ -221,9 +250,25 @@ def pair_local_patient_device(
     )
     if consumed != 1:
         db.rollback()
+        if relay_bootstrap is not None:
+            deprovision_relay_mailboxes(
+                relay_url=relay_bootstrap.relay_url,
+                bootstrap_secret=settings.PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET.strip(),
+                mailbox_ids=(relay_bootstrap.cabinet_inbox_id, relay_bootstrap.patient_inbox_id),
+            )
         raise HTTPException(status_code=409, detail="Invitation déjà traitée.")
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        if relay_bootstrap is not None:
+            deprovision_relay_mailboxes(
+                relay_url=relay_bootstrap.relay_url,
+                bootstrap_secret=settings.PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET.strip(),
+                mailbox_ids=(relay_bootstrap.cabinet_inbox_id, relay_bootstrap.patient_inbox_id),
+            )
+        raise
     db.refresh(access)
     access_token = create_patient_device_token(identity, access)
 
@@ -251,6 +296,8 @@ def pair_local_patient_device(
                 cabinet_encryption_key,
             ),
         }
+        if relay_bootstrap is not None:
+            remote_transport["relay"] = relay_bootstrap.response()
     return {
         "access_token": access_token,
         "context": safe_patient_context(access, patient),
