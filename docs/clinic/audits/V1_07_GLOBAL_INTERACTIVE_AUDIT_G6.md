@@ -80,3 +80,7 @@ Visual evidence workflow:
 - `.github/workflows/v1-07-truth-safety-visual-evidence.yml`
 
 Status: CODE REMEDIATED — CERTIFICATION PENDING matched BEFORE/AFTER evidence + exact-head tests/build.
+
+
+## Browser escalation
+G6 requires a dedicated real Chromium action pass for SuperAdmin, plans, licences and trial-code controls. A normal dentist fixture cannot certify privileged controls; the browser certification must use a dedicated isolated privileged fixture and prove mutation ACK/refusal plus immutable suspended/archived boundaries.
