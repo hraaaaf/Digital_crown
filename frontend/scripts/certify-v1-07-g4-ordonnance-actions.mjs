@@ -177,7 +177,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByText('Contexte enregistré', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
   actions.push('clinical-context-save');
 
-  await page.getByRole('button', { name: 'Réduire', exact: true }).first().click();
+  const contextReduce = page.getByRole('button', { name: 'Réduire', exact: true }).first();
+  if (await contextReduce.isVisible().catch(() => false)) {
+    await contextReduce.click();
+  } else {
+    const weightField = page.getByLabel('Poids explicite en kilogrammes');
+    if (await weightField.isVisible().catch(() => false)) {
+      throw new Error('Clinical context stayed expanded without a visible collapse control after save');
+    }
+  }
   await selectExactAmoxicillin(page);
   const ie = page.locator('[data-ie-prophylaxis-rule="c2"]');
   await ie.getByRole('button', { name: 'Évaluer', exact: true }).click();
