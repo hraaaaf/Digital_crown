@@ -30,6 +30,30 @@ Digital Crown assiste le cabinet sans remplacer le jugement du praticien. Une do
 
 ---
 
+# Aperçu de Digital Crown
+
+Les captures ci-dessous proviennent de **preuves visuelles réelles retenues dans le projet**, avec données de démonstration lorsque nécessaire. Elles illustrent le produit sans remplacer le contexte complet de chaque écran.
+
+## Agenda
+
+![Agenda Digital Crown](docs/client-assets/digital-crown-agenda.webp)
+
+Vue hebdomadaire de l’agenda avec rendez-vous structurés dans le planning du cabinet.
+
+## Suivi orthodontique longitudinal
+
+![Suivi orthodontique longitudinal Digital Crown](docs/client-assets/digital-crown-ortho-longitudinal.webp)
+
+Comparaison entre deux temps de traitement avec médias, mesures disponibles et deltas affichés de manière neutre.
+
+## Céphalométrie
+
+![Céphalométrie Digital Crown](docs/client-assets/digital-crown-cephalometrie.webp)
+
+Étude céphalométrique avec repères, éléments à vérifier et rappel explicite de la validation clinique par le praticien.
+
+---
+
 # Les principaux modules
 
 ## Tableau de bord
