@@ -34,11 +34,23 @@ export type PatientPairing = {
 };
 
 export type PatientAppointment = {
+  appointment_ref?: string;
   datetime_start: string;
   duration_minutes?: number | null;
   motif: string;
   status: string;
   scheduling_type?: string | null;
+};
+
+export type PatientAgendaRequestState = {
+  id: string;
+  operation: 'agenda.create' | 'agenda.reschedule' | 'agenda.cancel';
+  state: 'local_queued' | 'remote_pending' | 'confirmed' | 'rejected';
+  appointmentRef?: string;
+  slotRef?: string;
+  createdAt: string;
+  updatedAt: string;
+  errorCode?: string;
 };
 
 export type PatientShare = {
@@ -58,6 +70,7 @@ export type PatientWalletSnapshot = {
   syncedAt: string;
   appointments: PatientAppointment[];
   shares: PatientShare[];
+  agendaRequests?: PatientAgendaRequestState[];
 };
 
 export type PatientCompanionVaultState = {
