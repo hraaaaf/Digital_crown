@@ -62,3 +62,7 @@ Remediation:
 - `landing-geography` was added to the matched BEFORE/AFTER truth-safety visual workflow.
 
 Status: CODE REMEDIATED — CERTIFICATION PENDING matched visual evidence + exact-head tests/build.
+
+
+## Browser escalation
+G1 also requires real Chromium proof: landing/auth/register/trial/setup/onboarding/navigation controls must be inventoried and action-tested with success/refusal/navigation truth. Component tests and visual evidence remain supporting proof, not the final interaction certificate.
