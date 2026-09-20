@@ -15,10 +15,22 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        "patient_companion_accesses",
-        sa.Column("notification_preferences_json", sa.Text(), nullable=True),
+    op.create_table(
+        "patient_companion_notification_preferences",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("access_id", sa.Integer(), sa.ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("employer_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("patient_id", sa.Integer(), sa.ForeignKey("patients.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("appointments", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("documents", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("questionnaires", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("consents", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("access_id", name="uq_pc_notification_preferences_access"),
     )
+    op.create_index("ix_pc_notification_preferences_tenant_patient", "patient_companion_notification_preferences", ["employer_id", "patient_id"])
+
     op.create_table(
         "patient_companion_notification_receipts",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -40,4 +52,4 @@ def upgrade():
 
 def downgrade():
     op.drop_table("patient_companion_notification_receipts")
-    op.drop_column("patient_companion_accesses", "notification_preferences_json")
+    op.drop_table("patient_companion_notification_preferences")
