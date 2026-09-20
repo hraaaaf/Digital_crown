@@ -158,8 +158,27 @@ def _slot_for_ref(db: Session, access: PatientCompanionAccess, public_id: str) -
         PatientCompanionAgendaSlot.public_id == str(public_id),
         PatientCompanionAgendaSlot.employer_id == access.employer_id,
         PatientCompanionAgendaSlot.revoked_at.is_(None),
+        PatientCompanionAgendaSlot.consumed_at.is_(None),
         PatientCompanionAgendaSlot.expires_at > now,
     ).first()
+
+
+
+def _claim_slot(db: Session, access: PatientCompanionAccess, slot: PatientCompanionAgendaSlot) -> bool:
+    """Atomically consume one still-valid opaque slot inside the current transaction."""
+    now = datetime.utcnow()
+    updated = (
+        db.query(PatientCompanionAgendaSlot)
+        .filter(
+            PatientCompanionAgendaSlot.id == slot.id,
+            PatientCompanionAgendaSlot.employer_id == access.employer_id,
+            PatientCompanionAgendaSlot.revoked_at.is_(None),
+            PatientCompanionAgendaSlot.consumed_at.is_(None),
+            PatientCompanionAgendaSlot.expires_at > now,
+        )
+        .update({PatientCompanionAgendaSlot.consumed_at: now}, synchronize_session=False)
+    )
+    return updated == 1
 
 
 def _slot_error(db: Session, access: PatientCompanionAccess, slot: PatientCompanionAgendaSlot, *, exclude_id: int | None = None) -> str | None:
@@ -183,6 +202,8 @@ def create_appointment(db: Session, access: PatientCompanionAccess, payload: dic
     conflict = _slot_error(db, access, slot)
     if conflict:
         return _reject(conflict)
+    if not _claim_slot(db, access, slot):
+        return _reject("SLOT_NOT_FOUND")
     appointment = models.Appointment(
         patient_id=access.patient_id,
         datetime_start=slot.datetime_start,
@@ -222,6 +243,8 @@ def reschedule_appointment(db: Session, access: PatientCompanionAccess, payload:
     conflict = _slot_error(db, access, slot, exclude_id=appointment.id)
     if conflict:
         return _reject(conflict)
+    if not _claim_slot(db, access, slot):
+        return _reject("SLOT_NOT_FOUND")
     appointment.datetime_start = slot.datetime_start
     appointment.duration_minutes = slot.duration_minutes
     appointment.praticien_id = slot.practitioner_id
