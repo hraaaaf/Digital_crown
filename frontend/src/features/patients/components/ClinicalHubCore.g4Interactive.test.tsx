@@ -32,20 +32,6 @@ vi.mock('../../../components/odontogram/Odontogram', () => ({
   ),
 }));
 
-for (const path of [
-  './wizards/AssistantParo',
-  './wizards/AssistantEndo',
-  './wizards/AssistantChirurgie',
-  './wizards/AssistantProthese',
-  './wizards/AssistantPedo',
-  './wizards/AssistantOrtho',
-  './wizards/AssistantExamenComplet',
-  './wizards/AssistantATM',
-  './wizards/AssistantPatho',
-]) {
-  vi.mock(path, () => ({ default: () => null }));
-}
-
 vi.mock('./wizards/AssistantParo', () => ({ AssistantParo: () => <div>Wizard paro</div> }));
 vi.mock('./wizards/AssistantEndo', () => ({ AssistantEndo: () => <div>Wizard endo</div> }));
 vi.mock('./wizards/AssistantChirurgie', () => ({ AssistantChirurgie: () => <div>Wizard chirurgie</div> }));
