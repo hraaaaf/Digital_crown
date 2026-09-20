@@ -114,6 +114,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   }
   actions.push('adult-quick-groups-reset');
 
+  const selectGroupedTeeth = async () => {
+    await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
+    for (const tooth of [11, 12]) {
+      const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
+      await toothButton.focus();
+      await page.keyboard.press('Enter');
+    }
+    await page.getByText(/2 dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
+  };
+
   for (const act of [
     { button: 'Bridge', result: 'Bridge' },
     { button: 'Stellite', result: 'Stellite' },
@@ -122,19 +132,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     { button: /^Surfaçage /, result: /^Surfaçage / },
     { button: 'Attelle de contention', result: 'Attelle de contention' },
   ]) {
-    await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-    const q1 = page.getByRole('button', { name: 'Q1', exact: true });
-    await q1.waitFor({ state: 'visible', timeout: 5000 });
-    await q1.focus();
-    await page.keyboard.press('Enter');
+    await selectGroupedTeeth();
     await page.getByRole('button', { name: act.button, exact: typeof act.button === 'string' }).click();
     await page.getByText(act.result, { exact: typeof act.result === 'string' }).last().waitFor({ state: 'visible', timeout: 5000 });
   }
-  await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-  const q1Custom = page.getByRole('button', { name: 'Q1', exact: true });
-  await q1Custom.waitFor({ state: 'visible', timeout: 5000 });
-  await q1Custom.focus();
-  await page.keyboard.press('Enter');
+  await selectGroupedTeeth();
   await page.getByPlaceholder('Ou saisir un autre acte...').fill('Acte groupé G4');
   await page.getByPlaceholder('Prix').fill('1200');
   await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
