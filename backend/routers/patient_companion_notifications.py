@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -43,10 +43,12 @@ def _active_access(
 @router.get("/contexts/{access_id}/notifications")
 def patient_notifications(
     access_id: str,
+    response: Response,
     identity: PatientCompanionIdentity = Depends(patient_identity),
     db: Session = Depends(get_db),
 ):
     access = _active_access(db, identity, access_id)
+    response.headers["Cache-Control"] = "no-store"
     return project_notifications(db, access)
 
 
@@ -55,6 +57,7 @@ def patient_notifications_remote_command(
     access_id: str,
     body: RemoteCommandEnvelope,
     request: Request,
+    response: Response,
     identity: PatientCompanionIdentity = Depends(patient_identity),
     db: Session = Depends(get_db),
 ):
@@ -76,4 +79,5 @@ def patient_notifications_remote_command(
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="Commande distante Patient Companion invalide.") from None
+    response.headers["Cache-Control"] = "no-store"
     return {"blob": ack}
