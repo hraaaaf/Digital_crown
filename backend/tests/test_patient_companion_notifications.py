@@ -5,7 +5,6 @@ import json
 import uuid
 
 import pytest
-from fastapi import HTTPException
 from datetime import datetime, timedelta, timezone
 
 from backend import models
@@ -22,10 +21,9 @@ from backend.models_patient_companion_notifications import (
     PatientCompanionNotificationPreference,
     PatientCompanionNotificationReceipt,
 )
-from backend.routers.patient_companion_notifications import _active_access
 from backend.services.patient_companion_remote_crypto import decrypt_and_verify, generate_p256_keypair, sign_and_encrypt
 from backend.services.patient_companion_remote_keys import enroll_remote_keyset
-from backend.services.patient_companion_remote_worker import process_remote_envelope
+from backend.services.patient_companion_remote_worker import RemoteTransportRejected, process_remote_envelope
 from relay.contract import RelayInnerMessage
 
 from backend.services.patient_companion_notifications import (
@@ -431,14 +429,18 @@ def test_pc05_future_refused_or_expired_appointment_does_not_notify(db, dentiste
     assert project_notifications(db, access, now=now)["items"] == []
 
 
-def test_pc05_revoked_access_fails_closed_before_projection(db, dentiste):
-    _patient, identity, access = _patient_access(db, dentiste, "REVOKED")
+def test_pc05_revoked_access_fails_closed_in_remote_transport(db, dentiste):
+    _patient, _identity, access = _patient_access(db, dentiste, "REVOKED")
     access.revoked_at = datetime.utcnow()
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
-        _active_access(db, identity, access.public_id)
-    assert exc.value.status_code in {404, 410}
+    with pytest.raises(RemoteTransportRejected):
+        process_remote_envelope(
+            db,
+            access=access,
+            keyset=None,
+            compact_jwe="invalid",
+        )
 
 
 def test_pc05_signed_consent_does_not_resurface_same_share_as_generic_document(db, dentiste, tmp_path):
