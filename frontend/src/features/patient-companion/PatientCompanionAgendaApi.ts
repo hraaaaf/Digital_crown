@@ -1,5 +1,5 @@
 import { API_BASE } from '../../services/api';
-import type { PatientPairing } from './PatientCompanionStorage';
+import type { PatientAppointment, PatientPairing } from './PatientCompanionStorage';
 import { PatientCompanionAgendaTransport } from './PatientCompanionAgendaTransport';
 
 export type PatientAgendaPractitioner = {
@@ -29,6 +29,26 @@ async function getJson<T>(pairing: PatientPairing, path: string): Promise<T> {
 }
 
 export const PatientCompanionAgendaApi = {
+  async appointments(pairing: PatientPairing): Promise<PatientAppointment[]> {
+    if (pairing.remoteTransport?.relay) {
+      const result = await PatientCompanionAgendaTransport.sendAgendaCommand(
+        pairing,
+        'agenda.list',
+        {},
+      );
+      if (result.status !== 'ACCEPTED' || !Array.isArray(result.result.items)) {
+        throw new Error('Agenda refusé par le cabinet.');
+      }
+      return result.result.items as PatientAppointment[];
+    }
+    const accessId = encodeURIComponent(pairing.context.access_id);
+    const payload = await getJson<{ items: PatientAppointment[] }>(
+      pairing,
+      `/api/patient-companion/contexts/${accessId}/agenda`,
+    );
+    return payload.items;
+  },
+
   async practitioners(pairing: PatientPairing): Promise<PatientAgendaPractitioner[]> {
     if (pairing.remoteTransport?.relay) {
       const result = await PatientCompanionAgendaTransport.sendAgendaCommand(
