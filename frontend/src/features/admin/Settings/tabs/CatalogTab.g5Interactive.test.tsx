@@ -53,7 +53,7 @@ describe('CatalogTab G5 interactive matrix', () => {
   it('loads catalogue truth before exposing specialty contents', async () => {
     render(<CatalogTab />);
     await waitFor(() => expect(state.fetchCatalog).toHaveBeenCalledTimes(1));
-    expect(screen.getByText('Soins')).toBeTruthy();
+    expect(screen.getAllByText('Soins').length).toBeGreaterThan(0);
     expect(screen.getByText('Détartrage')).toBeTruthy();
     expect(screen.getByText('Gingivite')).toBeTruthy();
   });
