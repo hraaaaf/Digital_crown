@@ -89,9 +89,10 @@ def _ack_payload(
         sent_at=now,
         expires_at=now + timedelta(minutes=15),
         idempotency_key=message.idempotency_key,
-        operation=f"{message.operation}.result",
+        operation="command.result",
         payload={
             "request_message_id": str(message.message_id),
+            "request_operation": message.operation,
             "status": status,
             "result": response,
         },
