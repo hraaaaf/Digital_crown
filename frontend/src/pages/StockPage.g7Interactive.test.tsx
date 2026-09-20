@@ -72,7 +72,9 @@ describe('StockPage G7 interactive matrix', () => {
     fireEvent.change(scoped.getByPlaceholderText('Ex: Gants nitrile S'), { target: { value: 'Masques FFP2' } });
     fireEvent.change(inputs[0], { target: { value: '12' } });
     fireEvent.change(inputs[1], { target: { value: '3' } });
-    fireEvent.change(scoped.getByPlaceholderText('Optionnel'), { target: { value: '15.5' } });
+    const optionalPrice = (modal as HTMLElement).querySelector('input[type="number"][placeholder="Optionnel"]') as HTMLInputElement | null;
+    expect(optionalPrice).toBeTruthy();
+    fireEvent.change(optionalPrice!, { target: { value: '15.5' } });
     fireEvent.click(scoped.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/stock/items', expect.objectContaining({
@@ -167,8 +169,9 @@ describe('StockPage G7 interactive matrix', () => {
     fireEvent.click(within(row).getByTitle('Supprimer'));
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer définitivement' }));
 
-    expect(await screen.findByText('Suppression refusée')).toBeTruthy();
-    expect(screen.getByRole('dialog', { name: 'Supprimer cet article ?' })).toBeTruthy();
+    const deleteDialog = screen.getByRole('dialog', { name: 'Supprimer cet article ?' });
+    expect(await within(deleteDialog).findByText('Suppression refusée')).toBeTruthy();
+    expect(deleteDialog).toBeTruthy();
     expect(screen.getByText('Gants nitrile')).toBeTruthy();
   });
 
