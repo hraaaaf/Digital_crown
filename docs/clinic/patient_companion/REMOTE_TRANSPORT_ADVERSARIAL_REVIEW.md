@@ -1,6 +1,6 @@
 # Patient Companion — Remote Transport Gate B — Adversarial Review
 
-Status: VERIFIED for code/test candidate `6843f4ccd0ca40afe372a96ba7bfee92598ef098` — Remote Gate `35504753520`, CI `35504753506`, Alembic `35504753494` and every triggered regression gate passed. The docs-inclusive HEAD created by this closeout still requires exact-head CI before merge.
+Status: VERIFIED for code/test candidate `6843f4ccd0ca40afe372a96ba7bfee92598ef098` — Remote Gate `35504753520`, CI `35504753506`, Alembic `35504753494` and every triggered regression gate passed. Final docs-inclusive exact-head certification is still required before merge.
 
 Cross-check: RFC 7515 requires protected algorithm/signature verification and describes unique integrity-protected message IDs as replay defense; OWASP recommends authenticated encryption, separate keys by purpose, maintained libraries and protected key storage. The implemented fixed allowlists, ES256, A256GCM, separate signing/encryption keys, replay ledger, WebCrypto non-extractable patient keys and Windows DPAPI cabinet keys are consistent with those principles. This is not a legal-compliance or deployment certification.
 
@@ -29,7 +29,7 @@ Deployment coupling could accidentally drag cabinet code/dependencies into the r
 Remediation:
 Protocol contract moved into relay/contract.py. Relay package now has a static negative test forbidding backend imports, cabinet models and get_db.
 
-Status: remediated; exact-head CI pending.
+Status: remediated; verified on candidate `6843f4ccd...`.
 
 ### F-02 — Relay-visible clinical routing metadata
 Severity: blocker
@@ -40,7 +40,7 @@ patient_id, tenant/employer_id, access_id, resource IDs or operation type would 
 Remediation:
 RelayEnvelopeCreate is extra=forbid and contains only envelope_id, blob and ttl_seconds. Negative tests attempt forbidden clinical fields and require 422/rejection.
 
-Status: implemented; CI pending.
+Status: implemented; verified on candidate `6843f4ccd...`.
 
 ### F-03 — Raw mailbox capabilities persisted by relay
 Severity: blocker
@@ -51,7 +51,7 @@ relay DB leak would directly grant mailbox access.
 Remediation:
 256-bit random read/write capabilities are returned only at provisioning. Relay stores SHA-256 hashes and uses constant-time comparison. Test inspects relay DB and verifies raw capabilities are absent.
 
-Status: implemented; CI pending.
+Status: implemented; verified on candidate `6843f4ccd...`.
 
 ### F-04 — Read/write privilege confusion
 Severity: high
@@ -62,7 +62,7 @@ a patient/cabinet capability stolen for one direction could become full mailbox 
 Remediation:
 independent read and write capabilities. Read cannot write; write cannot read/delete. Cross-mailbox capability test added.
 
-Status: implemented; CI pending.
+Status: implemented; verified on candidate `6843f4ccd...`.
 
 ### F-05 — Duplicate/replayed relay envelopes
 Severity: high
@@ -70,7 +70,7 @@ Severity: high
 Remediation:
 envelope_id is unique; duplicate insertion returns 409. Recipient-side signed message_id replay ledger and idempotency_key remain mandatory before domain mutation.
 
-Status: implemented. Cabinet-side persistent message_id + idempotency ledger and allow-listed worker are present; exact-head certification pending.
+Status: verified on candidate `6843f4ccd...`; persistent message_id + idempotency ledger and allow-listed worker passed the dedicated gate.
 
 ### F-06 — Expired queued messages
 Severity: high
@@ -78,7 +78,7 @@ Severity: high
 Remediation:
 relay TTL bounded to maximum 7 days; expired rows are filtered; test forces expiry and proves they are not returned. PC-02 appointment command signed expiry is capped by architecture at 15 minutes.
 
-Status: implemented. Inner command TTL is capped at 15 minutes and future clock skew over 5 minutes is rejected; exact-head certification pending.
+Status: verified on candidate `6843f4ccd...`; inner command TTL is capped at 15 minutes and future clock skew over 5 minutes is rejected.
 
 ### F-07 — Cache/CORS leakage
 Severity: medium
@@ -86,7 +86,7 @@ Severity: medium
 Remediation:
 capability and envelope responses use Cache-Control: no-store. CORS is disabled by default and can only be enabled with explicit allowed origins; no wildcard credentials.
 
-Status: implemented; CI pending.
+Status: implemented; verified on candidate `6843f4ccd...`.
 
 ### F-08 — Silent production schema mutation
 Severity: medium
@@ -108,7 +108,7 @@ JWS ES256 -> JWE ECDH-ES+A256KW / A256GCM. Separate signing and encryption keys.
 Critical restriction:
 No hand-written JOSE implementation. Endpoint crypto must use a maintained JOSE library and must pass cross-runtime interoperability vectors before PC-02 merge.
 
-Status: implemented, not yet finally certified. Python uses pinned jwcrypto 1.6.1; browser uses pinned jose 6.2.12. Cross-runtime Python→JS and JS→Python certification workflow is present. Patient private keys are generated non-extractable in WebCrypto; cabinet private keys use Windows current-user DPAPI.
+Status: verified on candidate `6843f4ccd...`. Python uses pinned jwcrypto 1.6.1; browser uses pinned jose 6.2.12. Dedicated run `35504753520` passed cross-runtime Python→JS and JS→Python interoperability and Windows current-user DPAPI.
 
 ### F-10 — Relay metadata/DoS residual risk
 Severity: accepted residual / operational
@@ -137,7 +137,7 @@ An earlier parallel implementation left a second remote-key route/test family af
 Remediation:
 The stale route and stale enrollment test were removed. Canonical enrollment occurs atomically inside the one-time QR/manual pairing ceremony.
 
-Status: remediated; exact-head CI pending.
+Status: remediated; verified on candidate `6843f4ccd...`.
 
 ### F-12 — Access revocation left active remote keyset
 Severity: high
@@ -148,7 +148,7 @@ A server-revoked Patient Companion access could leave its E2E keyset marked ACTI
 Remediation:
 The staff access-revocation flow now marks the active remote keyset REVOKED in the same cabinet transaction. Re-enabling remote transport therefore requires fresh key enrollment.
 
-Status: implemented with regression test; exact-head CI pending.
+Status: implemented and regression-tested; verified on candidate `6843f4ccd...`.
 
 ### F-13 — Concurrent cabinet key creation
 Severity: high
@@ -159,7 +159,7 @@ Two simultaneous first remote pairings for the same cabinet could both observe n
 Remediation:
 Cabinet key creation now uses a nested transaction/savepoint. The DB unique index remains authoritative; the loser re-queries and reuses the committed ACTIVE key instead of surfacing an uncontrolled 500.
 
-Status: implemented; exact-head certification pending.
+Status: implemented; verified on candidate `6843f4ccd...`.
 
 ### F-14 — ACK operation could exceed protocol bound
 Severity: medium
@@ -170,18 +170,19 @@ A maximum-length inbound operation (64 chars) followed by the old `.result` suff
 Remediation:
 ACK operation is now the fixed bounded value `command.result`; the original operation is carried inside the signed/encrypted payload as `request_operation`. Regression test uses a 64-character request operation.
 
-Status: implemented; exact-head certification pending.
+Status: implemented; verified on candidate `6843f4ccd...`.
 
-## Remaining gates
+## Verified certification evidence
 
-1. exact-head dedicated Remote Transport Gate green on Linux and Windows;
-2. exact-head general CI + PostgreSQL/Alembic green;
-3. Patient/Media/Catalog/Marketplace gates green if triggered by this branch;
-4. inspect failures rather than infer common cause;
-5. update this review with exact run IDs and only then mark VERIFIED;
-6. update canonical + Notion + handover;
-7. merge #638 with expected-head guard;
-8. post-merge master verification;
-9. only then open PC-02 implementation.
+Candidate: `6843f4ccd0ca40afe372a96ba7bfee92598ef098`
+
+- Remote Transport Gate `35504753520` — SUCCESS (Linux JOSE interoperability + Windows DPAPI).
+- CI `35504753506` — SUCCESS.
+- PostgreSQL/Alembic `35504753494` — SUCCESS.
+- T2 `35504753499`, P7 `35504753473`, UX1-C `35504753513`, PC-00 Visual `35504753543`, Agenda `35504753550`, Portability `35504753538`, Windows Build `35504753532`, Catalog `35504753461`, Marketplace `35504753528`, Media `35504753516` — SUCCESS.
+
+External standards review: RFC 7515/7516/8725, NIST SP 800-57 Part 1 Rev.5 and OWASP cryptographic storage/key-management guidance were cross-checked. Fixed algorithm allowlists, authenticated encryption, separate signing/encryption keys, protected private-key storage and replay controls are consistent with those principles. This is not a legal-compliance or production-deployment certification.
+
+Remaining: certify this docs-inclusive exact HEAD, then ready/merge #638 and post-merge verification.
 
 No deployment performed.
