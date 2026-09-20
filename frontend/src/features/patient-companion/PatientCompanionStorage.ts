@@ -296,9 +296,13 @@ export const PatientCompanionStorage = {
     if (!current.pairings.some(item => item.context.access_id === snapshot.accessId)) {
       throw new Error('Contexte Patient Companion inconnu.');
     }
+    const previousRequests = current.cache[snapshot.accessId]?.agendaRequests;
+    const mergedSnapshot = snapshot.agendaRequests === undefined && previousRequests
+      ? { ...snapshot, agendaRequests: previousRequests }
+      : snapshot;
     const next: PatientCompanionVaultState = {
       ...current,
-      cache: { ...current.cache, [snapshot.accessId]: snapshot },
+      cache: { ...current.cache, [snapshot.accessId]: mergedSnapshot },
     };
     await writeValue(STATE_ID, await encryptState(next));
     return next;
