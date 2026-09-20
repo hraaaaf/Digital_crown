@@ -32,10 +32,6 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=True),
         sa.Column("revoked_at", sa.DateTime(), nullable=True),
-        sa.UniqueConstraint(
-            "employer_id", "patient_id", "document_id", "document_file_hash",
-            name="uq_pc_consent_request_patient_document_hash",
-        ),
     )
     op.create_index("ix_patient_companion_consent_requests_public_id", "patient_companion_consent_requests", ["public_id"], unique=True)
     op.create_index("ix_pc_consent_request_tenant_patient_status", "patient_companion_consent_requests", ["employer_id", "patient_id", "status"])
