@@ -14,6 +14,15 @@ export type PatientCompanionContext = {
   };
 };
 
+export type PatientRelayBinding = {
+  protocolVersion: 'dc-relay-v1';
+  relayUrl: string;
+  cabinetInboxId: string;
+  cabinetWriteCapability: string;
+  patientInboxId: string;
+  patientReadCapability: string;
+};
+
 export type PatientRemoteTransportBinding = {
   version: 1;
   keysetId: string;
@@ -23,6 +32,7 @@ export type PatientRemoteTransportBinding = {
   cabinetSigningPublicJwk: JsonWebKey;
   cabinetEncryptionKid: string;
   cabinetEncryptionPublicJwk: JsonWebKey;
+  relay?: PatientRelayBinding;
 };
 
 export type PatientPairing = {
