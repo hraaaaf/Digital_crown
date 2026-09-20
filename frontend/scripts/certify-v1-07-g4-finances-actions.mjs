@@ -54,8 +54,84 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   });
 
   const baselinePayments = await apiPayments();
-  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=finances`, { waitUntil: 'networkidle', timeout: 90000 });
+
+  // Reproduce the real desktop path instead of deep-linking directly to Finance:
+  // Tableau de bord -> Patients -> patient dossier -> Finance.
+  await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
+  await page.getByRole('link', { name: 'Patients', exact: true }).click();
+  await page.waitForURL('**/patients', { timeout: 15000 });
+  const patientSearch = page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+  await patientSearch.fill('T2-0001');
+  const patientRow = page.getByRole('button').filter({ hasText: 'T2-0001' }).first();
+  await patientRow.waitFor({ state: 'visible', timeout: 15000 });
+  await patientRow.click();
+  await page.waitForURL(new RegExp(`/patients/${patient.id}(?:\\?.*)?import fs from 'node:fs';
+import path from 'node:path';
+import { chromium, request } from 'playwright';
+
+const outDir = path.resolve('../artifacts/t2-browser/g4-finances-actions');
+fs.mkdirSync(outDir, { recursive: true });
+
+const user = process.env.T2_USER;
+const password = process.env.T2_PASSWORD;
+if (!user || !password) throw new Error('T2_USER/T2_PASSWORD required');
+
+const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
+const login = await api.post('/api/auth/login', { form: { username: user, password } });
+if (!login.ok()) throw new Error('finance login failed');
+const tokens = await login.json();
+const headers = { Authorization: `Bearer ${tokens.access_token}` };
+
+const patients = await api.get('/api/patients', { headers });
+if (!patients.ok()) throw new Error('finance patient list failed');
+const patient = (await patients.json()).find(row => row.numero_dossier === 'T2-0001');
+if (!patient) throw new Error('finance fixture patient missing');
+
+async function apiPayments() {
+  const r = await api.get(`/api/accounting/payments/patient/${patient.id}`, { headers });
+  if (!r.ok()) throw new Error(`payments reload failed: ${r.status()}`);
+  return await r.json();
+}
+async function apiBilling() {
+  const r = await api.get(`/api/accounting/actes-billing/patient/${patient.id}`, { headers });
+  if (!r.ok()) throw new Error(`billing reload failed: ${r.status()}`);
+  return await r.json();
+}
+
+const browser = await chromium.launch({ headless: true });
+const evidence = [];
+
+async function seedAuth(page) {
+  await page.addInitScript(({ access, refresh }) => {
+    localStorage.setItem('token', access);
+    localStorage.setItem('refresh_token', refresh || '');
+    localStorage.setItem('appMode', 'prod');
+  }, { access: tokens.access_token, refresh: tokens.refresh_token });
+}
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+  const context = await browser.newContext({ viewport, colorScheme: 'light' });
+  const page = await context.newPage();
+  await seedAuth(page);
+  const pageErrors = [];
+  const http5xx = [];
+  page.on('pageerror', error => pageErrors.push(String(error)));
+  page.on('response', response => {
+    if (response.status() >= 500) http5xx.push({ url: response.url(), status: response.status() });
+  });
+
+), { timeout: 15000 });
+
+  const financeTab = page.getByRole('button', { name: /^(Finances|Finance)$/i }).first();
+  await financeTab.waitFor({ state: 'visible', timeout: 15000 });
+  await financeTab.click();
+  await page.waitForURL(/tab=finances/, { timeout: 15000 });
   await page.getByText('Facturé', { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+  await page.screenshot({
+    path: path.join(outDir, `g4-finances-${viewport.width}x${viewport.height}-bureau-entry.png`),
+    fullPage: false,
+    animations: 'disabled',
+  });
 
   const quickOpen = page.getByRole('button', { name: /Enregistrer un paiement/i });
   await quickOpen.click();
