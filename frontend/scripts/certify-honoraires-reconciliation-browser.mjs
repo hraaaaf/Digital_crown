@@ -70,14 +70,14 @@ await page.goto('http://127.0.0.1:5173/accounting', { waitUntil: 'networkidle', 
 await page.getByText(patient.nom, { exact: false }).first().waitFor({ timeout: 30000 });
 await page.screenshot({ path: path.join(outDir, 'before-delete.png'), fullPage: true });
 
-const patientRow = page.getByText(patient.nom, { exact: false }).first().locator('tr');
+const patientRow = page.getByText(patient.nom, { exact: false }).first().locator('xpath=ancestor::tr');
 await patientRow.click();
 await page.getByText('Soin A certification', { exact: true }).waitFor({ timeout: 10000 });
-const detailRow = page.getByText('Soin A certification', { exact: true }).locator('tr');
+const detailRow = page.getByText('Soin A certification', { exact: true }).locator('xpath=ancestor::tr');
 await detailRow.getByTitle('Supprimer').click();
 await page.getByText('Supprimer cette note définitivement ?', { exact: true }).waitFor({ timeout: 10000 });
 await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
-await page.getByText(patient.nom, { exact: false }).first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
+await page.getByText('Soin A certification', { exact: true }).waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
 await page.waitForTimeout(700);
 await page.screenshot({ path: path.join(outDir, 'after-delete.png'), fullPage: true });
 
