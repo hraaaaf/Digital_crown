@@ -194,7 +194,7 @@ def test_pc05_read_and_snooze_only_change_receipt_after_domain_acceptance(db, de
     db.add(models.Appointment(
         patient_id=patient.id,
         employer_id=dentiste.id,
-        datetime_start=now + timedelta(hours=8),
+        datetime_start=now + timedelta(hours=48),
         status=models.AppointmentStatus.CONFIRME,
     ))
     db.commit()
