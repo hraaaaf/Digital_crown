@@ -88,6 +88,7 @@ def test_paid_note_trash_and_restore_reconciles_accounting_and_finance(
     before_items = before.json()["items"]
     assert len(before_items) == 2
     assert {item["document_archive_id"] for item in before_items} == {doc.id}
+    assert all(item["is_collected"] is True for item in before_items)
     assert before.json()["total_amount"] == 1000.0
     assert before.json()["total_collected"] == 1000.0
 
