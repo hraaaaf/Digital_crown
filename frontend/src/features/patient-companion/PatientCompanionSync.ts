@@ -24,7 +24,7 @@ export const PatientCompanionSync = {
     const accessId = encodeURIComponent(pairing.context.access_id);
     const [appointments, shares] = await Promise.all([
       getJson<{ items: PatientWalletSnapshot['appointments'] }>(
-        `/api/patient-companion/contexts/${accessId}/appointments`,
+        `/api/patient-companion/contexts/${accessId}/agenda`,
         pairing.accessToken,
       ),
       getJson<{ items: PatientWalletSnapshot['shares'] }>(
@@ -39,6 +39,7 @@ export const PatientCompanionSync = {
       syncedAt: new Date().toISOString(),
       appointments: appointments.items,
       shares: shares.items,
+      agendaRequests: (await PatientCompanionStorage.load()).cache[pairing.context.access_id]?.agendaRequests || [],
     };
     await PatientCompanionStorage.saveWallet(snapshot);
     return snapshot;
