@@ -92,3 +92,16 @@ Inherited product defects are remediated. G8 remains uncertified until exact-hea
 The separate canonical `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md` remains an independent release-safety prerequisite. It covers non-interactive security/runtime boundaries that this interactive denominator must not pretend to certify, including media tenant ownership, OAuth state/CSRF, cabinet LAN/TLS/cookies, telemetry opt-in, backup/document confinement, mobile/auth bounds and release dependency/runtime integrity.
 
 These checks do **not** inflate the interactive-control denominator. However, V1-08 remains blocked until the final candidate also satisfies the pre-freeze exact-head/runtime gates recorded in G10.
+
+
+## Browser adversarial escalation
+A dedicated real-Chromium transverse gate now complements the existing component evidence:
+- representative compact/desktop reachability with no horizontal overflow;
+- Stock read-error ≠ empty truth in-browser;
+- destructive confirmation dialog focus ownership + Escape close;
+- refused delete preserves visible state;
+- representative Stock create mutation is single-flight under double activation.
+
+Harness: `frontend/scripts/certify-v1-07-g8-browser-adversarial.mjs`.
+Workflow: `.github/workflows/v1-07-g8-browser-adversarial.yml`.
+G8 remains uncertified until this exact-head browser gate and inherited G1→G7/G4 gates are green.
