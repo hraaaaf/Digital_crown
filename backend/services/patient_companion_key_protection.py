@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import ctypes
-import os
 from ctypes import wintypes
+
+from backend.core.platform import get_platform_adapter
 
 _DPAPI_ENTROPY = b"Digital Crown Patient Companion remote keys v1"
 _CRYPTPROTECT_UI_FORBIDDEN = 0x1
@@ -31,7 +32,7 @@ def _blob(value: bytes) -> tuple[_DATA_BLOB, ctypes.Array]:
 
 
 def _windows_crypto():
-    if os.name != "nt":
+    if not get_platform_adapter().is_windows:
         raise OsKeyProtectionUnavailable(
             "Patient Companion remote cabinet keys require an OS-bound key protector; "
             "v1 supports Windows DPAPI only."
