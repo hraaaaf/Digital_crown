@@ -184,6 +184,15 @@ def process_remote_envelope(
             status=result.status,
             response=result.response,
         )
+        db.add(models.AuditLog(
+            user_id=None,
+            employer_id=access.employer_id,
+            action="PATIENT_COMPANION_REMOTE_COMMAND",
+            resource_type="PatientCompanionAccess",
+            resource_id=access.public_id,
+            severity="INFO" if result.status == "ACCEPTED" else "WARNING",
+            details=f"operation={message.operation}; status={result.status}",
+        ))
         ack = _ack_payload(
             message,
             status=result.status,
