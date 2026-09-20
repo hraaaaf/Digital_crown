@@ -124,7 +124,8 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
       if (inlineVisible) {
         preview.dismissalMode = 'close-button';
         const closeButton = inlinePreview.getByRole('button', { name: /fermer/i }).first();
-        await closeButton.click();
+        await closeButton.waitFor({ state: 'visible', timeout: 5000 });
+        await closeButton.evaluate((element) => element.click());
         await inlinePreview.waitFor({ state: 'hidden', timeout: 10000 });
         await page.waitForTimeout(400);
         preview.score = 10;
