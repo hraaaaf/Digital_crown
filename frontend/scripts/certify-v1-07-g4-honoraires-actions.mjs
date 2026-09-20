@@ -185,12 +185,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const categoryLabels = (await categoryButtons.allInnerTexts()).map(label => label.trim()).filter(Boolean);
   if (categoryLabels.length < 3) throw new Error('TreatmentSelector categories missing');
   for (const label of categoryLabels) {
-    await categoryBar.getByRole('button', { name: label, exact: true }).click();
+    const categoryButton = categoryBar.getByRole('button', { name: label, exact: true });
+    await categoryButton.focus();
+    await page.keyboard.press('Enter');
   }
 
   const specialty = categoryLabels.find(label => !['Favoris', 'Tous les actes'].includes(label));
   if (!specialty) throw new Error('No specialty category available');
-  await categoryBar.getByRole('button', { name: specialty, exact: true }).click();
+  const specialtyButton = categoryBar.getByRole('button', { name: specialty, exact: true });
+  await specialtyButton.focus();
+  await page.keyboard.press('Enter');
   const addCatalogAct = page.getByRole('button', { name: new RegExp('Ajouter un acte à ' + specialty) });
   await addCatalogAct.click();
   await page.getByPlaceholder("Nom de l'acte...").fill('G4 annulé ' + viewport.width);
