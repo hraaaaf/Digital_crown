@@ -1,6 +1,6 @@
 # Patient Companion — Remote Transport Gate B — Adversarial Review
 
-Status: IN PROGRESS — exact-head CI and crypto endpoint interoperability still pending.
+Status: IN PROGRESS — implementation substantially complete; final exact-head certification still pending.
 
 ## Candidate
 
@@ -68,7 +68,7 @@ Severity: high
 Remediation:
 envelope_id is unique; duplicate insertion returns 409. Recipient-side signed message_id replay ledger and idempotency_key remain mandatory before domain mutation.
 
-Status: relay layer implemented; endpoint replay ledger belongs to PC-02 transport worker and is not yet certified.
+Status: implemented. Cabinet-side persistent message_id + idempotency ledger and allow-listed worker are present; exact-head certification pending.
 
 ### F-06 — Expired queued messages
 Severity: high
@@ -76,7 +76,7 @@ Severity: high
 Remediation:
 relay TTL bounded to maximum 7 days; expired rows are filtered; test forces expiry and proves they are not returned. PC-02 appointment command signed expiry is capped by architecture at 15 minutes.
 
-Status: relay side implemented; endpoint signed-expiry enforcement not yet implemented.
+Status: implemented. Inner command TTL is capped at 15 minutes and future clock skew over 5 minutes is rejected; exact-head certification pending.
 
 ### F-07 — Cache/CORS leakage
 Severity: medium
@@ -106,7 +106,7 @@ JWS ES256 -> JWE ECDH-ES+A256KW / A256GCM. Separate signing and encryption keys.
 Critical restriction:
 No hand-written JOSE implementation. Endpoint crypto must use a maintained JOSE library and must pass cross-runtime interoperability vectors before PC-02 merge.
 
-Status: DESIGN LOCKED; runtime endpoint implementation/interoperability pending.
+Status: implemented, not yet finally certified. Python uses pinned jwcrypto 1.6.1; browser uses pinned jose 6.2.12. Cross-runtime Python→JS and JS→Python certification workflow is present. Patient private keys are generated non-extractable in WebCrypto; cabinet private keys use Windows current-user DPAPI.
 
 ### F-10 — Relay metadata/DoS residual risk
 Severity: accepted residual / operational
@@ -126,15 +126,38 @@ Status: documented residual; deployment gate remains separate.
 - NIST SP 800-57 Part 1 Rev.5: key lifecycle/cryptoperiod baseline.
 - OWASP Cryptographic Storage + Key Management: threat-model first, authenticated encryption, key separation/lifecycle, no custom cryptographic algorithms.
 
+### F-11 — Competing remote-key architecture residue
+Severity: high
+
+Observed:
+An earlier parallel implementation left a second remote-key route/test family after the canonical QR-bound design had been selected.
+
+Remediation:
+The stale route and stale enrollment test were removed. Canonical enrollment occurs atomically inside the one-time QR/manual pairing ceremony.
+
+Status: remediated; exact-head CI pending.
+
+### F-12 — Access revocation left active remote keyset
+Severity: high
+
+Risk:
+A server-revoked Patient Companion access could leave its E2E keyset marked ACTIVE, creating ambiguous future reactivation semantics.
+
+Remediation:
+The staff access-revocation flow now marks the active remote keyset REVOKED in the same cabinet transaction. Re-enabling remote transport therefore requires fresh key enrollment.
+
+Status: implemented with regression test; exact-head CI pending.
+
 ## Remaining gates
 
-1. exact-head CI for relay contract/service tests;
-2. endpoint key enrollment design in trusted local pairing;
-3. maintained JOSE library selected/pinned for browser + cabinet;
-4. cross-runtime sign/encrypt/decrypt/verify interoperability vectors;
-5. receiver replay ledger + idempotency persistence;
-6. cabinet worker integration proving no direct remote domain mutation;
-7. update canonical/Notion/handover;
-8. only then mark Remote Transport Gate VERIFIED and allow PC-02 merge.
+1. exact-head dedicated Remote Transport Gate green on Linux and Windows;
+2. exact-head general CI + PostgreSQL/Alembic green;
+3. Patient/Media/Catalog/Marketplace gates green if triggered by this branch;
+4. inspect failures rather than infer common cause;
+5. update this review with exact run IDs and only then mark VERIFIED;
+6. update canonical + Notion + handover;
+7. merge #638 with expected-head guard;
+8. post-merge master verification;
+9. only then open PC-02 implementation.
 
 No deployment performed.
