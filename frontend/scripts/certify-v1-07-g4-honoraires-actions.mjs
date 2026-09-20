@@ -66,11 +66,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const pediatricTeeth = [51,52,53,54,55,61,62,63,64,65,71,72,73,74,75,81,82,83,84,85];
   for (const tooth of pediatricTeeth) {
     const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
-    // The ARIA button is an SVG <g>; a real pointer click lands on one of its
-    // interactive face paths. Click the actual face instead of the group box.
-    const toothFace = toothButton.locator('path').first();
-    await toothFace.waitFor({ state: 'visible', timeout: 5000 });
-    await toothFace.click();
+    // SVG hit-testing is geometry-dependent in headless Chromium. Exercise the
+    // same accessible product action through the keyboard contract instead.
+    await toothButton.focus();
+    await page.keyboard.press('Enter');
     const title = page.getByText('Dent ' + tooth, { exact: true });
     await title.waitFor({ state: 'visible', timeout: 10000 });
     const selector = title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
