@@ -47,6 +47,24 @@ def test_create_rejects_internal_ids_and_accepts_only_cabinet_slot(db, dentiste)
     assert created.source == "patient_companion"
 
 
+
+def test_slot_is_single_use_after_successful_booking(db, dentiste):
+    patient, access = _access(db, dentiste)
+    slot = _slot(db, dentiste, datetime(2030, 1, 4, 10, 0))
+
+    first = create_appointment(db, access, {"slot_ref": slot.public_id})
+    assert first.status == "ACCEPTED"
+    assert slot.consumed_at is not None
+
+    second = create_appointment(db, access, {"slot_ref": slot.public_id})
+    assert second.status == "REJECTED"
+    assert second.response["code"] == "SLOT_NOT_FOUND"
+    assert db.query(models.Appointment).filter(
+        models.Appointment.patient_id == patient.id,
+        models.Appointment.datetime_start == datetime(2030, 1, 4, 10, 0),
+    ).count() == 1
+
+
 def test_reschedule_and_cancel_are_scoped_by_opaque_ref(db, dentiste):
     patient, access = _access(db, dentiste)
     appointment = models.Appointment(
