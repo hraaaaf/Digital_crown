@@ -66,14 +66,14 @@ jobs:
           -q
 
       - name: Python to JavaScript JOSE
-        run: python backend/scripts/certify_patient_companion_remote_interop.py emit "$RUNNER_TEMP/python-to-js.json"
+        run: python -m backend.scripts.certify_patient_companion_remote_interop emit "$RUNNER_TEMP/python-to-js.json"
 
       - name: JavaScript verifies Python and emits JavaScript JOSE
         working-directory: frontend
         run: node scripts/certify-pc-remote-interop.mjs "$RUNNER_TEMP/python-to-js.json" "$RUNNER_TEMP/js-to-python.json"
 
       - name: Python verifies JavaScript JOSE
-        run: python backend/scripts/certify_patient_companion_remote_interop.py verify "$RUNNER_TEMP/js-to-python.json"
+        run: python -m backend.scripts.certify_patient_companion_remote_interop verify "$RUNNER_TEMP/js-to-python.json"
 
   windows-dpapi:
     name: Windows DPAPI cabinet-key protection
