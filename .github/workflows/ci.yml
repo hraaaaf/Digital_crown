@@ -67,6 +67,8 @@ jobs:
   frontend:
     name: Frontend (tests & build)
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     defaults:
       run:
         working-directory: frontend
@@ -84,40 +86,40 @@ jobs:
         run: npm ci
 
       - name: Test suite — shard 1/12
-        run: npm test -- --shard=1/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=1/12
 
       - name: Test suite — shard 2/12
-        run: npm test -- --shard=2/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=2/12
 
       - name: Test suite — shard 3/12
-        run: npm test -- --shard=3/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=3/12
 
       - name: Test suite — shard 4/12
-        run: npm test -- --shard=4/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=4/12
 
       - name: Test suite — shard 5/12
-        run: npm test -- --shard=5/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=5/12
 
       - name: Test suite — shard 6/12
-        run: npm test -- --shard=6/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=6/12
 
       - name: Test suite — shard 7/12
-        run: npm test -- --shard=7/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=7/12
 
       - name: Test suite — shard 8/12
-        run: npm test -- --shard=8/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=8/12
 
       - name: Test suite — shard 9/12
-        run: npm test -- --shard=9/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=9/12
 
       - name: Test suite — shard 10/12
-        run: npm test -- --shard=10/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=10/12
 
       - name: Test suite — shard 11/12
-        run: npm test -- --shard=11/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=11/12
 
       - name: Test suite — shard 12/12
-        run: npm test -- --shard=12/12
+        run: npm test -- --maxWorkers=1 --fileParallelism=false --shard=12/12
 
       - name: Build
         run: npm run build
