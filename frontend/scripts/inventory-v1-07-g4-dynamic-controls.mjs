@@ -131,7 +131,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await inventory(page, viewport, 'honoraires-group-selected');
 
   await page.getByRole('button', { name: /Soins Ciblés/i }).click();
-  await page.getByRole('button', { name: /Dent 11,/i }).click();
+  const dent11 = page.getByRole('button', { name: /Dent 11,/i });
+  // The odontogram is SVG-backed; Chromium pointer hit-testing can land on an
+  // inner shape instead of the accessible tooth control. Exercise the same
+  // real browser action through the keyboard contract used by the deep probe.
+  await dent11.focus();
+  await page.keyboard.press('Enter');
   await page.getByText('Dent 11', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await inventory(page, viewport, 'honoraires-treatment-selector');
   const toothTitle = page.getByText('Dent 11', { exact: true });
