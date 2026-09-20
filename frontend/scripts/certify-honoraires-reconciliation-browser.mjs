@@ -72,7 +72,7 @@ await page.screenshot({ path: path.join(outDir, 'before-delete.png'), fullPage: 
 
 const patientRow = page.getByText(patient.nom, { exact: false }).first().locator('xpath=ancestor::tr');
 await patientRow.click();
-const detailRow = page.locator('tr').filter({ hasText: 'Soin A certification' }).first();
+const detailRow = page.locator('tr').filter({ hasText: 'Soin A certification' }).filter({ has: page.getByTitle('Supprimer') }).first();
 await detailRow.waitFor({ timeout: 10000 });
 await detailRow.getByTitle('Supprimer').click();
 await page.getByText('Supprimer cette note définitivement ?', { exact: true }).waitFor({ timeout: 10000 });
