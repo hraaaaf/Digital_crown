@@ -6,9 +6,15 @@ on:
       - "relay/**"
       - "backend/services/patient_companion_key_protection.py"
       - "backend/services/patient_companion_remote_*.py"
+      - "backend/services/patient_companion_relay_*.py"
+      - "backend/services/patient_companion_agenda.py"
       - "backend/routers/patient_companion_pairing.py"
+      - "backend/routers/patient_companion_agenda.py"
+      - "backend/routers/patient_companion_shares.py"
       - "backend/models_patient_companion.py"
       - "backend/tests/test_patient_companion_remote_*.py"
+      - "backend/tests/test_patient_companion_relay_*.py"
+      - "backend/tests/test_patient_companion_agenda.py"
       - "backend/tests/test_patient_companion_dpapi_runtime.py"
       - "backend/scripts/certify_patient_companion_remote_interop.py"
       - "frontend/src/features/patient-companion/**"
@@ -16,6 +22,7 @@ on:
       - "frontend/package.json"
       - "frontend/package-lock.json"
       - "alembic/versions/pcrt0000009_add_pc_remote_transport_state.py"
+      - "alembic/versions/pc020000010_add_pc02_appointment_refs.py"
       - "docs/clinic/patient_companion/REMOTE_TRANSPORT_*.md"
       - ".github/workflows/pc-remote-transport-cert.yml"
   workflow_dispatch:
@@ -47,23 +54,55 @@ jobs:
           "pydantic[email]==2.6.3"
           fastapi==0.115.6
           passlib==1.7.4
+          bcrypt==3.2.2
           python-dotenv==1.0.1
+          pydantic-settings==2.2.1
+          python-jose==3.5.0
+          python-multipart==0.0.31
+          qrcode==8.2
+          pillow==12.2.0
+          opencv-python-headless==4.13.0.92
           SQLAlchemy==2.0.28
           httpx==0.28.1
           jwcrypto==1.6.1
+          firebase-admin==7.5.0
+          sentry-sdk[fastapi]==2.69.0
 
       - name: Install locked browser dependencies
         working-directory: frontend
         run: npm ci --ignore-scripts
 
       - name: Relay contract and service certification
-        run: >-
-          python -m pytest
-          backend/tests/test_patient_companion_relay_contract.py
-          backend/tests/test_patient_companion_relay_service.py
-          backend/tests/test_patient_companion_remote_crypto.py
-          backend/tests/test_patient_companion_remote_freshness.py
-          -q
+        shell: bash
+        run: |
+          python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
+          import pytest
+
+          root = Path.cwd()
+          routers_pkg = types.ModuleType("backend.routers")
+          routers_pkg.__path__ = [str(root / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers_pkg
+
+          raise SystemExit(pytest.main([
+              "backend/tests/test_patient_companion_relay_contract.py",
+              "backend/tests/test_patient_companion_relay_service.py",
+              "backend/tests/test_patient_companion_remote_crypto.py",
+              "backend/tests/test_patient_companion_remote_freshness.py",
+              "backend/tests/test_patient_companion_remote_keys.py",
+              "backend/tests/test_patient_companion_remote_pairing.py",
+              "backend/tests/test_patient_companion_remote_receipts.py",
+              "backend/tests/test_patient_companion_remote_worker.py",
+              "backend/tests/test_patient_companion_relay_client.py",
+              "-q",
+          ]))
+          PY
+
+      - name: Patient Companion frontend transport tests
+        working-directory: frontend
+        run: npm test -- --run src/features/patient-companion/PatientCompanionAgendaTransport.test.ts
 
       - name: Python to JavaScript JOSE
         run: python -m backend.scripts.certify_patient_companion_remote_interop emit "$RUNNER_TEMP/python-to-js.json"
@@ -78,6 +117,8 @@ jobs:
   windows-dpapi:
     name: Windows DPAPI cabinet-key protection
     runs-on: windows-latest
+    env:
+      ENVIRONMENT: pc-remote-cert-rehearsal
     steps:
       - uses: actions/checkout@v4
 
@@ -85,14 +126,34 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install focused Python import dependency
+        run: python -m pip install SQLAlchemy==2.0.28
+
       - name: Real current-user DPAPI roundtrip
         shell: pwsh
         run: |
           @'
           import importlib.util
+          import sys
+          import types
           from pathlib import Path
 
-          path = Path("backend/services/patient_companion_key_protection.py")
+          root = Path.cwd()
+          backend_pkg = types.ModuleType("backend")
+          backend_pkg.__path__ = [str(root / "backend")]
+          core_pkg = types.ModuleType("backend.core")
+          core_pkg.__path__ = [str(root / "backend" / "core")]
+          sys.modules["backend"] = backend_pkg
+          sys.modules["backend.core"] = core_pkg
+
+          platform_path = root / "backend" / "core" / "platform.py"
+          platform_spec = importlib.util.spec_from_file_location("backend.core.platform", platform_path)
+          platform_module = importlib.util.module_from_spec(platform_spec)
+          assert platform_spec.loader is not None
+          sys.modules["backend.core.platform"] = platform_module
+          platform_spec.loader.exec_module(platform_module)
+
+          path = root / "backend" / "services" / "patient_companion_key_protection.py"
           spec = importlib.util.spec_from_file_location("pc_key_protection", path)
           module = importlib.util.module_from_spec(spec)
           assert spec.loader is not None

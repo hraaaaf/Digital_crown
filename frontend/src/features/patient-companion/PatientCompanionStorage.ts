@@ -14,6 +14,15 @@ export type PatientCompanionContext = {
   };
 };
 
+export type PatientRelayBinding = {
+  protocolVersion: 'dc-relay-v1';
+  relayUrl: string;
+  cabinetInboxId: string;
+  cabinetWriteCapability: string;
+  patientInboxId: string;
+  patientReadCapability: string;
+};
+
 export type PatientRemoteTransportBinding = {
   version: 1;
   keysetId: string;
@@ -23,6 +32,7 @@ export type PatientRemoteTransportBinding = {
   cabinetSigningPublicJwk: JsonWebKey;
   cabinetEncryptionKid: string;
   cabinetEncryptionPublicJwk: JsonWebKey;
+  relay?: PatientRelayBinding;
 };
 
 export type PatientPairing = {
@@ -34,11 +44,23 @@ export type PatientPairing = {
 };
 
 export type PatientAppointment = {
+  appointment_ref?: string;
   datetime_start: string;
   duration_minutes?: number | null;
   motif: string;
   status: string;
   scheduling_type?: string | null;
+};
+
+export type PatientAgendaRequestState = {
+  id: string;
+  operation: 'agenda.create' | 'agenda.reschedule' | 'agenda.cancel';
+  state: 'local_queued' | 'remote_pending' | 'confirmed' | 'rejected';
+  appointmentRef?: string;
+  slotRef?: string;
+  createdAt: string;
+  updatedAt: string;
+  errorCode?: string;
 };
 
 export type PatientShare = {
@@ -58,6 +80,7 @@ export type PatientWalletSnapshot = {
   syncedAt: string;
   appointments: PatientAppointment[];
   shares: PatientShare[];
+  agendaRequests?: PatientAgendaRequestState[];
 };
 
 export type PatientCompanionVaultState = {
@@ -254,14 +277,70 @@ export const PatientCompanionStorage = {
     return next;
   },
 
+  async saveAppointments(accessId: string, appointments: PatientAppointment[]): Promise<PatientCompanionVaultState> {
+    const current = await this.load();
+    if (!current.pairings.some(item => item.context.access_id === accessId)) {
+      throw new Error('Contexte Patient Companion inconnu.');
+    }
+    const existing = current.cache[accessId];
+    const snapshot: PatientWalletSnapshot = existing || {
+      version: 1,
+      accessId,
+      syncedAt: new Date(0).toISOString(),
+      appointments: [],
+      shares: [],
+    };
+    const next: PatientCompanionVaultState = {
+      ...current,
+      cache: {
+        ...current.cache,
+        [accessId]: {
+          ...snapshot,
+          appointments,
+          syncedAt: new Date().toISOString(),
+        },
+      },
+    };
+    await writeValue(STATE_ID, await encryptState(next));
+    return next;
+  },
+
+  async saveAgendaRequests(accessId: string, agendaRequests: PatientAgendaRequestState[]): Promise<PatientCompanionVaultState> {
+    const current = await this.load();
+    if (!current.pairings.some(item => item.context.access_id === accessId)) {
+      throw new Error('Contexte Patient Companion inconnu.');
+    }
+    const existing = current.cache[accessId];
+    const snapshot: PatientWalletSnapshot = existing || {
+      version: 1,
+      accessId,
+      syncedAt: new Date(0).toISOString(),
+      appointments: [],
+      shares: [],
+    };
+    const next: PatientCompanionVaultState = {
+      ...current,
+      cache: {
+        ...current.cache,
+        [accessId]: { ...snapshot, agendaRequests },
+      },
+    };
+    await writeValue(STATE_ID, await encryptState(next));
+    return next;
+  },
+
   async saveWallet(snapshot: PatientWalletSnapshot): Promise<PatientCompanionVaultState> {
     const current = await this.load();
     if (!current.pairings.some(item => item.context.access_id === snapshot.accessId)) {
       throw new Error('Contexte Patient Companion inconnu.');
     }
+    const previousRequests = current.cache[snapshot.accessId]?.agendaRequests;
+    const mergedSnapshot = snapshot.agendaRequests === undefined && previousRequests
+      ? { ...snapshot, agendaRequests: previousRequests }
+      : snapshot;
     const next: PatientCompanionVaultState = {
       ...current,
-      cache: { ...current.cache, [snapshot.accessId]: snapshot },
+      cache: { ...current.cache, [snapshot.accessId]: mergedSnapshot },
     };
     await writeValue(STATE_ID, await encryptState(next));
     return next;

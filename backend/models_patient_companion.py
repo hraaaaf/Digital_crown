@@ -252,6 +252,58 @@ class PatientCompanionRemoteKeyset(Base):
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
 
+class PatientCompanionRelayBinding(Base):
+    """Local-only relay routing/capabilities for one Patient Companion access."""
+
+    __tablename__ = "patient_companion_relay_bindings"
+    __table_args__ = (
+        UniqueConstraint("access_id", name="uq_pc_relay_binding_access"),
+        Index("ix_pc_relay_binding_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    relay_url: Mapped[str] = mapped_column(Text, nullable=False)
+    cabinet_inbox_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    patient_inbox_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    protected_cabinet_read_cap_b64: Mapped[str] = mapped_column(Text, nullable=False)
+    protected_patient_write_cap_b64: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionRelayOutbox(Base):
+    """Durable encrypted ACK awaiting delivery to the patient relay inbox."""
+
+    __tablename__ = "patient_companion_relay_outbox"
+    __table_args__ = (
+        UniqueConstraint(
+            "binding_id",
+            "source_envelope_id",
+            name="uq_pc_relay_outbox_binding_source",
+        ),
+        UniqueConstraint("ack_envelope_id", name="uq_pc_relay_outbox_ack_envelope"),
+        Index("ix_pc_relay_outbox_binding_delivery", "binding_id", "delivered_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    binding_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_relay_bindings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_envelope_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    ack_envelope_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    blob: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
 class PatientCompanionRemoteReceipt(Base):
     """Persistent replay/idempotency ledger for decrypted remote commands."""
 
@@ -283,3 +335,103 @@ class PatientCompanionRemoteReceipt(Base):
     response_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class PatientCompanionAppointmentRef(Base):
+    """Opaque patient-facing reference for one cabinet appointment row."""
+
+    __tablename__ = "patient_companion_appointment_refs"
+    __table_args__ = (
+        UniqueConstraint(
+            "employer_id",
+            "appointment_id",
+            name="uq_pc_appointment_ref_tenant_appointment",
+        ),
+        Index(
+            "ix_pc_appointment_ref_tenant_patient",
+            "employer_id",
+            "patient_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36),
+        unique=True,
+        nullable=False,
+        index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    appointment_id: Mapped[int] = mapped_column(
+        ForeignKey("appointments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PatientCompanionAgendaSlot(Base):
+    """Short-lived cabinet-issued opaque booking option for Patient Companion."""
+
+    __tablename__ = "patient_companion_agenda_slots"
+    __table_args__ = (
+        Index("ix_pc_agenda_slot_tenant_expiry", "employer_id", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    practitioner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    resource_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("agenda_resources.id", ondelete="CASCADE"), nullable=True, index=True,
+    )
+    datetime_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    duration_minutes: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionPractitionerRef(Base):
+    """Opaque alias for a cabinet practitioner exposed to Patient Companion."""
+
+    __tablename__ = "patient_companion_practitioner_refs"
+    __table_args__ = (
+        UniqueConstraint(
+            "employer_id",
+            "practitioner_id",
+            name="uq_pc_practitioner_ref_tenant_practitioner",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    practitioner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)

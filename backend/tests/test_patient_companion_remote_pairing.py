@@ -3,16 +3,48 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
 from backend import models
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionInvitation,
+    PatientCompanionRelayBinding,
     PatientCompanionRemoteKeyset,
 )
 from backend.routers.patient_companion_common import manual_code_hash, token_hash
 from backend.services.patient_companion_key_protection import OsKeyProtectionUnavailable
 from backend.services.patient_companion_remote_crypto import generate_p256_keypair
 from backend.services.patient_companion_remote_keys import enroll_remote_keyset as real_enroll
+
+
+@pytest.fixture()
+def focused_client(db):
+    """Focused Patient Companion app: real routers/dependencies, no global backend.main bootstrap."""
+    from backend.routers import auth as auth_router
+    from backend.routers import (
+        patient_companion_agenda,
+        patient_companion_common,
+        patient_companion_pairing,
+        patient_companion_shares,
+    )
+
+    app = FastAPI()
+
+    def _override_get_db():
+        yield db
+
+    app.dependency_overrides[patient_companion_common.get_db] = _override_get_db
+    app.dependency_overrides[auth_router.get_db] = _override_get_db
+    app.include_router(patient_companion_pairing.router, prefix="/api/patient-companion")
+    app.include_router(patient_companion_agenda.router, prefix="/api/patient-companion")
+    app.include_router(patient_companion_shares.router, prefix="/api/patient-companion")
+
+    with TestClient(app, raise_server_exceptions=True) as test_client:
+        yield test_client
+
 
 
 def _invitation(db, owner, suffix: str):
@@ -57,7 +89,7 @@ def _remote_keys():
     }
 
 
-def test_qr_pairing_atomically_enrolls_remote_public_keys(client, db, dentiste, monkeypatch):
+def test_qr_pairing_atomically_enrolls_remote_public_keys(focused_client, db, dentiste, monkeypatch):
     from backend.routers import patient_companion_pairing
 
     monkeypatch.setattr(patient_companion_pairing, "check_rate_limit", lambda *args, **kwargs: None)
@@ -71,7 +103,7 @@ def test_qr_pairing_atomically_enrolls_remote_public_keys(client, db, dentiste, 
 
     monkeypatch.setattr(patient_companion_pairing, "enroll_remote_keyset", enroll_with_test_protector)
     raw, invitation = _invitation(db, dentiste, "0001")
-    response = client.post(
+    response = focused_client.post(
         "/api/patient-companion/pair",
         json={"token": raw, "remote_keys": _remote_keys()},
     )
@@ -86,7 +118,7 @@ def test_qr_pairing_atomically_enrolls_remote_public_keys(client, db, dentiste, 
     assert invitation.consumed_at is not None
 
 
-def test_qr_pairing_rolls_back_when_os_key_protection_is_unavailable(client, db, dentiste, monkeypatch):
+def test_qr_pairing_rolls_back_when_os_key_protection_is_unavailable(focused_client, db, dentiste, monkeypatch):
     from backend.routers import patient_companion_pairing
 
     monkeypatch.setattr(patient_companion_pairing, "check_rate_limit", lambda *args, **kwargs: None)
@@ -97,7 +129,7 @@ def test_qr_pairing_rolls_back_when_os_key_protection_is_unavailable(client, db,
     monkeypatch.setattr(patient_companion_pairing, "enroll_remote_keyset", fail_enrollment)
     raw, invitation = _invitation(db, dentiste, "0002")
 
-    response = client.post(
+    response = focused_client.post(
         "/api/patient-companion/pair",
         json={"token": raw, "remote_keys": _remote_keys()},
     )
@@ -109,7 +141,7 @@ def test_qr_pairing_rolls_back_when_os_key_protection_is_unavailable(client, db,
 
 
 def test_access_revocation_revokes_remote_keyset_in_same_cabinet_flow(
-    client, db, dentiste, auth_headers, monkeypatch
+    focused_client, db, dentiste, monkeypatch
 ):
     from backend.routers import patient_companion_pairing
 
@@ -125,16 +157,31 @@ def test_access_revocation_revokes_remote_keyset_in_same_cabinet_flow(
     monkeypatch.setattr(patient_companion_pairing, "enroll_remote_keyset", enroll_with_test_protector)
     raw, _invitation_row = _invitation(db, dentiste, "0003")
 
-    paired = client.post(
+    paired = focused_client.post(
         "/api/patient-companion/pair",
         json={"token": raw, "remote_keys": _remote_keys()},
     )
     assert paired.status_code == 201, paired.text
     access_id = paired.json()["context"]["access_id"]
+    access = db.query(PatientCompanionAccess).one()
+    binding = PatientCompanionRelayBinding(
+        access_id=access.id,
+        relay_url="https://relay.test",
+        cabinet_inbox_id=str(uuid.uuid4()),
+        patient_inbox_id=str(uuid.uuid4()),
+        protected_cabinet_read_cap_b64="protected-cabinet-read",
+        protected_patient_write_cap_b64="protected-patient-write",
+        status="ACTIVE",
+    )
+    db.add(binding)
+    db.commit()
 
-    revoked = client.post(
+    from backend.security import create_access_token
+
+    staff_token = create_access_token({"sub": dentiste.email})
+    revoked = focused_client.post(
         f"/api/patient-companion/admin/accesses/{access_id}/revoke",
-        headers=auth_headers,
+        headers={"Authorization": f"Bearer {staff_token}"},
     )
     assert revoked.status_code == 200, revoked.text
 
@@ -142,3 +189,55 @@ def test_access_revocation_revokes_remote_keyset_in_same_cabinet_flow(
     db.refresh(keyset)
     assert keyset.status == "REVOKED"
     assert keyset.revoked_at is not None
+    db.refresh(binding)
+    assert binding.status == "REVOKE_PENDING"
+    assert binding.revoked_at is None
+
+
+def test_agenda_remote_command_requires_active_keyset_and_dispatches_ciphertext(
+    focused_client, db, dentiste, monkeypatch
+):
+    from backend.routers import patient_companion_agenda, patient_companion_pairing
+
+    monkeypatch.setattr(patient_companion_pairing, "check_rate_limit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(patient_companion_agenda, "check_rate_limit", lambda *args, **kwargs: None)
+
+    def enroll_with_test_protector(*args, **kwargs):
+        return real_enroll(
+            *args,
+            **kwargs,
+            protect=lambda clear: b"test-protected:" + clear,
+        )
+
+    monkeypatch.setattr(patient_companion_pairing, "enroll_remote_keyset", enroll_with_test_protector)
+    raw, _invitation_row = _invitation(db, dentiste, "0004")
+    paired = focused_client.post(
+        "/api/patient-companion/pair",
+        json={"token": raw, "remote_keys": _remote_keys()},
+    )
+    assert paired.status_code == 201, paired.text
+    payload = paired.json()
+    access_id = payload["context"]["access_id"]
+    token = payload["access_token"]
+
+    observed = {}
+
+    def fake_process(db_arg, *, access, keyset, compact_jwe):
+        observed["db"] = db_arg
+        observed["access_id"] = access.public_id
+        observed["keyset_access_id"] = keyset.access_id
+        observed["blob"] = compact_jwe
+        return "opaque-signed-encrypted-ack"
+
+    monkeypatch.setattr(patient_companion_agenda, "process_remote_envelope", fake_process)
+
+    response = focused_client.post(
+        f"/api/patient-companion/contexts/{access_id}/agenda/remote-command",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"blob": "opaque-signed-encrypted-command"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {"blob": "opaque-signed-encrypted-ack"}
+    assert observed["access_id"] == access_id
+    assert observed["blob"] == "opaque-signed-encrypted-command"
+    assert observed["keyset_access_id"] == db.query(PatientCompanionAccess).one().id

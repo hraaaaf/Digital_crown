@@ -167,7 +167,7 @@ describe('PatientCompanionApp PC-00 local-first', () => {
           version: 1,
           accessId: 'wallet-access',
           syncedAt: '2026-09-19T18:30:00Z',
-          appointments: [{ datetime_start: '2026-09-21T09:00:00Z', motif: 'Contrôle', status: 'CONFIRME' }],
+          appointments: [{ datetime_start: '2026-09-21T09:00:00Z', motif: 'Contrôle', duration_minutes: 30, status: 'CONFIRME' }],
           shares: [{ share_id: 's1', resource_type: 'document', title: 'Ordonnance', document_type: 'ORDONNANCE' }],
         },
       },
@@ -176,7 +176,7 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     render(<PatientCompanionApp />);
 
     expect(await screen.findByText('Aya Wallet')).toBeInTheDocument();
-    expect(screen.getByText('Contrôle')).toBeInTheDocument();
+    expect(screen.getByText('Contrôle · 30 min')).toBeInTheDocument();
     expect(screen.getByText('Ordonnance')).toBeInTheDocument();
     expect(screen.getByText(/Dernière synchronisation/)).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
