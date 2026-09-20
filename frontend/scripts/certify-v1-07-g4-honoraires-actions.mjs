@@ -65,7 +65,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Enfant', exact: true }).click();
   const pediatricTeeth = [51,52,53,54,55,61,62,63,64,65,71,72,73,74,75,81,82,83,84,85];
   for (const tooth of pediatricTeeth) {
-    await page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') }).click();
+    const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
+    const hitTarget = toothButton.locator('rect').first();
+    if (await hitTarget.count()) await hitTarget.click();
+    else await toothButton.click();
     const title = page.getByText('Dent ' + tooth, { exact: true });
     await title.waitFor({ state: 'visible', timeout: 10000 });
     const selector = title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
