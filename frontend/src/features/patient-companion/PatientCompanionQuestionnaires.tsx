@@ -32,11 +32,11 @@ const stateLabel = (state: QuestionnaireItem['state']) => {
   return 'Expiré';
 };
 
-export const PatientCompanionQuestionnaires = ({ pairing }: { pairing: PatientPairing }) => {
+export const PatientCompanionQuestionnaires = ({ pairing, enabled }: { pairing: PatientPairing; enabled: boolean }) => {
   const [items, setItems] = useState<QuestionnaireItem[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -129,9 +129,9 @@ export const PatientCompanionQuestionnaires = ({ pairing }: { pairing: PatientPa
         Vos réponses sont transmises au cabinet pour revue. Elles ne modifient pas automatiquement votre dossier clinique.
       </p>
 
-      {loading && <div className="mt-3 flex min-h-[48px] items-center gap-2 text-xs font-black text-text-muted"><Loader2 className="animate-spin" size={16} /> Chargement…</div>}
+      {!enabled && <p className="mt-3 text-xs font-bold text-text-muted">Synchronisez votre espace pour vérifier les questionnaires à compléter.</p>}\n\n      {enabled && loading && <div className="mt-3 flex min-h-[48px] items-center gap-2 text-xs font-black text-text-muted"><Loader2 className="animate-spin" size={16} /> Chargement…</div>}
 
-      {!loading && items.length === 0 && !message && (
+      {enabled && !loading && items.length === 0 && !message && (
         <p className="mt-3 text-xs font-bold text-text-muted">Aucun questionnaire à compléter.</p>
       )}
 
