@@ -191,7 +191,7 @@ export async function sendAgendaCommand(
   pairing: PatientPairing,
   operation: AgendaOperation,
   payload: Record<string, unknown>,
-  idempotencyKey = crypto.randomUUID(),
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<AgendaCommandResult> {
   const binding = pairing.remoteTransport;
   if (!binding) throw new Error('Transport sécurisé Patient Companion non initialisé.');

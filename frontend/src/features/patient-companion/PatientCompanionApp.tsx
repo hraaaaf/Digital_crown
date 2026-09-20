@@ -456,7 +456,7 @@ export const PatientCompanionApp = () => {
   };
 
   const sendAgendaRequest = async (
-    operation: AgendaOperation,
+    operation: PatientAgendaRequestState['operation'],
     payload: Record<string, unknown>,
     refs: { appointmentRef?: string; slotRef?: string } = {},
   ) => {
