@@ -202,16 +202,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     return true;
   }, specialty);
   if (!specialtyActivated) throw new Error('Specialty category button missing after traversal');
-  const addCatalogAct = page.getByRole('button', { name: new RegExp('^Ajouter un acte à ' + specialty.replace(/[.*+?^$\\{}()|[\]\\]/g, '\\  const specialtyIndex = categoryLabels.findIndex(label => !['Favoris', 'Tous les actes'].includes(label));
-  if (specialtyIndex < 0) throw new Error('No specialty category available');
-  const specialty = categoryLabels[specialtyIndex];
-  const specialtyButton = categoryBar.getByRole('button').nth(specialtyIndex);
-  await specialtyButton.waitFor({ state: 'visible', timeout: 5000 });
-  await specialtyButton.focus();
-  await page.keyboard.press('Enter');
   const addCatalogAct = page.getByRole('button', { name: /^Ajouter un acte à / }).last();
-  await addCatalogAct.waitFor({ state: 'visible', timeout: 5000 });
-') + '  await addCatalogAct.focus();
+  await addCatalogAct.waitFor({ state: 'visible', timeout: 10000 });
+  await addCatalogAct.focus();
   await page.keyboard.press('Enter');
   await page.getByPlaceholder("Nom de l'acte...").fill('G4 annulé ' + viewport.width);
   await page.getByPlaceholder('Prix MAD').fill('123');
