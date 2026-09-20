@@ -638,7 +638,7 @@ export const PatientCompanionApp = () => {
               {syncState === 'offline' && <p className="mt-2 text-[11px] font-black text-amber-700">Cabinet non joignable · dernière copie locale conservée.</p>}
               {(syncState === 'expired' || sessionExpired) && <p className="mt-2 text-[11px] font-black text-rose-700">Connexion au cabinet expirée · votre copie locale reste disponible. Un nouvel appairage sera nécessaire pour synchroniser.</p>}
             </Card>
-            <PatientCompanionQuestionnaires pairing={activePairing} />\n            <section data-pc02-agenda className="mt-4 rounded-[1.5rem] border border-border-main bg-card-bg p-4" aria-label="Mes rendez-vous">
+            <PatientCompanionQuestionnaires pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />\n            <section data-pc02-agenda className="mt-4 rounded-[1.5rem] border border-border-main bg-card-bg p-4" aria-label="Mes rendez-vous">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Agenda</p>
