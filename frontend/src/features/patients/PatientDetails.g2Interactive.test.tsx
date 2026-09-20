@@ -196,7 +196,7 @@ describe('PatientDetails G2 interactive permission matrix', () => {
 
     cleanup();
     renderDetails();
-    fireEvent.click(await screen.findByRole('button', { name: 'Document' }));
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Document' }))[0]);
     expect(await screen.findByText('Document hub')).toBeTruthy();
     expect(api.patch).not.toHaveBeenCalled();
   });
@@ -219,7 +219,7 @@ describe('PatientDetails G2 interactive permission matrix', () => {
   it('switches Documents between create and history without entering deep document actions', async () => {
     renderDetails();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Document' }));
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Document' }))[0]);
     expect(await screen.findByText('Document hub')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Historique' }));
