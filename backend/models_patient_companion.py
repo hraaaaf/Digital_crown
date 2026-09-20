@@ -355,3 +355,30 @@ class PatientCompanionAgendaSlot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionPractitionerRef(Base):
+    """Opaque alias for a cabinet practitioner exposed to Patient Companion."""
+
+    __tablename__ = "patient_companion_practitioner_refs"
+    __table_args__ = (
+        UniqueConstraint(
+            "employer_id",
+            "practitioner_id",
+            name="uq_pc_practitioner_ref_tenant_practitioner",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    practitioner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
