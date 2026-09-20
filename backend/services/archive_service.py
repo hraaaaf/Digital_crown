@@ -31,6 +31,7 @@ _EDIT_ARCHIVE_ID_KEY = "_replace_archive_id"
 _GENERATED_PAYMENT_PREFIX = "Lien Doc ID: "
 _VOIDED_PAYMENT_PREFIX = "ANNULÉ — Lien Doc ID: "
 _TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
+_INSTALLMENT_TRASH_PREFIX = "__DC_TRASH_DOC__:"
 
 
 class ArchiveService:
@@ -49,6 +50,44 @@ class ArchiveService:
     def _calculate_file_hash(self, file_content: bytes) -> str:
         """Calcule le hash SHA-256 du fichier."""
         return hashlib.sha256(file_content).hexdigest()
+
+    @staticmethod
+    def _installment_trash_marker(document_id: int) -> str:
+        return f"{_INSTALLMENT_TRASH_PREFIX}{document_id}\n"
+
+    def _trash_pending_installments(self, document_id: int, acte_ids: list[int]) -> None:
+        """Annule uniquement les échéances encore ouvertes dérivées du document."""
+        if not acte_ids:
+            return
+        marker = self._installment_trash_marker(document_id)
+        plans = self.db.query(models.InstallmentPlan).filter(
+            models.InstallmentPlan.acte_id.in_(acte_ids)
+        ).all()
+        for plan in plans:
+            for installment in plan.installments:
+                if str(installment.status or "").upper() != "EN_ATTENTE":
+                    continue
+                installment.status = "ANNULE"
+                original_notes = installment.notes or ""
+                if not original_notes.startswith(marker):
+                    installment.notes = marker + original_notes
+
+    def _restore_trashed_installments(self, document_id: int, acte_ids: list[int]) -> None:
+        """Restaure uniquement les échéances annulées par cette mise en corbeille."""
+        if not acte_ids:
+            return
+        marker = self._installment_trash_marker(document_id)
+        plans = self.db.query(models.InstallmentPlan).filter(
+            models.InstallmentPlan.acte_id.in_(acte_ids)
+        ).all()
+        for plan in plans:
+            for installment in plan.installments:
+                notes = installment.notes or ""
+                if str(installment.status or "").upper() != "ANNULE" or not notes.startswith(marker):
+                    continue
+                installment.status = "EN_ATTENTE"
+                restored_notes = notes[len(marker):]
+                installment.notes = restored_notes or None
     
     def _generate_document_group_id(self) -> str:
         """Génère un UUID pour regrouper les versions d'un même document."""
@@ -408,6 +447,9 @@ class ArchiveService:
         for acte in linked_actes:
             acte.deleted_at = trash_at
 
+        linked_acte_ids = [acte.id for acte in linked_actes if acte.id is not None]
+        self._trash_pending_installments(document_id, linked_acte_ids)
+
         # Les anciens flux pouvaient créer un Payment directement lié au document
         # (sans acte_id). On lui donne un état de corbeille distinct de l'annulation
         # par édition afin que seule cette suppression soit réversible.
@@ -442,6 +484,10 @@ class ArchiveService:
             ).all()
             for acte in linked_actes:
                 acte.deleted_at = None
+            self._restore_trashed_installments(
+                document_id,
+                [acte.id for acte in linked_actes if acte.id is not None],
+            )
 
         trashed_note = f"{_TRASHED_PAYMENT_PREFIX}{document_id}"
         generated_note = f"{_GENERATED_PAYMENT_PREFIX}{document_id}"
@@ -478,13 +524,17 @@ class ArchiveService:
 
         # Tout Acte encore lié doit rester hors comptabilité après disparition du
         # DocumentArchive. On conserve la ligne pour audit mais on la soft-delete.
-        linked_actes = self.db.query(models.Acte).filter(
+        all_linked_actes = self.db.query(models.Acte).filter(
             models.Acte.document_archive_id == document_id,
-            models.Acte.deleted_at.is_(None),
         ).all()
+        self._trash_pending_installments(
+            document_id,
+            [acte.id for acte in all_linked_actes if acte.id is not None],
+        )
         delete_at = datetime.now()
-        for acte in linked_actes:
-            acte.deleted_at = delete_at
+        for acte in all_linked_actes:
+            if acte.deleted_at is None:
+                acte.deleted_at = delete_at
         
         # Supprimer le fichier physique
         try:
