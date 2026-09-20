@@ -219,7 +219,7 @@ export function PatientCompanionNotifications({
               setSettingsOpen(current => !current);
             }}
             disabled={!enabled}
-            className="grid min-h-11 min-w-11 place-items-center rounded-full border border-border-main bg-background text-text-muted disabled:opacity-50"
+            className="grid min-h-12 min-w-12 place-items-center rounded-full border border-border-main bg-background text-text-muted disabled:opacity-50"
           >
             <Settings2 size={18} />
           </button>
