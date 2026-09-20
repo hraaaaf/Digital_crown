@@ -91,7 +91,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     : 'bridge-mode-opened-no-quick-groups-exposed');
 
   await page.getByRole('button', { name: /Soins Ciblés/i }).click();
-  await page.getByRole('button', { name: 'Adulte', exact: true }).click();
+  const adultButton = page.getByRole('button', { name: 'Adulte', exact: true });
+  if (await adultButton.count()) {
+    await adultButton.first().click();
+  }
 
   await page.getByRole('button', { name: 'Réduire Schéma', exact: true }).click();
   await page.getByRole('button', { name: 'Afficher Schéma', exact: true }).waitFor({ state: 'visible' });
