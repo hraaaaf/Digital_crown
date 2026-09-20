@@ -320,3 +320,15 @@ The deep inventory exposed a misleading enabled control:
 - this violates the G4 rule that a visible enabled control must produce its promised result.
 
 Remediation is in progress under `docs/ux/V1_07_G4_ORDONNANCE_FORME_GOAL_UI.md`, reusing the existing canonical `FORMES` list and legacy chooser interaction as the reference. G4 remains NOT CERTIFIED until direct browser action proof passes on the corrected candidate.
+
+## 2026-09-20 — Exact-head browser action expansion (pending execution)
+
+New real-runtime Playwright action harnesses are now part of the candidate gate:
+- `frontend/scripts/certify-v1-07-g4-finances-actions.mjs` — QuickPay, act payment, installment persistence;
+- `frontend/scripts/certify-v1-07-g4-rvg-actions.mjs` — upload/download/cancel-delete/confirmed-trash + backend reload;
+- `frontend/scripts/certify-v1-07-g4-panoramic-actions.mjs` — real upload, image controls, practitioner findings, report generation/edit, PDF preview/download, T0/T1 comparison, history delete;
+- `frontend/scripts/certify-v1-07-g4-cephalo-actions.mjs` — invalid upload refusal/non-mutation, real persisted history hydration, workbench controls, save, step transitions, PDF preview, trash/restore.
+
+These harnesses do **not** promote G4 to PASS by their presence. Certification remains pending their exact-head workflow execution together with CI/build, P7 and browser inventory.
+
+Workflow hygiene correction: duplicate Panoramic action execution was removed before the current exact-head run.
