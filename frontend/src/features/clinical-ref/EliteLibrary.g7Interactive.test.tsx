@@ -100,17 +100,16 @@ describe('EliteLibrary G7 interactive matrix', () => {
     fireEvent.click(screen.getByTitle('Vue liste'));
     expect(screen.getByTitle('Vue liste')).toBeTruthy();
 
+    const protocolOrder = () => ['Détartrage', 'Traitement endodontique', 'Avulsion']
+      .map(name => screen.getByText(name, { exact: true }))
+      .sort((a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)
+      .map(node => node.textContent);
+
     fireEvent.click(screen.getByRole('button', { name: 'Difficulté' }));
-    let protocolOrder = Array.from(document.querySelectorAll('button'))
-      .map(button => button.textContent?.replace(/\s+/g, ' ').trim())
-      .filter(text => ['Détartrage', 'Traitement endodontique', 'Avulsion'].includes(text || ''));
-    expect(protocolOrder).toEqual(['Détartrage', 'Traitement endodontique', 'Avulsion']);
+    expect(protocolOrder()).toEqual(['Détartrage', 'Traitement endodontique', 'Avulsion']);
 
     fireEvent.click(screen.getByRole('button', { name: 'Discipline' }));
-    protocolOrder = Array.from(document.querySelectorAll('button'))
-      .map(button => button.textContent?.replace(/\s+/g, ' ').trim())
-      .filter(text => ['Détartrage', 'Traitement endodontique', 'Avulsion'].includes(text || ''));
-    expect(protocolOrder).toEqual(['Avulsion', 'Traitement endodontique', 'Détartrage']);
+    expect(protocolOrder()).toEqual(['Avulsion', 'Traitement endodontique', 'Détartrage']);
   });
 
   it('opens protocol deep-link, records recent, navigates next/previous and closes to library root', () => {
