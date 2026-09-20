@@ -66,6 +66,17 @@ def create_patient_consent(
     if document is None:
         raise HTTPException(status_code=404, detail="Document introuvable.")
 
+    from backend.routers.documents import require_document_permission
+    doc_type = getattr(document.document_type, "value", document.document_type)
+    require_document_permission(str(doc_type), current_user)
+
+    document_path = resolve_document_storage_path(document)
+    try:
+        if not document_path.is_file() or document_path.read_bytes()[:5] != b"%PDF-":
+            raise HTTPException(status_code=409, detail="Seuls les documents PDF sont éligibles au Consent Vault.")
+    except OSError:
+        raise HTTPException(status_code=409, detail="Document PDF indisponible.") from None
+
     share = db.query(PatientCompanionShareGrant).filter(
         PatientCompanionShareGrant.employer_id == employer_id,
         PatientCompanionShareGrant.patient_id == patient.id,
@@ -159,6 +170,17 @@ def revoke_patient_consent(
     ).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Consentement introuvable.")
+
+    document = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == row.document_id,
+        models.DocumentArchive.patient_id == patient.id,
+    ).first()
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document introuvable.")
+    from backend.routers.documents import require_document_permission
+    doc_type = getattr(document.document_type, "value", document.document_type)
+    require_document_permission(str(doc_type), current_user)
+
     if effective_consent_state(row) == "SIGNED":
         raise HTTPException(status_code=409, detail="Une preuve signée ne peut pas être révoquée silencieusement.")
     row.status = "REVOKED"
@@ -260,6 +282,11 @@ def read_patient_consent_document(
     if not integrity_ok:
         raise HTTPException(status_code=409, detail=f"Intégrité du document invalide : {integrity_reason}")
     path = resolve_document_storage_path(document)
+    try:
+        if path.read_bytes()[:5] != b"%PDF-":
+            raise HTTPException(status_code=409, detail="Le document lié n'est pas un PDF valide.")
+    except OSError:
+        raise HTTPException(status_code=409, detail="Document PDF indisponible.") from None
     return FileResponse(
         path=str(path),
         media_type="application/pdf",
