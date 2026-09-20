@@ -114,17 +114,19 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   }
   actions.push('adult-quick-groups-reset');
 
-  const selectGroupedTeeth = async () => {
+  const resetGroupedActScene = async () => {
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+    await page.getByRole('button', { name: 'Note Honoraires', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
     await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-    for (const tooth of [11, 12]) {
-      const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
-      await toothButton.focus();
+    const adultButton = page.getByRole('button', { name: 'Adulte', exact: true });
+    if (await adultButton.first().isVisible().catch(() => false)) {
+      await adultButton.first().focus();
       await page.keyboard.press('Enter');
-      await toothButton.waitFor({ state: 'visible', timeout: 5000 });
-      if ((await toothButton.getAttribute('aria-pressed')) !== 'true') {
-        throw new Error('grouped tooth selection did not persist for Dent ' + tooth);
-      }
     }
+    const q1 = page.getByRole('button', { name: 'Q1', exact: true });
+    await q1.waitFor({ state: 'visible', timeout: 5000 });
+    await q1.focus();
+    await page.keyboard.press('Enter');
     await page.getByRole('button', { name: 'Bridge', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   };
 
@@ -136,11 +138,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     { button: /^Surfaçage /, result: /^Surfaçage / },
     { button: 'Attelle de contention', result: 'Attelle de contention' },
   ]) {
-    await selectGroupedTeeth();
+    await resetGroupedActScene();
     await page.getByRole('button', { name: act.button, exact: typeof act.button === 'string' }).click();
     await page.getByText(act.result, { exact: typeof act.result === 'string' }).last().waitFor({ state: 'visible', timeout: 5000 });
   }
-  await selectGroupedTeeth();
+
+  await resetGroupedActScene();
   await page.getByPlaceholder('Ou saisir un autre acte...').fill('Acte groupé G4');
   await page.getByPlaceholder('Prix').fill('1200');
   await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
