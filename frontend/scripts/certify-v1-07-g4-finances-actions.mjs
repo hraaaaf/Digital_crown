@@ -30,6 +30,11 @@ async function apiBilling() {
   if (!r.ok()) throw new Error(`billing reload failed: ${r.status()}`);
   return await r.json();
 }
+async function apiInstallmentPlans() {
+  const r = await api.get(`/api/installments/patient/${patient.id}`, { headers });
+  if (!r.ok()) throw new Error(`installment plans reload failed: ${r.status()}`);
+  return await r.json();
+}
 
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
@@ -120,8 +125,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.reload({ waitUntil: 'networkidle' });
   await page.getByText('Actes & Paiements', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   let billing = await apiBilling();
-  const unpaid = billing.find(a => Number(a.remaining_due) > 200);
-  if (!unpaid) throw new Error('no unpaid billing act available for finance action proof');
+  const existingPlans = await apiInstallmentPlans();
+  const plannedActIds = new Set(existingPlans.map(plan => Number(plan.acte_id)).filter(Number.isFinite));
+  const unpaid = billing.find(a => Number(a.remaining_due) > 200 && !plannedActIds.has(Number(a.id)));
+  if (!unpaid) throw new Error('no unpaid billing act without existing installment plan available for finance action proof');
 
   const row = page.getByText(unpaid.libelle, { exact: true }).locator('xpath=ancestor::tr[1]');
   await row.getByRole('button', { name: 'Payer', exact: true }).click();
