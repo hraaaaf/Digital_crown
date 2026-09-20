@@ -360,7 +360,10 @@ async def _sync_all_licenses_from_firebase() -> None:
 def _poll_patient_companion_relay_sync() -> dict[str, int]:
     from backend.services.patient_companion_relay_worker import poll_relay_bindings_once
     with database.SessionLocal() as db:
-        return poll_relay_bindings_once(db)
+        return poll_relay_bindings_once(
+            db,
+            bootstrap_secret=app_settings.PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET.strip(),
+        )
 
 
 async def _periodic_patient_companion_relay() -> None:
