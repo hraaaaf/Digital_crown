@@ -1,6 +1,23 @@
 # Digital Crown — Guide Codex
 
-Digital Crown est une application de gestion de cabinet **on-premise / local-first**. Le runtime principal vit sur le poste du cabinet ou son LAN. Firebase sert à l'identité/licence et services associés ; les données métier restent sous l'autorité du backend local.
+Digital Crown est un **cockpit clinique et administratif pour cabinet dentaire**, on-premise / local-first. Le runtime principal vit sur le poste du cabinet ou son LAN. Firebase sert à l'identité/licence et services associés ; les données métier restent sous l'autorité du backend local.
+
+## Frontière documentaire — README client vs engineering
+
+`README.md` est un **document client-facing** destiné au dossier remis au cabinet utilisateur. Il n'est jamais une source d'autorité technique ou d'exécution.
+
+Règles obligatoires :
+
+- `README.md` doit rester lisible par un praticien et son équipe, avec un langage simple mais précis ;
+- il présente le produit réel, ses bénéfices, ses modules, son cadre d'utilisation, la sécurité au niveau client, la prise en main et les fonctions en cours de construction ;
+- il ne doit pas contenir de SHA, PR, run CI, branches, dépendances internes, détails de certification ou instructions d'agent ;
+- toute affirmation du README doit être vérifiée contre le code courant et les sources canoniques avant modification ;
+- la roadmap V1, `STATE.md`, les audits, règles et runbooks restent les sources d'autorité engineering ;
+- une fonction future peut être présentée comme **« en cours de construction »** uniquement si cette qualification est factuellement vraie et tracée dans la roadmap/compas produit ; ne jamais utiliser ce wording pour masquer une panne, une régression ou une fonction retirée ;
+- les fonctions V1 livrées et les fonctions futures doivent être séparées sans ambiguïté ;
+- les limites cliniques doivent être formulées clairement : assistance ≠ diagnostic autonome, mesure ≠ interprétation, absence de donnée ≠ donnée inventée ;
+- les captures client doivent provenir d'écrans réels ou de preuves visuelles retenues ; ne jamais présenter un mockup comme une fonction livrée ;
+- `AGENTS.md` et la documentation engineering ne doivent jamais être simplifiés au point de perdre les invariants de sécurité, certification ou gouvernance pour s'aligner sur le ton client du README.
 
 > **Ordre de lecture obligatoire**
 >
@@ -33,7 +50,7 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
 - Backend : FastAPI + SQLAlchemy.
 - Frontend : React 19 + Vite + TypeScript + Zustand.
-- Mobile : PWA/Capacitor appairée au cabinet, réseau local, cache/offline.
+- Mobile : PWA appairée au cabinet, réseau local, cache/offline ; tout wrapper natif futur reste un scope séparé tant qu'il n'est pas présent et certifié.
 - Automatisation : modèles locaux et moteurs déterministes.
 - LLM : aucune dépendance LLM requise dans l'architecture courante.
 - Packaging : PyInstaller + Inno Setup.
@@ -214,4 +231,4 @@ Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation corresp
 14. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
 15. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
-**Dernière révision canonique : 17 septembre 2026 — verrou V1 consolidé actif.**
+**Dernière révision canonique : 20 septembre 2026 — séparation README client / documentation engineering verrouillée ; verrou V1 consolidé actif.**
