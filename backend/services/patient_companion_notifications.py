@@ -101,10 +101,8 @@ def _consent_candidates(
         PatientCompanionConsentRequest.revoked_at.is_(None),
     ).order_by(PatientCompanionConsentRequest.created_at.desc()).all()
     items: list[dict[str, Any]] = []
-    pending_share_ids: set[int] = set()
+    consent_share_ids: set[int] = set()
     for row in requests:
-        if effective_consent_state(row, now=now) != "PENDING":
-            continue
         share = db.query(PatientCompanionShareGrant).filter(
             PatientCompanionShareGrant.id == row.share_grant_id,
             PatientCompanionShareGrant.employer_id == access.employer_id,
@@ -113,6 +111,9 @@ def _consent_candidates(
         ).first()
         if share is None:
             continue
+        consent_share_ids.add(share.id)
+        if effective_consent_state(row, now=now) != "PENDING":
+            continue
         document = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == row.document_id,
             models.DocumentArchive.patient_id == access.patient_id,
@@ -120,7 +121,6 @@ def _consent_candidates(
         ).first()
         if document is None:
             continue
-        pending_share_ids.add(share.id)
         items.append({
             "source_key": f"consent:{row.public_id}",
             "category": "consents",
@@ -131,7 +131,7 @@ def _consent_candidates(
             "due_at": row.expires_at,
             "priority": "action",
         })
-    return items, pending_share_ids
+    return items, consent_share_ids
 
 
 def _questionnaire_candidates(
@@ -181,7 +181,7 @@ def _questionnaire_candidates(
 def _document_candidates(
     db: Session,
     access: PatientCompanionAccess,
-    pending_consent_share_ids: set[int],
+    consent_share_ids: set[int],
 ) -> list[dict[str, Any]]:
     shares = db.query(PatientCompanionShareGrant).filter(
         PatientCompanionShareGrant.employer_id == access.employer_id,
@@ -192,7 +192,7 @@ def _document_candidates(
 
     items: list[dict[str, Any]] = []
     for share in shares:
-        if share.id in pending_consent_share_ids:
+        if share.id in consent_share_ids:
             continue
         document = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == share.resource_id,
@@ -221,12 +221,12 @@ def source_candidates(
     now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     now = now or datetime.utcnow()
-    consents, pending_consent_share_ids = _consent_candidates(db, access, now)
+    consents, consent_share_ids = _consent_candidates(db, access, now)
     items = [
         *_appointment_candidates(db, access, now),
         *consents,
         *_questionnaire_candidates(db, access, now),
-        *_document_candidates(db, access, pending_consent_share_ids),
+        *_document_candidates(db, access, consent_share_ids),
     ]
     for item in items:
         item["notification_id"] = _notification_id(access, item["source_key"])
