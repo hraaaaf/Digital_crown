@@ -267,6 +267,16 @@ export const PatientCompanionApp = () => {
     if (!activePairing) return;
     setCabinetReachability('checking');
     try {
+      if (activePairing.remoteTransport?.relay) {
+        const appointments = await PatientCompanionAgendaApi.appointments(activePairing);
+        const next = await PatientCompanionStorage.saveAppointments(
+          activePairing.context.access_id,
+          appointments,
+        );
+        setVault(next);
+        setCabinetReachability('online');
+        return;
+      }
       const response = await fetch(`${API_BASE}/api/patient-companion/me`, {
         headers: { Authorization: `Bearer ${activePairing.accessToken}` },
         cache: 'no-store',
