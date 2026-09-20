@@ -58,9 +58,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   try {
     await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
     const patientsLink = page.getByRole('link', { name: 'Patients', exact: true }).first();
-    if (!(await patientsLink.isVisible().catch(() => false))) {
-      const menuButton = page.getByRole('button', { name: /menu|navigation/i }).first();
-      if (await menuButton.isVisible().catch(() => false)) await menuButton.click();
+    if (viewport.width < 1024) {
+      const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+      await menuButton.waitFor({ state: 'visible', timeout: 15000 });
+      await menuButton.click();
     }
     await patientsLink.waitFor({ state: 'visible', timeout: 15000 });
     await patientsLink.click();
