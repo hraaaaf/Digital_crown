@@ -191,6 +191,10 @@ jobs:
           set -o pipefail
           node scripts/certify-v1-07-g4-rvg-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-rvg-actions-runner.log
 
+      - name: Capture G4 truth-label BEFORE
+        working-directory: frontend
+        run: node scripts/capture-v1-07-g4-truth-labels-before.mjs
+
       - name: Capture G4 Panoramic trash BEFORE
         working-directory: frontend
         run: node scripts/capture-v1-07-g4-panoramic-trash-before.mjs
