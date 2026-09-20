@@ -20,8 +20,8 @@ vi.mock('./MultiPractitionerTimelineView', () => ({
     <div>{loading ? 'Multi loading' : data ? 'Multi view' : 'Multi empty'}</div>,
 }));
 vi.mock('./GoogleImportModal', () => ({
-  GoogleImportModal: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
-    open ? <div><span>Google import modal</span><button onClick={onClose}>Close import</button></div> : null,
+  GoogleImportModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? <div><span>Google import modal</span><button onClick={onClose}>Close import</button></div> : null,
 }));
 vi.mock('./FrontdeskModal', () => ({
   FrontdeskModal: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
