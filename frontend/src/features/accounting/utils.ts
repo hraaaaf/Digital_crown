@@ -1,5 +1,9 @@
 import type { GroupedItem, HonoraireItem } from './types';
 
+export const getHonoraireTrashTarget = (
+  item: Pick<HonoraireItem, 'id' | 'document_archive_id'>,
+): number | string => item.document_archive_id ?? item.id;
+
 export const groupByPatientDate = (items: HonoraireItem[]): GroupedItem[] => {
   const map = new Map<string, GroupedItem>();
   items.forEach(item => {
