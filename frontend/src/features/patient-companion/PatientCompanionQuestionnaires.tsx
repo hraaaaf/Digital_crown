@@ -65,10 +65,11 @@ export const PatientCompanionQuestionnaires = ({ pairing, enabled }: { pairing: 
   };
 
   useEffect(() => {
+    if (!enabled) return;
     void load();
-  // Re-fetch only when the authorized patient context changes.
+  // Re-fetch only when the authorized patient context is online/synchronized.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pairing.context.access_id, pairing.accessToken]);
+  }, [enabled, pairing.context.access_id, pairing.accessToken]);
 
   const openForm = (item: QuestionnaireItem) => {
     if (item.state !== 'ASSIGNED') return;
@@ -107,8 +108,8 @@ export const PatientCompanionQuestionnaires = ({ pairing, enabled }: { pairing: 
       }
       setOpenId(null);
       setAnswers({});
-      setMessage('Envoyé au cabinet · en attente de revue. Vos réponses restent déclaratives jusqu’à validation du praticien.');
       await load();
+      setMessage('Envoyé au cabinet · en attente de revue. Vos réponses restent déclaratives jusqu’à validation du praticien.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Envoi impossible · aucune confirmation cabinet reçue.');
     } finally {
@@ -129,7 +130,9 @@ export const PatientCompanionQuestionnaires = ({ pairing, enabled }: { pairing: 
         Vos réponses sont transmises au cabinet pour revue. Elles ne modifient pas automatiquement votre dossier clinique.
       </p>
 
-      {!enabled && <p className="mt-3 text-xs font-bold text-text-muted">Synchronisez votre espace pour vérifier les questionnaires à compléter.</p>}\n\n      {enabled && loading && <div className="mt-3 flex min-h-[48px] items-center gap-2 text-xs font-black text-text-muted"><Loader2 className="animate-spin" size={16} /> Chargement…</div>}
+      {!enabled && <p className="mt-3 text-xs font-bold text-text-muted">Synchronisez votre espace pour vérifier les questionnaires à compléter.</p>}
+
+      {enabled && loading && <div className="mt-3 flex min-h-[48px] items-center gap-2 text-xs font-black text-text-muted"><Loader2 className="animate-spin" size={16} /> Chargement…</div>}
 
       {enabled && !loading && items.length === 0 && !message && (
         <p className="mt-3 text-xs font-bold text-text-muted">Aucun questionnaire à compléter.</p>
