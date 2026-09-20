@@ -129,7 +129,7 @@ describe('Libre document G4 interactive controls', () => {
 
   it('wraps selected content with bold/italic/underline and can insert a table', () => {
     const p=renderLibre();
-    const textarea=screen.getByRole('textbox',{name:/Contenu/i}) as HTMLTextAreaElement;
+    const textarea=screen.getByPlaceholderText(/Rédigez votre document ici/i) as HTMLTextAreaElement;
     textarea.setSelectionRange(0,7);
     fireEvent.click(screen.getByTitle('Gras'));
     expect(p.setContent).toHaveBeenCalledWith('<b>Bonjour</b> patient');
@@ -150,6 +150,6 @@ describe('Libre document G4 interactive controls', () => {
       ],
     });
     expect(screen.getByText('Titre Requis')).toBeTruthy();
-    expect(screen.getByText('Contenu Requis')).toBeTruthy();
+    expect(screen.getByText(/Le contenu ne peut être vide/i)).toBeTruthy();
   });
 });
