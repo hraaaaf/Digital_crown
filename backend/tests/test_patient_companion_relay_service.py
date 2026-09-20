@@ -140,7 +140,9 @@ def test_relay_package_has_no_cabinet_backend_imports():
     assert "from backend" not in source
     assert "import backend" not in source
     assert "models_patient" not in source
-    assert "get_db" not in source
+    assert "backend.database" not in source
+    assert "backend.models" not in source
+    assert "PatientCompanion" not in source
 
 
 def test_relay_responses_are_no_store_and_cors_is_origin_allowlisted(tmp_path):
