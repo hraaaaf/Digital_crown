@@ -618,8 +618,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       <div className="text-sm font-black text-slate-700">Ajouter « {actSearch.trim()} »</div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Tarif (DHS)</label>
+                          <label htmlFor="agenda-quick-act-price" className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Tarif (DHS)</label>
                           <input
+                            id="agenda-quick-act-price"
                             type="number" min={0} value={newActPrice}
                             onChange={e => setNewActPrice(e.target.value)}
                             placeholder="0"
@@ -627,8 +628,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                           />
                         </div>
                         <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Catégorie</label>
+                          <label htmlFor="agenda-quick-act-category" className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Catégorie</label>
                           <select
+                            id="agenda-quick-act-category"
                             value={newActCategory}
                             onChange={e => setNewActCategory(e.target.value)}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
