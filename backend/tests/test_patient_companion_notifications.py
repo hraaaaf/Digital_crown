@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from backend import models
 from backend.models_patient_companion import (
@@ -18,6 +19,11 @@ from backend.models_patient_companion_notifications import (
     PatientCompanionNotificationPreference,
     PatientCompanionNotificationReceipt,
 )
+from backend.services.patient_companion_remote_crypto import decrypt_and_verify, generate_p256_keypair, sign_and_encrypt
+from backend.services.patient_companion_remote_keys import enroll_remote_keyset
+from backend.services.patient_companion_remote_worker import process_remote_envelope
+from relay.contract import RelayInnerMessage
+
 from backend.services.patient_companion_notifications import (
     handle_notification_preferences,
     handle_notification_read,
@@ -300,3 +306,98 @@ def test_pc05_handlers_reject_unknown_or_malformed_notification(db, dentiste):
     assert missing.response["code"] == "NOTIFICATION_NOT_FOUND"
     assert bad_prefs.status == "REJECTED"
     assert db.query(PatientCompanionNotificationReceipt).count() == 0
+
+
+def _protect_remote(raw: bytes) -> bytes:
+    return b"pc05-test-protected:" + raw
+
+
+def _unprotect_remote(raw: bytes) -> bytes:
+    return raw.removeprefix(b"pc05-test-protected:")
+
+
+def test_pc05_remote_registry_replays_same_idempotency_result_without_second_mutation(db, dentiste):
+    patient, _identity, access = _patient_access(db, dentiste, "REMOTE")
+    now_naive = datetime.utcnow()
+    db.add(models.Appointment(
+        patient_id=patient.id,
+        employer_id=dentiste.id,
+        datetime_start=now_naive + timedelta(hours=4),
+        status=models.AppointmentStatus.CONFIRME,
+    ))
+    db.flush()
+    notification_id = project_notifications(db, access, now=now_naive)["items"][0]["notification_id"]
+
+    patient_sig_private, patient_sig_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="sig")
+    patient_enc_private, patient_enc_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="enc")
+    keyset, cabinet_sig, cabinet_enc = enroll_remote_keyset(
+        db,
+        access=access,
+        patient_signing_kid=patient_sig_public["kid"],
+        patient_signing_public_jwk=patient_sig_public,
+        patient_encryption_kid=patient_enc_public["kid"],
+        patient_encryption_public_jwk=patient_enc_public,
+        protect=_protect_remote,
+    )
+    db.commit()
+
+    now = datetime.now(timezone.utc)
+    idem = uuid.uuid4()
+
+    def make_token(message_id: uuid.UUID) -> str:
+        message = RelayInnerMessage(
+            message_id=message_id,
+            access_id=uuid.UUID(access.public_id),
+            sent_at=now,
+            expires_at=now + timedelta(minutes=10),
+            idempotency_key=idem,
+            operation="notification.read",
+            payload={"notification_id": notification_id},
+        )
+        return sign_and_encrypt(
+            message.model_dump(mode="json"),
+            sender_signing_private_jwk=patient_sig_private,
+            recipient_encryption_public_jwk=json.loads(cabinet_enc.public_jwk_json),
+            sender_signing_kid=keyset.patient_signing_kid,
+            recipient_encryption_kid=keyset.cabinet_encryption_kid,
+        )
+
+    first_ack_token = process_remote_envelope(
+        db,
+        access=access,
+        keyset=keyset,
+        compact_jwe=make_token(uuid.uuid4()),
+        unprotect=_unprotect_remote,
+    )
+    first_ack = decrypt_and_verify(
+        first_ack_token,
+        recipient_encryption_private_jwk=patient_enc_private,
+        sender_signing_public_jwk=json.loads(cabinet_sig.public_jwk_json),
+        expected_sender_signing_kid=keyset.cabinet_signing_kid,
+        expected_recipient_encryption_kid=keyset.patient_encryption_kid,
+    )
+    assert first_ack["payload"]["status"] == "ACCEPTED"
+    assert first_ack["payload"]["result"]["code"] == "NOTIFICATION_READ"
+    assert db.query(PatientCompanionNotificationReceipt).count() == 1
+
+    second_ack_token = process_remote_envelope(
+        db,
+        access=access,
+        keyset=keyset,
+        compact_jwe=make_token(uuid.uuid4()),
+        unprotect=_unprotect_remote,
+    )
+    second_ack = decrypt_and_verify(
+        second_ack_token,
+        recipient_encryption_private_jwk=patient_enc_private,
+        sender_signing_public_jwk=json.loads(cabinet_sig.public_jwk_json),
+        expected_sender_signing_kid=keyset.cabinet_signing_kid,
+        expected_recipient_encryption_kid=keyset.patient_encryption_kid,
+    )
+    assert second_ack["payload"]["status"] == "ACCEPTED"
+    assert second_ack["payload"]["result"]["code"] == "NOTIFICATION_READ"
+    assert db.query(PatientCompanionNotificationReceipt).count() == 1
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "PATIENT_COMPANION_REMOTE_COMMAND",
+        models.AuditLog.resource_id == access.public_id,
+    ).count() == 1
