@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -52,7 +52,10 @@ def create_patient_consent(
 ):
     patient = staff_patient_or_404(db, current_user, patient_id)
     employer_id = int(current_user.get_employer_id())
-    if body.expires_at is not None and body.expires_at <= datetime.utcnow():
+    expires_at = body.expires_at
+    if expires_at is not None and expires_at.tzinfo is not None:
+        expires_at = expires_at.astimezone(timezone.utc).replace(tzinfo=None)
+    if expires_at is not None and expires_at <= datetime.utcnow():
         raise HTTPException(status_code=422, detail="Expiration du consentement invalide.")
 
     document = db.query(models.DocumentArchive).filter(
@@ -98,7 +101,7 @@ def create_patient_consent(
             }
         existing.revoked_at = None
         existing.status = "PENDING"
-        existing.expires_at = body.expires_at
+        existing.expires_at = expires_at
         existing.share_grant_id = share.id
         existing.created_by_user_id = current_user.id
         db.commit()
@@ -119,7 +122,7 @@ def create_patient_consent(
         document_file_size=int(document.file_size),
         created_by_user_id=current_user.id,
         status="PENDING",
-        expires_at=body.expires_at,
+        expires_at=expires_at,
     )
     db.add(consent)
     db.commit()
