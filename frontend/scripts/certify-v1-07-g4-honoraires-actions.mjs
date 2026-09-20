@@ -198,14 +198,18 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await specialtyButton.waitFor({ state: 'visible', timeout: 5000 });
   await specialtyButton.focus();
   await page.keyboard.press('Enter');
-  const addCatalogAct = page.getByRole('button', { name: new RegExp('Ajouter un acte à ' + specialty) });
-  await addCatalogAct.click();
+  const addCatalogAct = page.getByRole('button', { name: /^Ajouter un acte à / }).last();
+  await addCatalogAct.waitFor({ state: 'visible', timeout: 5000 });
+  await addCatalogAct.focus();
+  await page.keyboard.press('Enter');
   await page.getByPlaceholder("Nom de l'acte...").fill('G4 annulé ' + viewport.width);
   await page.getByPlaceholder('Prix MAD').fill('123');
   await page.getByRole('button', { name: '✕', exact: true }).click();
   if (await page.getByPlaceholder("Nom de l'acte...").count()) throw new Error('Custom catalog act cancel failed');
 
-  await addCatalogAct.click();
+  await addCatalogAct.waitFor({ state: 'visible', timeout: 5000 });
+  await addCatalogAct.focus();
+  await page.keyboard.press('Enter');
   const catalogActName = 'G4 Catalogue ' + viewport.width;
   await page.getByPlaceholder("Nom de l'acte...").fill(catalogActName);
   await page.getByPlaceholder('Prix MAD').fill('456');
