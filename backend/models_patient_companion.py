@@ -355,6 +355,7 @@ class PatientCompanionAgendaSlot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
 
 class PatientCompanionPractitionerRef(Base):
