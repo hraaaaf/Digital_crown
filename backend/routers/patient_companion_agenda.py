@@ -1,15 +1,46 @@
 from __future__ import annotations
 
-from datetime import datetime
+import uuid
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend import models
-from backend.models_patient_companion import PatientCompanionAppointmentRef, PatientCompanionIdentity
+from backend.models_patient_companion import (
+    PatientCompanionAppointmentRef,
+    PatientCompanionIdentity,
+    PatientCompanionPractitionerRef,
+)
 from backend.routers.patient_companion_common import get_db, patient_identity, principal_for_access
+from backend.services.patient_companion_agenda import issue_slots
 
 router = APIRouter()
+
+
+def _practitioner_aliases(db: Session, employer_id: int) -> list[tuple[PatientCompanionPractitionerRef, models.User]]:
+    practitioners = db.query(models.User).filter(
+        models.User.is_active.is_(True),
+        models.User.role.in_([models.UserRole.DENTISTE, models.UserRole.ADMIN]),
+        ((models.User.id == employer_id) | (models.User.employer_id == employer_id)),
+    ).order_by(models.User.nom_complet.asc(), models.User.id.asc()).all()
+    rows = []
+    for practitioner in practitioners:
+        alias = db.query(PatientCompanionPractitionerRef).filter(
+            PatientCompanionPractitionerRef.employer_id == employer_id,
+            PatientCompanionPractitionerRef.practitioner_id == practitioner.id,
+        ).first()
+        if alias is None:
+            alias = PatientCompanionPractitionerRef(
+                public_id=str(uuid.uuid4()),
+                employer_id=employer_id,
+                practitioner_id=practitioner.id,
+            )
+            db.add(alias)
+            db.flush()
+        if alias.revoked_at is None:
+            rows.append((alias, practitioner))
+    return rows
 
 
 @router.get("/contexts/{access_id}/agenda")
@@ -25,7 +56,6 @@ def patient_agenda(
         models.Appointment.deleted_at.is_(None),
         models.Appointment.status != models.AppointmentStatus.ANNULE,
     ).order_by(models.Appointment.datetime_start.asc()).all()
-
     items = []
     for appointment in appointments:
         ref = db.query(PatientCompanionAppointmentRef).filter(
@@ -38,8 +68,7 @@ def patient_agenda(
                 patient_id=access.patient_id,
                 appointment_id=appointment.id,
             )
-            db.add(ref)
-            db.flush()
+            db.add(ref); db.flush()
         items.append({
             "appointment_ref": ref.public_id,
             "datetime_start": appointment.datetime_start,
@@ -51,24 +80,57 @@ def patient_agenda(
     return {"items": items}
 
 
+@router.get("/contexts/{access_id}/agenda/practitioners")
+def patient_agenda_practitioners(
+    access_id: str,
+    identity: PatientCompanionIdentity = Depends(patient_identity),
+    db: Session = Depends(get_db),
+):
+    access, _patient = principal_for_access(db, identity, access_id)
+    aliases = _practitioner_aliases(db, access.employer_id)
+    db.commit()
+    return {"items": [
+        {"practitioner_ref": alias.public_id, "display_name": practitioner.nom_complet or "Praticien"}
+        for alias, practitioner in aliases
+    ]}
+
+
 @router.get("/contexts/{access_id}/agenda/slots")
 def patient_agenda_slots(
     access_id: str,
     practitioner_ref: str = Query(min_length=36, max_length=36),
-    day: datetime = Query(),
+    day: date = Query(),
     duration_minutes: int = Query(default=30, ge=10, le=180),
     identity: PatientCompanionIdentity = Depends(patient_identity),
     db: Session = Depends(get_db),
 ):
-    # practitioner_ref is intentionally opaque in the patient API. v1 derives it
-    # from a cabinet-issued UUID alias; until aliases exist, no numeric fallback.
     access, _patient = principal_for_access(db, identity, access_id)
     try:
-        import uuid
         uuid.UUID(practitioner_ref)
     except ValueError:
         return {"items": []}
+    alias = db.query(PatientCompanionPractitionerRef).filter(
+        PatientCompanionPractitionerRef.public_id == practitioner_ref,
+        PatientCompanionPractitionerRef.employer_id == access.employer_id,
+        PatientCompanionPractitionerRef.revoked_at.is_(None),
+    ).first()
+    if alias is None:
+        return {"items": []}
 
-    # Fail closed until the cabinet practitioner alias catalogue is issued.
-    # This endpoint establishes the patient contract without accepting an internal ID.
-    return {"items": []}
+    # Candidate generation is deliberately bounded. The canonical availability
+    # service remains authoritative and filters closed hours and conflicts.
+    starts = []
+    cursor = datetime.combine(day, time(hour=8))
+    end = datetime.combine(day, time(hour=20))
+    while cursor < end:
+        starts.append(cursor)
+        cursor += timedelta(minutes=30)
+    items = issue_slots(
+        db,
+        access=access,
+        starts=starts,
+        duration_minutes=duration_minutes,
+        practitioner_id=alias.practitioner_id,
+    )
+    db.commit()
+    return {"items": items}
