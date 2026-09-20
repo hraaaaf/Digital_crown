@@ -560,10 +560,6 @@ class PatientCompanionConsentRequest(Base):
 
     __tablename__ = "patient_companion_consent_requests"
     __table_args__ = (
-        UniqueConstraint(
-            "employer_id", "patient_id", "document_id", "document_file_hash",
-            name="uq_pc_consent_request_patient_document_hash",
-        ),
         Index(
             "ix_pc_consent_request_tenant_patient_status",
             "employer_id", "patient_id", "status",
