@@ -126,3 +126,51 @@ def test_revoke_pending_becomes_revoked_only_after_both_mailboxes_are_deprovisio
     assert binding.revoked_at is not None
     assert len(deleted) == 2
     assert result["failed"] == 0
+
+
+def test_delivered_ack_marker_survives_source_delete_failure(db, dentiste):
+    from backend.models_patient_companion import PatientCompanionRelayOutbox
+    from backend.services.patient_companion_relay_worker import _deliver_outbox
+
+    access = _access(db, dentiste)
+    binding = PatientCompanionRelayBinding(
+        access_id=access.id,
+        relay_url="https://relay.test",
+        cabinet_inbox_id=str(uuid.uuid4()),
+        patient_inbox_id=str(uuid.uuid4()),
+        protected_cabinet_read_cap_b64="unused",
+        protected_patient_write_cap_b64="unused",
+        status="ACTIVE",
+    )
+    db.add(binding)
+    db.flush()
+    row = PatientCompanionRelayOutbox(
+        binding_id=binding.id,
+        source_envelope_id=str(uuid.uuid4()),
+        ack_envelope_id=str(uuid.uuid4()),
+        blob="opaque-ack",
+    )
+    db.add(row)
+    db.commit()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(201, json={})
+        if request.method == "DELETE":
+            return httpx.Response(503, json={"detail": "temporary"})
+        return httpx.Response(404)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        _deliver_outbox(
+            db,
+            client=client,
+            binding=binding,
+            row=row,
+            cabinet_read_capability="r" * 43,
+            patient_write_capability="w" * 43,
+        )
+    except httpx.HTTPStatusError:
+        pass
+    db.refresh(row)
+    assert row.delivered_at is not None
