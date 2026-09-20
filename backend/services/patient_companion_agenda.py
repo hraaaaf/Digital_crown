@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -74,7 +74,7 @@ def _validate_exact_slot(db: Session, access: PatientCompanionAccess, *, start: 
     )
     if error:
         return "SLOT_UNAVAILABLE"
-    end = start + __import__("datetime").timedelta(minutes=duration)
+    end = start + timedelta(minutes=duration)
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == access.employer_id,
         models.Appointment.deleted_at.is_(None),
@@ -86,7 +86,7 @@ def _validate_exact_slot(db: Session, access: PatientCompanionAccess, *, start: 
     if exclude_id is not None:
         q = q.filter(models.Appointment.id != exclude_id)
     for existing in q.all():
-        if existing.datetime_start + __import__("datetime").timedelta(minutes=existing.duration_minutes) > start:
+        if existing.datetime_start + timedelta(minutes=existing.duration_minutes) > start:
             return "SLOT_CONFLICT"
     try:
         assert_resource_available(
