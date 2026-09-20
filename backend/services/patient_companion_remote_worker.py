@@ -117,7 +117,8 @@ def process_remote_envelope(
     if handlers is None:
         from backend.services.patient_companion_agenda import PC02_REMOTE_HANDLERS
         from backend.services.patient_companion_consents import PC04_REMOTE_HANDLERS
-        handlers = {**PC02_REMOTE_HANDLERS, **PC04_REMOTE_HANDLERS}
+        from backend.services.patient_companion_notifications import PC05_REMOTE_HANDLERS
+        handlers = {**PC02_REMOTE_HANDLERS, **PC04_REMOTE_HANDLERS, **PC05_REMOTE_HANDLERS}
 
     if access.revoked_at is not None:
         raise RemoteTransportRejected("Patient Companion access revoked")
