@@ -149,6 +149,15 @@ jobs:
           set -o pipefail
           node scripts/certify-v1-07-g4-finances-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-finances-actions-runner.log
 
+      - name: Capture G4 Treasury partial guard BEFORE
+        working-directory: frontend
+        shell: bash
+        env:
+          G4_TREASURY_GUARD_BEFORE_ONLY: "1"
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-treasury-guard-before-runner.log
+
       - name: Certify G4 Honoraires browser actions
         working-directory: frontend
         shell: bash
