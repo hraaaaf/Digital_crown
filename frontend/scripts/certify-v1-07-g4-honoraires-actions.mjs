@@ -184,15 +184,18 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const categoryButtons = categoryBar.getByRole('button');
   const categoryLabels = (await categoryButtons.allInnerTexts()).map(label => label.trim()).filter(Boolean);
   if (categoryLabels.length < 3) throw new Error('TreatmentSelector categories missing');
-  for (const label of categoryLabels) {
-    const categoryButton = categoryBar.getByRole('button', { name: label, exact: true });
+  for (let i = 0; i < categoryLabels.length; i++) {
+    const categoryButton = categoryBar.getByRole('button').nth(i);
+    await categoryButton.waitFor({ state: 'visible', timeout: 5000 });
     await categoryButton.focus();
     await page.keyboard.press('Enter');
   }
 
-  const specialty = categoryLabels.find(label => !['Favoris', 'Tous les actes'].includes(label));
-  if (!specialty) throw new Error('No specialty category available');
-  const specialtyButton = categoryBar.getByRole('button', { name: specialty, exact: true });
+  const specialtyIndex = categoryLabels.findIndex(label => !['Favoris', 'Tous les actes'].includes(label));
+  if (specialtyIndex < 0) throw new Error('No specialty category available');
+  const specialty = categoryLabels[specialtyIndex];
+  const specialtyButton = categoryBar.getByRole('button').nth(specialtyIndex);
+  await specialtyButton.waitFor({ state: 'visible', timeout: 5000 });
   await specialtyButton.focus();
   await page.keyboard.press('Enter');
   const addCatalogAct = page.getByRole('button', { name: new RegExp('Ajouter un acte à ' + specialty) });
