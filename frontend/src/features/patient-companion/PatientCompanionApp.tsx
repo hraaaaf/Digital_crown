@@ -14,6 +14,7 @@ import { PatientCompanionRemoteCrypto } from './PatientCompanionRemoteCrypto';
 import { PatientCompanionAgendaApi, type PatientAgendaPractitioner, type PatientAgendaSlot } from './PatientCompanionAgendaApi';
 import { PatientCompanionAgendaTransport, type AgendaOperation } from './PatientCompanionAgendaTransport';
 import { PatientCompanionQuestionnaires } from './PatientCompanionQuestionnaires';
+import { PatientCompanionConsentVault } from './PatientCompanionConsentVault';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 
@@ -731,6 +732,7 @@ export const PatientCompanionApp = () => {
                 </div>
               ) : null}
             </section>
+            <PatientCompanionConsentVault pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <section className="mt-3 grid gap-3" aria-label="Portefeuille Patient Companion">
               <WalletSection title="Mes documents & médias" empty="Aucun document ou média partagé.">
                 {activeWallet?.shares.map(item => (
