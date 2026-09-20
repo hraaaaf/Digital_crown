@@ -350,7 +350,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
           <rect 
             width="100%" 
             height="100%" 
-            className="fill-primary opacity-90 transition-colors duration-500"
+            className="fill-primary opacity-90 transition-colors duration-500 pointer-events-none"
             mask="url(#blueprint-mask)" 
           />
 
