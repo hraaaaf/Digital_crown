@@ -338,6 +338,16 @@ export const PatientCompanionApp = () => {
     return accepted;
   };
 
+  const refreshAgenda = async (pairing: PatientPairing) => {
+    const appointments = await PatientCompanionAgendaApi.appointments(pairing);
+    const next = await PatientCompanionStorage.saveAppointments(
+      pairing.context.access_id,
+      appointments,
+    );
+    setVault(next);
+    return appointments;
+  };
+
   const syncWallet = async () => {
     if (!activePairing) return;
     if (sessionExpired) {
@@ -346,6 +356,14 @@ export const PatientCompanionApp = () => {
     }
     setSyncState('syncing');
     try {
+      if (activePairing.remoteTransport?.relay) {
+        await retryQueuedAgendaRequests(activePairing);
+        await refreshAgenda(activePairing);
+        setCabinetReachability('online');
+        setSyncState('synced');
+        return;
+      }
+
       let snapshot = await PatientCompanionSync.sync(activePairing);
       const acceptedQueued = await retryQueuedAgendaRequests(activePairing);
       if (acceptedQueued) snapshot = await PatientCompanionSync.sync(activePairing);
@@ -471,11 +489,17 @@ export const PatientCompanionApp = () => {
         setAgendaOpen(false);
         setCancelAppointmentRef(null);
         try {
-          const snapshot = await PatientCompanionSync.sync(activePairing);
-          const next = await PatientCompanionStorage.load();
-          setVault(next);
-          setCabinetReachability('online');
-          setSyncState(snapshot ? 'synced' : 'idle');
+          if (activePairing.remoteTransport?.relay) {
+            await refreshAgenda(activePairing);
+            setCabinetReachability('online');
+            setSyncState('synced');
+          } else {
+            const snapshot = await PatientCompanionSync.sync(activePairing);
+            const next = await PatientCompanionStorage.load();
+            setVault(next);
+            setCabinetReachability('online');
+            setSyncState(snapshot ? 'synced' : 'idle');
+          }
         } catch {
           // The signed cabinet ACK is authoritative. A later wallet refresh
           // failure must never demote a confirmed command back to queued.
