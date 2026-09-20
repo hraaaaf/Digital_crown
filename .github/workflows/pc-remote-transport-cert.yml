@@ -66,27 +66,39 @@ jobs:
           httpx==0.28.1
           jwcrypto==1.6.1
           firebase-admin==7.5.0
-          sentry-sdk[fastapi]==2.69.0
-          reportlab==4.4.10
 
       - name: Install locked browser dependencies
         working-directory: frontend
         run: npm ci --ignore-scripts
 
       - name: Relay contract and service certification
-        run: >-
-          python -m pytest
-          backend/tests/test_patient_companion_relay_contract.py
-          backend/tests/test_patient_companion_relay_service.py
-          backend/tests/test_patient_companion_remote_crypto.py
-          backend/tests/test_patient_companion_remote_freshness.py
-          backend/tests/test_patient_companion_remote_keys.py
-          backend/tests/test_patient_companion_remote_pairing.py
-          backend/tests/test_patient_companion_remote_receipts.py
-          backend/tests/test_patient_companion_remote_worker.py
-          backend/tests/test_patient_companion_relay_client.py
-          backend/tests/test_patient_companion_agenda.py
-          -q
+        shell: bash
+        run: |
+          python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
+          import pytest
+
+          root = Path.cwd()
+          routers_pkg = types.ModuleType("backend.routers")
+          routers_pkg.__path__ = [str(root / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers_pkg
+
+          raise SystemExit(pytest.main([
+              "backend/tests/test_patient_companion_relay_contract.py",
+              "backend/tests/test_patient_companion_relay_service.py",
+              "backend/tests/test_patient_companion_remote_crypto.py",
+              "backend/tests/test_patient_companion_remote_freshness.py",
+              "backend/tests/test_patient_companion_remote_keys.py",
+              "backend/tests/test_patient_companion_remote_pairing.py",
+              "backend/tests/test_patient_companion_remote_receipts.py",
+              "backend/tests/test_patient_companion_remote_worker.py",
+              "backend/tests/test_patient_companion_relay_client.py",
+              "backend/tests/test_patient_companion_agenda.py",
+              "-q",
+          ]))
+          PY
 
       - name: Patient Companion frontend transport tests
         working-directory: frontend

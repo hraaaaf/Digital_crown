@@ -243,12 +243,15 @@ describe('TeamManager commercial pack button matrix', () => {
     await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith('/team/10/reject'));
 
     vi.mocked(api.delete).mockClear();
+    const deletePending = screen.getByTitle('Supprimer définitivement');
+    await waitFor(() => expect(deletePending).not.toBeDisabled());
+
     confirmMock.mockReturnValueOnce(false);
-    fireEvent.click(screen.getByTitle('Supprimer définitivement'));
+    fireEvent.click(deletePending);
     expect(api.delete).not.toHaveBeenCalled();
 
     confirmMock.mockReturnValueOnce(true);
-    fireEvent.click(screen.getByTitle('Supprimer définitivement'));
+    fireEvent.click(deletePending);
     await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/10'), { timeout: 3000 });
   });
 
