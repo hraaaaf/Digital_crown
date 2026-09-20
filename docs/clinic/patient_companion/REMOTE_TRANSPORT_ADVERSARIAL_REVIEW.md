@@ -1,6 +1,8 @@
 # Patient Companion — Remote Transport Gate B — Adversarial Review
 
-Status: IN PROGRESS — implementation substantially complete; final exact-head certification still pending.
+Status: VERIFIED for code/test candidate `6843f4ccd0ca40afe372a96ba7bfee92598ef098` — Remote Gate `35504753520`, CI `35504753506`, Alembic `35504753494` and every triggered regression gate passed. The docs-inclusive HEAD created by this closeout still requires exact-head CI before merge.
+
+Cross-check: RFC 7515 requires protected algorithm/signature verification and describes unique integrity-protected message IDs as replay defense; OWASP recommends authenticated encryption, separate keys by purpose, maintained libraries and protected key storage. The implemented fixed allowlists, ES256, A256GCM, separate signing/encryption keys, replay ledger, WebCrypto non-extractable patient keys and Windows DPAPI cabinet keys are consistent with those principles. This is not a legal-compliance or deployment certification.
 
 ## Candidate
 
