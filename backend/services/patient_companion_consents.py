@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import uuid
 from datetime import datetime
 from typing import Any
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -38,9 +40,13 @@ def handle_consent_sign(
     access: PatientCompanionAccess,
     payload: dict[str, Any],
 ) -> RemoteDomainResult:
+    if set(payload) != {"consent_id", "signature_base64"}:
+        return _reject("INVALID_REQUEST")
     consent_id = payload.get("consent_id")
     signature_base64 = payload.get("signature_base64")
-    if not isinstance(consent_id, str) or len(consent_id) != 36:
+    try:
+        consent_id = str(uuid.UUID(str(consent_id)))
+    except (TypeError, ValueError):
         return _reject("INVALID_CONSENT")
     if not isinstance(signature_base64, str):
         return _reject("INVALID_SIGNATURE")
@@ -102,7 +108,10 @@ def handle_consent_sign(
     ).first() is not None:
         return _reject("ALREADY_SIGNED")
 
-    signature_png = validate_patient_signature_png(signature_base64)
+    try:
+        signature_png = validate_patient_signature_png(signature_base64)
+    except HTTPException:
+        return _reject("INVALID_SIGNATURE")
     signed_at = datetime.utcnow()
     evidence = PatientCompanionConsentEvidence(
         consent_request_id=request.id,
