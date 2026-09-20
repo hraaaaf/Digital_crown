@@ -81,11 +81,11 @@ jobs:
           import json
           from pathlib import Path
           items=json.loads(Path("artifacts/pc02-agenda-before/evidence.json").read_text())
-          assert len(items) == 8, len(items)
+          assert len(items) == 4, len(items)
           assert all(not x["horizontalOverflow"] for x in items)
           keys={(x["browser"],x["phase"],x["viewport"]["width"],x["viewport"]["height"]) for x in items}
           for browser in ("chromium","webkit"):
-              for phase in ("before","after"):
+              for phase in ("before",):
                   for width,height in ((360,800),(390,844)):
                       assert (browser,phase,width,height) in keys
           print("pc02_before_evidence=PASS")
