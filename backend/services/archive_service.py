@@ -431,6 +431,8 @@ class ArchiveService:
         
         if not doc:
             raise ValueError("Document non trouvé")
+        if doc.status == DocumentStatus.SUPPRIME:
+            return doc
 
         trash_at = datetime.now()
         doc.status = DocumentStatus.SUPPRIME
