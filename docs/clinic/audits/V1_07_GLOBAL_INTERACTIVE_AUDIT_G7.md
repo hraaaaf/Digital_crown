@@ -150,3 +150,7 @@ Visual evidence workflow:
 - `.github/workflows/v1-07-truth-safety-visual-evidence.yml`
 
 Status: CODE REMEDIATED — CERTIFICATION PENDING matched BEFORE/AFTER evidence + exact-head tests/build.
+
+
+## Browser escalation
+G7 requires real Chromium action proof for Stock, Marketplace, partner administration and Library/Science Hub. Stock destructive/refusal truth must be exercised in-browser, not inferred from component tests. Marketplace cart/checkout and partner-admin mutations require visible result/refusal proof.
