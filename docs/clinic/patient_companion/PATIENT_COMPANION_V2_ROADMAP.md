@@ -1,6 +1,6 @@
 # Patient Companion V2 — Local-First Roadmap
 
-Status: PRODUCT APPROVED, PC-00 IN PROGRESS
+Status: PRODUCT APPROVED — PC-00/PC-01 MERGED — REMOTE TRANSPORT GATE B CODE/TEST CERTIFIED; FINAL DOCS-ONLY EXACT-HEAD CERTIFICATION PENDING
 
 ## Doctrine
 
@@ -73,7 +73,7 @@ Revisit WhatsApp only after the remote transport gate, as an optional notificati
 
 PC-02+ introduces actions initiated while the patient may be outside the cabinet LAN.
 
-A transport decision is mandatory before implementation.
+Decision recorded 2026-09-19: **Option B — end-to-end encrypted opaque relay**. Implementation/certification is tracked in PR #638 and must close before PC-02 merge.
 
 Allowed architectural families to evaluate:
 1. **Direct secure cabinet endpoint** — cabinet exposes a hardened, authenticated endpoint over a controlled tunnel/domain.

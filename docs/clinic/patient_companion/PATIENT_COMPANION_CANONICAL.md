@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-19 — PC-01 visual certification batch
-Active lot: PC-01 — Local Patient Wallet Sync
+Last verified update: 2026-09-20 — Remote Transport Gate B code/test candidate certified
+Active lot: REMOTE TRANSPORT GATE — final docs-inclusive certification
 
 ## Product doctrine
 
@@ -142,14 +142,10 @@ No Vercel deployment.
 
 ## Next exact
 
-1. read exact-head PC-01 visual/CI results when available and fix any red gate;
-2. inspect PC-01 screenshots/artifact when workflow is green and record visual comparison/score;
-3. read exact-head PC-00 corrected gates and close remaining red gates;
-4. merge PC-00 only after all required proof is green;
-5. reconcile PC-01 onto final PC-00;
-6. final exact-head PC-01 certification and merge;
-7. update canonical + Notion + handover;
-8. stop at Remote Transport Gate before PC-02 unless architecture is explicitly decided.
+1. certify final docs-inclusive Remote Transport Gate HEAD;
+2. mark PR #638 ready and merge only if exact-head gates are green;
+3. verify post-merge master;
+4. start PC-02 Self-Service Agenda.
 
 ## Canonical references
 
@@ -184,3 +180,63 @@ PC-00 documentation closeout was then committed on its branch; latest PC-00 docs
 PC-01 exact-head `a463ee89fc04bc6172a33626f7dd580068be5576` already has Visual `35470229496`, CI, T2, P7 and Agenda SUCCESS, but it must be reconciled onto the merged PC-00 base before final certification/merge.
 
 No Vercel deployment.
+
+
+## Remote transport gate B — current state
+
+Option B approved. PR #638 on `feature/patient-companion-e2e-relay-gate`.
+
+Implemented:
+- opaque relay isolated from cabinet backend/data stores;
+- ES256 JWS -> ECDH-ES+A256KW/A256GCM JWE;
+- `jwcrypto==1.6.1` + browser `jose==6.2.12`;
+- patient non-extractable WebCrypto private keys;
+- cabinet Windows current-user DPAPI private-key protection;
+- atomic key enrollment during one-time local pairing;
+- persistent keysets + replay/idempotency receipts;
+- 15-minute command TTL + future-clock-skew rejection;
+- allow-listed cabinet worker with transactional rollback and encrypted ACK;
+- access revocation also revokes the active remote keyset;
+- dedicated Python/JS JOSE interoperability + Windows DPAPI certification workflow.
+
+Old exact-head `6dd85ae...` failures were diagnosed as:
+- focused Linux workflow missing email-validator;
+- Windows DPAPI job accidentally loading full backend pytest conftest;
+- frontend TypeScript JsonWebKey metadata typing;
+- stale Alembic runtime head.
+
+Those causes are remediated. Additional hardening before final freeze:
+- concurrent first-pair cabinet key creation is guarded by the DB unique index plus savepoint/reuse;
+- remote ACK operation is the fixed bounded value `command.result`, with the original request operation retained inside the encrypted payload;
+- stale competing remote-key route/test artifacts were removed;
+- access revocation now revokes the active remote keyset.
+
+Code/test exact-head `6843f4ccd0ca40afe372a96ba7bfee92598ef098` is certified: dedicated Remote Transport Gate `35504753520` SUCCESS, CI `35504753506` SUCCESS, PostgreSQL/Alembic `35504753494` SUCCESS, and all other triggered regressions SUCCESS. This documentation closeout creates a newer docs-only SHA which remains subject to exact-head certification before merge. No merge and no deployment are claimed.
+
+Canonical closeout sequence:
+exact-head Remote Transport + CI + Alembic + triggered regression gates -> adversarial VERIFIED -> Notion/handover -> ready/merge #638 -> post-merge -> PC-02.
+
+
+## Frozen certification candidate — 2026-09-20
+
+Code/test/docs candidate before exact-head certification:
+`ca30bd599ed9a74a3c5f4130a1d1ad3c2343c755`
+
+This canonical update supersedes that SHA as the final docs-inclusive candidate. Read the branch HEAD after this commit and use only that exact SHA for final certification evidence.
+
+
+## Remote Transport Gate B — closeout candidate — 2026-09-20
+
+Verified code/test SHA: `6843f4ccd0ca40afe372a96ba7bfee92598ef098`.
+
+Evidence:
+- Remote Transport Gate `35504753520` — SUCCESS.
+- Linux job `106062570707` — SUCCESS: relay certification, Python→JavaScript JOSE, JavaScript verification/emission, JavaScript→Python JOSE.
+- Windows DPAPI job `106062570833` — SUCCESS.
+- CI `35504753506` — SUCCESS.
+- PostgreSQL/Alembic `35504753494` — SUCCESS.
+- all other triggered non-skipped regression gates — SUCCESS.
+
+The current branch HEAD after this docs-only closeout supersedes the code/test SHA as the merge candidate and requires exact-head certification before PR #638 may merge.
+
+No deployment performed.
