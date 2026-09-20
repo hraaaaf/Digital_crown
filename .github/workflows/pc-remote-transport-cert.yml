@@ -61,6 +61,7 @@ jobs:
           python-multipart==0.0.31
           qrcode==8.2
           pillow==12.2.0
+          opencv-python-headless==4.13.0.92
           SQLAlchemy==2.0.28
           httpx==0.28.1
           jwcrypto==1.6.1
@@ -101,12 +102,17 @@ jobs:
   windows-dpapi:
     name: Windows DPAPI cabinet-key protection
     runs-on: windows-latest
+    env:
+      ENVIRONMENT: pc-remote-cert-rehearsal
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Install focused Python import dependency
+        run: python -m pip install SQLAlchemy==2.0.28
 
       - name: Real current-user DPAPI roundtrip
         shell: pwsh
