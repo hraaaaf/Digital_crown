@@ -105,12 +105,16 @@ def process_remote_envelope(
     access: PatientCompanionAccess,
     keyset: PatientCompanionRemoteKeyset,
     compact_jwe: str,
-    handlers: dict[str, RemoteDomainHandler],
+    handlers: dict[str, RemoteDomainHandler] | None = None,
     unprotect=unprotect_os_bound,
 ) -> str:
     """Verify one patient command, execute exactly one allow-listed domain handler,
     commit its result with the replay ledger, then return a cabinet-signed encrypted ack.
     """
+
+    if handlers is None:
+        from backend.services.patient_companion_agenda import PC02_REMOTE_HANDLERS
+        handlers = PC02_REMOTE_HANDLERS
 
     if access.revoked_at is not None:
         raise RemoteTransportRejected("Patient Companion access revoked")
