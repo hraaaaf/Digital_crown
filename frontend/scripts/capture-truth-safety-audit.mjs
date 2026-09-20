@@ -161,7 +161,17 @@ try {
       }
 
       if(runtimeErrors.length) {
-        const unexpected=runtimeErrors.filter(x=>!x.includes('503'));
+        const expectedFailureScenario = [
+          'stock-read-error',
+          'stock-quantity-refusal',
+          'stock-add-refusal',
+          'stock-delete-refusal',
+        ].includes(scenario);
+        const unexpected = runtimeErrors.filter(error => {
+          if (error.startsWith('pageerror:')) return true;
+          if (expectedFailureScenario && error.startsWith('console:')) return false;
+          return !error.includes('503');
+        });
         if(unexpected.length) throw new Error(unexpected.join('\n'));
       }
 
