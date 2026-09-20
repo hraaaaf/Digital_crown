@@ -155,7 +155,10 @@ try {
         clientWidth:document.documentElement.clientWidth,
         scrollWidth:document.documentElement.scrollWidth,
       }));
-      if(layout.scrollWidth>layout.clientWidth) throw new Error(`${scenario} horizontal overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
+      const horizontalOverflow = layout.scrollWidth > layout.clientWidth;
+      if(phase === 'after' && horizontalOverflow) {
+        throw new Error(`${scenario} horizontal overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
+      }
 
       if(runtimeErrors.length) {
         const unexpected=runtimeErrors.filter(x=>!x.includes('503'));
@@ -164,7 +167,7 @@ try {
 
       const path=`${out}/${scenario}-${width}x${height}.png`;
       await page.screenshot({path,fullPage:true,animations:'disabled'});
-      evidence.push({scenario,viewport:{width,height},phase,deletes:deletes.length,path});
+      evidence.push({scenario,viewport:{width,height},phase,deletes:deletes.length,horizontalOverflow,path});
       await context.close();
     }
   }
