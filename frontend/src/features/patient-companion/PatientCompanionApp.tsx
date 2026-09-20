@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, KeyRound, Loader2, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
+import { CalendarDays, Camera, CheckCircle2, KeyRound, Loader2, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { API_BASE } from '../../services/api';
 import {
   PatientCompanionStorage,
@@ -38,6 +38,8 @@ export const PatientCompanionApp = () => {
   const [selectingContext, setSelectingContext] = useState(false);
   const [cabinetReachability, setCabinetReachability] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown');
   const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'synced' | 'offline' | 'expired'>('idle');
+  const [agendaOpen, setAgendaOpen] = useState(false);
+  const [agendaMessage, setAgendaMessage] = useState('');
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -360,15 +362,42 @@ export const PatientCompanionApp = () => {
               {syncState === 'offline' && <p className="mt-2 text-[11px] font-black text-amber-700">Cabinet non joignable · dernière copie locale conservée.</p>}
               {(syncState === 'expired' || sessionExpired) && <p className="mt-2 text-[11px] font-black text-rose-700">Connexion au cabinet expirée · votre copie locale reste disponible. Un nouvel appairage sera nécessaire pour synchroniser.</p>}
             </Card>
-            <section className="mt-4 grid gap-3" aria-label="Portefeuille Patient Companion">
-              <WalletSection title="Mes rendez-vous" empty="Aucun rendez-vous synchronisé.">
-                {activeWallet?.appointments.map((item, index) => (
-                  <div key={`${item.datetime_start}-${item.motif}-${index}`} className="rounded-2xl border border-border-main bg-card-bg p-4">
-                    <p className="font-black">{item.motif}</p>
-                    <p className="mt-1 text-xs font-bold text-text-muted">{new Date(item.datetime_start).toLocaleString()} · {item.status}</p>
-                  </div>
-                ))}
-              </WalletSection>
+            <section data-pc02-agenda className="mt-4 rounded-[1.5rem] border border-border-main bg-card-bg p-4" aria-label="Mes rendez-vous">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Agenda</p>
+                  <h3 className="mt-0.5 text-lg font-black">Mes rendez-vous</h3>
+                </div>
+                <CalendarDays className="text-primary" size={22} />
+              </div>
+              <div className="mt-3 grid gap-2">
+                {activeWallet?.appointments.length ? activeWallet.appointments.map((item, index) => (
+                  <article key={item.appointment_ref || `${item.datetime_start}-${index}`} className="rounded-2xl border border-border-main bg-background p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-black">{new Date(item.datetime_start).toLocaleString()}</p>
+                        <p className="mt-1 text-xs font-bold text-text-muted">{item.motif || 'Rendez-vous cabinet'} · {item.duration_minutes} min</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-800">Confirmé</span>
+                    </div>
+                    {item.appointment_ref && <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button onClick={() => { setAgendaOpen(true); setAgendaMessage('Choisissez un nouveau créneau. Le rendez-vous reste confirmé tant que le cabinet n’a pas validé le changement.'); }} className="min-h-[48px] rounded-xl border border-border-main text-xs font-black">Déplacer</button>
+                      <button onClick={() => setAgendaMessage('Annulation non envoyée. Une confirmation explicite sera demandée avant transmission au cabinet.')} className="min-h-[48px] rounded-xl border border-rose-200 text-xs font-black text-rose-700">Annuler</button>
+                    </div>}
+                  </article>
+                )) : <p className="text-xs font-bold text-text-muted">Aucun rendez-vous synchronisé.</p>}
+              </div>
+              <button data-pc02-book onClick={() => { setAgendaOpen(value => !value); setAgendaMessage(''); }} className="mt-3 min-h-[52px] w-full rounded-2xl bg-primary px-4 text-sm font-black text-white">
+                {agendaOpen ? 'Fermer la demande' : 'Prendre un rendez-vous'}
+              </button>
+              {agendaOpen && <div data-pc02-booking-panel className="mt-3 rounded-2xl border border-primary/15 bg-primary/5 p-4">
+                <p className="font-black">Choisir un créneau</p>
+                <p className="mt-1 text-xs font-bold text-text-muted">Seuls les créneaux proposés par votre cabinet seront affichés. Une demande n’est jamais une confirmation.</p>
+                <div className="mt-3 rounded-xl border border-dashed border-border-main bg-card-bg p-3 text-xs font-bold text-text-muted">Synchronisez votre espace pour charger les prochaines disponibilités du cabinet.</div>
+              </div>}
+              {agendaMessage && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800">{agendaMessage}</p>}
+            </section>
+            <section className="mt-3 grid gap-3" aria-label="Portefeuille Patient Companion">
               <WalletSection title="Mes documents & médias" empty="Aucun document ou média partagé.">
                 {activeWallet?.shares.map(item => (
                   <div key={item.share_id} className="rounded-2xl border border-border-main bg-card-bg p-4">
