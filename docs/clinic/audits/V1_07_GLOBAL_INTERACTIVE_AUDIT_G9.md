@@ -104,3 +104,17 @@ No coverage percentage is claimed yet.
 The Landing geography mismatch (“dentistes algériens”) was found during final truth review and remediated to “dentistes marocains”.
 
 It remains part of the G9 freeze gate until the matched BEFORE/AFTER visual scenario and exact-head tests/build are green.
+
+
+## Browser certification escalation — G1→G8
+The V1-07 certification doctrine is now explicitly runtime-first for visible controls. Component/Vitest matrices remain supporting evidence only.
+
+Before G9 freeze:
+- final real-Chromium inventories for G1→G7 must be green on the exact candidate;
+- every enabled semantic control found at runtime must map to a Playwright action/result or verified N/A rationale;
+- dynamic controls revealed by browser actions must be appended to the denominator;
+- G8 must reconcile transverse browser findings;
+- G4 keeps its dedicated deeper action-pass matrix.
+
+Canonical doctrine: `docs/clinic/audits/V1_07_BROWSER_CERTIFICATION_DOCTRINE.md`.
+Factory: `frontend/scripts/inventory-v1-07-g1-g7-browser-controls.mjs` + `.github/workflows/v1-07-g1-g7-browser-inventory.yml`.
