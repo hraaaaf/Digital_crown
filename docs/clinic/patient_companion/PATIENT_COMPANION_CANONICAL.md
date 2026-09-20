@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-20 — Remote Transport Gate B remediation checkpoint
-Active lot: REMOTE TRANSPORT GATE — E2E opaque relay
+Last verified update: 2026-09-20 — Remote Transport Gate B code/test candidate certified
+Active lot: REMOTE TRANSPORT GATE — final docs-inclusive certification
 
 ## Product doctrine
 
@@ -142,14 +142,10 @@ No Vercel deployment.
 
 ## Next exact
 
-1. read exact-head PC-01 visual/CI results when available and fix any red gate;
-2. inspect PC-01 screenshots/artifact when workflow is green and record visual comparison/score;
-3. read exact-head PC-00 corrected gates and close remaining red gates;
-4. merge PC-00 only after all required proof is green;
-5. reconcile PC-01 onto final PC-00;
-6. final exact-head PC-01 certification and merge;
-7. update canonical + Notion + handover;
-8. stop at Remote Transport Gate before PC-02 unless architecture is explicitly decided.
+1. certify final docs-inclusive Remote Transport Gate HEAD;
+2. mark PR #638 ready and merge only if exact-head gates are green;
+3. verify post-merge master;
+4. start PC-02 Self-Service Agenda.
 
 ## Canonical references
 
