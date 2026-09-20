@@ -66,58 +66,26 @@ jobs:
           httpx==0.28.1
           jwcrypto==1.6.1
           firebase-admin==7.5.0
+          sentry-sdk[fastapi]==2.69.0
 
       - name: Install locked browser dependencies
         working-directory: frontend
         run: npm ci --ignore-scripts
 
       - name: Relay contract and service certification
-        shell: bash
-        run: |
-          python - <<'PY'
-          import sys
-          import types
-          from pathlib import Path
-          import pytest
-
-          root = Path.cwd()
-          for name, package_path in (
-              ("backend", root / "backend"),
-              ("backend.routers", root / "backend" / "routers"),
-          ):
-              package = types.ModuleType(name)
-              package.__path__ = [str(package_path)]
-              sys.modules[name] = package
-
-          # Register the canonical SQLAlchemy model graph without executing backend/__init__.py.
-          # The shared test conftest creates all metadata tables, so every referenced FK target
-          # must be present exactly as it is during normal application startup.
-          import backend.models
-          import backend.models_identity_p4
-          import backend.models_clinical_p3
-          import backend.models_imaging_p4
-          import backend.models_media_core
-          import backend.models_appointments_p0
-          import backend.models_agenda_a3
-          import backend.models_patient_clinical_context
-          import backend.models_patient_companion
-          import backend.models_ngap_reference
-          import backend.models_ortho_journey
-
-          raise SystemExit(pytest.main([
-              "backend/tests/test_patient_companion_relay_contract.py",
-              "backend/tests/test_patient_companion_relay_service.py",
-              "backend/tests/test_patient_companion_remote_crypto.py",
-              "backend/tests/test_patient_companion_remote_freshness.py",
-              "backend/tests/test_patient_companion_remote_keys.py",
-              "backend/tests/test_patient_companion_remote_pairing.py",
-              "backend/tests/test_patient_companion_remote_receipts.py",
-              "backend/tests/test_patient_companion_remote_worker.py",
-              "backend/tests/test_patient_companion_relay_client.py",
-              "backend/tests/test_patient_companion_agenda.py",
-              "-q",
-          ]))
-          PY
+        run: >-
+          python -m pytest
+          backend/tests/test_patient_companion_relay_contract.py
+          backend/tests/test_patient_companion_relay_service.py
+          backend/tests/test_patient_companion_remote_crypto.py
+          backend/tests/test_patient_companion_remote_freshness.py
+          backend/tests/test_patient_companion_remote_keys.py
+          backend/tests/test_patient_companion_remote_pairing.py
+          backend/tests/test_patient_companion_remote_receipts.py
+          backend/tests/test_patient_companion_remote_worker.py
+          backend/tests/test_patient_companion_relay_client.py
+          backend/tests/test_patient_companion_agenda.py
+          -q
 
       - name: Patient Companion frontend transport tests
         working-directory: frontend

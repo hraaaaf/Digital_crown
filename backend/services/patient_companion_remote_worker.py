@@ -8,6 +8,7 @@ from typing import Callable, Literal
 
 from sqlalchemy.orm import Session
 
+from backend import models
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionCabinetRemoteKey,
