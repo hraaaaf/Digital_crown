@@ -164,7 +164,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   }
   const adultTeeth = [11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48];
   for (const tooth of adultTeeth) {
-    await page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') }).click();
+    const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
+    await toothButton.focus();
+    await page.keyboard.press('Enter');
     const title = page.getByText('Dent ' + tooth, { exact: true });
     await title.waitFor({ state: 'visible', timeout: 10000 });
     const selector = title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
@@ -173,7 +175,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   }
   actions.push('all-32-adult-teeth-open-close');
 
-  await page.getByRole('button', { name: /Dent 11,/i }).click();
+  const dent11Button = page.getByRole('button', { name: /Dent 11,/i });
+  await dent11Button.focus();
+  await page.keyboard.press('Enter');
   await page.getByText('Dent 11', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   const search = page.getByPlaceholder('Rechercher un acte (Composite, Extraction, Couronne...)');
   const categoryBar = search.locator('xpath=../following-sibling::div[1]');
