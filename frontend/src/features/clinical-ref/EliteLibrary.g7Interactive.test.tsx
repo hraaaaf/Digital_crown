@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EliteLibrary } from './EliteLibrary';
 
-const protocols = [
+const clinicalFixtures = vi.hoisted(() => ({ protocols: [
   {
     act_code: 'DET',
     act_names: ['Détartrage'],
@@ -28,9 +28,9 @@ const protocols = [
     checklist: [{ label: 'A', critical: true }],
     pitfalls: [{ label: 'R1' }, { label: 'R2' }],
   },
-];
+] }));
 
-vi.mock('../../data/clinical-protocols', () => ({ CLINICAL_PROTOCOLS: protocols }));
+vi.mock('../../data/clinical-protocols', () => ({ CLINICAL_PROTOCOLS: clinicalFixtures.protocols }));
 vi.mock('./ClinicalRefContent', () => ({
   ClinicalRefContent: ({ protocol }: { protocol: any }) => <div>Protocol content {protocol.act_code}</div>,
 }));
