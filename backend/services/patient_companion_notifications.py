@@ -70,7 +70,10 @@ def _appointment_candidates(
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start >= now,
         models.Appointment.datetime_start <= now + APPOINTMENT_REMINDER_WINDOW,
-        models.Appointment.status != models.AppointmentStatus.ANNULE,
+        models.Appointment.status.in_([
+            models.AppointmentStatus.PREVU,
+            models.AppointmentStatus.CONFIRME,
+        ]),
     ).order_by(models.Appointment.datetime_start.asc()).all()
     return [
         {
