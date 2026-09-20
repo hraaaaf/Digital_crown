@@ -219,13 +219,16 @@ def get_panoramic_comparison(
 ):
     """Compare the 2 most recent panoramic analyses to detect evolution."""
     assert_patient_access(patient_id, current_user, db)
-    analyses = (
-        db.query(models.PanoramicAnalysis)
-        .filter(models.PanoramicAnalysis.patient_id == patient_id)
-        .order_by(desc(models.PanoramicAnalysis.created_at))
-        .limit(2)
-        .all()
-    )
+    trashed_ids = [
+        row[0] for row in db.query(ImagingTrashRecord.analysis_id).filter(
+            ImagingTrashRecord.modality == "panoramic",
+            ImagingTrashRecord.patient_id == patient_id,
+        ).all()
+    ]
+    query = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.patient_id == patient_id)
+    if trashed_ids:
+        query = query.filter(~models.PanoramicAnalysis.id.in_(trashed_ids))
+    analyses = query.order_by(desc(models.PanoramicAnalysis.created_at)).limit(2).all()
     if len(analyses) < 2:
         return {"available": False, "reason": "Moins de 2 bilans panoramiques disponibles."}
     from backend.services.temporal_comparator import compare_panoramic_analyses
