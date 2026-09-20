@@ -547,7 +547,7 @@ export const AccountingPage = () => {
                               <button onClick={() => handleDownloadDocument(group.notes[0].file_url, `Note_${group.patient_name}_${group.notes[0].id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
                                 <Download size={16} />
                               </button>
-                              <button onClick={e => { e.stopPropagation(); handleDelete(group.notes[0].id); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                              <button onClick={e => { e.stopPropagation(); handleDelete(group.notes[0].document_archive_id ?? group.notes[0].id); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
                                 <Trash2 size={16} />
                               </button>
                             </div>
@@ -621,7 +621,7 @@ export const AccountingPage = () => {
                               <button onClick={() => handleDownloadDocument(note.file_url, `Note_${group.patient_name}_${note.id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
                                 <Download size={14} />
                               </button>
-                              <button onClick={() => handleDelete(note.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                              <button onClick={() => handleDelete(note.document_archive_id ?? note.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
                                 <Trash2 size={14} />
                               </button>
                             </div>
