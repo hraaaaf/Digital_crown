@@ -45,6 +45,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.Column("consumed_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["employer_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["practitioner_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["resource_id"], ["agenda_resources.id"], ondelete="CASCADE"),
@@ -57,6 +58,7 @@ def upgrade():
     op.create_index("ix_pc_agenda_slot_datetime_start", "patient_companion_agenda_slots", ["datetime_start"], unique=False)
     op.create_index("ix_pc_agenda_slot_expires_at", "patient_companion_agenda_slots", ["expires_at"], unique=False)
     op.create_index("ix_pc_agenda_slot_revoked_at", "patient_companion_agenda_slots", ["revoked_at"], unique=False)
+    op.create_index("ix_pc_agenda_slot_consumed_at", "patient_companion_agenda_slots", ["consumed_at"], unique=False)
     op.create_index("ix_pc_agenda_slot_tenant_expiry", "patient_companion_agenda_slots", ["employer_id", "expires_at"], unique=False)
     op.create_table(
         "patient_companion_practitioner_refs",
@@ -84,6 +86,7 @@ def downgrade():
     op.drop_index("ix_pc_practitioner_ref_public_id", table_name="patient_companion_practitioner_refs")
     op.drop_table("patient_companion_practitioner_refs")
     op.drop_index("ix_pc_agenda_slot_tenant_expiry", table_name="patient_companion_agenda_slots")
+    op.drop_index("ix_pc_agenda_slot_consumed_at", table_name="patient_companion_agenda_slots")
     op.drop_index("ix_pc_agenda_slot_revoked_at", table_name="patient_companion_agenda_slots")
     op.drop_index("ix_pc_agenda_slot_expires_at", table_name="patient_companion_agenda_slots")
     op.drop_index("ix_pc_agenda_slot_datetime_start", table_name="patient_companion_agenda_slots")
