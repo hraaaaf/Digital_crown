@@ -116,8 +116,8 @@ describe('Partner detail pages G7 interactive matrix', () => {
   it('loads supplier/meta/products truth and reloads explicitly', async () => {
     renderSupplier();
 
-    expect(await screen.findByText('Atlas Dental')).toBeTruthy();
-    expect(screen.getByText('Composite universel')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Atlas Dental', level: 1 })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Composite universel/i })).toBeTruthy();
     for (const url of ['/partner-catalog/meta','/partner-catalog/suppliers','/partner-catalog/products']) {
       expect(api.get).toHaveBeenCalledWith(url);
     }
@@ -129,11 +129,11 @@ describe('Partner detail pages G7 interactive matrix', () => {
 
   it('filters supplier products by category and specialty without mutation', async () => {
     renderSupplier();
-    await screen.findByText('Composite universel');
+    await screen.findByRole('link', { name: /Composite universel/i });
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Endodontie' })[0]);
-    expect(screen.getByText('Produit arrêté')).toBeTruthy();
-    expect(screen.queryByText('Composite universel')).toBeNull();
+    expect(screen.getByRole('link', { name: /Produit arrêté/i })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Composite universel/i })).toBeNull();
 
     const omnicontrol = screen.getByRole('button', { name: 'Omnipratique' });
     fireEvent.click(omnicontrol);
@@ -152,7 +152,7 @@ describe('Partner detail pages G7 interactive matrix', () => {
   it('loads product + supplier truth, persists quantity and exposes canonical navigation links', async () => {
     renderProduct('101');
 
-    expect(await screen.findByText('Composite universel')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Composite universel' })).toBeTruthy();
     expect(api.get).toHaveBeenCalledWith('/partner-catalog/products/101');
     expect(api.get).toHaveBeenCalledWith('/partner-catalog/suppliers/11');
 
@@ -172,7 +172,7 @@ describe('Partner detail pages G7 interactive matrix', () => {
   it('never exposes quantity controls for a discontinued product', async () => {
     renderProduct('102');
 
-    expect(await screen.findByText('Produit arrêté')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Produit arrêté' })).toBeTruthy();
     expect(screen.getByText(/ne peut plus être commandé/i)).toBeTruthy();
     expect(screen.queryByText('Retourner à la commande partenaire')).toBeNull();
   });
