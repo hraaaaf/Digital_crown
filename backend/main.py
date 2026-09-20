@@ -274,11 +274,18 @@ async def lifespan(app: FastAPI):
             if boot_policy != REHEARSAL_MIGRATION_ONLY
             else None
         )
+        relay_url_configured = bool(_cfg.PATIENT_COMPANION_RELAY_URL.strip())
+        relay_secret_configured = bool(_cfg.PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET.strip())
+        if relay_url_configured != relay_secret_configured:
+            logger.warning(
+                "Patient Companion relay disabled: URL/bootstrap configuration is incomplete."
+            )
         patient_relay_task = (
             asyncio.create_task(_periodic_patient_companion_relay())
             if (
                 boot_policy != REHEARSAL_MIGRATION_ONLY
-                and bool(_cfg.PATIENT_COMPANION_RELAY_URL.strip())
+                and relay_url_configured
+                and relay_secret_configured
             )
             else None
         )
