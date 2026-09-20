@@ -39,7 +39,6 @@ export const PatientCompanionSync = {
       syncedAt: new Date().toISOString(),
       appointments: appointments.items,
       shares: shares.items,
-      agendaRequests: (await PatientCompanionStorage.load()).cache[pairing.context.access_id]?.agendaRequests || [],
     };
     await PatientCompanionStorage.saveWallet(snapshot);
     return snapshot;
