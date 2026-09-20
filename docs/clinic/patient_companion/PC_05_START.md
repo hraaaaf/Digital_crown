@@ -133,3 +133,8 @@ Mandatory:
 
 Exact-head technical gate: `.github/workflows/pc05-certification.yml`.
 This targeted gate runs the PC-05 backend contract tests, frontend ACK truth-boundary tests, and the production frontend build. The PostgreSQL Alembic schema gate and Patient Companion remote transport gate remain complementary repo-wide proofs.
+
+
+## Current review state
+
+PR #643 is ready for review. Technical certification is required on the exact PR HEAD before visual approval and closeout. Vercel deployment remains forbidden without explicit product-owner authorization.
