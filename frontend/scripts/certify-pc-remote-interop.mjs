@@ -65,7 +65,10 @@ if (
   throw new Error('Python JWS protected-header value mismatch');
 }
 const decodedPythonPayload = JSON.parse(new TextDecoder().decode(verified.payload));
-if (JSON.stringify(decodedPythonPayload) !== JSON.stringify(fromPython.payload)) {
+const canonicalJson = (value) => JSON.stringify(
+  Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))),
+);
+if (canonicalJson(decodedPythonPayload) !== canonicalJson(fromPython.payload)) {
   throw new Error('Python -> JS JOSE payload mismatch');
 }
 
