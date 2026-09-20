@@ -155,7 +155,7 @@ describe('PanoramicStudio G4 deep interaction matrix', () => {
     fireEvent.change(input, { target: { files: [new File(['bad'], 'bad.jpg', { type: 'image/jpeg' })] } });
 
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
-    expect(screen.getByText('AUCUNE RADIOGRAPHIE CHARGÉE')).toBeTruthy();
+    expect(await screen.findByText('AUCUNE RADIOGRAPHIE CHARGÉE')).toBeTruthy();
     expect(screen.queryByTestId('xray-canvas')).toBeNull();
   });
 
@@ -216,7 +216,7 @@ describe('PanoramicStudio G4 deep interaction matrix', () => {
     expect(await screen.findByText('Aperçu du Bilan Panoramique')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close preview' }));
-    expect(screen.queryByRole('button', { name: 'Close preview' })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Close preview' })).toBeNull());
 
     fireEvent.click(screen.getByRole('button', { name: 'Download report' }));
     await waitFor(() => expect(window.open).toHaveBeenCalledWith(
