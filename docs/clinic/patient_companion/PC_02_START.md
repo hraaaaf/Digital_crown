@@ -1,6 +1,6 @@
 # PC-02 — Self-Service Agenda — Start Contract
 
-Status: IN PROGRESS
+Status: COMPLETE — certified exact-head before closeout commit
 Base: master@`ae4f820aad6ea934c3b430d3c8ccf81da73648ba`
 Branch: `feature/patient-companion-pc02-self-service-agenda`
 
@@ -61,3 +61,11 @@ BEFORE capture -> written target/mockup -> implementation -> AFTER same viewport
 - no new cloud clinical database;
 - no WhatsApp clinical transport;
 - no optimistic “confirmed” state before cabinet ACK.
+
+
+## Closeout
+
+Functional candidate certified at `a1c0e1bc8d317e7d2086ff3ae3d0806efcb770f8`.
+Canonical closeout evidence: `docs/clinic/patient_companion/PC_02_CLOSEOUT.md`.
+
+The final documentation-only closeout commit must itself receive a fresh exact-head CI cycle before merge.
