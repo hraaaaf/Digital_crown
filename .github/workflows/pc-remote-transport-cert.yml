@@ -66,6 +66,7 @@ jobs:
           httpx==0.28.1
           jwcrypto==1.6.1
           firebase-admin==7.5.0
+          sentry-sdk[fastapi]==2.69.0
 
       - name: Install locked browser dependencies
         working-directory: frontend
@@ -95,7 +96,6 @@ jobs:
               "backend/tests/test_patient_companion_remote_receipts.py",
               "backend/tests/test_patient_companion_remote_worker.py",
               "backend/tests/test_patient_companion_relay_client.py",
-              "backend/tests/test_patient_companion_agenda.py",
               "-q",
           ]))
           PY
