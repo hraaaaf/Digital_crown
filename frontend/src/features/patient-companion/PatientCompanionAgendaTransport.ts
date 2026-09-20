@@ -6,6 +6,7 @@ export type AgendaOperation =
   | 'agenda.create'
   | 'agenda.reschedule'
   | 'agenda.cancel'
+  | 'agenda.list'
   | 'agenda.practitioners'
   | 'agenda.slots';
 
