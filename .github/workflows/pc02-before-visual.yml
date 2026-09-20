@@ -11,12 +11,12 @@ on:
       - docs/clinic/patient_companion/**
 
 concurrency:
-  group: pc01-wallet-${{ github.ref }}
+  group: pc02-agenda-before-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  wallet-evidence:
-    name: matched wallet + offline reload
+  agenda-before-evidence:
+    name: PC-02 agenda BEFORE
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -38,7 +38,7 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install AFTER frontend and browsers
+      - name: Install evidence frontend and browsers
         working-directory: frontend
         run: |
           npm ci
@@ -51,30 +51,24 @@ jobs:
           git worktree add /tmp/pc01-before "$BASE_SHA"
           cd /tmp/pc01-before/frontend
           npm ci
-      - name: Start matched Vite servers
+      - name: Start true BEFORE Vite server
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/pc01-before/frontend
-          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/pc01-before.log 2>&1 &
-          cd "$GITHUB_WORKSPACE/frontend"
-          npm run dev -- --host 127.0.0.1 --port 5175 >/tmp/pc01-after.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/pc02-before.log 2>&1 &
           for i in {1..60}; do
-            B=0; A=0
-            curl -fsS http://127.0.0.1:5174/ >/dev/null && B=1 || true
-            curl -fsS http://127.0.0.1:5175/ >/dev/null && A=1 || true
-            if [ "$B" = 1 ] && [ "$A" = 1 ]; then exit 0; fi
+            curl -fsS http://127.0.0.1:5174/ >/dev/null && exit 0 || true
             sleep 1
           done
           exit 1
-      - name: Capture PC-01 evidence
+      - name: Capture PC-02 BEFORE evidence
         working-directory: frontend
         env:
           PC02_BEFORE_URL: http://127.0.0.1:5174
-          PC02_AFTER_URL: http://127.0.0.1:5175
           PC02_EVIDENCE_DIR: ../artifacts/pc02-agenda-before
         run: node scripts/capture-pc02-before.mjs
-      - name: Assert PC-01 evidence contract
+      - name: Assert PC-02 BEFORE evidence contract
         shell: bash
         run: |
           python - <<'PY'
@@ -93,12 +87,11 @@ jobs:
       - name: Record proof metadata
         shell: bash
         run: |
-          printf 'base=%s\nhead=%s\nviewports=360x800,390x844\nbrowsers=chromium,webkit\noffline_reload=yes\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/pc02-agenda-before/result.txt
-          cp /tmp/pc01-before.log artifacts/pc02-agenda-before/before/vite.log
-          cp /tmp/pc01-after.log artifacts/pc02-agenda-before/after/vite.log
+          printf 'base=%s\nhead=%s\nviewports=360x800,390x844\nbrowsers=chromium,webkit\noffline_reload=no\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/pc02-agenda-before/result.txt
+          cp /tmp/pc02-before.log artifacts/pc02-agenda-before/before/vite.log
       - uses: actions/upload-artifact@v4
         with:
-          name: pc02-agenda-before-before-after
+          name: pc02-agenda-before
           path: artifacts/pc02-agenda-before
           if-no-files-found: error
           retention-days: 30
