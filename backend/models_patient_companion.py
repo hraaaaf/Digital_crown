@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, Index, LargeBinary, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models_base import Base
@@ -630,7 +630,7 @@ class PatientCompanionConsentEvidence(Base):
     patient_id: Mapped[int] = mapped_column(
         ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
     )
-    signature_file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    signature_png: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     signature_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     signature_size: Mapped[int] = mapped_column(nullable=False)
     signed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
