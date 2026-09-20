@@ -6,9 +6,15 @@ on:
       - "relay/**"
       - "backend/services/patient_companion_key_protection.py"
       - "backend/services/patient_companion_remote_*.py"
+      - "backend/services/patient_companion_relay_*.py"
+      - "backend/services/patient_companion_agenda.py"
       - "backend/routers/patient_companion_pairing.py"
+      - "backend/routers/patient_companion_agenda.py"
+      - "backend/routers/patient_companion_shares.py"
       - "backend/models_patient_companion.py"
       - "backend/tests/test_patient_companion_remote_*.py"
+      - "backend/tests/test_patient_companion_relay_*.py"
+      - "backend/tests/test_patient_companion_agenda.py"
       - "backend/tests/test_patient_companion_dpapi_runtime.py"
       - "backend/scripts/certify_patient_companion_remote_interop.py"
       - "frontend/src/features/patient-companion/**"
@@ -16,6 +22,7 @@ on:
       - "frontend/package.json"
       - "frontend/package-lock.json"
       - "alembic/versions/pcrt0000009_add_pc_remote_transport_state.py"
+      - "alembic/versions/pc020000010_add_pc02_appointment_refs.py"
       - "docs/clinic/patient_companion/REMOTE_TRANSPORT_*.md"
       - ".github/workflows/pc-remote-transport-cert.yml"
   workflow_dispatch:
@@ -63,7 +70,17 @@ jobs:
           backend/tests/test_patient_companion_relay_service.py
           backend/tests/test_patient_companion_remote_crypto.py
           backend/tests/test_patient_companion_remote_freshness.py
+          backend/tests/test_patient_companion_remote_keys.py
+          backend/tests/test_patient_companion_remote_pairing.py
+          backend/tests/test_patient_companion_remote_receipts.py
+          backend/tests/test_patient_companion_remote_worker.py
+          backend/tests/test_patient_companion_relay_client.py
+          backend/tests/test_patient_companion_agenda.py
           -q
+
+      - name: Patient Companion frontend transport tests
+        working-directory: frontend
+        run: npm test -- --run src/features/patient-companion/PatientCompanionAgendaTransport.test.ts
 
       - name: Python to JavaScript JOSE
         run: python -m backend.scripts.certify_patient_companion_remote_interop emit "$RUNNER_TEMP/python-to-js.json"
