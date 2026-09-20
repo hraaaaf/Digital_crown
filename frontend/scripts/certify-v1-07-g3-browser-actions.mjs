@@ -86,9 +86,42 @@ for(const viewport of viewports){
         const dialog=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
         if(!(await dialog.count())) throw new Error('appointment modal closed after refused create');
         prove(viewport,'agenda-create-refusal-preserves-dialog');
+        const cancel=dialog.getByRole('button',{name:'Annuler',exact:true});
+        if(await cancel.count()) await cancel.click();
       }
       await page.unroute('**/api/appointments/**');
     }
+  }
+
+  // Existing appointment edit/delete: exercise visible controls with refusal + non-mutation.
+  const existing=page.locator('.appointment-item').first();
+  if(await existing.count()){
+    const label=(await existing.innerText()).trim();
+    await existing.click();
+    const editDialog=page.getByRole('dialog',{name:'Modifier le Rendez-vous'});
+    await editDialog.waitFor({state:'visible',timeout:5000});
+
+    await page.route(/\/api\/appointments\/\d+$/,async route=>{
+      if(route.request().method()==='PUT') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Modification refusée"}'});
+      if(route.request().method()==='DELETE') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Suppression refusée"}'});
+      return route.continue();
+    });
+
+    await editDialog.getByRole('button',{name:'Modifier le RDV',exact:true}).click();
+    await page.getByText('Modification refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
+    if(!(await editDialog.count())) throw new Error('appointment edit dialog closed after refused PUT');
+    prove(viewport,'agenda-edit-refusal-preserves-dialog',{label});
+
+    page.once('dialog',async d=>d.accept());
+    await editDialog.getByRole('button',{name:'Supprimer',exact:true}).click();
+    await page.waitForTimeout(350);
+    if(!(await editDialog.count())) throw new Error('appointment edit dialog closed after refused DELETE');
+    if(!(await page.locator('.appointment-item').first().count())) throw new Error('appointment disappeared after refused DELETE');
+    prove(viewport,'agenda-delete-refusal-non-mutation',{label});
+
+    await page.unroute(/\/api\/appointments\/\d+$/);
+    const cancelEdit=editDialog.getByRole('button',{name:'Annuler',exact:true});
+    if(await cancelEdit.count()) await cancelEdit.click();
   }
 
   // Pending-only toggle if present.
