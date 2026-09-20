@@ -102,25 +102,17 @@ def create_patient_consent(
         PatientCompanionConsentRequest.patient_id == patient.id,
         PatientCompanionConsentRequest.document_id == document.id,
         PatientCompanionConsentRequest.document_file_hash == document.file_hash,
-    ).first()
+    ).order_by(PatientCompanionConsentRequest.created_at.desc()).first()
     if existing is not None:
-        if effective_consent_state(existing) == "SIGNED":
+        existing_state = effective_consent_state(existing)
+        if existing_state in {"PENDING", "SIGNED"}:
             return {
                 "consent_id": existing.public_id,
-                "status": "SIGNED",
+                "status": existing_state,
                 "document_version": existing.document_version,
             }
-        existing.revoked_at = None
-        existing.status = "PENDING"
-        existing.expires_at = expires_at
-        existing.share_grant_id = share.id
-        existing.created_by_user_id = current_user.id
-        db.commit()
-        return {
-            "consent_id": existing.public_id,
-            "status": effective_consent_state(existing),
-            "document_version": existing.document_version,
-        }
+        # REVOKED / EXPIRED requests remain immutable historical evidence.
+        # A fresh row below records the new issuance instead of resurrecting them.
 
     consent = PatientCompanionConsentRequest(
         employer_id=employer_id,
@@ -186,6 +178,15 @@ def revoke_patient_consent(
     row.status = "REVOKED"
     row.revoked_at = datetime.utcnow()
     db.commit()
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="PATIENT_COMPANION_CONSENT_REVOKED",
+        resource_type="Document",
+        resource_id=str(row.document_id),
+        details=f"consent_id={row.public_id}",
+    )
     return {"consent_id": row.public_id, "status": "REVOKED"}
 
 
