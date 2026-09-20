@@ -197,6 +197,15 @@ def test_note_trash_cancels_only_its_pending_installments_and_restore_is_exact(
     assert not any(alert["amount"] == 400.0 for alert in trashed["proactive_alerts"])
     assert trashed["pending_count"] == 0
 
+    # Défense pour bases historiques : même si une vieille échéance reste EN_ATTENTE,
+    # le Treasury Hub doit l'ignorer tant que l'Acte parent est en corbeille.
+    first.status = "EN_ATTENTE"
+    db.commit()
+    defensive = accounting_service.get_treasury_summary(db, dentiste.id)
+    assert not any(alert["amount"] == 400.0 for alert in defensive["proactive_alerts"])
+    first.status = "ANNULE"
+    db.commit()
+
     ArchiveService(db).restore_from_trash(doc.id)
     db.refresh(first)
     db.refresh(second)
