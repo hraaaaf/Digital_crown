@@ -22,6 +22,7 @@ if (!patient) throw new Error('G4 honoraires fixture patient missing');
 
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
+const captureTreasuryGuardBeforeOnly = process.env.G4_TREASURY_GUARD_BEFORE_ONLY === '1';
 
 async function seedAuth(page) {
   await page.addInitScript(({ access, refresh }) => {
@@ -306,6 +307,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     fullPage: false,
     animations: 'disabled',
   });
+  if (captureTreasuryGuardBeforeOnly) {
+    evidence.push({
+      viewport,
+      actions: [...actions, 'treasury-partial-guard-before'],
+      beforeOnly: true,
+      pageErrors,
+      http5xx,
+    });
+    await context.close();
+    continue;
+  }
   await page.getByRole('button', { name: 'Compris', exact: true }).click();
   await page.getByRole('button', { name: 'Réglé', exact: true }).click();
 
@@ -369,11 +381,17 @@ await browser.close();
 await api.dispose();
 
 const expectedActionGroups = 13;
-for (const row of evidence) {
-  if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
+if (!captureTreasuryGuardBeforeOnly) {
+  for (const row of evidence) {
+    if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
+  }
 }
 
-const summary = {
+const summary = captureTreasuryGuardBeforeOnly ? {
+  status: 'BEFORE_CAPTURED',
+  viewports: evidence.length,
+  evidence,
+} : {
   status: 'PASS',
   actionGroupsPerViewport: expectedActionGroups,
   totalActionGroupProofs: expectedActionGroups * evidence.length,
@@ -383,6 +401,7 @@ const summary = {
 fs.writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
 console.log('G4_HONORAIRES_ACTIONS ' + JSON.stringify({
   status: summary.status,
-  totalActionGroupProofs: summary.totalActionGroupProofs,
-  treasuryConfirmPersists: summary.treasuryConfirmPersists,
+  totalActionGroupProofs: summary.totalActionGroupProofs || 0,
+  treasuryConfirmPersists: summary.treasuryConfirmPersists ?? false,
+  viewports: summary.viewports || evidence.length,
 }));
