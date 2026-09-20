@@ -1,9 +1,9 @@
 # PC-04 — Consent Vault patient-facing — CLOSEOUT
 
-Status: CERTIFIED CANDIDATE
+Status: RECERTIFICATION REQUIRED AFTER DOUBLE/TRIPLE CHECK
 Branch: feature/patient-companion-pc04-consent-vault
 PR: #641
-Certified product HEAD before this closeout commit: 614256f33f33bec88ba96654ae028f9c131cb280
+Previously certified product HEAD: 614256f33f33bec88ba96654ae028f9c131cb280 (superseded for merge decision by double/triple-check corrections)
 Base: master@86fc61a572f303c812f1999c887e35574df0bb49
 Deployment: none
 
@@ -78,3 +78,26 @@ Met for product HEAD 614256f33f33bec88ba96654ae028f9c131cb280 with the exact-hea
 
 ## Merge rule
 This closeout commit itself must be recertified on its exact HEAD before PR #641 is marked ready and merged.
+
+
+## Double / triple check reopening — 2026-09-20
+The initial closeout was deliberately reopened after independent double and adversarial triple checks identified material findings.
+
+Canonical review evidence:
+- `docs/clinic/patient_companion/PC_04_DOUBLE_CHECK.md`
+- `docs/clinic/patient_companion/PC_04_TRIPLE_CHECK.md`
+
+Corrections now included:
+- document-type permission rechecked when issuing/revoking consent;
+- only real PDF bytes are eligible/served as Consent Vault documents;
+- revoked/expired consent requests are preserved and reissue creates a new historical row;
+- consent revoke produces a dedicated audit event;
+- malformed signatures stay inside the encrypted remote-domain ACK contract;
+- remote consent payload is exact and consent UUID is validated;
+- targeted regressions cover these findings.
+
+The prior exact-head green evidence remains historical proof for the earlier candidate only.
+It MUST NOT be used to authorize merge of the corrected branch.
+
+## Current merge gate
+Fresh exact-head certification is mandatory after all double/triple-check corrections and documentation are committed.
