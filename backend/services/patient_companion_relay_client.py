@@ -65,7 +65,7 @@ def _provision_mailbox(client: httpx.Client, relay_url: str, bootstrap_secret: s
     return _mailbox(response.json())
 
 
-def _revoke_mailbox(client: httpx.Client, relay_url: str, bootstrap_secret: str, mailbox_id: str) -> None:
+def _revoke_mailbox(client: httpx.Client, relay_url: str, bootstrap_secret: str, mailbox_id: str) -> bool:
     try:
         response = client.delete(
             f"{relay_url}/v1/mailboxes/{mailbox_id}",
@@ -73,9 +73,10 @@ def _revoke_mailbox(client: httpx.Client, relay_url: str, bootstrap_secret: str,
         )
         if response.status_code not in {204, 404}:
             response.raise_for_status()
+        return True
     except Exception:
-        # Best-effort cleanup. The caller still fails closed and never returns capabilities.
-        pass
+        # Caller decides whether cleanup is best-effort or must be retried.
+        return False
 
 
 def provision_relay_binding(
@@ -157,14 +158,17 @@ def deprovision_relay_mailboxes(
     bootstrap_secret: str,
     mailbox_ids: tuple[str, ...],
     client: httpx.Client | None = None,
-) -> None:
+) -> bool:
     relay_url = _normalized_https_url(relay_url)
     owned_client = client is None
     client = client or httpx.Client(timeout=10.0)
     try:
-        for mailbox_id in mailbox_ids:
-            if mailbox_id:
-                _revoke_mailbox(client, relay_url, bootstrap_secret, mailbox_id)
+        results = [
+            _revoke_mailbox(client, relay_url, bootstrap_secret, mailbox_id)
+            for mailbox_id in mailbox_ids
+            if mailbox_id
+        ]
+        return bool(results) and all(results)
     finally:
         if owned_client:
             client.close()
