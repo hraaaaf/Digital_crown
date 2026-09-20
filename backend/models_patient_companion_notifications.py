@@ -22,17 +22,14 @@ class PatientCompanionNotificationPreference(Base):
     access_id: Mapped[int] = mapped_column(
         ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     employer_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     patient_id: Mapped[int] = mapped_column(
         ForeignKey("patients.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     appointments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     documents: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -57,27 +54,27 @@ class PatientCompanionNotificationReceipt(Base):
     __tablename__ = "patient_companion_notification_receipts"
     __table_args__ = (
         UniqueConstraint("access_id", "source_key", name="uq_pc_notification_receipt_access_source"),
+        Index("ix_pc_notification_receipt_access_id", "access_id"),
         Index("ix_pc_notification_receipt_tenant_patient", "employer_id", "patient_id"),
+        Index("ix_pc_notification_receipt_read_at", "read_at"),
+        Index("ix_pc_notification_receipt_snoozed_until", "snoozed_until"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     access_id: Mapped[int] = mapped_column(
         ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     employer_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     patient_id: Mapped[int] = mapped_column(
         ForeignKey("patients.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     source_key: Mapped[str] = mapped_column(String(180), nullable=False)
-    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     snoozed_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
