@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend import models
-from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionAppointmentRef
+from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionAppointmentRef, PatientCompanionAgendaSlot
 from backend.services.agenda_availability import validate_appointment_availability
 from backend.services.agenda_resource_conflicts import assert_resource_available
 from backend.services.patient_companion_remote_worker import RemoteDomainResult
@@ -102,13 +102,64 @@ def _validate_exact_slot(db: Session, access: PatientCompanionAccess, *, start: 
     return None
 
 
+def _slot_for_ref(db: Session, access: PatientCompanionAccess, public_id: str) -> PatientCompanionAgendaSlot | None:
+    try:
+        uuid.UUID(str(public_id))
+    except (TypeError, ValueError):
+        return None
+    now = datetime.utcnow()
+    return db.query(PatientCompanionAgendaSlot).filter(
+        PatientCompanionAgendaSlot.public_id == str(public_id),
+        PatientCompanionAgendaSlot.employer_id == access.employer_id,
+        PatientCompanionAgendaSlot.revoked_at.is_(None),
+        PatientCompanionAgendaSlot.expires_at > now,
+    ).first()
+
+
+def _slot_error(db: Session, access: PatientCompanionAccess, slot: PatientCompanionAgendaSlot, *, exclude_id: int | None = None) -> str | None:
+    return _validate_exact_slot(
+        db,
+        access,
+        start=slot.datetime_start,
+        duration=slot.duration_minutes,
+        practitioner_id=slot.practitioner_id,
+        resource_id=slot.resource_id,
+        exclude_id=exclude_id,
+    )
+
+
 def create_appointment(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
-    # v1 accepts only a cabinet-issued opaque slot description; numeric internal IDs are never accepted from patient payload.
-    allowed = {"slot_ref", "datetime_start", "duration_minutes"}
-    if set(payload) - allowed or not isinstance(payload.get("slot_ref"), str):
+    if set(payload) != {"slot_ref"}:
         return _reject("INVALID_REQUEST")
-    # Slot catalogue/mapping is the next slice; fail closed until a cabinet-issued slot resolver exists.
-    return _reject("SLOT_REFERENCE_REQUIRED")
+    slot = _slot_for_ref(db, access, payload.get("slot_ref"))
+    if slot is None:
+        return _reject("SLOT_NOT_FOUND")
+    conflict = _slot_error(db, access, slot)
+    if conflict:
+        return _reject(conflict)
+    appointment = models.Appointment(
+        patient_id=access.patient_id,
+        datetime_start=slot.datetime_start,
+        duration_minutes=slot.duration_minutes,
+        status=models.AppointmentStatus.CONFIRME,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        employer_id=access.employer_id,
+        praticien_id=slot.practitioner_id,
+        resource_id=slot.resource_id,
+        source="patient_companion",
+    )
+    db.add(appointment)
+    db.flush()
+    ref = _opaque_ref(db, access, appointment)
+    return RemoteDomainResult(
+        status="ACCEPTED",
+        response={
+            "appointment_ref": ref.public_id,
+            "state": "confirmed",
+            "datetime_start": appointment.datetime_start.isoformat(),
+            "duration_minutes": appointment.duration_minutes,
+        },
+    )
 
 
 def reschedule_appointment(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
@@ -117,7 +168,29 @@ def reschedule_appointment(db: Session, access: PatientCompanionAccess, payload:
     appointment = _appointment_for_ref(db, access, payload.get("appointment_ref"))
     if appointment is None:
         return _reject("APPOINTMENT_NOT_FOUND")
-    return _reject("SLOT_REFERENCE_REQUIRED")
+    if appointment.status in ACTIVE_CANCEL_BLOCKERS:
+        return _reject("APPOINTMENT_NOT_RESCHEDULABLE")
+    slot = _slot_for_ref(db, access, payload.get("slot_ref"))
+    if slot is None:
+        return _reject("SLOT_NOT_FOUND")
+    conflict = _slot_error(db, access, slot, exclude_id=appointment.id)
+    if conflict:
+        return _reject(conflict)
+    appointment.datetime_start = slot.datetime_start
+    appointment.duration_minutes = slot.duration_minutes
+    appointment.praticien_id = slot.practitioner_id
+    appointment.resource_id = slot.resource_id
+    appointment.scheduling_type = models.SchedulingType.EXACT_TIME
+    appointment.status = models.AppointmentStatus.CONFIRME
+    return RemoteDomainResult(
+        status="ACCEPTED",
+        response={
+            "appointment_ref": payload["appointment_ref"],
+            "state": "confirmed",
+            "datetime_start": appointment.datetime_start.isoformat(),
+            "duration_minutes": appointment.duration_minutes,
+        },
+    )
 
 
 def cancel_appointment(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
