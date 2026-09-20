@@ -18,7 +18,7 @@ class PatientCompanionNotificationPreference(Base):
         Index("ix_pc_notification_preferences_tenant_patient", "employer_id", "patient_id"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     access_id: Mapped[int] = mapped_column(
         ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
         nullable=False,
@@ -60,7 +60,7 @@ class PatientCompanionNotificationReceipt(Base):
         Index("ix_pc_notification_receipt_snoozed_until", "snoozed_until"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     access_id: Mapped[int] = mapped_column(
         ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
         nullable=False,
@@ -75,7 +75,7 @@ class PatientCompanionNotificationReceipt(Base):
     )
     source_key: Mapped[str] = mapped_column(String(180), nullable=False)
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    snoozed_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    snoozed_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
