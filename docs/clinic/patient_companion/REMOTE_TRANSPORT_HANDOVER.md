@@ -12,7 +12,7 @@ Repo: hraaaaf/Digital_crown
 Branch: feature/patient-companion-e2e-relay-gate
 PR: #638 — draft, mergeable at last check
 Base: master
-Code/test HEAD before this documentation checkpoint: 89bb026a341c95a2e2c334eeabd9533a1cae75fb
+Code/test HEAD before final documentation freeze: eeec66468b95d49c2fe01dc135663ceed8695b31
 
 No merge. No Vercel deployment.
 
@@ -34,6 +34,8 @@ No merge. No Vercel deployment.
 - persistent replay/idempotency receipt ledger;
 - cabinet remote worker: decrypt -> verify -> replay/idempotency -> allow-listed handler -> transactional commit/rollback -> signed+encrypted ACK;
 - access revoke also revokes active remote keyset;
+- concurrent first-pair cabinet-key creation is savepoint/unique-index race-safe;
+- ACK uses bounded `command.result` and carries the original operation inside ciphertext;
 - browser erase deletes the full Patient Companion IndexedDB, including remote private CryptoKeys;
 - dedicated Linux JOSE interoperability + Windows DPAPI workflow;
 - stale competing remote-key route/test removed.
