@@ -131,6 +131,10 @@ async function resolveApplication(): Promise<React.ReactNode> {
   }
 
   if (isPreviewRequest) {
+    if (previewPath === '/mobile/g3-cert') {
+      const { MobileG3BrowserCertHarness } = await import('./features/mobile/Dashboard/MobileG3BrowserCertHarness.tsx')
+      return <BrowserRouter><MobileG3BrowserCertHarness /></BrowserRouter>
+    }
     if (previewPath === '/mobile/demo') {
       const { MobilePreviewDashboard } = await import('./features/mobile/Dashboard/MobilePreviewDashboard.tsx')
       return <BrowserRouter><MobilePreviewDashboard /></BrowserRouter>
