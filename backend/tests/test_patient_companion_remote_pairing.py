@@ -106,3 +106,39 @@ def test_qr_pairing_rolls_back_when_os_key_protection_is_unavailable(client, db,
     assert db.query(PatientCompanionRemoteKeyset).count() == 0
     db.refresh(invitation)
     assert invitation.consumed_at is None
+
+
+def test_access_revocation_revokes_remote_keyset_in_same_cabinet_flow(
+    client, db, dentiste, auth_headers, monkeypatch
+):
+    from backend.routers import patient_companion_pairing
+
+    monkeypatch.setattr(patient_companion_pairing, "check_rate_limit", lambda *args, **kwargs: None)
+
+    def enroll_with_test_protector(*args, **kwargs):
+        return real_enroll(
+            *args,
+            **kwargs,
+            protect=lambda clear: b"test-protected:" + clear,
+        )
+
+    monkeypatch.setattr(patient_companion_pairing, "enroll_remote_keyset", enroll_with_test_protector)
+    raw, _invitation_row = _invitation(db, dentiste, "0003")
+
+    paired = client.post(
+        "/api/patient-companion/pair",
+        json={"token": raw, "remote_keys": _remote_keys()},
+    )
+    assert paired.status_code == 201, paired.text
+    access_id = paired.json()["context"]["access_id"]
+
+    revoked = client.post(
+        f"/api/patient-companion/admin/accesses/{access_id}/revoke",
+        headers=auth_headers,
+    )
+    assert revoked.status_code == 200, revoked.text
+
+    keyset = db.query(PatientCompanionRemoteKeyset).one()
+    db.refresh(keyset)
+    assert keyset.status == "REVOKED"
+    assert keyset.revoked_at is not None
