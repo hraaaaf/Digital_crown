@@ -54,6 +54,8 @@ function renderModal(opts: Record<string, any> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   elite.suggestedAppointment = null;
+  elite.fetchPatientIntelligence.mockResolvedValue(undefined);
+  elite.fetchSuggestedAppointment.mockResolvedValue(undefined);
   vi.mocked(api.get).mockImplementation(async (url: string, config?: any) => {
     if (url === '/patients/') {
       return { data: [{ id: 7, nom: 'BENALI', prenom: 'Sara', numero_dossier: 'P-7' }] } as never;
