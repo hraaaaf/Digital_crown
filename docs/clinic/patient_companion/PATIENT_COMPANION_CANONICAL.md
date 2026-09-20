@@ -209,7 +209,21 @@ Old exact-head `6dd85ae...` failures were diagnosed as:
 - frontend TypeScript JsonWebKey metadata typing;
 - stale Alembic runtime head.
 
-Those causes are remediated. Final same-HEAD certification is still pending. No merge and no deployment are claimed.
+Those causes are remediated. Additional hardening before final freeze:
+- concurrent first-pair cabinet key creation is guarded by the DB unique index plus savepoint/reuse;
+- remote ACK operation is the fixed bounded value `command.result`, with the original request operation retained inside the encrypted payload;
+- stale competing remote-key route/test artifacts were removed;
+- access revocation now revokes the active remote keyset.
+
+Final same-HEAD certification is still pending. No merge and no deployment are claimed.
 
 Canonical closeout sequence:
 exact-head Remote Transport + CI + Alembic + triggered regression gates -> adversarial VERIFIED -> Notion/handover -> ready/merge #638 -> post-merge -> PC-02.
+
+
+## Frozen certification candidate — 2026-09-20
+
+Code/test/docs candidate before exact-head certification:
+`ca30bd599ed9a74a3c5f4130a1d1ad3c2343c755`
+
+This canonical update supersedes that SHA as the final docs-inclusive candidate. Read the branch HEAD after this commit and use only that exact SHA for final certification evidence.
