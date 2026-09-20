@@ -435,3 +435,121 @@ class PatientCompanionPractitionerRef(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionQuestionnaireDefinition(Base):
+    """Cabinet-scoped immutable questionnaire version exposed only by assignment."""
+
+    __tablename__ = "patient_companion_questionnaire_definitions"
+    __table_args__ = (
+        UniqueConstraint(
+            "employer_id", "lineage_key", "version",
+            name="uq_pc_questionnaire_definition_lineage_version",
+        ),
+        Index("ix_pc_questionnaire_definition_tenant_status", "employer_id", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    lineage_key: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    questions_json: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    retired_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class PatientCompanionQuestionnaireAssignment(Base):
+    """Explicit patient assignment for one immutable questionnaire version."""
+
+    __tablename__ = "patient_companion_questionnaire_assignments"
+    __table_args__ = (
+        UniqueConstraint(
+            "employer_id", "patient_id", "questionnaire_id",
+            name="uq_pc_questionnaire_assignment_patient_version",
+        ),
+        Index(
+            "ix_pc_questionnaire_assignment_tenant_patient_status",
+            "employer_id", "patient_id", "status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    questionnaire_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_questionnaire_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    )
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="ASSIGNED", index=True)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionQuestionnaireSubmission(Base):
+    """Immutable patient-reported answers pending explicit cabinet review."""
+
+    __tablename__ = "patient_companion_questionnaire_submissions"
+    __table_args__ = (
+        UniqueConstraint("assignment_id", name="uq_pc_questionnaire_submission_assignment"),
+        Index(
+            "ix_pc_questionnaire_submission_tenant_status",
+            "employer_id", "status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    assignment_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_questionnaire_assignments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    questionnaire_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_questionnaire_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    answers_json: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING_REVIEW", index=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reviewed_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    )
+    reviewer_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
