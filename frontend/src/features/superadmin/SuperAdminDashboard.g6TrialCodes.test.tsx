@@ -93,11 +93,11 @@ describe('SuperAdmin trial-code G6 matrix', () => {
 
   it('copies an existing activation link and reports clipboard failure truthfully', async () => {
     await renderDashboard();
-    fireEvent.click(screen.getByRole('button', { name: 'Copier Le Lien', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Copier Le Lien$/i }));
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(trial.activation_url));
 
     vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('clipboard denied'));
-    fireEvent.click(screen.getByRole('button', { name: /Copier Le Lien/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Copier Le Lien$/i }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Impossible de copier le lien.'));
   });
 
