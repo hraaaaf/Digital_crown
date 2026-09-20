@@ -283,6 +283,30 @@ def cancel_appointment(db: Session, access: PatientCompanionAccess, payload: dic
     )
 
 
+def list_appointments(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
+    if payload:
+        return _reject("INVALID_REQUEST")
+    appointments = db.query(models.Appointment).filter(
+        models.Appointment.employer_id == access.employer_id,
+        models.Appointment.patient_id == access.patient_id,
+        models.Appointment.deleted_at.is_(None),
+        models.Appointment.status != models.AppointmentStatus.ANNULE,
+    ).order_by(models.Appointment.datetime_start.asc()).all()
+
+    items = []
+    for appointment in appointments:
+        ref = _opaque_ref(db, access, appointment)
+        items.append({
+            "appointment_ref": ref.public_id,
+            "datetime_start": appointment.datetime_start.isoformat(),
+            "duration_minutes": appointment.duration_minutes,
+            "motif": getattr(appointment, "motif", None) or "Rendez-vous",
+            "status": getattr(appointment.status, "value", appointment.status),
+            "scheduling_type": getattr(appointment.scheduling_type, "value", appointment.scheduling_type),
+        })
+    return RemoteDomainResult(status="ACCEPTED", response={"items": items})
+
+
 def list_practitioners(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
     if payload:
         return _reject("INVALID_REQUEST")
@@ -352,6 +376,7 @@ PC02_REMOTE_HANDLERS = {
     "agenda.create": create_appointment,
     "agenda.reschedule": reschedule_appointment,
     "agenda.cancel": cancel_appointment,
+    "agenda.list": list_appointments,
     "agenda.practitioners": list_practitioners,
     "agenda.slots": list_slots,
 }
