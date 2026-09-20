@@ -143,7 +143,7 @@ async function capture(browserName, browser, phase, viewport) {
   await page.locator('[data-pc02-book]').click();
   await page.locator('[data-pc02-booking-panel]').waitFor();
   await page.getByRole('button', { name: 'Voir les créneaux' }).click();
-  await page.getByText('10:00', { exact: true }).waitFor();
+  await page.getByRole('button', { name: '10:00', exact: false }).waitFor();
   const controls = await page.locator('[data-pc02-booking-panel] button, [data-pc02-booking-panel] select, [data-pc02-booking-panel] input').evaluateAll(nodes =>
     nodes.map(node => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height }))
   );
