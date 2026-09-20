@@ -102,6 +102,52 @@ def _validate_exact_slot(db: Session, access: PatientCompanionAccess, *, start: 
     return None
 
 
+
+def issue_slots(
+    db: Session,
+    *,
+    access: PatientCompanionAccess,
+    starts: list[datetime],
+    duration_minutes: int,
+    practitioner_id: int,
+    resource_id: int | None = None,
+    ttl_minutes: int = 15,
+) -> list[dict]:
+    """Create short-lived opaque options only after cabinet-side validation."""
+    if duration_minutes <= 0 or ttl_minutes <= 0 or ttl_minutes > 60:
+        raise ValueError("invalid slot issue parameters")
+    issued: list[dict] = []
+    expires_at = datetime.utcnow() + timedelta(minutes=ttl_minutes)
+    for start in starts:
+        error = _validate_exact_slot(
+            db,
+            access,
+            start=start,
+            duration=duration_minutes,
+            practitioner_id=practitioner_id,
+            resource_id=resource_id,
+        )
+        if error:
+            continue
+        row = PatientCompanionAgendaSlot(
+            public_id=str(uuid.uuid4()),
+            employer_id=access.employer_id,
+            practitioner_id=practitioner_id,
+            resource_id=resource_id,
+            datetime_start=start,
+            duration_minutes=duration_minutes,
+            expires_at=expires_at,
+        )
+        db.add(row)
+        db.flush()
+        issued.append({
+            "slot_ref": row.public_id,
+            "datetime_start": row.datetime_start.isoformat(),
+            "duration_minutes": row.duration_minutes,
+            "expires_at": row.expires_at.isoformat(),
+        })
+    return issued
+
 def _slot_for_ref(db: Session, access: PatientCompanionAccess, public_id: str) -> PatientCompanionAgendaSlot | None:
     try:
         uuid.UUID(str(public_id))
