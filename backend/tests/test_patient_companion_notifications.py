@@ -439,3 +439,25 @@ def test_pc05_revoked_access_fails_closed_before_projection(db, dentiste):
     with pytest.raises(HTTPException) as exc:
         _active_access(db, identity, access.public_id)
     assert exc.value.status_code in {404, 410}
+
+
+def test_pc05_signed_consent_does_not_resurface_same_share_as_generic_document(db, dentiste, tmp_path):
+    patient, _identity, access = _patient_access(db, dentiste, "SIGNED")
+    document, share = _document_share(db, dentiste, patient, tmp_path, "Consentement déjà signé")
+    consent = PatientCompanionConsentRequest(
+        employer_id=dentiste.id,
+        patient_id=patient.id,
+        document_id=document.id,
+        share_grant_id=share.id,
+        document_group_id=str(document.document_group_id),
+        document_version=1,
+        document_file_hash=str(document.file_hash),
+        document_file_size=int(document.file_size),
+        created_by_user_id=dentiste.id,
+        status="SIGNED",
+    )
+    db.add(consent)
+    db.commit()
+
+    projected = project_notifications(db, access)
+    assert projected["items"] == []
