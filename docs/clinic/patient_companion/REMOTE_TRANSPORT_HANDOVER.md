@@ -12,7 +12,7 @@ Repo: hraaaaf/Digital_crown
 Branch: feature/patient-companion-e2e-relay-gate
 PR: #638 — draft, mergeable at last check
 Base: master
-Code/test HEAD before final documentation freeze: eeec66468b95d49c2fe01dc135663ceed8695b31
+Verified code/test candidate: `6843f4ccd0ca40afe372a96ba7bfee92598ef098`
 
 No merge. No Vercel deployment.
 
@@ -73,14 +73,11 @@ Final VERIFIED requires the same exact HEAD to have:
 
 ## Next exact
 
-1. Read exact-head runs after the documentation checkpoint.
-2. Diagnose/correct any red job.
-3. If green, record exact run IDs in adversarial review + canonical + Notion.
-4. Mark PR ready only after final review.
-5. Merge #638 with expected-head guard.
-6. Verify post-merge master/workflows.
-7. Start PC-02 only after gate closeout.
+1. Certify the final docs-inclusive exact HEAD.
+2. If green, mark PR #638 ready and merge with expected-head guard.
+3. Verify post-merge master/workflows.
+4. Start PC-02 Self-Service Agenda.
 
 ## Remaining sequence
 
-exact-head CI -> fix red if any -> adversarial closeout -> canonical/Notion -> ready/merge #638 -> post-merge -> PC-02 Self-Service Agenda.
+final docs-inclusive exact-head CI -> ready/merge #638 -> post-merge -> PC-02 Self-Service Agenda.
