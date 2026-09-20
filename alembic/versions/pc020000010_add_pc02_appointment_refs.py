@@ -15,6 +15,46 @@ depends_on = None
 
 def upgrade():
     op.create_table(
+        "patient_companion_relay_bindings",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("access_id", sa.Integer(), nullable=False),
+        sa.Column("relay_url", sa.Text(), nullable=False),
+        sa.Column("cabinet_inbox_id", sa.String(length=36), nullable=False),
+        sa.Column("patient_inbox_id", sa.String(length=36), nullable=False),
+        sa.Column("protected_cabinet_read_cap_b64", sa.Text(), nullable=False),
+        sa.Column("protected_patient_write_cap_b64", sa.Text(), nullable=False),
+        sa.Column("status", sa.String(length=16), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["access_id"], ["patient_companion_accesses.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("access_id", name="uq_pc_relay_binding_access"),
+        sa.UniqueConstraint("cabinet_inbox_id"),
+        sa.UniqueConstraint("patient_inbox_id"),
+    )
+    op.create_index("ix_pc_relay_binding_access_id", "patient_companion_relay_bindings", ["access_id"], unique=False)
+    op.create_index("ix_pc_relay_binding_status", "patient_companion_relay_bindings", ["status"], unique=False)
+    op.create_index("ix_pc_relay_binding_revoked_at", "patient_companion_relay_bindings", ["revoked_at"], unique=False)
+
+    op.create_table(
+        "patient_companion_relay_outbox",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("binding_id", sa.Integer(), nullable=False),
+        sa.Column("source_envelope_id", sa.String(length=36), nullable=False),
+        sa.Column("ack_envelope_id", sa.String(length=36), nullable=False),
+        sa.Column("blob", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("delivered_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["binding_id"], ["patient_companion_relay_bindings.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("binding_id", "source_envelope_id", name="uq_pc_relay_outbox_binding_source"),
+        sa.UniqueConstraint("ack_envelope_id", name="uq_pc_relay_outbox_ack_envelope"),
+    )
+    op.create_index("ix_pc_relay_outbox_binding_id", "patient_companion_relay_outbox", ["binding_id"], unique=False)
+    op.create_index("ix_pc_relay_outbox_delivered_at", "patient_companion_relay_outbox", ["delivered_at"], unique=False)
+    op.create_index("ix_pc_relay_outbox_binding_delivery", "patient_companion_relay_outbox", ["binding_id", "delivered_at"], unique=False)
+
+    op.create_table(
         "patient_companion_appointment_refs",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("public_id", sa.String(length=36), nullable=False),
@@ -80,6 +120,14 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_index("ix_pc_relay_outbox_binding_delivery", table_name="patient_companion_relay_outbox")
+    op.drop_index("ix_pc_relay_outbox_delivered_at", table_name="patient_companion_relay_outbox")
+    op.drop_index("ix_pc_relay_outbox_binding_id", table_name="patient_companion_relay_outbox")
+    op.drop_table("patient_companion_relay_outbox")
+    op.drop_index("ix_pc_relay_binding_revoked_at", table_name="patient_companion_relay_bindings")
+    op.drop_index("ix_pc_relay_binding_status", table_name="patient_companion_relay_bindings")
+    op.drop_index("ix_pc_relay_binding_access_id", table_name="patient_companion_relay_bindings")
+    op.drop_table("patient_companion_relay_bindings")
     op.drop_index("ix_pc_practitioner_ref_revoked_at", table_name="patient_companion_practitioner_refs")
     op.drop_index("ix_pc_practitioner_ref_practitioner_id", table_name="patient_companion_practitioner_refs")
     op.drop_index("ix_pc_practitioner_ref_employer_id", table_name="patient_companion_practitioner_refs")
