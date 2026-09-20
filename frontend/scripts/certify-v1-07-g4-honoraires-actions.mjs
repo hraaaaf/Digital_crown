@@ -301,6 +301,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Attente', exact: true }).click();
   await page.getByRole('button', { name: 'Partiel', exact: true }).click();
   await page.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
+  await page.screenshot({
+    path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-treasury-partial-guard-before.png'),
+    fullPage: false,
+    animations: 'disabled',
+  });
   await page.getByRole('button', { name: 'Compris', exact: true }).click();
   await page.getByRole('button', { name: 'Réglé', exact: true }).click();
 
