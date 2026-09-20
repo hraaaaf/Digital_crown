@@ -82,7 +82,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const quickGroups = page.getByRole('button').filter({ hasText: /^Q[1-8]$/ });
   const quickGroupNames = (await quickGroups.allTextContents()).map(x => x.trim()).filter(Boolean);
   for (const group of quickGroupNames) {
-    await page.getByRole('button', { name: group, exact: true }).click();
+    const groupButton = page.getByRole('button', { name: group, exact: true });
+    await groupButton.focus();
+    await page.keyboard.press('Enter');
     await page.getByText(/dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
   }
@@ -120,11 +122,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     { button: /^Surfaçage /, result: /^Surfaçage / },
     { button: 'Attelle de contention', result: 'Attelle de contention' },
   ]) {
-    await page.getByRole('button', { name: 'Q1', exact: true }).click();
+    const q1 = page.getByRole('button', { name: 'Q1', exact: true });
+    await q1.focus();
+    await page.keyboard.press('Enter');
     await page.getByRole('button', { name: act.button, exact: typeof act.button === 'string' }).click();
     await page.getByText(act.result, { exact: typeof act.result === 'string' }).last().waitFor({ state: 'visible', timeout: 5000 });
   }
-  await page.getByRole('button', { name: 'Q1', exact: true }).click();
+  const q1Custom = page.getByRole('button', { name: 'Q1', exact: true });
+  await q1Custom.focus();
+  await page.keyboard.press('Enter');
   await page.getByPlaceholder('Ou saisir un autre acte...').fill('Acte groupé G4');
   await page.getByPlaceholder('Prix').fill('1200');
   await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
