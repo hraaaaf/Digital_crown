@@ -229,11 +229,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('targeted-tooth-treatment');
 
   const dent11Title = page.getByText('Dent 11', { exact: true });
-  if (await dent11Title.isVisible().catch(() => false)) {
+  await dent11Title.waitFor({ state: 'hidden', timeout: 5000 }).catch(async () => {
     const targetedSelector = dent11Title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-    await targetedSelector.locator('button').first().click();
+    const closeButton = targetedSelector.locator('button').first();
+    await closeButton.waitFor({ state: 'visible', timeout: 5000 });
+    await closeButton.click({ force: true });
     await dent11Title.waitFor({ state: 'hidden', timeout: 10000 });
-  }
+  });
 
   await page.getByRole('button', { name: /Soins Généraux/i }).click();
   for (const act of [
