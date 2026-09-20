@@ -324,8 +324,13 @@ export const PatientCompanionApp = () => {
         };
         accepted ||= result.status === 'ACCEPTED';
         updated.push(nextRequest);
-      } catch {
-        updated.push({ ...request, state: 'local_queued', updatedAt: new Date().toISOString() });
+      } catch (error) {
+        const remotePending = Boolean((error as { remotePending?: boolean })?.remotePending);
+        updated.push({
+          ...request,
+          state: remotePending ? 'remote_pending' : 'local_queued',
+          updatedAt: new Date().toISOString(),
+        });
       }
     }
     const next = await PatientCompanionStorage.saveAgendaRequests(pairing.context.access_id, updated);
@@ -473,14 +478,17 @@ export const PatientCompanionApp = () => {
       } else {
         setAgendaMessage(`Demande refusée par le cabinet · ${String(result.result.code || 'raison non précisée')}.`);
       }
-    } catch {
+    } catch (error) {
+      const remotePending = Boolean((error as { remotePending?: boolean })?.remotePending);
       const queued: PatientAgendaRequestState = {
         ...request,
-        state: 'local_queued',
+        state: remotePending ? 'remote_pending' : 'local_queued',
         updatedAt: new Date().toISOString(),
       };
       await persistAgendaRequest(queued);
-      setAgendaMessage('Cabinet non joignable · demande conservée localement, non confirmée.');
+      setAgendaMessage(remotePending
+        ? 'Demande transmise · réponse du cabinet encore en attente, non confirmée.'
+        : 'Cabinet non joignable · demande conservée localement, non confirmée.');
     }
   };
 
