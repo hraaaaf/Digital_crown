@@ -74,6 +74,23 @@ with database.SessionLocal() as db:
         db.commit()
         db.refresh(user)
 
+    superadmin_email = os.environ.get("T2_SUPERADMIN_EMAIL", "").strip().lower()
+    if superadmin_email:
+        superadmin = db.query(models.User).filter(models.User.email == superadmin_email).first()
+        if not superadmin:
+            superadmin = models.User(
+                email=superadmin_email,
+                hashed_password=get_password_hash(runtime_password),
+                role=models.UserRole.ADMIN,
+                nom_complet="T2 SuperAdmin",
+                is_active=True,
+                is_licensed=True,
+                approval_status=models.ApprovalStatus.APPROVED.value,
+            )
+            db.add(superadmin)
+            db.commit()
+            db.refresh(superadmin)
+
     if not db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first():
         db.add(models.CabinetConfig(
             owner_id=user.id,
