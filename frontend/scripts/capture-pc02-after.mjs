@@ -135,7 +135,7 @@ async function capture(browserName, browser, phase, viewport) {
 
   if (true) {
     await page.locator('[data-pc01-sync]').click();
-    await page.getByText('Contrôle orthodontique', { exact: true }).waitFor();
+    await page.getByText('Contrôle orthodontique · 30 min', { exact: true }).waitFor();
     await page.getByText('Ordonnance septembre', { exact: true }).waitFor();
   }
 
