@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, Index, LargeBinary, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models_base import Base
@@ -553,3 +553,80 @@ class PatientCompanionQuestionnaireSubmission(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
     )
     reviewer_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class PatientCompanionConsentRequest(Base):
+    """Cabinet-issued request to acknowledge/sign one exact shared document version."""
+
+    __tablename__ = "patient_companion_consent_requests"
+    __table_args__ = (
+        Index(
+            "ix_pc_consent_request_tenant_patient_status",
+            "employer_id", "patient_id", "status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("document_archives.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    share_grant_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_share_grants.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    document_group_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    document_version: Mapped[int] = mapped_column(nullable=False)
+    document_file_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    document_file_size: Mapped[int] = mapped_column(nullable=False)
+    created_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionConsentEvidence(Base):
+    """Detached patient-signature evidence bound to one exact consent request/document hash."""
+
+    __tablename__ = "patient_companion_consent_evidence"
+    __table_args__ = (
+        UniqueConstraint("consent_request_id", name="uq_pc_consent_evidence_request"),
+        Index("ix_pc_consent_evidence_tenant_signed", "employer_id", "signed_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    consent_request_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_consent_requests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    signature_png: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    signature_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    signature_size: Mapped[int] = mapped_column(nullable=False)
+    signed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

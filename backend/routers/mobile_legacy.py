@@ -833,61 +833,14 @@ _MOBILE_SIGNATURE_PREFIX = "data:image/png;base64,"
 
 
 def _validated_mobile_signature_png(signature_base64: str) -> bytes:
-    from PIL import Image, UnidentifiedImageError
+    from backend.services.patient_signature_png import validate_patient_signature_png
 
-    if not isinstance(signature_base64, str) or not signature_base64.startswith(_MOBILE_SIGNATURE_PREFIX):
-        raise HTTPException(status_code=422, detail="Signature PNG invalide")
-
-    encoded = signature_base64[len(_MOBILE_SIGNATURE_PREFIX):].strip()
-    if not encoded:
-        raise HTTPException(status_code=422, detail="Signature vide")
-
-    encoded_limit = ((_MOBILE_SIGNATURE_MAX_BYTES + 2) // 3) * 4 + 32
-    if len(encoded) > encoded_limit:
-        raise HTTPException(status_code=413, detail="Signature trop volumineuse")
-
-    try:
-        raw = base64.b64decode(encoded, validate=True)
-    except (binascii.Error, ValueError):
-        raise HTTPException(status_code=422, detail="Signature invalide")
-
-    if not raw:
-        raise HTTPException(status_code=422, detail="Signature vide")
-    if len(raw) > _MOBILE_SIGNATURE_MAX_BYTES:
-        raise HTTPException(status_code=413, detail="Signature trop volumineuse")
-
-    try:
-        with Image.open(io.BytesIO(raw)) as probe:
-            if probe.format != "PNG":
-                raise HTTPException(status_code=422, detail="Signature PNG invalide")
-            width, height = probe.size
-            if width < 32 or height < 32:
-                raise HTTPException(status_code=422, detail="Dimensions de signature invalides")
-            if width * height > _MOBILE_SIGNATURE_MAX_PIXELS:
-                raise HTTPException(status_code=413, detail="Signature trop grande")
-            probe.load()
-            rgba = probe.convert("RGBA")
-    except HTTPException:
-        raise
-    except (UnidentifiedImageError, OSError, ValueError):
-        raise HTTPException(status_code=422, detail="Image de signature invalide")
-
-    ink_pixels = 0
-    for red, green, blue, alpha in rgba.getdata():
-        if alpha >= 16 and (red < 245 or green < 245 or blue < 245):
-            ink_pixels += 1
-            if ink_pixels >= _MOBILE_SIGNATURE_MIN_INK_PIXELS:
-                break
-    if ink_pixels < _MOBILE_SIGNATURE_MIN_INK_PIXELS:
-        raise HTTPException(status_code=422, detail="Signature vide")
-
-    output = io.BytesIO()
-    rgba.save(output, format="PNG", optimize=True)
-    normalized = output.getvalue()
-    if len(normalized) > _MOBILE_SIGNATURE_MAX_BYTES:
-        raise HTTPException(status_code=413, detail="Signature trop volumineuse")
-    return normalized
-
+    return validate_patient_signature_png(
+        signature_base64,
+        max_bytes=_MOBILE_SIGNATURE_MAX_BYTES,
+        max_pixels=_MOBILE_SIGNATURE_MAX_PIXELS,
+        min_ink_pixels=_MOBILE_SIGNATURE_MIN_INK_PIXELS,
+    )
 
 def background_regenerate_pdf(document_id: int, pt_id: int, cdata: dict, employer_id: int, old_file_path: str):
     from backend.database import SessionLocal

@@ -1,22 +1,20 @@
-name: PC-03 BEFORE Visual Evidence
+name: PC-04 BEFORE Visual Evidence
 
 on:
   pull_request:
     branches: [master]
     paths:
-      - .github/workflows/pc03-before-visual.yml
-      - frontend/scripts/capture-pc03-before.mjs
-      - frontend/src/features/patient-companion/PatientCompanionQuestionnaires.tsx
-      - frontend/src/features/patient-companion/PatientCompanionQuestionnaires.test.tsx
-      - docs/clinic/patient_companion/PC_03_*.md
+      - .github/workflows/pc04-before-visual.yml
+      - frontend/scripts/capture-pc04-before.mjs
+      - frontend/src/features/patient-companion/**
+      - docs/clinic/patient_companion/**
 
 concurrency:
-  group: pc03-before-${{ github.ref }}
+  group: pc04-before-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   before:
-    if: startsWith(github.head_ref, 'feature/patient-companion-pc03-')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -33,35 +31,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git worktree add /tmp/pc03-before "${{ github.event.pull_request.base.sha }}"
-          cd /tmp/pc03-before/frontend
+          git worktree add /tmp/pc04-before "${{ github.event.pull_request.base.sha }}"
+          cd /tmp/pc04-before/frontend
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium webkit
-          npm run dev -- --host 127.0.0.1 --port 5176 >/tmp/pc03-before.log 2>&1 &
-          for i in {1..60}; do curl -fsS http://127.0.0.1:5176/ >/dev/null && break || sleep 1; done
+          npm run dev -- --host 127.0.0.1 --port 5178 >/tmp/pc04-before.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5178/ >/dev/null && break || sleep 1; done
       - name: Capture BEFORE
         working-directory: frontend
         env:
-          PC03_BEFORE_URL: http://127.0.0.1:5176
-          PC03_EVIDENCE_DIR: ../artifacts/pc03-questionnaires-before
+          PC04_BEFORE_URL: http://127.0.0.1:5178
+          PC04_EVIDENCE_DIR: ../artifacts/pc04-consent-before
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
-          node scripts/capture-pc03-before.mjs
+          node scripts/capture-pc04-before.mjs
       - name: Assert evidence
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          items=json.loads(Path("artifacts/pc03-questionnaires-before/evidence.json").read_text())
+          items=json.loads(Path("artifacts/pc04-consent-before/evidence.json").read_text())
           assert len(items)==4
           assert all(not x["horizontalOverflow"] for x in items)
-          print("pc03_before=PASS")
+          print("pc04_before=PASS")
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: pc03-questionnaires-before
-          path: artifacts/pc03-questionnaires-before
+          name: pc04-consent-before
+          path: artifacts/pc04-consent-before
           if-no-files-found: error
           retention-days: 30
