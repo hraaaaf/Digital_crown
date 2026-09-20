@@ -115,6 +115,8 @@ jobs:
                   "patient_companion_accesses",
                   "patient_companion_invitations",
                   "patient_companion_share_grants",
+                  "patient_companion_notification_preferences",
+                  "patient_companion_notification_receipts",
                   "cabinet_settings",
                   "agenda_exceptions",
                   "cabinet_specialties",
