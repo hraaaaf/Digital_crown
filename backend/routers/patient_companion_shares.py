@@ -12,6 +12,7 @@ from backend.models_media_core import ClinicalAsset
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionIdentity,
+    PatientCompanionRemoteKeyset,
     PatientCompanionShareGrant,
 )
 from backend.routers.auth import get_current_user
@@ -215,7 +216,19 @@ def revoke_patient_access(
         raise HTTPException(status_code=404, detail="Accès patient introuvable.")
     staff_patient_or_404(db, current_user, access.patient_id)
     if access.revoked_at is None:
-        access.revoked_at = datetime.utcnow()
+        now = datetime.utcnow()
+        access.revoked_at = now
+        db.query(PatientCompanionRemoteKeyset).filter(
+            PatientCompanionRemoteKeyset.access_id == access.id,
+            PatientCompanionRemoteKeyset.status == "ACTIVE",
+            PatientCompanionRemoteKeyset.revoked_at.is_(None),
+        ).update(
+            {
+                PatientCompanionRemoteKeyset.status: "REVOKED",
+                PatientCompanionRemoteKeyset.revoked_at: now,
+            },
+            synchronize_session=False,
+        )
         db.commit()
     audit_service.log(
         db=db,
