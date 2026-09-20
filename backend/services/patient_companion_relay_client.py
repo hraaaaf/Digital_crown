@@ -150,6 +150,27 @@ def provision_relay_binding(
             client.close()
 
 
+
+def deprovision_relay_mailboxes(
+    *,
+    relay_url: str,
+    bootstrap_secret: str,
+    mailbox_ids: tuple[str, ...],
+    client: httpx.Client | None = None,
+) -> None:
+    relay_url = _normalized_https_url(relay_url)
+    owned_client = client is None
+    client = client or httpx.Client(timeout=10.0)
+    try:
+        for mailbox_id in mailbox_ids:
+            if mailbox_id:
+                _revoke_mailbox(client, relay_url, bootstrap_secret, mailbox_id)
+    finally:
+        if owned_client:
+            client.close()
+
+
+
 def cabinet_relay_capabilities(
     binding: PatientCompanionRelayBinding,
     *,
