@@ -54,7 +54,13 @@ jobs:
           "pydantic[email]==2.6.3"
           fastapi==0.115.6
           passlib==1.7.4
+          bcrypt==3.2.2
           python-dotenv==1.0.1
+          pydantic-settings==2.2.1
+          python-jose==3.5.0
+          python-multipart==0.0.31
+          qrcode==8.2
+          pillow==12.2.0
           SQLAlchemy==2.0.28
           httpx==0.28.1
           jwcrypto==1.6.1
