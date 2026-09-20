@@ -24,7 +24,7 @@ router = APIRouter()
 
 class RemoteCommandEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    blob: str = Field(min_length=16, max_length=350_000)
+    blob: str = Field(min_length=16, max_length=256 * 1024)
 
 
 @router.post("/contexts/{access_id}/agenda/remote-command")
