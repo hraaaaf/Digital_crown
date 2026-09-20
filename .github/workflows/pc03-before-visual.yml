@@ -6,8 +6,9 @@ on:
     paths:
       - .github/workflows/pc03-before-visual.yml
       - frontend/scripts/capture-pc03-before.mjs
-      - frontend/src/features/patient-companion/**
-      - docs/clinic/patient_companion/**
+      - frontend/src/features/patient-companion/PatientCompanionQuestionnaires.tsx
+      - frontend/src/features/patient-companion/PatientCompanionQuestionnaires.test.tsx
+      - docs/clinic/patient_companion/PC_03_*.md
 
 concurrency:
   group: pc03-before-${{ github.ref }}
