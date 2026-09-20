@@ -3,6 +3,7 @@
 Date: 2026-09-20
 Base: master@`c9cd8e9b1220b7b98691d9889cbb856d0650e40b`
 Branch: `feature/patient-companion-pc05-notifications`
+PR: #643 — DRAFT
 Deployment: none
 
 ## Canonical scope
@@ -126,3 +127,9 @@ Mandatory:
 - Never display delivered/signed/confirmed/read-accepted before durable authoritative ACK where a mutation is involved.
 - No Vercel deployment without explicit authorization.
 - PC-FINAL remains mandatory after PC-10.
+
+
+## Certification workflow
+
+Exact-head technical gate: `.github/workflows/pc05-certification.yml`.
+This targeted gate runs the PC-05 backend contract tests, frontend ACK truth-boundary tests, and the production frontend build. The PostgreSQL Alembic schema gate and Patient Companion remote transport gate remain complementary repo-wide proofs.
