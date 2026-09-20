@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Callable
 
 from jwcrypto import jwk
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.models_patient_companion import (
@@ -131,9 +132,28 @@ def ensure_active_cabinet_key(
         protected_private_jwk_b64=base64.urlsafe_b64encode(protected).decode("ascii"),
         status="ACTIVE",
     )
-    db.add(row)
-    db.flush()
-    return row
+    try:
+        with db.begin_nested():
+            db.add(row)
+            db.flush()
+        return row
+    except IntegrityError:
+        # Another pairing may have created the tenant key concurrently.
+        # The partial unique index is authoritative; reuse the committed winner.
+        existing = (
+            db.query(PatientCompanionCabinetRemoteKey)
+            .filter(
+                PatientCompanionCabinetRemoteKey.employer_id == employer_id,
+                PatientCompanionCabinetRemoteKey.key_use == key_use,
+                PatientCompanionCabinetRemoteKey.status == "ACTIVE",
+                PatientCompanionCabinetRemoteKey.revoked_at.is_(None),
+            )
+            .order_by(PatientCompanionCabinetRemoteKey.created_at.desc())
+            .first()
+        )
+        if existing is None:
+            raise
+        return existing
 
 
 def load_cabinet_private_jwk(
