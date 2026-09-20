@@ -269,7 +269,9 @@ describe('TeamManager commercial pack button matrix', () => {
     ));
 
     vi.mocked(api.put).mockClear();
-    fireEvent.click(screen.getByTitle("Suspendre l'accès"));
+    const suspend = screen.getByTitle("Suspendre l'accès");
+    await waitFor(() => expect(suspend).not.toBeDisabled());
+    fireEvent.click(suspend);
     await waitFor(() => expect(vi.mocked(api.put)).toHaveBeenCalledWith('/team/11', { is_active: false }));
 
     vi.mocked(api.put).mockClear();
