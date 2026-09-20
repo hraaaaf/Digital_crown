@@ -120,8 +120,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
       await toothButton.focus();
       await page.keyboard.press('Enter');
+      await toothButton.waitFor({ state: 'visible', timeout: 5000 });
+      if ((await toothButton.getAttribute('aria-pressed')) !== 'true') {
+        throw new Error('grouped tooth selection did not persist for Dent ' + tooth);
+      }
     }
-    await page.getByText(/2 dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: 'Bridge', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   };
 
   for (const act of [
