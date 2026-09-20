@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const beforeUrl = process.env.PC02_BEFORE_URL || 'http://127.0.0.1:5174';
 const afterUrl = beforeUrl;
+const phases = ['before'];
 const outputRoot = process.env.PC02_EVIDENCE_DIR || '../artifacts/pc02-agenda-before';
 const viewports = [{ width: 360, height: 800 }, { width: 390, height: 844 }];
 const browsers = { chromium, webkit };
@@ -161,8 +162,7 @@ for (const [name, type] of Object.entries(browsers)) {
   const browser = await type.launch({ headless: true });
   try {
     for (const viewport of viewports) {
-      await capture(name, browser, 'before', viewport);
-      await capture(name, browser, 'after', viewport);
+      for (const phase of phases) await capture(name, browser, phase, viewport);
     }
   } finally {
     await browser.close();
