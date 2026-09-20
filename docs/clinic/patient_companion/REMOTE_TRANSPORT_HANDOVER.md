@@ -53,7 +53,7 @@ All four causes were corrected before current checkpoint.
 
 ## Current certification state
 
-Latest exact-head runs were queued/pending after the remediation commits. Do not reuse old red or historical green runs as final evidence.
+Code/test candidate `6843f4ccd0ca40afe372a96ba7bfee92598ef098` is VERIFIED: Remote Gate `35504753520`, CI `35504753506`, Alembic `35504753494`, T2 `35504753499`, P7 `35504753473`, UX1-C `35504753513`, PC-00 Visual `35504753543`, Agenda `35504753550`, Portability `35504753538`, Windows Build `35504753532`, Catalog `35504753461`, Marketplace `35504753528`, Media `35504753516` — all SUCCESS. This closeout is docs-only and its new exact HEAD must be certified before merge.
 
 Final VERIFIED requires the same exact HEAD to have:
 - Patient Companion Remote Transport Gate: Linux + Windows SUCCESS;
