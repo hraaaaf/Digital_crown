@@ -175,6 +175,10 @@ def test_remote_worker_default_registry_executes_pc02_create_idempotently(db, de
     assert ack["payload"]["status"] == "ACCEPTED"
     assert ack["payload"]["result"]["state"] == "confirmed"
     assert db.query(models.Appointment).filter(models.Appointment.patient_id == patient.id).count() == 1
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "PATIENT_COMPANION_REMOTE_COMMAND",
+        models.AuditLog.resource_id == access.public_id,
+    ).count() == 1
 
     retry = RelayInnerMessage(
         message_id=uuid.uuid4(), access_id=message.access_id, sent_at=now,
@@ -196,3 +200,7 @@ def test_remote_worker_default_registry_executes_pc02_create_idempotently(db, de
     )
     assert decoded_retry["payload"]["status"] == "ACCEPTED"
     assert db.query(models.Appointment).filter(models.Appointment.patient_id == patient.id).count() == 1
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "PATIENT_COMPANION_REMOTE_COMMAND",
+        models.AuditLog.resource_id == access.public_id,
+    ).count() == 1
