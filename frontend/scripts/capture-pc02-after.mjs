@@ -46,6 +46,17 @@ async function installFetchHarness(context) {
           storage_policy: 'local_encrypted_device',
         }), { status: 201, headers: { 'Content-Type': 'application/json' } });
       }
+      if (url.pathname.endsWith('/agenda/practitioners')) {
+        return new Response(JSON.stringify({ items: [
+          { practitioner_ref: '6f36c8eb-e0ae-4702-9bc7-34d436965ade', display_name: 'Dr Aya Audit' },
+        ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.pathname.endsWith('/agenda/slots')) {
+        return new Response(JSON.stringify({ items: [
+          { slot_ref: 'e3ed0d13-d446-4478-a2a7-bf62407f373d', datetime_start: '2026-09-23T10:00:00Z', duration_minutes: 30, expires_at: '2026-09-23T09:15:00Z' },
+          { slot_ref: '3e642013-b5f8-4168-bbf7-b80a4615f940', datetime_start: '2026-09-23T10:30:00Z', duration_minutes: 30, expires_at: '2026-09-23T09:15:00Z' },
+        ]}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
       if (url.pathname.endsWith('/agenda')) {
         return new Response(JSON.stringify({ items: [
           { appointment_ref: '8fd11a5e-4a63-4d8a-bca8-2d4b6ef3a901', datetime_start: '2026-09-22T09:30:00Z', duration_minutes: 30, motif: 'Contrôle orthodontique', status: 'CONFIRME' },
@@ -129,7 +140,17 @@ async function capture(browserName, browser, phase, viewport) {
   }
 
   await page.locator('[data-pc02-agenda]').waitFor();
-  const onlineShot = `${browserName}-agenda-${viewport.width}x${viewport.height}.png`;
+  await page.locator('[data-pc02-book]').click();
+  await page.locator('[data-pc02-booking-panel]').waitFor();
+  await page.getByRole('button', { name: 'Voir les créneaux' }).click();
+  await page.getByText('10:00', { exact: true }).waitFor();
+  const controls = await page.locator('[data-pc02-booking-panel] button, [data-pc02-booking-panel] select, [data-pc02-booking-panel] input').evaluateAll(nodes =>
+    nodes.map(node => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height }))
+  );
+  if (controls.some(control => control.height < 48)) {
+    throw new Error(`${phase}/${browserName}/${viewport.width}: agenda control below 48px`);
+  }
+  const onlineShot = `${browserName}-agenda-picker-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outputRoot, phase, onlineShot), fullPage: true });
 
   let offline = null;
