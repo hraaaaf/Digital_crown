@@ -275,3 +275,23 @@ def test_pc04_consent_handler_rejects_extra_payload_fields(db, dentiste, tmp_pat
     )
     assert result.status == "REJECTED"
     assert result.response["code"] == "INVALID_REQUEST"
+
+
+def test_pc04_reapplies_document_permission_when_issuing_consent(db, dentiste, tmp_path, monkeypatch):
+    patient, _identity, _access, document, _share = _context(db, dentiste, tmp_path)
+    from backend.routers import documents as document_routes
+    from fastapi import HTTPException
+    import pytest
+
+    def deny(_doc_type, _current_user):
+        raise HTTPException(status_code=403, detail="permission denied")
+
+    monkeypatch.setattr(document_routes, "require_document_permission", deny)
+    with pytest.raises(HTTPException) as exc:
+        create_patient_consent(
+            patient_id=patient.id,
+            body=ConsentCreateRequest(document_id=document.id),
+            db=db,
+            current_user=dentiste,
+        )
+    assert exc.value.status_code == 403
