@@ -152,7 +152,7 @@ describe('Partner detail pages G7 interactive matrix', () => {
   it('loads product + supplier truth, persists quantity and exposes canonical navigation links', async () => {
     renderProduct('101');
 
-    expect(await screen.findByRole('heading', { name: 'Composite universel' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Composite universel', level: 1 })).toBeTruthy();
     expect(api.get).toHaveBeenCalledWith('/partner-catalog/products/101');
     expect(api.get).toHaveBeenCalledWith('/partner-catalog/suppliers/11');
 
@@ -172,7 +172,7 @@ describe('Partner detail pages G7 interactive matrix', () => {
   it('never exposes quantity controls for a discontinued product', async () => {
     renderProduct('102');
 
-    expect(await screen.findByRole('heading', { name: 'Produit arrêté' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Produit arrêté', level: 1 })).toBeTruthy();
     expect(screen.getByText(/ne peut plus être commandé/i)).toBeTruthy();
     expect(screen.queryByText('Retourner à la commande partenaire')).toBeNull();
   });
