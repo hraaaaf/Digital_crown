@@ -277,6 +277,34 @@ export const PatientCompanionStorage = {
     return next;
   },
 
+  async saveAppointments(accessId: string, appointments: PatientAppointment[]): Promise<PatientCompanionVaultState> {
+    const current = await this.load();
+    if (!current.pairings.some(item => item.context.access_id === accessId)) {
+      throw new Error('Contexte Patient Companion inconnu.');
+    }
+    const existing = current.cache[accessId];
+    const snapshot: PatientWalletSnapshot = existing || {
+      version: 1,
+      accessId,
+      syncedAt: new Date(0).toISOString(),
+      appointments: [],
+      shares: [],
+    };
+    const next: PatientCompanionVaultState = {
+      ...current,
+      cache: {
+        ...current.cache,
+        [accessId]: {
+          ...snapshot,
+          appointments,
+          syncedAt: new Date().toISOString(),
+        },
+      },
+    };
+    await writeValue(STATE_ID, await encryptState(next));
+    return next;
+  },
+
   async saveAgendaRequests(accessId: string, agendaRequests: PatientAgendaRequestState[]): Promise<PatientCompanionVaultState> {
     const current = await this.load();
     if (!current.pairings.some(item => item.context.access_id === accessId)) {
