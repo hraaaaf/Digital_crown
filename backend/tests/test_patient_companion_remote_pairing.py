@@ -7,6 +7,7 @@ from backend import models
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionInvitation,
+    PatientCompanionRelayBinding,
     PatientCompanionRemoteKeyset,
 )
 from backend.routers.patient_companion_common import manual_code_hash, token_hash
@@ -131,6 +132,18 @@ def test_access_revocation_revokes_remote_keyset_in_same_cabinet_flow(
     )
     assert paired.status_code == 201, paired.text
     access_id = paired.json()["context"]["access_id"]
+    access = db.query(PatientCompanionAccess).one()
+    binding = PatientCompanionRelayBinding(
+        access_id=access.id,
+        relay_url="https://relay.test",
+        cabinet_inbox_id=str(uuid.uuid4()),
+        patient_inbox_id=str(uuid.uuid4()),
+        protected_cabinet_read_cap_b64="protected-cabinet-read",
+        protected_patient_write_cap_b64="protected-patient-write",
+        status="ACTIVE",
+    )
+    db.add(binding)
+    db.commit()
 
     revoked = client.post(
         f"/api/patient-companion/admin/accesses/{access_id}/revoke",
@@ -142,6 +155,9 @@ def test_access_revocation_revokes_remote_keyset_in_same_cabinet_flow(
     db.refresh(keyset)
     assert keyset.status == "REVOKED"
     assert keyset.revoked_at is not None
+    db.refresh(binding)
+    assert binding.status == "REVOKE_PENDING"
+    assert binding.revoked_at is None
 
 
 def test_agenda_remote_command_requires_active_keyset_and_dispatches_ciphertext(
