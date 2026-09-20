@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Patient Companion opaque relay — disabled unless both values are configured.
+    PATIENT_COMPANION_RELAY_URL: str = ""
+    PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET: str = ""
+    PATIENT_COMPANION_RELAY_POLL_SECONDS: int = 5
+
     # Transactional Email
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
