@@ -215,7 +215,7 @@ Those causes are remediated. Additional hardening before final freeze:
 - stale competing remote-key route/test artifacts were removed;
 - access revocation now revokes the active remote keyset.
 
-Final same-HEAD certification is still pending. No merge and no deployment are claimed.
+Code/test exact-head `6843f4ccd0ca40afe372a96ba7bfee92598ef098` is certified: dedicated Remote Transport Gate `35504753520` SUCCESS, CI `35504753506` SUCCESS, PostgreSQL/Alembic `35504753494` SUCCESS, and all other triggered regressions SUCCESS. This documentation closeout creates a newer docs-only SHA which remains subject to exact-head certification before merge. No merge and no deployment are claimed.
 
 Canonical closeout sequence:
 exact-head Remote Transport + CI + Alembic + triggered regression gates -> adversarial VERIFIED -> Notion/handover -> ready/merge #638 -> post-merge -> PC-02.
