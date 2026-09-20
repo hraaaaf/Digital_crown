@@ -52,7 +52,7 @@ def upgrade():
         sa.Column("access_id", sa.Integer(), sa.ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"), nullable=False),
         sa.Column("employer_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("patient_id", sa.Integer(), sa.ForeignKey("patients.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("signature_file_path", sa.Text(), nullable=False),
+        sa.Column("signature_png", sa.LargeBinary(), nullable=False),
         sa.Column("signature_sha256", sa.String(length=64), nullable=False),
         sa.Column("signature_size", sa.Integer(), nullable=False),
         sa.Column("signed_at", sa.DateTime(), nullable=False),
