@@ -107,6 +107,7 @@ def process_remote_envelope(
     compact_jwe: str,
     handlers: dict[str, RemoteDomainHandler] | None = None,
     unprotect=unprotect_os_bound,
+    commit: bool = True,
 ) -> str:
     """Verify one patient command, execute exactly one allow-listed domain handler,
     commit its result with the replay ledger, then return a cabinet-signed encrypted ack.
@@ -190,7 +191,10 @@ def process_remote_envelope(
         )
         # The claim, domain mutation and receipt completion are one transaction.
         try:
-            db.commit()
+            if commit:
+                db.commit()
+            else:
+                db.flush()
         except Exception:
             db.rollback()
             raise
