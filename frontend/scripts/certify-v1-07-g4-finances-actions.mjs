@@ -54,8 +54,46 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   });
 
   const baselinePayments = await apiPayments();
-  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=finances`, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByText('Facturé', { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+
+  try {
+    await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
+    const patientsLink = page.getByRole('link', { name: 'Patients', exact: true }).first();
+    if (!(await patientsLink.isVisible().catch(() => false))) {
+      const menuButton = page.getByRole('button', { name: /menu|navigation/i }).first();
+      if (await menuButton.isVisible().catch(() => false)) await menuButton.click();
+    }
+    await patientsLink.waitFor({ state: 'visible', timeout: 15000 });
+    await patientsLink.click();
+    await page.waitForURL(url => url.pathname === '/patients', { timeout: 15000 });
+
+    const patientSearch = page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+    await patientSearch.fill('T2-0001');
+    const patientRow = page.getByRole('button').filter({ hasText: 'T2-0001' }).first();
+    await patientRow.waitFor({ state: 'visible', timeout: 15000 });
+    await patientRow.click();
+    await page.waitForURL(url => url.pathname === `/patients/${patient.id}`, { timeout: 15000 });
+
+    const financeTab = page.getByRole('button', { name: /^(Finances|Finance)$/i }).first();
+    await financeTab.waitFor({ state: 'visible', timeout: 15000 });
+    await financeTab.click();
+    await page.waitForURL(url => url.pathname === `/patients/${patient.id}` && url.searchParams.get('tab') === 'finances', { timeout: 15000 });
+    await page.getByText('Facturé', { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+
+    await page.screenshot({
+      path: path.join(outDir, `g4-finances-${viewport.width}x${viewport.height}-bureau-entry.png`),
+      fullPage: false,
+      animations: 'disabled',
+    });
+  } catch (error) {
+    const shot = `g4-finances-${viewport.width}x${viewport.height}-bureau-error.png`;
+    await page.screenshot({ path: path.join(outDir, shot), fullPage: false, animations: 'disabled' }).catch(() => {});
+    const visibleText = await page.locator('body').innerText().catch(() => '');
+    fs.writeFileSync(
+      path.join(outDir, `g4-finances-${viewport.width}x${viewport.height}-bureau-error.json`),
+      JSON.stringify({ viewport, url: page.url(), error: String(error), visibleText: visibleText.slice(0, 2500), pageErrors, http5xx, shot }, null, 2),
+    );
+    throw error;
+  }
 
   const quickOpen = page.getByRole('button', { name: /Enregistrer un paiement/i });
   await quickOpen.click();
