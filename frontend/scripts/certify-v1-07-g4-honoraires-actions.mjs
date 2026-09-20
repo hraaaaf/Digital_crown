@@ -154,7 +154,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   );
   actions.push('grouped-acts-custom');
 
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await page.getByRole('button', { name: 'Note Honoraires', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   await page.getByRole('button', { name: /Soins Ciblés/i }).click();
+  const adultButtonForTargeted = page.getByRole('button', { name: 'Adulte', exact: true });
+  if (await adultButtonForTargeted.first().isVisible().catch(() => false)) {
+    await adultButtonForTargeted.first().focus();
+    await page.keyboard.press('Enter');
+  }
   const adultTeeth = [11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48];
   for (const tooth of adultTeeth) {
     await page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') }).click();
