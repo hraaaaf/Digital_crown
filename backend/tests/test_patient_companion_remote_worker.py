@@ -69,13 +69,14 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
     db.commit()
 
     now = datetime.now(timezone.utc)
+    operation = "x" * 64
     message = RelayInnerMessage(
         message_id=uuid.uuid4(),
         access_id=uuid.UUID(access.public_id),
         sent_at=now,
         expires_at=now + timedelta(minutes=10),
         idempotency_key=uuid.uuid4(),
-        operation="appointment.request",
+        operation=operation,
         payload={"slot_ref": "opaque-slot"},
     )
     token = sign_and_encrypt(
@@ -97,7 +98,7 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
         access=access,
         keyset=keyset,
         compact_jwe=token,
-        handlers={"appointment.request": handler},
+        handlers={operation: handler},
         unprotect=_unprotect,
     )
     ack = decrypt_and_verify(
@@ -109,6 +110,8 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
     )
 
     assert calls == [{"slot_ref": "opaque-slot"}]
+    assert ack["operation"] == "command.result"
+    assert ack["payload"]["request_operation"] == operation
     assert ack["payload"]["status"] == "ACCEPTED"
     assert ack["idempotency_key"] == str(message.idempotency_key)
 
@@ -118,7 +121,7 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
             access=access,
             keyset=keyset,
             compact_jwe=token,
-            handlers={"appointment.request": handler},
+            handlers={operation: handler},
             unprotect=_unprotect,
         )
 
