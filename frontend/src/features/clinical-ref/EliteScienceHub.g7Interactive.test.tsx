@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EliteScienceHub } from './EliteScienceHub';
@@ -47,29 +47,29 @@ function renderHub() {
 afterEach(() => cleanup());
 
 describe('EliteScienceHub G7 interactive matrix', () => {
-  it('filters by title and author without mutating anything', () => {
+  it('filters by title and author without mutating anything', async () => {
     renderHub();
     const search = screen.getByPlaceholderText('Rechercher un article...');
 
     fireEvent.change(search, { target: { value: 'Endodontic' } });
     expect(screen.getByText('Endodontic outcomes')).toBeTruthy();
-    expect(screen.queryByText('Orthodontic evidence')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Orthodontic evidence')).toBeNull());
 
     fireEvent.change(search, { target: { value: 'Jones' } });
     expect(screen.getByText('Orthodontic evidence')).toBeTruthy();
-    expect(screen.queryByText('Endodontic outcomes')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Endodontic outcomes')).toBeNull());
   });
 
-  it('filters by scientific category and exposes truthful no-result state', () => {
+  it('filters by scientific category and exposes truthful no-result state', async () => {
     renderHub();
 
     fireEvent.click(screen.getByRole('button', { name: 'ENDODONTIE' }));
     expect(screen.getByText('Endodontic outcomes')).toBeTruthy();
-    expect(screen.queryByText('Orthodontic evidence')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Orthodontic evidence')).toBeNull());
 
     const search = screen.getByPlaceholderText('Rechercher un article...');
     fireEvent.change(search, { target: { value: 'absent' } });
-    expect(screen.getByText('Aucun article ne correspond à votre recherche.')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Aucun article ne correspond à votre recherche.')).toBeTruthy());
   });
 
   it('links to the exact external study with safe new-tab attributes', () => {
