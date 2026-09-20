@@ -209,6 +209,7 @@ async def lifespan(app: FastAPI):
         )
 
     firebase_sync_task = None
+    patient_relay_task = None
     try:
         boot_policy = assert_runtime_startup_allowed(_cfg)
 
@@ -273,6 +274,14 @@ async def lifespan(app: FastAPI):
             if boot_policy != REHEARSAL_MIGRATION_ONLY
             else None
         )
+        patient_relay_task = (
+            asyncio.create_task(_periodic_patient_companion_relay())
+            if (
+                boot_policy != REHEARSAL_MIGRATION_ONLY
+                and bool(_cfg.PATIENT_COMPANION_RELAY_URL.strip())
+            )
+            else None
+        )
 
     except asyncio.CancelledError:
         raise
@@ -284,6 +293,8 @@ async def lifespan(app: FastAPI):
 
     if firebase_sync_task is not None:
         firebase_sync_task.cancel()
+    if patient_relay_task is not None:
+        patient_relay_task.cancel()
     logger.info("Arret de l'API...")
 
 
@@ -344,6 +355,29 @@ async def _sync_all_licenses_from_firebase() -> None:
 
     except Exception as e:
         logger.error(f"Erreur sync licences Firebase : {e}")
+
+
+def _poll_patient_companion_relay_sync() -> dict[str, int]:
+    from backend.services.patient_companion_relay_worker import poll_relay_bindings_once
+    with database.SessionLocal() as db:
+        return poll_relay_bindings_once(db)
+
+
+async def _periodic_patient_companion_relay() -> None:
+    interval = max(2, min(int(app_settings.PATIENT_COMPANION_RELAY_POLL_SECONDS), 60))
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            result = await run_in_threadpool(_poll_patient_companion_relay_sync)
+            if result.get("failed"):
+                logger.warning(
+                    "Patient Companion relay poll: %s binding(s) failed; retry scheduled.",
+                    result["failed"],
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            logger.exception("Patient Companion relay poll failed; retry scheduled.")
 
 
 async def _periodic_firebase_sync() -> None:
