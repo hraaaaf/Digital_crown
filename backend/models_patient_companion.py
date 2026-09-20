@@ -326,3 +326,32 @@ class PatientCompanionAppointmentRef(Base):
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PatientCompanionAgendaSlot(Base):
+    """Short-lived cabinet-issued opaque booking option for Patient Companion."""
+
+    __tablename__ = "patient_companion_agenda_slots"
+    __table_args__ = (
+        Index("ix_pc_agenda_slot_tenant_expiry", "employer_id", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    practitioner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    resource_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("agenda_resources.id", ondelete="CASCADE"), nullable=True, index=True,
+    )
+    datetime_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    duration_minutes: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
