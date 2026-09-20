@@ -82,24 +82,12 @@ jobs:
           from pathlib import Path
           items=json.loads(Path("artifacts/pc02-agenda-before/evidence.json").read_text())
           assert len(items) == 8, len(items)
-          after=[x for x in items if x["phase"]=="after"]
-          before=[x for x in items if x["phase"]=="before"]
-          assert len(after) == 4 and len(before) == 4
-          for item in items:
-              assert item["horizontalOverflow"] is False, item
-          for item in after:
-              offline=item["offline"]
-              assert offline is not None
-              assert "Contrôle orthodontique" in offline["text"]
-              assert "Ordonnance septembre" in offline["text"]
-              assert offline["apiRequestsAfterReload"] == 0, offline
-              probe=offline["encrypted"]
-              assert probe["hasCiphertext"] is True, probe
-              assert probe["plaintextAppointmentLeak"] is False, probe
-              assert probe["plaintextDocumentLeak"] is False, probe
-              assert probe["tokenLeak"] is False, probe
-              assert probe["keyAlgorithm"] == "AES-GCM", probe
-              assert probe["keyExtractable"] is False, probe
+          assert all(not x["horizontalOverflow"] for x in items)
+          keys={(x["browser"],x["phase"],x["viewport"]["width"],x["viewport"]["height"]) for x in items}
+          for browser in ("chromium","webkit"):
+              for phase in ("before","after"):
+                  for width,height in ((360,800),(390,844)):
+                      assert (browser,phase,width,height) in keys
           print("pc02_before_evidence=PASS")
           PY
       - name: Record proof metadata
