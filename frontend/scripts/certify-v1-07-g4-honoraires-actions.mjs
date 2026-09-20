@@ -3,6 +3,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
 
+async function inputByValue(page, value) {
+  const inputs = page.locator('input');
+  const count = await inputs.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = inputs.nth(index);
+    if ((await candidate.inputValue()) === value) return candidate;
+  }
+  throw new Error('Input with value "' + value + '" not found');
+}
+
 const outDir = path.resolve('../artifacts/t2-browser/g4-honoraires-actions');
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -328,16 +338,21 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Unique', exact: true }).click();
   await page.getByRole('button', { name: /Global \/ Planifié/i }).click();
   await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
-  let installment = page.getByDisplayValue('Versement 1');
+  let installment = await inputByValue(page, 'Versement 1');
   await installment.fill('Échéance G4 supprimée');
   let row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
   await row.locator('input[type="date"]').fill('2026-10-15');
   await row.locator('input[type="number"]').fill('500');
   await row.locator('button').click();
-  if (await page.getByDisplayValue('Échéance G4 supprimée').count()) throw new Error('Treasury installment delete failed');
+  try {
+    await inputByValue(page, 'Échéance G4 supprimée');
+    throw new Error('Treasury installment delete failed');
+  } catch (error) {
+    if (String(error).includes('Treasury installment delete failed')) throw error;
+  }
 
   await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
-  installment = page.getByDisplayValue('Versement 1');
+  installment = await inputByValue(page, 'Versement 1');
   await installment.fill('Échéance G4');
   row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
   await row.locator('input[type="date"]').fill('2026-10-15');
