@@ -210,6 +210,13 @@ jobs:
         working-directory: frontend
         run: node scripts/certify-v1-07-g4-cephalo-actions.mjs
 
+      - name: Reproduce Dashboard to patient Finances path
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-dashboard-finance-path.mjs 2>&1 | tee ../artifacts/t2-browser/dashboard-finance-path-runner.log
+
       - name: Certify G4 Finances browser actions
         working-directory: frontend
         shell: bash
