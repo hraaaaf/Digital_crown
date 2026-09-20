@@ -238,6 +238,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   });
 
   await page.getByRole('button', { name: /Soins Généraux/i }).click();
+  const generalHeading = page.getByRole('heading', { name: 'Soins Généraux', exact: true });
+  await generalHeading.waitFor({ state: 'visible', timeout: 10000 });
+  const generalPanel = generalHeading.locator('xpath=ancestor::div[contains(@class,"max-w-2xl")][1]');
   for (const act of [
     'Détartrage & Polissage',
     'Surfaçage Radiculaire (par secteur)',
@@ -250,9 +253,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     'Aéropolissage',
     'Traitement Parodontal (Séance)',
   ]) {
-    await page.getByRole('button', { name: act, exact: true }).click();
+    const actButton = generalPanel.locator('button').filter({ hasText: act }).first();
+    await actButton.waitFor({ state: 'visible', timeout: 10000 });
+    await actButton.click();
   }
-  await page.getByRole('button', { name: /Acte personnalisé/i }).click();
+  await generalPanel.getByRole('button', { name: /Acte personnalisé/i }).click();
   if (!(await page.getByPlaceholder('Rechercher ou saisir un acte...').count())) throw new Error('General-care custom act did not create a line');
   actions.push('global-care-actions-and-custom');
 
