@@ -5,11 +5,14 @@ import {
   PatientCompanionStorage,
   type PatientCompanionVaultState,
   type PatientPairing,
+  type PatientAgendaRequestState,
   type PatientRemoteTransportBinding,
   type PatientWalletSnapshot,
 } from './PatientCompanionStorage';
 import { PatientCompanionSync } from './PatientCompanionSync';
 import { PatientCompanionRemoteCrypto } from './PatientCompanionRemoteCrypto';
+import { PatientCompanionAgendaApi, type PatientAgendaPractitioner, type PatientAgendaSlot } from './PatientCompanionAgendaApi';
+import { PatientCompanionAgendaTransport, type AgendaOperation } from './PatientCompanionAgendaTransport';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 
@@ -40,6 +43,15 @@ export const PatientCompanionApp = () => {
   const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'synced' | 'offline' | 'expired'>('idle');
   const [agendaOpen, setAgendaOpen] = useState(false);
   const [agendaMessage, setAgendaMessage] = useState('');
+  const [agendaMode, setAgendaMode] = useState<'create' | 'reschedule'>('create');
+  const [agendaAppointmentRef, setAgendaAppointmentRef] = useState<string | null>(null);
+  const [cancelAppointmentRef, setCancelAppointmentRef] = useState<string | null>(null);
+  const [agendaPractitioners, setAgendaPractitioners] = useState<PatientAgendaPractitioner[]>([]);
+  const [agendaPractitionerRef, setAgendaPractitionerRef] = useState('');
+  const [agendaDay, setAgendaDay] = useState(() => new Date(Date.now() + 86400000).toISOString().slice(0, 10));
+  const [agendaSlots, setAgendaSlots] = useState<PatientAgendaSlot[]>([]);
+  const [agendaSlotRef, setAgendaSlotRef] = useState('');
+  const [agendaLoading, setAgendaLoading] = useState(false);
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -283,6 +295,135 @@ export const PatientCompanionApp = () => {
     }
   };
 
+  const loadAgendaPractitioners = async () => {
+    if (!activePairing) return;
+    setAgendaLoading(true);
+    setAgendaMessage('');
+    try {
+      const items = await PatientCompanionAgendaApi.practitioners(activePairing);
+      setAgendaPractitioners(items);
+      if (items.length === 1) setAgendaPractitionerRef(items[0].practitioner_ref);
+      if (!items.length) setAgendaMessage('Aucun praticien disponible pour la prise de rendez-vous.');
+    } catch {
+      setAgendaMessage('Cabinet non joignable · vous pourrez réessayer sans perdre vos données locales.');
+    } finally {
+      setAgendaLoading(false);
+    }
+  };
+
+  const loadAgendaSlots = async () => {
+    if (!activePairing || !agendaPractitionerRef || !agendaDay) return;
+    setAgendaLoading(true);
+    setAgendaMessage('');
+    setAgendaSlotRef('');
+    try {
+      const items = await PatientCompanionAgendaApi.slots(activePairing, agendaPractitionerRef, agendaDay);
+      setAgendaSlots(items);
+      if (!items.length) setAgendaMessage('Aucun créneau proposé par le cabinet pour cette date.');
+    } catch {
+      setAgendaSlots([]);
+      setAgendaMessage('Créneaux indisponibles hors connexion au cabinet. Aucune réservation n’a été confirmée.');
+    } finally {
+      setAgendaLoading(false);
+    }
+  };
+
+  const persistAgendaRequest = async (request: PatientAgendaRequestState) => {
+    if (!activePairing) return;
+    const current = activeWallet?.agendaRequests || [];
+    const nextRequests = [...current.filter(item => item.id !== request.id), request];
+    const next = await PatientCompanionStorage.saveAgendaRequests(activePairing.context.access_id, nextRequests);
+    setVault(next);
+  };
+
+  const sendAgendaRequest = async (
+    operation: AgendaOperation,
+    payload: Record<string, unknown>,
+    refs: { appointmentRef?: string; slotRef?: string } = {},
+  ) => {
+    if (!activePairing) return;
+    const now = new Date().toISOString();
+    const request: PatientAgendaRequestState = {
+      id: crypto.randomUUID(),
+      operation,
+      state: activePairing.remoteTransport ? 'remote_pending' : 'local_queued',
+      appointmentRef: refs.appointmentRef,
+      slotRef: refs.slotRef,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await persistAgendaRequest(request);
+
+    if (!activePairing.remoteTransport) {
+      setAgendaMessage('Demande enregistrée localement · transport sécurisé non initialisé, donc aucune confirmation cabinet.');
+      return;
+    }
+
+    try {
+      const result = await PatientCompanionAgendaTransport.sendAgendaCommand(
+        activePairing,
+        operation,
+        payload,
+        request.id,
+      );
+      const finalRequest: PatientAgendaRequestState = {
+        ...request,
+        state: result.status === 'ACCEPTED' ? 'confirmed' : 'rejected',
+        updatedAt: new Date().toISOString(),
+        errorCode: result.status === 'REJECTED' ? String(result.result.code || 'REJECTED') : undefined,
+      };
+      await persistAgendaRequest(finalRequest);
+      if (result.status === 'ACCEPTED') {
+        setAgendaMessage(operation === 'agenda.cancel'
+          ? 'Annulation confirmée par le cabinet.'
+          : 'Demande confirmée par le cabinet.');
+        const snapshot = await PatientCompanionSync.sync(activePairing);
+        const next = await PatientCompanionStorage.load();
+        setVault(next);
+        setCabinetReachability('online');
+        setSyncState(snapshot ? 'synced' : 'idle');
+        setAgendaOpen(false);
+        setCancelAppointmentRef(null);
+      } else {
+        setAgendaMessage(`Demande refusée par le cabinet · ${String(result.result.code || 'raison non précisée')}.`);
+      }
+    } catch {
+      const queued: PatientAgendaRequestState = {
+        ...request,
+        state: 'local_queued',
+        updatedAt: new Date().toISOString(),
+      };
+      await persistAgendaRequest(queued);
+      setAgendaMessage('Cabinet non joignable · demande conservée localement, non confirmée.');
+    }
+  };
+
+  const openBooking = async (mode: 'create' | 'reschedule', appointmentRef?: string) => {
+    setAgendaMode(mode);
+    setAgendaAppointmentRef(appointmentRef || null);
+    setAgendaOpen(true);
+    setAgendaMessage('');
+    setAgendaSlots([]);
+    setAgendaSlotRef('');
+    await loadAgendaPractitioners();
+  };
+
+  const submitBooking = async () => {
+    if (!agendaSlotRef) {
+      setAgendaMessage('Choisissez un créneau proposé par le cabinet.');
+      return;
+    }
+    if (agendaMode === 'reschedule' && agendaAppointmentRef) {
+      await sendAgendaRequest(
+        'agenda.reschedule',
+        { appointment_ref: agendaAppointmentRef, slot_ref: agendaSlotRef },
+        { appointmentRef: agendaAppointmentRef, slotRef: agendaSlotRef },
+      );
+      return;
+    }
+    await sendAgendaRequest('agenda.create', { slot_ref: agendaSlotRef }, { slotRef: agendaSlotRef });
+  };
+
   const clearDevice = async () => {
     await PatientCompanionStorage.clear();
     setVault(emptyVault);
@@ -381,19 +522,52 @@ export const PatientCompanionApp = () => {
                       <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-800">Confirmé</span>
                     </div>
                     {item.appointment_ref && <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button onClick={() => { setAgendaOpen(true); setAgendaMessage('Choisissez un nouveau créneau. Le rendez-vous reste confirmé tant que le cabinet n’a pas validé le changement.'); }} className="min-h-[48px] rounded-xl border border-border-main text-xs font-black">Déplacer</button>
-                      <button onClick={() => setAgendaMessage('Annulation non envoyée. Une confirmation explicite sera demandée avant transmission au cabinet.')} className="min-h-[48px] rounded-xl border border-rose-200 text-xs font-black text-rose-700">Annuler</button>
+                      <button onClick={() => void openBooking('reschedule', item.appointment_ref)} className="min-h-[48px] rounded-xl border border-border-main text-xs font-black">Déplacer</button>
+                      <button onClick={() => setCancelAppointmentRef(item.appointment_ref || null)} className="min-h-[48px] rounded-xl border border-rose-200 text-xs font-black text-rose-700">Annuler</button>
                     </div>}
+                    {item.appointment_ref && cancelAppointmentRef === item.appointment_ref && (
+                      <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                        <p className="text-xs font-black text-rose-800">Confirmer l’annulation de ce rendez-vous ?</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <button onClick={() => setCancelAppointmentRef(null)} className="min-h-[48px] rounded-xl border border-border-main bg-white text-xs font-black">Retour</button>
+                          <button onClick={() => void sendAgendaRequest('agenda.cancel', { appointment_ref: item.appointment_ref }, { appointmentRef: item.appointment_ref })} className="min-h-[48px] rounded-xl bg-rose-700 text-white text-xs font-black">Confirmer</button>
+                        </div>
+                      </div>
+                    )}
                   </article>
                 )) : <p className="text-xs font-bold text-text-muted">Aucun rendez-vous synchronisé.</p>}
               </div>
-              <button data-pc02-book onClick={() => { setAgendaOpen(value => !value); setAgendaMessage(''); }} className="mt-3 min-h-[52px] w-full rounded-2xl bg-primary px-4 text-sm font-black text-white">
+              <button data-pc02-book onClick={() => agendaOpen ? setAgendaOpen(false) : void openBooking('create')} className="mt-3 min-h-[52px] w-full rounded-2xl bg-primary px-4 text-sm font-black text-white">
                 {agendaOpen ? 'Fermer la demande' : 'Prendre un rendez-vous'}
               </button>
               {agendaOpen && <div data-pc02-booking-panel className="mt-3 rounded-2xl border border-primary/15 bg-primary/5 p-4">
-                <p className="font-black">Choisir un créneau</p>
-                <p className="mt-1 text-xs font-bold text-text-muted">Seuls les créneaux proposés par votre cabinet seront affichés. Une demande n’est jamais une confirmation.</p>
-                <div className="mt-3 rounded-xl border border-dashed border-border-main bg-card-bg p-3 text-xs font-bold text-text-muted">Synchronisez votre espace pour charger les prochaines disponibilités du cabinet.</div>
+                <p className="font-black">{agendaMode === 'reschedule' ? 'Déplacer le rendez-vous' : 'Choisir un créneau'}</p>
+                <p className="mt-1 text-xs font-bold text-text-muted">Seuls les créneaux proposés et revalidés par votre cabinet peuvent être confirmés.</p>
+                <label className="mt-3 block">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Praticien</span>
+                  <select value={agendaPractitionerRef} onChange={event => { setAgendaPractitionerRef(event.target.value); setAgendaSlots([]); setAgendaSlotRef(''); }} className="mt-2 min-h-[48px] w-full rounded-xl border border-border-main bg-card-bg px-3 text-sm font-bold">
+                    <option value="">Choisir</option>
+                    {agendaPractitioners.map(item => <option key={item.practitioner_ref} value={item.practitioner_ref}>{item.display_name}</option>)}
+                  </select>
+                </label>
+                <label className="mt-3 block">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Date</span>
+                  <input type="date" value={agendaDay} onChange={event => { setAgendaDay(event.target.value); setAgendaSlots([]); setAgendaSlotRef(''); }} className="mt-2 min-h-[48px] w-full rounded-xl border border-border-main bg-card-bg px-3 text-sm font-bold" />
+                </label>
+                <button disabled={!agendaPractitionerRef || !agendaDay || agendaLoading} onClick={() => void loadAgendaSlots()} className="mt-3 min-h-[48px] w-full rounded-xl border border-primary/20 bg-card-bg text-xs font-black text-primary disabled:opacity-50">
+                  {agendaLoading ? 'Chargement…' : 'Voir les créneaux'}
+                </button>
+                {agendaSlots.length > 0 && <div className="mt-3 grid grid-cols-2 gap-2">
+                  {agendaSlots.map(slot => (
+                    <button key={slot.slot_ref} onClick={() => setAgendaSlotRef(slot.slot_ref)} className={`min-h-[48px] rounded-xl border px-2 text-xs font-black ${agendaSlotRef === slot.slot_ref ? 'border-primary bg-primary text-white' : 'border-border-main bg-card-bg'}`}>
+                      {new Date(slot.datetime_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </button>
+                  ))}
+                </div>}
+                <button disabled={!agendaSlotRef || agendaLoading} onClick={() => void submitBooking()} className="mt-3 min-h-[52px] w-full rounded-xl bg-primary text-white text-sm font-black disabled:opacity-50">
+                  {agendaMode === 'reschedule' ? 'Envoyer la demande de déplacement' : 'Envoyer la demande'}
+                </button>
+                <p className="mt-2 text-[10px] font-bold text-text-muted">Hors connexion, la demande reste enregistrée localement et n’est jamais affichée comme rendez-vous confirmé.</p>
               </div>}
               {agendaMessage && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800">{agendaMessage}</p>}
             </section>
