@@ -101,11 +101,16 @@ describe('EliteLibrary G7 interactive matrix', () => {
     expect(screen.getByTitle('Vue liste')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Difficulté' }));
+    let protocolOrder = Array.from(document.querySelectorAll('button'))
+      .map(button => button.textContent?.replace(/\s+/g, ' ').trim())
+      .filter(text => ['Détartrage', 'Traitement endodontique', 'Avulsion'].includes(text || ''));
+    expect(protocolOrder).toEqual(['Détartrage', 'Traitement endodontique', 'Avulsion']);
+
     fireEvent.click(screen.getByRole('button', { name: 'Discipline' }));
-    const countLabel = screen.getByText((_, element) =>
-      element?.tagName === 'DIV' && element.textContent?.replace(/\s+/g, ' ').trim() === '3 protocoles'
-    );
-    expect(countLabel).toBeTruthy();
+    protocolOrder = Array.from(document.querySelectorAll('button'))
+      .map(button => button.textContent?.replace(/\s+/g, ' ').trim())
+      .filter(text => ['Détartrage', 'Traitement endodontique', 'Avulsion'].includes(text || ''));
+    expect(protocolOrder).toEqual(['Avulsion', 'Traitement endodontique', 'Détartrage']);
   });
 
   it('opens protocol deep-link, records recent, navigates next/previous and closes to library root', () => {
