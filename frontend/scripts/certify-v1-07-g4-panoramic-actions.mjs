@@ -61,8 +61,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
 
  await page.getByRole('button',{name:'Bilan PDF',exact:true}).click();
  await page.getByTitle('Modifier le bilan (ligne par ligne)').click();
- const editInputs=page.locator('input').filter({visible:true}); const marker=`### G4 PANO EDIT ${viewport.width}`;
- const candidate=page.locator('input').filter({hasNot:page.locator('[type=range]')});
+ const marker=`### G4 PANO EDIT ${viewport.width}`;
  const reportInputs=page.locator('div.space-y-2 input'); if(await reportInputs.count()<1) throw new Error('report edit inputs missing');
  await reportInputs.first().fill(marker);
  const putP=page.waitForResponse(r=>r.url().includes(`/api/ia/panoramic/${a.id}/report`)&&r.request().method()==='PUT',{timeout:15000});
