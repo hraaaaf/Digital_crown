@@ -66,7 +66,7 @@ describe('AgendaView G3 mobile interactive matrix', () => {
 
     expect(screen.getByText('Sara BENALI')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'semaine' }));
-    expect(screen.getByText(/^Day /)).toBeTruthy();
+    expect(screen.getAllByText(/^Day /).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByText(/^Day /)[0]);
     expect(props.setSelectedDate).toHaveBeenCalled();
