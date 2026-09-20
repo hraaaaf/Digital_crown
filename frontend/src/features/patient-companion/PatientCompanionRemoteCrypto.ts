@@ -21,14 +21,19 @@ const JWE_CTY = JWS_TYP;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+type RemotePublicJwk = JsonWebKey & {
+  kid: string;
+  use: 'sig' | 'enc';
+};
+
 export type PreparedRemoteEnrollment = {
   signingKid: string;
   encryptionKid: string;
   request: {
     signing_kid: string;
-    signing_public_jwk: JsonWebKey;
+    signing_public_jwk: RemotePublicJwk;
     encryption_kid: string;
-    encryption_public_jwk: JsonWebKey;
+    encryption_public_jwk: RemotePublicJwk;
   };
 };
 
@@ -91,7 +96,7 @@ async function deleteKey(id: string): Promise<void> {
 const signingKeyId = (kid: string) => `remote-signing-private:${kid}`;
 const encryptionKeyId = (kid: string) => `remote-encryption-private:${kid}`;
 
-function publicJwk(jwk: JsonWebKey, kid: string, use: 'sig' | 'enc'): JsonWebKey {
+function publicJwk(jwk: JsonWebKey, kid: string, use: 'sig' | 'enc'): RemotePublicJwk {
   if (jwk.kty !== 'EC' || jwk.crv !== 'P-256' || !jwk.x || !jwk.y || jwk.d) {
     throw new Error('Clé publique distante invalide.');
   }
