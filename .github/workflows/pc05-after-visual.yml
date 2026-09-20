@@ -41,6 +41,14 @@ jobs:
           cd frontend
           npm run dev -- --host 127.0.0.1 --port 5181 >/tmp/pc05-after.log 2>&1 &
           for i in {1..60}; do curl -fsS http://127.0.0.1:5181/ >/dev/null && break || sleep 1; done
+      - name: Assert 48px source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'min-h-12 min-w-12' frontend/src/features/patient-companion/PatientCompanionNotifications.tsx
+          count=$(grep -Fo 'min-h-[48px]' frontend/src/features/patient-companion/PatientCompanionNotifications.tsx | wc -l)
+          test "$count" -ge 3
+
       - name: Capture AFTER
         working-directory: frontend
         env:
