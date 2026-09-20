@@ -74,6 +74,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     installments, setInstallments,
     isAccounted, setIsAccounted,
     paymentStatus, setPaymentStatus,
+    paymentStatusGuardMessage, clearPaymentStatusGuard,
     isGlobalNote, setIsGlobalNote,
     groupTreatmentName, setGroupTreatmentName,
     groupTreatmentPrice, setGroupTreatmentPrice
@@ -912,6 +913,25 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   </div>
                 </div>
               </div>
+
+              {paymentStatusGuardMessage && (
+                <div
+                  role="alert"
+                  className="relative z-20 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"
+                >
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider">Paiement partiel</div>
+                    <div className="mt-1 text-xs font-semibold">{paymentStatusGuardMessage}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearPaymentStatusGuard}
+                    className="shrink-0 rounded-xl border border-amber-300 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider"
+                  >
+                    Compris
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-4 relative z-10">
                 <div className="space-y-4">
