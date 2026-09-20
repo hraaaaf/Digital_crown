@@ -64,3 +64,7 @@ Expected direct runtime/product mutations currently include:
 - `backend/main.py` for root health exception redaction.
 
 All other changes must remain explainable as audit tests, evidence harness/workflows, inventory/reconciliation tooling, canonical documentation, or explicitly inherited master synchronization. Recompute and verify this claim from the final PR diff before closeout.
+
+
+## Added closeout blocker — global browser proof
+G10 cannot close from component-test evidence alone. The final exact HEAD must also carry reconciled real-Chromium denominator/action evidence across G1→G7, with G8 transverse browser reconciliation. The shared G1→G7 inventory factory is now a required pre-freeze input; G4 retains its dedicated deeper Playwright action certification.
