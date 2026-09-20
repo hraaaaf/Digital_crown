@@ -147,7 +147,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByPlaceholder('Ou saisir un autre acte...').fill('Acte groupé G4');
   await page.getByPlaceholder('Prix').fill('1200');
   await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
-  await page.getByText('Acte groupé G4', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  const customGroupedLine = page.getByDisplayValue('Acte groupé G4');
+  await customGroupedLine.waitFor({ state: 'visible', timeout: 5000 });
   actions.push('grouped-acts-custom');
 
   await page.getByRole('button', { name: /Soins Ciblés/i }).click();
