@@ -1,0 +1,93 @@
+name: V1-07 G4 Treasury Guard AFTER
+
+on:
+  pull_request:
+    paths:
+      - "frontend/scripts/certify-v1-07-g4-treasury-partial-guard-after.mjs"
+      - ".github/workflows/v1-07-g4-treasury-guard-after.yml"
+      - "frontend/src/features/admin/AccountingStudio.tsx"
+      - "frontend/src/features/admin/AccountingStudioLegacy.tsx"
+  workflow_dispatch:
+
+concurrency:
+  group: v1-07-g4-treasury-after-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: t2-runtime-certification-secret-key-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      T2_USER: t2-browser@cabinet.ma
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate isolated runtime credential
+        shell: bash
+        run: python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-g4-after.txt
+          pip install -r /tmp/requirements-g4-after.txt
+          python -m pip check
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Start isolated backend
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/g4-after-backend.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-after-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/g4-after-frontend.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-after-frontend.log
+          exit 1
+
+      - name: Certify paired AFTER
+        working-directory: frontend
+        run: node scripts/certify-v1-07-g4-treasury-partial-guard-after.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: g4-treasury-guard-after
+          path: artifacts/g4-treasury-guard-after
+          retention-days: 14
+
+# certification-trigger: g4-exact-head-2026-09-21
