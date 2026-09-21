@@ -381,7 +381,19 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
   const treasuryTitle = page.getByText('Encaissement', { exact: true });
   const treasuryOverlay = treasuryTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-  await treasuryOverlay.locator('button').first().click();
+  const treasuryTopClose = treasuryOverlay.locator('button').first();
+  const topCloseOwnsHit = await treasuryTopClose.evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    const target = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return target === button || Boolean(target && button.contains(target));
+  });
+  if (!topCloseOwnsHit) throw new Error('Treasury top close does not own hit target');
+  await page.screenshot({
+    path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-treasury-layer-after.png'),
+    fullPage: false,
+    animations: 'disabled',
+  });
+  await treasuryTopClose.click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
 
   await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
