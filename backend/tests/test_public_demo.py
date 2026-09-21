@@ -67,6 +67,9 @@ class TestDemoRequest:
         monkeypatch.setattr(
             "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
         )
+        monkeypatch.setattr(
+            "backend.routers.public.settings.ADMIN_NOTIFICATION_EMAIL", "admin@digitalcrown.local"
+        )
         with patch("backend.services.email_service.email_service.send_email") as mock_email:
             mock_email.return_value = True
             r = client.post("/api/public/demo-request", json=VALID_PAYLOAD)
@@ -78,6 +81,9 @@ class TestDemoRequest:
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
             "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
+        )
+        monkeypatch.setattr(
+            "backend.routers.public.settings.ADMIN_NOTIFICATION_EMAIL", "admin@digitalcrown.local"
         )
         with patch("backend.services.email_service.email_service.send_email", side_effect=Exception("SMTP down")):
             r = client.post("/api/public/demo-request", json=VALID_PAYLOAD)
