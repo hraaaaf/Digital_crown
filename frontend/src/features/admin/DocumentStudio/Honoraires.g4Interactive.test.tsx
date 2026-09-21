@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountingStudio } from '../AccountingStudio';
 import { useAccountingStore } from '../store/useAccountingStore';
@@ -80,8 +80,8 @@ describe('Honoraires G4 interactive controls', () => {
     expect(useAccountingStore.getState().paymentMode).toBe('TPE');
 
     const before=useAccountingStore.getState().isAccounted;
-    const toggles=screen.getAllByRole('button');
-    const accountingToggle=toggles.find(b=>b.parentElement?.parentElement?.textContent?.includes('Comptabiliser CA'));
+    const accountingLabel=screen.getByText('Comptabiliser CA', { exact:true });
+    const accountingToggle=accountingLabel.parentElement?.querySelector('button');
     if(!accountingToggle) throw new Error('accounting toggle not found');
     fireEvent.click(accountingToggle);
     expect(useAccountingStore.getState().isAccounted).toBe(!before);
@@ -95,7 +95,7 @@ describe('Honoraires G4 interactive controls', () => {
 
     expect(useAccountingStore.getState().paymentStatus).toBe('EN_ATTENTE');
     expect(screen.getByRole('alert')).toBeTruthy();
-    expect(screen.getByText(/Paiement partiel/i)).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toMatch(/Paiement partiel/i);
 
     fireEvent.click(screen.getByRole('button',{name:'Compris'}));
     expect(screen.queryByRole('alert')).toBeNull();
@@ -123,14 +123,14 @@ describe('Honoraires G4 interactive controls', () => {
     expect(useAccountingStore.getState().isGlobalNote).toBe(false);
   });
 
-  it('closes the treasury modal without changing the configured payment state', () => {
+  it('closes the treasury modal without changing the configured payment state', async () => {
     renderHonoraires();
     fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
     fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
     fireEvent.click(screen.getByRole('button',{name:'Cash'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer à la note'}));
 
-    expect(screen.queryByText('Encaissement')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Encaissement')).toBeNull());
     expect(useAccountingStore.getState().paymentMode).toBe('Espèces');
   });
 });
