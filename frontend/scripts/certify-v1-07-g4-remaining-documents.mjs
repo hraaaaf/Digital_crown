@@ -172,8 +172,39 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await firstMethod.selectOption('CARTE');
   const collect = page.getByRole('button', { name: 'Encaisser', exact: true }).first();
   if (await collect.isDisabled()) throw new Error('collect remained disabled after method selection');
+  const collectPutPromise = page.waitForResponse(response =>
+    /\/api\/installments\/\d+$/.test(new URL(response.url()).pathname) &&
+    response.request().method() === 'PUT',
+    { timeout: 30000 }
+  );
+  const collectReloadPromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === `/api/installments/patient/${patient.id}` &&
+    response.request().method() === 'GET',
+    { timeout: 30000 }
+  );
   await collect.click();
-  await page.getByText('PAYÉ', { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+  const collectPutResponse = await collectPutPromise;
+  const collectPutBody = await collectPutResponse.json();
+  const collectReloadResponse = await collectReloadPromise;
+  const collectReloadBody = await collectReloadResponse.json();
+  const reloadedPlan = Array.isArray(collectReloadBody)
+    ? collectReloadBody.find(plan => Number(plan.id) === Number(collectPutBody.plan_id))
+    : null;
+  console.log('G4_INSTALLMENT_COLLECT_ACK ' + JSON.stringify({
+    viewport: `${viewport.width}x${viewport.height}`,
+    putStatus: collectPutResponse.status(),
+    putBody: {
+      id: collectPutBody.id,
+      plan_id: collectPutBody.plan_id,
+      status: collectPutBody.status,
+    },
+    reloadStatus: collectReloadResponse.status(),
+    reloadedPlan: reloadedPlan ? {
+      id: reloadedPlan.id,
+      installmentStatuses: (reloadedPlan.installments || []).map(item => ({ id: item.id, status: item.status })),
+    } : null,
+  }));
+  await page.getByText('PAYÉ', { exact: true }).first().waitFor({ state: 'visible', timeout: 10000 });
   actions.push('installment-collect');
 
   const reminder = page.locator('input[aria-label^="Activer rappel WhatsApp"]').last();
