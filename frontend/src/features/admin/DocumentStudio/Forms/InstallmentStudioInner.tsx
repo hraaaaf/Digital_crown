@@ -190,12 +190,15 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         throw new Error('Encaissement non confirmé par le serveur');
       }
 
-      const latestResponse = await api.get(`/installments/patient/${patientId}/latest`);
-      const latestPlan = latestResponse.data;
-      setLoadedPlanId(latestPlan.id);
-      setTitle(latestPlan.title || DEFAULT_TITLE);
-      setTotalAmount(latestPlan.total_amount || 0);
-      setItems((latestPlan.installments || []).map((inst: any) => ({
+      const plansResponse = await api.get(`/installments/patient/${patientId}`);
+      const reloadedPlan = (plansResponse.data || []).find((plan: any) => plan.id === loadedPlanId);
+      if (!reloadedPlan) {
+        throw new Error('Plan encaissé introuvable après enregistrement');
+      }
+      setLoadedPlanId(reloadedPlan.id);
+      setTitle(reloadedPlan.title || DEFAULT_TITLE);
+      setTotalAmount(reloadedPlan.total_amount || 0);
+      setItems((reloadedPlan.installments || []).map((inst: any) => ({
         id: String(inst.id),
         label: inst.label || 'Versement',
         amount: Number(inst.amount),
