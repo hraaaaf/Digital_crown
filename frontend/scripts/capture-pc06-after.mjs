@@ -98,6 +98,17 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
       );
       if (controls.some(control => control.height < 44)) throw new Error('PC06 actionable control below 44px');
 
+      const summaryLineCounts = await page.locator('[data-pc06-summary-value]').evaluateAll(nodes =>
+        nodes.map(node => {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          return range.getClientRects().length;
+        })
+      );
+      if (summaryLineCounts.length !== 3 || summaryLineCounts.some(lines => lines !== 1)) {
+        throw new Error(`PC06 summary amount wrapped: ${JSON.stringify(summaryLineCounts)}`);
+      }
+
       const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
       if (horizontalOverflow) throw new Error('PC06 AFTER horizontal overflow');
       if (await page.getByRole('button', { name: /payer/i }).count()) throw new Error('PC06 must not expose an online payment CTA');
@@ -112,6 +123,7 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
         screenshot,
         horizontalOverflow,
         financeControls: controls,
+        summaryLineCounts,
       });
       await context.close();
     }

@@ -199,15 +199,15 @@ export const PatientCompanionFinance = ({
           <div className="mt-4 grid grid-cols-3 gap-2">
             <div className="min-w-0 rounded-2xl bg-background p-3">
               <p className="text-[9px] font-black uppercase tracking-wide text-text-muted">Facturé</p>
-              <p className="mt-1 whitespace-nowrap text-[clamp(10px,3.2vw,14px)] font-black tracking-tight tabular-nums">{money.format(data.summary.billed)}</p>
+              <p data-pc06-summary-value className="mt-1 whitespace-nowrap text-[clamp(10px,3.2vw,14px)] font-black tracking-tight tabular-nums">{money.format(data.summary.billed)}</p>
             </div>
             <div className="min-w-0 rounded-2xl bg-background p-3">
               <p className="text-[9px] font-black uppercase tracking-wide text-text-muted">Encaissé</p>
-              <p className="mt-1 whitespace-nowrap text-[clamp(10px,3.2vw,14px)] font-black tracking-tight tabular-nums">{money.format(data.summary.collected)}</p>
+              <p data-pc06-summary-value className="mt-1 whitespace-nowrap text-[clamp(10px,3.2vw,14px)] font-black tracking-tight tabular-nums">{money.format(data.summary.collected)}</p>
             </div>
             <div className="min-w-0 rounded-2xl bg-primary/5 p-3">
               <p className="text-[9px] font-black uppercase tracking-wide text-primary">Reste dû</p>
-              <p className="mt-1 whitespace-nowrap text-[clamp(10px,3.2vw,14px)] font-black tracking-tight tabular-nums text-primary">{money.format(data.summary.remaining_due)}</p>
+              <p data-pc06-summary-value className="mt-1 whitespace-nowrap text-[clamp(10px,3.2vw,14px)] font-black tracking-tight tabular-nums text-primary">{money.format(data.summary.remaining_due)}</p>
             </div>
           </div>
 
