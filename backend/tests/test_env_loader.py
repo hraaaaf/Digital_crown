@@ -63,7 +63,7 @@ def test_environment_aware_override_pattern_prod_does_not_override(tmp_path, mon
         if os.environ.get("ENVIRONMENT", "development").lower() in ("development", "local", "test"):
             load_backend_env(override=True)
 
-    assert os.environ["SECRET_KEY"] == "orchestrator-injected-secret"
+    assert os.environ["SECRET_KEY"] == "orchestrator-injected-secret-value-1234567890"
 
 
 def test_cabinet_rejects_weak_jwt_secret_even_with_strong_master_key(tmp_path, monkeypatch):
