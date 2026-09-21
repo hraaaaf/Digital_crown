@@ -181,9 +181,9 @@ def test_pc07_duplicate_chunk_is_idempotent_and_conflict_fails(db, dentiste):
 
 def test_pc07_finalize_rejects_missing_chunk_without_asset(db, dentiste):
     _patient, access = _access(db, dentiste)
-    raw = _jpeg_bytes(size=(2200, 1600))
+    raw = b"x" * (PC07_CHUNK_BYTES + 17)
     payload = _begin_payload(raw)
-    assert payload["chunk_count"] >= 2
+    assert payload["chunk_count"] == 2
     assert begin_emergency_photo(db, access, payload).status == "ACCEPTED"
     assert submit_emergency_photo_chunk(
         db, access, _chunks(raw, payload["upload_id"])[0]
