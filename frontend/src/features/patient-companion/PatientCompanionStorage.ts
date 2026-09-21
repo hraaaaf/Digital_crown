@@ -75,6 +75,17 @@ export type PatientShare = {
   created_at?: string | null;
 };
 
+export type PatientEmergencyPhotoQueueState = {
+  uploadId: string;
+  state: 'local_pending' | 'remote_uploading' | 'remote_pending_ack' | 'received' | 'rejected';
+  byteSize: number;
+  capturedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  assetId?: number;
+  errorCode?: string;
+};
+
 export type PatientWalletSnapshot = {
   version: 1;
   accessId: string;
@@ -82,6 +93,7 @@ export type PatientWalletSnapshot = {
   appointments: PatientAppointment[];
   shares: PatientShare[];
   agendaRequests?: PatientAgendaRequestState[];
+  emergencyPhotos?: PatientEmergencyPhotoQueueState[];
 };
 
 export type PatientCompanionVaultState = {
@@ -379,6 +391,33 @@ export const PatientCompanionStorage = {
       cache: {
         ...current.cache,
         [accessId]: { ...snapshot, agendaRequests },
+      },
+    };
+    await writeValue(STATE_ID, await encryptState(next));
+    return next;
+  },
+
+  async saveEmergencyPhotoQueue(
+    accessId: string,
+    emergencyPhotos: PatientEmergencyPhotoQueueState[],
+  ): Promise<PatientCompanionVaultState> {
+    const current = await this.load();
+    if (!current.pairings.some(item => item.context.access_id === accessId)) {
+      throw new Error('Contexte Patient Companion inconnu.');
+    }
+    const existing = current.cache[accessId];
+    const snapshot: PatientWalletSnapshot = existing || {
+      version: 1,
+      accessId,
+      syncedAt: new Date(0).toISOString(),
+      appointments: [],
+      shares: [],
+    };
+    const next: PatientCompanionVaultState = {
+      ...current,
+      cache: {
+        ...current.cache,
+        [accessId]: { ...snapshot, emergencyPhotos },
       },
     };
     await writeValue(STATE_ID, await encryptState(next));
