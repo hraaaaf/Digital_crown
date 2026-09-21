@@ -111,8 +111,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const preview = page.getByRole('button', { name: 'Aperçu', exact: true });
   await preview.click();
-  const previewRegion = page.getByRole('region', { name: /Aperçu PDF/i }).last();
-  await previewRegion.waitFor({ state: 'visible', timeout: 15000 });
+  const previewSurface = viewport.width >= 1280
+    ? page.getByRole('region', { name: /Aperçu PDF/i }).last()
+    : page.getByRole('dialog').last();
+  await previewSurface.waitFor({ state: 'visible', timeout: 15000 });
   await page.getByRole('button', { name: /Fermer/i }).last().click();
   actions.push('devis-preview');
 
