@@ -1,7 +1,7 @@
 # PC-08 — Secure Messaging — START HANDOVER
 
-Status: START READY — BLOCKED ONLY BY FINAL PC-07 POST-MERGE PROOF
-Target base: master `3c1822fec10986158e809d93fb76716bf4890e0a` after final PC-07 post-merge proof
+Status: START READY
+Target base: master after PC-07 POST-MERGE VERIFIED closeout
 Previous lot: PC-07 — Emergency Photo
 Deployment: none
 
