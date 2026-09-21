@@ -197,7 +197,7 @@ def begin_emergency_photo(
             return _accepted(
                 state="received",
                 upload_id=upload_id,
-                asset_id=int(existing.asset_id),
+                received_at=existing.completed_at.isoformat() if existing.completed_at else None,
             )
         indices = [
             row[0]
@@ -274,7 +274,11 @@ def submit_emergency_photo_chunk(
     if upload is None:
         return _reject("UPLOAD_NOT_FOUND")
     if upload.status == "RECEIVED":
-        return _accepted(state="received", upload_id=upload_id, asset_id=int(upload.asset_id))
+        return _accepted(
+            state="received",
+            upload_id=upload_id,
+            received_at=upload.completed_at.isoformat() if upload.completed_at else None,
+        )
     if chunk_index < 0 or chunk_index >= upload.chunk_count:
         return _reject("INVALID_CHUNK_INDEX")
 
@@ -355,7 +359,6 @@ def finalize_emergency_photo(
         return _accepted(
             state="received",
             upload_id=upload_id,
-            asset_id=int(upload.asset_id),
             received_at=upload.completed_at.isoformat() if upload.completed_at else None,
         )
 
@@ -424,7 +427,6 @@ def finalize_emergency_photo(
     return _accepted(
         state="received",
         upload_id=upload.public_id,
-        asset_id=int(result.asset.id),
         received_at=now.isoformat(),
     )
 
