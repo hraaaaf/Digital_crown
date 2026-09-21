@@ -1,13 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const storage = {
-  load: vi.fn(),
-  saveEmergencyPhotoBytes: vi.fn(),
-  readEmergencyPhotoBytes: vi.fn(),
-  deleteEmergencyPhotoBytes: vi.fn(),
-  saveEmergencyPhotoQueue: vi.fn(),
-};
+const { storage } = vi.hoisted(() => ({
+  storage: {
+    load: vi.fn(),
+    saveEmergencyPhotoBytes: vi.fn(),
+    readEmergencyPhotoBytes: vi.fn(),
+    deleteEmergencyPhotoBytes: vi.fn(),
+    saveEmergencyPhotoQueue: vi.fn(),
+  },
+}));
 
 vi.mock('./PatientCompanionStorage', () => ({
   PatientCompanionStorage: storage,
