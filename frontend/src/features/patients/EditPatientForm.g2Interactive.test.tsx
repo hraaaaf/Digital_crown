@@ -64,7 +64,7 @@ describe('EditPatientForm G2 interactive matrix', () => {
 
     const nameInput = await screen.findByDisplayValue('BENALI');
     fireEvent.change(nameInput, { target: { value: 'EL AMRANI' } });
-    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Valider les modifications/i }));
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith(
       '/patients/7',
@@ -98,7 +98,7 @@ describe('EditPatientForm G2 interactive matrix', () => {
 
     renderForm();
     await screen.findByDisplayValue('BENALI');
-    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Valider les modifications/i }));
 
     expect(await screen.findByText(/Ce numéro de dossier est déjà utilisé/i)).toBeTruthy();
     expect(screen.queryByText('Patient detail destination')).toBeNull();
@@ -109,7 +109,7 @@ describe('EditPatientForm G2 interactive matrix', () => {
 
     renderForm();
     await screen.findByDisplayValue('BENALI');
-    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Valider les modifications/i }));
 
     await waitFor(() => expect(window.alert).toHaveBeenCalledWith('Erreur lors de la sauvegarde.'));
     expect(screen.queryByText('Patient detail destination')).toBeNull();
