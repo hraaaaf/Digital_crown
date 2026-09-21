@@ -108,6 +108,6 @@ class TestDemoRequest:
         demo_file.write_text(
             json.dumps([{"nom": "Test", "email": "t@t.dz"}]), encoding="utf-8"
         )
-        r = client.get("/api/public/demo-requests", params={"secret": "mysecret"})
+        r = client.get("/api/public/demo-requests", headers={"X-Superadmin-Secret": "mysecret"})
         assert r.status_code == 200
         assert len(r.json()) == 1
