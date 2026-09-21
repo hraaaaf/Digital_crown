@@ -136,7 +136,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByText('Avance (MAD)', { exact: true }).locator('..').locator('input').fill('200');
   await page.getByText('Nbre Mensualités', { exact: true }).locator('..').locator('input').fill('2');
   await page.getByRole('button', { name: /Générer le tableau des échéances/i }).click();
-  await page.getByDisplayValue('Mensualité 1').waitFor({ state: 'visible' });
+  await page.locator('input').filter({ visible: true }).evaluateAll((els) => { if (!els.some(el => el.value === 'Mensualité 1')) throw new Error('Mensualité 1 input missing'); });
   await inventory(page, viewport, 'installment-generated-draft');
 
   await page.goto(base + 'honoraires', { waitUntil: 'networkidle', timeout: 90000 });
@@ -165,7 +165,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await inventory(page, viewport, 'honoraires-treasury');
   await page.getByRole('button', { name: /Global \/ Planifié/i }).click();
   await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
-  await page.getByDisplayValue('Versement 1').waitFor({ state: 'visible' });
+  await page.locator('input').filter({ visible: true }).evaluateAll((els) => { if (!els.some(el => el.value === 'Versement 1')) throw new Error('Versement 1 input missing'); });
   await inventory(page, viewport, 'honoraires-treasury-installment');
   await page.getByRole('button', { name: 'Fermer', exact: true }).click();
 
