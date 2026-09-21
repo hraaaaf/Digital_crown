@@ -174,10 +174,13 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
-    window.addEventListener('scroll', close, true);
+    const attachScrollListener = window.setTimeout(() => {
+      window.addEventListener('scroll', close, true);
+    }, 0);
     window.addEventListener('resize', close);
     window.addEventListener('keydown', closeOnEscape);
     return () => {
+      window.clearTimeout(attachScrollListener);
       window.removeEventListener('scroll', close, true);
       window.removeEventListener('resize', close);
       window.removeEventListener('keydown', closeOnEscape);
