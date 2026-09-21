@@ -186,14 +186,30 @@ export const PatientCompanionEmergencyPhoto = ({
 
           {state === 'pending' && (
             <div role="status" className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-black text-amber-900">
-              Envoi transmis · confirmation du cabinet encore en attente.
+              <p>Envoi transmis · confirmation du cabinet encore en attente.</p>
+              <button
+                type="button"
+                onClick={() => void send()}
+                className="mt-3 min-h-[44px] w-full rounded-xl border border-amber-200 bg-white px-3 text-xs font-black text-amber-900"
+              >
+                Vérifier / réessayer
+              </button>
             </div>
           )}
 
           {state === 'success' && (
             <div role="status" className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-black text-emerald-900">
-              <CheckCircle2 size={16} className="mr-2 inline" aria-hidden="true" />
-              Photo reçue par le cabinet.
+              <p>
+                <CheckCircle2 size={16} className="mr-2 inline" aria-hidden="true" />
+                Photo reçue par le cabinet.
+              </p>
+              <button
+                type="button"
+                onClick={clearPreview}
+                className="mt-3 min-h-[44px] w-full rounded-xl border border-emerald-200 bg-white px-3 text-xs font-black text-emerald-900"
+              >
+                Envoyer une autre photo
+              </button>
             </div>
           )}
 
