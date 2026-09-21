@@ -1,6 +1,6 @@
 # PC-07 — Emergency Photo — Adversarial Review
 
-Status: MERGED — POST-MERGE VERIFICATION IN PROGRESS
+Status: MERGED — FINAL POST-MERGE VERIFICATION PENDING
 Branch: feature/patient-companion-pc07-emergency-photo
 PR: #648 MERGED — merge commit `f4576d5127799b66eae891afb82ebd439d8b48d0`
 Deployment: none
@@ -136,7 +136,11 @@ Human visual approval was received before READY/merge.
 PR #648 was marked ready only after exact-head gates were green and merged with expected head SHA `974c364178302cca697dfdfc5a15f85626f19f23`.
 Merge commit: `f4576d5127799b66eae891afb82ebd439d8b48d0`.
 
-Post-merge push workflows remain to be verified before final closure.
+Post-merge regression repair chain completed through PR #675. The final pre-merge repair candidate `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8` passed CI, Remote Transport, Agenda A5, T2, PR Merge Summary and P7, then merged as `3c1822fec10986158e809d93fb76716bf4890e0a`.
+
+The last complete backend run before #675 exposed only 2 stale test-contract failures out of 4052 executed tests; both were corrected in tests only. No runtime/product behavior changed in #675.
+
+Final post-merge verification of master `3c1822fec10986158e809d93fb76716bf4890e0a` is still required before declaring PC-07 fully closed.
 
 ## No deployment
 No Vercel deployment is authorized or claimed.
