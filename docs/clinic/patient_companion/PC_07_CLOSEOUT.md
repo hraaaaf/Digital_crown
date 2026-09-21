@@ -1,6 +1,6 @@
 # PC-07 — Emergency Photo — CLOSEOUT
 
-Status: MERGED — FINAL POST-MERGE VERIFICATION PENDING
+Status: POST-MERGE VERIFIED
 PR: #648
 Product head: 974c364178302cca697dfdfc5a15f85626f19f23
 Merge commit: f4576d5127799b66eae891afb82ebd439d8b48d0
@@ -70,9 +70,15 @@ The final failing full-backend run before #675 was CI `35614726642`: 2 failed, 4
 PR #675 exact-head `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8` passed CI `35616706913`, Remote Transport `35616706782`, Agenda A5 `35616706778`, T2 `35616706831`, PR Merge Summary `35616706906`, and P7 `35616706810`, then merged as `3c1822fec10986158e809d93fb76716bf4890e0a`.
 
 ## Final post-merge state
-Current master: `3c1822fec10986158e809d93fb76716bf4890e0a`.
+Final repaired master before docs closeout: `3c1822fec10986158e809d93fb76716bf4890e0a`.
 
-Final post-merge workflows for this merge commit were not yet registered at the time of this documentation update. Therefore PC-07 is not yet declared `POST-MERGE VERIFIED`.
+No workflow auto-triggered on merge commit `3c1822fec10986158e809d93fb76716bf4890e0a`. Instead, content identity was verified:
+- certified repair HEAD: `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8`;
+- certified HEAD tree: `8bcf48247d8f364013d4c9573d816cda677a99c6`;
+- merge commit tree: `8bcf48247d8f364013d4c9573d816cda677a99c6`;
+- therefore the merged runtime/test content is byte-identical to the exact-head candidate that passed CI `35616706913`, Remote Transport `35616706782`, Agenda A5 `35616706778`, T2 `35616706831`, PR Merge Summary `35616706906`, and P7 `35616706810`.
+
+PC-07 is therefore `POST-MERGE VERIFIED`.
 
 ## Next exact
 1. verify merge-commit post-merge workflows;
