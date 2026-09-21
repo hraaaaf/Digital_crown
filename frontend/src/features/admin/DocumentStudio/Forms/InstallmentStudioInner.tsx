@@ -190,8 +190,9 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         throw new Error('Encaissement non confirmé par le serveur');
       }
 
+      const acknowledgedPlanId = Number(res.data.plan_id);
       const plansResponse = await api.get(`/installments/patient/${patientId}`);
-      const reloadedPlan = (plansResponse.data || []).find((plan: any) => plan.id === loadedPlanId);
+      const reloadedPlan = (plansResponse.data || []).find((plan: any) => Number(plan.id) === acknowledgedPlanId);
       if (!reloadedPlan) {
         throw new Error('Plan encaissé introuvable après enregistrement');
       }
