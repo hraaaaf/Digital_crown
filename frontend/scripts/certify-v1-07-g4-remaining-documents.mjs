@@ -168,10 +168,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByText(/Plan enregistré #/).waitFor({ state: 'visible', timeout: 15000 });
   actions.push('installment-save');
 
-  const firstMethod = page.locator('select[aria-label^="Mode de règlement"]').first();
+  const installmentRoot = page.locator('#installment-studio-container:visible').last();
+  await installmentRoot.waitFor({ state: 'visible', timeout: 5000 });
+  const firstMethod = installmentRoot.locator('select[aria-label^="Mode de règlement"]').first();
   await firstMethod.selectOption('CARTE');
-  const collect = page.getByRole('button', { name: 'Encaisser', exact: true }).first();
-  const collectDebug = await page.locator('#installment-studio-container').evaluate((node) => ({
+  const collect = installmentRoot.getByRole('button', { name: 'Encaisser', exact: true }).first();
+  const collectDebug = await installmentRoot.evaluate((node) => ({
     dataPlan: node.getAttribute('data-plan-data'),
     collectButtons: Array.from(node.querySelectorAll('button')).filter(button => (button.textContent || '').trim() === 'Encaisser').map(button => ({
       disabled: button.disabled,
@@ -207,7 +209,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       buttonVisible: await collect.isVisible(),
       buttonEnabled: await collect.isEnabled(),
       methodValue: await firstMethod.inputValue(),
-      planData: await page.locator('#installment-studio-container').getAttribute('data-plan-data'),
+      planData: await installmentRoot.getAttribute('data-plan-data'),
     }));
     throw error;
   }
