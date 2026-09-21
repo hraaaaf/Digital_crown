@@ -294,13 +294,23 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
     return `Dent ${toothNumber}${name ? `, ${name}` : ''}`;
   }, [type]);
 
+  const handleToothActivate = useCallback((toothNumber: number, event: React.SyntheticEvent) => {
+    if (readOnly) return;
+    event.stopPropagation();
+    if (onToothDirectClick) {
+      onToothDirectClick(toothNumber);
+      return;
+    }
+    onSurfaceClick(toothNumber, 'O', event as unknown as React.MouseEvent);
+  }, [readOnly, onToothDirectClick, onSurfaceClick]);
+
   const handleToothKeyDown = useCallback((toothNumber: number) => (event: React.KeyboardEvent<SVGGElement>) => {
-    if (readOnly || !onToothDirectClick) return;
+    if (readOnly) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      onToothDirectClick(toothNumber);
+      handleToothActivate(toothNumber, event);
     }
-  }, [readOnly, onToothDirectClick]);
+  }, [readOnly, handleToothActivate]);
 
   return (
     <div ref={containerRef} className={`relative w-full max-w-[480px] mx-auto ${className}`}>
@@ -373,12 +383,13 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             return (
               <g
                 key={`tooth-group-${toothNumber}`}
-                tabIndex={!readOnly && onToothDirectClick ? 0 : undefined}
-                role={!readOnly && onToothDirectClick ? 'button' : undefined}
-                aria-label={!readOnly && onToothDirectClick ? getToothAccessibleName(toothNumber) : undefined}
-                aria-pressed={!readOnly && onToothDirectClick ? (isMultiSelected || isToothSelected) : undefined}
+                tabIndex={!readOnly ? 0 : undefined}
+                role={!readOnly ? 'button' : undefined}
+                aria-label={!readOnly ? getToothAccessibleName(toothNumber) : undefined}
+                aria-pressed={!readOnly ? (isMultiSelected || isToothSelected) : undefined}
+                onClick={(event) => handleToothActivate(toothNumber, event)}
                 onFocus={() => {
-                  if (!readOnly && onToothDirectClick) {
+                  if (!readOnly) {
                     setFocusedTooth(toothNumber);
                     handleHover(toothNumber, 'O');
                   }
