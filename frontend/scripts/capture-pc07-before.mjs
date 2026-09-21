@@ -40,7 +40,7 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
       await page.getByText('Appairer ce téléphone', { exact: true }).waitFor();
       await page.getByLabel('Code manuel').fill('ABCD-EFGH-JKLM');
       await page.getByText('Appairer avec le code', { exact: true }).click();
-      await page.getByText('Aya Urgence', { exact: true }).waitFor();
+      await page.locator('[data-pc00-cabinet-link]').waitFor();
       if (await page.locator('[data-pc07-emergency-photo]').count()) throw new Error('PC07 unexpectedly present in BEFORE');
       const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
       if (horizontalOverflow) throw new Error('PC07 BEFORE horizontal overflow');
