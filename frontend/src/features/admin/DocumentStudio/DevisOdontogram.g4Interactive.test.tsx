@@ -4,17 +4,16 @@ import { AccountingStudio } from '../AccountingStudio';
 import { useAccountingStore } from '../store/useAccountingStore';
 import { api } from '../../../services/api';
 
+const catalogState = vi.hoisted(() => ({
+  specialties:[
+    {name:'PROTHESE',acts:[{id:1,name:'Bridge',base_price:1800}]},
+    {name:'CONSERVATRICE',acts:[{id:2,name:'Détartrage',base_price:500}]},
+  ],
+  fetchCatalog:vi.fn(),
+}));
+
 vi.mock('../Settings/hooks/useCatalogStore', () => ({
-  useCatalogStore: (selector?: any) => {
-    const state={
-      specialties:[
-        {name:'PROTHESE',acts:[{id:1,name:'Bridge',base_price:1800}]},
-        {name:'CONSERVATRICE',acts:[{id:2,name:'Détartrage',base_price:500}]},
-      ],
-      fetchCatalog:vi.fn(),
-    };
-    return selector ? selector(state) : state;
-  },
+  useCatalogStore: (selector?: any) => selector ? selector(catalogState) : catalogState,
 }));
 vi.mock('../../../components/odontogram/OdontogramSVG', () => ({
   OdontogramSVG: ({onToothDirectClick,type}:any) => (
