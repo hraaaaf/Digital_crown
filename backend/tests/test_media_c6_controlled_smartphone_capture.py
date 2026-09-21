@@ -174,7 +174,7 @@ def test_c6_non_image_mime_is_rejected_before_media_write(monkeypatch):
 
 def test_c6_oversized_photo_is_rejected_before_media_write(monkeypatch):
     db = _DB()
-    upload = _Upload(payload=b"x" * (bridge._CLINICAL_PHOTO_MAX_BYTES + 1), content_type="image/jpeg")
+    upload = _Upload(payload=b"x" * (bridge.CLINICAL_PHOTO_MAX_BYTES + 1), content_type="image/jpeg")
     _valid_mobile_context(monkeypatch)
     called = {"ingest": False}
 
