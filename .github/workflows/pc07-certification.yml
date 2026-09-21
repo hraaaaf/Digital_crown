@@ -4,6 +4,8 @@ on:
   pull_request:
     branches: [master]
     paths:
+      - "backend/models_patient_companion.py"
+      - "alembic/versions/pc070000014_add_pc07_emergency_photo_chunks.py"
       - "backend/routers/patient_companion.py"
       - "backend/routers/patient_companion_emergency_photo.py"
       - "backend/routers/mobile_resource_bridge.py"
@@ -57,6 +59,7 @@ jobs:
         run: >-
           python -m pip install
           pytest==9.0.3
+          alembic==1.20.0
           "pydantic[email]==2.6.3"
           fastapi==0.115.6
           passlib==1.7.4
@@ -73,6 +76,9 @@ jobs:
           PyMuPDF==1.26.6
           firebase-admin==7.5.0
           sentry-sdk[fastapi]==2.69.0
+
+      - name: Alembic graph
+        run: python -m alembic heads
 
       - name: PC-07 backend emergency-photo invariants
         run: python -m pytest backend/tests/test_patient_companion_emergency_photo.py -q --maxfail=1
