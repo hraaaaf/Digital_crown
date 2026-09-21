@@ -66,7 +66,16 @@ async function closeResidualPreview(page) {
 }
 
 async function exercisePreview(page) {
-  await page.getByRole('button', { name: 'Aperçu', exact: true }).click();
+  const previewButton = page.getByRole('button', { name: 'Aperçu', exact: true });
+  if (!(await previewButton.count())) {
+    const closeToggle = page.getByRole('button', { name: 'Fermer', exact: true });
+    if (await closeToggle.count()) {
+      await closeToggle.last().click();
+      await page.waitForTimeout(100);
+    }
+  }
+  await previewButton.waitFor({ state: 'visible', timeout: 5000 });
+  await previewButton.click();
   const overlay = page.locator('.document-studio-live-preview').last();
   await overlay.waitFor({ state: 'visible', timeout: 15000 });
   const dialog = overlay.getByRole('dialog');
