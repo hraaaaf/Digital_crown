@@ -102,7 +102,7 @@ describe.each(wizards)('%s G4 wizard controls', (_name, Component, hasTriage) =>
         tick(1800);
         break;
       }
-      fireEvent.click(buttons[0]);
+      fireEvent.click(buttons[buttons.length - 1]);
       tick();
     }
 

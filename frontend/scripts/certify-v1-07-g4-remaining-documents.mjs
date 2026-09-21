@@ -122,15 +122,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await page.getByLabel('Durée du repos en jours').count()) throw new Error('presence certificate still exposes duration');
   await page.getByRole('button', { name: /Certificat médical/i }).click();
   const freeCertificate = page.getByLabel(/Contenu du certificat médical/i);
-  await freeCertificate.fill('Contenu certifié G4 navigateur');
-  if (await freeCertificate.inputValue() !== 'Contenu certifié G4 navigateur') throw new Error('free certificate content failed');
+  await freeCertificate.fill(`Contenu certifié G4 navigateur ${viewport.width}x${viewport.height}`);
+  if (await freeCertificate.inputValue() !== `Contenu certifié G4 navigateur ${viewport.width}x${viewport.height}`) throw new Error('free certificate content failed');
   actions.push('certificate-types-fields');
   await exercisePreview(page);
   actions.push('certificate-preview-refresh-close');
   let responsePromise = page.waitForResponse(response => response.url().includes('/api/documents/generate') && response.request().method() === 'POST', { timeout: 30000 });
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   if (!(await responsePromise).ok()) throw new Error('certificate save failed');
-  await freeCertificate.fill('Contenu certifié G4 navigateur impression');
+  await freeCertificate.fill(`Contenu certifié G4 navigateur impression ${viewport.width}x${viewport.height}`);
   responsePromise = page.waitForResponse(response => response.url().includes('/api/documents/generate') && response.request().method() === 'POST', { timeout: 30000 });
   await page.getByRole('button', { name: 'Préparer impression', exact: true }).click();
   if (!(await responsePromise).ok()) throw new Error('certificate prepare print failed');
