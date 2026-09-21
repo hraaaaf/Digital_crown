@@ -83,8 +83,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const base = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=`;
 
   await page.goto(base + 'ordonnance', { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...').first().fill('G4 MANUAL');
+  const manualDrug = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...').first();
+  await manualDrug.fill('G4 MANUAL');
   await page.waitForTimeout(650);
+  await manualDrug.press('Escape');
   await page.getByTitle('Choisir la forme manuellement').first().click();
   await page.getByRole('menu', { name: 'Choisir la forme' }).waitFor({ state: 'visible', timeout: 10000 });
   await inventory(page, viewport, 'ordonnance-form-picker');
