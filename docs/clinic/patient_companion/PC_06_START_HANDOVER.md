@@ -1,96 +1,74 @@
-# PC-06 — Patient Finance — START HANDOVER
+# PC-06 — Patient Finance — HANDOVER
 
-Status: START READY — AUDIT EXISTING FINANCE PRIMITIVES BEFORE IMPLEMENTATION
+Status: MACHINE-CERTIFIED — HUMAN VISUAL APPROVAL REQUIRED
 Branch: feature/patient-companion-pc06-finance
-Base: master@09dd2de6f97bd276ebe140137cad51f3d8c1a010
-Previous lot: PC-05 merged via PR #643
-PC-05 final PR HEAD: 1c8177c1f746857c726d8ffb82d0e645541cf553
-PC-05 merge commit: 09dd2de6f97bd276ebe140137cad51f3d8c1a010
+PR: #645 (DRAFT)
+Product evidence head: ded90193ce5cd65484f56b5dbb4bba1388e701fa
+Master dependency baseline: 70c3dea8fc30b4babe54fe230cfd902f822cf2a7
 Deployment: none
 
-## Canonical scope
-Next canonical lot: PC-06 — Finance patient.
+## Goal
+Expose patient finance as a read-through projection of canonical cabinet financial truth, without a second ledger or optimistic payment state.
 
-Scope visible in the Patient Companion roadmap:
-- online payment;
-- payment schedules / échéanciers;
-- payment history;
-- invoice retrieval.
+## Implemented
+- finance summary from active/accounted cabinet truth;
+- visible payment history;
+- existing installment schedules;
+- shared active Note d'honoraires retrieval/download;
+- exact tenant + patient boundary;
+- live-only finance display;
+- explicit cabinet-offline fail-closed behavior;
+- no online payment CTA without a verified provider.
 
-Do not silently expand this scope before auditing the existing finance/accounting architecture.
+## Honoraires reconciliation dependency
+PR #644 was merged to master as `70c3dea8fc30b4babe54fe230cfd902f822cf2a7`.
+PC-06 was reconstructed on this master baseline before final certification.
 
-## Product constraint
-PC-06 must expose patient finance from existing cabinet financial truth. It MUST NOT create a second invoice ledger, second payment ledger, second balance engine, or dual-write path.
+## Visual correction
+The first AFTER run was green but manual inspection found MAD totals wrapping on mobile.
+Correction:
+- integer MAD values no longer force useless decimal display;
+- summary values are kept on one line with responsive type;
+- browser evidence now fails if any summary total spans more than one rendered line.
 
-## Mandatory first audit
-Before implementation, inspect and map:
-- invoice / note d'honoraires models and routes;
-- accounting/dashboard reconciliation logic;
-- patient financial history;
-- payment records and statuses;
-- document/archive linkage;
-- any existing installment-plan primitive;
-- any existing online-payment provider integration or absence thereof;
-- deletion/edit propagation rules for financial documents;
-- tenant and patient ownership constraints;
-- existing audit trail and immutable evidence requirements.
+## Exact-head machine proof
+On `ded90193ce5cd65484f56b5dbb4bba1388e701fa`:
+- PC-06 Certification `35577425192` ✅
+- BEFORE `35577425233` ✅
+- AFTER `35577425151` ✅
+- CI `35577425226` ✅
+- T2 `35577425300` ✅
+- P7 `35577425258` ✅
+- Remote Transport `35577425256` ✅
 
-## Safety / truth rules
-- displayed balance must come from authoritative cabinet financial state;
-- never claim paid/settled/refunded without durable authoritative evidence;
-- remote/online payment result must remain pending until authoritative provider/cabinet confirmation;
-- no optimistic paid state;
-- finance data must remain tenant + patient scoped;
-- no financial amount or patient identity in generic OS notification payloads;
-- patient-facing downloads must reuse canonical document permissions and revocation semantics.
+AFTER artifact:
+- id `10628975176`
+- digest `sha256:d86bb4752d6de762cd3f156684f8302b9a7ce3b814cfdde6865815d614758dec`
 
-## Required Goal / Success / Proof before implementation
-Goal:
-Expose finance data and actions to Patient Companion without duplicating financial truth.
+BEFORE artifact:
+- id `10627698972`
+- digest `sha256:4821cf8294d963b15cd126b602911e8d7197f68d9d9d22e1d80414504dba7549`
 
-Success must be made observable after the primitive audit and must cover at minimum:
-- correct patient/tenant isolation;
-- exact reconciliation with cabinet-side finance truth;
-- idempotent payment mutation path if online payment exists;
-- accurate pending/paid/refunded state semantics;
-- invoice retrieval from canonical records;
-- edit/delete propagation proven;
-- mobile UI responsive and accessible;
-- no optimistic financial acceptance.
+## Visual inspection
+Inspected manually:
+- Chromium 360x800 / 390x844
+- WebKit 360x800 / 390x844
 
-Proof must include:
-- backend contract tests;
-- finance reconciliation tests;
-- permission/isolation tests;
-- payment idempotency tests when applicable;
-- frontend truth-boundary tests;
-- BEFORE / target / AFTER visual evidence on 360x800 and 390x844 Chromium + WebKit;
-- exact-head CI;
-- double check + adversarial triple check;
-- human visual approval before closeout/merge.
+Result:
+- no finance overlap;
+- no horizontal overflow;
+- totals stay on one line;
+- 44px minimum finance action;
+- no payment CTA;
+- cross-browser presentation coherent.
 
-## Anti-duplication
-Do not add:
-- generic patient finance table mirroring invoices;
-- duplicate invoice totals;
-- duplicate payment status truth;
-- duplicate accounting dashboard calculations;
-- second payment transport when an existing primitive is suitable;
-- simulated delivered/paid/settled states.
+Conservative visual score: 9.2 / 10.
 
-## PC-05 inherited doctrine
-- zero LLM runtime;
-- remote Patient Companion mutations require durable authoritative ACK;
-- fail closed on revoked access;
-- no Vercel deployment without explicit authorization;
-- PC-FINAL remains mandatory after PC-10.
+## Remaining
+True human gate:
+1. human visual approval;
+2. if approved: mark PR ready, final exact-head verification if HEAD unchanged, merge #645;
+3. post-merge verification;
+4. close PC-06 and prepare PC-07 handover.
 
-## Next exact
-1. inspect existing finance/accounting/document/payment primitives;
-2. write the architecture map and contradictions/gaps;
-3. lock exact PC-06 Goal / Success / Proof in PC_06_START.md;
-4. only then implement the minimal projection/action layer;
-5. certify exact-head and visual evidence;
-6. double/triple check;
-7. human visual gate;
-8. closeout / merge / post-merge / PC-07.
+No Vercel deployment without explicit authorization.
