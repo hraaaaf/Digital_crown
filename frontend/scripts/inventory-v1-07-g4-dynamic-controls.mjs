@@ -94,6 +94,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.locator('[data-g4-manual-form-picker]').waitFor({ state: 'visible', timeout: 10000 });
   await inventory(page, viewport, 'ordonnance-form-picker');
   await page.keyboard.press('Escape');
+  const mobilePreview = page.locator('.document-studio-live-preview.fixed');
+  if (await mobilePreview.count()) {
+    const closePreview = mobilePreview.getByRole('button', { name: /Fermer|Close/i }).first();
+    if (await closePreview.count()) await closePreview.click();
+    else await page.keyboard.press('Escape');
+    await mobilePreview.waitFor({ state: 'hidden', timeout: 10000 });
+  }
 
   await page.getByRole('button', { name: 'Renseigner', exact: true }).click();
   await page.getByLabel('Poids explicite en kilogrammes').waitFor({ state: 'visible' });
