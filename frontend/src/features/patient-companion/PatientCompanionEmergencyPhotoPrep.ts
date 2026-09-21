@@ -1,21 +1,15 @@
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
+const MAX_EDGE = 2560;
+const JPEG_QUALITY = 0.92;
 
 export type PreparedEmergencyPhoto = {
   previewUrl: string;
-  candidates: Array<{
-    imageB64: string;
-    byteSize: number;
-    width: number;
-    height: number;
-  }>;
+  bytes: Uint8Array<ArrayBuffer>;
+  byteSize: number;
+  width: number;
+  height: number;
+  mimeType: 'image/jpeg';
 };
-
-const readDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result || ''));
-  reader.onerror = () => reject(reader.error || new Error('Lecture de la photo impossible.'));
-  reader.readAsDataURL(blob);
-});
 
 const loadImage = (file: File) => new Promise<HTMLImageElement>((resolve, reject) => {
   const url = URL.createObjectURL(file);
@@ -31,21 +25,13 @@ const loadImage = (file: File) => new Promise<HTMLImageElement>((resolve, reject
   image.src = url;
 });
 
-const canvasBlob = (canvas: HTMLCanvasElement, quality: number) => new Promise<Blob>((resolve, reject) => {
+const canvasBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => {
   canvas.toBlob(
-    blob => blob ? resolve(blob) : reject(new Error('Compression de la photo impossible.')),
+    blob => blob ? resolve(blob) : reject(new Error('Préparation de la photo impossible.')),
     'image/jpeg',
-    quality,
+    JPEG_QUALITY,
   );
 });
-
-const base64Body = async (blob: Blob) => {
-  const dataUrl = await readDataUrl(blob);
-  const marker = 'base64,';
-  const index = dataUrl.indexOf(marker);
-  if (index < 0) throw new Error('Encodage photo impossible.');
-  return dataUrl.slice(index + marker.length);
-};
 
 export async function prepareEmergencyPhoto(file: File): Promise<PreparedEmergencyPhoto> {
   if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
@@ -56,37 +42,27 @@ export async function prepareEmergencyPhoto(file: File): Promise<PreparedEmergen
   }
 
   const image = await loadImage(file);
-  const plans = [
-    { maxEdge: 1280, quality: 0.82 },
-    { maxEdge: 1280, quality: 0.70 },
-    { maxEdge: 1024, quality: 0.68 },
-    { maxEdge: 1024, quality: 0.56 },
-    { maxEdge: 800, quality: 0.54 },
-  ];
-  const candidates: PreparedEmergencyPhoto['candidates'] = [];
+  const scale = Math.min(1, MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Préparation de la photo impossible.');
+  context.drawImage(image, 0, 0, width, height);
 
-  for (const plan of plans) {
-    const scale = Math.min(1, plan.maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
-    const width = Math.max(1, Math.round(image.naturalWidth * scale));
-    const height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Préparation de la photo impossible.');
-    context.drawImage(image, 0, 0, width, height);
-    const blob = await canvasBlob(canvas, plan.quality);
-    candidates.push({
-      imageB64: await base64Body(blob),
-      byteSize: blob.size,
-      width,
-      height,
-    });
+  const blob = await canvasBlob(canvas);
+  if (blob.size <= 0 || blob.size > MAX_SOURCE_BYTES) {
+    throw new Error('La photo préparée dépasse la limite autorisée.');
   }
-
-  if (!candidates.length) throw new Error('Préparation de la photo impossible.');
+  const bytes = new Uint8Array(await blob.arrayBuffer());
   return {
-    previewUrl: URL.createObjectURL(file),
-    candidates,
+    previewUrl: URL.createObjectURL(blob),
+    bytes,
+    byteSize: bytes.byteLength,
+    width,
+    height,
+    mimeType: 'image/jpeg',
   };
 }
