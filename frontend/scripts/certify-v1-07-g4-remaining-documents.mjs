@@ -187,18 +187,35 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     collectDebug,
   }));
   if (await collect.isDisabled()) throw new Error('collect remained disabled after method selection');
+  await collect.evaluate((button) => {
+    window.__g4CollectDomClicks = 0;
+    button.addEventListener('click', () => { window.__g4CollectDomClicks += 1; }, { once: false });
+  });
   const collectPutPromise = page.waitForResponse(response =>
     /\/api\/installments\/\d+$/.test(new URL(response.url()).pathname) &&
     response.request().method() === 'PUT',
-    { timeout: 30000 }
+    { timeout: 5000 }
   );
   const collectReloadPromise = page.waitForResponse(response =>
     new URL(response.url()).pathname === `/api/installments/patient/${patient.id}` &&
     response.request().method() === 'GET',
-    { timeout: 30000 }
+    { timeout: 5000 }
   );
   await collect.click();
-  const collectPutResponse = await collectPutPromise;
+  let collectPutResponse;
+  try {
+    collectPutResponse = await collectPutPromise;
+  } catch (error) {
+    console.log('G4_INSTALLMENT_CLICK_DIAG ' + JSON.stringify({
+      viewport: `${viewport.width}x${viewport.height}`,
+      domClicks: await page.evaluate(() => window.__g4CollectDomClicks || 0),
+      buttonVisible: await collect.isVisible(),
+      buttonEnabled: await collect.isEnabled(),
+      methodValue: await firstMethod.inputValue(),
+      planData: await page.locator('#installment-studio-container').getAttribute('data-plan-data'),
+    }));
+    throw error;
+  }
   const collectPutBody = await collectPutResponse.json();
   const collectReloadResponse = await collectReloadPromise;
   const collectReloadBody = await collectReloadResponse.json();
