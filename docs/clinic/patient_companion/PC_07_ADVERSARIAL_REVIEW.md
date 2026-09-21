@@ -93,6 +93,7 @@ A relay/network timeout remains pending/unconfirmed.
 - contiguous-prefix resume;
 - real JOSE size proof for 96 KiB raw chunk under relay 256 KiB limit;
 - temporary chunk ciphertext != plaintext;
+- active-upload quota + expiry cleanup;
 - M6-A normalizer regression;
 - frontend pending/ACK truth tests;
 - production build gate;
@@ -114,7 +115,7 @@ AFTER:
 - no horizontal overflow;
 - no false receipt claim.
 
-Quota + expiry-purge hardening are currently verified by code inspection, not yet claimed as dedicated automated proofs.
+Quota + expiry-purge hardening now also has a dedicated automated regression test.
 
 ## Machine gates still open
 At this review revision, exact-head results are still pending for:
