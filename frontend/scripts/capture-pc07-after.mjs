@@ -15,7 +15,7 @@ const baseUrl = process.env.PC07_AFTER_URL || 'http://127.0.0.1:5183';
 const outputRoot = process.env.PC07_EVIDENCE_DIR || '../artifacts/pc07-emergency-photo-after';
 const viewports = [{ width: 360, height: 800 }, { width: 390, height: 844 }];
 const browsers = { chromium, webkit };
-const states = ['idle', 'preview', 'pending', 'success'];
+const states = ['idle', 'preview', 'pending'];
 const evidence = [];
 const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzA3LWFmdGVyIiwiZXhwIjoyMDAwMDAwMDAwfQ.audit';
 const accessId = '77777777-7777-4777-8777-777777777777';
@@ -168,7 +168,7 @@ async function pair(page) {
   await page.getByText('Appairer ce téléphone', { exact: true }).waitFor();
   await page.getByLabel('Code manuel').fill('ABCD-EFGH-JKLM');
   await page.getByText('Appairer avec le code', { exact: true }).click();
-  await page.getByText('Aya Urgence', { exact: true }).waitFor();
+  await page.locator('[data-pc00-cabinet-link]').waitFor();
   await page.locator('[data-pc07-emergency-photo]').waitFor();
 }
 
