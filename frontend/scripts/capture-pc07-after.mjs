@@ -49,7 +49,7 @@ async function makeAck(blob, harness, patientKeys) {
   } else if (op === 'emergency_photo.chunk') {
     result = { state: 'uploading', received_chunks: Number(request.payload.chunk_index) + 1, chunk_count: 1 };
   } else if (op === 'emergency_photo.finalize') {
-    result = { state: 'received', asset_id: 77, received_at: new Date().toISOString() };
+    result = { state: 'received', upload_id: request.payload.upload_id, received_at: new Date().toISOString() };
   }
 
   const now = new Date();
