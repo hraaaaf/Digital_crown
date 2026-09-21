@@ -3,11 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountingStudio } from '../AccountingStudio';
 import { useAccountingStore } from '../store/useAccountingStore';
 
+const catalogState = { specialties: [], fetchCatalog: vi.fn() };
 vi.mock('../Settings/hooks/useCatalogStore', () => ({
-  useCatalogStore: (selector?: any) => {
-    const state={specialties:[],fetchCatalog:vi.fn()};
-    return selector ? selector(state) : state;
-  },
+  useCatalogStore: (selector?: any) => selector ? selector(catalogState) : catalogState,
 }));
 vi.mock('../../../components/odontogram/OdontogramSVG', () => ({
   OdontogramSVG: () => <div>Odontogram mock</div>,
@@ -130,7 +128,7 @@ describe('Honoraires G4 interactive controls', () => {
     fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
     fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
     fireEvent.click(screen.getByRole('button',{name:'Cash'}));
-    fireEvent.click(screen.getByRole('button',{name:"Confirmer l'Encaissement"}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer à la note'}));
 
     expect(screen.queryByText('Encaissement')).toBeNull();
     expect(useAccountingStore.getState().paymentMode).toBe('Espèces');
