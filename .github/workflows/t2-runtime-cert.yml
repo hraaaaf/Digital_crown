@@ -141,7 +141,7 @@ jobs:
         working-directory: frontend
         shell: bash
         env:
-          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -o pipefail
           mkdir -p ../artifacts/honoraires-reconciliation
