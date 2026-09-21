@@ -11,6 +11,17 @@ import { AssistantATM } from './AssistantATM';
 import { AssistantPatho } from './AssistantPatho';
 import { AssistantExamenComplet } from './AssistantExamenComplet';
 
+vi.mock('framer-motion', async () => {
+  const ReactModule = await import('react');
+  const make = (tag: string) => ReactModule.forwardRef(({ children, initial, animate, exit, transition, layout, ...props }: any, ref: any) =>
+    ReactModule.createElement(tag, { ...props, ref }, children)
+  );
+  return {
+    AnimatePresence: ({ children }: any) => ReactModule.createElement(ReactModule.Fragment, null, children),
+    motion: new Proxy({}, { get: (_target, tag) => make(String(tag)) }),
+  };
+});
+
 type WizardComponent = React.ComponentType<{
   onComplete: (...args: any[]) => void;
   onCancel: () => void;

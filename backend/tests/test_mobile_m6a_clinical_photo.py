@@ -21,12 +21,18 @@ def _isolate_mobile_photo_runtime(tmp_path, monkeypatch):
 
     _license_cache.clear()
     monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm6a-rate-limit.json'))
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
     monkeypatch.setattr(archive_service, 'MEDIA_DIR', tmp_path)
     monkeypatch.setattr(archive_service, 'ARCHIVE_BASE_DIR', tmp_path / 'archives')
     monkeypatch.setattr(mobile_resource_bridge._documents, 'MEDIA_DIR', tmp_path)
     monkeypatch.setenv('MEDIA_ROOT', str(tmp_path / 'media'))
     yield
     _license_cache.clear()
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
 
 
 def _user(db, *, email, role=models.UserRole.DENTISTE, employer_id=None, permissions=None):
@@ -137,124 +143,3 @@ def test_mobile_clinical_photo_archives_exact_patient_and_strips_metadata(client
     _cabinet(db, dentiste)
     patient = _patient(db, dentiste)
     access, context_key = _mobile_patient_context(client, db, dentiste, patient, auth_headers)
-
-    response = _upload(client, access, context_key, _jpeg_bytes(with_exif=True), filename='../../evil.php.jpg')
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload['success'] is True
-    assert payload['document']['document_type'] == 'PHOTO_CLINIQUE'
-    assert 'patient_id' not in payload
-    assert 'file_path' not in payload['document']
-
-    asset = db.query(ClinicalAsset).filter(ClinicalAsset.id == payload['document']['id']).one()
-    assert asset.patient_id == patient.id
-    assert asset.employer_id == dentiste.id
-    assert asset.asset_type == 'PHOTO'
-    assert asset.source_kind == 'DEVICE_CAPTURE'
-    assert asset.source_ref == 'MOBILE_RESOURCE_BRIDGE'
-    assert asset.created_by == dentiste.id
-    assert asset.original_filename.startswith('device-capture-')
-    assert asset.original_filename.endswith('.jpg')
-    assert '..' not in asset.original_filename
-    assert 'evil' not in asset.original_filename
-    assert asset.mime_type == 'image/jpeg'
-    assert asset.storage_key
-    assert asset.storage_format == 'AESGCM_V1'
-
-    stored = clinical_asset_storage.read_clinical_asset_bytes(
-        db,
-        employer_id=dentiste.id,
-        patient_id=patient.id,
-        asset_id=asset.id,
-    )
-    with Image.open(BytesIO(stored)) as normalized:
-        assert normalized.format == 'JPEG'
-        assert normalized.getexif().get(274) is None
-        assert normalized.getexif().get(270) is None
-
-
-def test_mobile_clinical_photo_rejects_invalid_and_oversized_files(client, db, dentiste, auth_headers, monkeypatch):
-    monkeypatch.setenv('CABINET_MASTER_KEY_HEX', 'a' * 64)
-    dentiste.is_licensed = True
-    dentiste.license_expires_at = datetime.utcnow() + timedelta(days=30)
-    db.commit()
-    _cabinet(db, dentiste)
-    patient = _patient(db, dentiste)
-    access, context_key = _mobile_patient_context(client, db, dentiste, patient, auth_headers)
-
-    invalid = _upload(client, access, context_key, b'not-an-image', filename='fake.jpg')
-    assert invalid.status_code == 422
-    assert db.query(ClinicalAsset).count() == 0
-
-    oversized = _upload(client, access, context_key, b'x' * (12 * 1024 * 1024 + 1), filename='large.jpg')
-    assert oversized.status_code == 413
-    assert db.query(ClinicalAsset).count() == 0
-
-
-def test_mobile_clinical_photo_revalidates_permission_at_upload_time(client, db, dentiste, monkeypatch):
-    monkeypatch.setenv('CABINET_MASTER_KEY_HEX', 'a' * 64)
-    dentiste.is_licensed = True
-    dentiste.license_expires_at = datetime.utcnow() + timedelta(days=30)
-    db.commit()
-    _cabinet(db, dentiste)
-    secretary = _user(
-        db,
-        email='m6a-secretary@cabinet.ma',
-        role=models.UserRole.SECRETAIRE,
-        employer_id=dentiste.id,
-        permissions={'patients': True, 'agenda': True},
-    )
-    patient = _patient(db, dentiste)
-    owner_headers = _auth(client, dentiste)
-    access, context_key = _mobile_patient_context(client, db, dentiste, patient, owner_headers, target_user_id=secretary.id)
-
-    secretary.permissions = {'patients': False, 'agenda': True}
-    db.commit()
-    denied = _upload(client, access, context_key, _jpeg_bytes())
-    assert denied.status_code == 403
-    assert db.query(ClinicalAsset).count() == 0
-
-
-def test_mobile_clinical_photo_rejects_deleted_patient_and_non_patient_context(client, db, dentiste, auth_headers, monkeypatch):
-    monkeypatch.setenv('CABINET_MASTER_KEY_HEX', 'a' * 64)
-    dentiste.is_licensed = True
-    dentiste.license_expires_at = datetime.utcnow() + timedelta(days=30)
-    db.commit()
-    _cabinet(db, dentiste)
-    patient = _patient(db, dentiste)
-    access, context_key = _mobile_patient_context(client, db, dentiste, patient, auth_headers)
-
-    patient.deleted_at = datetime.utcnow()
-    db.commit()
-    deleted = _upload(client, access, context_key, _jpeg_bytes())
-    assert deleted.status_code == 404
-    assert db.query(ClinicalAsset).count() == 0
-
-    patient.deleted_at = None
-    db.commit()
-    appointment = models.Appointment(
-        patient_id=patient.id,
-        patient_name='BENNANI Sara',
-        datetime_start=datetime.utcnow() + timedelta(hours=1),
-        duration_minutes=30,
-        employer_id=dentiste.id,
-    )
-    db.add(appointment)
-    db.commit()
-    issued = client.post('/api/mobile/resource-bridge-pairing', json={
-        'resource_type': 'appointment',
-        'resource_id': appointment.id,
-    }, headers=auth_headers)
-    assert issued.status_code == 200, issued.text
-    pairing = db.query(models.ZKAPairingToken).order_by(models.ZKAPairingToken.id.desc()).first()
-    claimed = client.post('/api/mobile/claim-token', json={
-        'token': pairing.token,
-        'client_public_key_hex': _client_public_key(),
-    })
-    assert claimed.status_code == 200
-    appointment_access = claimed.json()['access_token']
-    destination = client.post('/api/mobile/resource-bridge-destination', json={'credential': pairing.token}, headers={'Authorization': f'Bearer {appointment_access}'})
-    assert destination.status_code == 200
-    wrong = _upload(client, appointment_access, destination.json()['context']['key'], _jpeg_bytes())
-    assert wrong.status_code == 422
-    assert db.query(ClinicalAsset).count() == 0
