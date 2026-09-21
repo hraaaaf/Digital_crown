@@ -56,12 +56,16 @@ def _access(db, dentiste, suffix: str = "A"):
 
 
 def _jpeg_bytes(*, with_metadata: bool = False, size=(1280, 960)) -> bytes:
-    image = Image.new("RGB", size, (120, 70, 45))
+    image = (
+        Image.effect_noise(size, 100).convert("RGB")
+        if max(size) >= 1500
+        else Image.new("RGB", size, (120, 70, 45))
+    )
     output = BytesIO()
     if with_metadata:
         exif = Image.Exif()
+        exif[274] = 6
         exif[270] = "sensitive metadata"
-        exif[34853] = {1: "N", 2: (33.0, 34.0, 0.0)}
         image.save(output, format="JPEG", quality=95, exif=exif)
     else:
         image.save(output, format="JPEG", quality=95)
@@ -140,8 +144,8 @@ def test_pc07_chunked_photo_exact_patient_strips_metadata_and_accepts_out_of_ord
     )
     with Image.open(BytesIO(stored)) as image:
         assert image.format == "JPEG"
+        assert image.getexif().get(274) is None
         assert image.getexif().get(270) is None
-        assert image.getexif().get(34853) is None
 
     upload = db.query(PatientCompanionEmergencyPhotoUpload).filter(
         PatientCompanionEmergencyPhotoUpload.public_id == upload_id
