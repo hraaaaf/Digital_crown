@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import uuid
 from datetime import datetime
 from io import BytesIO
@@ -9,9 +10,19 @@ from PIL import Image
 
 from backend import models
 from backend.models_media_core import ClinicalAsset
-from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
+from backend.models_patient_companion import (
+    PatientCompanionAccess,
+    PatientCompanionEmergencyPhotoChunk,
+    PatientCompanionEmergencyPhotoUpload,
+    PatientCompanionIdentity,
+)
 from backend.services.clinical_asset_storage import read_clinical_asset_bytes
-from backend.services.patient_companion_emergency_photo import submit_emergency_photo
+from backend.services.patient_companion_emergency_photo import (
+    PC07_CHUNK_BYTES,
+    begin_emergency_photo,
+    finalize_emergency_photo,
+    submit_emergency_photo_chunk,
+)
 
 
 def _access(db, dentiste, suffix: str = "A"):
@@ -40,26 +51,57 @@ def _access(db, dentiste, suffix: str = "A"):
     return patient, access
 
 
-def _jpeg_bytes(*, with_metadata: bool = False) -> bytes:
-    image = Image.new("RGB", (640, 480), (120, 70, 45))
+def _jpeg_bytes(*, with_metadata: bool = False, size=(1280, 960)) -> bytes:
+    image = Image.new("RGB", size, (120, 70, 45))
     output = BytesIO()
     if with_metadata:
         exif = Image.Exif()
         exif[270] = "sensitive metadata"
-        image.save(output, format="JPEG", quality=90, exif=exif)
+        exif[34853] = {1: "N", 2: (33.0, 34.0, 0.0)}
+        image.save(output, format="JPEG", quality=95, exif=exif)
     else:
-        image.save(output, format="JPEG", quality=90)
+        image.save(output, format="JPEG", quality=95)
     return output.getvalue()
 
 
-def _payload(raw: bytes, **extra):
+def _begin_payload(raw: bytes, upload_id: str | None = None, *, sha: str | None = None):
+    upload_id = upload_id or str(uuid.uuid4())
     return {
-        "image_b64": base64.b64encode(raw).decode("ascii"),
-        **extra,
+        "upload_id": upload_id,
+        "object_sha256": sha or hashlib.sha256(raw).hexdigest(),
+        "byte_size": len(raw),
+        "chunk_count": (len(raw) + PC07_CHUNK_BYTES - 1) // PC07_CHUNK_BYTES,
+        "captured_at": "2026-09-21T08:00:00Z",
     }
 
 
-def test_pc07_emergency_photo_uses_exact_access_patient_and_strips_metadata(
+def _chunks(raw: bytes, upload_id: str):
+    result = []
+    for index in range(0, len(raw), PC07_CHUNK_BYTES):
+        part = raw[index:index + PC07_CHUNK_BYTES]
+        result.append({
+            "upload_id": upload_id,
+            "chunk_index": index // PC07_CHUNK_BYTES,
+            "chunk_sha256": hashlib.sha256(part).hexdigest(),
+            "chunk_b64": base64.b64encode(part).decode("ascii"),
+        })
+    return result
+
+
+def _send_all(db, access, raw: bytes, *, reverse: bool = False):
+    begin_payload = _begin_payload(raw)
+    begin = begin_emergency_photo(db, access, begin_payload)
+    assert begin.status == "ACCEPTED"
+    chunks = _chunks(raw, begin_payload["upload_id"])
+    if reverse:
+        chunks = list(reversed(chunks))
+    for payload in chunks:
+        result = submit_emergency_photo_chunk(db, access, payload)
+        assert result.status == "ACCEPTED"
+    return begin_payload["upload_id"]
+
+
+def test_pc07_chunked_photo_exact_patient_strips_metadata_and_accepts_out_of_order(
     db, dentiste, tmp_path, monkeypatch
 ):
     monkeypatch.setenv("SECRET_KEY", "pc07-media-storage-test-secret")
@@ -68,12 +110,10 @@ def test_pc07_emergency_photo_uses_exact_access_patient_and_strips_metadata(
         lambda: tmp_path,
     )
     patient, access = _access(db, dentiste)
+    raw = _jpeg_bytes(with_metadata=True, size=(2200, 1600))
+    upload_id = _send_all(db, access, raw, reverse=True)
 
-    result = submit_emergency_photo(
-        db,
-        access,
-        _payload(_jpeg_bytes(with_metadata=True), captured_at="2026-09-21T08:00:00Z"),
-    )
+    result = finalize_emergency_photo(db, access, {"upload_id": upload_id})
 
     assert result.status == "ACCEPTED"
     assert result.response["state"] == "received"
@@ -86,7 +126,7 @@ def test_pc07_emergency_photo_uses_exact_access_patient_and_strips_metadata(
     assert asset.created_by is None
     assert asset.provenance_json["ingestion_channel"] == "PATIENT_COMPANION"
     assert asset.provenance_json["capture_kind"] == "EMERGENCY_PHOTO"
-    assert asset.provenance_json["access_public_id"] == access.public_id
+    assert asset.provenance_json["upload_id"] == upload_id
 
     stored = read_clinical_asset_bytes(
         db,
@@ -97,56 +137,123 @@ def test_pc07_emergency_photo_uses_exact_access_patient_and_strips_metadata(
     with Image.open(BytesIO(stored)) as image:
         assert image.format == "JPEG"
         assert image.getexif().get(270) is None
+        assert image.getexif().get(34853) is None
+
+    upload = db.query(PatientCompanionEmergencyPhotoUpload).filter(
+        PatientCompanionEmergencyPhotoUpload.public_id == upload_id
+    ).one()
+    assert upload.status == "RECEIVED"
+    assert upload.asset_id == asset.id
+    assert db.query(PatientCompanionEmergencyPhotoChunk).filter(
+        PatientCompanionEmergencyPhotoChunk.upload_id == upload.id
+    ).count() == 0
 
 
-def test_pc07_emergency_photo_rejects_payload_injection_without_mutation(db, dentiste):
+def test_pc07_duplicate_chunk_is_idempotent_and_conflict_fails(db, dentiste):
     _patient, access = _access(db, dentiste)
+    raw = _jpeg_bytes(size=(1800, 1200))
+    payload = _begin_payload(raw)
+    assert begin_emergency_photo(db, access, payload).status == "ACCEPTED"
+    first = _chunks(raw, payload["upload_id"])[0]
+
+    assert submit_emergency_photo_chunk(db, access, first).status == "ACCEPTED"
+    assert submit_emergency_photo_chunk(db, access, first).status == "ACCEPTED"
+
+    upload = db.query(PatientCompanionEmergencyPhotoUpload).filter(
+        PatientCompanionEmergencyPhotoUpload.public_id == payload["upload_id"]
+    ).one()
+    assert db.query(PatientCompanionEmergencyPhotoChunk).filter(
+        PatientCompanionEmergencyPhotoChunk.upload_id == upload.id
+    ).count() == 1
+
+    conflict = dict(first)
+    different = b"x" * len(base64.b64decode(first["chunk_b64"]))
+    conflict["chunk_b64"] = base64.b64encode(different).decode("ascii")
+    conflict["chunk_sha256"] = hashlib.sha256(different).hexdigest()
+    rejected = submit_emergency_photo_chunk(db, access, conflict)
+    assert rejected.status == "REJECTED"
+    assert rejected.response == {"code": "CHUNK_CONFLICT"}
+
+
+def test_pc07_finalize_rejects_missing_chunk_without_asset(db, dentiste):
+    _patient, access = _access(db, dentiste)
+    raw = _jpeg_bytes(size=(2200, 1600))
+    payload = _begin_payload(raw)
+    assert payload["chunk_count"] >= 2
+    assert begin_emergency_photo(db, access, payload).status == "ACCEPTED"
+    assert submit_emergency_photo_chunk(
+        db, access, _chunks(raw, payload["upload_id"])[0]
+    ).status == "ACCEPTED"
+
     before = db.query(ClinicalAsset).count()
+    result = finalize_emergency_photo(db, access, {"upload_id": payload["upload_id"]})
+    assert result.status == "REJECTED"
+    assert result.response == {"code": "UPLOAD_INCOMPLETE"}
+    assert db.query(ClinicalAsset).count() == before
 
-    result = submit_emergency_photo(
-        db,
-        access,
-        {
-            "image_b64": base64.b64encode(_jpeg_bytes()).decode("ascii"),
-            "patient_id": 999999,
-        },
+
+def test_pc07_finalize_rejects_object_digest_mismatch_without_asset(db, dentiste):
+    _patient, access = _access(db, dentiste)
+    raw = _jpeg_bytes()
+    payload = _begin_payload(raw, sha="0" * 64)
+    assert begin_emergency_photo(db, access, payload).status == "ACCEPTED"
+    for chunk in _chunks(raw, payload["upload_id"]):
+        assert submit_emergency_photo_chunk(db, access, chunk).status == "ACCEPTED"
+
+    before = db.query(ClinicalAsset).count()
+    result = finalize_emergency_photo(db, access, {"upload_id": payload["upload_id"]})
+    assert result.status == "REJECTED"
+    assert result.response == {"code": "OBJECT_DIGEST_MISMATCH"}
+    assert db.query(ClinicalAsset).count() == before
+
+
+def test_pc07_upload_is_scoped_to_exact_access(db, dentiste):
+    _patient_a, access_a = _access(db, dentiste, "A")
+    _patient_b, access_b = _access(db, dentiste, "B")
+    raw = _jpeg_bytes()
+    payload = _begin_payload(raw)
+    assert begin_emergency_photo(db, access_a, payload).status == "ACCEPTED"
+
+    chunk = _chunks(raw, payload["upload_id"])[0]
+    cross = submit_emergency_photo_chunk(db, access_b, chunk)
+    assert cross.status == "REJECTED"
+    assert cross.response == {"code": "UPLOAD_NOT_FOUND"}
+
+
+def test_pc07_finalize_is_domain_idempotent_even_with_new_command_key(
+    db, dentiste, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("SECRET_KEY", "pc07-idempotency-test-secret")
+    monkeypatch.setattr(
+        "backend.services.clinical_asset_storage.get_media_root",
+        lambda: tmp_path,
     )
+    _patient, access = _access(db, dentiste)
+    raw = _jpeg_bytes()
+    upload_id = _send_all(db, access, raw)
 
+    first = finalize_emergency_photo(db, access, {"upload_id": upload_id})
+    second = finalize_emergency_photo(db, access, {"upload_id": upload_id})
+
+    assert first.status == "ACCEPTED"
+    assert second.status == "ACCEPTED"
+    assert first.response["asset_id"] == second.response["asset_id"]
+    assert db.query(ClinicalAsset).filter(
+        ClinicalAsset.id == first.response["asset_id"]
+    ).count() == 1
+
+
+def test_pc07_begin_rejects_injected_or_inconsistent_contract(db, dentiste):
+    _patient, access = _access(db, dentiste)
+    raw = _jpeg_bytes()
+    payload = _begin_payload(raw)
+    payload["patient_id"] = 999999
+    injected = begin_emergency_photo(db, access, payload)
+    assert injected.status == "REJECTED"
+    assert injected.response == {"code": "INVALID_REQUEST"}
+
+    inconsistent = _begin_payload(raw)
+    inconsistent["chunk_count"] += 1
+    result = begin_emergency_photo(db, access, inconsistent)
     assert result.status == "REJECTED"
     assert result.response == {"code": "INVALID_REQUEST"}
-    assert db.query(ClinicalAsset).count() == before
-
-
-def test_pc07_emergency_photo_rejects_invalid_base64_without_mutation(db, dentiste):
-    _patient, access = _access(db, dentiste)
-    before = db.query(ClinicalAsset).count()
-
-    result = submit_emergency_photo(db, access, {"image_b64": "***not-base64***"})
-
-    assert result.status == "REJECTED"
-    assert result.response == {"code": "INVALID_IMAGE_ENCODING"}
-    assert db.query(ClinicalAsset).count() == before
-
-
-def test_pc07_emergency_photo_rejects_invalid_image_without_mutation(db, dentiste):
-    _patient, access = _access(db, dentiste)
-    before = db.query(ClinicalAsset).count()
-
-    result = submit_emergency_photo(db, access, _payload(b"not-an-image"))
-
-    assert result.status == "REJECTED"
-    assert result.response == {"code": "INVALID_IMAGE"}
-    assert db.query(ClinicalAsset).count() == before
-
-
-def test_pc07_emergency_photo_rejects_invalid_capture_timestamp(db, dentiste):
-    _patient, access = _access(db, dentiste)
-
-    result = submit_emergency_photo(
-        db,
-        access,
-        _payload(_jpeg_bytes(), captured_at="definitely-not-a-date"),
-    )
-
-    assert result.status == "REJECTED"
-    assert result.response == {"code": "INVALID_CAPTURED_AT"}
