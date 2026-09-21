@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, CheckCircle2, RotateCcw, Send, ShieldCheck } from 'lucide-react';
 
-import type { PatientPairing } from './PatientCompanionStorage';
+import {
+  PatientCompanionStorage,
+  type PatientEmergencyPhotoQueueState,
+  type PatientPairing,
+} from './PatientCompanionStorage';
 import { prepareEmergencyPhoto } from './PatientCompanionEmergencyPhotoPrep';
-import { sendRemoteCommand } from './PatientCompanionRemoteCommandTransport';
+import { uploadEmergencyPhoto } from './PatientCompanionEmergencyPhotoTransport';
 
 type State = 'idle' | 'preview' | 'sending' | 'pending' | 'success' | 'error';
 
@@ -17,28 +21,82 @@ export const PatientCompanionEmergencyPhoto = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [state, setState] = useState<State>('idle');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [candidates, setCandidates] = useState<Array<{ imageB64: string; byteSize: number }>>([]);
+  const [bytes, setBytes] = useState<Uint8Array<ArrayBuffer> | null>(null);
+  const [uploadId, setUploadId] = useState<string | null>(null);
+  const [capturedAt, setCapturedAt] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ sent: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
 
-  const clearPreview = () => {
+  const queueUpsert = async (item: PatientEmergencyPhotoQueueState) => {
+    const vault = await PatientCompanionStorage.load();
+    const accessId = pairing.context.access_id;
+    const existing = vault.cache[accessId]?.emergencyPhotos || [];
+    await PatientCompanionStorage.saveEmergencyPhotoQueue(
+      accessId,
+      [...existing.filter(entry => entry.uploadId !== item.uploadId), item],
+    );
+  };
+
+  const queueRemove = async (id: string) => {
+    const vault = await PatientCompanionStorage.load();
+    const accessId = pairing.context.access_id;
+    const existing = vault.cache[accessId]?.emergencyPhotos || [];
+    await PatientCompanionStorage.saveEmergencyPhotoQueue(
+      accessId,
+      existing.filter(entry => entry.uploadId !== id),
+    );
+  };
+
+  const clearVisual = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
-    setCandidates([]);
+    setBytes(null);
+    setUploadId(null);
+    setCapturedAt(null);
+    setProgress(null);
     setError(null);
-    setIdempotencyKey(null);
     setState('idle');
     if (inputRef.current) inputRef.current.value = '';
   };
 
+  const discardCurrent = async () => {
+    const current = uploadId;
+    clearVisual();
+    if (!current) return;
+    await PatientCompanionStorage.deleteEmergencyPhotoBytes(current).catch(() => undefined);
+    await queueRemove(current).catch(() => undefined);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const restore = async () => {
+      try {
+        const vault = await PatientCompanionStorage.load();
+        const pending = (vault.cache[pairing.context.access_id]?.emergencyPhotos || [])
+          .find(item => item.state !== 'received' && item.state !== 'rejected');
+        if (!pending) return;
+        const stored = await PatientCompanionStorage.readEmergencyPhotoBytes(
+          pairing.context.access_id,
+          pending.uploadId,
+        );
+        if (!stored || cancelled) return;
+        const url = URL.createObjectURL(new Blob([stored], { type: 'image/jpeg' }));
+        setPreviewUrl(url);
+        setBytes(stored);
+        setUploadId(pending.uploadId);
+        setCapturedAt(pending.capturedAt);
+        setState(pending.state === 'local_pending' ? 'preview' : 'pending');
+      } catch {
+        // Local recovery is best-effort; never invent a delivered state.
+      }
+    };
+    void restore();
+    return () => { cancelled = true; };
+  }, [pairing.context.access_id]);
+
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
-
-  useEffect(() => {
-    if (!enabled && state !== 'idle') clearPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
 
   const choose = async (file?: File) => {
     if (!file) return;
@@ -46,9 +104,27 @@ export const PatientCompanionEmergencyPhoto = ({
     try {
       const prepared = await prepareEmergencyPhoto(file);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const id = crypto.randomUUID();
+      const captured = new Date().toISOString();
+      await PatientCompanionStorage.saveEmergencyPhotoBytes(
+        pairing.context.access_id,
+        id,
+        prepared.bytes,
+      );
+      const now = new Date().toISOString();
+      await queueUpsert({
+        uploadId: id,
+        state: 'local_pending',
+        byteSize: prepared.byteSize,
+        capturedAt: captured,
+        createdAt: now,
+        updatedAt: now,
+      });
       setPreviewUrl(prepared.previewUrl);
-      setCandidates(prepared.candidates);
-      setIdempotencyKey(crypto.randomUUID());
+      setBytes(prepared.bytes);
+      setUploadId(id);
+      setCapturedAt(captured);
+      setProgress(null);
       setState('preview');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Photo impossible à préparer.');
@@ -57,47 +133,80 @@ export const PatientCompanionEmergencyPhoto = ({
   };
 
   const send = async () => {
-    if (!enabled || !candidates.length) return;
-    const key = idempotencyKey || crypto.randomUUID();
-    setIdempotencyKey(key);
+    if (!enabled || !uploadId || !capturedAt) return;
+    let source = bytes;
+    if (!source) {
+      source = await PatientCompanionStorage.readEmergencyPhotoBytes(
+        pairing.context.access_id,
+        uploadId,
+      );
+    }
+    if (!source) {
+      setState('error');
+      setError('La copie locale de la photo est introuvable.');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    await queueUpsert({
+      uploadId,
+      state: 'remote_uploading',
+      byteSize: source.byteLength,
+      capturedAt,
+      createdAt: now,
+      updatedAt: now,
+    });
     setState('sending');
     setError(null);
 
-    for (const candidate of candidates) {
-      try {
-        const result = await sendRemoteCommand(
-          pairing,
-          'emergency-photo',
-          'emergency_photo.submit',
-          {
-            image_b64: candidate.imageB64,
-            captured_at: new Date().toISOString(),
-          },
-          key,
-        );
-        if (result.status !== 'ACCEPTED' || result.result.state !== 'received') {
-          setState('error');
-          setError('Le cabinet n’a pas accepté cette photo.');
-          return;
-        }
-        setState('success');
-        return;
-      } catch (cause) {
-        const tagged = cause as Error & { remotePayloadTooLarge?: boolean; remotePending?: boolean };
-        if (tagged.remotePayloadTooLarge) continue;
-        if (tagged.remotePending) {
-          setState('pending');
-          setError(null);
-          return;
-        }
-        setState('error');
-        setError(tagged.message || 'Envoi impossible.');
+    try {
+      const result = await uploadEmergencyPhoto(
+        pairing,
+        uploadId,
+        source,
+        capturedAt,
+        current => setProgress({ sent: current.sentChunks, total: current.totalChunks }),
+      );
+      const assetId = Number(result.result.asset_id);
+      await queueUpsert({
+        uploadId,
+        state: 'received',
+        byteSize: source.byteLength,
+        capturedAt,
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
+        assetId: Number.isFinite(assetId) ? assetId : undefined,
+      });
+      await PatientCompanionStorage.deleteEmergencyPhotoBytes(uploadId);
+      setState('success');
+      setProgress(null);
+    } catch (cause) {
+      const tagged = cause as Error & { remotePending?: boolean };
+      if (tagged.remotePending) {
+        await queueUpsert({
+          uploadId,
+          state: 'remote_pending_ack',
+          byteSize: source.byteLength,
+          capturedAt,
+          createdAt: now,
+          updatedAt: new Date().toISOString(),
+        });
+        setState('pending');
+        setError(null);
         return;
       }
+      await queueUpsert({
+        uploadId,
+        state: 'local_pending',
+        byteSize: source.byteLength,
+        capturedAt,
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
+        errorCode: 'UPLOAD_FAILED',
+      });
+      setState('error');
+      setError(tagged.message || 'Envoi impossible.');
     }
-
-    setState('error');
-    setError('La photo reste trop volumineuse pour le canal sécurisé.');
   };
 
   return (
@@ -149,19 +258,19 @@ export const PatientCompanionEmergencyPhoto = ({
         </>
       )}
 
-      {enabled && previewUrl && ['preview', 'sending', 'pending', 'error', 'success'].includes(state) && (
+      {previewUrl && ['preview', 'sending', 'pending', 'error', 'success'].includes(state) && (
         <div className="mt-4">
           <img
             src={previewUrl}
             alt="Aperçu de la photo à envoyer"
-            className="max-h-72 w-full rounded-2xl border border-border-main object-contain bg-background"
+            className="max-h-72 w-full rounded-2xl border border-border-main bg-background object-contain"
           />
 
-          {state === 'preview' && (
+          {enabled && state === 'preview' && (
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={clearPreview}
+                onClick={() => void discardCurrent()}
                 className="min-h-[48px] rounded-2xl border border-border-main bg-background px-3 text-xs font-black"
               >
                 <RotateCcw size={15} className="mr-2 inline" aria-hidden="true" />
@@ -178,21 +287,22 @@ export const PatientCompanionEmergencyPhoto = ({
             </div>
           )}
 
-          {state === 'sending' && (
+          {enabled && state === 'sending' && (
             <div role="status" className="mt-3 rounded-2xl bg-background p-3 text-xs font-black text-text-muted">
               Envoi sécurisé au cabinet…
+              {progress && <span className="ml-1">({progress.sent}/{progress.total})</span>}
             </div>
           )}
 
-          {state === 'pending' && (
+          {enabled && state === 'pending' && (
             <div role="status" className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-black text-amber-900">
-              <p>Envoi transmis · confirmation du cabinet encore en attente.</p>
+              <p>Envoi en attente · aucune réception cabinet n’est encore confirmée.</p>
               <button
                 type="button"
                 onClick={() => void send()}
                 className="mt-3 min-h-[44px] w-full rounded-xl border border-amber-200 bg-white px-3 text-xs font-black text-amber-900"
               >
-                Vérifier / réessayer
+                Reprendre l’envoi
               </button>
             </div>
           )}
@@ -205,7 +315,7 @@ export const PatientCompanionEmergencyPhoto = ({
               </p>
               <button
                 type="button"
-                onClick={clearPreview}
+                onClick={() => void discardCurrent()}
                 className="mt-3 min-h-[44px] w-full rounded-xl border border-emerald-200 bg-white px-3 text-xs font-black text-emerald-900"
               >
                 Envoyer une autre photo
@@ -213,7 +323,7 @@ export const PatientCompanionEmergencyPhoto = ({
             </div>
           )}
 
-          {state === 'error' && error && (
+          {enabled && state === 'error' && error && (
             <div role="alert" className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3">
               <p className="text-xs font-black text-rose-800">{error}</p>
               <button
