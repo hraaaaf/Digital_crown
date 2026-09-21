@@ -52,10 +52,10 @@ jobs:
           from pathlib import Path
           items=json.loads(Path("artifacts/pc07-emergency-photo-after/evidence.json").read_text())
           assert len(items)==12
-          assert {x["phase"] for x in items} == {"idle","preview","pending"}
+          assert {x["state"] for x in items} == {"idle","preview","pending"}
           assert all(not x["horizontalOverflow"] for x in items)
           for x in items:
-              if x["phase"] == "idle":
+              if x["state"] == "idle":
                   assert all(c["height"] >= 44 for c in x["controls"])
           print("pc07_after=PASS")
           PY
