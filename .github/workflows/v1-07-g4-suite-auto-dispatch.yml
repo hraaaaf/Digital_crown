@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   dispatch:
-    name: Dispatch G4 backend-only gate
+    name: Dispatch G4 T2-only gate
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch G4 certification suite on current branch
@@ -27,5 +27,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Dispatching CI backend-only on $REF"
-          gh workflow run ci.yml --repo "$REPO" --ref "$REF" -f backend_only=true
+          echo "Dispatching T2 only on $REF"
+          gh workflow run t2-runtime-cert.yml --repo "$REPO" --ref "$REF"
