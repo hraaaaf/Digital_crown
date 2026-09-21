@@ -126,17 +126,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await (await fieldAfter(page, 'Date Avance')).fill('2026-10-03');
   await (await fieldAfter(page, 'Nbre Mensualités')).fill('2');
   await page.getByRole('button', { name: /Générer le tableau des échéances/i }).click();
-  await page.getByDisplayValue('Avance Initiale').waitFor({ state: 'visible', timeout: 5000 });
-  await page.getByDisplayValue('Mensualité 1').waitFor({ state: 'visible', timeout: 5000 });
-  await page.getByDisplayValue('Mensualité 2').waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('input[value="Avance Initiale"]').waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('input[value="Mensualité 1"]').waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('input[value="Mensualité 2"]').waitFor({ state: 'visible', timeout: 5000 });
   await page.getByText('Total équilibré', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   actions.push('installment-generate');
 
   await page.getByRole('button', { name: /Ajouter manuellement/i }).click();
-  const manualRow = page.getByDisplayValue('Nouveau versement');
+  const manualRow = page.locator('input[value="Nouveau versement"]');
   await manualRow.waitFor({ state: 'visible' });
   await page.getByRole('button', { name: /Supprimer Nouveau versement/i }).click();
-  if (await page.getByDisplayValue('Nouveau versement').count()) throw new Error('manual installment deletion failed');
+  if (await page.locator('input[value="Nouveau versement"]').count()) throw new Error('manual installment deletion failed');
   actions.push('installment-manual-add-remove');
 
   const save = page.getByRole('button', { name: 'Enregistrer le plan', exact: true });
