@@ -105,8 +105,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await descriptions.last().fill('Bridge G4 ' + viewport.width);
   await prices.last().fill('1800');
   await page.getByRole('button', { name: /Organiser par phases/i }).click();
-  await page.getByDisplayValue(/PHASE 1 : ASSAINISSEMENT/i).waitFor({ state: 'visible', timeout: 5000 });
-  await page.getByDisplayValue(/PHASE 3 : PROTHÉTIQUE/i).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('input, textarea')].some(element => /PHASE 1 : ASSAINISSEMENT/i.test(element.value)), null, { timeout: 5000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('input, textarea')].some(element => /PHASE 3 : PROTHÉTIQUE/i.test(element.value)), null, { timeout: 5000 });
   actions.push('devis-phase-organization');
 
   const preview = page.getByRole('button', { name: 'Aperçu', exact: true });
