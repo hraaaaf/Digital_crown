@@ -322,3 +322,29 @@ def test_pc07_begin_reports_only_contiguous_received_prefix(db, dentiste):
     assert submit_emergency_photo_chunk(db, access, chunks[0]).status == "ACCEPTED"
     resumed = begin_emergency_photo(db, access, payload)
     assert resumed.response["received_chunks"] == 2
+
+
+def test_pc07_active_upload_quota_and_expiry_cleanup(db, dentiste):
+    _patient, access = _access(db, dentiste)
+    raw = _jpeg_bytes()
+    created = []
+    for _ in range(PC07_MAX_ACTIVE_UPLOADS_PER_ACCESS):
+        payload = _begin_payload(raw)
+        created.append(payload["upload_id"])
+        assert begin_emergency_photo(db, access, payload).status == "ACCEPTED"
+
+    blocked = begin_emergency_photo(db, access, _begin_payload(raw))
+    assert blocked.status == "REJECTED"
+    assert blocked.response == {"code": "TOO_MANY_ACTIVE_UPLOADS"}
+
+    expired = db.query(PatientCompanionEmergencyPhotoUpload).filter(
+        PatientCompanionEmergencyPhotoUpload.public_id == created[0]
+    ).one()
+    expired.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.flush()
+
+    replacement = begin_emergency_photo(db, access, _begin_payload(raw))
+    assert replacement.status == "ACCEPTED"
+    assert db.query(PatientCompanionEmergencyPhotoUpload).filter(
+        PatientCompanionEmergencyPhotoUpload.public_id == created[0]
+    ).count() == 0
