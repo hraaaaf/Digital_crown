@@ -1,6 +1,7 @@
 const DB_NAME = 'digital-crown-patient-companion';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'vault';
+const MEDIA_STORE = 'media';
 const DEVICE_KEY_ID = 'device-aes-key';
 const STATE_ID = 'companion-state';
 
@@ -115,6 +116,7 @@ function openDb(): Promise<IDBDatabase> {
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains(MEDIA_STORE)) db.createObjectStore(MEDIA_STORE);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('Coffre Patient Companion indisponible.'));
@@ -164,6 +166,60 @@ async function deleteValue(key: string): Promise<void> {
     db.close();
   }
 }
+
+type MediaEnvelope = {
+  version: 1;
+  iv: Uint8Array<ArrayBuffer>;
+  ciphertext: ArrayBuffer;
+};
+
+async function readMediaValue<T>(key: string): Promise<T | null> {
+  const db = await openDb();
+  try {
+    return await new Promise<T | null>((resolve, reject) => {
+      const tx = db.transaction(MEDIA_STORE, 'readonly');
+      const request = tx.objectStore(MEDIA_STORE).get(key);
+      request.onsuccess = () => resolve((request.result as T | undefined) ?? null);
+      request.onerror = () => reject(request.error || new Error('Lecture média locale impossible.'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function writeMediaValue(key: string, value: unknown): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(MEDIA_STORE, 'readwrite');
+      tx.objectStore(MEDIA_STORE).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('Écriture média locale impossible.'));
+      tx.onabort = () => reject(tx.error || new Error('Écriture média locale interrompue.'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function deleteMediaValue(key: string): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(MEDIA_STORE, 'readwrite');
+      tx.objectStore(MEDIA_STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('Suppression média locale impossible.'));
+      tx.onabort = () => reject(tx.error || new Error('Suppression média locale interrompue.'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+const emergencyMediaKey = (uploadId: string) => `pc07:${uploadId}`;
+const emergencyMediaAad = (accessId: string, uploadId: string) =>
+  new TextEncoder().encode(`digital-crown-pc07-media-v1:${accessId}:${uploadId}`);
 
 async function getOrCreateDeviceKey(): Promise<CryptoKey> {
   const existing = await readValue<CryptoKey>(DEVICE_KEY_ID);
@@ -344,6 +400,42 @@ export const PatientCompanionStorage = {
     };
     await writeValue(STATE_ID, await encryptState(next));
     return next;
+  },
+
+  async saveEmergencyPhotoBytes(accessId: string, uploadId: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    if (!bytes.byteLength) throw new Error('Photo locale vide.');
+    const key = await getOrCreateDeviceKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv, additionalData: emergencyMediaAad(accessId, uploadId) },
+      key,
+      bytes,
+    );
+    const envelope: MediaEnvelope = { version: 1, iv, ciphertext };
+    await writeMediaValue(emergencyMediaKey(uploadId), envelope);
+    try { await navigator.storage?.persist?.(); } catch { /* best effort */ }
+  },
+
+  async readEmergencyPhotoBytes(accessId: string, uploadId: string): Promise<Uint8Array<ArrayBuffer> | null> {
+    const envelope = await readMediaValue<MediaEnvelope>(emergencyMediaKey(uploadId));
+    if (!envelope) return null;
+    if (envelope.version !== 1) throw new Error('Média Patient Companion invalide.');
+    const key = await readValue<CryptoKey>(DEVICE_KEY_ID);
+    if (!key) throw new Error('Clé locale Patient Companion introuvable.');
+    const clear = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: envelope.iv,
+        additionalData: emergencyMediaAad(accessId, uploadId),
+      },
+      key,
+      envelope.ciphertext,
+    );
+    return new Uint8Array(clear);
+  },
+
+  async deleteEmergencyPhotoBytes(uploadId: string): Promise<void> {
+    await deleteMediaValue(emergencyMediaKey(uploadId));
   },
 
   async clear(): Promise<void> {
