@@ -1,0 +1,71 @@
+name: PC-06 AFTER Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/pc06-after-visual.yml
+      - frontend/scripts/capture-pc06-after.mjs
+      - frontend/src/features/patient-companion/**
+      - backend/routers/patient_companion_finance.py
+      - backend/services/patient_companion_finance.py
+      - docs/clinic/patient_companion/PC_06_*.md
+
+concurrency:
+  group: pc06-after-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+
+      - name: Start AFTER
+        shell: bash
+        run: |
+          cd frontend
+          npm run dev -- --host 127.0.0.1 --port 5183 >/tmp/pc06-after.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5183/ >/dev/null && break || sleep 1; done
+
+      - name: Capture AFTER
+        working-directory: frontend
+        env:
+          PC06_AFTER_URL: http://127.0.0.1:5183
+          PC06_EVIDENCE_DIR: ../artifacts/pc06-finance-after
+        run: node scripts/capture-pc06-after.mjs
+
+      - name: Assert evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          items=json.loads(Path("artifacts/pc06-finance-after/evidence.json").read_text())
+          assert len(items)==4
+          assert all(not x["horizontalOverflow"] for x in items)
+          assert all(all(control["height"] >= 44 for control in x["financeControls"]) for x in items)
+          print("pc06_after=PASS")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc06-finance-after
+          path: artifacts/pc06-finance-after
+          if-no-files-found: error
+          retention-days: 30
