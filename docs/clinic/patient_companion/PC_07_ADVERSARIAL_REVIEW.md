@@ -1,8 +1,8 @@
 # PC-07 — Emergency Photo — Adversarial Review
 
-Status: IMPLEMENTATION CANDIDATE — MACHINE GATES PENDING
+Status: POST-MERGE VERIFIED
 Branch: feature/patient-companion-pc07-emergency-photo
-PR: #648 DRAFT
+PR: #648 MERGED — merge commit `f4576d5127799b66eae891afb82ebd439d8b48d0`
 Deployment: none
 
 ## Review question
@@ -117,20 +117,30 @@ AFTER:
 
 Quota + expiry-purge hardening now also has a dedicated automated regression test.
 
-## Machine gates still open
-At this review revision, exact-head results are still pending for:
-- PC-07 Emergency Photo Certification;
-- PostgreSQL Alembic Schema Certification;
-- Patient Companion Remote Transport Gate;
-- CI;
-- PC-07 BEFORE Visual Evidence;
-- PC-07 AFTER Visual Evidence;
-- triggered regression workflows.
+## Machine gates verified
+Exact pre-merge product HEAD: `974c364178302cca697dfdfc5a15f85626f19f23`.
 
-No numeric visual score and no merge readiness are claimed before those proofs are green and artifacts inspected.
+- PC-07 Emergency Photo Certification `35588652802` — SUCCESS;
+- PostgreSQL Alembic Schema Certification `35588652849` — SUCCESS;
+- Patient Companion Remote Transport Gate `35588652799` — SUCCESS;
+- CI `35588652925` — SUCCESS;
+- PC-07 BEFORE Visual Evidence `35588652855` — SUCCESS;
+- PC-07 AFTER Visual Evidence `35588652761` — SUCCESS.
+
+Visual evidence was inspected on Chromium + WebKit at 360x800 and 390x844. Conservative visual score: 9.2/10.
 
 ## Human gate
-Human visual approval remains mandatory before READY/merge.
+Human visual approval was received before READY/merge.
+
+## Merge
+PR #648 was marked ready only after exact-head gates were green and merged with expected head SHA `974c364178302cca697dfdfc5a15f85626f19f23`.
+Merge commit: `f4576d5127799b66eae891afb82ebd439d8b48d0`.
+
+Post-merge regression repair chain completed through PR #675. The final pre-merge repair candidate `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8` passed CI, Remote Transport, Agenda A5, T2, PR Merge Summary and P7, then merged as `3c1822fec10986158e809d93fb76716bf4890e0a`.
+
+The last complete backend run before #675 exposed only 2 stale test-contract failures out of 4052 executed tests; both were corrected in tests only. No runtime/product behavior changed in #675.
+
+Final post-merge verification completed by content identity because no workflow auto-triggered on merge commit `3c1822fec10986158e809d93fb76716bf4890e0a`. Its tree `8bcf48247d8f364013d4c9573d816cda677a99c6` is identical to certified repair HEAD `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8`, which passed CI, Remote Transport, Agenda A5, T2, PR Merge Summary and P7. PC-07 is POST-MERGE VERIFIED.
 
 ## No deployment
 No Vercel deployment is authorized or claimed.
