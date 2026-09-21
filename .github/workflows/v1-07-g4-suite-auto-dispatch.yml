@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   dispatch:
-    name: Dispatch six G4 exact-head gates
+    name: Dispatch residual G4 exact-head gates
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch G4 certification suite on current branch
@@ -28,12 +28,8 @@ jobs:
         run: |
           set -euo pipefail
           workflows=(
-            "v1-07-g4-browser-inventory.yml"
-            "v1-07-g4-treasury-guard-after.yml"
             "t2-runtime-cert.yml"
             "ci.yml"
-            "patient-p7-final-certification.yml"
-            "ordonnance-fidelity-v3-visual-cert.yml"
           )
           for workflow in "${workflows[@]}"; do
             echo "Dispatching $workflow on $REF"
