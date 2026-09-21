@@ -364,13 +364,20 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     const urlValue = req.url();
     if (/payments|documents\/generate|installments/.test(urlValue)) persistenceRequests.push(urlValue);
   };
+  const truthCopy = page.getByText('Ces réglages seront enregistrés avec la note lors de son enregistrement.', { exact: true });
+  await truthCopy.waitFor({ state: 'visible', timeout: 5000 });
+  await page.screenshot({
+    path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-treasury-truth-after.png'),
+    fullPage: false,
+    animations: 'disabled',
+  });
   page.on('request', requestListener);
-  await page.getByRole('button', { name: "Confirmer l'Encaissement", exact: true }).click();
+  await page.getByRole('button', { name: 'Appliquer à la note', exact: true }).click();
   await page.waitForTimeout(250);
   page.off('request', requestListener);
-  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury confirm did not close modal');
-  if (persistenceRequests.length) throw new Error('Treasury confirm unexpectedly persisted');
-  actions.push('treasury-confirm-local-only');
+  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury apply did not close modal');
+  if (persistenceRequests.length) throw new Error('Treasury apply unexpectedly persisted');
+  actions.push('treasury-apply-local-only-truthful');
 
   await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
   const treasuryTitle = page.getByText('Encaissement', { exact: true });
