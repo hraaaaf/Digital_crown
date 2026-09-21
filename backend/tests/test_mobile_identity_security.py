@@ -20,7 +20,7 @@ from backend.utils import rate_limit
 
 @pytest.fixture(autouse=True)
 def _reset_pairing_rate_limit():
-    path = Path(rate_limit._store_path)
+    path = Path(rate_limit._store_path())
     path.unlink(missing_ok=True)
     yield
     path.unlink(missing_ok=True)
