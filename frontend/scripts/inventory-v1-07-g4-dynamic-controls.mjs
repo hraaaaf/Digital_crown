@@ -87,8 +87,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await manualDrug.fill('G4 MANUAL');
   await page.waitForTimeout(650);
   await manualDrug.press('Escape');
-  await page.getByTitle('Choisir la forme manuellement').first().click();
-  await page.getByRole('menu', { name: 'Choisir la forme' }).waitFor({ state: 'visible', timeout: 10000 });
+  const formTrigger = page.locator('button[title="Choisir la forme manuellement"]:visible').first();
+  await formTrigger.waitFor({ state: 'visible', timeout: 10000 });
+  if (await formTrigger.isDisabled()) throw new Error('manual form trigger unexpectedly disabled');
+  await formTrigger.dispatchEvent('click');
+  await page.locator('[data-g4-manual-form-picker]').waitFor({ state: 'visible', timeout: 10000 });
   await inventory(page, viewport, 'ordonnance-form-picker');
   await page.keyboard.press('Escape');
 
