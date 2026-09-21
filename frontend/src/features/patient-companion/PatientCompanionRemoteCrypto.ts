@@ -8,8 +8,9 @@ import {
 import type { PatientRemoteTransportBinding } from './PatientCompanionStorage';
 
 const DB_NAME = 'digital-crown-patient-companion';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'vault';
+const MEDIA_STORE = 'media';
 
 const JWS_ALG = 'ES256';
 const JWE_ALG = 'ECDH-ES+A256KW';
@@ -43,6 +44,7 @@ function openDb(): Promise<IDBDatabase> {
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains(MEDIA_STORE)) db.createObjectStore(MEDIA_STORE);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('Coffre cryptographique distant indisponible.'));
