@@ -122,7 +122,8 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     expect(items[0]).toEqual(expect.objectContaining({
       description:'Acte groupé test',
       price:1200,
-      dent:'11-12-13-14-15-16-17-18',
+      dent:'11, 12, 13, 14, 15, 16, 17, 18',
+      toothNumbers:[11,12,13,14,15,16,17,18],
     }));
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
   });
@@ -157,8 +158,10 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     const input=screen.getByPlaceholderText('Rechercher ou saisir un acte...');
     fireEvent.change(input,{target:{value:'Détartrage'}});
 
-    const suggestion=await screen.findByRole('button',{name:/Détartrage/i});
-    fireEvent.click(suggestion);
+    const suggestionLabel=await screen.findByText('Détartrage');
+    const suggestion=suggestionLabel.closest('button');
+    expect(suggestion).toBeTruthy();
+    fireEvent.click(suggestion!);
 
     expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
       description:'Détartrage',
