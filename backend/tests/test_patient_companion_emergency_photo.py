@@ -125,7 +125,12 @@ def test_pc07_chunked_photo_exact_patient_strips_metadata_and_accepts_out_of_ord
 
     assert result.status == "ACCEPTED"
     assert result.response["state"] == "received"
-    asset = db.query(ClinicalAsset).filter(ClinicalAsset.id == result.response["asset_id"]).one()
+    assert "asset_id" not in result.response
+    upload = db.query(PatientCompanionEmergencyPhotoUpload).filter(
+        PatientCompanionEmergencyPhotoUpload.public_id == upload_id
+    ).one()
+    assert upload.asset_id is not None
+    asset = db.query(ClinicalAsset).filter(ClinicalAsset.id == upload.asset_id).one()
     assert asset.employer_id == dentiste.id
     assert asset.patient_id == patient.id
     assert asset.asset_type == "PHOTO"
@@ -147,9 +152,6 @@ def test_pc07_chunked_photo_exact_patient_strips_metadata_and_accepts_out_of_ord
         assert image.getexif().get(274) is None
         assert image.getexif().get(270) is None
 
-    upload = db.query(PatientCompanionEmergencyPhotoUpload).filter(
-        PatientCompanionEmergencyPhotoUpload.public_id == upload_id
-    ).one()
     assert upload.status == "RECEIVED"
     assert upload.asset_id == asset.id
     assert db.query(PatientCompanionEmergencyPhotoChunk).filter(
@@ -250,9 +252,14 @@ def test_pc07_finalize_is_domain_idempotent_even_with_new_command_key(
 
     assert first.status == "ACCEPTED"
     assert second.status == "ACCEPTED"
-    assert first.response["asset_id"] == second.response["asset_id"]
+    assert first.response == second.response
+    assert "asset_id" not in first.response
+    upload = db.query(PatientCompanionEmergencyPhotoUpload).filter(
+        PatientCompanionEmergencyPhotoUpload.public_id == upload_id
+    ).one()
+    assert upload.asset_id is not None
     assert db.query(ClinicalAsset).filter(
-        ClinicalAsset.id == first.response["asset_id"]
+        ClinicalAsset.id == upload.asset_id
     ).count() == 1
 
 
