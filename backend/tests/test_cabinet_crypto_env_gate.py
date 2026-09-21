@@ -8,7 +8,7 @@ def test_cabinet_without_crypto_secret_fails_closed(monkeypatch):
     monkeypatch.delenv("CABINET_MASTER_KEY_HEX", raising=False)
     monkeypatch.delenv("SECRET_KEY", raising=False)
 
-    with pytest.raises(RuntimeError, match="mode cabinet refuse"):
+    with pytest.raises(RuntimeError, match="cabinet/production refuse"):
         env_loader._enforce_cabinet_crypto_secret()
 
 
