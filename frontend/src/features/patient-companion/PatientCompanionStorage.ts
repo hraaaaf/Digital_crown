@@ -82,7 +82,6 @@ export type PatientEmergencyPhotoQueueState = {
   capturedAt: string;
   createdAt: string;
   updatedAt: string;
-  assetId?: number;
   errorCode?: string;
 };
 
