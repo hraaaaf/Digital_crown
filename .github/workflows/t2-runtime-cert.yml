@@ -26,6 +26,8 @@ jobs:
       T2_USER: t2-browser@cabinet.ma
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
@@ -135,6 +137,16 @@ jobs:
           set -o pipefail
           node scripts/certify-document-studio-output.mjs 2>&1 | tee ../artifacts/t2-browser/output-runner.log
 
+      - name: Certify Honoraires cross-surface reconciliation
+        working-directory: frontend
+        shell: bash
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/honoraires-reconciliation
+          node scripts/certify-honoraires-reconciliation-browser.mjs 2>&1 | tee ../artifacts/honoraires-reconciliation/runner.log
+
       - name: Dump runtime logs on failure
         if: failure()
         run: |
@@ -148,6 +160,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: t2-browser-evidence
-          path: artifacts/t2-browser
+          path: |
+            artifacts/t2-browser
+            artifacts/honoraires-reconciliation
           if-no-files-found: warn
           retention-days: 14
