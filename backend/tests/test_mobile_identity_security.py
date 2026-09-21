@@ -21,9 +21,15 @@ from backend.utils import rate_limit
 @pytest.fixture(autouse=True)
 def _reset_pairing_rate_limit():
     path = Path(rate_limit._store_path())
-    path.unlink(missing_ok=True)
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
+        path.unlink(missing_ok=True)
     yield
-    path.unlink(missing_ok=True)
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
+        path.unlink(missing_ok=True)
 
 
 def _user(db, *, email, role, employer_id=None, permissions=None, active=True, approval='approved', licensed=True):
