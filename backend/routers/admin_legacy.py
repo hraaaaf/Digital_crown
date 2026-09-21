@@ -32,7 +32,7 @@ def normalize_docs(db: Session = Depends(database.get_db), current_user: models.
             text(
                 "UPDATE document_archives SET document_type = 'NOTE_HONORAIRES' "
                 "WHERE " + tenant_scope + " "
-                "AND document_type::text IN ('note_honoraires', 'note_honoraire', 'NOTE_HONORAIRE');"
+                "AND CAST(document_type AS TEXT) IN ('note_honoraires', 'note_honoraire', 'NOTE_HONORAIRE');"
             ),
             {"employer_id": employer_id},
         )
@@ -40,7 +40,7 @@ def normalize_docs(db: Session = Depends(database.get_db), current_user: models.
             text(
                 "UPDATE document_archives SET document_type = 'RAPPORT_CEPHALO' "
                 "WHERE " + tenant_scope + " "
-                "AND document_type::text IN ('bilan', 'BILAN', 'rapport_cephalo');"
+                "AND CAST(document_type AS TEXT) IN ('bilan', 'BILAN', 'rapport_cephalo');"
             ),
             {"employer_id": employer_id},
         )
