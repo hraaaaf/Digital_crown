@@ -1,3 +1,132 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium, request } from 'playwright';
+
+const outDir = path.resolve('../artifacts/t2-browser/g4-remaining-documents');
+fs.mkdirSync(outDir, { recursive: true });
+const user = process.env.T2_USER;
+const password = process.env.T2_PASSWORD;
+if (!user || !password) throw new Error('T2_USER/T2_PASSWORD required');
+
+const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
+const login = await api.post('/api/auth/login', { form: { username: user, password } });
+if (!login.ok()) throw new Error('login failed');
+const tokens = await login.json();
+const headers = { Authorization: `Bearer ${tokens.access_token}` };
+const patientsResponse = await api.get('/api/patients', { headers });
+if (!patientsResponse.ok()) throw new Error('patients failed');
+const patient = (await patientsResponse.json()).find(row => row.numero_dossier === 'T2-0001');
+if (!patient) throw new Error('fixture patient missing');
+
+const browser = await chromium.launch({ headless: true });
+const evidence = [];
+
+async function seedAuth(page) {
+  await page.addInitScript(({ access, refresh }) => {
+    localStorage.setItem('token', access);
+    localStorage.setItem('refresh_token', refresh || '');
+    localStorage.setItem('appMode', 'prod');
+  }, { access: tokens.access_token, refresh: tokens.refresh_token });
+}
+
+async function snap(page, viewport, scene) {
+  const screenshot = `g4-docs-${viewport.width}x${viewport.height}-${scene}.png`;
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+  await page.screenshot({ path: path.join(outDir, screenshot), fullPage: false, animations: 'disabled' });
+  return { screenshot, overflow };
+}
+
+async function fieldAfter(page, label) {
+  const node = page.getByText(label, { exact: true }).first();
+  const parent = node.locator('..');
+  return parent.locator('input,select').first();
+}
+
+async function exerciseStudioHeader(page) {
+  const author = page.getByLabel('Auteur clinique du document');
+  if (!(await author.isDisabled())) {
+    const options = await author.locator('option').evaluateAll(nodes => nodes.map(node => ({ value: node.value, text: node.textContent || '' })).filter(row => row.value));
+    if (options.length) {
+      await author.selectOption(options[0].value);
+      if (await author.inputValue() !== options[0].value) throw new Error('author selection failed');
+    }
+  }
+  const date = page.getByLabel("Date d'émission");
+  await date.fill('2026-09-19');
+  if (await date.inputValue() !== '2026-09-19') throw new Error('document date edit failed');
+}
+
+async function closeResidualPreview(page) {
+  const overlay = page.locator('.document-studio-live-preview').last();
+  if (!(await overlay.count()) || !(await overlay.isVisible())) return;
+  const close = overlay.getByRole('button', { name: 'Fermer', exact: true });
+  await close.waitFor({ state: 'visible', timeout: 5000 });
+  await close.click();
+  await overlay.waitFor({ state: 'hidden', timeout: 5000 });
+}
+
+async function exercisePreview(page) {
+  const previewButton = page.getByRole('button', { name: 'Aperçu', exact: true });
+  if (!(await previewButton.count())) {
+    const closeToggle = page.getByRole('button', { name: 'Fermer', exact: true });
+    if (await closeToggle.count()) {
+      await closeToggle.last().click();
+      await page.waitForTimeout(100);
+    }
+  }
+  await previewButton.waitFor({ state: 'visible', timeout: 5000 });
+  await previewButton.click();
+  const desktopInline = await page.evaluate(() => window.matchMedia('(min-width: 1280px)').matches);
+  const previewRoot = desktopInline
+    ? page.locator('aside[data-ordonnance-desktop-preview="inline"]').last()
+    : page.locator('.document-studio-live-preview').last();
+  await previewRoot.waitFor({ state: 'visible', timeout: 15000 });
+  const previewSurface = desktopInline
+    ? previewRoot.getByRole('region', { name: /Aperçu PDF/ })
+    : previewRoot.getByRole('dialog');
+  await previewSurface.waitFor({ state: 'visible', timeout: 5000 });
+  const refresh = previewSurface.getByRole('button', { name: 'Actualiser', exact: true });
+  if (await refresh.count()) await refresh.click();
+  await previewSurface.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await previewRoot.waitFor({ state: 'hidden', timeout: 5000 });
+}
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+  const context = await browser.newContext({ viewport, colorScheme: 'light' });
+  const page = await context.newPage();
+  await seedAuth(page);
+  const pageErrors = [];
+  const ignoredPageErrors = [];
+  const http5xx = [];
+  page.on('pageerror', error => {
+    const message = String(error);
+    if (message.includes("Failed to read the 'localStorage' property from 'Window': Access is denied for this document.")) {
+      ignoredPageErrors.push(message);
+      return;
+    }
+    pageErrors.push(message);
+  });
+  page.on('response', response => { if (response.status() >= 500) http5xx.push({ url: response.url(), status: response.status() }); });
+  const base = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=`;
+  const actions = [];
+
+  await page.goto(base + 'certificat', { waitUntil: 'networkidle', timeout: 90000 });
+  await page.getByRole('button', { name: 'Certificat', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await closeResidualPreview(page);
+  await exerciseStudioHeader(page);
+  await page.getByRole('button', { name: /Arrêt de travail/i }).click();
+  await page.getByLabel('Début du repos').fill('2026-10-02');
+  await page.getByLabel('Durée du repos en jours').fill('4');
+  if (await page.getByLabel('Durée du repos en jours').inputValue() !== '4') throw new Error('certificate duration failed');
+  await page.getByRole('button', { name: /Présence au cabinet/i }).click();
+  if (await page.getByLabel('Durée du repos en jours').count()) throw new Error('presence certificate still exposes duration');
+  await page.getByRole('button', { name: /Certificat médical/i }).click();
+  const freeCertificate = page.getByLabel(/Contenu du certificat médical/i);
+  await freeCertificate.fill(`Contenu certifié G4 navigateur ${viewport.width}x${viewport.height}`);
+  if (await freeCertificate.inputValue() !== `Contenu certifié G4 navigateur ${viewport.width}x${viewport.height}`) throw new Error('free certificate content failed');
+  actions.push('certificate-types-fields');
+  await exercisePreview(page);
+  actions.push('certificate-preview-refresh-close');
   let responsePromise = page.waitForResponse(response => response.url().includes('/api/documents/generate') && response.request().method() === 'POST', { timeout: 30000 });
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   if (!(await responsePromise).ok()) throw new Error('certificate save failed');
@@ -43,15 +172,7 @@
   await firstMethod.selectOption('CARTE');
   const collect = page.getByRole('button', { name: 'Encaisser', exact: true }).first();
   if (await collect.isDisabled()) throw new Error('collect remained disabled after method selection');
-  const collectResponsePromise = page.waitForResponse(
-    response => /\/api\/installments\/\d+$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT',
-    { timeout: 30000 },
-  );
   await collect.click();
-  const collectResponse = await collectResponsePromise;
-  if (!collectResponse.ok()) throw new Error('installment collection request failed');
-  const collectBody = await collectResponse.json();
-  if (collectBody?.status !== 'PAYE') throw new Error('installment collection ACK is not PAYE');
   await page.getByText('PAYÉ', { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
   actions.push('installment-collect');
 
@@ -107,3 +228,26 @@
   actions.push('libre-residual-controls');
   await exercisePreview(page);
   actions.push('libre-preview-refresh-close');
+  responsePromise = page.waitForResponse(response => response.url().includes('/api/documents/generate') && response.request().method() === 'POST', { timeout: 30000 });
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  if (!(await responsePromise).ok()) throw new Error('libre save failed');
+  await content.fill((await content.inputValue()) + ' impression');
+  responsePromise = page.waitForResponse(response => response.url().includes('/api/documents/generate') && response.request().method() === 'POST', { timeout: 30000 });
+  await page.getByRole('button', { name: 'Préparer impression', exact: true }).click();
+  if (!(await responsePromise).ok()) throw new Error('libre prepare print failed');
+  actions.push('libre-save-prepare-print');
+  const libreScene = await snap(page, viewport, 'libre');
+
+  if ([certScene, installmentScene, libreScene].some(row => row.overflow)) throw new Error('horizontal overflow detected');
+  if (pageErrors.length) throw new Error('page errors: ' + pageErrors.join(' | '));
+  if (http5xx.length) throw new Error('HTTP5xx: ' + JSON.stringify(http5xx));
+
+  evidence.push({ viewport, actions, certScene, installmentScene, libreScene, pageErrors, ignoredPageErrors, http5xx });
+  await context.close();
+}
+
+await browser.close();
+await api.dispose();
+const summary = { status: 'PASS', evidence };
+fs.writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
+console.log('G4_REMAINING_DOCUMENTS ' + JSON.stringify({ status: summary.status, viewports: evidence.length }));

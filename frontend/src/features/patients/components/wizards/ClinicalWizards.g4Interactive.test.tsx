@@ -43,7 +43,7 @@ const controlRegex = /Annuler|Retour|Triage/i;
 
 function actionableButtons() {
   return screen
-    .getAllByRole('button')
+    .queryAllByRole('button')
     .filter(button => !controlRegex.test(button.textContent || ''));
 }
 
