@@ -1,19 +1,35 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const storage = {
+  load: vi.fn(),
+  saveEmergencyPhotoBytes: vi.fn(),
+  readEmergencyPhotoBytes: vi.fn(),
+  deleteEmergencyPhotoBytes: vi.fn(),
+  saveEmergencyPhotoQueue: vi.fn(),
+};
+
+vi.mock('./PatientCompanionStorage', () => ({
+  PatientCompanionStorage: storage,
+}));
+
 vi.mock('./PatientCompanionEmergencyPhotoPrep', () => ({
   prepareEmergencyPhoto: vi.fn(async () => ({
     previewUrl: 'blob:pc07-preview',
-    candidates: [{ imageB64: 'ZmFrZS1qcGVn', byteSize: 9, width: 640, height: 480 }],
+    bytes: new Uint8Array([1, 2, 3, 4]),
+    byteSize: 4,
+    width: 640,
+    height: 480,
+    mimeType: 'image/jpeg',
   })),
 }));
 
-vi.mock('./PatientCompanionRemoteCommandTransport', () => ({
-  sendRemoteCommand: vi.fn(),
+vi.mock('./PatientCompanionEmergencyPhotoTransport', () => ({
+  uploadEmergencyPhoto: vi.fn(),
 }));
 
 import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto';
-import { sendRemoteCommand } from './PatientCompanionRemoteCommandTransport';
+import { uploadEmergencyPhoto } from './PatientCompanionEmergencyPhotoTransport';
 
 const pairing = {
   accessToken: 'pc07-token',
@@ -33,9 +49,28 @@ const pairing = {
   },
 } as any;
 
+const emptyVault = {
+  version: 1,
+  activeAccessId: pairing.context.access_id,
+  pairings: [pairing],
+  cache: {},
+};
+
 beforeEach(() => {
-  vi.stubGlobal('crypto', { ...globalThis.crypto, randomUUID: vi.fn(() => '11111111-1111-4111-8111-111111111111') });
+  vi.stubGlobal('crypto', {
+    ...globalThis.crypto,
+    randomUUID: vi.fn(() => '11111111-1111-4111-8111-111111111111'),
+  });
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: vi.fn(() => 'blob:restored'),
+    configurable: true,
+  });
   Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
+  storage.load.mockResolvedValue(emptyVault);
+  storage.saveEmergencyPhotoBytes.mockResolvedValue(undefined);
+  storage.readEmergencyPhotoBytes.mockResolvedValue(null);
+  storage.deleteEmergencyPhotoBytes.mockResolvedValue(undefined);
+  storage.saveEmergencyPhotoQueue.mockResolvedValue(emptyVault);
 });
 
 afterEach(() => {
@@ -57,50 +92,87 @@ describe('PatientCompanionEmergencyPhoto PC-07', () => {
     expect(screen.queryByText('Prendre ou choisir une photo')).not.toBeInTheDocument();
   });
 
-  it('shows received only after authoritative ACK', async () => {
-    vi.mocked(sendRemoteCommand).mockResolvedValue({
+  it('persists local encrypted media before upload and shows received only after ACK', async () => {
+    vi.mocked(uploadEmergencyPhoto).mockResolvedValue({
       status: 'ACCEPTED',
       result: { state: 'received', asset_id: 77 },
       messageId: '22222222-2222-4222-8222-222222222222',
-      idempotencyKey: '11111111-1111-4111-8111-111111111111',
-    });
+      idempotencyKey: '33333333-3333-4333-8333-333333333333',
+    } as any);
 
     render(<PatientCompanionEmergencyPhoto pairing={pairing} enabled />);
     await choosePhoto();
+
+    expect(storage.saveEmergencyPhotoBytes).toHaveBeenCalledWith(
+      pairing.context.access_id,
+      '11111111-1111-4111-8111-111111111111',
+      expect.any(Uint8Array),
+    );
+
     fireEvent.click(screen.getByText('Envoyer au cabinet'));
 
     expect(await screen.findByText('Photo reçue par le cabinet.')).toBeInTheDocument();
-    expect(sendRemoteCommand).toHaveBeenCalledWith(
+    expect(uploadEmergencyPhoto).toHaveBeenCalledWith(
       pairing,
-      'emergency-photo',
-      'emergency_photo.submit',
-      expect.objectContaining({ image_b64: 'ZmFrZS1qcGVn' }),
+      '11111111-1111-4111-8111-111111111111',
+      expect.any(Uint8Array),
+      expect.any(String),
+      expect.any(Function),
+    );
+    expect(storage.deleteEmergencyPhotoBytes).toHaveBeenCalledWith(
       '11111111-1111-4111-8111-111111111111',
     );
   });
 
-  it('keeps pending truth and retries with the same idempotency key', async () => {
+  it('keeps pending truth and retries the same upload object', async () => {
     const pending = Object.assign(new Error('ACK pending'), { remotePending: true });
-    vi.mocked(sendRemoteCommand)
+    vi.mocked(uploadEmergencyPhoto)
       .mockRejectedValueOnce(pending)
       .mockResolvedValueOnce({
         status: 'ACCEPTED',
         result: { state: 'received', asset_id: 77 },
-        messageId: '33333333-3333-4333-8333-333333333333',
-        idempotencyKey: '11111111-1111-4111-8111-111111111111',
-      });
+      } as any);
 
     render(<PatientCompanionEmergencyPhoto pairing={pairing} enabled />);
     await choosePhoto();
     fireEvent.click(screen.getByText('Envoyer au cabinet'));
 
-    expect(await screen.findByText(/confirmation du cabinet encore en attente/i)).toBeInTheDocument();
+    expect(await screen.findByText(/aucune réception cabinet n’est encore confirmée/i)).toBeInTheDocument();
     expect(screen.queryByText('Photo reçue par le cabinet.')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Vérifier / réessayer'));
+    fireEvent.click(screen.getByText('Reprendre l’envoi'));
     expect(await screen.findByText('Photo reçue par le cabinet.')).toBeInTheDocument();
 
-    expect(vi.mocked(sendRemoteCommand).mock.calls[0][4]).toBe('11111111-1111-4111-8111-111111111111');
-    expect(vi.mocked(sendRemoteCommand).mock.calls[1][4]).toBe('11111111-1111-4111-8111-111111111111');
+    expect(vi.mocked(uploadEmergencyPhoto).mock.calls[0][1]).toBe('11111111-1111-4111-8111-111111111111');
+    expect(vi.mocked(uploadEmergencyPhoto).mock.calls[1][1]).toBe('11111111-1111-4111-8111-111111111111');
+  });
+
+  it('restores a queued encrypted photo after reload without inventing receipt', async () => {
+    storage.load.mockResolvedValue({
+      ...emptyVault,
+      cache: {
+        [pairing.context.access_id]: {
+          version: 1,
+          accessId: pairing.context.access_id,
+          syncedAt: '2026-09-21T08:00:00Z',
+          appointments: [],
+          shares: [],
+          emergencyPhotos: [{
+            uploadId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            state: 'remote_pending_ack',
+            byteSize: 4,
+            capturedAt: '2026-09-21T08:00:00Z',
+            createdAt: '2026-09-21T08:00:00Z',
+            updatedAt: '2026-09-21T08:01:00Z',
+          }],
+        },
+      },
+    });
+    storage.readEmergencyPhotoBytes.mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
+
+    render(<PatientCompanionEmergencyPhoto pairing={pairing} enabled />);
+
+    expect(await screen.findByText('Reprendre l’envoi')).toBeInTheDocument();
+    expect(screen.queryByText('Photo reçue par le cabinet.')).not.toBeInTheDocument();
   });
 });
