@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-21 — PC-07 merged; final post-merge verification pending after repair chain
-Active lot: PC-07 — Emergency Photo — final post-merge closeout
+Last verified update: 2026-09-21 — PC-07 POST-MERGE VERIFIED; PC-08 start ready
+Active lot: PC-08 — Secure Messaging — audit gate
 
 ## Product doctrine
 
@@ -294,10 +294,10 @@ Post-merge repair checkpoint:
 - PR #675 merged as `3c1822fec10986158e809d93fb76716bf4890e0a`;
 - no Vercel deployment.
 
-Final post-merge workflows on `3c1822fec10986158e809d93fb76716bf4890e0a` were not yet registered at this checkpoint, so PC-07 is not yet declared `POST-MERGE VERIFIED`.
+No workflow auto-triggered on merge commit `3c1822fec10986158e809d93fb76716bf4890e0a`. Content identity closes the proof: merge tree `8bcf48247d8f364013d4c9573d816cda677a99c6` exactly matches certified repair HEAD `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8`, whose exact-head CI, Remote Transport, Agenda A5, T2, PR Merge Summary and P7 were SUCCESS. PC-07 is `POST-MERGE VERIFIED`.
 
 Next exact:
-1. verify final post-merge workflows on `3c1822fec10986158e809d93fb76716bf4890e0a`;
-2. if green, mark PC-07 `POST-MERGE VERIFIED`;
-3. merge docs PR #658;
-4. switch active lot to PC-08 — Secure Messaging; no Vercel deployment.
+1. merge docs PR #676;
+2. verify final master contains the four closeout docs;
+3. start PC-08 Secure Messaging with audit-before-code;
+4. no Vercel deployment.
