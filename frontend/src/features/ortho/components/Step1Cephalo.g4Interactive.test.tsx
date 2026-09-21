@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Step1Cephalo } from './Step1Cephalo';
 import { CEPHALO_ANALYSIS_CHANGE_EVENT } from '../cephaloAnalysisBridge';
@@ -92,7 +92,7 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     expect(screen.getByText('Workbench analysis: all')).toBeTruthy();
 
-    window.dispatchEvent(new CustomEvent(CEPHALO_ANALYSIS_CHANGE_EVENT,{detail:'steiner'}));
+    act(() => window.dispatchEvent(new CustomEvent(CEPHALO_ANALYSIS_CHANGE_EVENT,{detail:'steiner'})));
     expect(screen.getByText('Workbench analysis: steiner')).toBeTruthy();
   });
 });
