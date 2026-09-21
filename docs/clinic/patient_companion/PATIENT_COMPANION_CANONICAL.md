@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-21 — PC-06 merged and content-identity post-merge verified
-Active lot: PC-07 — Emergency Photo — audit gate
+Last verified update: 2026-09-21 — PC-07 merged; final post-merge verification pending after repair chain
+Active lot: PC-07 — Emergency Photo — final post-merge closeout
 
 ## Product doctrine
 
@@ -264,3 +264,40 @@ Next exact:
 3. create `PC_07_EMERGENCY_PHOTO_ARCHITECTURE_MAP.md`;
 4. lock exact Goal / Success / Proof;
 5. only then implement.
+
+
+## PC-07 merged / post-merge closeout — 2026-09-21
+
+PC-07 Emergency Photo:
+- PR #648 merged;
+- certified pre-merge product HEAD: `974c364178302cca697dfdfc5a15f85626f19f23`;
+- merge commit: `f4576d5127799b66eae891afb82ebd439d8b48d0`;
+- PC-07 Certification `35588652802` SUCCESS;
+- Remote Transport `35588652799` SUCCESS;
+- Alembic `35588652849` SUCCESS;
+- BEFORE `35588652855` SUCCESS;
+- AFTER `35588652761` SUCCESS;
+- CI `35588652925` SUCCESS;
+- human visual approval received before merge;
+- conservative visual score: 9.2/10;
+- no Vercel deployment.
+
+Post-merge repair checkpoint:
+- repair chain completed through PR #675;
+- final repair candidate: `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8`;
+- exact-head CI `35616706913` SUCCESS;
+- Remote Transport `35616706782` SUCCESS;
+- Agenda A5 `35616706778` SUCCESS;
+- T2 `35616706831` SUCCESS;
+- PR Merge Summary `35616706906` SUCCESS;
+- P7 `35616706810` SUCCESS;
+- PR #675 merged as `3c1822fec10986158e809d93fb76716bf4890e0a`;
+- no Vercel deployment.
+
+Final post-merge workflows on `3c1822fec10986158e809d93fb76716bf4890e0a` were not yet registered at this checkpoint, so PC-07 is not yet declared `POST-MERGE VERIFIED`.
+
+Next exact:
+1. verify final post-merge workflows on `3c1822fec10986158e809d93fb76716bf4890e0a`;
+2. if green, mark PC-07 `POST-MERGE VERIFIED`;
+3. merge docs PR #658;
+4. switch active lot to PC-08 — Secure Messaging; no Vercel deployment.
