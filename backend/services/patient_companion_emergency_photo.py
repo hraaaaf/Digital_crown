@@ -34,6 +34,7 @@ from backend.services.patient_companion_remote_worker import RemoteDomainResult
 PC07_CHUNK_BYTES = 96 * 1024
 PC07_MAX_CHUNKS = CLINICAL_PHOTO_MAX_BYTES // PC07_CHUNK_BYTES
 PC07_UPLOAD_TTL = timedelta(hours=24)
+PC07_MAX_ACTIVE_UPLOADS_PER_ACCESS = 3
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ASSEMBLY_MAGIC = b"PC07C1"
 _ASSEMBLY_SALT = b"digital-crown-pc07-assembly-v1"
@@ -124,12 +125,11 @@ def _captured_at(raw) -> datetime | None:
     return parsed.replace(tzinfo=None) if parsed.tzinfo is not None else parsed
 
 
-def _purge_expired(db: Session, access: PatientCompanionAccess) -> None:
+def _purge_expired(db: Session) -> None:
     now = datetime.utcnow()
     expired_ids = [
         row[0]
         for row in db.query(PatientCompanionEmergencyPhotoUpload.id).filter(
-            PatientCompanionEmergencyPhotoUpload.access_id == access.id,
             PatientCompanionEmergencyPhotoUpload.status == "UPLOADING",
             PatientCompanionEmergencyPhotoUpload.expires_at <= now,
         ).all()
@@ -184,7 +184,7 @@ def begin_emergency_photo(
     ):
         return _reject("INVALID_REQUEST")
 
-    _purge_expired(db, access)
+    _purge_expired(db)
     existing = _upload(db, access, upload_id)
     if existing is not None:
         if (
@@ -216,6 +216,14 @@ def begin_emergency_photo(
             received_chunks=contiguous_prefix,
             chunk_count=existing.chunk_count,
         )
+
+    active_uploads = db.query(PatientCompanionEmergencyPhotoUpload).filter(
+        PatientCompanionEmergencyPhotoUpload.access_id == access.id,
+        PatientCompanionEmergencyPhotoUpload.status == "UPLOADING",
+        PatientCompanionEmergencyPhotoUpload.expires_at > datetime.utcnow(),
+    ).count()
+    if active_uploads >= PC07_MAX_ACTIVE_UPLOADS_PER_ACCESS:
+        return _reject("TOO_MANY_ACTIVE_UPLOADS")
 
     now = datetime.utcnow()
     row = PatientCompanionEmergencyPhotoUpload(
@@ -261,7 +269,7 @@ def submit_emergency_photo_chunk(
     if not upload_id or not chunk_sha256 or not isinstance(encoded, str) or not encoded:
         return _reject("INVALID_REQUEST")
 
-    _purge_expired(db, access)
+    _purge_expired(db)
     upload = _upload(db, access, upload_id)
     if upload is None:
         return _reject("UPLOAD_NOT_FOUND")
@@ -339,7 +347,7 @@ def finalize_emergency_photo(
     if not upload_id:
         return _reject("INVALID_REQUEST")
 
-    _purge_expired(db, access)
+    _purge_expired(db)
     upload = _upload(db, access, upload_id)
     if upload is None:
         return _reject("UPLOAD_NOT_FOUND")
