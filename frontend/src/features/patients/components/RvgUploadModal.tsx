@@ -66,6 +66,8 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
     setLoading(true);
     setProgress(0);
 
+    let progressInterval: ReturnType<typeof setInterval> | undefined;
+
     try {
       const request: RVGUploadRequest = {
         file,
@@ -76,13 +78,14 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
         note: note || undefined,
       };
 
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setProgress((p) => Math.min(p + 10, 90));
       }, 100);
 
       const doc = await rvgService.uploadRVG(patientId, request);
 
       clearInterval(progressInterval);
+      progressInterval = undefined;
       setProgress(100);
 
       setFile(null);
@@ -100,6 +103,7 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
       setError(err.response?.data?.detail || 'Erreur lors du téléchargement.');
       if (onError) onError(err);
     } finally {
+      if (progressInterval) clearInterval(progressInterval);
       setLoading(false);
       setProgress(0);
     }
