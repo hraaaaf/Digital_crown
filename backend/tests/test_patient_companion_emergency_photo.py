@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, timedelta, timezone
 from io import BytesIO
 
 from PIL import Image
@@ -20,6 +20,7 @@ from backend.services.clinical_asset_storage import read_clinical_asset_bytes
 from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
 from relay.contract import RELAY_MAX_BLOB_BYTES
 
+from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
 from backend.services.patient_companion_emergency_photo import (
     PC07_CHUNK_BYTES,
     begin_emergency_photo,
@@ -295,3 +296,52 @@ def test_pc07_96k_chunk_fits_real_compact_jose_relay_limit():
     )
 
     assert len(blob.encode("utf-8")) < RELAY_MAX_BLOB_BYTES
+
+
+def test_pc07_begin_reports_only_contiguous_received_prefix(db, dentiste):
+    _patient, access = _access(db, dentiste)
+    raw = b"a" * (PC07_CHUNK_BYTES * 2)
+    payload = _begin_payload(raw)
+    assert begin_emergency_photo(db, access, payload).status == "ACCEPTED"
+    chunks = _chunks(raw, payload["upload_id"])
+
+    assert submit_emergency_photo_chunk(db, access, chunks[1]).status == "ACCEPTED"
+    resumed = begin_emergency_photo(db, access, payload)
+    assert resumed.status == "ACCEPTED"
+    assert resumed.response["received_chunks"] == 0
+
+    assert submit_emergency_photo_chunk(db, access, chunks[0]).status == "ACCEPTED"
+    resumed = begin_emergency_photo(db, access, payload)
+    assert resumed.response["received_chunks"] == 2
+
+
+def test_pc07_96k_chunk_fits_real_jose_relay_limit():
+    sender_kid = str(uuid.uuid4())
+    recipient_kid = str(uuid.uuid4())
+    sender_private, _sender_public = generate_p256_keypair(kid=sender_kid, use="sig")
+    _recipient_private, recipient_public = generate_p256_keypair(kid=recipient_kid, use="enc")
+    now = datetime.now(timezone.utc)
+    raw = b"x" * PC07_CHUNK_BYTES
+    payload = {
+        "protocol_version": "dc-pc-remote-v1",
+        "message_id": str(uuid.uuid4()),
+        "access_id": str(uuid.uuid4()),
+        "sent_at": now.isoformat(),
+        "expires_at": (now + timedelta(minutes=10)).isoformat(),
+        "idempotency_key": str(uuid.uuid4()),
+        "operation": "emergency_photo.chunk",
+        "payload": {
+            "upload_id": str(uuid.uuid4()),
+            "chunk_index": 0,
+            "chunk_sha256": hashlib.sha256(raw).hexdigest(),
+            "chunk_b64": base64.b64encode(raw).decode("ascii"),
+        },
+    }
+    token = sign_and_encrypt(
+        payload,
+        sender_signing_private_jwk=sender_private,
+        recipient_encryption_public_jwk=recipient_public,
+        sender_signing_kid=sender_kid,
+        recipient_encryption_kid=recipient_kid,
+    )
+    assert len(token.encode("utf-8")) < 256 * 1024
