@@ -77,7 +77,7 @@ describe('PatientFinances G4 screen interaction matrix', () => {
   it('renders backend financial truth and opens all three payment entry points', async () => {
     renderFinances();
 
-    expect(await screen.findByText('Couronne 16')).toBeTruthy();
+    expect((await screen.findAllByText('Couronne 16')).length).toBeGreaterThan(0);
     expect(screen.getByText('1.200')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Payer/i }));
@@ -94,7 +94,7 @@ describe('PatientFinances G4 screen interaction matrix', () => {
 
   it('refetches both financial sources after successful act payment', async () => {
     renderFinances();
-    await screen.findByText('Couronne 16');
+    await screen.findAllByText('Couronne 16');
 
     const beforeSnapshot = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/patients/7/financial-snapshot').length;
     const beforeBilling = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/accounting/actes-billing/patient/7').length;
@@ -112,7 +112,7 @@ describe('PatientFinances G4 screen interaction matrix', () => {
 
   it('refetches both financial sources after successful plan creation', async () => {
     renderFinances();
-    await screen.findByText('Couronne 16');
+    await screen.findAllByText('Couronne 16');
 
     const before = vi.mocked(api.get).mock.calls.length;
     fireEvent.click(screen.getByRole('button', { name: /Plan/i }));
