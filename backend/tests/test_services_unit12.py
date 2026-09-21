@@ -47,78 +47,65 @@ class TestCephaloEngineGeometryOnly:
 # ── rate_limit file-I/O helpers ───────────────────────────────────────────────
 
 class TestRateLimitLoad:
+    def _reset(self, rl):
+        rl._attempts = {}
+        rl._loaded = False
+
     def test_load_returns_empty_dict_when_no_file(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("PATH", str(tmp_path))
         import backend.utils.rate_limit as rl
-        original = rl._store_path
-        try:
-            rl._store_path = str(tmp_path / "nonexistent.json")
-            result = rl._load()
-            assert result == {}
-        finally:
-            rl._store_path = original
+        self._reset(rl)
+        monkeypatch.setattr(rl, "_store_path", lambda: tmp_path / "nonexistent.json")
+        rl._load_once()
+        assert rl._attempts == {}
+        assert rl._loaded is True
 
     def test_load_reads_existing_file(self, tmp_path, monkeypatch):
         import backend.utils.rate_limit as rl
         store_file = tmp_path / "rate_limit.json"
         store_file.write_text(json.dumps({"192.168.1.1": [3, 1700000000.0]}))
-        original = rl._store_path
-        try:
-            rl._store_path = str(store_file)
-            result = rl._load()
-            assert "192.168.1.1" in result
-            assert result["192.168.1.1"] == (3, 1700000000.0)
-        finally:
-            rl._store_path = original
+        self._reset(rl)
+        monkeypatch.setattr(rl, "_store_path", lambda: store_file)
+        rl._load_once()
+        assert rl._attempts["192.168.1.1"] == (3, 1700000000.0)
 
-    def test_load_returns_empty_on_corrupted_file(self, tmp_path):
+    def test_load_returns_empty_on_corrupted_file(self, tmp_path, monkeypatch):
         import backend.utils.rate_limit as rl
         store_file = tmp_path / "rate_limit.json"
         store_file.write_text("not valid json{{")
-        original = rl._store_path
-        try:
-            rl._store_path = str(store_file)
-            result = rl._load()
-            assert result == {}
-        finally:
-            rl._store_path = original
+        self._reset(rl)
+        monkeypatch.setattr(rl, "_store_path", lambda: store_file)
+        rl._load_once()
+        assert rl._attempts == {}
+        assert rl._loaded is True
 
 
 class TestRateLimitSave:
-    def test_save_writes_json_file(self, tmp_path):
+    def test_save_writes_json_file(self, tmp_path, monkeypatch):
         import backend.utils.rate_limit as rl
         store_file = tmp_path / "rate_limit.json"
-        original = rl._store_path
-        try:
-            rl._store_path = str(store_file)
-            rl._save({"10.0.0.1": (2, 1700000000.0)})
-            assert store_file.exists()
-            loaded = json.loads(store_file.read_text())
-            assert "10.0.0.1" in loaded
-        finally:
-            rl._store_path = original
+        monkeypatch.setattr(rl, "_store_path", lambda: store_file)
+        rl._attempts = {"10.0.0.1": (2, 1700000000.0)}
+        rl._save()
+        assert store_file.exists()
+        loaded = json.loads(store_file.read_text())
+        assert "10.0.0.1" in loaded
 
-    def test_save_then_load_roundtrip(self, tmp_path):
+    def test_save_then_load_roundtrip(self, tmp_path, monkeypatch):
         import backend.utils.rate_limit as rl
         store_file = tmp_path / "rate_limit.json"
-        original = rl._store_path
-        try:
-            rl._store_path = str(store_file)
-            data = {"10.0.0.2": (1, 1700000001.0)}
-            rl._save(data)
-            result = rl._load()
-            assert result["10.0.0.2"] == (1, 1700000001.0)
-        finally:
-            rl._store_path = original
+        monkeypatch.setattr(rl, "_store_path", lambda: store_file)
+        rl._attempts = {"10.0.0.2": (1, 1700000001.0)}
+        rl._save()
+        rl._attempts = {}
+        rl._loaded = False
+        rl._load_once()
+        assert rl._attempts["10.0.0.2"] == (1, 1700000001.0)
 
-    def test_save_does_not_raise_on_unwritable_path(self):
+    def test_save_does_not_raise_on_unwritable_path(self, monkeypatch):
         import backend.utils.rate_limit as rl
-        original = rl._store_path
-        try:
-            rl._store_path = "/nonexistent_dir/rate.json"
-            rl._save({"x": [1, 2.0]})
-        finally:
-            rl._store_path = original
+        monkeypatch.setattr(rl, "_store_path", lambda: __import__("pathlib").Path("/nonexistent_dir/rate.json"))
+        rl._attempts = {"x": (1, 2.0)}
+        rl._save()
 
 
 # ── data_sanitizer.sanitize_bot_response ─────────────────────────────────────
