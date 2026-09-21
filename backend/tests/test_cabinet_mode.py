@@ -67,7 +67,7 @@ class TestRunPyHostResolution:
         # on teste la logique en la reproduisant depuis l'env — la source de
         # vérité est vérifiée par le test source-level ci-dessous.
         env = env_vars.get("ENVIRONMENT", "development").lower()
-        default_host = "0.0.0.0" if env == "cabinet" else "127.0.0.1"
+        default_host = "127.0.0.1"
         host = env_vars.get("CABINET_HOST", default_host)
         port = int(env_vars.get("CABINET_PORT", "8005"))
         return host, port
@@ -77,9 +77,9 @@ class TestRunPyHostResolution:
         assert host == "127.0.0.1"
         assert port == 8005
 
-    def test_cabinet_defaults_to_lan_bind(self):
+    def test_cabinet_defaults_to_loopback(self):
         host, _ = self._resolve({"ENVIRONMENT": "cabinet"})
-        assert host == "0.0.0.0"
+        assert host == "127.0.0.1"
 
     def test_production_defaults_to_localhost(self):
         host, _ = self._resolve({"ENVIRONMENT": "production"})
@@ -99,8 +99,8 @@ class TestRunPyHostResolution:
         source = (pathlib.Path(__file__).parent.parent.parent / "run.py").read_text(encoding="utf-8")
         assert "CABINET_HOST" in source
         assert "CABINET_PORT" in source
-        assert '"0.0.0.0" if env == "cabinet"' in source
-        assert 'host="127.0.0.1"' not in source  # plus de bind hardcodé
+        assert 'os.environ.get("CABINET_HOST", "127.0.0.1")' in source
+        assert 'host="127.0.0.1"' not in source  # uvicorn reçoit la valeur résolue, pas un bind hardcodé
 
 
 class TestSpecNoSecrets:
