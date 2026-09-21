@@ -43,7 +43,7 @@ describe('P3 prepared print safety', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Préparer impression/i }));
 
-    expect(onGenerate).toHaveBeenCalledWith(true, false, false, false);
+    expect(onGenerate).toHaveBeenCalledWith(true, false, false, true);
     expect(screen.queryByRole('button', { name: /^Imprimer$/i })).toBeNull();
   });
 
