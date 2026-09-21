@@ -43,7 +43,7 @@ def test_canonical_path_rejects_other_static_media_family():
 
 def test_canonical_path_rejects_path_traversal():
     with pytest.raises(SuperimpositionSourceError) as error:
-        api_service._canonical_local_path("api/static/../../etc/passwd")
+        api_service._canonical_local_path("api/static/uploads/radios/../../../../etc/passwd")
     assert error.value.code == "SOURCE_PATH_INVALID"
 
 
