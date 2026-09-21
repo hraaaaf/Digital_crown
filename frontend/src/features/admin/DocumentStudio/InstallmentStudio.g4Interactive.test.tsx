@@ -102,7 +102,7 @@ describe('InstallmentStudio G4 payment-plan controls', () => {
       ]} as never;
       throw new Error('unexpected GET '+url);
     });
-    vi.mocked(api.put).mockResolvedValueOnce({data:{status:'PAYE'}} as never);
+    vi.mocked(api.put).mockResolvedValueOnce({data:{status:'PAYE',plan_id:55}} as never);
 
     render(<InstallmentStudio patientId="7"/>);
     const method=await screen.findByLabelText('Mode de règlement Mensualité 1');
