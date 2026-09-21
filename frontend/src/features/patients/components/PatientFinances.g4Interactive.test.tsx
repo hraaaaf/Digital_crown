@@ -78,7 +78,7 @@ describe('PatientFinances G4 screen interaction matrix', () => {
     renderFinances();
 
     expect(await screen.findByText('Couronne 16')).toBeTruthy();
-    expect(screen.getByText('1 200')).toBeTruthy();
+    expect(screen.getByText('1.200')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Payer/i }));
     expect(screen.getByText('PayActe open')).toBeTruthy();
@@ -149,7 +149,7 @@ describe('PatientFinances G4 screen interaction matrix', () => {
     renderFinances();
 
     expect(await screen.findByText(/détail par acte n’est pas disponible/i)).toBeTruthy();
-    expect(screen.getByText('1 200')).toBeTruthy();
+    expect(screen.getByText('1.200')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Payer/i })).toBeNull();
   });
 });
