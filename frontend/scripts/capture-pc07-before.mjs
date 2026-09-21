@@ -9,24 +9,49 @@ const browsers = { chromium, webkit };
 const evidence = [];
 const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYzA3LWJhc2UiLCJleHAiOjIwMDAwMDAwMDB9.audit';
 
-async function installHarness(page) {
-  await page.route('**/*', async route => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (!url.pathname.startsWith('/api/patient-companion/')) return route.continue();
-    if (url.pathname === '/api/patient-companion/pair' && request.method() === 'POST') {
-      return route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
+async function installHarness(context) {
+  await context.addInitScript(({ token }) => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const raw = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+      const url = new URL(raw, window.location.href);
+      if (!url.pathname.startsWith('/api/patient-companion/')) return nativeFetch(input, init);
+      const method = (init.method || 'GET').toUpperCase();
+
+      if (url.pathname === '/api/patient-companion/pair' && method === 'POST') {
+        return new Response(JSON.stringify({
           access_token: token,
-          context: { access_id: '11111111-1111-4111-8111-111111111111', relationship_type: 'SELF', patient: { display_name: 'Aya Urgence' } },
+          context: {
+            access_id: '11111111-1111-4111-8111-111111111111',
+            relationship_type: 'SELF',
+            patient: { display_name: 'Aya Urgence' },
+          },
           paired_at: '2026-09-21T09:00:00Z',
-        }),
-      });
-    }
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [] }) });
-  });
+        }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      if (
+        url.pathname.endsWith('/agenda')
+        || url.pathname.endsWith('/shares')
+        || url.pathname.endsWith('/questionnaires')
+        || url.pathname.endsWith('/consents')
+      ) {
+        return new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.pathname.endsWith('/notifications')) {
+        return new Response(JSON.stringify({
+          items: [],
+          preferences: { appointments: true, documents: true, questionnaires: true, consents: true },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      return new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } });
+    };
+  }, { token });
 }
 
 for (const [browserName, browserType] of Object.entries(browsers)) {
@@ -35,7 +60,7 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
     for (const viewport of viewports) {
       const context = await browser.newContext({ viewport });
       const page = await context.newPage();
-      await installHarness(page);
+      await installHarness(context);
       await page.goto(`${baseUrl}/companion`, { waitUntil: 'domcontentloaded' });
       await page.getByText('Appairer ce téléphone', { exact: true }).waitFor();
       await page.getByLabel('Code manuel').fill('ABCD-EFGH-JKLM');
