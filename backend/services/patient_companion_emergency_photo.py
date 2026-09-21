@@ -138,13 +138,21 @@ def begin_emergency_photo(
                 upload_id=upload_id,
                 asset_id=int(existing.asset_id),
             )
-        count = db.query(PatientCompanionEmergencyPhotoChunk).filter(
-            PatientCompanionEmergencyPhotoChunk.upload_id == existing.id
-        ).count()
+        indices = [
+            row[0]
+            for row in db.query(PatientCompanionEmergencyPhotoChunk.chunk_index).filter(
+                PatientCompanionEmergencyPhotoChunk.upload_id == existing.id
+            ).order_by(PatientCompanionEmergencyPhotoChunk.chunk_index.asc()).all()
+        ]
+        contiguous_prefix = 0
+        for index in indices:
+            if index != contiguous_prefix:
+                break
+            contiguous_prefix += 1
         return _accepted(
             state="uploading",
             upload_id=upload_id,
-            received_chunks=count,
+            received_chunks=contiguous_prefix,
             chunk_count=existing.chunk_count,
         )
 
