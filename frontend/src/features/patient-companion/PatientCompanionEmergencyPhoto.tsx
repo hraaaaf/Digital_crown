@@ -167,7 +167,6 @@ export const PatientCompanionEmergencyPhoto = ({
         capturedAt,
         current => setProgress({ sent: current.sentChunks, total: current.totalChunks }),
       );
-      const assetId = Number(result.result.asset_id);
       await queueUpsert({
         uploadId,
         state: 'received',
@@ -175,7 +174,6 @@ export const PatientCompanionEmergencyPhoto = ({
         capturedAt,
         createdAt: now,
         updatedAt: new Date().toISOString(),
-        assetId: Number.isFinite(assetId) ? assetId : undefined,
       });
       await PatientCompanionStorage.deleteEmergencyPhotoBytes(uploadId);
       setState('success');
