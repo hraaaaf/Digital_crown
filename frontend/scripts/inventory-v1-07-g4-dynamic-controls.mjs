@@ -117,6 +117,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await inventory(page, viewport, 'ordonnance-two-lines');
 
   await page.goto(base + 'certificat', { waitUntil: 'networkidle', timeout: 90000 });
+  const previewAfterNav = page.locator('.document-studio-live-preview.fixed');
+  if (await previewAfterNav.count()) {
+    await page.keyboard.press('Escape');
+    await previewAfterNav.waitFor({ state: 'hidden', timeout: 10000 });
+  }
   await page.getByRole('button', { name: /Arrêt de travail/i }).click();
   await page.getByLabel('Durée du repos en jours').waitFor({ state: 'visible' });
   await inventory(page, viewport, 'certificate-work-stop');
