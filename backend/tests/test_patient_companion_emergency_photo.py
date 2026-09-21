@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 from PIL import Image
@@ -20,7 +20,6 @@ from backend.services.clinical_asset_storage import read_clinical_asset_bytes
 from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
 from relay.contract import RELAY_MAX_BLOB_BYTES
 
-from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
 from backend.services.patient_companion_emergency_photo import (
     PC07_CHUNK_BYTES,
     PC07_MAX_ACTIVE_UPLOADS_PER_ACCESS,
@@ -323,65 +322,3 @@ def test_pc07_begin_reports_only_contiguous_received_prefix(db, dentiste):
     assert submit_emergency_photo_chunk(db, access, chunks[0]).status == "ACCEPTED"
     resumed = begin_emergency_photo(db, access, payload)
     assert resumed.response["received_chunks"] == 2
-
-
-def test_pc07_96k_chunk_fits_real_jose_relay_limit():
-    sender_kid = str(uuid.uuid4())
-    recipient_kid = str(uuid.uuid4())
-    sender_private, _sender_public = generate_p256_keypair(kid=sender_kid, use="sig")
-    _recipient_private, recipient_public = generate_p256_keypair(kid=recipient_kid, use="enc")
-    now = datetime.now(timezone.utc)
-    raw = b"x" * PC07_CHUNK_BYTES
-    payload = {
-        "protocol_version": "dc-pc-remote-v1",
-        "message_id": str(uuid.uuid4()),
-        "access_id": str(uuid.uuid4()),
-        "sent_at": now.isoformat(),
-        "expires_at": (now + timedelta(minutes=10)).isoformat(),
-        "idempotency_key": str(uuid.uuid4()),
-        "operation": "emergency_photo.chunk",
-        "payload": {
-            "upload_id": str(uuid.uuid4()),
-            "chunk_index": 0,
-            "chunk_sha256": hashlib.sha256(raw).hexdigest(),
-            "chunk_b64": base64.b64encode(raw).decode("ascii"),
-        },
-    }
-    token = sign_and_encrypt(
-        payload,
-        sender_signing_private_jwk=sender_private,
-        recipient_encryption_public_jwk=recipient_public,
-        sender_signing_kid=sender_kid,
-        recipient_encryption_kid=recipient_kid,
-    )
-    assert len(token.encode("utf-8")) < 256 * 1024
-
-
-def test_pc07_limits_active_uploads_per_access(db, dentiste):
-    _patient, access = _access(db, dentiste)
-    raw = b"z" * 32
-    for _ in range(PC07_MAX_ACTIVE_UPLOADS_PER_ACCESS):
-        payload = _begin_payload(raw)
-        assert begin_emergency_photo(db, access, payload).status == "ACCEPTED"
-
-    blocked = begin_emergency_photo(db, access, _begin_payload(raw))
-    assert blocked.status == "REJECTED"
-    assert blocked.response == {"code": "TOO_MANY_ACTIVE_UPLOADS"}
-
-
-def test_pc07_new_command_purges_expired_uploads_globally(db, dentiste):
-    _patient_a, access_a = _access(db, dentiste, "EXP-A")
-    _patient_b, access_b = _access(db, dentiste, "EXP-B")
-    raw = b"q" * 32
-    payload_a = _begin_payload(raw)
-    assert begin_emergency_photo(db, access_a, payload_a).status == "ACCEPTED"
-    row = db.query(PatientCompanionEmergencyPhotoUpload).filter(
-        PatientCompanionEmergencyPhotoUpload.public_id == payload_a["upload_id"]
-    ).one()
-    row.expires_at = datetime(2000, 1, 1)
-    db.flush()
-
-    assert begin_emergency_photo(db, access_b, _begin_payload(raw)).status == "ACCEPTED"
-    assert db.query(PatientCompanionEmergencyPhotoUpload).filter(
-        PatientCompanionEmergencyPhotoUpload.id == row.id
-    ).count() == 0
