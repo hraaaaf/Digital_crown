@@ -190,7 +190,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await cardAgain.locator('[data-document-action="edit"]').click();
   await page.waitForURL(url => new URL(url).searchParams.get('tab') === 'admin', { timeout: 10000 });
   await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  if (await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').inputValue() !== marker) throw new Error('history edit did not hydrate document title');
+  const libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
+  await libreTitle.waitFor({ state: 'visible', timeout: 10000 });
+  await page.waitForFunction(expected => {
+    const input = document.querySelector('input[placeholder="Ex: ORDONNANCE, LETTRE..."]');
+    return input instanceof HTMLInputElement && input.value === expected;
+  }, marker, { timeout: 10000 });
+  if (await libreTitle.inputValue() !== marker) throw new Error('history edit did not hydrate document title');
   actions.push('history-edit');
 
   await page.goto(`${patientUrl}?tab=archives`, { waitUntil: 'networkidle', timeout: 90000 });
