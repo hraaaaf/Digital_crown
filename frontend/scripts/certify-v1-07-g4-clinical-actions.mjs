@@ -94,7 +94,8 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
     await toolButton.dispatchEvent('click');
     if(tool!=='Sélection'){
       const tooth=page.getByRole('button',{name:/^Dent 11,/}).first();
-      await tooth.click();
+      await tooth.waitFor({state:'visible',timeout:10000});
+      await tooth.dispatchEvent('click');
     }
   }
   const saveOdonto=page.getByRole('button',{name:'Enregistrer',exact:true}).first();
