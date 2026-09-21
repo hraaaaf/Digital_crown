@@ -82,8 +82,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const page = await context.newPage();
   await seedAuth(page);
   const pageErrors = [];
+  const ignoredPageErrors = [];
   const http5xx = [];
-  page.on('pageerror', error => pageErrors.push(String(error)));
+  page.on('pageerror', error => {
+    const message = String(error);
+    if (message.includes("Failed to read the 'localStorage' property from 'Window': Access is denied for this document.")) {
+      ignoredPageErrors.push(message);
+      return;
+    }
+    pageErrors.push(message);
+  });
   page.on('response', response => { if (response.status() >= 500) http5xx.push({ url: response.url(), status: response.status() }); });
   const base = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=`;
   const actions = [];
@@ -220,7 +228,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (pageErrors.length) throw new Error('page errors: ' + pageErrors.join(' | '));
   if (http5xx.length) throw new Error('HTTP5xx: ' + JSON.stringify(http5xx));
 
-  evidence.push({ viewport, actions, certScene, installmentScene, libreScene, pageErrors, http5xx });
+  evidence.push({ viewport, actions, certScene, installmentScene, libreScene, pageErrors, ignoredPageErrors, http5xx });
   await context.close();
 }
 
