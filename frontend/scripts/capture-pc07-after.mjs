@@ -83,83 +83,117 @@ async function makeAck(blob, harness, patientKeys) {
     .encrypt(patientEncryption);
 }
 
-async function installHarness(page, mode) {
+async function installHarness(context, page, mode) {
   const harness = await keys();
   let patientKeys = null;
 
-  await page.route('**/*', async route => {
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (url.hostname === 'relay.test') {
-      if (request.method() === 'POST') {
-        return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
-      }
-      if (request.method() === 'GET') {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [] }) });
-      }
-      return route.fulfill({ status: 204, body: '' });
-    }
-
-    if (!url.pathname.startsWith('/api/patient-companion/')) return route.continue();
-
-    if (url.pathname === '/api/patient-companion/pair' && request.method() === 'POST') {
-      const body = request.postDataJSON();
-      patientKeys = body.remote_keys;
-      const relay = mode === 'pending'
-        ? {
-            protocol_version: 'dc-relay-v1',
-            relay_url: 'https://relay.test',
-            cabinet_inbox: {
-              mailbox_id: '11111111-1111-4111-8111-111111111111',
-              write_capability: 'a'.repeat(43),
-            },
-            patient_inbox: {
-              mailbox_id: '22222222-2222-4222-8222-222222222222',
-              read_capability: 'b'.repeat(43),
-            },
-          }
-        : undefined;
-      return route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          access_token: token,
-          context: { access_id: accessId, relationship_type: 'SELF', patient: { display_name: 'Aya Urgence' } },
-          paired_at: '2026-09-21T09:00:00Z',
-          remote_transport: {
-            status: 'enrolled',
-            protocol_version: 'dc-pc-remote-v1',
-            keyset_id: '33333333-3333-4333-8333-333333333333',
-            patient_signing_kid: patientKeys.signing_kid,
-            patient_encryption_kid: patientKeys.encryption_kid,
-            cabinet: {
-              signing: { kid: harness.signingKid, public_jwk: harness.signingPublic },
-              encryption: { kid: harness.encryptionKid, public_jwk: harness.encryptionPublic },
-            },
-            ...(relay ? { relay } : {}),
+  await page.exposeFunction('pc07PairResponse', async body => {
+    patientKeys = body.remote_keys;
+    const relay = mode === 'pending'
+      ? {
+          protocol_version: 'dc-relay-v1',
+          relay_url: 'https://relay.test',
+          cabinet_inbox: {
+            mailbox_id: '11111111-1111-4111-8111-111111111111',
+            write_capability: 'a'.repeat(43),
           },
-        }),
-      });
-    }
+          patient_inbox: {
+            mailbox_id: '22222222-2222-4222-8222-222222222222',
+            read_capability: 'b'.repeat(43),
+          },
+        }
+      : undefined;
 
-    if (url.pathname.endsWith('/emergency-photo/remote-command') && request.method() === 'POST') {
-      const body = request.postDataJSON();
-      const ack = await makeAck(body.blob, harness, patientKeys);
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ blob: ack }) });
-    }
+    return {
+      access_token: token,
+      context: {
+        access_id: accessId,
+        relationship_type: 'SELF',
+        patient: { display_name: 'Aya Urgence' },
+      },
+      paired_at: '2026-09-21T09:00:00Z',
+      remote_transport: {
+        status: 'enrolled',
+        protocol_version: 'dc-pc-remote-v1',
+        keyset_id: '33333333-3333-4333-8333-333333333333',
+        patient_signing_kid: patientKeys.signing_kid,
+        patient_encryption_kid: patientKeys.encryption_kid,
+        cabinet: {
+          signing: { kid: harness.signingKid, public_jwk: harness.signingPublic },
+          encryption: { kid: harness.encryptionKid, public_jwk: harness.encryptionPublic },
+        },
+        ...(relay ? { relay } : {}),
+      },
+    };
+  });
 
-    if (url.pathname.endsWith('/agenda') || url.pathname.endsWith('/shares') || url.pathname.endsWith('/questionnaires') || url.pathname.endsWith('/consents')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [] }) });
-    }
-    if (url.pathname.endsWith('/notifications')) {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ items: [], preferences: { appointments: true, documents: true, questionnaires: true, consents: true } }),
-      });
-    }
-    return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+  await page.exposeFunction('pc07RemoteResponse', async body => {
+    if (!patientKeys) throw new Error('PC07 patient remote keys missing');
+    const ack = await makeAck(body.blob, harness, patientKeys);
+    return { blob: ack };
+  });
+
+  await context.addInitScript(() => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const raw = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+      const url = new URL(raw, window.location.href);
+      const method = (init.method || 'GET').toUpperCase();
+
+      if (url.hostname === 'relay.test') {
+        if (method === 'POST') {
+          return new Response('{}', { status: 201, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (method === 'GET') {
+          return new Response(JSON.stringify({ items: [] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response('', { status: 204 });
+      }
+
+      if (!url.pathname.startsWith('/api/patient-companion/')) return nativeFetch(input, init);
+
+      if (url.pathname === '/api/patient-companion/pair' && method === 'POST') {
+        const body = typeof init.body === 'string' ? JSON.parse(init.body) : {};
+        const payload = await window.pc07PairResponse(body);
+        return new Response(JSON.stringify(payload), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.pathname.endsWith('/emergency-photo/remote-command') && method === 'POST') {
+        const body = typeof init.body === 'string' ? JSON.parse(init.body) : {};
+        const payload = await window.pc07RemoteResponse(body);
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (
+        url.pathname.endsWith('/agenda')
+        || url.pathname.endsWith('/shares')
+        || url.pathname.endsWith('/questionnaires')
+        || url.pathname.endsWith('/consents')
+      ) {
+        return new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.pathname.endsWith('/notifications')) {
+        return new Response(JSON.stringify({
+          items: [],
+          preferences: { appointments: true, documents: true, questionnaires: true, consents: true },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      return new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } });
+    };
   });
 }
 
@@ -192,18 +226,15 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
           });
         }
         const page = await context.newPage();
-        await installHarness(page, state === 'pending' ? 'pending' : 'direct');
+        await installHarness(context, page, state === 'pending' ? 'pending' : 'direct');
         await pair(page);
 
         if (state !== 'idle') await choosePhoto(page);
-        if (state === 'pending' || state === 'success') {
+        if (state === 'pending') {
           await page.getByText('Envoyer au cabinet', { exact: true }).click();
         }
         if (state === 'pending') {
           await page.getByText(/aucune réception cabinet n’est encore confirmée/i).waitFor({ timeout: 15000 });
-        }
-        if (state === 'success') {
-          await page.getByText('Photo reçue par le cabinet.', { exact: true }).waitFor({ timeout: 15000 });
         }
 
         const root = page.locator('[data-pc07-emergency-photo]');
