@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 # Updated together with the last migration in this repository.  A stale cabinet
 # must be upgraded explicitly before the application is allowed to open normally.
-CURRENT_ALEMBIC_HEAD = "pc050000013"
+CURRENT_ALEMBIC_HEAD = "pc070000014"
 
 
 def assert_database_at_current_head(engine, expected_head: str = CURRENT_ALEMBIC_HEAD) -> None:

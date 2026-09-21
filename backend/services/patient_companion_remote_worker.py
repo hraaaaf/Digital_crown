@@ -66,6 +66,10 @@ def _handler_for_operation(operation: str) -> RemoteDomainHandler | None:
         from backend.services.patient_companion_notifications import PC05_REMOTE_HANDLERS
 
         return PC05_REMOTE_HANDLERS.get(operation)
+    if operation.startswith("emergency_photo."):
+        from backend.services.patient_companion_emergency_photo import PC07_REMOTE_HANDLERS
+
+        return PC07_REMOTE_HANDLERS.get(operation)
     return None
 
 

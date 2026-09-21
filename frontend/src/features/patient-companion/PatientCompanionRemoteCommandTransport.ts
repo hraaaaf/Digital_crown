@@ -101,6 +101,7 @@ async function sendDirect(
   return parseAck(ack, pairing, idempotencyKey, messageId, operation);
 }
 
+const REMOTE_COMMAND_MAX_BLOB_BYTES = 256 * 1024;
 const relayHeaders = (capability: string) => ({ Authorization: `RelayCap ${capability}` });
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -191,6 +192,11 @@ export async function sendRemoteCommand(
     payload,
   };
   const blob = await PatientCompanionRemoteCrypto.signAndEncrypt(inner, binding);
+  if (new TextEncoder().encode(blob).byteLength > REMOTE_COMMAND_MAX_BLOB_BYTES) {
+    const tooLarge = new Error('Photo trop volumineuse pour le canal sécurisé.');
+    Object.assign(tooLarge, { remotePayloadTooLarge: true });
+    throw tooLarge;
+  }
   return binding.relay
     ? sendViaRelay(pairing, blob, operation, idempotencyKey, messageId)
     : sendDirect(pairing, blob, endpointPath, operation, idempotencyKey, messageId);

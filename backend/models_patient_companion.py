@@ -337,6 +337,64 @@ class PatientCompanionRemoteReceipt(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
+class PatientCompanionEmergencyPhotoUpload(Base):
+    """Temporary cabinet-side assembly state for one patient-originated emergency photo."""
+
+    __tablename__ = "patient_companion_emergency_photo_uploads"
+    __table_args__ = (
+        UniqueConstraint("access_id", "public_id", name="uq_pc07_photo_upload_access_public"),
+        Index("ix_pc07_photo_upload_access_status", "access_id", "status"),
+        Index("ix_pc07_photo_upload_expires_at", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    object_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(nullable=False)
+    chunk_count: Mapped[int] = mapped_column(nullable=False)
+    captured_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="UPLOADING", index=True)
+    asset_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("clinical_assets.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class PatientCompanionEmergencyPhotoChunk(Base):
+    """One authenticated plaintext chunk after remote-envelope decryption."""
+
+    __tablename__ = "patient_companion_emergency_photo_chunks"
+    __table_args__ = (
+        UniqueConstraint("upload_id", "chunk_index", name="uq_pc07_photo_chunk_upload_index"),
+        Index("ix_pc07_photo_chunk_upload", "upload_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    upload_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_emergency_photo_uploads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chunk_index: Mapped[int] = mapped_column(nullable=False)
+    chunk_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class PatientCompanionAppointmentRef(Base):
     """Opaque patient-facing reference for one cabinet appointment row."""
 

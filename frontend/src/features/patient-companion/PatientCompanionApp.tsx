@@ -16,6 +16,7 @@ import { PatientCompanionAgendaTransport, type AgendaOperation } from './Patient
 import { PatientCompanionQuestionnaires } from './PatientCompanionQuestionnaires';
 import { PatientCompanionConsentVault } from './PatientCompanionConsentVault';
 import { PatientCompanionNotifications } from './PatientCompanionNotifications';
+import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto';
 import { PatientCompanionFinance } from './PatientCompanionFinance';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
@@ -642,6 +643,10 @@ export const PatientCompanionApp = () => {
               {syncState === 'offline' && <p className="mt-2 text-[11px] font-black text-amber-700">Cabinet non joignable · dernière copie locale conservée.</p>}
               {(syncState === 'expired' || sessionExpired) && <p className="mt-2 text-[11px] font-black text-rose-700">Connexion au cabinet expirée · votre copie locale reste disponible. Un nouvel appairage sera nécessaire pour synchroniser.</p>}
             </Card>
+            <PatientCompanionEmergencyPhoto
+              pairing={activePairing}
+              enabled={Boolean(activePairing.remoteTransport) && !sessionExpired}
+            />
             <div className="mt-4">
               <PatientCompanionFinance pairing={activePairing} enabled={cabinetReachability !== 'offline' && (cabinetReachability === 'online' || syncState === 'synced')} />
             </div>
