@@ -97,7 +97,7 @@ if (docs.ok()) {
 }
 
 const evidence = {
-  productHead: process.env.GITHUB_SHA || null,
+  productHead: process.env.PRODUCT_HEAD || null,
   patientId: patient.id,
   archiveId,
   before: {
