@@ -62,7 +62,7 @@ describe('Document Studio G4 shell controls', () => {
     expect(onTogglePreview).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button',{name:/Enregistrer/i}));
-    expect(onGenerate).toHaveBeenCalledWith(true,false,false,false);
+    expect(onGenerate).toHaveBeenCalledWith(true,false,false,true);
 
     fireEvent.click(screen.getByRole('button',{name:/Imprimer/i}));
     expect(onGenerate).toHaveBeenCalledWith(false,true,false,false);
