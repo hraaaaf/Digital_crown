@@ -20,9 +20,9 @@ describe('Document Studio G4 shell controls', () => {
       ['Ordonnance','ordonnance'],
       ['Certificat','certificat'],
       ['Devis','devis'],
-      ['Honoraires','honoraires'],
-      ['Échéancier','echeancier'],
-      ['Libre','libre'],
+      ['Note Honoraires','honoraires'],
+      ['Suivi Paiement','echeancier'],
+      ['Document Libre','libre'],
     ] as const) {
       fireEvent.click(screen.getByRole('button',{name:new RegExp(name,'i')}));
       expect(onTabChange).toHaveBeenLastCalledWith(tab);
@@ -56,7 +56,8 @@ describe('Document Studio G4 shell controls', () => {
       />,
     );
 
-    expect(screen.getByText('1 250')).toBeTruthy();
+    const totalLabel=screen.getByText('Total document');
+    expect(totalLabel.parentElement?.textContent?.replace(/\s/g,'')).toContain('1250MAD');
     fireEvent.click(screen.getByRole('button',{name:/Aperçu/i}));
     expect(onTogglePreview).toHaveBeenCalledTimes(1);
 
