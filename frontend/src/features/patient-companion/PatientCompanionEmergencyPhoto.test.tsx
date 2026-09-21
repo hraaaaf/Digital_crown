@@ -97,7 +97,7 @@ describe('PatientCompanionEmergencyPhoto PC-07', () => {
   it('persists local encrypted media before upload and shows received only after ACK', async () => {
     vi.mocked(uploadEmergencyPhoto).mockResolvedValue({
       status: 'ACCEPTED',
-      result: { state: 'received', asset_id: 77 },
+      result: { state: 'received' },
       messageId: '22222222-2222-4222-8222-222222222222',
       idempotencyKey: '33333333-3333-4333-8333-333333333333',
     } as any);
@@ -132,7 +132,7 @@ describe('PatientCompanionEmergencyPhoto PC-07', () => {
       .mockRejectedValueOnce(pending)
       .mockResolvedValueOnce({
         status: 'ACCEPTED',
-        result: { state: 'received', asset_id: 77 },
+        result: { state: 'received' },
       } as any);
 
     render(<PatientCompanionEmergencyPhoto pairing={pairing} enabled />);
