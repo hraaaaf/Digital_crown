@@ -1,6 +1,8 @@
 """Tests CABINET-PILOT-BLOCKERS-1 — mode ENVIRONMENT=cabinet, bind LAN,
 et non-embarquement de secrets dans l'EXE."""
 import os
+
+import pytest
 from types import SimpleNamespace
 from unittest.mock import patch
 
