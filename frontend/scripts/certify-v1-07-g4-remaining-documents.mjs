@@ -57,11 +57,12 @@ async function exerciseStudioHeader(page) {
 }
 
 async function closeResidualPreview(page) {
-  const region = page.getByRole('region', { name: /Aperçu PDF/i }).last();
-  if (!(await region.count()) || !(await region.isVisible())) return;
-  const overlay = region.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-  await overlay.getByRole('button', { name: 'Fermer', exact: true }).click();
-  await region.waitFor({ state: 'hidden', timeout: 5000 });
+  const overlay = page.locator('.document-studio-live-preview').last();
+  if (!(await overlay.count()) || !(await overlay.isVisible())) return;
+  const close = overlay.getByRole('button', { name: 'Fermer', exact: true });
+  await close.waitFor({ state: 'visible', timeout: 5000 });
+  await close.click();
+  await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 async function exercisePreview(page) {
