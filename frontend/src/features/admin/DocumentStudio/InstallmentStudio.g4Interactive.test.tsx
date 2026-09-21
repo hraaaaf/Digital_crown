@@ -85,13 +85,17 @@ describe('InstallmentStudio G4 payment-plan controls', () => {
   });
 
   it('collects a persisted installment only after payment method selection and backend ACK', async () => {
+    let latestReads = 0;
     vi.mocked(api.get).mockImplementation(async (url:string) => {
       if(url==='/patients/7') return {data:{telephone:'0612345678'}} as never;
-      if(url==='/installments/patient/7/latest') return {
-        data:{id:55,title:'Plan existant',total_amount:500,installments:[
-          {id:101,label:'Mensualité 1',amount:500,due_date:'2026-10-19T00:00:00',status:'EN_ATTENTE'}
-        ]}
-      } as never;
+      if(url==='/installments/patient/7/latest') {
+        latestReads += 1;
+        return {
+          data:{id:55,title:'Plan existant',total_amount:500,installments:[
+            {id:101,label:'Mensualité 1',amount:500,due_date:'2026-10-19T00:00:00',status:latestReads > 1 ? 'PAYE' : 'EN_ATTENTE'}
+          ]}
+        } as never;
+      }
       throw new Error('unexpected GET '+url);
     });
     vi.mocked(api.put).mockResolvedValueOnce({data:{status:'PAYE'}} as never);
