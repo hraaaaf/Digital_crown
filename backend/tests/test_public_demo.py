@@ -17,7 +17,7 @@ class TestDemoRequest:
     def test_submit_valid_request(self, client, tmp_path, monkeypatch):
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
-            "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
+            "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
         )
         r = client.post("/api/public/demo-request", json=VALID_PAYLOAD)
         assert r.status_code == 200
@@ -34,7 +34,7 @@ class TestDemoRequest:
     def test_submit_accumulates_requests(self, client, tmp_path, monkeypatch):
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
-            "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
+            "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
         )
         client.post("/api/public/demo-request", json=VALID_PAYLOAD)
         second = {**VALID_PAYLOAD, "nom": "Dr. Autre", "email": "autre@cabinet.dz"}
@@ -65,7 +65,7 @@ class TestDemoRequest:
     def test_email_notification_called_if_configured(self, client, tmp_path, monkeypatch):
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
-            "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
+            "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
         )
         with patch("backend.services.email_service.email_service.send_email") as mock_email:
             mock_email.return_value = True
@@ -77,7 +77,7 @@ class TestDemoRequest:
         """Email error must NOT prevent the request from being saved."""
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
-            "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
+            "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
         )
         with patch("backend.services.email_service.email_service.send_email", side_effect=Exception("SMTP down")):
             r = client.post("/api/public/demo-request", json=VALID_PAYLOAD)
@@ -87,7 +87,7 @@ class TestDemoRequest:
     def test_list_requires_secret(self, client, tmp_path, monkeypatch):
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
-            "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
+            "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
         )
         r = client.get("/api/public/demo-requests")
         assert r.status_code == 403
@@ -95,13 +95,13 @@ class TestDemoRequest:
     def test_list_with_correct_secret(self, client, tmp_path, monkeypatch):
         demo_file = tmp_path / "demo_requests.json"
         monkeypatch.setattr(
-            "backend.routers.public._DEMO_REQUESTS_FILE", str(demo_file)
+            "backend.routers.public._DEMO_REQUESTS_FILE", demo_file
         )
         monkeypatch.setenv("SUPERADMIN_SECRET", "mysecret")
         # Save a request first
         demo_file.write_text(
             json.dumps([{"nom": "Test", "email": "t@t.dz"}]), encoding="utf-8"
         )
-        r = client.get("/api/public/demo-requests", params={"secret": "mysecret"})
+        r = client.get("/api/public/demo-requests", headers={"X-Superadmin-Secret": "mysecret"})
         assert r.status_code == 200
         assert len(r.json()) == 1

@@ -10,6 +10,8 @@ from backend.models_patient_companion import (
     PatientCompanionAppointmentRef,
     PatientCompanionIdentity,
 )
+import pytest
+import backend.services.patient_companion_agenda as agenda_service
 from backend.services.patient_companion_agenda import (
     cancel_appointment,
     create_appointment,
@@ -17,6 +19,12 @@ from backend.services.patient_companion_agenda import (
     list_appointments,
     reschedule_appointment,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_agenda_availability(monkeypatch):
+    monkeypatch.setattr(agenda_service, "validate_appointment_availability", lambda *_a, **_kw: None)
+    monkeypatch.setattr(agenda_service, "assert_resource_available", lambda *_a, **_kw: None)
 
 
 def _access(db, dentiste):

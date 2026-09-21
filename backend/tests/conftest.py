@@ -44,6 +44,16 @@ def _create_tables():
     models.Base.metadata.drop_all(bind=_engine)
 
 
+@pytest.fixture(autouse=True)
+def _reset_global_rate_limit_state():
+    from backend.utils import rate_limit
+    rate_limit._attempts.clear()
+    rate_limit._loaded = False
+    yield
+    rate_limit._attempts.clear()
+    rate_limit._loaded = False
+
+
 @pytest.fixture()
 def db():
     """Session SQLite — les données sont supprimées entre tests via delete."""
