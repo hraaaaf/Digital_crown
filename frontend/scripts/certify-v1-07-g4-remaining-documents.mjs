@@ -56,6 +56,14 @@ async function exerciseStudioHeader(page) {
   if (await date.inputValue() !== '2026-09-19') throw new Error('document date edit failed');
 }
 
+async function closeResidualPreview(page) {
+  const region = page.getByRole('region', { name: /Aperçu PDF/i }).last();
+  if (!(await region.count()) || !(await region.isVisible())) return;
+  const overlay = region.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+  await overlay.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await region.waitFor({ state: 'hidden', timeout: 5000 });
+}
+
 async function exercisePreview(page) {
   await page.getByRole('button', { name: 'Aperçu', exact: true }).click();
   await page.getByRole('region', { name: /Aperçu PDF/i }).last().waitFor({ state: 'visible', timeout: 15000 });
@@ -77,6 +85,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   await page.goto(base + 'certificat', { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('button', { name: 'Certificat', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await closeResidualPreview(page);
   await exerciseStudioHeader(page);
   await page.getByRole('button', { name: /Arrêt de travail/i }).click();
   await page.getByLabel('Début du repos').fill('2026-10-02');
