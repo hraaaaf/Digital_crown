@@ -186,6 +186,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   await page.goto(base + 'libre', { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await closeResidualPreview(page);
   await exerciseStudioHeader(page);
   await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').fill('Lettre G4');
   await page.getByPlaceholder('Ex: À qui de droit...').fill('À qui de droit');
