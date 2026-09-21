@@ -33,7 +33,7 @@ def _isolate_mobile_runtime_state(tmp_path, monkeypatch):
     legacy_root.mkdir(parents=True, exist_ok=True)
 
     _license_cache.clear()
-    monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm4c-rate-limit.json'))
+    monkeypatch.setattr(rate_limit, '_store_path', lambda: tmp_path / 'm4c-rate-limit.json')
     monkeypatch.setattr(archive_service, 'MEDIA_DIR', media_root)
     monkeypatch.setattr(archive_service, 'ARCHIVE_BASE_DIR', archive_root)
     monkeypatch.setattr(archive_service, 'LEGACY_DOCS_DIR', legacy_root)
