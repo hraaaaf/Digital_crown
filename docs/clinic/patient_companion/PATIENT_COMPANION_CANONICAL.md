@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-21 — PC-07 merged; post-merge verification in progress
-Active lot: PC-07 — Emergency Photo — post-merge closeout
+Last verified update: 2026-09-21 — PC-07 merged; final post-merge verification pending after repair chain
+Active lot: PC-07 — Emergency Photo — final post-merge closeout
 
 ## Product doctrine
 
@@ -282,14 +282,22 @@ PC-07 Emergency Photo:
 - conservative visual score: 9.2/10;
 - no Vercel deployment.
 
-Post-merge at this checkpoint:
-- master is exactly `f4576d5127799b66eae891afb82ebd439d8b48d0`;
-- Cabinet Upgrade PostgreSQL Certification `35589112147` queued;
-- CI `35589112155` queued;
-- PC-07 is not declared fully closed until merge-commit checks are green.
+Post-merge repair checkpoint:
+- repair chain completed through PR #675;
+- final repair candidate: `260f67c72b6eb7a5bc4ae7f12b31b013a41ebfc8`;
+- exact-head CI `35616706913` SUCCESS;
+- Remote Transport `35616706782` SUCCESS;
+- Agenda A5 `35616706778` SUCCESS;
+- T2 `35616706831` SUCCESS;
+- PR Merge Summary `35616706906` SUCCESS;
+- P7 `35616706810` SUCCESS;
+- PR #675 merged as `3c1822fec10986158e809d93fb76716bf4890e0a`;
+- no Vercel deployment.
+
+Final post-merge workflows on `3c1822fec10986158e809d93fb76716bf4890e0a` were not yet registered at this checkpoint, so PC-07 is not yet declared `POST-MERGE VERIFIED`.
 
 Next exact:
-1. verify merge-commit post-merge workflows;
-2. if green, mark PC-07 post-merge verified;
-3. switch active lot to PC-08 — Secure Messaging;
-4. prepare PC-08 start handover; no Vercel deployment.
+1. verify final post-merge workflows on `3c1822fec10986158e809d93fb76716bf4890e0a`;
+2. if green, mark PC-07 `POST-MERGE VERIFIED`;
+3. merge docs PR #658;
+4. switch active lot to PC-08 — Secure Messaging; no Vercel deployment.
