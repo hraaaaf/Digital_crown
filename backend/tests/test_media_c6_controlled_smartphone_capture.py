@@ -65,7 +65,7 @@ def test_c6_mobile_photo_uses_media_core_without_legacy_archive(monkeypatch):
     thumb = SimpleNamespace(id=502)
     captured = {}
 
-    monkeypatch.setattr(bridge, "_normalize_clinical_photo", lambda raw: b"normalized-jpeg")
+    monkeypatch.setattr(bridge, "normalize_clinical_photo", lambda raw: b"normalized-jpeg")
 
     def fake_ingest(_db, **kwargs):
         captured.update(kwargs)
