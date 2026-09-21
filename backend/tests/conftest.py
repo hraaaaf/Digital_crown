@@ -28,6 +28,28 @@ _engine = create_engine(
 _SessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
 
 
+@pytest.fixture(autouse=True)
+def _reset_global_rate_limit_state():
+    """Isolate process-global rate-limit state between tests."""
+    from backend.utils import rate_limit
+
+    rate_limit._attempts.clear()
+    rate_limit._loaded = False
+    try:
+        path = rate_limit._store_path()
+        path.unlink(missing_ok=True)
+    except (OSError, TypeError):
+        pass
+    yield
+    rate_limit._attempts.clear()
+    rate_limit._loaded = False
+    try:
+        path = rate_limit._store_path()
+        path.unlink(missing_ok=True)
+    except (OSError, TypeError):
+        pass
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _create_tables():
     """Crée toutes les tables SQLAlchemy une seule fois pour la session de tests."""
