@@ -131,7 +131,7 @@ describe('InstallmentStudio G4 payment-plan controls', () => {
       status:'PAYE',payment_method:'ESPECES'
     }));
     expect(screen.queryByText('PAYÉ')).toBeNull();
-    expect(screen.getByText('Plan existant')).toBeTruthy();
+    expect(screen.getByDisplayValue('Plan existant')).toBeTruthy();
   });
 
   it('opens a WhatsApp reminder only after the reminder control is enabled', async () => {
