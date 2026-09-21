@@ -3,6 +3,12 @@ name: T2 Runtime Browser Certification
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      resume_from_23:
+        description: 'Skip already-certified browser steps 14-22 and resume at G4 Devis/History'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: t2-runtime-${{ github.ref }}
@@ -107,6 +113,7 @@ jobs:
           exit 1
 
       - name: Execute authenticated browser matrix
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -115,6 +122,7 @@ jobs:
           node scripts/certify-document-studio-browser.mjs 2>&1 | tee ../artifacts/t2-browser/runner.log
 
       - name: Certify T1 transversal runtime boundaries
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -122,6 +130,7 @@ jobs:
           node scripts/certify-t1-transversal.mjs 2>&1 | tee ../artifacts/t2-browser/t1-transversal-runner.log
 
       - name: Certify P6 Document Libre editor
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -129,6 +138,7 @@ jobs:
           node scripts/certify-p6-editor.mjs 2>&1 | tee ../artifacts/t2-browser/p6-editor-runner.log
 
       - name: Certify browser print and PDF freshness
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -136,6 +146,7 @@ jobs:
           node scripts/certify-document-studio-output.mjs 2>&1 | tee ../artifacts/t2-browser/output-runner.log
 
       - name: Certify G4 Ordonnance browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -143,6 +154,7 @@ jobs:
           node scripts/certify-v1-07-g4-ordonnance-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-ordonnance-actions-runner.log
 
       - name: Certify G4 Finances browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -150,6 +162,7 @@ jobs:
           node scripts/certify-v1-07-g4-finances-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-finances-actions-runner.log
 
       - name: Capture G4 Treasury partial guard BEFORE
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         env:
@@ -159,6 +172,7 @@ jobs:
           node scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-treasury-guard-before-runner.log
 
       - name: Certify G4 Honoraires browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -166,6 +180,7 @@ jobs:
           node scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-honoraires-actions-runner.log
 
       - name: Certify G4 remaining document actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true }}
         working-directory: frontend
         shell: bash
         run: |

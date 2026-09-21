@@ -27,5 +27,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Dispatching T2 only on $REF"
-          gh workflow run t2-runtime-cert.yml --repo "$REPO" --ref "$REF"
+          echo "Dispatching T2 resume-from-23 on $REF"
+          gh workflow run t2-runtime-cert.yml --repo "$REPO" --ref "$REF" -f resume_from_23=true
