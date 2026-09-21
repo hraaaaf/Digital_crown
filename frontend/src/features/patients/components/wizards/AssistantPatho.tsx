@@ -51,7 +51,7 @@ export const AssistantPatho: React.FC<AssistantPathoProps> = ({ onComplete, onCa
     setAnswers(newAnswers);
 
     if (currentStep < QUESTIONS.length - 1) {
-      setTimeout(() => setCurrentStep(prev => prev + 1), 300);
+      setTimeout(() => setCurrentStep(prev => Math.min(prev + 1, QUESTIONS.length - 1)), 300);
     } else {
       generateDiagnosis(newAnswers);
     }
