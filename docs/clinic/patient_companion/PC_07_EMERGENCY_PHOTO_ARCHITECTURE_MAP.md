@@ -1,208 +1,289 @@
 # PC-07 — Emergency Photo — Architecture Map
 
-Status: AUDIT COMPLETE — IMPLEMENTATION PATH LOCKED
+Status: AUDIT COMPLETE — ARCHITECTURE LOCKED BEFORE IMPLEMENTATION
 Branch: feature/patient-companion-pc07-emergency-photo
 Base audited: master@b4e40fa1f3a63d4d7bf4d91223fa376902dcd7a2
+Deployment: none
 
 ## Goal
-Allow a Patient Companion user to capture and send one emergency photo to the exact cabinet/patient record without creating a second media store, exposing a public URL, or claiming delivery before a durable cabinet ACK.
+Allow a Patient Companion user to capture and transmit an emergency clinical photo without creating a second media source of truth, without leaking clinical plaintext to the relay, and without claiming delivery before durable cabinet acknowledgement.
 
 ## Verified existing primitives
 
-### Media Core
-Canonical model: `ClinicalAsset`.
+### Canonical clinical media store
+`ClinicalAsset` / Media Core is the canonical patient media registry.
 
-Verified properties:
+Verified:
 - tenant authority = `employer_id`;
-- exact patient binding = `patient_id`;
-- `PHOTO` + `DEVICE_CAPTURE` already supported;
-- encrypted content-addressed storage with AES-GCM;
-- opaque tenant-scoped storage key;
-- no patient-identifying filename in physical storage;
-- authenticated reads are `private, no-store`;
-- storage integrity rechecked with AES-GCM + SHA-256;
-- ingestion generates a controlled thumbnail;
-- no public media URL is required.
+- patient binding = `patient_id`;
+- `PHOTO` and `DEVICE_CAPTURE` already exist;
+- physical bytes are AES-GCM encrypted;
+- storage keys are opaque and tenant-scoped;
+- no public storage URL is required;
+- integrity is verified on read with AES-GCM + SHA-256.
 
-### Existing clinical-photo normalization
-M6-A already provides a proven normalization boundary:
-- JPEG/PNG/WebP only;
-- raw input <= 12 MiB;
-- <= 50 MP;
-- parser validation through Pillow;
-- EXIF orientation normalized;
-- output rewritten as JPEG;
-- metadata removed by rewrite;
-- generated server-side filename;
-- Media Core source kind `DEVICE_CAPTURE`.
+Decision:
+PC-07 MUST persist the final cabinet copy into Media Core. No second media table or storage plane.
 
-Important: generic Media Core import validates but preserves original image bytes. PC-07 MUST reuse equivalent M6-A normalization before canonical ingestion so EXIF/location metadata cannot persist accidentally.
+### Secure image validation
+Generic Media Core ingestion validates signature/parser, MIME consistency, byte/dimension limits and derives a clean thumbnail.
+
+Important limitation:
+generic Media Core ingestion preserves the original validated image bytes. The original EXIF metadata can therefore survive.
+
+### Proven clinical-photo normalization
+Mobile M6-A already proves the stricter boundary needed for PC-07:
+- JPEG / PNG / WebP only;
+- max raw payload 12 MiB;
+- max 50 MP;
+- parser verification;
+- EXIF orientation normalization;
+- conversion to RGB;
+- rewrite to JPEG quality 95;
+- original metadata removed;
+- final Media Core source kind `DEVICE_CAPTURE`.
+
+Decision:
+extract/reuse this normalization behavior as a shared service. PC-07 must never persist the patient-device original with EXIF/location metadata.
 
 ### Patient Companion Remote Transport
 Verified:
-- commands are signed then JWE encrypted;
-- relay sees only opaque blob;
-- patient private keys are non-extractable;
-- durable idempotency receipts exist;
-- duplicate retry with same idempotency key returns stored result instead of replaying the domain mutation;
-- ACK is signed/encrypted and bound to request operation/message/idempotency key;
-- access/key revocation fails closed.
+- sign-then-encrypt: ES256 JWS inside ECDH-ES+A256KW / A256GCM JWE;
+- relay stores opaque ciphertext only;
+- replay/idempotency receipts exist;
+- active access/key checks fail closed;
+- cabinet signed/encrypted ACK is the only authoritative result.
 
-### Relay limit
-Verified protocol limit:
-- `RELAY_MAX_BLOB_BYTES = 256 * 1024`.
-Therefore the relay is a command/control channel, not a generic 12–50 MiB media pipe.
+### Relay hard limit
+`RELAY_MAX_BLOB_BYTES = 256 * 1024`.
 
-## Rejected architectures
+The canonical Remote Transport gate explicitly states:
+**future large media transfer (PC-07) requires a separate chunked encrypted-object design; do not raise the message limit casually.**
 
-### New media/SaaS object store
+Decision:
+PC-07 MUST NOT send a full photo through the ordinary one-envelope `sendRemoteCommand()` path and MUST NOT increase the relay limit.
+
+### Current Patient Companion local vault
+Current vault is one AES-GCM encrypted JSON state envelope rewritten as a whole on mutation.
+
+Verified gap:
+there is no dedicated binary/media object store.
+
+Decision:
+do not base64 multi-megabyte media into `PatientCompanionVaultState`.
+PC-07 needs separate encrypted IndexedDB media-object/chunk storage; the main vault keeps only bounded metadata/state.
+
+## Rejected architecture
+
+### Single-envelope compressed photo
 REJECTED.
-Would introduce a second clinical media data plane and violate local/on-prem doctrine.
+
+Reason:
+- contradicts the already-approved Remote Transport gate for PC-07;
+- couples clinical image quality to an arbitrary 256 KiB relay ceiling;
+- encourages aggressive browser-side compression as a transport workaround;
+- leaves little safety margin for JOSE/base64 overhead;
+- does not generalize cleanly to reliable retry/resume.
+
+### New SaaS/public object storage
+REJECTED.
+
+Reason:
+would introduce a second clinical media data plane and violate local/on-prem doctrine.
 
 ### Public/presigned clinical-media URL
 REJECTED.
-Would create a new bearer-media exposure surface and is unnecessary.
 
-### Send original camera file unchanged through relay
-REJECTED.
-Typical phone images can exceed the 256 KiB opaque-envelope limit; EXIF may also be retained.
+Reason:
+creates a bearer-media exposure surface and bypasses the approved opaque-relay architecture.
 
-### Chunked multi-envelope photo protocol
-DEFERRED / REJECTED for PC-07 V1.
-Possible but adds assembly state, ordering, partial-upload cleanup and many new failure modes. The Emergency Photo use case can stay intentionally bounded to a compact single image.
+## Locked architecture
 
-## Locked PC-07 V1 architecture
+### A. Capture
+Patient selects camera/picker using mobile browser capabilities.
 
-1. Patient chooses/captures one image from Patient Companion.
-2. Browser decodes and redraws the image to a canvas:
-   - orientation rendered visually;
-   - metadata is not carried into the new JPEG;
-   - long edge is bounded;
-   - JPEG quality is reduced iteratively when needed.
-3. Client builds the normal remote command payload with base64 JPEG.
-4. The final signed+encrypted compact JWE size is checked against the relay 256 KiB hard limit before push.
-5. If too large, client recompresses and retries preparation locally; no remote mutation has occurred yet.
-6. Remote operation: `emergency_photo.submit`.
-7. Cabinet remote worker resolves the exact active `PatientCompanionAccess` and dispatches only this allow-listed handler.
-8. Handler base64-decodes strictly and re-runs server-side clinical-photo validation/metadata-free JPEG normalization.
-9. Handler ingests into canonical `ClinicalAsset`:
-   - `asset_type=PHOTO`;
-   - `source_kind=DEVICE_CAPTURE`;
+Flow:
+1. select/capture;
+2. local preview;
+3. explicit confirmation;
+4. enqueue secure upload.
+
+No diagnosis, LLM, computer vision or clinical interpretation.
+
+### B. Local pending object
+Generate opaque `upload_id` UUID.
+
+Main vault stores bounded metadata only:
+- upload_id;
+- access_id;
+- state;
+- created_at / updated_at;
+- byte size;
+- MIME;
+- retry/error code;
+- canonical cabinet asset reference only after ACK.
+
+Binary bytes live in a dedicated encrypted IndexedDB media store.
+
+Required states:
+- `local_pending`
+- `remote_uploading`
+- `remote_pending_ack`
+- `received`
+- `rejected`
+
+No transition to `received` before signed cabinet ACK.
+
+### C. Local privacy normalization
+Before durable local queueing/transmission:
+- decode image;
+- apply visual orientation;
+- redraw/re-encode to a metadata-free JPEG;
+- keep image quality clinically usable;
+- do not optimize merely to fit one relay envelope.
+
+This is a privacy/preparation layer only.
+Server-side validation and normalization remain mandatory.
+
+### D. Chunked encrypted-object protocol
+PC-07 adds a media-object protocol separate from ordinary remote commands.
+
+Every relay-visible envelope remains the existing opaque object:
+- envelope_id;
+- blob;
+- relay timestamps/expiry.
+
+All clinical routing/object metadata stays inside JWE.
+
+Inside encrypted payload, chunks carry at minimum:
+- protocol/version;
+- upload_id;
+- chunk index;
+- total chunk count;
+- plaintext object byte size;
+- object digest;
+- chunk digest;
+- chunk payload;
+- idempotency identity;
+- access binding.
+
+Requirements:
+- every final compact JWE stays below 256 KiB;
+- exact plaintext chunk size is derived/tested from real JOSE overhead, not guessed;
+- chunks may arrive out of order;
+- duplicate chunks are idempotent;
+- missing chunks cannot finalize;
+- malformed/digest-mismatched chunks fail closed;
+- partial assemblies expire and are garbage-collected;
+- relay never sees patient/tenant/access/media identifiers in plaintext.
+
+### E. Cabinet assembly
+Cabinet maintains bounded temporary assembly state keyed by opaque upload/idempotency identity and access scope.
+
+Before accepting a chunk:
+- access active;
+- remote keyset active;
+- signature/decryption valid;
+- chunk metadata structurally valid;
+- declared limits bounded.
+
+Finalization happens only when:
+- all expected chunks exist;
+- chunk digests validate;
+- reconstructed byte count matches;
+- full object digest matches.
+
+No partial ClinicalAsset is created.
+
+### F. Canonical commit
+After complete authenticated reconstruction:
+1. derive tenant/patient from active `PatientCompanionAccess`;
+2. run shared M6-A-grade image parser/normalizer;
+3. ingest into canonical Media Core:
+   - `asset_type=PHOTO`
+   - `source_kind=DEVICE_CAPTURE`
    - `source_ref=PATIENT_COMPANION_EMERGENCY_PHOTO`;
-   - `created_by=None`;
-   - provenance includes Patient Companion channel/access public id, but no diagnosis.
-10. Asset creation + idempotency receipt complete in one remote-command transaction.
-11. Only the signed/encrypted cabinet ACK allows the UI to show `Photo reçue par le cabinet`.
-12. Timeout/network failure remains `Envoi en attente / non confirmé`; never optimistic success.
+4. record bounded provenance;
+5. commit canonical asset + idempotent final result transactionally where possible;
+6. clear temporary assembly;
+7. return signed/encrypted ACK.
 
-## Why single-envelope compact photo
-This is the shortest architecture that satisfies:
-- no second storage plane;
+### G. ACK truth
+Relay upload completion is not clinical receipt.
+
+Only a signed cabinet ACK after successful Media Core commit may set UI state:
+`received` / “Photo reçue par le cabinet”.
+
+Timeout/network loss:
+- remains pending/unconfirmed;
+- retry uses same upload/idempotency identity;
+- duplicate finalization returns original authoritative result where safe;
+- no second ClinicalAsset.
+
+### H. Revocation
+If access is revoked:
+- reject new chunks/finalization;
+- do not create new canonical asset;
+- local pending bytes cannot be remotely erased;
+- already-created Media Core asset follows cabinet lifecycle, not Patient Companion revocation.
+
+## Security constraints
+- no patient_id/employer_id in relay-visible metadata;
 - no public media URL;
-- end-to-end encrypted remote transport;
-- existing replay/idempotency protection;
-- existing Media Core storage/encryption;
-- existing server-side photo normalization;
-- bounded failure surface.
+- no raw cabinet filesystem exposure;
+- no Firebase/SaaS plaintext media plane;
+- no WhatsApp photo transport;
+- no LLM/image analysis;
+- no optimistic receipt state;
+- strict parser validation after reassembly;
+- EXIF/location metadata stripped before canonical storage;
+- chunk/object limits bounded;
+- temporary assemblies expire;
+- final asset idempotent.
 
-## Data contract — proposed minimal V1
-Request payload:
-- `image_b64`: compact JPEG bytes encoded base64;
-- `captured_at`: optional ISO timestamp from device, informational only.
+## Goal / Success / Proof
 
-Do NOT accept:
-- patient_id;
-- employer_id;
-- storage key;
-- filename path;
-- diagnosis/clinical interpretation;
-- arbitrary MIME type.
+### Goal
+Transmit one emergency patient photo from Patient Companion to canonical cabinet Media Core through the approved opaque relay while preserving privacy, ownership, idempotency and truthful delivery state.
 
-ACK result:
-- `asset_id`: canonical ClinicalAsset id;
-- `received_at`: cabinet receipt time;
-- `status`: stable accepted marker.
+### Success
+Observable when:
+1. capture/preview/confirm works on mobile;
+2. local queued bytes are encrypted separately from the main JSON vault;
+3. relay sees ciphertext only;
+4. every envelope stays under 256 KiB;
+5. out-of-order/missing/duplicate chunks cannot create partial/duplicate assets;
+6. cross-patient/cross-tenant attempts fail;
+7. revoked access fails closed;
+8. EXIF/location metadata does not persist in canonical stored bytes;
+9. exactly one canonical Media Core asset exists after successful finalization;
+10. UI says received only after signed cabinet ACK;
+11. interrupted upload is resumable/pending without false success;
+12. target mobile viewports have no overflow and >=44px actions.
 
-No media bytes are returned in ACK.
-
-## Truth states
-Allowed UI states:
-- `À envoyer`
-- `Envoi sécurisé…`
-- `En attente de confirmation du cabinet`
-- `Photo reçue par le cabinet`
-- `Échec — réessayer`
-
-Forbidden:
-- `Reçue`, `Archivée`, or equivalent before authoritative ACK.
-
-## Security gates
-- exact active PatientCompanionAccess;
-- exact tenant/patient derived server-side;
-- remote keyset active and not revoked;
-- strict base64 decode;
-- image parser validation;
-- server-side metadata stripping;
-- Media Core encrypted storage;
-- no public URL;
-- idempotent retry;
-- bounded relay envelope;
-- no LLM/vision interpretation.
-
-## Offline behavior
-The selected/normalized photo may remain only in transient in-memory UI state for V1 until send succeeds or the user leaves the flow.
-PC-07 V1 will NOT introduce a durable offline media queue unless required by implementation testing, because durable binary queueing expands vault/storage lifecycle scope.
-
-If connectivity fails after relay push but before ACK:
-- preserve the idempotency key while the page/session remains active;
-- retry using the same key;
-- server receipt prevents duplicate asset creation.
-
-## Visual target
-Mobile-first:
-- CTA `Photo d’urgence`;
-- capture/picker;
-- clear preview;
-- `Reprendre` / `Envoyer au cabinet`;
-- explicit privacy note: photo sent securely to the cabinet;
-- explicit pending and confirmed states;
-- no diagnostic wording.
-
-Required evidence:
-- 360x800 + 390x844;
-- Chromium + WebKit;
-- capture/preview/pending/confirmed states;
-- controls >=44px;
-- zero horizontal overflow.
-
-## Goal / Success / Proof — locked
-
-Goal:
-A patient can send one compact emergency photo to the exact cabinet record through the already-certified encrypted remote channel, with canonical Media Core persistence only after cabinet processing.
-
-Success:
-- no second ledger/media store;
-- no public URL;
-- exact tenant/patient binding;
-- relay envelope remains <=256 KiB;
-- server strips metadata and validates bytes;
-- one canonical ClinicalAsset created per idempotency key;
-- ACK gates visible success;
-- retry cannot duplicate the asset;
-- revoked access fails closed;
-- mobile UX passes target viewports.
-
-Proof:
-- backend handler + idempotency tests;
-- invalid/base64/oversize/image tests;
-- tenant/revocation tests;
-- remote JOSE path test;
-- frontend compression/envelope-size tests;
-- pending/ACK truth tests;
-- BEFORE/AFTER Chromium + WebKit evidence;
-- exact-head CI + T2/Remote Transport;
+### Proof
+Required:
+- chunk protocol unit tests;
+- real JOSE envelope-size boundary tests;
+- assembly ordering/missing/duplicate tests;
+- assembly expiry/cleanup tests;
+- idempotent finalization tests;
+- tenant/patient/revocation tests;
+- malformed/oversize/invalid image tests;
+- EXIF/GPS stripping test on canonical stored bytes;
+- local encrypted media-store tests;
+- frontend pending/received truth-state tests;
+- BEFORE / target / AFTER on Chromium + WebKit, 360x800 and 390x844;
+- exact-head CI + Remote Transport regression;
 - adversarial review;
-- human visual gate.
+- human visual approval before merge.
 
 ## Next exact
-Implement only this bounded single-envelope V1. Do not add chunking, persistent offline media queue, public uploads, diagnosis or image analysis.
+1. extract M6-A clinical-photo normalization into a shared service;
+2. define encrypted local media-object store;
+3. define/test chunk sizing under actual JOSE overhead;
+4. implement cabinet temporary assembly + finalization;
+5. implement Patient Companion capture/queue/status;
+6. certify exact-head + visual.
+
+No Vercel deployment.
