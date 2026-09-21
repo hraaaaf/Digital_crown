@@ -170,6 +170,11 @@ def test_pc07_duplicate_chunk_is_idempotent_and_conflict_fails(db, dentiste):
     upload = db.query(PatientCompanionEmergencyPhotoUpload).filter(
         PatientCompanionEmergencyPhotoUpload.public_id == payload["upload_id"]
     ).one()
+    stored_chunk = db.query(PatientCompanionEmergencyPhotoChunk).filter(
+        PatientCompanionEmergencyPhotoChunk.upload_id == upload.id
+    ).one()
+    assert bytes(stored_chunk.content) != base64.b64decode(first["chunk_b64"])
+    assert not bytes(stored_chunk.content).startswith(base64.b64decode(first["chunk_b64"])[:16])
     assert db.query(PatientCompanionEmergencyPhotoChunk).filter(
         PatientCompanionEmergencyPhotoChunk.upload_id == upload.id
     ).count() == 1
