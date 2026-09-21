@@ -85,17 +85,21 @@ describe('InstallmentStudio G4 payment-plan controls', () => {
   });
 
   it('collects a persisted installment only after payment method selection and backend ACK', async () => {
-    let latestReads = 0;
     vi.mocked(api.get).mockImplementation(async (url:string) => {
       if(url==='/patients/7') return {data:{telephone:'0612345678'}} as never;
-      if(url==='/installments/patient/7/latest') {
-        latestReads += 1;
-        return {
-          data:{id:55,title:'Plan existant',total_amount:500,installments:[
-            {id:101,label:'Mensualité 1',amount:500,due_date:'2026-10-19T00:00:00',status:latestReads > 1 ? 'PAYE' : 'EN_ATTENTE'}
-          ]}
-        } as never;
-      }
+      if(url==='/installments/patient/7/latest') return {
+        data:{id:55,title:'Plan existant',total_amount:500,installments:[
+          {id:101,label:'Mensualité 1',amount:500,due_date:'2026-10-19T00:00:00',status:'EN_ATTENTE'}
+        ]}
+      } as never;
+      if(url==='/installments/patient/7') return {data:[
+        {id:54,title:'Plan concurrent',total_amount:300,installments:[
+          {id:99,label:'Mensualité concurrente',amount:300,due_date:'2026-10-18T00:00:00',status:'EN_ATTENTE'}
+        ]},
+        {id:55,title:'Plan existant',total_amount:500,installments:[
+          {id:101,label:'Mensualité 1',amount:500,due_date:'2026-10-19T00:00:00',status:'PAYE'}
+        ]}
+      ]} as never;
       throw new Error('unexpected GET '+url);
     });
     vi.mocked(api.put).mockResolvedValueOnce({data:{status:'PAYE'}} as never);
@@ -112,7 +116,10 @@ describe('InstallmentStudio G4 payment-plan controls', () => {
     await waitFor(()=>expect(api.put).toHaveBeenCalledWith('/installments/101',{
       status:'PAYE',payment_method:'CARTE'
     }));
+    await waitFor(()=>expect(api.get).toHaveBeenCalledWith('/installments/patient/7'));
     expect(await screen.findByText('PAYÉ')).toBeTruthy();
+    expect(screen.getByDisplayValue('Plan existant')).toBeTruthy();
+    expect(screen.queryByDisplayValue('Plan concurrent')).toBeNull();
   });
 
   it('preserves an unpaid installment when collection is refused', async () => {
