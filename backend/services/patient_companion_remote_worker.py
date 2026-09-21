@@ -47,6 +47,28 @@ class RemoteTransportRejected(ValueError):
     pass
 
 
+def _handler_for_operation(operation: str) -> RemoteDomainHandler | None:
+    """Load only the domain registry needed by the requested operation.
+
+    This keeps the shared remote transport independent from unrelated domain
+    stacks (for example agenda -> router package -> vision/OpenCV) and avoids
+    importing every Patient Companion feature for one command.
+    """
+    if operation.startswith("agenda."):
+        from backend.services.patient_companion_agenda import PC02_REMOTE_HANDLERS
+
+        return PC02_REMOTE_HANDLERS.get(operation)
+    if operation.startswith("consent."):
+        from backend.services.patient_companion_consents import PC04_REMOTE_HANDLERS
+
+        return PC04_REMOTE_HANDLERS.get(operation)
+    if operation.startswith("notification."):
+        from backend.services.patient_companion_notifications import PC05_REMOTE_HANDLERS
+
+        return PC05_REMOTE_HANDLERS.get(operation)
+    return None
+
+
 def _public_jwk(raw: str) -> dict:
     value = json.loads(raw)
     if not isinstance(value, dict) or "d" in value:
@@ -114,11 +136,6 @@ def process_remote_envelope(
     commit its result with the replay ledger, then return a cabinet-signed encrypted ack.
     """
 
-    if handlers is None:
-        from backend.services.patient_companion_agenda import PC02_REMOTE_HANDLERS
-        from backend.services.patient_companion_consents import PC04_REMOTE_HANDLERS
-        handlers = {**PC02_REMOTE_HANDLERS, **PC04_REMOTE_HANDLERS}
-
     if access.revoked_at is not None:
         raise RemoteTransportRejected("Patient Companion access revoked")
     if keyset.access_id != access.id or keyset.status != "ACTIVE" or keyset.revoked_at is not None:
@@ -165,7 +182,11 @@ def process_remote_envelope(
             response=stored["response"],
         )
     else:
-        handler = handlers.get(message.operation)
+        handler = (
+            _handler_for_operation(message.operation)
+            if handlers is None
+            else handlers.get(message.operation)
+        )
         if handler is None:
             result = RemoteDomainResult(
                 status="REJECTED",

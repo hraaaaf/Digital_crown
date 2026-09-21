@@ -1,0 +1,65 @@
+name: PC-05 BEFORE Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/pc05-before-visual.yml
+      - frontend/scripts/capture-pc05-before.mjs
+      - frontend/src/features/patient-companion/**
+      - docs/clinic/patient_companion/**
+
+concurrency:
+  group: pc05-before-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Materialize true BEFORE
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/pc05-before "${{ github.event.pull_request.base.sha }}"
+          cd /tmp/pc05-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+          npm run dev -- --host 127.0.0.1 --port 5180 >/tmp/pc05-before.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5180/ >/dev/null && break || sleep 1; done
+      - name: Capture BEFORE
+        working-directory: frontend
+        env:
+          PC05_BEFORE_URL: http://127.0.0.1:5180
+          PC05_EVIDENCE_DIR: ../artifacts/pc05-notifications-before
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          node scripts/capture-pc05-before.mjs
+      - name: Assert evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          items=json.loads(Path("artifacts/pc05-notifications-before/evidence.json").read_text())
+          assert len(items)==4
+          assert all(not x["horizontalOverflow"] for x in items)
+          print("pc05_before=PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc05-notifications-before
+          path: artifacts/pc05-notifications-before
+          if-no-files-found: error
+          retention-days: 30
