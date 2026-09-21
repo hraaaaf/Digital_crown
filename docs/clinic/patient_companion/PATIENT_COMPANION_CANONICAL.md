@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-20 — Remote Transport Gate B code/test candidate certified
-Active lot: REMOTE TRANSPORT GATE — final docs-inclusive certification
+Last verified update: 2026-09-21 — PC-06 merged and content-identity post-merge verified
+Active lot: PC-07 — Emergency Photo — audit gate
 
 ## Product doctrine
 
@@ -240,3 +240,27 @@ Evidence:
 The current branch HEAD after this docs-only closeout supersedes the code/test SHA as the merge candidate and requires exact-head certification before PR #638 may merge.
 
 No deployment performed.
+
+
+## PC-06 closeout / PC-07 start — 2026-09-21
+
+PC-06 Patient Finance:
+- PR #645 merged;
+- merge commit `b4e40fa1f3a63d4d7bf4d91223fa376902dcd7a2`;
+- pre-merge exact-head `84ec5d62af4778f00ffc34d25d174d8bcd2e98b2` had PC-06 Certification, BEFORE, AFTER, CI, T2, P7 and Remote Transport SUCCESS;
+- exact-head AFTER artifact `10628894211`, digest `sha256:42d4791dae424527fab95192ba50eca703debcce769feef8913e363d6519583d`;
+- post-merge no workflow was auto-triggered on the squash commit, so content identity was checked directly: all 18 PR-modified files have identical blob SHAs between certified HEAD and merged master;
+- no Vercel deployment.
+
+PC-07:
+- canonical roadmap target: Emergency Photo;
+- branch: `feature/patient-companion-pc07-emergency-photo`;
+- audit-before-code gate created;
+- exact behavior is intentionally not invented before inspection of existing media/photo/storage and remote-transport primitives.
+
+Next exact:
+1. audit current media/photo/storage/upload primitives;
+2. determine remote transport compatibility for patient-originated media;
+3. create `PC_07_EMERGENCY_PHOTO_ARCHITECTURE_MAP.md`;
+4. lock exact Goal / Success / Proof;
+5. only then implement.
