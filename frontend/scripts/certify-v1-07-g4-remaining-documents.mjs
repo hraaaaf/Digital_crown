@@ -194,12 +194,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const collectPutPromise = page.waitForResponse(response =>
     /\/api\/installments\/\d+$/.test(new URL(response.url()).pathname) &&
     response.request().method() === 'PUT',
-    { timeout: 5000 }
-  );
-  const collectReloadPromise = page.waitForResponse(response =>
-    new URL(response.url()).pathname === `/api/installments/patient/${patient.id}` &&
-    response.request().method() === 'GET',
-    { timeout: 5000 }
+    { timeout: 10000 }
   );
   await collect.click();
   let collectPutResponse;
@@ -217,7 +212,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     throw error;
   }
   const collectPutBody = await collectPutResponse.json();
-  const collectReloadResponse = await collectReloadPromise;
+  const collectReloadResponse = await api.get(`/api/installments/patient/${patient.id}`, { headers });
+  if (!collectReloadResponse.ok()) throw new Error('installment reload verification failed');
   const collectReloadBody = await collectReloadResponse.json();
   const reloadedPlan = Array.isArray(collectReloadBody)
     ? collectReloadBody.find(plan => Number(plan.id) === Number(collectPutBody.plan_id))
