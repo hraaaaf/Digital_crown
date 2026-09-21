@@ -30,7 +30,7 @@ def test_cabinet_rejects_weak_shared_secret(monkeypatch, weak):
 def test_cabinet_accepts_strong_dedicated_master_key(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "cabinet")
     monkeypatch.setenv("CABINET_MASTER_KEY_HEX", "a" * 64)
-    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setenv("SECRET_KEY", "s" * 64)
 
     env_loader._enforce_cabinet_crypto_secret()
 
