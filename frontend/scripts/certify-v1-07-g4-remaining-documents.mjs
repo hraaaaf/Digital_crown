@@ -76,14 +76,19 @@ async function exercisePreview(page) {
   }
   await previewButton.waitFor({ state: 'visible', timeout: 5000 });
   await previewButton.click();
-  const overlay = page.locator('.document-studio-live-preview').last();
-  await overlay.waitFor({ state: 'visible', timeout: 15000 });
-  const dialog = overlay.getByRole('dialog');
-  await dialog.waitFor({ state: 'visible', timeout: 5000 });
-  const refresh = dialog.getByRole('button', { name: 'Actualiser', exact: true });
+  const desktopInline = await page.evaluate(() => window.matchMedia('(min-width: 1280px)').matches);
+  const previewRoot = desktopInline
+    ? page.locator('aside[data-ordonnance-desktop-preview="inline"]').last()
+    : page.locator('.document-studio-live-preview').last();
+  await previewRoot.waitFor({ state: 'visible', timeout: 15000 });
+  const previewSurface = desktopInline
+    ? previewRoot.getByRole('region', { name: /Aperçu PDF/ })
+    : previewRoot.getByRole('dialog');
+  await previewSurface.waitFor({ state: 'visible', timeout: 5000 });
+  const refresh = previewSurface.getByRole('button', { name: 'Actualiser', exact: true });
   if (await refresh.count()) await refresh.click();
-  await dialog.getByRole('button', { name: 'Fermer', exact: true }).click();
-  await overlay.waitFor({ state: 'hidden', timeout: 5000 });
+  await previewSurface.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await previewRoot.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
