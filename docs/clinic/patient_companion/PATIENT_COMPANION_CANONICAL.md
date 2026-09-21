@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-21 — PC-06 merged and content-identity post-merge verified
-Active lot: PC-07 — Emergency Photo — audit gate
+Last verified update: 2026-09-21 — PC-07 merged; post-merge verification in progress
+Active lot: PC-07 — Emergency Photo — post-merge closeout
 
 ## Product doctrine
 
@@ -264,3 +264,32 @@ Next exact:
 3. create `PC_07_EMERGENCY_PHOTO_ARCHITECTURE_MAP.md`;
 4. lock exact Goal / Success / Proof;
 5. only then implement.
+
+
+## PC-07 merged / post-merge closeout — 2026-09-21
+
+PC-07 Emergency Photo:
+- PR #648 merged;
+- certified pre-merge product HEAD: `974c364178302cca697dfdfc5a15f85626f19f23`;
+- merge commit: `f4576d5127799b66eae891afb82ebd439d8b48d0`;
+- PC-07 Certification `35588652802` SUCCESS;
+- Remote Transport `35588652799` SUCCESS;
+- Alembic `35588652849` SUCCESS;
+- BEFORE `35588652855` SUCCESS;
+- AFTER `35588652761` SUCCESS;
+- CI `35588652925` SUCCESS;
+- human visual approval received before merge;
+- conservative visual score: 9.2/10;
+- no Vercel deployment.
+
+Post-merge at this checkpoint:
+- master is exactly `f4576d5127799b66eae891afb82ebd439d8b48d0`;
+- Cabinet Upgrade PostgreSQL Certification `35589112147` queued;
+- CI `35589112155` queued;
+- PC-07 is not declared fully closed until merge-commit checks are green.
+
+Next exact:
+1. verify merge-commit post-merge workflows;
+2. if green, mark PC-07 post-merge verified;
+3. switch active lot to PC-08 — Secure Messaging;
+4. prepare PC-08 start handover; no Vercel deployment.
