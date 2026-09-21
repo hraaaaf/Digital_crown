@@ -1,8 +1,8 @@
 # PC-07 — Emergency Photo — Adversarial Review
 
-Status: IMPLEMENTATION CANDIDATE — MACHINE GATES PENDING
+Status: MERGED — POST-MERGE VERIFICATION IN PROGRESS
 Branch: feature/patient-companion-pc07-emergency-photo
-PR: #648 DRAFT
+PR: #648 MERGED — merge commit `f4576d5127799b66eae891afb82ebd439d8b48d0`
 Deployment: none
 
 ## Review question
@@ -117,20 +117,26 @@ AFTER:
 
 Quota + expiry-purge hardening now also has a dedicated automated regression test.
 
-## Machine gates still open
-At this review revision, exact-head results are still pending for:
-- PC-07 Emergency Photo Certification;
-- PostgreSQL Alembic Schema Certification;
-- Patient Companion Remote Transport Gate;
-- CI;
-- PC-07 BEFORE Visual Evidence;
-- PC-07 AFTER Visual Evidence;
-- triggered regression workflows.
+## Machine gates verified
+Exact pre-merge product HEAD: `974c364178302cca697dfdfc5a15f85626f19f23`.
 
-No numeric visual score and no merge readiness are claimed before those proofs are green and artifacts inspected.
+- PC-07 Emergency Photo Certification `35588652802` — SUCCESS;
+- PostgreSQL Alembic Schema Certification `35588652849` — SUCCESS;
+- Patient Companion Remote Transport Gate `35588652799` — SUCCESS;
+- CI `35588652925` — SUCCESS;
+- PC-07 BEFORE Visual Evidence `35588652855` — SUCCESS;
+- PC-07 AFTER Visual Evidence `35588652761` — SUCCESS.
+
+Visual evidence was inspected on Chromium + WebKit at 360x800 and 390x844. Conservative visual score: 9.2/10.
 
 ## Human gate
-Human visual approval remains mandatory before READY/merge.
+Human visual approval was received before READY/merge.
+
+## Merge
+PR #648 was marked ready only after exact-head gates were green and merged with expected head SHA `974c364178302cca697dfdfc5a15f85626f19f23`.
+Merge commit: `f4576d5127799b66eae891afb82ebd439d8b48d0`.
+
+Post-merge push workflows remain to be verified before final closure.
 
 ## No deployment
 No Vercel deployment is authorized or claimed.
