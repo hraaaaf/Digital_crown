@@ -70,6 +70,7 @@ jobs:
           python-multipart==0.0.31
           qrcode==8.2
           pillow==12.2.0
+          opencv-python-headless==4.13.0.92
           SQLAlchemy==2.0.28
           httpx==0.28.1
           jwcrypto==1.6.1
