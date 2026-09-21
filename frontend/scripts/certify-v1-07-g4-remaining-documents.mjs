@@ -271,13 +271,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   await closeResidualPreview(page);
   await exerciseStudioHeader(page);
-  await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').fill('Lettre G4');
+  await page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...').fill(`Lettre G4 ${viewport.width}x${viewport.height}`);
   await page.getByPlaceholder('Ex: À qui de droit...').fill('À qui de droit');
   await page.getByPlaceholder('Ex: Rabat, le 12/05/2026').fill('Rabat, le 19/09/2026');
   await page.getByLabel(/Masquer l'en-tête patient/i).check();
   for (const name of ['A5','A4','Gauche','Centre','Droite','Justifié']) await page.getByRole('button', { name, exact: true }).click();
   const content = page.getByPlaceholder("Rédigez votre document ici... Utilisez la barre d'outils pour mettre en forme le texte.");
-  await content.fill('Texte G4');
+  await content.fill(`Texte G4 ${viewport.width}x${viewport.height}`);
   for (const [titleName, token] of [['Gras','<b>'],['Italique','<i>'],['Souligné','<u>'],['Agrandir','<font size="16">']]) {
     await content.evaluate(el => { el.selectionStart = 0; el.selectionEnd = el.value.length; });
     await page.getByTitle(titleName).click();
