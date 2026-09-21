@@ -171,6 +171,21 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const firstMethod = page.locator('select[aria-label^="Mode de règlement"]').first();
   await firstMethod.selectOption('CARTE');
   const collect = page.getByRole('button', { name: 'Encaisser', exact: true }).first();
+  const collectDebug = await page.locator('#installment-studio-container').evaluate((node) => ({
+    dataPlan: node.getAttribute('data-plan-data'),
+    collectButtons: Array.from(node.querySelectorAll('button')).filter(button => (button.textContent || '').trim() === 'Encaisser').map(button => ({
+      disabled: button.disabled,
+      text: (button.textContent || '').trim(),
+    })),
+    paymentMethods: Array.from(node.querySelectorAll('select[aria-label^="Mode de règlement"]')).map(select => ({
+      label: select.getAttribute('aria-label'),
+      value: select.value,
+    })),
+  }));
+  console.log('G4_INSTALLMENT_PRECOLLECT ' + JSON.stringify({
+    viewport: `${viewport.width}x${viewport.height}`,
+    collectDebug,
+  }));
   if (await collect.isDisabled()) throw new Error('collect remained disabled after method selection');
   const collectPutPromise = page.waitForResponse(response =>
     /\/api\/installments\/\d+$/.test(new URL(response.url()).pathname) &&
