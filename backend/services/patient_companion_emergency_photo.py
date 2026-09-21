@@ -5,10 +5,14 @@ import binascii
 import hashlib
 import re
 import uuid
+import os
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from backend.models_patient_companion import (
     PatientCompanionAccess,
@@ -31,6 +35,63 @@ PC07_CHUNK_BYTES = 96 * 1024
 PC07_MAX_CHUNKS = CLINICAL_PHOTO_MAX_BYTES // PC07_CHUNK_BYTES
 PC07_UPLOAD_TTL = timedelta(hours=24)
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_ASSEMBLY_MAGIC = b"PC07C1"
+_ASSEMBLY_SALT = b"digital-crown-pc07-assembly-v1"
+_ASSEMBLY_INFO = b"digital-crown-pc07-chunk-aesgcm-v1"
+
+
+def _assembly_master_material() -> bytes:
+    raw = (os.environ.get("CABINET_MASTER_KEY_HEX") or os.environ.get("SECRET_KEY") or "").strip()
+    if not raw:
+        raise ClinicalAssetStorageError("PC-07 assembly encryption key is unavailable")
+    try:
+        material = bytes.fromhex(raw)
+        if not material:
+            raise ValueError
+    except ValueError:
+        material = raw.encode("utf-8")
+    return material
+
+
+def _assembly_key() -> bytes:
+    return HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=_ASSEMBLY_SALT,
+        info=_ASSEMBLY_INFO,
+    ).derive(_assembly_master_material())
+
+
+def _chunk_aad(access_id: int, upload_id: str, chunk_index: int) -> bytes:
+    return f"dc-pc07-chunk:{int(access_id)}:{upload_id}:{int(chunk_index)}".encode("ascii")
+
+
+def _encrypt_chunk(raw: bytes, *, access_id: int, upload_id: str, chunk_index: int) -> bytes:
+    nonce = os.urandom(12)
+    encrypted = AESGCM(_assembly_key()).encrypt(
+        nonce,
+        raw,
+        _chunk_aad(access_id, upload_id, chunk_index),
+    )
+    return _ASSEMBLY_MAGIC + nonce + encrypted
+
+
+def _decrypt_chunk(payload: bytes, *, access_id: int, upload_id: str, chunk_index: int) -> bytes:
+    if not payload.startswith(_ASSEMBLY_MAGIC) or len(payload) <= len(_ASSEMBLY_MAGIC) + 12:
+        raise ClinicalAssetStorageError("PC-07 temporary chunk envelope invalid")
+    offset = len(_ASSEMBLY_MAGIC)
+    nonce = payload[offset:offset + 12]
+    ciphertext = payload[offset + 12:]
+    try:
+        return AESGCM(_assembly_key()).decrypt(
+            nonce,
+            ciphertext,
+            _chunk_aad(access_id, upload_id, chunk_index),
+        )
+    except Exception as exc:
+        raise ClinicalAssetStorageError("PC-07 temporary chunk authentication failed") from exc
+
+
 
 
 def _reject(code: str) -> RemoteDomainResult:
@@ -226,14 +287,32 @@ def submit_emergency_photo_chunk(
         PatientCompanionEmergencyPhotoChunk.chunk_index == chunk_index,
     ).first()
     if existing is not None:
-        if existing.chunk_sha256 != chunk_sha256 or bytes(existing.content) != raw:
+        try:
+            existing_raw = _decrypt_chunk(
+                bytes(existing.content),
+                access_id=access.id,
+                upload_id=upload.public_id,
+                chunk_index=chunk_index,
+            )
+        except ClinicalAssetStorageError:
+            return _reject("STORAGE_UNAVAILABLE")
+        if existing.chunk_sha256 != chunk_sha256 or existing_raw != raw:
             return _reject("CHUNK_CONFLICT")
     else:
+        try:
+            encrypted = _encrypt_chunk(
+                raw,
+                access_id=access.id,
+                upload_id=upload.public_id,
+                chunk_index=chunk_index,
+            )
+        except ClinicalAssetStorageError:
+            return _reject("STORAGE_UNAVAILABLE")
         db.add(PatientCompanionEmergencyPhotoChunk(
             upload_id=upload.id,
             chunk_index=chunk_index,
             chunk_sha256=chunk_sha256,
-            content=raw,
+            content=encrypted,
         ))
         upload.updated_at = datetime.utcnow()
         db.flush()
@@ -280,7 +359,18 @@ def finalize_emergency_photo(
     if [chunk.chunk_index for chunk in chunks] != list(range(upload.chunk_count)):
         return _reject("UPLOAD_INCOMPLETE")
 
-    raw = b"".join(bytes(chunk.content) for chunk in chunks)
+    try:
+        raw = b"".join(
+            _decrypt_chunk(
+                bytes(chunk.content),
+                access_id=access.id,
+                upload_id=upload.public_id,
+                chunk_index=chunk.chunk_index,
+            )
+            for chunk in chunks
+        )
+    except ClinicalAssetStorageError:
+        return _reject("STORAGE_UNAVAILABLE")
     if len(raw) != upload.byte_size:
         return _reject("OBJECT_SIZE_MISMATCH")
     if hashlib.sha256(raw).hexdigest() != upload.object_sha256:
