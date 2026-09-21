@@ -89,7 +89,9 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   await page.getByText('Actes Globaux',{exact:true}).last().waitFor({state:'visible',timeout:5000});
   await page.getByRole('button',{name:'Fermer',exact:true}).click();
   for(const tool of ['Sélection','Carie','Composite','Couronne','Canal','Absente','Gommer']){
-    await page.getByRole('button',{name:tool,exact:true}).click();
+    const toolButton=page.getByRole('button',{name:tool,exact:true});
+    await toolButton.waitFor({state:'visible',timeout:10000});
+    await toolButton.dispatchEvent('click');
     if(tool!=='Sélection'){
       const tooth=page.getByRole('button',{name:/^Dent 11,/}).first();
       await tooth.click();
