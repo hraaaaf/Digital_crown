@@ -68,6 +68,7 @@ def test_slot_is_single_use_after_successful_booking(db, dentiste):
 
     first = create_appointment(db, access, {"slot_ref": slot.public_id})
     assert first.status == "ACCEPTED"
+    db.refresh(slot)
     assert slot.consumed_at is not None
 
     second = create_appointment(db, access, {"slot_ref": slot.public_id})
