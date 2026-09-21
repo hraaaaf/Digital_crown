@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 from PIL import Image
@@ -17,6 +17,9 @@ from backend.models_patient_companion import (
     PatientCompanionIdentity,
 )
 from backend.services.clinical_asset_storage import read_clinical_asset_bytes
+from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
+from relay.contract import RELAY_MAX_BLOB_BYTES
+
 from backend.services.patient_companion_emergency_photo import (
     PC07_CHUNK_BYTES,
     begin_emergency_photo,
@@ -257,3 +260,38 @@ def test_pc07_begin_rejects_injected_or_inconsistent_contract(db, dentiste):
     result = begin_emergency_photo(db, access, inconsistent)
     assert result.status == "REJECTED"
     assert result.response == {"code": "INVALID_REQUEST"}
+
+
+def test_pc07_96k_chunk_fits_real_compact_jose_relay_limit():
+    signing_kid = str(uuid.uuid4())
+    encryption_kid = str(uuid.uuid4())
+    signing_private, _signing_public = generate_p256_keypair(kid=signing_kid, use="sig")
+    _encryption_private, encryption_public = generate_p256_keypair(kid=encryption_kid, use="enc")
+
+    raw = b"x" * PC07_CHUNK_BYTES
+    now = datetime.now(timezone.utc)
+    payload = {
+        "protocol_version": "dc-pc-remote-v1",
+        "message_id": str(uuid.uuid4()),
+        "access_id": str(uuid.uuid4()),
+        "sent_at": now.isoformat(),
+        "expires_at": (now + timedelta(minutes=10)).isoformat(),
+        "idempotency_key": str(uuid.uuid4()),
+        "operation": "emergency_photo.chunk",
+        "payload": {
+            "upload_id": str(uuid.uuid4()),
+            "chunk_index": 0,
+            "chunk_sha256": hashlib.sha256(raw).hexdigest(),
+            "chunk_b64": base64.b64encode(raw).decode("ascii"),
+        },
+    }
+
+    blob = sign_and_encrypt(
+        payload,
+        sender_signing_private_jwk=signing_private,
+        recipient_encryption_public_jwk=encryption_public,
+        sender_signing_kid=signing_kid,
+        recipient_encryption_kid=encryption_kid,
+    )
+
+    assert len(blob.encode("utf-8")) < RELAY_MAX_BLOB_BYTES
