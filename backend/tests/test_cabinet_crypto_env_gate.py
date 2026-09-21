@@ -6,9 +6,9 @@ from backend import env_loader
 def test_cabinet_without_crypto_secret_fails_closed(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "cabinet")
     monkeypatch.delenv("CABINET_MASTER_KEY_HEX", raising=False)
-    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setenv("SECRET_KEY", "s" * 64)
 
-    with pytest.raises(RuntimeError, match="mode cabinet refuse"):
+    with pytest.raises(RuntimeError, match="CABINET_MASTER_KEY_HEX"):
         env_loader._enforce_cabinet_crypto_secret()
 
 
