@@ -373,9 +373,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   });
   page.on('request', requestListener);
   await page.getByRole('button', { name: 'Appliquer à la note', exact: true }).click();
-  await page.waitForTimeout(250);
+  await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   page.off('request', requestListener);
-  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury apply did not close modal');
   if (persistenceRequests.length) throw new Error('Treasury apply unexpectedly persisted');
   actions.push('treasury-apply-local-only-truthful');
 
@@ -383,11 +382,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const treasuryTitle = page.getByText('Encaissement', { exact: true });
   const treasuryOverlay = treasuryTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
   await treasuryOverlay.locator('button').first().click();
-  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury top close failed');
+  await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
 
   await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
   await page.getByRole('button', { name: 'Fermer', exact: true }).click();
-  if (await page.getByText('Encaissement', { exact: true }).count()) throw new Error('Treasury footer close failed');
+  await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   actions.push('treasury-close-controls');
 
   const scene = await snapshot(page, viewport, 'final');
