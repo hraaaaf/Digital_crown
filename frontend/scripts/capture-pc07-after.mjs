@@ -187,8 +187,8 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
         if (state === 'pending') {
           await context.addInitScript(() => {
             const nativeSetTimeout = window.setTimeout.bind(window);
-            window.setTimeout = ((handler, timeout = 0, ...args) =>
-              nativeSetTimeout(handler, timeout === 1000 ? 25 : timeout, ...args)) as typeof window.setTimeout;
+            window.setTimeout = (handler, timeout = 0, ...args) =>
+              nativeSetTimeout(handler, timeout === 1000 ? 25 : timeout, ...args);
           });
         }
         const page = await context.newPage();
