@@ -62,7 +62,7 @@ jobs:
         run: python scripts/prod_safety_check.py
 
       - name: Full backend regression suite (DB / patients / documents included)
-        run: python -m pytest backend/tests -q --maxfail=1
+        run: python -m pytest backend/tests -q
 
   frontend:
     name: Frontend (tests & build)
