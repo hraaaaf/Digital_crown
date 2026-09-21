@@ -67,10 +67,14 @@ async function closeResidualPreview(page) {
 
 async function exercisePreview(page) {
   await page.getByRole('button', { name: 'Aperçu', exact: true }).click();
-  await page.getByRole('region', { name: /Aperçu PDF/i }).last().waitFor({ state: 'visible', timeout: 15000 });
-  const refresh = page.getByRole('button', { name: 'Actualiser', exact: true });
+  const overlay = page.locator('.document-studio-live-preview').last();
+  await overlay.waitFor({ state: 'visible', timeout: 15000 });
+  const dialog = overlay.getByRole('dialog');
+  await dialog.waitFor({ state: 'visible', timeout: 5000 });
+  const refresh = dialog.getByRole('button', { name: 'Actualiser', exact: true });
   if (await refresh.count()) await refresh.click();
-  await page.getByRole('button', { name: 'Fermer', exact: true }).first().click();
+  await dialog.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
