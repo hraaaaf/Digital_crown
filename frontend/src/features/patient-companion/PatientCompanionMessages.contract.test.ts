@@ -5,10 +5,11 @@ import { describe, expect, it } from 'vitest';
 const source = fs.readFileSync(path.resolve(__dirname, 'PatientCompanionMessages.tsx'), 'utf8');
 
 describe('PatientCompanionMessages truth contract', () => {
-  it('keeps offline composition available while preserving non-confirmation wording', () => {
-    expect(source).toContain('const canSend = bytes > 0 && bytes <= MAX_BODY_BYTES && !busy;');
-    expect(source).toContain("if (!transportReady || !enabled)");
+  it('requires enrolled secure transport but not cabinet reachability for offline queueing', () => {
+    expect(source).toContain('const canSend = transportReady && bytes > 0 && bytes <= MAX_BODY_BYTES && !busy;');
+    expect(source).toContain("if (!enabled)");
     expect(source).toContain('Message chiffré enregistré sur cet appareil · non envoyé.');
+    expect(source).toContain("state: 'local_queued'");
   });
 
   it('uses evidence-based labels and no realtime presence claims', () => {
