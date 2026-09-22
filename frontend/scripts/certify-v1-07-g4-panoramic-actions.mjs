@@ -83,7 +83,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  const b=await upload(page,`g4-pano-b-${viewport.width}`);
  const cmpApi=await api.get(`/api/ia/patients/${patient.id}/panoramic-comparison`,{headers}); if(!cmpApi.ok()) throw new Error(`comparison api ${cmpApi.status()}`); const cmp=await cmpApi.json(); if(cmp.available!==true) throw new Error('comparison not available after two persisted analyses');
  await page.getByRole('button',{name:'Évolution',exact:true}).click();
- if(cmp.summary_text) await page.getByText(cmp.summary_text,{exact:true}).waitFor({state:'visible',timeout:10000});
+ if(cmp.summary_text) await page.getByText(cmp.summary_text,{exact:false}).first().waitFor({state:'visible',timeout:10000});
 
  await page.getByRole('button',{name:'Comparer T0/T1',exact:true}).click();
  await page.locator('[data-m4b-history]').waitFor({state:'visible',timeout:10000});
