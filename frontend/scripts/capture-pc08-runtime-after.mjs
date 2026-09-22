@@ -113,7 +113,17 @@ if (!optionTexts.includes('Patient') || !optionTexts.includes('Parent')) {
 }
 await selector.selectOption({ label: 'Patient' });
 await staffPage.getByText(selfBody, { exact: true }).waitFor({ timeout: 30000 });
-await staffPage.getByText('Lu par le cabinet', { exact: true }).waitFor({ timeout: 30000 });
+await staffPage.getByText('Lu par le cabinet', { exact: true }).waitFor({ timeout: 30000 }).catch(async () => {
+  // The staff panel marks unread patient messages via an explicit API mutation
+  // immediately after loading, then refreshes. Give that canonical round-trip
+  // one bounded retry instead of assuming the first render already contains it.
+  await staffPage.reload({ waitUntil: 'networkidle', timeout: 90000 });
+  const retrySelector = staffPage.getByLabel('Accès destinataire');
+  await retrySelector.waitFor({ state: 'visible', timeout: 30000 });
+  await retrySelector.selectOption({ label: 'Patient' });
+  await staffPage.getByText(selfBody, { exact: true }).waitFor({ timeout: 30000 });
+  await staffPage.getByText('Lu par le cabinet', { exact: true }).waitFor({ timeout: 30000 });
+});
 
 const staffReply = 'Réponse sécurisée du cabinet — votre message a bien été consulté.';
 await staffPage.getByPlaceholder('Écrire au patient…').fill(staffReply);
