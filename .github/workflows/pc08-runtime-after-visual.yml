@@ -101,14 +101,18 @@ jobs:
           for ($i = 0; $i -lt 90; $i++) {
             try {
               Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8005/health | Out-Null
-              exit 0
+              break
             } catch {
               Start-Sleep -Seconds 1
             }
           }
+          if ($i -ge 90) {
+            Get-Content "$env:RUNNER_TEMP\pc08-backend.out.log" -ErrorAction SilentlyContinue
+            Get-Content "$env:RUNNER_TEMP\pc08-backend.err.log" -ErrorAction SilentlyContinue
+            throw "PC-08 backend did not become healthy"
+          }
           Get-Content "$env:RUNNER_TEMP\pc08-backend.out.log" -ErrorAction SilentlyContinue
           Get-Content "$env:RUNNER_TEMP\pc08-backend.err.log" -ErrorAction SilentlyContinue
-          throw "PC-08 backend did not become healthy"
 
       - name: Start exact-head frontend
         working-directory: frontend
@@ -119,14 +123,18 @@ jobs:
           for ($i = 0; $i -lt 60; $i++) {
             try {
               Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173/ | Out-Null
-              exit 0
+              break
             } catch {
               Start-Sleep -Seconds 1
             }
           }
+          if ($i -ge 60) {
+            Get-Content "$env:RUNNER_TEMP\pc08-frontend.out.log" -ErrorAction SilentlyContinue
+            Get-Content "$env:RUNNER_TEMP\pc08-frontend.err.log" -ErrorAction SilentlyContinue
+            throw "PC-08 frontend did not become healthy"
+          }
           Get-Content "$env:RUNNER_TEMP\pc08-frontend.out.log" -ErrorAction SilentlyContinue
           Get-Content "$env:RUNNER_TEMP\pc08-frontend.err.log" -ErrorAction SilentlyContinue
-          throw "PC-08 frontend did not become healthy"
 
       - name: Capture real PC-08 AFTER
         working-directory: frontend
