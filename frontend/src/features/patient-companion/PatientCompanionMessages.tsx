@@ -104,7 +104,7 @@ export function PatientCompanionMessages({
 
   const bytes = useMemo(() => byteLength(draft), [draft]);
   const transportReady = Boolean(pairing.remoteTransport);
-  const canSend = bytes > 0 && bytes <= MAX_BODY_BYTES && !busy;
+  const canSend = transportReady && bytes > 0 && bytes <= MAX_BODY_BYTES && !busy;
 
   const refreshFromStorage = useCallback(async () => {
     const state = await PatientCompanionStorage.load();
