@@ -1,6 +1,12 @@
 """Fail-closed semantic contract for panoramic reporting."""
 
-from backend.services.panoramic_report_engine import PanoramicReportEngine
+from backend.services.panoramic_report_engine import ANOMALY_LABELS, ANOMALY_SECTIONS, PanoramicReportEngine
+from backend.services.panoramic_report_ontology import (
+    PANORAMIC_DOMAIN_SECTION_TITLES,
+    PANORAMIC_DOMAIN_TITLES,
+    PANORAMIC_EXPLICIT_NORMAL_TEXT,
+    PANORAMIC_REPORT_DOMAINS,
+)
 
 
 def test_empty_annotations_do_not_infer_normality_or_treatment():
@@ -195,3 +201,30 @@ def test_radiographic_signs_are_not_upgraded_to_histologic_or_clinical_diagnoses
     )
     for token in forbidden:
         assert token not in report
+
+
+def test_panorama_ontology_is_complete_and_every_known_finding_is_classified():
+    domains = set(PANORAMIC_REPORT_DOMAINS)
+    assert set(PANORAMIC_DOMAIN_TITLES) == domains
+    assert set(PANORAMIC_DOMAIN_SECTION_TITLES) == domains
+    assert set(PANORAMIC_EXPLICIT_NORMAL_TEXT) == domains
+    assert set(ANOMALY_LABELS).issubset(set(ANOMALY_SECTIONS))
+
+
+def test_all_explicitly_reviewed_domains_remove_non_assessed_footer():
+    report_context = {
+        "image_quality": "diagnostic",
+        **{
+            domain: {"status": "normal", "note": None}
+            for domain in PANORAMIC_REPORT_DOMAINS
+        },
+    }
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={},
+        global_findings=[],
+        report_context=report_context,
+    )
+
+    assert "Domaines non évalués explicitement" not in report
+    for domain in PANORAMIC_REPORT_DOMAINS:
+        assert PANORAMIC_EXPLICIT_NORMAL_TEXT[domain] in report
