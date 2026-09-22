@@ -97,3 +97,19 @@ Laboratoires du cabinet
 
 ## Note de certification visuelle
 Le workflow visuel ignore uniquement le bruit transitoire Vite `Outdated Optimize Dep` observé sur la baseline BEFORE. Les erreurs console produit, page errors et overflows restent bloquants.
+
+
+## Closeout vérifié — 2026-09-22
+- PR produit : #684
+- HEAD avant merge : `6488d802bcce6fe86fe84ac4a920c44c398b1284`
+- merge squash : `be3a0ad1ba4ad782cc78687f705bf61faa4c1e35`
+- CI exact code produit #6211 : SUCCESS
+- T2 exact code produit #5027 : SUCCESS
+- PostgreSQL Alembic #491 : SUCCESS
+- preuve visuelle : 12 captures produites ; AFTER 390×844 / 768×1024 / 1280×900 sans overflow ni erreur produit
+- limite documentée : le run Visual #3 a échoué uniquement sur la baseline BEFORE 390 à cause d'un bruit Vite `Outdated Optimize Dep`; les commits suivants n'ont modifié que le harness visuel et la documentation
+- compare `fce2324118eac61f8fce8d13914c2f8a645806b6` → `6488d802bcce6fe86fe84ac4a920c44c398b1284` : workflow visuel + documentation uniquement
+- migration : `cust05000016` après `cust02000015`
+- Stock reste source unique des matériaux
+- Laboratoires scoppés cabinet via `employer_id`
+- aucun déploiement Vercel
