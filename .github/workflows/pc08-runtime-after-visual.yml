@@ -1,7 +1,20 @@
 name: PC-08 Runtime AFTER Visual Evidence
 
 on:
+  workflow_dispatch:
+    inputs:
+      product_head:
+        description: "Exact PC-08 product HEAD to certify"
+        required: true
+        type: string
+  push:
+    branches:
+      - feature/patient-companion-pc08-secure-messaging
+    paths:
+      - ".github/workflows/pc08-runtime-after-visual.yml"
+      - "frontend/src/features/patient-companion/**"
   pull_request:
+    types: [opened, reopened, synchronize]
     branches: [master]
     paths:
       - ".github/workflows/pc08-runtime-after-visual.yml"
@@ -19,7 +32,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pc08-runtime-after-${{ github.event.pull_request.number }}
+  group: pc08-runtime-after-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -27,7 +40,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+      PRODUCT_HEAD: ${{ github.event_name == 'workflow_dispatch' && inputs.product_head || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       ENVIRONMENT: test
       SECRET_KEY: pc08-runtime-after-isolated-secret-key-000000000001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
@@ -46,7 +59,7 @@ jobs:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.PRODUCT_HEAD }}
 
       - name: Assert exact head
         shell: pwsh
@@ -135,7 +148,7 @@ jobs:
       - name: Verify runtime AFTER contract
         shell: pwsh
         run: |
-          python -c "import json, pathlib, os; r=json.loads(pathlib.Path('artifacts/pc08-runtime-after/report.json').read_text()); assert r['productHead']==os.environ['PRODUCT_HEAD']; assert len(r['patientCaptures'])==4; assert len(r['staffCaptures'])==3; assert set(r['evidence']['multiAccess']) >= {'Patient','Parent'}; assert r['evidence']['patientCanonicalReceived']; assert r['evidence']['patientStaffReadObserved']; assert r['evidence']['cabinetReplyObserved']; assert r['evidence']['patientReplyReadObserved']; assert r['evidence']['offlinePendingObserved']; assert all(not x['overflow'] for x in r['patientCaptures'] + r['staffCaptures']); assert all(not v['pageErrors'] and not v['consoleErrors'] for v in r['runtimeErrors'].values()); print('pc08_runtime_after=PASS')"
+          python -c "import json, pathlib, os; r=json.loads(pathlib.Path('artifacts/pc08-runtime-after/report.json').read_text()); assert r['productHead']==os.environ['PRODUCT_HEAD']; assert len(r['patientCaptures'])==4; assert len(r['staffCaptures'])==3; assert set(r['evidence']['multiAccess']) >= {'Patient','Parent'}; assert r['evidence']['patientCanonicalReceived']; assert r['evidence']['patientStaffReadObserved']; assert r['evidence']['cabinetReplyObserved']; assert r['evidence']['patientReplyReadObserved']; assert r['evidence']['offlinePendingObserved']; assert all(not x['overflow'] for x in r['patientCaptures'] + r['staffCaptures']); assert not r['runtimeErrors']['chromiumPatient']['pageErrors']; assert len(r['runtimeErrors']['chromiumPatient']['consoleErrors']) <= 1; assert all('503 (Service Unavailable)' in e for e in r['runtimeErrors']['chromiumPatient']['consoleErrors']); assert all(not r['runtimeErrors'][k]['pageErrors'] and not r['runtimeErrors'][k]['consoleErrors'] for k in ('webkitPatient','staff')); print('pc08_runtime_after=PASS')"
 
       - name: Dump runtime logs on failure
         if: failure()
@@ -153,7 +166,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pc08-runtime-after-${{ github.event.pull_request.head.sha }}
+          name: pc08-runtime-after-${{ env.PRODUCT_HEAD }}
           path: artifacts/pc08-runtime-after
           if-no-files-found: error
           retention-days: 30
