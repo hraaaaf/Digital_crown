@@ -1,9 +1,9 @@
-# CUST-04 — Practitioner prescription presets — Goal
+# CUST-04 — Practitioner prescription models — Goal
 
 Date: 2026-09-22
 
 ## Goal
-Permettre au praticien d'enregistrer et de réutiliser ses propres brouillons d'ordonnance, sans transformer un preset en recommandation clinique automatique.
+Permettre au praticien d'enregistrer et de réutiliser ses propres brouillons d'ordonnance, sans transformer un modèle en recommandation clinique automatique.
 
 ## Vérité actuelle vérifiée
 - Le studio actif est `PrescriptionAgenticStudioV1.tsx`, réexporté via `PrescriptionAgenticStudio.tsx`.
@@ -17,14 +17,14 @@ Permettre au praticien d'enregistrer et de réutiliser ses propres brouillons d'
 - Le payload final d'ordonnance conserve les valeurs explicites du praticien.
 
 ## Principe de sécurité CUST-04
-Un preset praticien est un **brouillon réutilisable**, jamais :
+Un modèle praticien est un **brouillon réutilisable**, jamais :
 - une recommandation clinique ;
 - une adaptation automatique au patient ;
 - une déduction depuis le diagnostic, l'acte ou le libellé ;
 - une validation de dose, indication, interaction ou contre-indication ;
 - une prescription appliquée sans clic explicite.
 
-L'application d'un preset doit remplir un brouillon éditable et rester soumise aux validations existantes avant génération.
+L'application d'un modèle doit remplir un brouillon éditable et rester soumise aux validations existantes avant génération.
 
 ## Audit à compléter avant code
 1. identifier le parent actif qui monte `PrescriptionAgenticStudioV1` ;
@@ -36,19 +36,19 @@ L'application d'un preset doit remplir un brouillon éditable et rester soumise 
 
 ## Target fonctionnel provisoire
 Dans le studio actif :
-- zone discrète « Mes presets » ;
-- action « Enregistrer ce brouillon comme preset » ;
-- clic explicite sur un preset pour charger les lignes ;
+- zone discrète « Mes modèles » ;
+- action « Enregistrer comme modèle » ;
+- clic explicite sur un modèle pour charger les lignes ;
 - confirmation si le brouillon courant contient déjà des lignes différentes ;
 - toutes les lignes restent éditables après chargement ;
 - indication/patient/date ne sont jamais capturés silencieusement ;
-- aucun preset appliqué automatiquement.
+- aucun modèle appliqué automatiquement.
 
 ## Succès observable
 1. aucun changement clinique automatique ;
-2. un preset n'est appliqué qu'après action explicite du praticien ;
-3. aucune donnée patient n'est stockée dans le preset ;
-4. aucun libellé clinique n'active automatiquement un preset ;
+2. un modèle n'est appliqué qu'après action explicite du praticien ;
+3. aucune donnée patient n'est stockée dans le modèle ;
+4. aucun libellé clinique n'active automatiquement un modèle ;
 5. les validations de l'ordonnance restent actives après chargement ;
 6. isolation tenant/praticien vérifiée ;
 7. BEFORE/AFTER 390×844, 768×1024, 1280×900 ;
@@ -95,7 +95,7 @@ Il ne stocke jamais :
 ```text
 Prescription
 
-┌ Mes presets ─────────────────────────────────────────────┐
+┌ Mes modèles ─────────────────────────────────────────────┐
 │ [ Post-op perso ] [ Antibiothérapie perso ]             │
 │                                  [+ Enregistrer ce brouillon]
 │ “Un preset remplit uniquement les lignes après votre clic.”
@@ -106,14 +106,30 @@ Prescription
 Appliquer un preset avec brouillon existant
 ┌──────────────────────────────────────────────────────────┐
 │ Remplacer les lignes actuelles ?                         │
-│ Le preset remplace uniquement les lignes de prescription.│
+│ Le modèle remplace uniquement les lignes de prescription.│
 │                 Conserver     Remplacer                  │
 └──────────────────────────────────────────────────────────┘
 
-Enregistrer un preset
+Enregistrer un modèle
 ┌──────────────────────────────────────────────────────────┐
-│ Nom du preset                                            │
+│ Nom du modèle                                            │
 │ 3 lignes seront enregistrées.                            │
 │                         Annuler   Enregistrer             │
 └──────────────────────────────────────────────────────────┘
 ```
+
+
+## Closeout vérifié — 2026-09-22
+- PR produit : #680
+- HEAD validé avant merge : `af745ac4f1ea575dd098a60b17c15acd3439cea6`
+- merge squash : `4a7e1c6fb0f9d763cf25d0e159bc753b4551ee68`
+- CI exact-head #6189 : SUCCESS
+- T2 exact-head #5006 : SUCCESS
+- CUST-04 Visual #10 : SUCCESS
+- preuve visuelle : 12 captures, 390×844 / 768×1024 / 1280×900, `failures: []`
+- artefact : `cust-04-prescription-presets-before-after`
+- digest : `sha256:e5d082c38418fe31893665d5d56c51f2130e566f2871f1127e91b7dfe8f7a538`
+- wording final praticien : « Mes modèles », « Enregistrer comme modèle », « Enregistrer un modèle », « Nom du modèle », « Conserver l’ordonnance actuelle », « Remplacer par ce modèle ».
+- sécurité : application uniquement sur clic explicite ; aucun patient/date/indication persisté ; aucune recommandation clinique automatique activée.
+- aucune nouvelle table ni migration.
+- aucun déploiement Vercel.
