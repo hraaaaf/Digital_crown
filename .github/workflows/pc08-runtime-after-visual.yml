@@ -1,6 +1,12 @@
 name: PC-08 Runtime AFTER Visual Evidence
 
 on:
+  workflow_dispatch:
+    inputs:
+      product_head:
+        description: "Exact PC-08 product HEAD to certify"
+        required: true
+        type: string
   pull_request:
     types: [opened, reopened, synchronize]
     branches: [master]
@@ -28,7 +34,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+      PRODUCT_HEAD: ${{ github.event_name == 'workflow_dispatch' && inputs.product_head || github.event.pull_request.head.sha }}
       ENVIRONMENT: test
       SECRET_KEY: pc08-runtime-after-isolated-secret-key-000000000001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
@@ -47,7 +53,7 @@ jobs:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.PRODUCT_HEAD }}
 
       - name: Assert exact head
         shell: pwsh
@@ -154,7 +160,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pc08-runtime-after-${{ github.event.pull_request.head.sha }}
+          name: pc08-runtime-after-${{ env.PRODUCT_HEAD }}
           path: artifacts/pc08-runtime-after
           if-no-files-found: error
           retention-days: 30
