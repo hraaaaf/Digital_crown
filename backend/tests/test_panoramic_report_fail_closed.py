@@ -112,3 +112,57 @@ def test_report_is_deterministic_for_same_input():
     second = engine.generate_markdown(**payload)
 
     assert first == second
+
+
+def test_structured_context_renders_only_explicit_practitioner_normal_states():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={},
+        global_findings=[],
+        report_context={
+            "clinical_question": "Recherche de foyer infectieux avant traitement médical.",
+            "image_quality": "diagnostic",
+            "caries": {"status": "normal", "note": None},
+            "jawbone": {"status": "normal", "note": None},
+            "tmj": {"status": "not_assessed", "note": None},
+        },
+    )
+
+    assert "### QUESTION CLINIQUE" in report
+    assert "Recherche de foyer infectieux avant traitement médical." in report
+    assert "Qualité jugée suffisante par le praticien" in report
+    assert "Pas d'autre image carieuse documentée." in report
+    assert "Pas d'anomalie osseuse maxillo-mandibulaire documentée." in report
+    assert "Pas d'anomalie osseuse condylienne" not in report
+    assert "Articulations temporo-mandibulaires" in report
+    assert "Domaines non évalués explicitement" in report
+
+
+def test_structured_context_abnormal_note_is_preserved_without_diagnostic_upgrade():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={},
+        global_findings=[],
+        report_context={
+            "image_quality": "limited",
+            "image_quality_note": "Superposition cervicale antérieure.",
+            "sinuses": {
+                "status": "abnormal",
+                "note": "Voile radio-opaque du sinus maxillaire gauche à corréler au contexte clinique.",
+            },
+        },
+    )
+
+    assert "Qualité limitée pour la lecture panoramique. Superposition cervicale antérieure." in report
+    assert "Sinus maxillaires : Voile radio-opaque du sinus maxillaire gauche à corréler au contexte clinique." in report
+    assert "diagnostic automatique" not in report.lower()
+
+
+def test_empty_structured_context_never_creates_negative_findings():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={},
+        global_findings=[],
+        report_context={},
+    )
+
+    assert "Pas d'autre image carieuse documentée." not in report
+    assert "Pas d'anomalie osseuse maxillo-mandibulaire documentée." not in report
+    assert "Pas d'anomalie sinusienne" not in report
