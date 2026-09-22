@@ -166,3 +166,31 @@ def test_empty_structured_context_never_creates_negative_findings():
     assert "Pas d'autre image carieuse documentée." not in report
     assert "Pas d'anomalie osseuse maxillo-mandibulaire documentée." not in report
     assert "Pas d'anomalie sinusienne" not in report
+
+
+def test_radiographic_signs_are_not_upgraded_to_histologic_or_clinical_diagnoses():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={
+            "16": ["carie_profonde"],
+            "36": ["lesion_periapicale"],
+            "46": ["peri_implantite"],
+            "26": ["arthrose_atm"],
+        },
+        global_findings=["parodontite_gen"],
+    )
+
+    assert "Image carieuse profonde" in report
+    assert "Image radioclaire périapicale" in report
+    assert "Perte osseuse péri-implantaire" in report
+    assert "Remaniements osseux condyliens" in report
+    assert "Perte osseuse parodontale généralisée" in report
+
+    forbidden = (
+        "atteinte pulpaire",
+        "kyste/granulome",
+        "Péri-implantite",
+        "Arthrose de l'ATM",
+        "maladie parodontale généralisée",
+    )
+    for token in forbidden:
+        assert token not in report
