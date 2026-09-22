@@ -18,6 +18,7 @@ on:
       - "frontend/src/features/patient-companion/PatientCompanionMessages.contract.test.ts"
       - "frontend/src/features/patient-companion/PatientCompanionMessages.tsx"
       - "frontend/src/features/patient-companion/PatientCompanionStorage.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionStorage.messaging.contract.test.ts"
       - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
       - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx"
       - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.contract.test.ts"
@@ -98,6 +99,7 @@ jobs:
           npm test -- --run
           src/features/patient-companion/PatientCompanionMessageTransport.test.ts
           src/features/patient-companion/PatientCompanionMessages.contract.test.ts
+          src/features/patient-companion/PatientCompanionStorage.messaging.contract.test.ts
           src/features/patients/components/PatientCompanionMessagingPanel.contract.test.ts
 
       - name: Frontend production build
