@@ -184,13 +184,17 @@ describe('PanoramicStudio G4 deep interaction matrix', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /VALIDER ET GÉNÉRER/i }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/ia/generate-panoramic-report', {
-      analysis_id: 55,
-      manual_anomalies: {},
-      global_findings: ['alveolyse_gen_legere'],
-      rejected_detections: [1],
-      visual_annotations: [],
-    }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+      '/ia/generate-panoramic-report',
+      expect.objectContaining({
+        analysis_id: 55,
+        manual_anomalies: {},
+        global_findings: ['alveolyse_gen_legere'],
+        rejected_detections: [1],
+        visual_annotations: [],
+        report_context: expect.any(Object),
+      }),
+    ));
 
     expect(await screen.findByText('Report content: Generated clinical report')).toBeTruthy();
     expect(usePanoramicStore.getState().globalFindings).toEqual([]);
