@@ -1,0 +1,159 @@
+name: PC-08 Runtime AFTER Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/pc08-runtime-after-visual.yml"
+      - "frontend/scripts/capture-pc08-runtime-after.mjs"
+      - "backend/models_patient_companion.py"
+      - "backend/routers/patient_companion_messages.py"
+      - "backend/services/patient_companion_messages.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "frontend/src/features/patient-companion/**"
+      - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionPanel.tsx"
+      - "docs/clinic/patient_companion/PC_08_*.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pc08-runtime-after-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-after:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+      ENVIRONMENT: test
+      SECRET_KEY: pc08-runtime-after-isolated-secret-key-000000000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      DIGITAL_CROWN_TESTING: "1"
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      T2_USER: t2-browser@cabinet.ma
+      VITE_API_URL: http://127.0.0.1:8005
+      PATIENT_COMPANION_RELAY_URL: ""
+      PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET: ""
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert exact head
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:PRODUCT_HEAD) {
+            throw "Exact-head mismatch"
+          }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate isolated runtime credential
+        shell: pwsh
+        run: |
+          python -c "import secrets; print('T2_PASSWORD=' + secrets.token_urlsafe(24))" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install backend dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          Get-Content requirements.txt | Where-Object { $_ -notmatch '^(torch|torchvision)([<=>].*)?$' } | Set-Content "$env:RUNNER_TEMP\requirements-pc08-runtime.txt"
+          python -m pip install -r "$env:RUNNER_TEMP\requirements-pc08-runtime.txt"
+          python -m pip install httpx==0.27.2 pytest
+
+      - name: Compute isolated DB fingerprint
+        shell: pwsh
+        run: |
+          $fingerprint = python -c "import os; from backend.core.runtime_safety import database_target_fingerprint; print(database_target_fingerprint(os.environ['DATABASE_URL']))"
+          "DIGITALCROWN_ISOLATION_DB_FINGERPRINT=$fingerprint" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install frontend and browsers
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install chromium webkit
+
+      - name: Start isolated runtime and capture real PC-08 AFTER
+        working-directory: frontend
+        shell: pwsh
+        env:
+          PC08_API_URL: http://127.0.0.1:8005
+          PC08_APP_URL: http://127.0.0.1:5173
+          PC08_RUNTIME_AFTER_DIR: ../artifacts/pc08-runtime-after
+        run: |
+          $backend = Start-Process python -WorkingDirectory .. -ArgumentList "scripts/t2_runtime_server.py" -RedirectStandardOutput "$env:RUNNER_TEMP\pc08-backend.out.log" -RedirectStandardError "$env:RUNNER_TEMP\pc08-backend.err.log" -PassThru
+          $frontend = $null
+          try {
+            for ($i = 0; $i -lt 90; $i++) {
+              try {
+                Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8005/health | Out-Null
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if ($i -ge 90) { throw "PC-08 backend did not become healthy" }
+
+            $frontend = Start-Process npm.cmd -ArgumentList "run","dev","--","--host","127.0.0.1","--port","5173" -RedirectStandardOutput "$env:RUNNER_TEMP\pc08-frontend.out.log" -RedirectStandardError "$env:RUNNER_TEMP\pc08-frontend.err.log" -PassThru
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173/ | Out-Null
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if ($i -ge 60) { throw "PC-08 frontend did not become healthy" }
+
+            node scripts/capture-pc08-runtime-after.mjs
+            if ($LASTEXITCODE -ne 0) { throw "PC-08 runtime capture failed with exit code $LASTEXITCODE" }
+          } finally {
+            if ($frontend -and -not $frontend.HasExited) { Stop-Process -Id $frontend.Id -Force -ErrorAction SilentlyContinue }
+            if ($backend -and -not $backend.HasExited) { Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue }
+          }
+
+      - name: Verify runtime AFTER contract
+        shell: pwsh
+        run: |
+          python -c "import json, pathlib, os; r=json.loads(pathlib.Path('artifacts/pc08-runtime-after/report.json').read_text()); assert r['productHead']==os.environ['PRODUCT_HEAD']; assert len(r['patientCaptures'])==4; assert len(r['staffCaptures'])==3; assert set(r['evidence']['multiAccess']) >= {'Patient','Parent'}; assert r['evidence']['patientCanonicalReceived']; assert r['evidence']['patientStaffReadObserved']; assert r['evidence']['cabinetReplyObserved']; assert r['evidence']['patientReplyReadObserved']; assert r['evidence']['offlinePendingObserved']; assert all(not x['overflow'] for x in r['patientCaptures'] + r['staffCaptures']); assert all(not v['pageErrors'] and not v['consoleErrors'] for v in r['runtimeErrors'].values()); print('pc08_runtime_after=PASS')"
+
+      - name: Dump runtime logs on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Write-Output "===== BACKEND OUT ====="
+          Get-Content "$env:RUNNER_TEMP\pc08-backend.out.log" -ErrorAction SilentlyContinue
+          Write-Output "===== BACKEND ERR ====="
+          Get-Content "$env:RUNNER_TEMP\pc08-backend.err.log" -ErrorAction SilentlyContinue
+          Write-Output "===== FRONTEND OUT ====="
+          Get-Content "$env:RUNNER_TEMP\pc08-frontend.out.log" -ErrorAction SilentlyContinue
+          Write-Output "===== FRONTEND ERR ====="
+          Get-Content "$env:RUNNER_TEMP\pc08-frontend.err.log" -ErrorAction SilentlyContinue
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pc08-runtime-after-${{ github.event.pull_request.head.sha }}
+          path: artifacts/pc08-runtime-after
+          if-no-files-found: error
+          retention-days: 30
