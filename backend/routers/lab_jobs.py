@@ -6,6 +6,7 @@ from datetime import datetime
 
 from backend import models, database
 from backend.routers.auth import require_permission
+from backend.utils.access_control import assert_patient_access
 
 router = APIRouter()
 
@@ -24,7 +25,13 @@ class LabJobCreate(BaseModel):
 
 @router.get("/")
 def get_lab_jobs(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
-    jobs = db.query(models.LabJob).all()
+    employer_id = current_user.get_employer_id()
+    jobs = (
+        db.query(models.LabJob)
+        .join(models.Patient, models.LabJob.patient_id == models.Patient.id)
+        .filter(models.Patient.employer_id == employer_id)
+        .all()
+    )
     result = []
     for job in jobs:
         result.append({
@@ -49,6 +56,7 @@ def update_lab_job(job_id: int, req: Dict[str, Any], db: Session = Depends(datab
     job = db.query(models.LabJob).filter(models.LabJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="LabJob not found")
+    assert_patient_access(job.patient_id, current_user, db)
     
     if "status" in req:
         # Assurez-vous de gérer la chaîne enum correctement si nécessaire, 
@@ -64,6 +72,14 @@ def update_lab_job(job_id: int, req: Dict[str, Any], db: Session = Depends(datab
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_lab_job(req: LabJobCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    assert_patient_access(req.patient_id, current_user, db)
+    act = db.query(models.Acte).filter(
+        models.Acte.id == req.act_id,
+        models.Acte.patient_id == req.patient_id,
+    ).first()
+    if not act:
+        raise HTTPException(status_code=422, detail="Acte incompatible avec ce patient")
+
     new_job = models.LabJob(
         patient_id=req.patient_id,
         act_id=req.act_id,
