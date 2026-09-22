@@ -62,6 +62,11 @@ export const LibreTemplatePresets: React.FC<{
         setError('Ce modèle est incomplet et ne peut pas être appliqué.');
         return;
       }
+      const wouldReplace = (title.trim() && title.trim() !== template.name) || (content.trim() && content.trim() !== body);
+      if (wouldReplace) {
+        const confirmed = window.confirm('Remplacer le titre et le contenu actuels par ce modèle ?');
+        if (!confirmed) return;
+      }
       onApply(template.name, body);
     } catch {
       setError('Impossible d’appliquer ce modèle.');
