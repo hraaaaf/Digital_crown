@@ -18,7 +18,7 @@ def _isolate_mobile_runtime_state(tmp_path, monkeypatch):
     from backend.utils import rate_limit
 
     _license_cache.clear()
-    monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm4a-rate-limit.json'))
+    monkeypatch.setattr(rate_limit, '_store_path', lambda: tmp_path / 'm4a-rate-limit.json')
     yield
     _license_cache.clear()
 

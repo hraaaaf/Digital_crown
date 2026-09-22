@@ -20,7 +20,7 @@ def _isolate_mobile_photo_runtime(tmp_path, monkeypatch):
     from backend.utils import rate_limit
 
     _license_cache.clear()
-    monkeypatch.setattr(rate_limit, '_store_path', str(tmp_path / 'm6a-rate-limit.json'))
+    monkeypatch.setattr(rate_limit, '_store_path', lambda: tmp_path / 'm6a-rate-limit.json')
     monkeypatch.setattr(archive_service, 'MEDIA_DIR', tmp_path)
     monkeypatch.setattr(archive_service, 'ARCHIVE_BASE_DIR', tmp_path / 'archives')
     monkeypatch.setattr(mobile_resource_bridge._documents, 'MEDIA_DIR', tmp_path)
