@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 import datetime
-from typing import Optional, List, Literal, Dict
+from typing import Any, Optional, List, Literal, Dict
 
 
 # --- SCHÉMA ANALYSE PANORAMIQUE v1 (DENTEX) ---
@@ -33,7 +33,7 @@ class FullAnalysis(BaseModel):
 
 class PanoramicAnalysisBase(BaseModel):
     image_path: str
-    detections_data: FullAnalysis = Field(default_factory=FullAnalysis)
+    detections_data: Dict[str, Any] = Field(default_factory=dict)
     report_narrative: Optional[str] = None
 
 
