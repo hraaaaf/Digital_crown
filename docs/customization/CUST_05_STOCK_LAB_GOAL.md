@@ -39,3 +39,57 @@ Rendre Stock & Laboratoire personnalisables par cabinet sans créer de seconde s
 - refonte visuelle du board labo ;
 - intégration fournisseur externe ;
 - déploiement Vercel.
+
+
+## Tranche 2 — décision verrouillée
+
+### Source unique
+- laboratoires : table `labs`, maintenant scoppée par `employer_id`;
+- matériaux : `StockItem` catégorie `MATERIAU` sert uniquement de source de suggestions ;
+- type de travail : reste en saisie libre pour ne pas créer une taxonomie concurrente.
+
+### Compatibilité legacy
+- `labs.employer_id` est ajouté nullable.
+- les laboratoires historiques non attribués restent invisibles dans les listes tenant-safe ;
+- aucune attribution automatique n'est inventée.
+
+### Mockup target
+
+```text
+Travaux prothétiques
+Laboratoires du cabinet et matériaux issus de votre stock.
+
+[ Gérer les laboratoires ]  [ + Nouvelle demande ]
+
+Nouvelle demande labo
+┌──────────────────────────────────────────────┐
+│ N° patient *      N° acte *                 │
+│ Laboratoire       [ Labo Atlas        v ]   │
+│ Type de travail   [ Couronne            ]   │
+│ Dent              [ 46                  ]   │
+│ Matériau          [ Zircone             ]   │
+│ suggestions depuis Stock / saisie libre     │
+│ [ ] Réfection ou réparation                 │
+│                         Annuler   Créer      │
+└──────────────────────────────────────────────┘
+
+Laboratoires du cabinet
+┌──────────────────────────────────────────────┐
+│ Labo Atlas            06...       Supprimer │
+│ Labo Central          05...       Supprimer │
+│                                              │
+│ Ajouter un laboratoire                      │
+│ [ Nom ] [ Téléphone ]                       │
+│ [ Ajouter le laboratoire ]                  │
+└──────────────────────────────────────────────┘
+```
+
+## Succès observable — tranche 2
+1. un cabinet ne voit que ses laboratoires ;
+2. un `lab_id` d'un autre cabinet est rejeté ;
+3. un laboratoire utilisé ne peut pas être supprimé ;
+4. les matériaux proposés viennent du Stock du cabinet ;
+5. la saisie matériau reste libre ;
+6. aucun laboratoire legacy non attribué n'est exposé ;
+7. BEFORE/AFTER 390×844, 768×1024, 1280×900 ;
+8. modals “Nouvelle demande” et “Laboratoires du cabinet” certifiés visuellement.
