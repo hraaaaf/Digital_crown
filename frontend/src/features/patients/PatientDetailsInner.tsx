@@ -408,7 +408,7 @@ const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
 
 const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => (
   <button onClick={onClick} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
-    {icon}<span data-mobile-label={mobileLabel || label} className="max-sm:text-[0] max-sm:after:content-[attr(data-mobile-label)] max-sm:after:text-[9px] max-sm:after:tracking-[0.04em] sm:text-inherit">{label}</span>
+    {icon}<span data-patient-tab-mobile-label className="sm:hidden text-[8px] leading-none tracking-[0.02em]">{mobileLabel || label}</span><span data-patient-tab-desktop-label className="hidden sm:inline">{label}</span>
   </button>
 );
 

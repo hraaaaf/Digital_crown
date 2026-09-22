@@ -41,6 +41,24 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const base = `http://127.0.0.1:5173/patients/${patient.id}`;
 
+  const assertCompactPatientTabs = async () => {
+    if (viewport.width !== 390) return;
+    const tabs = page.locator('[data-tour="patient-tabs"]');
+    await tabs.waitFor({ state: 'visible', timeout: 10000 });
+    const geometry = await tabs.locator('button').evaluateAll((buttons) => buttons.map((button) => {
+      const label = button.querySelector('[data-patient-tab-mobile-label]');
+      const b = button.getBoundingClientRect();
+      const l = label?.getBoundingClientRect();
+      return l ? { button: { left: b.left, right: b.right }, label: { left: l.left, right: l.right, width: l.width } } : null;
+    }).filter(Boolean));
+    if (!geometry.length) throw new Error('mobile patient tab labels missing');
+    for (const item of geometry) {
+      if (item.label.left < item.button.left - 1 || item.label.right > item.button.right + 1) {
+        throw new Error('mobile patient tab label escapes its tab cell');
+      }
+    }
+  };
+
   const seeded = await api.post(`/api/ia/upload-panoramic?patient_id=${patient.id}`, {
     headers,
     multipart: { file: { name: `g4-ui-after-${viewport.width}x${viewport.height}.png`, mimeType: 'image/png', buffer: png } }
@@ -59,8 +77,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: /Générer le tableau des échéances/i }).click();
   await page.locator('input[value="Mensualité 1"]').waitFor({ state: 'visible', timeout: 10000 });
   await page.getByRole('button', { name: 'Enregistrer le plan', exact: true }).waitFor({ state: 'visible' });
-  await page.getByRole('button', { name: 'Générer PDF', exact: true }).waitFor({ state: 'visible' });
+  const pdfAction = page.getByRole('button', { name: 'Générer PDF', exact: true });
+  await pdfAction.waitFor({ state: 'visible' });
   if (await page.getByRole('button', { name: 'Enregistrer', exact: true }).count()) throw new Error('echeancier still exposes ambiguous footer Enregistrer');
+  await assertCompactPatientTabs();
+  await pdfAction.scrollIntoViewIfNeeded();
   const echeancierShot = `after-echeancier-footer-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, echeancierShot), animations: 'disabled', fullPage: false });
 
@@ -69,7 +90,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const history = page.locator('[data-m4b-history]');
   await history.waitFor({ state: 'visible', timeout: 15000 });
   await page.getByText('Corbeille récupérable', { exact: true }).waitFor({ state: 'visible' });
-  await page.getByRole('button', { name: "Mettre l'examen panoramique à la corbeille", exact: true }).first().waitFor({ state: 'visible' });
+  const trashAction = page.getByRole('button', { name: "Mettre l'examen panoramique à la corbeille", exact: true }).first();
+  await trashAction.waitFor({ state: 'visible' });
+  await assertCompactPatientTabs();
+  await trashAction.scrollIntoViewIfNeeded();
   const trashShot = `after-panoramic-trash-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, trashShot), animations: 'disabled', fullPage: false });
 
@@ -120,16 +144,24 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (persisted.detections_data.report_context.restorations.note !== abnormalNote) throw new Error('persisted abnormal note changed');
 
   const structuredShot = `g4-panoramic-structured-report-after-${viewport.width}x${viewport.height}.png`;
+  const structuredPanelShot = `g4-panoramic-structured-panel-after-${viewport.width}x${viewport.height}.png`;
   await page.getByRole('button', { name: 'Constatations', exact: true }).click();
-  await page.getByText('Revue structurée', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+  const structuredDetails = page.locator('details').filter({ hasText: 'Revue structurée' }).first();
+  await structuredDetails.waitFor({ state: 'visible', timeout: 10000 });
+  const isOpen = await structuredDetails.evaluate((node) => node.open);
+  if (!isOpen) await structuredDetails.locator('summary').click();
+  await structuredDetails.locator('select[aria-label^="Revue structurée — "]').first().waitFor({ state: 'visible', timeout: 10000 });
+  await assertCompactPatientTabs();
+  await structuredDetails.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(outDir, structuredShot), animations: 'disabled', fullPage: false });
+  await structuredDetails.screenshot({ path: path.join(outDir, structuredPanelShot), animations: 'disabled' });
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   if (overflow) throw new Error('AFTER horizontal overflow');
   if (pageErrors.length) throw new Error('AFTER page errors: ' + pageErrors.join(' | '));
   if (http5xx.length) throw new Error('AFTER HTTP5xx: ' + JSON.stringify(http5xx));
 
-  evidence.push({ viewport, echeancierShot, trashShot, structuredShot, structuredDomains: 8 });
+  evidence.push({ viewport, echeancierShot, trashShot, structuredShot, structuredPanelShot, structuredDomains: 8 });
   await context.close();
 }
 
