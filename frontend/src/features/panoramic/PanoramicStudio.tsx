@@ -231,7 +231,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const filterString = `brightness(${imgFilters.brightness}%) contrast(${imgFilters.contrast}%) invert(${imgFilters.invert ? 100 : 0}%)`;
 
   return (
-    <div className="flex flex-col lg:flex-row h-auto min-h-screen lg:h-full gap-4 lg:gap-6 bg-slate-50/50 p-4 lg:p-6 overflow-y-auto lg:overflow-hidden">
+    <div className="flex min-w-0 flex-col lg:flex-row h-auto min-h-screen lg:h-full gap-4 lg:gap-6 bg-slate-50/50 p-4 lg:p-6 overflow-y-auto lg:overflow-hidden">
       <div className="flex-1 flex flex-col gap-4 overflow-hidden min-h-[50vh] lg:min-h-0">
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4">
           <div>
@@ -411,7 +411,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         </div>
       </div>
 
-      <div className="w-full lg:w-[400px] flex flex-col gap-4 shrink-0 lg:overflow-hidden min-h-[600px] lg:min-h-0">
+      <div className="w-full min-w-0 lg:w-[400px] flex flex-col gap-4 shrink-0 lg:overflow-hidden min-h-[600px] lg:min-h-0">
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200/60 flex-1 overflow-hidden flex flex-col">
           {result ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
@@ -449,7 +449,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
               ) : sidebarTab === 'report' ? (
                 <div className="flex-1 flex flex-col"><ReportViewer markdown={result.report_narrative} isGenerating={loading} engineName="Radiographie panoramique" onDownload={handleDownloadPDF} isDownloading={downloading} onPreview={handlePreview} onSaveEdit={handleSaveReport} /></div>
               ) : (
-                <div className="p-8 space-y-8 flex-1 flex flex-col">
+                <div className="min-w-0 p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col">
                   <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3 shrink-0">
                     <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm"><Type size={14} className="text-white" /></div>
                     <div>
@@ -479,7 +479,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                         })}
                         {annotations.map((ann) => (
                           <div key={ann.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center group transition-all">
-                            <span className="text-xs font-bold text-slate-700">{ann.text}</span>
+                            <span className="min-w-0 break-words text-xs font-bold text-slate-700">{ann.text}</span>
                             <button onClick={() => setAnnotations(prev => prev.filter(a => a.id !== ann.id))} className="text-red-400 hover:text-red-600 transition-all p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
                           </div>
                         ))}
