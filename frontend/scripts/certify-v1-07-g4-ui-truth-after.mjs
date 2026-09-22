@@ -27,6 +27,7 @@ const seeded = await api.post(`/api/ia/upload-panoramic?patient_id=${patient.id}
   multipart: { file: { name: 'g4-ui-after.png', mimeType: 'image/png', buffer: png } }
 });
 if (!seeded.ok()) throw new Error(`AFTER panoramic seed failed: ${seeded.status()}`);
+const seededAnalysis = await seeded.json();
 
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
@@ -72,9 +73,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const trashShot = `after-panoramic-trash-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, trashShot), animations: 'disabled', fullPage: false });
 
-  const rows = history.locator('> .grid > div');
-  if (await rows.count() < 1) throw new Error('AFTER panoramic history empty');
-  await rows.first().click();
+  const seededDate = new Date(seededAnalysis.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const seededRow = history.getByText(`Examen du ${seededDate}`, { exact: true }).locator('xpath=ancestor::div[contains(@class,"group")][1]');
+  await seededRow.waitFor({ state: 'visible', timeout: 10000 });
+  await seededRow.click();
   await page.getByText('Revue structurée', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await page.getByText('Revue structurée', { exact: true }).click();
 
