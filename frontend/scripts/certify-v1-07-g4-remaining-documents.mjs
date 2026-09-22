@@ -128,7 +128,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await exercisePreview(page);
   actions.push('certificate-preview-refresh-close');
   let responsePromise = page.waitForResponse(response => response.url().includes('/api/documents/generate') && response.request().method() === 'POST', { timeout: 30000 });
-  await page.getByRole('button', { name: 'Générer PDF', exact: true }).click();
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   if (!(await responsePromise).ok()) throw new Error('certificate save failed');
   await freeCertificate.fill(`Contenu certifié G4 navigateur impression ${viewport.width}x${viewport.height}`);
   responsePromise = page.waitForResponse(response => response.url().includes('/api/documents/generate') && response.request().method() === 'POST', { timeout: 30000 });
