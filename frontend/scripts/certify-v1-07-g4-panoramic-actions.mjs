@@ -33,6 +33,8 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  await page.getByRole('button',{name:'Nouvel Examen',exact:true}).waitFor({state:'visible',timeout:30000});
 
  const a=await upload(page,`g4-pano-a-${viewport.width}`);
+ const beforeShot=`g4-panoramic-structured-report-before-${viewport.width}x${viewport.height}.png`;
+ await page.screenshot({path:path.join(outDir,beforeShot),animations:'disabled',fullPage:true});
  const ranges=page.locator('input[type=range]'); if(await ranges.count()<2) throw new Error('panoramic filter ranges missing');
  await ranges.nth(0).fill('145'); await ranges.nth(1).fill('155');
  await page.getByTitle('Inverser les couleurs (Négatif)').click();
@@ -100,7 +102,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  const overflow=geometry.documentWidth>geometry.viewportWidth+2||geometry.bodyWidth>geometry.viewportWidth+2;
  const shot=`g4-panoramic-${viewport.width}x${viewport.height}.png`; await page.screenshot({path:path.join(outDir,shot),animations:'disabled'});
  if(overflow) throw new Error('panoramic horizontal overflow'); if(pageErrors.length) throw new Error('panoramic page errors: '+pageErrors.join(' | ')); if(http5xx.length) throw new Error('panoramic HTTP5xx: '+JSON.stringify(http5xx));
- evidence.push({viewport,firstId:a.id,secondId:b.id,report:gen.status(),edit:put.status(),preview:preview.status(),download:download.status(),deletedId,geometry,shot});
+ evidence.push({viewport,firstId:a.id,secondId:b.id,report:gen.status(),edit:put.status(),preview:preview.status(),download:download.status(),deletedId,geometry,beforeShot,shot});
  await context.close();
 }
 await browser.close(); await api.dispose();
