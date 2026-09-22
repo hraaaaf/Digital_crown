@@ -16,12 +16,12 @@ ANOMALY_LABELS = {
     # Conservatrice
     "carie_email": "Carie de l'émail",
     "carie_dentinaire": "Carie dentinaire",
-    "carie_profonde": "Carie profonde (atteinte pulpaire)",
+    "carie_profonde": "Image carieuse profonde",
     "reprise_carie": "Reprise de carie sous obturation",
     "obturation_comp": "Obturation (composite/amalgame)",
     "obturation_debord": "Obturation débordante",
     # Endodontie
-    "lesion_periapicale": "Lésion périapicale (kyste/granulome)",
+    "lesion_periapicale": "Image radioclaire périapicale",
     "elargissement_desmo": "Élargissement desmodontal",
     "tr_adequat": "Traitement canalaire adéquat",
     "tr_incomplet": "Traitement canalaire incomplet",
@@ -46,21 +46,21 @@ ANOMALY_LABELS = {
     "bridge": "Bridge prothétique",
     "implant": "Implant dentaire",
     "appareil": "Appareil / prothèse amovible",
-    "peri_implantite": "Péri-implantite",
+    "peri_implantite": "Perte osseuse péri-implantaire",
     "infiltration_prothese": "Infiltration sous prothèse",
     # ATM / Sinus
     "opacite_sinus": "Opacité sinusienne",
     "racine_sinus": "Racine au contact du sinus",
     "condyle_asymetrie": "Asymétrie condylienne",
-    "arthrose_atm": "Arthrose de l'ATM",
+    "arthrose_atm": "Remaniements osseux condyliens",
     "calcification": "Calcification (carotide/sialolithe)",
 }
 
 GLOBAL_FINDING_LABELS = {
-    "alveolyse_gen_legere": "Alvéolyse horizontale généralisée légère (parodontite débutante)",
+    "alveolyse_gen_legere": "Alvéolyse horizontale généralisée légère",
     "alveolyse_gen_moderee": "Alvéolyse horizontale généralisée modérée",
-    "alveolyse_gen_severe": "Alvéolyse généralisée sévère (parodontite avancée)",
-    "parodontite_gen": "Aspect de maladie parodontale généralisée",
+    "alveolyse_gen_severe": "Alvéolyse généralisée sévère",
+    "parodontite_gen": "Perte osseuse parodontale généralisée",
     "denture_mixte": "Denture mixte (phase de remplacement dentaire)",
     "edentement_total_max": "Édentement total maxillaire",
     "edentement_total_mand": "Édentement total mandibulaire",
