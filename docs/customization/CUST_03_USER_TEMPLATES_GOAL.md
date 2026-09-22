@@ -67,3 +67,32 @@ Créer un modèle
 - édition/suppression globale des modèles dans Réglages;
 - ordonnance/presets cliniques (CUST-04);
 - déploiement Vercel.
+
+
+## CUST-03B — Document libre
+
+### Décision
+Le même `DocumentTemplate` porte les modèles de Document libre avec `type=DOCUMENT_LIBRE`.
+
+Pour rester compatible avec le schéma existant sans migration :
+- `name` = nom du modèle et titre appliqué au document ;
+- `body_html` = contenu réutilisable ;
+- destinataire, date/lieu, format A4/A5, alignement et visibilité de l'en-tête restent propres au document en cours et ne sont pas capturés par le modèle.
+
+### Target UI
+Dans l'éditeur Document libre :
+- bloc discret **Mes modèles** ;
+- boutons de modèles existants ;
+- action **Enregistrer comme modèle** ;
+- modal avec nom/titre appliqué + contenu ;
+- application uniquement sur clic explicite ;
+- titre et contenu restent éditables après application.
+
+### Succès observable
+1. lecture via `/api/templates?type=DOCUMENT_LIBRE&is_system=false` ;
+2. zéro application automatique ;
+3. clic modèle → titre + contenu uniquement ;
+4. sauvegarde via le même POST `/api/templates` ;
+5. aucune capture silencieuse des métadonnées patient/date/layout ;
+6. isolation tenant identique au certificat ;
+7. BEFORE/AFTER 390×844, 768×1024, 1280×900 + modal.
