@@ -32,7 +32,8 @@ describe('CUST-04 practitioner prescription presets', () => {
     vi.mocked(api.get).mockResolvedValue({
       data: [{
         id: 7,
-        act_context: 'Post-op personnel',
+        act_context: 'POST-OP PERSONNEL',
+        label: 'Post-op personnel',
         drugs: [{
           name: 'IBUPROFENE',
           dosage: '400mg',
@@ -49,7 +50,7 @@ describe('CUST-04 practitioner prescription presets', () => {
     render(<PrescriptionPresetBar drugs={[]} setDrugs={setDrugs} />);
 
     expect(setDrugs).not.toHaveBeenCalled();
-    fireEvent.click(await screen.findByRole('button', { name: /Post-op personnel/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Post-op personnel' }));
 
     expect(setDrugs).toHaveBeenCalledTimes(1);
     expect(setDrugs.mock.calls[0][0][0]).toMatchObject({
@@ -67,7 +68,8 @@ describe('CUST-04 practitioner prescription presets', () => {
     vi.mocked(api.get).mockResolvedValue({
       data: [{
         id: 8,
-        act_context: 'Autre preset',
+        act_context: 'AUTRE PRESET',
+        label: 'Autre preset',
         drugs: [{
           name: 'AMOXICILLINE',
           dosage: '1g',
@@ -81,7 +83,7 @@ describe('CUST-04 practitioner prescription presets', () => {
     const setDrugs = vi.fn();
     render(<PrescriptionPresetBar drugs={[currentDrug] as never} setDrugs={setDrugs} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /Autre preset/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Autre preset' }));
     expect(await screen.findByRole('dialog', { name: /Remplacer les lignes actuelles/i })).toBeTruthy();
     expect(setDrugs).not.toHaveBeenCalled();
 
@@ -117,7 +119,7 @@ describe('CUST-04 practitioner prescription presets', () => {
 
   it('deletes only the selected doctor preset through the scoped endpoint', async () => {
     vi.mocked(api.get).mockResolvedValue({
-      data: [{ id: 9, act_context: 'Preset test', drugs: [currentDrug] }],
+      data: [{ id: 9, act_context: 'PRESET TEST', label: 'Preset test', drugs: [currentDrug] }],
     } as never);
     vi.mocked(api.delete).mockResolvedValue({ data: { status: 'success' } } as never);
 
@@ -125,6 +127,6 @@ describe('CUST-04 practitioner prescription presets', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Supprimer le preset Preset test/i }));
 
-    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/prescriptions/preferences/Preset%20test'));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/prescriptions/preferences/PRESET%20TEST'));
   });
 });
