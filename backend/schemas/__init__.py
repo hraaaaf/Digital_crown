@@ -77,6 +77,8 @@ from .panoramic import (
     PanoramicAnalysisOut,
     PanoramicAnalysis,
     PanoramicVisualAnnotation,
+    PanoramicDomainAssessment,
+    PanoramicReportContext,
     PanoramicReportRequest,
     PanoramicReportEdit,
 )
@@ -274,7 +276,7 @@ __all__ = [
     # panoramic (OPG v2 — overrides v1 BoundingBox/ToothObject/Finding)
     "BoundingBox", "Finding", "ToothObject",
     "FullAnalysis", "PanoramicAnalysisBase", "PanoramicAnalysisCreate",
-    "PanoramicAnalysisOut", "PanoramicAnalysis", "PanoramicVisualAnnotation", "PanoramicReportRequest", "PanoramicReportEdit",
+    "PanoramicAnalysisOut", "PanoramicAnalysis", "PanoramicVisualAnnotation", "PanoramicDomainAssessment", "PanoramicReportContext", "PanoramicReportRequest", "PanoramicReportEdit",
 
     # documents
     "MedicationItem", "OrdonnanceData", "CertificatData",
