@@ -23,6 +23,7 @@ export const PatientCompanionMessagingPanel = ({ patientId }: { patientId: numbe
   const [maxBytes, setMaxBytes] = useState(4096);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [sendIntent, setSendIntent] = useState<{ body: string; clientMessageId: string } | null>(null);
 
   const load = useCallback(async (accessId?: string) => {
     setError('');
@@ -50,18 +51,26 @@ export const PatientCompanionMessagingPanel = ({ patientId }: { patientId: numbe
 
   const bytes = useMemo(() => new TextEncoder().encode(body.trim()).length, [body]);
   const canSend = Boolean(selected && body.trim() && bytes <= maxBytes && !busy);
+  const selectedAccess = accesses.find(access => access.access_id === selected);
+  const selectedLabel = selectedAccess ? (labels[selectedAccess.relationship_type] || selectedAccess.relationship_type) : '';
 
   const send = async () => {
     if (!canSend) return;
     setBusy(true);
     setError('');
     try {
+      const text = body.trim();
+      const intent = sendIntent?.body === text
+        ? sendIntent
+        : { body: text, clientMessageId: crypto.randomUUID() };
+      setSendIntent(intent);
       await api.post(`/patient-companion/admin/patients/${patientId}/messages`, {
         access_id: selected,
-        client_message_id: crypto.randomUUID(),
-        body: body.trim(),
+        client_message_id: intent.clientMessageId,
+        body: intent.body,
       });
       setBody('');
+      setSendIntent(null);
       await load(selected);
     } catch {
       setError('Message non enregistré par le cabinet. Réessayez.');
@@ -100,12 +109,12 @@ export const PatientCompanionMessagingPanel = ({ patientId }: { patientId: numbe
           const status = staff
             ? message.patient_read_at ? 'Lu' : message.patient_received_at ? 'Reçu sur l’appareil' : 'Envoyé depuis le cabinet'
             : message.staff_read_at ? 'Lu par le cabinet' : 'Reçu par le cabinet';
-          return <div key={message.message_id} className={`flex ${staff ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[86%] rounded-2xl px-3.5 py-3 break-words [overflow-wrap:anywhere] ${staff ? 'bg-primary text-white' : 'border border-border-main bg-card-bg text-main'}`}><p className="whitespace-pre-wrap text-sm font-medium">{message.body}</p><p className={`mt-1.5 text-[10px] font-bold ${staff ? 'text-white/75' : 'text-text-muted'}`}>{new Date(message.created_at).toLocaleString('fr-MA')} · {status}</p></div></div>;
+          return <div key={message.message_id} className={`flex ${staff ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[86%] rounded-2xl px-3.5 py-3 break-words [overflow-wrap:anywhere] ${staff ? 'bg-primary text-white' : 'border border-border-main bg-card-bg text-main'}`}>{!staff && selectedLabel && <p className="mb-1 text-[9px] font-black uppercase tracking-wider text-primary">{selectedLabel}</p>}<p className="whitespace-pre-wrap text-sm font-medium">{message.body}</p><p className={`mt-1.5 text-[10px] font-bold ${staff ? 'text-white/75' : 'text-text-muted'}`}>{new Date(message.created_at).toLocaleString('fr-MA')} · {status}</p></div></div>;
         })}
       </div>
 
       <div className="mt-3">
-        <textarea value={body} onChange={event => setBody(event.target.value)} disabled={!selected || busy} rows={3} placeholder={selected ? 'Écrire au patient…' : 'Choisissez un accès'} className="w-full resize-none rounded-2xl border border-border-main bg-background px-3.5 py-3 text-sm font-medium disabled:opacity-60" />
+        <textarea value={body} onChange={event => { const value = event.target.value; setBody(value); if (sendIntent && sendIntent.body !== value.trim()) setSendIntent(null); }} disabled={!selected || busy} rows={3} placeholder={selected ? 'Écrire au patient…' : 'Choisissez un accès'} className="w-full resize-none rounded-2xl border border-border-main bg-background px-3.5 py-3 text-sm font-medium disabled:opacity-60" />
         <div className="mt-2 flex items-center justify-between gap-3">
           <p className={`text-[10px] font-bold ${bytes > maxBytes ? 'text-rose-700' : 'text-text-muted'}`}>{bytes}/{maxBytes} octets</p>
           <button type="button" disabled={!canSend} onClick={() => void send()} className="min-h-11 rounded-xl bg-primary px-4 text-xs font-black text-white inline-flex items-center gap-2 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={15} /> : <Send size={15} />} Envoyer</button>
