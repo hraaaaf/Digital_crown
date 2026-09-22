@@ -1,5 +1,8 @@
 """Fail-closed semantic contract for panoramic reporting."""
 
+import json
+from pathlib import Path
+
 from backend.services.panoramic_report_engine import ANOMALY_LABELS, ANOMALY_SECTIONS, PanoramicReportEngine
 from backend.services.panoramic_report_ontology import (
     PANORAMIC_DOMAIN_SECTION_TITLES,
@@ -231,3 +234,17 @@ def test_all_explicitly_reviewed_domains_remove_non_assessed_footer():
     assert "Domaines non évalués explicitement" not in report
     for domain in PANORAMIC_REPORT_DOMAINS:
         assert PANORAMIC_EXPLICIT_NORMAL_TEXT[domain] in report
+
+
+def test_regression_corpus_preserves_required_and_forbidden_report_contracts():
+    cases_path = Path(__file__).parent / "fixtures" / "panoramic_report_regression_cases.json"
+    cases = json.loads(cases_path.read_text(encoding="utf-8"))
+    engine = PanoramicReportEngine()
+
+    for case in cases:
+        report = engine.generate_markdown(**case["input"])
+        assert report == engine.generate_markdown(**case["input"]), case["id"]
+        for token in case["required"]:
+            assert token in report, f'{case["id"]}: missing {token}'
+        for token in case["forbidden"]:
+            assert token not in report, f'{case["id"]}: forbidden {token}'
