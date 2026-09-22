@@ -3,7 +3,6 @@ import { Search, X, ChevronDown, ChevronUp, Zap, Plus } from 'lucide-react';
 import {
   MOTIFS_DICTIONARY,
   MOTIF_URGENCY_LABELS,
-  findCategoryForMotif,
   type MotifCategory,
   type MotifItem,
 } from '../../../data/motifsDictionary';
