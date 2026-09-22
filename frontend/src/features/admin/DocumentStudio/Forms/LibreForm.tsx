@@ -71,7 +71,7 @@ export const LibreTemplatePresets: React.FC<{
   };
 
   const openSave = () => {
-    setTemplateName(title.trim());
+    setTemplateName(title.trim().slice(0, 100));
     setTemplateBody(content);
     setError('');
     setShowSave(true);
