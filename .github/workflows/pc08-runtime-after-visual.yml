@@ -93,57 +93,44 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install chromium webkit
 
-      - name: Start isolated backend
-        shell: pwsh
-        run: |
-          $backend = Start-Process python -ArgumentList "scripts/t2_runtime_server.py" -RedirectStandardOutput "$env:RUNNER_TEMP\pc08-backend.out.log" -RedirectStandardError "$env:RUNNER_TEMP\pc08-backend.err.log" -PassThru
-          $backend.Id | Out-File "$env:RUNNER_TEMP\pc08-backend.pid"
-          for ($i = 0; $i -lt 90; $i++) {
-            try {
-              Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8005/health | Out-Null
-              break
-            } catch {
-              Start-Sleep -Seconds 1
-            }
-          }
-          if ($i -ge 90) {
-            Get-Content "$env:RUNNER_TEMP\pc08-backend.out.log" -ErrorAction SilentlyContinue
-            Get-Content "$env:RUNNER_TEMP\pc08-backend.err.log" -ErrorAction SilentlyContinue
-            throw "PC-08 backend did not become healthy"
-          }
-          Get-Content "$env:RUNNER_TEMP\pc08-backend.out.log" -ErrorAction SilentlyContinue
-          Get-Content "$env:RUNNER_TEMP\pc08-backend.err.log" -ErrorAction SilentlyContinue
-
-      - name: Start exact-head frontend
-        working-directory: frontend
-        shell: pwsh
-        run: |
-          $frontend = Start-Process npm.cmd -ArgumentList "run","dev","--","--host","127.0.0.1","--port","5173" -RedirectStandardOutput "$env:RUNNER_TEMP\pc08-frontend.out.log" -RedirectStandardError "$env:RUNNER_TEMP\pc08-frontend.err.log" -PassThru
-          $frontend.Id | Out-File "$env:RUNNER_TEMP\pc08-frontend.pid"
-          for ($i = 0; $i -lt 60; $i++) {
-            try {
-              Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173/ | Out-Null
-              break
-            } catch {
-              Start-Sleep -Seconds 1
-            }
-          }
-          if ($i -ge 60) {
-            Get-Content "$env:RUNNER_TEMP\pc08-frontend.out.log" -ErrorAction SilentlyContinue
-            Get-Content "$env:RUNNER_TEMP\pc08-frontend.err.log" -ErrorAction SilentlyContinue
-            throw "PC-08 frontend did not become healthy"
-          }
-          Get-Content "$env:RUNNER_TEMP\pc08-frontend.out.log" -ErrorAction SilentlyContinue
-          Get-Content "$env:RUNNER_TEMP\pc08-frontend.err.log" -ErrorAction SilentlyContinue
-
-      - name: Capture real PC-08 AFTER
+      - name: Start isolated runtime and capture real PC-08 AFTER
         working-directory: frontend
         shell: pwsh
         env:
           PC08_API_URL: http://127.0.0.1:8005
           PC08_APP_URL: http://127.0.0.1:5173
           PC08_RUNTIME_AFTER_DIR: ../artifacts/pc08-runtime-after
-        run: node scripts/capture-pc08-runtime-after.mjs
+        run: |
+          $backend = Start-Process python -WorkingDirectory .. -ArgumentList "scripts/t2_runtime_server.py" -RedirectStandardOutput "$env:RUNNER_TEMP\pc08-backend.out.log" -RedirectStandardError "$env:RUNNER_TEMP\pc08-backend.err.log" -PassThru
+          $frontend = $null
+          try {
+            for ($i = 0; $i -lt 90; $i++) {
+              try {
+                Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8005/health | Out-Null
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if ($i -ge 90) { throw "PC-08 backend did not become healthy" }
+
+            $frontend = Start-Process npm.cmd -ArgumentList "run","dev","--","--host","127.0.0.1","--port","5173" -RedirectStandardOutput "$env:RUNNER_TEMP\pc08-frontend.out.log" -RedirectStandardError "$env:RUNNER_TEMP\pc08-frontend.err.log" -PassThru
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173/ | Out-Null
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if ($i -ge 60) { throw "PC-08 frontend did not become healthy" }
+
+            node scripts/capture-pc08-runtime-after.mjs
+            if ($LASTEXITCODE -ne 0) { throw "PC-08 runtime capture failed with exit code $LASTEXITCODE" }
+          } finally {
+            if ($frontend -and -not $frontend.HasExited) { Stop-Process -Id $frontend.Id -Force -ErrorAction SilentlyContinue }
+            if ($backend -and -not $backend.HasExited) { Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue }
+          }
 
       - name: Verify runtime AFTER contract
         shell: pwsh
