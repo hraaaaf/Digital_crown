@@ -111,12 +111,16 @@ const optionTexts = await selector.locator('option').allTextContents();
 if (!optionTexts.includes('Patient') || !optionTexts.includes('Parent')) {
   throw new Error(`multi-access selector incomplete: ${JSON.stringify(optionTexts)}`);
 }
+const staffReadResponsePromise = staffPage.waitForResponse(
+  response => response.url().includes('/messages/read') && response.request().method() === 'POST',
+  { timeout: 30000 },
+);
 await selector.selectOption({ label: 'Patient' });
 await staffPage.getByText(selfBody, { exact: true }).waitFor({ timeout: 30000 });
-// Selecting the Patient access triggers load(), which performs the explicit
-// canonical staff-read mutation and updates the thread state after the 200.
-// Wait for the UI truth directly; backend logs/API tests independently prove
-// the mutation endpoint and persistence semantics.
+const staffReadResponse = await staffReadResponsePromise;
+if (!staffReadResponse.ok()) {
+  throw new Error(`staff read mutation failed: ${staffReadResponse.status()}`);
+}
 await staffPage.getByText('Lu', { exact: true }).waitFor({ timeout: 30000 });
 
 const staffReply = 'Réponse sécurisée du cabinet — votre message a bien été consulté.';
