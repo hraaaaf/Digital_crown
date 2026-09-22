@@ -88,12 +88,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const question = `Question G4 AFTER ${viewport.width}`;
   const abnormalNote = `Observation G4 AFTER ${viewport.width}`;
   const answer = `Réponse G4 AFTER ${viewport.width}`;
-  await page.getByPlaceholder('Optionnelle').first().fill(question);
+  await page.locator('input[placeholder="Optionnelle"]').fill(question);
   await page.getByLabel("Qualité de l'examen panoramique").selectOption('diagnostic');
   await domainSelects.nth(0).selectOption('normal');
   await domainSelects.nth(1).selectOption('abnormal');
   await page.getByLabel(/Note — Restaurations/).fill(abnormalNote);
-  await page.getByRole('textbox', { name: '' }).last().fill(answer);
+  await page.locator('textarea[placeholder="Optionnelle"]').fill(answer);
 
   const genP = page.waitForRequest(r => r.url().endsWith('/api/ia/generate-panoramic-report') && r.method() === 'POST', { timeout: 20000 });
   const respP = page.waitForResponse(r => r.url().endsWith('/api/ia/generate-panoramic-report') && r.request().method() === 'POST', { timeout: 20000 });
@@ -119,7 +119,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (persisted.detections_data.report_context.restorations.note !== abnormalNote) throw new Error('persisted abnormal note changed');
 
   const structuredShot = `g4-panoramic-structured-report-after-${viewport.width}x${viewport.height}.png`;
-  await page.getByText('Revue structurée', { exact: true }).click();
+  await page.getByRole('button', { name: 'Constatations', exact: true }).click();
+  await page.getByText('Revue structurée', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await page.screenshot({ path: path.join(outDir, structuredShot), animations: 'disabled', fullPage: false });
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
