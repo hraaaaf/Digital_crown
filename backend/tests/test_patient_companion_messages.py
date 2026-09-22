@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, Response
+from starlette.requests import Request
 
 from backend import models
 from backend.models_patient_companion import (
@@ -34,6 +35,7 @@ from backend.services.patient_companion_remote_crypto import (
 from backend.services.patient_companion_remote_keys import enroll_remote_keyset
 from backend.services.patient_companion_remote_worker import process_remote_envelope
 from relay.contract import RelayInnerMessage, RELAY_MAX_BLOB_BYTES
+from backend.utils import rate_limit as rate_limit_module
 
 
 def _patient(db, dentiste, suffix: str):
@@ -415,3 +417,57 @@ def test_pc08_twenty_max_messages_fit_real_jose_relay_envelope():
         recipient_encryption_kid=patient_enc_public["kid"],
     )
     assert len(blob.encode("utf-8")) < RELAY_MAX_BLOB_BYTES
+
+
+def test_pc08_staff_send_fails_closed_after_access_revocation(db, dentiste):
+    patient = _patient(db, dentiste, "REVOKED")
+    _identity, access = _access(db, dentiste, patient, "SELF")
+    access.revoked_at = datetime.utcnow()
+    db.commit()
+
+    try:
+        staff_send_message(
+            patient.id,
+            StaffMessageCreate(
+                access_id=access.public_id,
+                client_message_id=str(uuid.uuid4()),
+                body="Ne doit pas partir",
+            ),
+            Response(),
+            db,
+            dentiste,
+        )
+    except HTTPException as exc:
+        assert exc.status_code == 404
+    else:
+        raise AssertionError("revoked Patient Companion access unexpectedly accepted")
+
+
+def test_pc08_shared_rate_limiter_keeps_default_but_accepts_custom_ceiling(monkeypatch):
+    monkeypatch.setattr(rate_limit_module, "_attempts", {})
+    monkeypatch.setattr(rate_limit_module, "_loaded", True)
+    monkeypatch.setattr(rate_limit_module, "_save", lambda: None)
+
+    request = Request({
+        "type": "http",
+        "method": "POST",
+        "path": "/",
+        "headers": [],
+        "client": ("127.0.0.1", 50000),
+        "server": ("testserver", 80),
+        "scheme": "http",
+        "query_string": b"",
+    })
+    rate_limit_module.check_rate_limit(request, scope="pc08-test", max_attempts=2)
+    rate_limit_module.check_rate_limit(request, scope="pc08-test", max_attempts=2)
+    try:
+        rate_limit_module.check_rate_limit(request, scope="pc08-test", max_attempts=2)
+    except HTTPException as exc:
+        assert exc.status_code == 429
+        assert "Retry-After" in exc.headers
+    else:
+        raise AssertionError("custom PC-08 rate limit did not fail closed")
+
+    # Existing callers retain the repository default contract.
+    assert rate_limit_module.MAX_ATTEMPTS == 5
+    assert rate_limit_module.LIMIT_WINDOW == 600
