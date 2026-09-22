@@ -53,6 +53,25 @@ describe('CUST-03 document libre templates', () => {
     });
   });
 
+  it('bounds an existing long document title to the template schema limit', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [] } as never);
+    const longTitle = 'T'.repeat(140);
+
+    render(
+      <LibreTemplatePresets
+        title={longTitle}
+        content="Contenu suffisamment long pour permettre la sauvegarde du modèle."
+        onApply={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer comme modèle/i }));
+
+    expect(
+      (screen.getByRole('textbox', { name: /Nom du modèle/i }) as HTMLInputElement).value,
+    ).toHaveLength(100);
+  });
+
   it('saves the current title/content through DocumentTemplate without capturing per-document metadata', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: [] } as never);
     vi.mocked(api.post).mockResolvedValue({
