@@ -39,7 +39,6 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   await treasury.waitFor({state:'visible',timeout:30000});
   await treasury.click();
   await page.getByText('Encaissement',{exact:true}).waitFor({state:'visible',timeout:10000});
-  await page.getByRole('button',{name:"Confirmer l'Encaissement",exact:true}).waitFor({state:'visible',timeout:10000});
   const honorairesShot=`before-honoraires-treasury-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({path:path.join(outDir,honorairesShot),fullPage:false,animations:'disabled'});
   await page.getByRole('button',{name:'Fermer',exact:true}).click();
@@ -70,7 +69,7 @@ const summary={
   status:'PASS',
   phase:'BEFORE',
   expected:{
-    honoraires:"Confirmer l'Encaissement",
+    honoraires:'pre-patch treasury modal captured without asserting proposed replacement copy',
     echeancier:'Enregistrer'
   },
   evidence
