@@ -1,6 +1,6 @@
 # V1-07 G4 — Panoramic Structured Report Decision Tree — Goal UI
 
-Status: BEFORE CAPTURE PENDING
+Status: BEFORE CAPTURED — AFTER IMPLEMENTED — RUNTIME CERTIFICATION PENDING
 
 ## Goal
 Expose the corpus-grounded Panoramic report context as a fast practitioner decision tree without changing automatic tooth localization or inventing clinical findings.
@@ -13,7 +13,7 @@ Capture from the unchanged Panoramic UI at:
 - 390×844: `g4-panoramic-structured-report-before-390x844.png`
 - 1280×900: `g4-panoramic-structured-report-before-1280x900.png`
 
-Do not implement the visual decision tree until these exact-head artifacts exist.
+BEFORE artifacts were captured on exact-head runtime at 390×844 and 1280×900 before implementation.
 
 ## Target interaction
 Inside the existing `Constatations` sidebar, add a compact collapsible section: `Revue structurée`.
@@ -72,3 +72,18 @@ Capture the same two viewports after implementation and compare:
 - 1 pt runtime cleanliness
 
 Target score is evidence-based only; do not claim 10/10 without AFTER artifacts and browser proof.
+
+
+## 2026-09-22 — Implementation state
+Implemented on the active G4 branch:
+- compact `Revue structurée` section in the existing Panoramic findings sidebar;
+- optional clinical question;
+- explicit image-quality state;
+- 8 tri-state review domains with default `not_assessed`;
+- abnormal-only note field;
+- optional explicit clinical answer;
+- payload wired to `report_context` without changing tooth-level findings;
+- persisted flat backend context rehydrated into the UI domain state;
+- AFTER runtime script checks 390×844 and 1280×900, payload truth, persistence, report rendering, overflow, page errors and HTTP 5xx.
+
+Certification is still pending the exact-head AFTER workflow result.
