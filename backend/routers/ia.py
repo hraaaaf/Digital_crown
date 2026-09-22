@@ -302,7 +302,16 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
             manual_anomalies=req.manual_anomalies,
             global_findings=req.global_findings,
         )
-        report_markdown += _format_panoramic_visual_annotations(req.visual_annotations)
+        annotation_block = _format_panoramic_visual_annotations(req.visual_annotations)
+        synthesis_marker = "\n### SYNTHÈSE\n"
+        if annotation_block and synthesis_marker in report_markdown:
+            report_markdown = report_markdown.replace(
+                synthesis_marker,
+                f"{annotation_block}{synthesis_marker}",
+                1,
+            )
+        else:
+            report_markdown += annotation_block
 
         # Mise à jour persistante
         analysis.report_narrative = report_markdown
