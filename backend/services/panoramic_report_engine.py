@@ -253,6 +253,14 @@ class PanoramicReportEngine:
                 lines.extend(f"- {finding}." for finding in general_findings)
                 lines.append("")
 
+            clinical_answer = (report_context.get("clinical_answer") or "").strip()
+            if clinical_answer:
+                lines.extend([
+                    "### RÉPONSE À LA QUESTION CLINIQUE",
+                    f"- {clinical_answer}",
+                    "",
+                ])
+
             lines.append("### SYNTHÈSE")
             synthesis = self._build_synthesis(section_items, general_findings)
             synthesis.extend(context_synthesis)
