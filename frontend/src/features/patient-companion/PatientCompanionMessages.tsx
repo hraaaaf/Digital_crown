@@ -104,7 +104,7 @@ export function PatientCompanionMessages({
 
   const bytes = useMemo(() => byteLength(draft), [draft]);
   const transportReady = Boolean(pairing.remoteTransport);
-  const canSend = transportReady && bytes > 0 && bytes <= MAX_BODY_BYTES && !busy;
+  const canSend = bytes > 0 && bytes <= MAX_BODY_BYTES && !busy;
 
   const refreshFromStorage = useCallback(async () => {
     const state = await PatientCompanionStorage.load();
@@ -284,7 +284,7 @@ export function PatientCompanionMessages({
 
   const sendDraft = async () => {
     const body = draft.trim();
-    if (!transportReady || !body || byteLength(body) > MAX_BODY_BYTES) return;
+    if (!body || byteLength(body) > MAX_BODY_BYTES) return;
 
     const now = new Date().toISOString();
     const queued: PatientPendingMessage = {
@@ -300,7 +300,7 @@ export function PatientCompanionMessages({
     await persist({ pendingMessages: queue });
     setDraft('');
 
-    if (!enabled) {
+    if (!transportReady || !enabled) {
       setMessage('Message chiffré enregistré sur cet appareil · non envoyé.');
       return;
     }
