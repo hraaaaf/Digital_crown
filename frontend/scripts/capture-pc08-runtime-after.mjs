@@ -195,8 +195,13 @@ for (const viewport of [
   webkitCaptures.push({ browser: 'webkit', viewport, shot, overflow });
 }
 
-if (self.pageErrors.length || self.consoleErrors.length) {
-  throw new Error(`chromium patient runtime errors: ${JSON.stringify({ pageErrors: self.pageErrors, consoleErrors: self.consoleErrors })}`);
+const expectedOfflineConsoleErrors = self.consoleErrors.filter(error => error.includes('503 (Service Unavailable)'));
+const unexpectedSelfConsoleErrors = self.consoleErrors.filter(error => !error.includes('503 (Service Unavailable)'));
+if (expectedOfflineConsoleErrors.length !== 1) {
+  throw new Error(`chromium patient expected exactly one isolated offline 503, got ${expectedOfflineConsoleErrors.length}`);
+}
+if (self.pageErrors.length || unexpectedSelfConsoleErrors.length) {
+  throw new Error(`chromium patient runtime errors: ${JSON.stringify({ pageErrors: self.pageErrors, consoleErrors: unexpectedSelfConsoleErrors })}`);
 }
 if (parent.pageErrors.length || parent.consoleErrors.length) {
   throw new Error(`webkit patient runtime errors: ${JSON.stringify({ pageErrors: parent.pageErrors, consoleErrors: parent.consoleErrors })}`);
