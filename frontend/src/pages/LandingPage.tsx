@@ -105,14 +105,14 @@ export const LandingPage: React.FC = () => {
             <a href="#demo" className="hover:text-[#003380] transition-colors">Démo</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/login" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-4 py-2">
+            <Link to="/login" className="hidden sm:inline-flex text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-4 py-2">
               Connexion
             </Link>
             <div className="flex items-center gap-3">
               <Link to="/download" className="bg-[#003380] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:bg-blue-900 transition-colors shadow-lg shadow-[#003380]/20">
                 Télécharger l'app
               </Link>
-              <a href="#demo" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-2 py-2">
+              <a href="#demo" className="hidden md:inline-flex text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-2 py-2">
                 Démo
               </a>
             </div>
