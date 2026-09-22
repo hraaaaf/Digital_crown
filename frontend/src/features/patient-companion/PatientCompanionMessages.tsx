@@ -428,7 +428,7 @@ export function PatientCompanionMessages({
               return (
                 <article
                   key={item.messageId}
-                  className={`max-w-[88%] rounded-2xl border px-3.5 py-3 ${outbound
+                  className={`min-w-0 max-w-[88%] rounded-2xl border px-3.5 py-3 ${outbound
                     ? 'ml-auto border-primary/15 bg-primary/5'
                     : 'mr-auto border-border-main bg-background'}`}
                 >
@@ -447,7 +447,7 @@ export function PatientCompanionMessages({
             {pending.map(item => (
               <article
                 key={item.clientMessageId}
-                className="ml-auto max-w-[88%] rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3"
+                className="ml-auto min-w-0 max-w-[88%] rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3"
               >
                 <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm font-semibold leading-relaxed text-main">
                   {item.body}
