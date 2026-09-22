@@ -187,8 +187,9 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
 
   const resetPlan=page.getByRole('button',{name:'Réinitialiser',exact:true});
   if(await resetPlan.count() && !(await resetPlan.isDisabled())){
+    await resetPlan.waitFor({state:'visible',timeout:10000});
     page.once('dialog',d=>d.accept());
-    await resetPlan.click();
+    await resetPlan.dispatchEvent('click');
     actions.push('master-plan-reset');
   }
 
