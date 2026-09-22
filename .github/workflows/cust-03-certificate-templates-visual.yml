@@ -64,12 +64,25 @@ jobs:
           import { createRoot } from 'react-dom/client';
           import './index.css';
           import { CertificateForm as CertificateFormInner } from './features/admin/DocumentStudio/Forms/CertificateFormInner';
+          import { TemplateOverwriteDialog } from './features/admin/DocumentStudio/Forms/TemplateOverwriteDialog';
 
           function Harness() {
+            const params = new URLSearchParams(window.location.search);
             const [type, setType] = useState('Certificat médical');
             const [days, setDays] = useState(0);
             const [startDate, setStartDate] = useState('');
             const [content, setContent] = useState('Je certifie avoir examiné ce patient ce jour. Le présent certificat est remis après validation du praticien.');
+
+            if (params.get('overwrite') === '1') {
+              return (
+                <TemplateOverwriteDialog
+                  modelName="Aptitude traitement"
+                  scopeLabel="Certificat médical"
+                  onCancel={() => {}}
+                  onConfirm={() => {}}
+                />
+              );
+            }
 
             return (
               <main className="mx-auto max-w-5xl px-3 py-4 sm:px-5">
@@ -165,13 +178,17 @@ jobs:
             rows.push({ kind, viewport, overflow, errors: [...errors], shot });
 
             if (kind === 'after') {
-              await page.getByRole('button', { name: 'Aptitude traitement' }).click();
-              await page.locator('#template-overwrite-title').waitFor();
-              const overwriteOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+              const overwritePage = await context.newPage();
+              const overwriteErrors = [];
+              overwritePage.on('pageerror', e => overwriteErrors.push(String(e)));
+              overwritePage.on('console', m => { if (m.type() === 'error') overwriteErrors.push(m.text()); });
+              await overwritePage.goto(`http://127.0.0.1:${port}/cust03-certificate.html?overwrite=1`, { waitUntil: 'networkidle' });
+              await overwritePage.locator('#template-overwrite-title').waitFor();
+              const overwriteOverflow = await overwritePage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
               const overwriteShot = `after-overwrite-${viewport.width}x${viewport.height}.png`;
-              await page.screenshot({ path: path.join(output, overwriteShot), fullPage: true, animations: 'disabled' });
-              rows.push({ kind:'after-overwrite', viewport, overflow:overwriteOverflow, errors:[...errors], shot:overwriteShot });
-              await page.getByRole('button', { name: 'Conserver mon brouillon' }).click();
+              await overwritePage.screenshot({ path: path.join(output, overwriteShot), fullPage: true, animations: 'disabled' });
+              rows.push({ kind:'after-overwrite', viewport, overflow:overwriteOverflow, errors:overwriteErrors, shot:overwriteShot });
+              await overwritePage.close();
 
               await page.getByRole('button', { name: 'Créer un modèle' }).click();
               await page.getByRole('dialog', { name: 'Créer un modèle' }).waitFor();
