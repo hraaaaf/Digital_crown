@@ -23,6 +23,7 @@ from backend.routers.patient_companion_common import (
 )
 from backend.services.patient_companion_messages import (
     PC08_MAX_BODY_BYTES,
+    lock_access_for_messaging,
     normalize_message_body,
     normalize_uuid,
     recent_messages,
@@ -142,6 +143,7 @@ def staff_send_message(
         patient_id=patient.id,
         access_public_id=access_public_id,
     )
+    lock_access_for_messaging(db, access)
     existing = db.query(PatientCompanionMessage).filter(
         PatientCompanionMessage.access_id == access.id,
         PatientCompanionMessage.employer_id == employer_id,
