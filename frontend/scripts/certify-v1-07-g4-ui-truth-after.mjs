@@ -50,8 +50,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.goto(base + '?tab=admin&documentTab=echeancier', { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('button', { name: 'Nouveau plan', exact: true }).click();
   const fieldAfter = async (labelText) => {
-    const label = page.getByText(labelText, { exact: true });
-    return label.locator('xpath=following-sibling::*[1]').locator('input');
+    return page.getByText(labelText, { exact: true }).locator('..').locator('input');
   };
   await (await fieldAfter('Montant Total Prévu (MAD)')).fill('1000');
   await (await fieldAfter('Avance (MAD)')).fill('200');
