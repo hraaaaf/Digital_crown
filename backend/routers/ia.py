@@ -297,10 +297,12 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
         active_detections = [d for d in all_detections if not d.get("rejected")]
 
         # Génération du bilan déterministe (annotations manuelles + constats généraux)
+        report_context = req.report_context.model_dump() if req.report_context else None
         report_markdown = panoramic_report_engine.generate_markdown(
             detections=active_detections,
             manual_anomalies=req.manual_anomalies,
             global_findings=req.global_findings,
+            report_context=report_context,
         )
         annotation_block = _format_panoramic_visual_annotations(req.visual_annotations)
         synthesis_marker = "\n### SYNTHÈSE\n"
@@ -322,6 +324,7 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
             "manual_anomalies": req.manual_anomalies,
             "global_findings": req.global_findings,
             "visual_annotations": [ann.model_dump() for ann in (req.visual_annotations or [])],
+            "report_context": report_context,
         }
 
         db.commit()
