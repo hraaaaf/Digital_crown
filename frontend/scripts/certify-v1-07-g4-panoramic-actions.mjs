@@ -56,7 +56,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  await svg.click({position:{x:Math.max(5,box.width*0.58),y:Math.max(5,box.height*0.40)}});
  await page.getByRole('heading',{name:'Diagnostic Clinique'}).waitFor({state:'visible',timeout:10000});
  await page.getByRole('button',{name:"Carie de l'émail",exact:true}).click();
- await page.getByRole('heading',{name:'Diagnostic Clinique'}).locator('xpath=..').getByRole('button').click();
+ await page.getByRole('button',{name:'Fermer le diagnostic clinique',exact:true}).click();
 
  await page.getByRole('button',{name:'Alvéolyse généralisée légère',exact:true}).click();
  const genP=page.waitForResponse(r=>r.url().endsWith('/api/ia/generate-panoramic-report')&&r.request().method()==='POST',{timeout:20000});
