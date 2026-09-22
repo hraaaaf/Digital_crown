@@ -6,6 +6,11 @@ on:
     paths:
       - .github/workflows/pc08-staff-after-visual.yml
       - frontend/scripts/capture-pc08-staff-after.mjs
+      - frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx
+      - frontend/src/features/patients/components/PatientCompanionPanel.tsx
+      - backend/models_patient_companion.py
+      - backend/routers/patient_companion_messages.py
+      - backend/services/patient_companion_messages.py
       - docs/clinic/patient_companion/PC_08_*.md
 
 permissions:
