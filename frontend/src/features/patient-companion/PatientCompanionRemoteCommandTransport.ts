@@ -193,7 +193,7 @@ export async function sendRemoteCommand(
   };
   const blob = await PatientCompanionRemoteCrypto.signAndEncrypt(inner, binding);
   if (new TextEncoder().encode(blob).byteLength > REMOTE_COMMAND_MAX_BLOB_BYTES) {
-    const tooLarge = new Error('Photo trop volumineuse pour le canal sécurisé.');
+    const tooLarge = new Error('Charge utile trop volumineuse pour le canal sécurisé.');
     Object.assign(tooLarge, { remotePayloadTooLarge: true });
     throw tooLarge;
   }
