@@ -346,3 +346,17 @@ Panoramic certification was expanded before accepting step 27:
 - browser certification now requires the generated narrative to contain the structured `TECHNIQUE` and `SYNTHÈSE` headings.
 
 Status remains NON CERTIFIED until the exact-head browser/runtime gate completes successfully.
+
+
+### 2026-09-22 — Panoramic structured-report engine gate
+The Panoramic report engine now has a corpus-grounded deterministic core:
+- 8 canonical review domains aligned with the dental panoramic structured-report literature;
+- explicit clinical question + image-quality/assessability context;
+- tri-state domain review (`not_assessed | normal | abnormal`);
+- no negative/normal statement without explicit practitioner confirmation;
+- report context persisted with panoramic evidence;
+- report terminology remains at radiographic finding level and avoids unsupported cyst/granuloma, peri-implantitis, pulpal-involvement, TMJ-arthrosis or generalized-periodontitis upgrades.
+
+Certification plumbing was also corrected: T2 now runs the Panoramic backend semantic/PDF/API contracts before browser execution and supports `resume_from_27`, so already-certified steps 24–26 are not replayed for Panoramic-only iterations.
+
+Status remains NON CERTIFIED until these exact-head contracts and browser step 27 pass.
