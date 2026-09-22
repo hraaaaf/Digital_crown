@@ -75,25 +75,27 @@ def recent_messages(
     return rows
 
 
-def messages_after(
+def messages_before(
     db: Session,
     access: PatientCompanionAccess,
     *,
-    after_message_id: str,
+    before_message_id: str,
     limit: int = PC08_SYNC_LIMIT,
 ) -> list[PatientCompanionMessage]:
     cursor = _scoped_query(db, access).filter(
-        PatientCompanionMessage.public_id == after_message_id,
+        PatientCompanionMessage.public_id == before_message_id,
     ).first()
     if cursor is None:
         raise ValueError("MESSAGE_CURSOR_NOT_FOUND")
-    return (
+    rows = (
         _scoped_query(db, access)
-        .filter(PatientCompanionMessage.id > cursor.id)
-        .order_by(PatientCompanionMessage.id.asc())
+        .filter(PatientCompanionMessage.id < cursor.id)
+        .order_by(PatientCompanionMessage.id.desc())
         .limit(limit)
         .all()
     )
+    rows.reverse()
+    return rows
 
 
 def _reject(code: str) -> RemoteDomainResult:
@@ -154,25 +156,31 @@ def handle_message_sync(
     access: PatientCompanionAccess,
     payload: dict[str, Any],
 ) -> RemoteDomainResult:
-    if not set(payload).issubset({"after_message_id"}):
+    if not set(payload).issubset({"before_message_id"}):
         return _reject("INVALID_REQUEST")
-    after = payload.get("after_message_id")
+    before = payload.get("before_message_id")
     try:
-        if after is None:
+        if before is None:
             rows = recent_messages(db, access)
         else:
-            cursor = normalize_uuid(after, code="INVALID_MESSAGE_CURSOR")
-            rows = messages_after(db, access, after_message_id=cursor)
+            cursor = normalize_uuid(before, code="INVALID_MESSAGE_CURSOR")
+            rows = messages_before(db, access, before_message_id=cursor)
     except ValueError as exc:
         return _reject(str(exc))
 
     items = [serialize_message(row) for row in rows]
+    has_more = False
+    if rows:
+        has_more = _scoped_query(db, access).filter(
+            PatientCompanionMessage.id < rows[0].id,
+        ).count() > 0
     return RemoteDomainResult(
         status="ACCEPTED",
         response={
             "code": "MESSAGE_SYNC",
             "items": items,
-            "cursor": items[-1]["message_id"] if items else after,
+            "before_cursor": items[0]["message_id"] if items else before,
+            "has_more": has_more,
             "limit": PC08_SYNC_LIMIT,
         },
     )
@@ -223,7 +231,11 @@ def handle_message_received(
     db.flush()
     return RemoteDomainResult(
         status="ACCEPTED",
-        response={"code": "MESSAGE_RECEIVED", "message_ids": message_ids},
+        response={
+            "code": "MESSAGE_RECEIVED",
+            "message_ids": message_ids,
+            "items": [serialize_message(row) for row in rows],
+        },
     )
 
 
@@ -247,7 +259,11 @@ def handle_message_read(
     db.flush()
     return RemoteDomainResult(
         status="ACCEPTED",
-        response={"code": "MESSAGE_READ", "message_ids": message_ids},
+        response={
+            "code": "MESSAGE_READ",
+            "message_ids": message_ids,
+            "items": [serialize_message(row) for row in rows],
+        },
     )
 
 
