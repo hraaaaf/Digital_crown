@@ -47,6 +47,7 @@ def test_prescription_preset_is_doctor_scoped_and_whitelists_reusable_fields(db)
     assert len(presets_a) == 1
     assert presets_b == []
 
+    assert presets_a[0]["label"] == "Mon post-op"
     stored = presets_a[0]["drugs"][0]
     assert stored == {
         "name": "PARACETAMOL",
@@ -80,6 +81,7 @@ def test_prescription_preset_same_name_updates_only_current_doctor(db):
     presets = prescription_service.get_doctor_presets(db, doctor.id)
     assert len(presets) == 1
     assert presets[0]["act_context"] == "PRESET A"
+    assert presets[0]["label"] == "Preset a"
     assert presets[0]["drugs"][0]["name"] == "B"
     assert presets[0]["drugs"][0]["posologie"] == "new"
 
