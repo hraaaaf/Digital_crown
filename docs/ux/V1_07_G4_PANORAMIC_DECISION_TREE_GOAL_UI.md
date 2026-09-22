@@ -1,6 +1,6 @@
 # V1-07 G4 — Panoramic Structured Report Decision Tree — Goal UI
 
-Status: BEFORE + AFTER VERIFIED — HUMAN VISUAL APPROVAL PENDING
+Status: CERTIFIED
 
 ## Goal
 Expose the corpus-grounded Panoramic report context as a fast practitioner decision tree without changing automatic tooth localization or inventing clinical findings.
@@ -103,3 +103,12 @@ Evidence-based visual score before human approval: **9.5/10**.
 - runtime cleanliness: 0.9/1
 
 Remaining gate: explicit human visual approval only.
+
+
+## Final certification
+- reconciled exact-head: `c56bab276f7ed8d93bc4890b1c645a724c941b20`;
+- T2 exact-head: #35752960503 — SUCCESS;
+- human visual approval exact-head: #35756616863 — SUCCESS;
+- the semantic-token correction for `Mode Saisie Clinique` is retained; the approved G4 UI files did not change during base reconciliation.
+
+Status: CERTIFIED.

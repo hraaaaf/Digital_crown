@@ -1,6 +1,6 @@
 # Digital Crown V1-07 — Global Interactive Audit — G4
 
-Status: HUMAN VISUAL APPROVAL PENDING
+Status: CERTIFIED
 
 ## Goal
 Exhaustively certify deep clinical/business interactions inside the patient dossier: documents, prescriptions, certificates, accounting/honorarium flows, payments, treatment planning, odontogram, panoramic/RVG/cephalometry and related archives.
@@ -397,3 +397,20 @@ Exact-head runtime evidence:
 Visual review of the final AFTER captures found no remaining overlap/clipping defect in the corrected patient tabs or structured Panoramic review. The final mobile trash capture visibly frames `Corbeille récupérable`.
 
 G4 is **not yet certified** because the fail-closed `UI Human Visual Approval` gate still requires Achraf's explicit approval on this frozen candidate. No merge and no deployment are authorized.
+
+
+## 2026-09-22 — G4 certification closeout
+Final integration/certification evidence:
+- reconciled merge HEAD: `c56bab276f7ed8d93bc4890b1c645a724c941b20`;
+- PR #633 mergeability after reconciliation: `mergeable=true`;
+- T2 exact-head post-reconciliation: run #35752960503 — SUCCESS;
+- G4 Suite Auto Dispatch: run #35751899089 — SUCCESS;
+- G4 Browser Control Inventory: run #35751881849 — SUCCESS;
+- G4 Treasury Guard BEFORE: run #35751881726 — SUCCESS;
+- G4 Treasury Guard AFTER: run #35751881823 — SUCCESS;
+- UI Human Visual Approval on reconciled HEAD: runs #35756610748 and #35756616863 — SUCCESS;
+- approved G4 UI files were unchanged between the previously approved HEAD `8408cc1f98dc66410dfb05dfad0a32a3fed65a57` and reconciled HEAD `c56bab276f7ed8d93bc4890b1c645a724c941b20`;
+- no Vercel deployment performed;
+- PR merge is not authorized by this certification and remains a separate human action.
+
+G4 certification scope is therefore closed on the evidence above. Unrelated/transversal workflow failures triggered by the long-lived PR are not reclassified as G4 failures; they must be handled by their own owning lots before any repository-wide merge decision.

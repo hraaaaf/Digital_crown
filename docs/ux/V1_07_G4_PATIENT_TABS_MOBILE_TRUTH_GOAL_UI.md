@@ -1,6 +1,6 @@
 # V1-07 G4 — Patient tabs mobile label truth — Goal UI
 
-Status: BEFORE + AFTER VERIFIED — HUMAN VISUAL APPROVAL PENDING
+Status: CERTIFIED
 
 ## Goal
 Keep every patient dossier destination visible at 390×844 without label collision, while preserving the existing six-cell compact navigation contract and desktop labels.
@@ -49,3 +49,12 @@ At 390×844, the short labels `Suivi / Clinique / Image / Docs / Companion / Fin
 The browser harness also asserts mobile-label geometry before each affected capture.
 
 Remaining gate: explicit human visual approval before applying `visual-approved-by-achraf`.
+
+
+## Final certification
+- reconciled exact-head: `c56bab276f7ed8d93bc4890b1c645a724c941b20`;
+- T2 exact-head: #35752960503 — SUCCESS;
+- human visual approval exact-head: #35756616863 — SUCCESS;
+- approved patient-tab UI file remained unchanged during base reconciliation.
+
+Status: CERTIFIED.
