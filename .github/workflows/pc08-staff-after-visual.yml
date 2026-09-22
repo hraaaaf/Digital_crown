@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      BASE_HEAD: ${{ github.event.pull_request.base.sha }}
-      PRODUCT_HEAD: ${{ github.event.pull_request.base.sha }}
+      BASE_HEAD: ${{ github.event.pull_request.head.sha }}
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
       ENVIRONMENT: test
       SECRET_KEY: pc08-staff-after-isolated-secret-000000000001
       DATABASE_URL: sqlite:///./pc08-staff-after.db
@@ -126,7 +126,7 @@ PY
           const report = JSON.parse(fs.readFileSync('artifacts/pc08-staff-after/report.json', 'utf8'));
           if (report.productHead !== process.env.BASE_HEAD) throw new Error('base head mismatch');
           if (report.captures.length !== 3) throw new Error('expected 3 staff captures');
-          if (report.captures.some(item => item.horizontalOverflow || item.pageErrors.length || item.consoleErrors.length)) {
+          if (report.captures.some(item => item.overflow || item.pageErrors.length || item.consoleErrors.length)) {
             throw new Error('staff AFTER contract failed');
           }
           console.log('pc08_staff_after=PASS');
@@ -141,7 +141,7 @@ PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pc08-staff-after-${{ github.event.pull_request.base.sha }}
+          name: pc08-staff-after-${{ github.event.pull_request.head.sha }}
           path: artifacts/pc08-staff-after
           if-no-files-found: error
           retention-days: 30
