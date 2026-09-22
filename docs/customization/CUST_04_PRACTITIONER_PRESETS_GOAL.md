@@ -117,3 +117,19 @@ Enregistrer un preset
 │                         Annuler   Enregistrer             │
 └──────────────────────────────────────────────────────────┘
 ```
+
+
+## Closeout vérifié — 2026-09-22
+- PR produit : #680
+- HEAD validé avant merge : `af745ac4f1ea575dd098a60b17c15acd3439cea6`
+- merge squash : `4a7e1c6fb0f9d763cf25d0e159bc753b4551ee68`
+- CI exact-head #6189 : SUCCESS
+- T2 exact-head #5006 : SUCCESS
+- CUST-04 Visual #10 : SUCCESS
+- preuve visuelle : 12 captures, 390×844 / 768×1024 / 1280×900, `failures: []`
+- artefact : `cust-04-prescription-presets-before-after`
+- digest : `sha256:e5d082c38418fe31893665d5d56c51f2130e566f2871f1127e91b7dfe8f7a538`
+- wording final praticien : « Mes modèles », « Enregistrer comme modèle », « Enregistrer un modèle », « Nom du modèle », « Conserver l’ordonnance actuelle », « Remplacer par ce modèle ».
+- sécurité : application uniquement sur clic explicite ; aucun patient/date/indication persisté ; aucune recommandation clinique automatique activée.
+- aucune nouvelle table ni migration.
+- aucun déploiement Vercel.
