@@ -138,14 +138,22 @@ for (const viewport of [
 
 await self.page.getByRole('button', { name: 'Synchroniser les messages' }).click();
 await self.page.getByText(staffReply, { exact: true }).waitFor({ timeout: 30000 });
-await self.page.getByText('Lu par le cabinet', { exact: true }).waitFor({ timeout: 30000 });
-await self.page.getByText('Lu', { exact: true }).waitFor({ timeout: 30000 });
+const selfSection = self.page.locator('[data-pc08-secure-messaging]');
+await selfSection.getByText('Lu par le cabinet', { exact: true }).waitFor({ timeout: 30000 });
+await selfSection.getByText('Lu', { exact: true }).waitFor({ timeout: 30000 });
 
-await self.page.route('**/api/patient-companion/contexts/*/messages/remote-command', route => route.abort());
+await self.page.route(
+  '**/api/patient-companion/contexts/*/messages/remote-command',
+  route => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: JSON.stringify({ detail: 'PC-08 isolated offline fixture' }),
+  }),
+);
 const pendingBody = 'Message hors connexion — ' + 'Z'.repeat(650);
-await self.page.getByPlaceholder('Écrire au cabinet…').fill(pendingBody);
-await self.page.getByRole('button', { name: 'Envoyer' }).click();
-await self.page.getByText('Enregistré localement · non envoyé', { exact: true }).waitFor({ timeout: 30000 });
+await selfSection.getByPlaceholder('Écrire au cabinet…').fill(pendingBody);
+await selfSection.getByRole('button', { name: 'Envoyer' }).click();
+await selfSection.getByText('Enregistré localement · non envoyé', { exact: true }).waitFor({ timeout: 30000 });
 
 const patientCaptures = [];
 for (const viewport of [
