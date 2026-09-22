@@ -531,11 +531,11 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                 <div className="flex-1 flex flex-col"><ReportViewer markdown={result.report_narrative} isGenerating={loading} engineName="Radiographie panoramique" onDownload={handleDownloadPDF} isDownloading={downloading} onPreview={handlePreview} onSaveEdit={handleSaveReport} /></div>
               ) : (
                 <div className="min-w-0 p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col">
-                  <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3 shrink-0">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm"><Type size={14} className="text-white" /></div>
+                  <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-start gap-3 shrink-0">
+                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shrink-0 shadow-sm"><Type size={14} className="text-on-primary" /></div>
                     <div>
-                      <p className="text-[11px] font-black text-indigo-900 uppercase tracking-wider">Mode Saisie Clinique</p>
-                      <p className="text-[10px] text-indigo-700/80 mt-0.5 leading-snug">Cliquez sur une dent dans la radio pour ouvrir le panneau de constatations. Les observations saisies apparaissent ci-dessous.</p>
+                      <p className="text-[11px] font-black text-primary uppercase tracking-wider">Mode Saisie Clinique</p>
+                      <p className="text-[10px] text-primary/80 mt-0.5 leading-snug">Cliquez sur une dent dans la radio pour ouvrir le panneau de constatations. Les observations saisies apparaissent ci-dessous.</p>
                     </div>
                   </div>
 
