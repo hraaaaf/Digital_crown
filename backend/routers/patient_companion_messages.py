@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -29,7 +29,6 @@ from backend.services.patient_companion_messages import (
     serialize_message,
 )
 from backend.services.patient_companion_remote_worker import process_remote_envelope
-from backend.utils.rate_limit import check_rate_limit
 
 router = APIRouter()
 
@@ -239,12 +238,10 @@ def staff_mark_messages_read(
 def patient_message_remote_command(
     access_id: str,
     body: RemoteCommandEnvelope,
-    request: Request,
     response: Response,
     identity: PatientCompanionIdentity = Depends(patient_identity),
     db: Session = Depends(get_db),
 ):
-    check_rate_limit(request, scope="patient-companion-messages-remote-command")
     principal, _patient = principal_for_access(db, identity, access_id)
     access = db.query(PatientCompanionAccess).filter(
         PatientCompanionAccess.public_id == principal.access_id,
