@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
 import { CheckCircle2, Clock, Edit3, AlertCircle, FileText, Plus, X } from 'lucide-react';
 import { api } from '../../../../services/api';
+import { TemplateOverwriteDialog } from './TemplateOverwriteDialog';
 import {
   CERTIFICATE_TYPE_FREE,
   CERTIFICATE_TYPE_PRESENCE,
@@ -28,6 +29,7 @@ export const CertificateTemplatePresets: React.FC<{
   const [templates, setTemplates] = React.useState<CertificateTemplateSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [applyingId, setApplyingId] = React.useState<string | null>(null);
+  const [pendingTemplate, setPendingTemplate] = React.useState<{ name: string; body: string } | null>(null);
   const [showCreate, setShowCreate] = React.useState(false);
   const [templateName, setTemplateName] = React.useState('');
   const [templateBody, setTemplateBody] = React.useState('');
@@ -66,8 +68,11 @@ export const CertificateTemplatePresets: React.FC<{
         return;
       }
       if (content.trim() && content.trim() !== body) {
-        const confirmed = window.confirm('Remplacer le brouillon actuel par ce modèle ?');
-        if (!confirmed) return;
+        setPendingTemplate({
+          name: String((response?.data as CertificateTemplateDetail | undefined)?.name || 'Modèle'),
+          body,
+        });
+        return;
       }
       onApply(body);
     } catch {
@@ -168,6 +173,18 @@ export const CertificateTemplatePresets: React.FC<{
       </p>
 
       {error && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">{error}</p>}
+
+      {pendingTemplate && (
+        <TemplateOverwriteDialog
+          modelName={pendingTemplate.name}
+          scopeLabel="Certificat médical"
+          onCancel={() => setPendingTemplate(null)}
+          onConfirm={() => {
+            onApply(pendingTemplate.body);
+            setPendingTemplate(null);
+          }}
+        />
+      )}
 
       {showCreate && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="certificate-template-create-title">
