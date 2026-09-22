@@ -266,6 +266,20 @@ class PanoramicReportEngine:
             synthesis.extend(context_synthesis)
             if synthesis:
                 lines.extend(f"- {item}" for item in synthesis)
+            elif report_context:
+                assessed_domains = len(PANORAMIC_REPORT_DOMAINS) - len(unassessed_domains)
+                if assessed_domains == len(PANORAMIC_REPORT_DOMAINS):
+                    lines.append(
+                        "- Aucune anomalie n'a été documentée dans les huit domaines explicitement évalués par le praticien."
+                    )
+                elif assessed_domains > 0:
+                    lines.append(
+                        "- Aucune anomalie n'a été documentée parmi les domaines explicitement évalués par le praticien."
+                    )
+                else:
+                    lines.append(
+                        "- Aucune conclusion radiographique globale ne peut être formulée : aucun domaine n'a été explicitement évalué."
+                    )
             else:
                 lines.append(
                     "- Aucune constatation n'a été documentée dans les annotations fournies ; "
