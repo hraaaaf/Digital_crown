@@ -139,22 +139,11 @@ for (const viewport of [
   { width: 1280, height: 900, label: '1280x900' },
 ]) {
   await staffPage.setViewportSize({ width: viewport.width, height: viewport.height });
-  await staffPage.evaluate(() => {
-    document.querySelector('[data-pc08-capture-spacer]')?.remove();
-    const spacer = document.createElement('div');
-    spacer.setAttribute('data-pc08-capture-spacer', 'true');
-    spacer.style.height = '320px';
-    spacer.style.width = '1px';
-    spacer.style.pointerEvents = 'none';
-    document.body.appendChild(spacer);
-  });
-  await staffPanel.evaluate(element => element.scrollIntoView({ block: 'start', inline: 'nearest' }));
-  await staffPage.evaluate(() => {
-    const stickyHeader = document.querySelector('header.lg\\:sticky');
-    const headerRect = stickyHeader?.getBoundingClientRect();
-    const offset = headerRect ? headerRect.height + 16 : 16;
-    window.scrollBy({ top: -offset, left: 0, behavior: 'instant' });
-  });
+  if (viewport.width >= 1024) {
+    await staffPage.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+  } else {
+    await staffPanel.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  }
   const geometry = await staffPage.evaluate(() => {
     const panel = document.querySelector('[data-pc08-staff-messaging]');
     const stickyHeader = document.querySelector('header.lg\\:sticky');
