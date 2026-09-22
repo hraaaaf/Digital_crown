@@ -1,0 +1,207 @@
+name: CUST-05 Stock Lab Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cust-05-stock-lab-visual.yml"
+      - "frontend/src/components/LabJobsBoard.tsx"
+      - "docs/customization/CUST_05_STOCK_LAB_GOAL.md"
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout AFTER
+        uses: actions/checkout@v4
+        with:
+          path: after
+
+      - name: Checkout BEFORE base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: before
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: after/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: after/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          ln -s "$(realpath node_modules)" ../../before/frontend/node_modules
+
+      - name: Inject identical harnesses
+        run: |
+          for root in before/frontend after/frontend; do
+            cat > "$root/cust05-lab.html" <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>CUST-05 Lab</title>
+            </head>
+            <body class="bg-white">
+              <div id="root"></div>
+              <script type="module" src="/src/cust05-lab.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+            cat > "$root/src/cust05-lab.tsx" <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { LabJobsBoard } from './components/LabJobsBoard';
+
+          createRoot(document.getElementById('root')!).render(
+            <main className="min-h-screen bg-slate-50">
+              <LabJobsBoard />
+            </main>,
+          );
+          EOF
+          done
+
+      - name: Prepare PWA dev harness
+        run: |
+          mkdir -p before/frontend/dev-dist after/frontend/dev-dist
+          : > before/frontend/dev-dist/registerSW.js
+          : > after/frontend/dev-dist/registerSW.js
+
+      - name: Capture BEFORE and AFTER
+        working-directory: after/frontend
+        run: |
+          cat > cust05-visual.mjs <<'EOF'
+          import path from 'node:path';
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+
+          const afterRoot = process.cwd();
+          const beforeRoot = path.resolve('../../before/frontend');
+          const output = path.resolve('../../artifacts/cust-05-stock-lab');
+          await fs.mkdir(output, { recursive: true });
+
+          const beforeServer = await createServer({ root: beforeRoot, server: { host: '127.0.0.1', port: 4300, strictPort: true }, clearScreen: false });
+          const afterServer = await createServer({ root: afterRoot, server: { host: '127.0.0.1', port: 4301, strictPort: true }, clearScreen: false });
+          await beforeServer.listen();
+          await afterServer.listen();
+
+          const browser = await chromium.launch({ headless: true });
+          const viewports = [{width:390,height:844},{width:768,height:1024},{width:1280,height:900}];
+          const rows = [];
+
+          async function capture(kind, port, viewport) {
+            const context = await browser.newContext({ viewport, colorScheme: 'light' });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push(String(e)));
+            page.on('console', m => {
+  if (m.type() !== 'error') return;
+  const text = m.text();
+  if (text.includes('Outdated Optimize Dep')) return;
+  errors.push(text);
+});
+
+            await page.route('**/api/**', route => {
+              const url = new URL(route.request().url());
+              if (url.pathname.endsWith('/api/lab-jobs/')) {
+                return route.fulfill({
+                  status:200, contentType:'application/json',
+                  body: JSON.stringify([{
+                    id:1, patient_id:10, act_id:20, lab_id:12, material:'Zircone',
+                    type:'Couronne', tooth_number:'46', deadline:new Date(Date.now()+172800000).toISOString(),
+                    status:'PRESCRIPTION', is_remake:false, is_late:false,
+                    created_at:new Date().toISOString(), updated_at:new Date().toISOString()
+                  }])
+                });
+              }
+              if (url.pathname.endsWith('/api/lab-jobs/labs')) {
+                return route.fulfill({
+                  status:200, contentType:'application/json',
+                  body: JSON.stringify([
+                    {id:12,name:'Atlas Dental',phone:'0600000000'},
+                    {id:13,name:'Labo Central',phone:'0500000000'}
+                  ])
+                });
+              }
+              if (url.pathname.endsWith('/api/stock/items')) {
+                return route.fulfill({
+                  status:200, contentType:'application/json',
+                  body: JSON.stringify([
+                    {id:1,nom:'Zircone',categorie:'MATERIAU'},
+                    {id:2,nom:'Disilicate de lithium',categorie:'MATERIAU'}
+                  ])
+                });
+              }
+              return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+            });
+
+            await page.goto(`http://127.0.0.1:${port}/cust05-lab.html`, {waitUntil:'networkidle'});
+            await page.getByText('Travaux prothétiques', {exact:true}).waitFor();
+
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+            const shot = `${kind}-${viewport.width}x${viewport.height}.png`;
+            await page.screenshot({path:path.join(output,shot),fullPage:true,animations:'disabled'});
+            rows.push({kind,viewport,overflow,errors:[...errors],shot});
+
+            if (kind === 'after') {
+              await page.getByRole('button',{name:/Nouvelle demande/i}).click();
+              await page.getByText('Nouvelle demande au laboratoire',{exact:true}).waitFor();
+              const requestShot=`after-request-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({path:path.join(output,requestShot),fullPage:true,animations:'disabled'});
+              rows.push({kind:'after-request',viewport,overflow:false,errors:[...errors],shot:requestShot});
+              await page.getByRole('button',{name:'Annuler'}).click();
+
+              await page.getByRole('button',{name:/Gérer les laboratoires/i}).click();
+              await page.getByText('Laboratoires du cabinet',{exact:true}).waitFor();
+              const labsShot=`after-labs-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({path:path.join(output,labsShot),fullPage:true,animations:'disabled'});
+              rows.push({kind:'after-labs',viewport,overflow:false,errors:[...errors],shot:labsShot});
+            }
+
+            await context.close();
+          }
+
+          try {
+            for (const viewport of viewports) {
+              await capture('before',4300,viewport);
+              await capture('after',4301,viewport);
+            }
+          } finally {
+            await browser.close();
+            await beforeServer.close();
+            await afterServer.close();
+          }
+
+          const failures = rows.filter(row => row.overflow || row.errors.length);
+          await fs.writeFile(path.join(output,'evidence.json'),JSON.stringify(rows,null,2));
+          await fs.writeFile(path.join(output,'summary.json'),JSON.stringify({
+            beforeSha:process.env.BASE_SHA,
+            afterSha:process.env.HEAD_SHA,
+            viewports,
+            screenshots:rows.length,
+            failures
+          },null,2));
+          if (failures.length) process.exit(1);
+          EOF
+          BASE_SHA="${{ github.event.pull_request.base.sha }}" HEAD_SHA="${{ github.event.pull_request.head.sha }}" node cust05-visual.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cust-05-stock-lab-before-after
+          path: artifacts/cust-05-stock-lab
+          if-no-files-found: error
+          retention-days: 14
