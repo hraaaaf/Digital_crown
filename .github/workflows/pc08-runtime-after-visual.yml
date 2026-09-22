@@ -30,7 +30,7 @@ jobs:
       PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
       ENVIRONMENT: test
       SECRET_KEY: pc08-runtime-after-isolated-secret-key-000000000001
-      DATABASE_URL: sqlite:///./pc08-runtime-after.db
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
