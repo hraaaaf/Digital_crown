@@ -12,6 +12,7 @@ on:
       - feature/patient-companion-pc08-secure-messaging
     paths:
       - ".github/workflows/pc08-runtime-after-visual.yml"
+      - "frontend/scripts/capture-pc08-runtime-after.mjs"
       - "frontend/src/features/patient-companion/**"
       - "frontend/src/features/patient-companion/PatientCompanionMessages.contract.test.ts"
   pull_request:
