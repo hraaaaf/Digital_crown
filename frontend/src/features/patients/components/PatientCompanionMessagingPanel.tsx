@@ -115,7 +115,7 @@ export const PatientCompanionMessagingPanel = ({ patientId }: { patientId: numbe
           const staff = message.sender_kind === 'STAFF';
           const status = staff
             ? message.patient_read_at ? 'Lu' : message.patient_received_at ? 'Reçu sur l’appareil' : 'Envoyé depuis le cabinet'
-            : message.staff_read_at ? 'Lu par le cabinet' : 'Reçu par le cabinet';
+            : message.staff_read_at ? 'Lu' : 'Reçu par le cabinet';
           return <div key={message.message_id} className={`flex ${staff ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[86%] rounded-2xl px-3.5 py-3 break-words [overflow-wrap:anywhere] ${staff ? 'bg-primary text-white' : 'border border-border-main bg-card-bg text-main'}`}>{!staff && selectedLabel && <p className="mb-1 text-[9px] font-black uppercase tracking-wider text-primary">{selectedLabel}</p>}<p className="whitespace-pre-wrap text-sm font-medium">{message.body}</p><p className={`mt-1.5 text-[10px] font-bold ${staff ? 'text-white/75' : 'text-text-muted'}`}>{new Date(message.created_at).toLocaleString('fr-MA')} · {status}</p></div></div>;
         })}
       </div>
