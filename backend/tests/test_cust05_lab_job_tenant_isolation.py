@@ -145,3 +145,98 @@ def test_lab_job_create_rejects_act_from_another_patient(db):
         assert "Acte incompatible" in exc.detail
     else:
         raise AssertionError("lab job must reject an act belonging to another patient")
+
+
+def test_lab_catalog_is_scoped_to_current_cabinet(db):
+    doctor_a = _user(db, "cust05-lab-a@cabinet.test")
+    doctor_b = _user(db, "cust05-lab-b@cabinet.test")
+
+    lab_jobs.create_lab(
+        lab_jobs.LabCreate(name="Labo A", phone="0600000001"),
+        db=db,
+        current_user=doctor_a,
+    )
+    lab_jobs.create_lab(
+        lab_jobs.LabCreate(name="Labo B", phone="0600000002"),
+        db=db,
+        current_user=doctor_b,
+    )
+
+    rows_a = lab_jobs.get_labs(db=db, current_user=doctor_a)
+    rows_b = lab_jobs.get_labs(db=db, current_user=doctor_b)
+
+    assert [row["name"] for row in rows_a] == ["Labo A"]
+    assert [row["name"] for row in rows_b] == ["Labo B"]
+
+
+def test_lab_catalog_rejects_duplicate_name_inside_same_cabinet(db):
+    doctor = _user(db, "cust05-lab-dup@cabinet.test")
+
+    lab_jobs.create_lab(
+        lab_jobs.LabCreate(name="Atlas Dental"),
+        db=db,
+        current_user=doctor,
+    )
+
+    try:
+        lab_jobs.create_lab(
+            lab_jobs.LabCreate(name="atlas dental"),
+            db=db,
+            current_user=doctor,
+        )
+    except HTTPException as exc:
+        assert exc.status_code == 409
+    else:
+        raise AssertionError("duplicate lab name inside one cabinet must fail")
+
+
+def test_lab_job_create_rejects_lab_from_another_cabinet(db):
+    doctor_a = _user(db, "cust05-lab-owner@cabinet.test")
+    doctor_b = _user(db, "cust05-lab-other@cabinet.test")
+    patient_a = _patient(db, doctor_a.id, "A")
+    act_a = _act(db, patient_a.id, doctor_a.id, "Couronne A")
+
+    lab_b = lab_jobs.create_lab(
+        lab_jobs.LabCreate(name="Labo B"),
+        db=db,
+        current_user=doctor_b,
+    )
+
+    req = lab_jobs.LabJobCreate(
+        patient_id=patient_a.id,
+        act_id=act_a.id,
+        lab_id=lab_b["id"],
+        material="Zircone",
+        type="Couronne",
+        deadline=(datetime.now() + timedelta(days=7)).isoformat(),
+    )
+
+    try:
+        lab_jobs.create_lab_job(req, db=db, current_user=doctor_a)
+    except HTTPException as exc:
+        assert exc.status_code == 422
+        assert "Laboratoire invalide" in exc.detail
+    else:
+        raise AssertionError("cross-tenant lab id must fail closed")
+
+
+def test_lab_delete_rejects_lab_in_use(db):
+    doctor = _user(db, "cust05-lab-used@cabinet.test")
+    patient = _patient(db, doctor.id, "A")
+    act = _act(db, patient.id, doctor.id, "Couronne")
+
+    lab = lab_jobs.create_lab(
+        lab_jobs.LabCreate(name="Labo utilisé"),
+        db=db,
+        current_user=doctor,
+    )
+    job = _job(db, patient.id, act.id, "Couronne")
+    job.lab_id = lab["id"]
+    db.commit()
+
+    try:
+        lab_jobs.delete_lab(lab["id"], db=db, current_user=doctor)
+    except HTTPException as exc:
+        assert exc.status_code == 409
+    else:
+        raise AssertionError("lab used by a job must not be deleted")
