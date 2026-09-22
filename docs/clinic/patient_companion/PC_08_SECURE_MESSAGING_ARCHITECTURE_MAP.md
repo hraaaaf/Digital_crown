@@ -253,14 +253,14 @@ Operation: `message.sync`.
 
 Rules:
 - encrypted remote command only when relay mode is used;
-- initial response returns latest 20 messages for this access in chronological order;
-- incremental response accepts an opaque last-message cursor and returns newer messages;
+- default sync returns the latest 20 messages for this access in chronological order on every refresh, so receipt/read timestamps of already-known recent messages are reconciled truthfully;
+- older history uses an optional opaque `before_message_id` cursor and returns up to 20 earlier rows;
 - maximum 20 rows per response;
 - body stays inside encrypted ACK;
 - cross-access cursor is rejected;
 - response includes only fields required by patient UI and receipt truth.
 
-If more data exists, patient continues with the returned opaque cursor. Envelope-size boundary is tested with 20 × 4096-byte bodies.
+If older data exists, patient may continue backward with the returned opaque cursor. No forward-only cursor is used because it would miss later read/receipt state changes on already-synchronized messages. Envelope-size boundary is tested with 20 × 4096-byte bodies.
 
 ### G. Authoritative receipt/read semantics
 
