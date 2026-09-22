@@ -76,10 +76,10 @@ def test_report_uses_structured_professional_sections_without_count_summary():
     )
 
     assert "### TECHNIQUE" in report
-    assert "### OBSERVATIONS DENTO-ALVÉOLAIRES" in report
-    assert "### OBSERVATIONS PARODONTALES" in report
-    assert "### OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES" in report
-    assert "### STRUCTURES ADJACENTES" in report
+    assert "### LÉSIONS CARIEUSES" in report
+    assert "### PARODONTE ET SUPPORT OSSEUX" in report
+    assert "### RESTAURATIONS / PROTHÈSES / IMPLANTS" in report
+    assert "### SINUS MAXILLAIRES" in report
     assert "### CONSTATATIONS GÉNÉRALES" in report
     assert "### SYNTHÈSE" in report
     assert "Carie dentinaire — la dent 16." in report
