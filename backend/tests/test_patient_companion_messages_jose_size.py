@@ -3,11 +3,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from backend.services.patient_companion_remote_crypto import sign_and_encrypt
+from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
 from relay.contract import RELAY_MAX_BLOB_BYTES, RelayInnerMessage
 
 
-def test_pc08_twenty_max_messages_fit_real_jose_relay_ceiling(remote_key_material):
+def test_pc08_twenty_max_messages_fit_real_jose_relay_ceiling():
     now = datetime.now(timezone.utc)
     items = [
         {
@@ -42,11 +42,15 @@ def test_pc08_twenty_max_messages_fit_real_jose_relay_ceiling(remote_key_materia
             },
         },
     )
+    cabinet_signing_kid = str(uuid.uuid4())
+    patient_encryption_kid = str(uuid.uuid4())
+    cabinet_signing_private, _ = generate_p256_keypair(kid=cabinet_signing_kid, use="sig")
+    _, patient_encryption_public = generate_p256_keypair(kid=patient_encryption_kid, use="enc")
     blob = sign_and_encrypt(
         inner.model_dump(mode="json"),
-        sender_signing_private_jwk=remote_key_material["cabinet_signing_private"],
-        recipient_encryption_public_jwk=remote_key_material["patient_encryption_public"],
-        sender_signing_kid=remote_key_material["cabinet_signing_kid"],
-        recipient_encryption_kid=remote_key_material["patient_encryption_kid"],
+        sender_signing_private_jwk=cabinet_signing_private,
+        recipient_encryption_public_jwk=patient_encryption_public,
+        sender_signing_kid=cabinet_signing_kid,
+        recipient_encryption_kid=patient_encryption_kid,
     )
     assert len(blob.encode("utf-8")) < RELAY_MAX_BLOB_BYTES
