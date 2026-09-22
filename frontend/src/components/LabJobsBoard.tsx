@@ -249,17 +249,18 @@ export const LabJobsBoard: React.FC = () => {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">N° patient *</label>
-                  <input type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.patient_id} onChange={event => setNewJob({...newJob, patient_id: event.target.value})} placeholder="Ex : 1" />
+                  <input aria-label="N° patient" type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.patient_id} onChange={event => setNewJob({...newJob, patient_id: event.target.value})} placeholder="Ex : 1" />
                 </div>
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">N° acte *</label>
-                  <input type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.act_id} onChange={event => setNewJob({...newJob, act_id: event.target.value})} placeholder="Ex : 15" />
+                  <input aria-label="N° acte" type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.act_id} onChange={event => setNewJob({...newJob, act_id: event.target.value})} placeholder="Ex : 15" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Laboratoire</label>
                 <select
+                  aria-label="Laboratoire"
                   className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3"
                   value={newJob.lab_id}
                   onChange={event => setNewJob({...newJob, lab_id: event.target.value})}
@@ -272,17 +273,18 @@ export const LabJobsBoard: React.FC = () => {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Type de travail</label>
-                  <input type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.type} onChange={event => setNewJob({...newJob, type: event.target.value})} />
+                  <input aria-label="Type de travail" type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.type} onChange={event => setNewJob({...newJob, type: event.target.value})} />
                 </div>
                 <div className="w-24">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Dent</label>
-                  <input type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 text-center" value={newJob.tooth_number} onChange={event => setNewJob({...newJob, tooth_number: event.target.value})} placeholder="46" />
+                  <input aria-label="Dent" type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 text-center" value={newJob.tooth_number} onChange={event => setNewJob({...newJob, tooth_number: event.target.value})} placeholder="46" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Matériau</label>
                 <input
+                  aria-label="Matériau"
                   type="text"
                   list="cust05-materials"
                   className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3"
