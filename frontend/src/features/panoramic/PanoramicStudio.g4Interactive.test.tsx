@@ -134,6 +134,7 @@ async function uploadPanoramic() {
     { headers: { 'Content-Type': 'multipart/form-data' } },
   ));
   expect(await screen.findByTestId('xray-canvas')).toBeTruthy();
+  await waitFor(() => expect(screen.getByRole('button', { name: /VALIDER ET GÉNÉRER/i })).not.toBeDisabled());
 }
 
 describe('PanoramicStudio G4 deep interaction matrix', () => {
