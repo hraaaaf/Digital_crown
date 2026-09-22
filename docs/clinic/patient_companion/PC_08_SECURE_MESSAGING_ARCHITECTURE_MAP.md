@@ -150,7 +150,7 @@ Verified gap:
 
 Decision:
 do not reuse the 5/10-minute helper as the message-product limit.
-PC-08 implements bounded message creation at the access/domain boundary and bounded sync pages, with tests. Exact application limits below are new PC-08 contract, not pre-existing behavior.
+PC-08 implements a persistent per-access patient send bound of **60 new messages per rolling hour** and bounded sync pages. Idempotent retries of an already-stored `client_message_id` return the original result and do not consume an additional send. This limit is a new PC-08 contract, not pre-existing behavior.
 
 ### Retention / deletion / evidence
 
