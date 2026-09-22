@@ -154,7 +154,8 @@ jobs:
                   contentType: 'application/json',
                   body: JSON.stringify([{
                     id: 11,
-                    act_context: 'Mon post-op',
+                    act_context: 'MON POST-OP',
+                    label: 'Mon post-op',
                     drugs: [{
                       name:'IBUPROFENE',
                       dosage:'400mg',
@@ -191,7 +192,7 @@ jobs:
               rows.push({ kind:'after-save', viewport, overflow:saveOverflow, errors:[...errors], shot:saveShot });
               await page.getByRole('button', { name: 'Fermer' }).click();
 
-              await page.getByRole('button', { name: /Mon post-op/i }).click();
+              await page.getByRole('button', { name: 'Mon post-op' }).click();
               await page.getByRole('dialog', { name: /Remplacer les lignes actuelles/i }).waitFor();
               const replaceOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
               const replaceShot = `after-replace-${viewport.width}x${viewport.height}.png`;
