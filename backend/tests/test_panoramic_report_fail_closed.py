@@ -62,3 +62,53 @@ def test_absent_tooth_does_not_generate_rehabilitation_recommendation():
     assert "Réhabilitation prothétique" not in report
     assert "à réhabiliter" not in report
     assert "### CONDUITE À TENIR" not in report
+
+
+def test_report_uses_structured_professional_sections_without_count_summary():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={
+            "16": ["carie_dentinaire"],
+            "36": ["alveolyse_v"],
+            "46": ["implant"],
+            "26": ["opacite_sinus"],
+        },
+        global_findings=["alveolyse_gen_legere"],
+    )
+
+    assert "### TECHNIQUE" in report
+    assert "### OBSERVATIONS DENTO-ALVÉOLAIRES" in report
+    assert "### OBSERVATIONS PARODONTALES" in report
+    assert "### OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES" in report
+    assert "### STRUCTURES ADJACENTES" in report
+    assert "### CONSTATATIONS GÉNÉRALES" in report
+    assert "### SYNTHÈSE" in report
+    assert "Carie dentinaire — la dent 16." in report
+    assert "Alvéolyse verticale (défaut angulaire) — la dent 36." in report
+    assert "Implant dentaire — la dent 46." in report
+    assert "Opacité sinusienne — la dent 26." in report
+    assert "observation(s)" not in report
+    assert "constat(s)" not in report
+
+
+def test_report_preserves_custom_practitioner_text_without_upgrading_it():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={"11": ["Image radio-opaque à corréler cliniquement"]},
+        global_findings=[],
+    )
+
+    assert "### AUTRES OBSERVATIONS DOCUMENTÉES" in report
+    assert "Image radio-opaque à corréler cliniquement — la dent 11." in report
+    assert "diagnostic" not in report.lower() or "interprétation diagnostique" in report.lower()
+
+
+def test_report_is_deterministic_for_same_input():
+    engine = PanoramicReportEngine()
+    payload = {
+        "manual_anomalies": {"26": ["opacite_sinus"], "16": ["carie_dentinaire"]},
+        "global_findings": ["denture_mixte", "alveolyse_gen_legere"],
+    }
+
+    first = engine.generate_markdown(**payload)
+    second = engine.generate_markdown(**payload)
+
+    assert first == second
