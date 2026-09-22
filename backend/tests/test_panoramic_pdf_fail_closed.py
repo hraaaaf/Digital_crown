@@ -107,3 +107,14 @@ def test_empty_markdown_fallback_is_observational_not_diagnostic():
             "findings": ["Aucune observation documentée."],
         }
     ]
+
+
+def test_raw_template_uses_document_verification_without_signature_overclaim():
+    template = Path("backend/templates/panoramic_elite.html").read_text(encoding="utf-8")
+
+    assert "Vérification documentaire" in template
+    assert "Praticien associé au dossier" in template
+    assert "référence de vérification" in template
+    assert "cryptographiquement signé" not in template
+    assert "Rapport validé numériquement par" not in template
+    assert "Sceau d'Authenticité" not in template
