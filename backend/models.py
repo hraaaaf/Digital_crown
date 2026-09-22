@@ -185,6 +185,24 @@ class TrialActivationCode(Base):
     created_by_admin: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by_admin_id])
     consumed_by_user: Mapped[Optional["User"]] = relationship("User", foreign_keys=[consumed_by_user_id])
 
+class CabinetMotif(Base):
+    __tablename__ = "cabinet_motifs"
+    __table_args__ = (
+        UniqueConstraint("employer_id", "public_id", name="uq_cabinet_motif_tenant_public_id"),
+        Index("ix_cabinet_motif_tenant_active", "employer_id", "is_active"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    category_id: Mapped[str] = mapped_column(String(64), nullable=False, default="CABINET")
+    urgency: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class Patient(Base):
     __tablename__ = "patients"
 
