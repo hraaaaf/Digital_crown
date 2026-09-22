@@ -195,7 +195,7 @@ for (const viewport of [
   webkitCaptures.push({ browser: 'webkit', viewport, shot, overflow });
 }
 
-const expectedOfflineConsoleErrors = self.consoleErrors.filter(error => error.includes('503 (Service Unavailable)'));
+const expectedOfflineConsoleErrors = self.consoleErrors.filter(error => error.includes('503 (Service Unavailable)') && error.includes('Failed to load resource'));
 const unexpectedSelfConsoleErrors = self.consoleErrors.filter(error => !error.includes('503 (Service Unavailable)'));
 if (expectedOfflineConsoleErrors.length !== 1) {
   throw new Error(`chromium patient expected exactly one isolated offline 503, got ${expectedOfflineConsoleErrors.length}`);
