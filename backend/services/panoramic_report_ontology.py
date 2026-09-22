@@ -39,3 +39,15 @@ PANORAMIC_EXPLICIT_NORMAL_TEXT: Dict[str, str] = {
 
 PANORAMIC_STATUS_VALUES = ("not_assessed", "normal", "abnormal")
 PANORAMIC_IMAGE_QUALITY_VALUES = ("not_assessed", "diagnostic", "limited", "non_diagnostic")
+
+
+PANORAMIC_DOMAIN_SECTION_TITLES: Dict[str, str] = {
+    "dental_anomalies": "DENTITION ET ANOMALIES DENTAIRES",
+    "restorations": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    "caries": "LÉSIONS CARIEUSES",
+    "apical": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "periodontium": "PARODONTE ET SUPPORT OSSEUX",
+    "jawbone": "MAXILLAIRE ET MANDIBULE",
+    "tmj": "ARTICULATIONS TEMPORO-MANDIBULAIRES",
+    "sinuses": "SINUS MAXILLAIRES",
+}
