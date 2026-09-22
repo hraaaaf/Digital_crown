@@ -1,3 +1,4 @@
+// CI bootstrap sync: runtime workflow now lives on master.
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, webkit, request } from 'playwright';
