@@ -14,12 +14,22 @@ from backend.routers.auth import get_current_user, require_permission
 router = APIRouter()
 
 Urgency = Literal["urgence", "normal", "planifié"]
+ALLOWED_CATEGORY_IDS = {
+    "DOULEUR", "URGENCE", "PARODONTAL", "ESTHETIQUE", "CONSERVATRICE",
+    "PROTHESE", "ORTHODONTIE", "IMPLANTOLOGIE", "PREVENTION", "CABINET",
+}
 
 
 class CabinetMotifCreate(BaseModel):
     label: str = Field(min_length=1, max_length=255)
     category_id: str = Field(default="CABINET", min_length=1, max_length=64)
     urgency: Urgency = "normal"
+
+    def normalized_category(self) -> str:
+        category = self.category_id.strip().upper() or "CABINET"
+        if category not in ALLOWED_CATEGORY_IDS:
+            raise HTTPException(status_code=422, detail="Catégorie de motif invalide.")
+        return category
 
 
 class CabinetMotifUpdate(BaseModel):
@@ -97,7 +107,7 @@ def create_cabinet_motif(
         public_id=f"cm_{uuid4().hex}",
         employer_id=tenant_id,
         label=label,
-        category_id=body.category_id.strip() or "CABINET",
+        category_id=body.normalized_category(),
         urgency=body.urgency,
         is_active=True,
     )
@@ -124,7 +134,10 @@ def update_cabinet_motif(
         _assert_unique_label(db, tenant_id, label, exclude_id=row.id)
         row.label = label
     if body.category_id is not None:
-        row.category_id = body.category_id.strip() or "CABINET"
+        category = body.category_id.strip().upper() or "CABINET"
+        if category not in ALLOWED_CATEGORY_IDS:
+            raise HTTPException(status_code=422, detail="Catégorie de motif invalide.")
+        row.category_id = category
     if body.urgency is not None:
         row.urgency = body.urgency
 
