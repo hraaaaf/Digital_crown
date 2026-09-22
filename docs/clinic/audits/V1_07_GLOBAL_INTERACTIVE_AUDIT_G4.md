@@ -360,3 +360,21 @@ The Panoramic report engine now has a corpus-grounded deterministic core:
 Certification plumbing was also corrected: T2 now runs the Panoramic backend semantic/PDF/API contracts before browser execution and supports `resume_from_27`, so already-certified steps 24–26 are not replayed for Panoramic-only iterations.
 
 Status remains NON CERTIFIED until these exact-head contracts and browser step 27 pass.
+
+
+## 2026-09-22 — Late G4 runtime/UI convergence
+Verified runtime progress before UI AFTER:
+- G4 Panoramic browser actions: PASS;
+- G4 RVG browser actions: PASS;
+- truth-label BEFORE capture: PASS at 390×844 and 1280×900;
+- Panoramic trash BEFORE capture: PASS at 390×844 and 1280×900;
+- G4 Cephalo browser actions: PASS;
+- Dashboard → patient Finances path: PASS.
+
+Implemented truth corrections now awaiting exact-head AFTER runtime:
+- installment footer action relabeled `Générer PDF` while `Enregistrer le plan` remains the persistence action;
+- Panoramic history destructive copy aligned with recoverable trash semantics;
+- Panoramic structured report decision-tree UI wired to persisted `report_context`;
+- dedicated AFTER browser certification added for 390×844 and 1280×900.
+
+Status remains NON CERTIFIED until the exact-head AFTER runtime gate is green and evidence is reviewed.
