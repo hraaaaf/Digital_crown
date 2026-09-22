@@ -145,6 +145,7 @@ class PrescriptionService(LegacyPrescriptionService):
             {
                 "id": preset.id,
                 "act_context": preset.act_code,
+                "label": preset.act_code.strip().lower().capitalize(),
                 "drugs": preset.drugs_json,
             }
             for preset in presets
