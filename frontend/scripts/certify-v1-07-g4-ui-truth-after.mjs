@@ -163,14 +163,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await structuredDetails.waitFor({ state: 'visible', timeout: 10000 });
   const isOpen = await structuredDetails.evaluate((node) => node.open);
   if (!isOpen) await structuredDetails.locator('summary').click();
-  const domainSelects = structuredDetails.locator('select[aria-label^="Revue structurée — "]');
-  await domainSelects.first().waitFor({ state: 'visible', timeout: 10000 });
-  if (await domainSelects.count() !== 8) throw new Error('structured review visual proof does not expose all 8 domains');
+  const visualDomainSelects = structuredDetails.locator('select[aria-label^="Revue structurée — "]');
+  await visualDomainSelects.first().waitFor({ state: 'visible', timeout: 10000 });
+  if (await visualDomainSelects.count() !== 8) throw new Error('structured review visual proof does not expose all 8 domains');
   await assertCompactPatientTabs();
   await waitForTransientToasts();
-  await domainSelects.first().scrollIntoViewIfNeeded();
+  await visualDomainSelects.first().scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(outDir, structuredShot), animations: 'disabled', fullPage: false });
-  await domainSelects.nth(7).scrollIntoViewIfNeeded();
+  await visualDomainSelects.nth(7).scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(outDir, structuredBottomShot), animations: 'disabled', fullPage: false });
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
