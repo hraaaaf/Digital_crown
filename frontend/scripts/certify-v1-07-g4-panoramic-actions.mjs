@@ -60,6 +60,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  const genP=page.waitForResponse(r=>r.url().endsWith('/api/ia/generate-panoramic-report')&&r.request().method()==='POST',{timeout:20000});
  await page.getByRole('button',{name:/VALIDER ET GÉNÉRER/i}).click(); const gen=await genP; if(!gen.ok()) throw new Error(`report generation ${gen.status()}`);
  const genBody=await gen.json(); if(!genBody?.report_narrative) throw new Error('report narrative missing');
+ if(!genBody.report_narrative.includes('### TECHNIQUE')||!genBody.report_narrative.includes('### SYNTHÈSE')) throw new Error('structured report headings missing');
 
  await page.getByRole('button',{name:'Bilan PDF',exact:true}).click();
  await page.getByTitle('Modifier le bilan (ligne par ligne)').click();
