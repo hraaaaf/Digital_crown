@@ -1,6 +1,6 @@
 # Digital Crown V1-07 — Global Interactive Audit — G4
 
-Status: IN PROGRESS
+Status: HUMAN VISUAL APPROVAL PENDING
 
 ## Goal
 Exhaustively certify deep clinical/business interactions inside the patient dossier: documents, prescriptions, certificates, accounting/honorarium flows, payments, treatment planning, odontogram, panoramic/RVG/cephalometry and related archives.
@@ -378,3 +378,22 @@ Implemented truth corrections now awaiting exact-head AFTER runtime:
 - dedicated AFTER browser certification added for 390×844 and 1280×900.
 
 Status remains NON CERTIFIED until the exact-head AFTER runtime gate is green and evidence is reviewed.
+
+
+## 2026-09-22 — Final AFTER evidence frozen before human approval
+Exact-head runtime evidence:
+- HEAD: `bb44d3b94315910b764ea0ac45c9c99b3869e458`;
+- T2 Runtime Browser Certification: run #35746764171 — SUCCESS;
+- artifact: `t2-browser-evidence` #10703605760;
+- digest: `sha256:ad51df192867f85d319af87a2fcf1077318a958c67e60866116876de39dc1d85`;
+- viewports: 390×844 and 1280×900;
+- AFTER harness summary: PASS;
+- no horizontal overflow, page errors or HTTP 5xx reported by the AFTER harness;
+- Panoramic structured review: 8 domains reachable; explicit normal/abnormal/not_assessed payload semantics and persistence verified;
+- Échéancier: `Générer PDF` visibly distinguished from `Enregistrer le plan`;
+- Panoramic trash wording: `Corbeille récupérable` visibly aligned with recoverable backend semantics;
+- patient mobile tabs: short labels remain inside their cells at 390×844.
+
+Visual review of the final AFTER captures found no remaining overlap/clipping defect in the corrected patient tabs or structured Panoramic review. The final mobile trash capture visibly frames `Corbeille récupérable`.
+
+G4 is **not yet certified** because the fail-closed `UI Human Visual Approval` gate still requires Achraf's explicit approval on this frozen candidate. No merge and no deployment are authorized.

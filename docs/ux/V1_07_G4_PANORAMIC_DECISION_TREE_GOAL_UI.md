@@ -1,6 +1,6 @@
 # V1-07 G4 — Panoramic Structured Report Decision Tree — Goal UI
 
-Status: BEFORE CAPTURED — AFTER IMPLEMENTED — RUNTIME CERTIFICATION PENDING
+Status: BEFORE + AFTER VERIFIED — HUMAN VISUAL APPROVAL PENDING
 
 ## Goal
 Expose the corpus-grounded Panoramic report context as a fast practitioner decision tree without changing automatic tooth localization or inventing clinical findings.
@@ -86,4 +86,20 @@ Implemented on the active G4 branch:
 - persisted flat backend context rehydrated into the UI domain state;
 - AFTER runtime script checks 390×844 and 1280×900, payload truth, persistence, report rendering, overflow, page errors and HTTP 5xx.
 
-Certification is still pending the exact-head AFTER workflow result.
+Exact-head AFTER is now verified on run #35746764171 at `bb44d3b94315910b764ea0ac45c9c99b3869e458`, artifact #10703605760 (digest `sha256:ad51df192867f85d319af87a2fcf1077318a958c67e60866116876de39dc1d85`).
+
+Observed AFTER evidence at 390×844 and 1280×900:
+- 8 review domains reachable;
+- explicit normal, abnormal and untouched `not_assessed` states verified;
+- abnormal note, clinical question and clinical answer persist and appear in the generated report;
+- no horizontal overflow, page errors or HTTP 5xx from the AFTER harness;
+- responsive hierarchy remains readable in top and bottom captures.
+
+Evidence-based visual score before human approval: **9.5/10**.
+- clinical truth/state clarity: 3/3
+- information hierarchy: 1.8/2
+- responsive/touch usability: 1.8/2
+- behavioral consistency/persistence: 2/2
+- runtime cleanliness: 0.9/1
+
+Remaining gate: explicit human visual approval only.
