@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 from backend.services.panoramic_report_ontology import (
+    PANORAMIC_DOMAIN_SECTION_TITLES,
     PANORAMIC_DOMAIN_TITLES,
     PANORAMIC_EXPLICIT_NORMAL_TEXT,
     PANORAMIC_REPORT_DOMAINS,
@@ -196,6 +197,30 @@ class PanoramicReportEngine:
                     "",
                 ])
 
+            context_lines_by_section: Dict[str, List[str]] = {}
+            context_synthesis: List[str] = []
+            unassessed_domains: List[str] = []
+            for domain in PANORAMIC_REPORT_DOMAINS:
+                raw = report_context.get(domain) or {}
+                status = raw.get("status", "not_assessed")
+                note = (raw.get("note") or "").strip()
+                section = PANORAMIC_DOMAIN_SECTION_TITLES[domain]
+                if status == "normal":
+                    context_lines_by_section.setdefault(section, []).append(
+                        PANORAMIC_EXPLICIT_NORMAL_TEXT[domain]
+                    )
+                elif status == "abnormal":
+                    title = PANORAMIC_DOMAIN_TITLES[domain]
+                    statement = (
+                        note
+                        if note
+                        else f"{title} : anomalie signalée par le praticien, détail non renseigné."
+                    )
+                    context_lines_by_section.setdefault(section, []).append(statement)
+                    context_synthesis.append(statement)
+                else:
+                    unassessed_domains.append(PANORAMIC_DOMAIN_TITLES[domain])
+
             ordered_sections = (
                 "DENTITION ET ANOMALIES DENTAIRES",
                 "RESTAURATIONS / PROTHÈSES / IMPLANTS",
@@ -208,12 +233,14 @@ class PanoramicReportEngine:
                 "AUTRES OBSERVATIONS DOCUMENTÉES",
             )
             for section in ordered_sections:
-                anomalies = section_items.get(section)
-                if not anomalies:
+                anomalies = section_items.get(section) or {}
+                context_lines = context_lines_by_section.get(section) or []
+                if not anomalies and not context_lines:
                     continue
                 lines.append(f"### {section}")
                 for anomaly_id in sorted(anomalies):
                     lines.append(f"- {self._observation_phrase(anomaly_id, anomalies[anomaly_id])}")
+                lines.extend(f"- {statement}" for statement in context_lines)
                 lines.append("")
 
             general_findings = [
@@ -226,30 +253,9 @@ class PanoramicReportEngine:
                 lines.extend(f"- {finding}." for finding in general_findings)
                 lines.append("")
 
-            structured_review = []
-            unassessed_domains = []
-            for domain in PANORAMIC_REPORT_DOMAINS:
-                raw = report_context.get(domain) or {}
-                status = raw.get("status", "not_assessed")
-                note = (raw.get("note") or "").strip()
-                if status == "normal":
-                    structured_review.append(PANORAMIC_EXPLICIT_NORMAL_TEXT[domain])
-                elif status == "abnormal":
-                    title = PANORAMIC_DOMAIN_TITLES[domain]
-                    structured_review.append(
-                        f"{title} : {note}" if note
-                        else f"{title} : anomalie signalée par le praticien, détail non renseigné."
-                    )
-                else:
-                    unassessed_domains.append(PANORAMIC_DOMAIN_TITLES[domain])
-
-            if structured_review:
-                lines.append("### REVUE STRUCTURÉE COMPLÉMENTAIRE")
-                lines.extend(f"- {item}" for item in structured_review)
-                lines.append("")
-
             lines.append("### SYNTHÈSE")
             synthesis = self._build_synthesis(section_items, general_findings)
+            synthesis.extend(context_synthesis)
             if synthesis:
                 lines.extend(f"- {item}" for item in synthesis)
             else:
