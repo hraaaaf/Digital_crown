@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -14,6 +14,7 @@ from backend.services.patient_companion_remote_worker import RemoteDomainResult
 
 PC08_MAX_BODY_BYTES = 4096
 PC08_SYNC_LIMIT = 20
+PC08_PATIENT_SENDS_PER_HOUR = 60
 
 
 def normalize_message_body(raw: Any) -> str:
@@ -122,6 +123,14 @@ def handle_message_send(
             status="ACCEPTED",
             response={"code": "MESSAGE_STORED", "message": serialize_message(existing)},
         )
+
+    cutoff = datetime.utcnow() - timedelta(hours=1)
+    recent_count = _scoped_query(db, access).filter(
+        PatientCompanionMessage.sender_kind == "PATIENT",
+        PatientCompanionMessage.created_at >= cutoff,
+    ).count()
+    if recent_count >= PC08_PATIENT_SENDS_PER_HOUR:
+        return _reject("MESSAGE_RATE_LIMITED")
 
     row = PatientCompanionMessage(
         access_id=access.id,
