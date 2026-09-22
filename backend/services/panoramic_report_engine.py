@@ -59,6 +59,44 @@ GLOBAL_FINDING_LABELS = {
     "edentement_total_mand": "Édentement total mandibulaire",
 }
 
+ANOMALY_SECTIONS = {
+    "carie_email": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "carie_dentinaire": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "carie_profonde": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "reprise_carie": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "obturation_comp": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "obturation_debord": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "lesion_periapicale": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "elargissement_desmo": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "tr_adequat": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "tr_incomplet": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "depassement_pate": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "instrument_fracture": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "perforation": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "dent_absente": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "agenesie": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "surnumeraire": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "incluse": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "enclavee": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "reste_radiculaire": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "resorption": "OBSERVATIONS DENTO-ALVÉOLAIRES",
+    "alveolyse_h": "OBSERVATIONS PARODONTALES",
+    "alveolyse_v": "OBSERVATIONS PARODONTALES",
+    "furcation": "OBSERVATIONS PARODONTALES",
+    "tartre": "OBSERVATIONS PARODONTALES",
+    "couronne": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+    "bridge": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+    "implant": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+    "appareil": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+    "peri_implantite": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+    "infiltration_prothese": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+    "opacite_sinus": "STRUCTURES ADJACENTES",
+    "racine_sinus": "STRUCTURES ADJACENTES",
+    "condyle_asymetrie": "STRUCTURES ADJACENTES",
+    "arthrose_atm": "STRUCTURES ADJACENTES",
+    "calcification": "STRUCTURES ADJACENTES",
+}
+
 
 class PanoramicReportEngine:
     """Deterministic formatter for practitioner-entered panoramic observations.
@@ -90,58 +128,70 @@ class PanoramicReportEngine:
                 for anomaly_id in anomalies:
                     teeth_ids[fdi].add(anomaly_id)
 
-            absent_teeth = sorted(
-                fdi
-                for fdi, ids in teeth_ids.items()
-                if "dent_absente" in ids or "agenesie" in ids
-            )
-
-            anomaly_map: Dict[str, List[int]] = {}
+            section_items: Dict[str, Dict[str, List[int]]] = {}
             for fdi, ids in teeth_ids.items():
                 for anomaly_id in ids:
-                    if anomaly_id in ("dent_absente", "agenesie"):
-                        continue
-                    anomaly_map.setdefault(anomaly_id, []).append(fdi)
-            for anomaly_id in anomaly_map:
-                anomaly_map[anomaly_id].sort()
+                    section = ANOMALY_SECTIONS.get(anomaly_id, "AUTRES OBSERVATIONS DOCUMENTÉES")
+                    section_items.setdefault(section, {}).setdefault(anomaly_id, []).append(fdi)
+
+            for anomalies in section_items.values():
+                for anomaly_id in anomalies:
+                    anomalies[anomaly_id].sort()
 
             lines: List[str] = [
-                "### SYNTHÈSE RADIOGRAPHIQUE",
-                f"- {self._build_synthesis(anomaly_map, absent_teeth, global_findings)}",
-                "",
                 "### TECHNIQUE",
-                "- Examen panoramique numérique.",
+                "- Radiographie panoramique numérique.",
+                "- Compte rendu déterministe limité aux constatations explicitement documentées et validées par le praticien.",
                 "",
-                "### RÉSULTATS",
             ]
 
             if "denture_mixte" in global_findings:
-                lines.append("- Observation praticien : denture mixte.")
-            else:
-                lines.append("- Type de dentition : non documenté par les annotations fournies.")
+                lines.extend([
+                    "### CONTEXTE DENTAIRE DOCUMENTÉ",
+                    "- Denture mixte documentée par le praticien.",
+                    "",
+                ])
 
-            if absent_teeth:
-                lines.append(
-                    f"- Observation praticien : {self._fmt_teeth_phrase(absent_teeth, 'Absence')}."
-                )
-
-            for anomaly_id in sorted(anomaly_map):
-                lines.append(
-                    "- Observation praticien : "
-                    + self._observation_phrase(anomaly_id, anomaly_map[anomaly_id])
-                )
-
-            for finding_id in global_findings:
-                if finding_id == "denture_mixte":
+            ordered_sections = (
+                "OBSERVATIONS DENTO-ALVÉOLAIRES",
+                "OBSERVATIONS PARODONTALES",
+                "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+                "STRUCTURES ADJACENTES",
+                "AUTRES OBSERVATIONS DOCUMENTÉES",
+            )
+            for section in ordered_sections:
+                anomalies = section_items.get(section)
+                if not anomalies:
                     continue
-                label = GLOBAL_FINDING_LABELS.get(finding_id, finding_id)
-                lines.append(f"- Observation praticien : {label}.")
+                lines.append(f"### {section}")
+                for anomaly_id in sorted(anomalies):
+                    lines.append(f"- {self._observation_phrase(anomaly_id, anomalies[anomaly_id])}")
+                lines.append("")
 
+            general_findings = [
+                GLOBAL_FINDING_LABELS.get(finding_id, finding_id)
+                for finding_id in global_findings
+                if finding_id != "denture_mixte"
+            ]
+            if general_findings:
+                lines.append("### CONSTATATIONS GÉNÉRALES")
+                lines.extend(f"- {finding}." for finding in general_findings)
+                lines.append("")
+
+            lines.append("### SYNTHÈSE")
+            synthesis = self._build_synthesis(section_items, general_findings)
+            if synthesis:
+                lines.extend(f"- {item}" for item in synthesis)
+            else:
+                lines.append(
+                    "- Aucune constatation n'a été documentée dans les annotations fournies ; "
+                    "cela ne constitue pas une conclusion de normalité radiographique."
+                )
             lines.append(
-                "- Structures ou territoires sans annotation explicite : non documentés / non évalués par ce rapport automatique."
+                "- Les territoires sans annotation explicite restent non documentés et ne sont pas déclarés normaux par ce compte rendu."
             )
             lines.append(
-                "- Interprétation diagnostique et conduite thérapeutique : décision du praticien à partir de l'image et du contexte clinique."
+                "- Toute interprétation diagnostique ou décision thérapeutique relève du praticien après corrélation avec l'examen clinique."
             )
 
             return "\n".join(lines)
@@ -169,24 +219,22 @@ class PanoramicReportEngine:
         label = ANOMALY_LABELS.get(anomaly_id, anomaly_id)
         if anomaly_id in {"condyle_asymetrie", "arthrose_atm"}:
             return f"{label}."
-        return f"{label} sur {self._teeth_list(fdis)}."
+        return f"{label} — {self._teeth_list(fdis)}."
 
-    def _build_synthesis(self, anomaly_map, absent_teeth, global_findings) -> str:
-        observation_count = sum(len(fdis) for fdis in anomaly_map.values()) + len(absent_teeth)
-        general_count = len([finding for finding in global_findings if finding != "denture_mixte"])
-
-        if observation_count == 0 and general_count == 0:
-            return (
-                "Aucune anomalie n'a été documentée dans les annotations fournies. "
-                "Cela ne constitue pas une conclusion de normalité radiographique."
-            )
-
-        parts = []
-        if observation_count:
-            parts.append(f"{observation_count} observation(s) dentaire(s) documentée(s) par le praticien")
-        if general_count:
-            parts.append(f"{general_count} constat(s) général(aux) documenté(s) par le praticien")
-        return "; ".join(parts) + "."
+    def _build_synthesis(self, section_items, general_findings: List[str]) -> List[str]:
+        items: List[str] = []
+        for section in (
+            "OBSERVATIONS DENTO-ALVÉOLAIRES",
+            "OBSERVATIONS PARODONTALES",
+            "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
+            "STRUCTURES ADJACENTES",
+            "AUTRES OBSERVATIONS DOCUMENTÉES",
+        ):
+            anomalies = section_items.get(section) or {}
+            for anomaly_id in sorted(anomalies):
+                items.append(self._observation_phrase(anomaly_id, anomalies[anomaly_id]))
+        items.extend(f"{finding}." for finding in general_findings)
+        return items
 
 
 panoramic_report_engine = PanoramicReportEngine()
