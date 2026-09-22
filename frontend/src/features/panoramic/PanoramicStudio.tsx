@@ -80,6 +80,25 @@ const createDefaultReportContext = (): PanoramicReportContext => ({
   }
 });
 
+const reportContextFromStored = (stored: any): PanoramicReportContext => {
+  const next = createDefaultReportContext();
+  if (!stored || typeof stored !== 'object') return next;
+  next.clinical_question = stored.clinical_question || '';
+  next.clinical_answer = stored.clinical_answer || '';
+  next.image_quality = stored.image_quality || 'not_assessed';
+  next.image_quality_note = stored.image_quality_note || '';
+  for (const domain of PANORAMIC_REPORT_DOMAINS) {
+    const assessment = stored[domain.key];
+    if (assessment && typeof assessment === 'object') {
+      next.domains[domain.key] = {
+        status: assessment.status || 'not_assessed',
+        note: assessment.note || ''
+      };
+    }
+  }
+  return next;
+};
+
 const URGENT_ANOMALY_IDS = new Set([
   'carie_profonde', 'lesion_periapicale', 'perforation', 'peri_implantite', 'reste_radiculaire'
 ]);
@@ -135,11 +154,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     };
     setAnnotations(analysis.detections_data?.visual_annotations || []);
     const storedContext = analysis.detections_data?.report_context;
-    setReportContext(storedContext ? {
-      ...createDefaultReportContext(),
-      ...storedContext,
-      domains: { ...createDefaultReportContext().domains, ...(storedContext.domains || {}) }
-    } : createDefaultReportContext());
+    setReportContext(reportContextFromStored(storedContext));
 
     if (compareMode) {
       setCompareResult(data);
