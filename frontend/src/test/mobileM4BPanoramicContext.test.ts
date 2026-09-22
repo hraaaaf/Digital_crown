@@ -12,7 +12,9 @@ describe('M4-B panoramic contextual mobile bridge', () => {
     expect(historySource).toContain('/panoramic-analyses');
     expect(historySource).not.toContain('/panoramic-trash');
     expect(historySource).not.toContain('/restore');
-    expect(historySource).toContain('Supprimer définitivement');
+    expect(historySource).toContain('Corbeille récupérable');
+    expect(historySource).toContain("Mettre l'examen panoramique à la corbeille");
+    expect(historySource).not.toContain('Supprimer définitivement');
   });
 
   it('adds an exact panoramic bridge action on each analysis row with 44px touch controls', () => {
