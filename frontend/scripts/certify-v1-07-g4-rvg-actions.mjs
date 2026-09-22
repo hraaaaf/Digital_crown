@@ -17,7 +17,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=radiology&radioTab=rvg`,{waitUntil:'networkidle',timeout:90000});
  await page.getByRole('button',{name:'Ajouter une RVG',exact:true}).click();
  await page.locator('input[type=file]').setInputFiles({name:`g4-rvg-${viewport.width}.png`,mimeType:'image/png',buffer:png});
- await page.locator('select').selectOption('periapical');
+ await page.getByRole('region',{name:'Radios RVG et intra-orales'}).getByRole('combobox').selectOption('periapical');
  await page.getByPlaceholder('ex: 16, 27, 38').fill('16'); await page.getByPlaceholder('ex: UR, LL').fill('UR');
  const noteText=`G4 RVG browser proof ${viewport.width}`; await page.getByLabel(/Note/i).fill(noteText);
  const upP=page.waitForResponse(r=>r.url().includes(`/api/documents/patients/${patient.id}/rvg`)&&r.request().method()==='POST');
