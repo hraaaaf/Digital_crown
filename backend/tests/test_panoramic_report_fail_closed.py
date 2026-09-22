@@ -152,7 +152,8 @@ def test_structured_context_abnormal_note_is_preserved_without_diagnostic_upgrad
     )
 
     assert "Qualité limitée pour la lecture panoramique. Superposition cervicale antérieure." in report
-    assert "Sinus maxillaires : Voile radio-opaque du sinus maxillaire gauche à corréler au contexte clinique." in report
+    assert "### SINUS MAXILLAIRES" in report
+    assert "Voile radio-opaque du sinus maxillaire gauche à corréler au contexte clinique." in report
     assert "diagnostic automatique" not in report.lower()
 
 
