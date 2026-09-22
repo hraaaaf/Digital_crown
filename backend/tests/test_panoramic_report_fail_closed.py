@@ -126,6 +126,7 @@ def test_structured_context_renders_only_explicit_practitioner_normal_states():
         global_findings=[],
         report_context={
             "clinical_question": "Recherche de foyer infectieux avant traitement médical.",
+            "clinical_answer": "Aucun foyer infectieux n'est retenu dans les constatations explicitement validées.",
             "image_quality": "diagnostic",
             "caries": {"status": "normal", "note": None},
             "jawbone": {"status": "normal", "note": None},
@@ -135,6 +136,8 @@ def test_structured_context_renders_only_explicit_practitioner_normal_states():
 
     assert "### QUESTION CLINIQUE" in report
     assert "Recherche de foyer infectieux avant traitement médical." in report
+    assert "### RÉPONSE À LA QUESTION CLINIQUE" in report
+    assert "Aucun foyer infectieux n'est retenu dans les constatations explicitement validées." in report
     assert "Qualité jugée suffisante par le praticien" in report
     assert "Pas d'autre image carieuse documentée." in report
     assert "Pas d'anomalie osseuse maxillo-mandibulaire documentée." in report
