@@ -13,6 +13,7 @@ import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
 import { IEProphylaxisRulePanel } from './IEProphylaxisRulePanel';
 import { PatientClinicalContextPanel } from './PatientClinicalContextPanel';
+import { PrescriptionPresetBar } from './PrescriptionPresetBar';
 import { FORMES, type DrugItem } from './prescriptionTypes';
 
 export interface PrescriptionAgenticStudioProps {
@@ -225,6 +226,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </div>
         </div>
       </section>
+
+      <PrescriptionPresetBar drugs={drugs} setDrugs={setDrugs} />
 
       <div className="space-y-3">
         {drugs.map((drug, idx) => (
