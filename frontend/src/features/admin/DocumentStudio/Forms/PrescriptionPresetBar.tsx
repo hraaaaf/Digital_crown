@@ -7,6 +7,7 @@ import type { DrugItem } from './prescriptionTypes';
 type PresetSummary = {
   id: number;
   act_context: string;
+  label?: string;
   drugs: Array<Partial<DrugItem>>;
 };
 
@@ -194,11 +195,11 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
                 className="inline-flex min-w-0 items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-text-main transition hover:bg-primary/5 hover:text-primary"
               >
                 <FileText size={14} className="shrink-0" />
-                <span className="truncate">{preset.act_context}</span>
+                <span className="truncate">{preset.label || preset.act_context}</span>
               </button>
               <button
                 type="button"
-                aria-label={`Supprimer le preset ${preset.act_context}`}
+                aria-label={`Supprimer le preset ${preset.label || preset.act_context}`}
                 disabled={deletingId !== null}
                 onClick={() => void deletePreset(preset)}
                 className="inline-flex w-10 shrink-0 items-center justify-center border-l border-border-main text-text-muted transition hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
@@ -231,7 +232,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
               Remplacer les lignes actuelles ?
             </h3>
             <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
-              Le preset « {pendingApply.act_context} » remplacera uniquement les lignes de prescription. Le patient, la date et l’indication restent inchangés.
+              Le preset « {pendingApply.label || pendingApply.act_context} » remplacera uniquement les lignes de prescription. Le patient, la date et l’indication restent inchangés.
             </p>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
