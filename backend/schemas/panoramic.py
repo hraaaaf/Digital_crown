@@ -103,6 +103,25 @@ class PanoramicVisualAnnotation(BaseModel):
     text: str
 
 
+class PanoramicDomainAssessment(BaseModel):
+    status: Literal["not_assessed", "normal", "abnormal"] = "not_assessed"
+    note: Optional[str] = None
+
+
+class PanoramicReportContext(BaseModel):
+    clinical_question: Optional[str] = None
+    image_quality: Literal["not_assessed", "diagnostic", "limited", "non_diagnostic"] = "not_assessed"
+    image_quality_note: Optional[str] = None
+    dental_anomalies: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+    restorations: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+    caries: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+    apical: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+    periodontium: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+    jawbone: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+    tmj: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+    sinuses: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
+
+
 class PanoramicReportRequest(BaseModel):
     """Demande de génération de rapport basé sur les annotations manuelles."""
     analysis_id: int
@@ -110,6 +129,7 @@ class PanoramicReportRequest(BaseModel):
     global_findings: Optional[List[str]] = Field(default_factory=list)
     rejected_detections: Optional[List[int]] = Field(default_factory=list)
     visual_annotations: Optional[List[PanoramicVisualAnnotation]] = Field(default_factory=list)
+    report_context: Optional[PanoramicReportContext] = None
 
 
 class PanoramicReportEdit(BaseModel):
