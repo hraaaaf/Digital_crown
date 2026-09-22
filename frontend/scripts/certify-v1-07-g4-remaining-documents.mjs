@@ -250,8 +250,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('installment-reminder');
   await exercisePreview(page);
   actions.push('installment-preview');
+  const generatePdf = page.getByRole('button', { name: 'Générer PDF', exact: true });
+  await generatePdf.click({ trial: true, timeout: 30000 });
   responsePromise = page.waitForResponse(response => response.url().includes('/api/installments/generate-preview') && response.request().method() === 'POST', { timeout: 30000 });
-  await page.getByRole('button', { name: 'Générer PDF', exact: true }).click();
+  await generatePdf.click();
   const installmentGenerateResponse = await responsePromise;
   if (!installmentGenerateResponse.ok()) throw new Error('installment footer generation failed');
   actions.push('installment-footer-generer-pdf-is-preview-only');
