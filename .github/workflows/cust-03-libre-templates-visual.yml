@@ -64,8 +64,10 @@ jobs:
           import { createRoot } from 'react-dom/client';
           import './index.css';
           import { LibreForm } from './features/admin/DocumentStudio/Forms/LibreForm';
+          import { TemplateOverwriteDialog } from './features/admin/DocumentStudio/Forms/TemplateOverwriteDialog';
 
           function Harness() {
+            const params = new URLSearchParams(window.location.search);
             const [title, setTitle] = useState('Lettre au médecin traitant');
             const [content, setContent] = useState('Cher confrère, merci de recevoir ce patient pour avis spécialisé.\n\nBien confraternellement.');
             const [customPatient, setCustomPatient] = useState('');
@@ -73,6 +75,17 @@ jobs:
             const [hideHeader, setHideHeader] = useState(false);
             const [pageSize, setPageSize] = useState<'A5' | 'A4'>('A5');
             const [alignment, setAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
+
+            if (params.get('overwrite') === '1') {
+              return (
+                <TemplateOverwriteDialog
+                  modelName="Lettre confrère"
+                  scopeLabel="Document libre"
+                  onCancel={() => {}}
+                  onConfirm={() => {}}
+                />
+              );
+            }
 
             return (
               <main className="mx-auto max-w-5xl px-3 py-4 sm:px-5">
@@ -173,13 +186,17 @@ jobs:
             rows.push({ kind, viewport, overflow, errors: [...errors], shot });
 
             if (kind === 'after') {
-              await page.getByRole('button', { name: 'Lettre confrère' }).click();
-              await page.locator('#template-overwrite-title').waitFor();
-              const overwriteOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+              const overwritePage = await context.newPage();
+              const overwriteErrors = [];
+              overwritePage.on('pageerror', e => overwriteErrors.push(String(e)));
+              overwritePage.on('console', m => { if (m.type() === 'error') overwriteErrors.push(m.text()); });
+              await overwritePage.goto(`http://127.0.0.1:${port}/cust03-libre.html?overwrite=1`, { waitUntil: 'networkidle' });
+              await overwritePage.locator('#template-overwrite-title').waitFor();
+              const overwriteOverflow = await overwritePage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
               const overwriteShot = `after-overwrite-${viewport.width}x${viewport.height}.png`;
-              await page.screenshot({ path: path.join(output, overwriteShot), fullPage: true, animations: 'disabled' });
-              rows.push({ kind:'after-overwrite', viewport, overflow:overwriteOverflow, errors:[...errors], shot:overwriteShot });
-              await page.getByRole('button', { name: 'Conserver mon brouillon' }).click();
+              await overwritePage.screenshot({ path: path.join(output, overwriteShot), fullPage: true, animations: 'disabled' });
+              rows.push({ kind:'after-overwrite', viewport, overflow:overwriteOverflow, errors:overwriteErrors, shot:overwriteShot });
+              await overwritePage.close();
 
               await page.getByRole('button', { name: 'Enregistrer comme modèle' }).click();
               await page.getByRole('dialog', { name: 'Enregistrer comme modèle' }).waitFor();
