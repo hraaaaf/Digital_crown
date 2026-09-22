@@ -128,7 +128,8 @@ const staffReply = 'Réponse sécurisée du cabinet — votre message a bien ét
 await staffPage.getByPlaceholder('Écrire au patient…').fill(staffReply);
 await staffPage.getByRole('button', { name: 'Envoyer' }).click();
 await staffPage.getByText(staffReply, { exact: true }).waitFor({ timeout: 30000 });
-await staffPage.getByText('Envoyé depuis le cabinet', { exact: true }).waitFor({ timeout: 30000 });
+const staffReplyBubble = staffPage.getByText(staffReply, { exact: true }).locator('..');
+await staffReplyBubble.getByText(/· Envoyé depuis le cabinet$/, { exact: false }).waitFor({ timeout: 30000 });
 
 const staffCaptures = [];
 for (const viewport of [
