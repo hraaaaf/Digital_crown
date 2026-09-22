@@ -11,6 +11,7 @@ on:
       - "backend/routers/patient_companion_messages.py"
       - "backend/services/patient_companion_messages.py"
       - "backend/services/patient_companion_remote_worker.py"
+      - "backend/utils/rate_limit.py"
       - "backend/tests/test_patient_companion_messages.py"
       - "frontend/src/features/patient-companion/PatientCompanionMessageTransport.ts"
       - "frontend/src/features/patient-companion/PatientCompanionMessageTransport.test.ts"
