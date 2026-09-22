@@ -266,3 +266,13 @@ class TestPanoramicAnalyses:
         assert context["image_quality"] == "diagnostic"
         assert context["caries"]["status"] == "abnormal"
         assert context["jawbone"]["status"] == "normal"
+
+        history = client.get(
+            f"/api/ia/patients/{pat.id}/panoramic-analyses",
+            headers=auth_headers,
+        )
+        assert history.status_code == 200
+        history_item = next(item for item in history.json() if item["id"] == analysis.id)
+        persisted_context = history_item["detections_data"]["report_context"]
+        assert persisted_context["clinical_question"] == "Bilan préthérapeutique."
+        assert persisted_context["caries"]["note"] == "Image carieuse documentée en 16."
