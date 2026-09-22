@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
-import { CheckCircle2, Clock, Edit3, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Edit3, AlertCircle, FileText, Plus, X } from 'lucide-react';
 import { api } from '../../../../services/api';
 import {
   CERTIFICATE_TYPE_FREE,
@@ -10,6 +10,219 @@ import {
   certificateRequiresDuration,
   normalizeCertificateSelection,
 } from '../CertificatePolicy';
+
+type CertificateTemplateSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+};
+
+type CertificateTemplateDetail = CertificateTemplateSummary & {
+  body_html?: string | null;
+};
+
+export const CertificateTemplatePresets: React.FC<{
+  content: string;
+  onApply: (content: string) => void;
+}> = ({ content, onApply }) => {
+  const [templates, setTemplates] = React.useState<CertificateTemplateSummary[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [applyingId, setApplyingId] = React.useState<string | null>(null);
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [templateName, setTemplateName] = React.useState('');
+  const [templateBody, setTemplateBody] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const loadTemplates = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get('/templates', {
+        params: { type: 'CERTIFICAT', is_system: false },
+      });
+      setTemplates(Array.isArray(response?.data) ? response.data : []);
+    } catch {
+      setTemplates([]);
+      setError('Impossible de charger les modèles du cabinet.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadTemplates();
+  }, [loadTemplates]);
+
+  const applyTemplate = async (templateId: string) => {
+    if (applyingId) return;
+    setApplyingId(templateId);
+    setError('');
+    try {
+      const response = await api.get(`/templates/${templateId}`);
+      const body = String((response?.data as CertificateTemplateDetail | undefined)?.body_html || '').trim();
+      if (!body) {
+        setError('Ce modèle ne contient aucun texte réutilisable.');
+        return;
+      }
+      onApply(body);
+    } catch {
+      setError('Impossible d’appliquer ce modèle.');
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
+  const openCreate = () => {
+    setTemplateName('');
+    setTemplateBody(content);
+    setError('');
+    setShowCreate(true);
+  };
+
+  const createTemplate = async () => {
+    const name = templateName.trim();
+    const body = templateBody.trim();
+    if (!name || body.length < 10 || saving) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const response = await api.post('/templates', {
+        type: 'CERTIFICAT',
+        style_key: 'saninova',
+        name,
+        description: 'Modèle de certificat médical du cabinet',
+        body_html: body,
+        is_system: false,
+        is_default: false,
+      });
+      const created = response?.data as CertificateTemplateDetail | undefined;
+      if (created?.id) {
+        setTemplates(prev => [
+          ...prev.filter(item => item.id !== created.id),
+          { id: created.id, name: created.name, description: created.description },
+        ]);
+      } else {
+        await loadTemplates();
+      }
+      onApply(body);
+      setShowCreate(false);
+    } catch (requestError: any) {
+      const status = requestError?.response?.status;
+      setError(
+        status === 403
+          ? 'Vous n’avez pas l’autorisation de créer un modèle.'
+          : requestError?.response?.data?.detail || 'Impossible d’enregistrer ce modèle.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mb-6 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Modèles du cabinet</div>
+          <p className="mt-1 text-[10px] font-semibold text-slate-500">
+            Un modèle est appliqué uniquement après votre clic et reste entièrement éditable.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreate}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary/5"
+        >
+          <Plus size={14} /> Créer un modèle
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2" aria-label="Modèles de certificat du cabinet">
+        {loading ? (
+          <span className="text-[10px] font-bold text-slate-400">Chargement des modèles…</span>
+        ) : templates.length > 0 ? (
+          templates.map(template => (
+            <button
+              key={template.id}
+              type="button"
+              onClick={() => void applyTemplate(template.id)}
+              disabled={applyingId !== null}
+              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[11px] font-bold text-slate-600 transition-all hover:border-primary/30 hover:text-primary disabled:opacity-50"
+            >
+              <FileText size={14} className="shrink-0" />
+              <span className="truncate">{template.name}</span>
+            </button>
+          ))
+        ) : (
+          <span className="text-[10px] font-bold text-slate-400">Aucun modèle personnalisé enregistré.</span>
+        )}
+      </div>
+
+      <p className="mt-3 text-[9px] font-bold leading-relaxed text-slate-400">
+        Appliquer un modèle copie son texte dans le brouillon. Le praticien doit le relire et le valider avant génération.
+      </p>
+
+      {error && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">{error}</p>}
+
+      {showCreate && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="certificate-template-create-title">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Modèle du cabinet</p>
+                <h3 id="certificate-template-create-title" className="mt-1 text-lg font-black text-slate-900">Créer un modèle</h3>
+              </div>
+              <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50" aria-label="Fermer">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-600">Nom du modèle *</span>
+                <input
+                  value={templateName}
+                  onChange={event => setTemplateName(event.target.value)}
+                  maxLength={100}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  placeholder="Ex. Certificat aptitude traitement"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-600">Contenu du modèle *</span>
+                <textarea
+                  value={templateBody}
+                  onChange={event => setTemplateBody(event.target.value)}
+                  className="min-h-44 w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  placeholder="Texte réutilisable du certificat…"
+                  aria-label="Contenu du modèle"
+                />
+              </label>
+              <p className="text-[10px] font-semibold text-slate-500">
+                Le modèle ne fixe ni la nature clinique ni une durée. Il prépare uniquement le texte libre.
+              </p>
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => setShowCreate(false)} className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void createTemplate()}
+                disabled={!templateName.trim() || templateBody.trim().length < 10 || saving}
+                className="min-h-10 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-40"
+              >
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface CertificateFormProps {
   patientId: string;
@@ -141,6 +354,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
 
             {certifType === CERTIFICATE_TYPE_FREE && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+                <CertificateTemplatePresets content={certifCustomMotif} onApply={setCertifCustomMotif} />
                 <label htmlFor="certificate-free-content" className={labelClass}>Contenu du certificat médical</label>
                 <textarea
                   id="certificate-free-content"
