@@ -281,6 +281,13 @@ jobs:
           set -o pipefail
           node scripts/certify-v1-07-dashboard-finance-path.mjs 2>&1 | tee ../artifacts/t2-browser/dashboard-finance-path-runner.log
 
+      - name: Certify G4 UI truth AFTER
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-ui-truth-after.mjs 2>&1 | tee ../artifacts/t2-browser/g4-ui-truth-after-runner.log
+
       - name: Dump runtime logs on failure
         if: failure()
         run: |
