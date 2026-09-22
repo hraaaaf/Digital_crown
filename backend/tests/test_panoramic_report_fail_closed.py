@@ -248,3 +248,33 @@ def test_regression_corpus_preserves_required_and_forbidden_report_contracts():
             assert token in report, f'{case["id"]}: missing {token}'
         for token in case["forbidden"]:
             assert token not in report, f'{case["id"]}: forbidden {token}'
+
+
+def test_partial_explicit_normal_review_does_not_claim_global_normality():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={},
+        global_findings=[],
+        report_context={
+            "image_quality": "diagnostic",
+            "caries": {"status": "normal"},
+            "jawbone": {"status": "normal"},
+        },
+    )
+
+    assert "Aucune anomalie n'a été documentée parmi les domaines explicitement évalués par le praticien." in report
+    assert "Aucune anomalie n'a été documentée dans les huit domaines" not in report
+    assert "Domaines non évalués explicitement" in report
+
+
+def test_complete_explicit_normal_review_can_state_all_eight_reviewed_domains():
+    report = PanoramicReportEngine().generate_markdown(
+        manual_anomalies={},
+        global_findings=[],
+        report_context={
+            "image_quality": "diagnostic",
+            **{domain: {"status": "normal"} for domain in PANORAMIC_REPORT_DOMAINS},
+        },
+    )
+
+    assert "Aucune anomalie n'a été documentée dans les huit domaines explicitement évalués par le praticien." in report
+    assert "Domaines non évalués explicitement" not in report
