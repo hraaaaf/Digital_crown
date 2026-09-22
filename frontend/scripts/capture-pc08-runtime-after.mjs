@@ -117,7 +117,7 @@ await staffPage.getByText(selfBody, { exact: true }).waitFor({ timeout: 30000 })
 // canonical staff-read mutation and updates the thread state after the 200.
 // Wait for the UI truth directly; backend logs/API tests independently prove
 // the mutation endpoint and persistence semantics.
-await staffPage.getByText('Lu par le cabinet', { exact: true }).waitFor({ timeout: 30000 });
+await staffPage.getByText('Lu', { exact: true }).waitFor({ timeout: 30000 });
 
 const staffReply = 'Réponse sécurisée du cabinet — votre message a bien été consulté.';
 await staffPage.getByPlaceholder('Écrire au patient…').fill(staffReply);
