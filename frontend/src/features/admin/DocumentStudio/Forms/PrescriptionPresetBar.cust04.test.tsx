@@ -87,7 +87,7 @@ describe('CUST-04 practitioner prescription presets', () => {
     expect(await screen.findByRole('dialog', { name: /Remplacer les lignes actuelles/i })).toBeTruthy();
     expect(setDrugs).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Conserver mon brouillon/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Conserver l’ordonnance actuelle/i }));
     expect(setDrugs).not.toHaveBeenCalled();
   });
 
@@ -97,8 +97,8 @@ describe('CUST-04 practitioner prescription presets', () => {
 
     render(<PrescriptionPresetBar drugs={[currentDrug] as never} setDrugs={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Enregistrer ce brouillon/i }));
-    fireEvent.change(screen.getByRole('textbox', { name: /Nom du preset/i }), {
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer comme modèle/i }));
+    fireEvent.change(screen.getByRole('textbox', { name: /Nom du modèle/i }), {
       target: { value: 'Mon post-op' },
     });
     fireEvent.click(screen.getByRole('button', { name: /^Enregistrer$/i }));
@@ -125,7 +125,7 @@ describe('CUST-04 practitioner prescription presets', () => {
 
     render(<PrescriptionPresetBar drugs={[]} setDrugs={vi.fn()} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /Supprimer le preset Preset test/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Supprimer le modèle Preset test/i }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/prescriptions/preferences/PRESET%20TEST'));
   });
