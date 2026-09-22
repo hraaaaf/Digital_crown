@@ -66,41 +66,49 @@ GLOBAL_FINDING_LABELS = {
 }
 
 ANOMALY_SECTIONS = {
-    "carie_email": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "carie_dentinaire": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "carie_profonde": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "reprise_carie": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "obturation_comp": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "obturation_debord": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "lesion_periapicale": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "elargissement_desmo": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "tr_adequat": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "tr_incomplet": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "depassement_pate": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "instrument_fracture": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "perforation": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "dent_absente": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "agenesie": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "surnumeraire": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "incluse": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "enclavee": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "reste_radiculaire": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "resorption": "OBSERVATIONS DENTO-ALVÉOLAIRES",
-    "alveolyse_h": "OBSERVATIONS PARODONTALES",
-    "alveolyse_v": "OBSERVATIONS PARODONTALES",
-    "furcation": "OBSERVATIONS PARODONTALES",
-    "tartre": "OBSERVATIONS PARODONTALES",
-    "couronne": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-    "bridge": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-    "implant": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-    "appareil": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-    "peri_implantite": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-    "infiltration_prothese": "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-    "opacite_sinus": "STRUCTURES ADJACENTES",
-    "racine_sinus": "STRUCTURES ADJACENTES",
-    "condyle_asymetrie": "STRUCTURES ADJACENTES",
-    "arthrose_atm": "STRUCTURES ADJACENTES",
-    "calcification": "STRUCTURES ADJACENTES",
+    # Caries
+    "carie_email": "LÉSIONS CARIEUSES",
+    "carie_dentinaire": "LÉSIONS CARIEUSES",
+    "carie_profonde": "LÉSIONS CARIEUSES",
+    "reprise_carie": "LÉSIONS CARIEUSES",
+    # Restaurations / prothèses / implants
+    "obturation_comp": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    "obturation_debord": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    "couronne": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    "bridge": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    "implant": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    "appareil": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    "infiltration_prothese": "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+    # Périapical / endodontie
+    "lesion_periapicale": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "elargissement_desmo": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "tr_adequat": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "tr_incomplet": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "depassement_pate": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "instrument_fracture": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "perforation": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    "resorption": "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+    # Parodonte
+    "alveolyse_h": "PARODONTE ET SUPPORT OSSEUX",
+    "alveolyse_v": "PARODONTE ET SUPPORT OSSEUX",
+    "furcation": "PARODONTE ET SUPPORT OSSEUX",
+    "tartre": "PARODONTE ET SUPPORT OSSEUX",
+    "peri_implantite": "PARODONTE ET SUPPORT OSSEUX",
+    # Dentition / anomalies dentaires
+    "dent_absente": "DENTITION ET ANOMALIES DENTAIRES",
+    "agenesie": "DENTITION ET ANOMALIES DENTAIRES",
+    "surnumeraire": "DENTITION ET ANOMALIES DENTAIRES",
+    "incluse": "DENTITION ET ANOMALIES DENTAIRES",
+    "enclavee": "DENTITION ET ANOMALIES DENTAIRES",
+    "reste_radiculaire": "DENTITION ET ANOMALIES DENTAIRES",
+    # ATM
+    "condyle_asymetrie": "ARTICULATIONS TEMPORO-MANDIBULAIRES",
+    "arthrose_atm": "ARTICULATIONS TEMPORO-MANDIBULAIRES",
+    # Sinus
+    "opacite_sinus": "SINUS MAXILLAIRES",
+    "racine_sinus": "SINUS MAXILLAIRES",
+    # Non classé dans les domaines clés du template source
+    "calcification": "AUTRES OBSERVATIONS DOCUMENTÉES",
 }
 
 
@@ -189,10 +197,14 @@ class PanoramicReportEngine:
                 ])
 
             ordered_sections = (
-                "OBSERVATIONS DENTO-ALVÉOLAIRES",
-                "OBSERVATIONS PARODONTALES",
-                "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-                "STRUCTURES ADJACENTES",
+                "DENTITION ET ANOMALIES DENTAIRES",
+                "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+                "LÉSIONS CARIEUSES",
+                "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+                "PARODONTE ET SUPPORT OSSEUX",
+                "MAXILLAIRE ET MANDIBULE",
+                "ARTICULATIONS TEMPORO-MANDIBULAIRES",
+                "SINUS MAXILLAIRES",
                 "AUTRES OBSERVATIONS DOCUMENTÉES",
             )
             for section in ordered_sections:
@@ -286,10 +298,14 @@ class PanoramicReportEngine:
     def _build_synthesis(self, section_items, general_findings: List[str]) -> List[str]:
         items: List[str] = []
         for section in (
-            "OBSERVATIONS DENTO-ALVÉOLAIRES",
-            "OBSERVATIONS PARODONTALES",
-            "OBSERVATIONS PROTHÉTIQUES / IMPLANTAIRES",
-            "STRUCTURES ADJACENTES",
+            "DENTITION ET ANOMALIES DENTAIRES",
+            "RESTAURATIONS / PROTHÈSES / IMPLANTS",
+            "LÉSIONS CARIEUSES",
+            "RÉGIONS PÉRIAPICALES / ENDODONTIE",
+            "PARODONTE ET SUPPORT OSSEUX",
+            "MAXILLAIRE ET MANDIBULE",
+            "ARTICULATIONS TEMPORO-MANDIBULAIRES",
+            "SINUS MAXILLAIRES",
             "AUTRES OBSERVATIONS DOCUMENTÉES",
         ):
             anomalies = section_items.get(section) or {}
