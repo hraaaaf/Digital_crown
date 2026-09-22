@@ -166,7 +166,7 @@ jobs:
 
             if (kind === 'after') {
               await page.getByRole('button', { name: 'Aptitude traitement' }).click();
-              await page.getByRole('dialog', { name: 'Remplacer le brouillon actuel ?' }).waitFor();
+              await page.locator('#template-overwrite-title').waitFor();
               const overwriteOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
               const overwriteShot = `after-overwrite-${viewport.width}x${viewport.height}.png`;
               await page.screenshot({ path: path.join(output, overwriteShot), fullPage: true, animations: 'disabled' });
