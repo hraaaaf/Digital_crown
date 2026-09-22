@@ -59,6 +59,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     }
   };
 
+  const waitForTransientToasts = async () => {
+    await page.waitForFunction(() => {
+      const nodes = Array.from(document.querySelectorAll('[data-rht-toaster] [role="status"]'));
+      return nodes.every((node) => {
+        const style = window.getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < 0.02 || rect.width === 0 || rect.height === 0;
+      });
+    }, { timeout: 15000 });
+  };
+
   const seeded = await api.post(`/api/ia/upload-panoramic?patient_id=${patient.id}`, {
     headers,
     multipart: { file: { name: `g4-ui-after-${viewport.width}x${viewport.height}.png`, mimeType: 'image/png', buffer: png } }
@@ -89,11 +100,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Historique', exact: true }).click();
   const history = page.locator('[data-m4b-history]');
   await history.waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByText('Corbeille récupérable', { exact: true }).waitFor({ state: 'visible' });
+  const trashLabel = page.getByText('Corbeille récupérable', { exact: true });
+  await trashLabel.waitFor({ state: 'visible' });
   const trashAction = page.getByRole('button', { name: "Mettre l'examen panoramique à la corbeille", exact: true }).first();
   await trashAction.waitFor({ state: 'visible' });
   await assertCompactPatientTabs();
-  await trashAction.scrollIntoViewIfNeeded();
+  await waitForTransientToasts();
+  await trashLabel.scrollIntoViewIfNeeded();
   const trashShot = `after-panoramic-trash-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, trashShot), animations: 'disabled', fullPage: false });
 
@@ -144,24 +157,28 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (persisted.detections_data.report_context.restorations.note !== abnormalNote) throw new Error('persisted abnormal note changed');
 
   const structuredShot = `g4-panoramic-structured-report-after-${viewport.width}x${viewport.height}.png`;
-  const structuredPanelShot = `g4-panoramic-structured-panel-after-${viewport.width}x${viewport.height}.png`;
+  const structuredBottomShot = `g4-panoramic-structured-report-bottom-after-${viewport.width}x${viewport.height}.png`;
   await page.getByRole('button', { name: 'Constatations', exact: true }).click();
   const structuredDetails = page.locator('details').filter({ hasText: 'Revue structurée' }).first();
   await structuredDetails.waitFor({ state: 'visible', timeout: 10000 });
   const isOpen = await structuredDetails.evaluate((node) => node.open);
   if (!isOpen) await structuredDetails.locator('summary').click();
-  await structuredDetails.locator('select[aria-label^="Revue structurée — "]').first().waitFor({ state: 'visible', timeout: 10000 });
+  const domainSelects = structuredDetails.locator('select[aria-label^="Revue structurée — "]');
+  await domainSelects.first().waitFor({ state: 'visible', timeout: 10000 });
+  if (await domainSelects.count() !== 8) throw new Error('structured review visual proof does not expose all 8 domains');
   await assertCompactPatientTabs();
-  await structuredDetails.scrollIntoViewIfNeeded();
+  await waitForTransientToasts();
+  await domainSelects.first().scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(outDir, structuredShot), animations: 'disabled', fullPage: false });
-  await structuredDetails.screenshot({ path: path.join(outDir, structuredPanelShot), animations: 'disabled' });
+  await domainSelects.nth(7).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(outDir, structuredBottomShot), animations: 'disabled', fullPage: false });
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   if (overflow) throw new Error('AFTER horizontal overflow');
   if (pageErrors.length) throw new Error('AFTER page errors: ' + pageErrors.join(' | '));
   if (http5xx.length) throw new Error('AFTER HTTP5xx: ' + JSON.stringify(http5xx));
 
-  evidence.push({ viewport, echeancierShot, trashShot, structuredShot, structuredPanelShot, structuredDomains: 8 });
+  evidence.push({ viewport, echeancierShot, trashShot, structuredShot, structuredBottomShot, structuredDomains: 8 });
   await context.close();
 }
 
