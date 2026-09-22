@@ -67,7 +67,6 @@ describe('CUST-03 document libre templates', () => {
       } as never;
     });
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const onApply = vi.fn();
     render(
       <LibreTemplatePresets
@@ -79,9 +78,12 @@ describe('CUST-03 document libre templates', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Autre titre/i }));
 
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole('dialog', { name: /Remplacer le brouillon actuel/i })).toBeTruthy();
     expect(onApply).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
+
+    fireEvent.click(screen.getByRole('button', { name: /Conserver mon brouillon/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Remplacer le brouillon actuel/i })).toBeNull());
+    expect(onApply).not.toHaveBeenCalled();
   });
 
   it('bounds an existing long document title to the template schema limit', async () => {
