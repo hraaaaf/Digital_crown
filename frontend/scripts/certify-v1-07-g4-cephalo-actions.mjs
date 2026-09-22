@@ -105,7 +105,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   await page.getByTitle('Plein écran').waitFor({state:'visible',timeout:5000});
 
   await page.getByTitle('État de calibration et provenance').first().click();
-  await page.getByText('Calibration manuelle',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByText('Calibration R1',{exact:true}).waitFor({state:'visible',timeout:5000});
   await page.getByRole('button',{name:'Fermer',exact:true}).click();
 
   const saveP=page.waitForResponse(r=>r.url().includes(`/api/ia/analyses/${seeded.id}`)&&r.request().method()==='PUT',{timeout:30000});
