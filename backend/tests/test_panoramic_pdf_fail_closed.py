@@ -1,5 +1,6 @@
 """Fail-closed contract for panoramic PDF presentation."""
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from backend.services.generators.panoramic_elite_gen import PanoramicEliteGenerator
