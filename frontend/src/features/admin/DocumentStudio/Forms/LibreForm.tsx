@@ -31,20 +31,30 @@ export const LibreTemplatePresets: React.FC<{
   const [templateBody, setTemplateBody] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
+  const mountedRef = React.useRef(true);
+
+  React.useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const loadTemplates = React.useCallback(async () => {
+    if (!mountedRef.current) return;
     setLoading(true);
     setError('');
     try {
       const response = await api.get('/templates', {
         params: { type: 'DOCUMENT_LIBRE', is_system: false },
       });
-      setTemplates(Array.isArray(response?.data) ? response.data : []);
+      if (mountedRef.current) {
+        setTemplates(Array.isArray(response?.data) ? response.data : []);
+      }
     } catch {
-      setTemplates([]);
-      setError('Impossible de charger les modèles de document libre.');
+      if (mountedRef.current) {
+        setTemplates([]);
+        setError('Impossible de charger les modèles de document libre.');
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
