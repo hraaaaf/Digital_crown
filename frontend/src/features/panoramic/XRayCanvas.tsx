@@ -312,7 +312,7 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
               <h3 className="text-white font-black tracking-[0.2em] text-xs uppercase">Diagnostic Clinique</h3>
               <p className="text-indigo-400 font-mono text-[10px] mt-1">Dent {popover.fdi} • Sélection</p>
             </div>
-            <button onClick={() => setPopover(null)} className="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-all">
+            <button onClick={() => setPopover(null)} aria-label="Fermer le diagnostic clinique" className="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
