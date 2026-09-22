@@ -65,6 +65,10 @@ export const CertificateTemplatePresets: React.FC<{
         setError('Ce modèle ne contient aucun texte réutilisable.');
         return;
       }
+      if (content.trim() && content.trim() !== body) {
+        const confirmed = window.confirm('Remplacer le brouillon actuel par ce modèle ?');
+        if (!confirmed) return;
+      }
       onApply(body);
     } catch {
       setError('Impossible d’appliquer ce modèle.');
