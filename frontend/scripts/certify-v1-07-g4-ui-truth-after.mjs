@@ -22,13 +22,6 @@ const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEANmpCD8ongcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfUJxAYTIfIvQAAAAAElFTkSuQmCC',
   'base64'
 );
-const seeded = await api.post(`/api/ia/upload-panoramic?patient_id=${patient.id}`, {
-  headers,
-  multipart: { file: { name: 'g4-ui-after.png', mimeType: 'image/png', buffer: png } }
-});
-if (!seeded.ok()) throw new Error(`AFTER panoramic seed failed: ${seeded.status()}`);
-const seededAnalysis = await seeded.json();
-
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
 
@@ -47,6 +40,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   page.on('response', r => { if (r.status() >= 500) http5xx.push({ url: r.url(), status: r.status() }); });
 
   const base = `http://127.0.0.1:5173/patients/${patient.id}`;
+
+  const seeded = await api.post(`/api/ia/upload-panoramic?patient_id=${patient.id}`, {
+    headers,
+    multipart: { file: { name: `g4-ui-after-${viewport.width}x${viewport.height}.png`, mimeType: 'image/png', buffer: png } }
+  });
+  if (!seeded.ok()) throw new Error(`AFTER panoramic seed failed for ${viewport.width}x${viewport.height}: ${seeded.status()}`);
+  const seededAnalysis = await seeded.json();
 
   await page.goto(base + '?tab=admin&documentTab=echeancier', { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('button', { name: 'Nouveau plan', exact: true }).click();
@@ -74,7 +74,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.screenshot({ path: path.join(outDir, trashShot), animations: 'disabled', fullPage: false });
 
   const seededDate = new Date(seededAnalysis.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const seededRow = history.getByText(`Examen du ${seededDate}`, { exact: true }).locator('xpath=ancestor::div[contains(@class,"group")][1]');
+  const seededRow = history.getByText(`Examen du ${seededDate}`, { exact: true }).locator('xpath=ancestor::div[contains(@class,"group")][1]').first();
   await seededRow.waitFor({ state: 'visible', timeout: 10000 });
   await seededRow.click();
   await page.getByText('Revue structurée', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
