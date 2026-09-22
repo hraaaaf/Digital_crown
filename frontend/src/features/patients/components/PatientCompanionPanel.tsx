@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
+import { PatientCompanionMessagingPanel } from './PatientCompanionMessagingPanel';
 
 type ResourceType = 'document' | 'media';
 
@@ -309,6 +310,8 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
           </div>
         </section>
       )}
+
+      <PatientCompanionMessagingPanel patientId={patientId} />
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <ResourceCard title="Documents" icon={<FileText size={18} />} empty="Aucun document canonique partageable">
