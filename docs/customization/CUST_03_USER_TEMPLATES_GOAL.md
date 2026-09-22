@@ -56,7 +56,8 @@ Créer un modèle
 3. L'application remplit uniquement le texte du certificat libre.
 4. Créer un modèle réutilise POST `/api/templates`, sans nouvelle persistance.
 5. Le texte reste éditable après application.
-6. Les garde-fous type/durée/suggestion existants restent inchangés.
+6. Si un brouillon existe déjà, son remplacement requiert une confirmation explicite.
+7. Les garde-fous type/durée/suggestion existants restent inchangés.
 7. Mobile 390, tablette 768, desktop 1280: aucun overflow/chevauchement.
 8. BEFORE et AFTER capturés aux mêmes viewports.
 
@@ -94,5 +95,6 @@ Dans l'éditeur Document libre :
 3. clic modèle → titre + contenu uniquement ;
 4. sauvegarde via le même POST `/api/templates` ;
 5. aucune capture silencieuse des métadonnées patient/date/layout ;
-6. isolation tenant identique au certificat ;
-7. BEFORE/AFTER 390×844, 768×1024, 1280×900 + modal.
+6. remplacement d'un document déjà rédigé soumis à confirmation explicite ;
+7. isolation tenant identique au certificat ;
+8. BEFORE/AFTER 390×844, 768×1024, 1280×900 + modal.
