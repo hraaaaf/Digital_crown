@@ -1,9 +1,220 @@
 import React, { useEffect, useRef } from 'react';
 import { cn } from '../../../../utils/cn';
+import { api } from '../../../../services/api';
 
 import type { ValidationError } from '../useDocumentGenerator';
 import { isLibreDirty, setLibreDirty } from '../LibreDirtyState';
-import { AlertCircle, Bold, Italic, Underline, Table, Type } from 'lucide-react';
+import { AlertCircle, Bold, Italic, Underline, Table, Type, FileText, Save, X } from 'lucide-react';
+
+type LibreTemplateSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+};
+
+type LibreTemplateDetail = LibreTemplateSummary & {
+  body_html?: string | null;
+};
+
+export const LibreTemplatePresets: React.FC<{
+  title: string;
+  content: string;
+  onApply: (title: string, content: string) => void;
+}> = ({ title, content, onApply }) => {
+  const [templates, setTemplates] = React.useState<LibreTemplateSummary[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [applyingId, setApplyingId] = React.useState<string | null>(null);
+  const [showSave, setShowSave] = React.useState(false);
+  const [templateName, setTemplateName] = React.useState('');
+  const [templateBody, setTemplateBody] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const loadTemplates = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get('/templates', {
+        params: { type: 'DOCUMENT_LIBRE', is_system: false },
+      });
+      setTemplates(Array.isArray(response?.data) ? response.data : []);
+    } catch {
+      setTemplates([]);
+      setError('Impossible de charger les modèles de document libre.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadTemplates();
+  }, [loadTemplates]);
+
+  const applyTemplate = async (templateId: string) => {
+    if (applyingId) return;
+    setApplyingId(templateId);
+    setError('');
+    try {
+      const response = await api.get(`/templates/${templateId}`);
+      const template = response?.data as LibreTemplateDetail | undefined;
+      const body = String(template?.body_html || '').trim();
+      if (!template?.name || !body) {
+        setError('Ce modèle est incomplet et ne peut pas être appliqué.');
+        return;
+      }
+      onApply(template.name, body);
+    } catch {
+      setError('Impossible d’appliquer ce modèle.');
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
+  const openSave = () => {
+    setTemplateName(title.trim());
+    setTemplateBody(content);
+    setError('');
+    setShowSave(true);
+  };
+
+  const saveTemplate = async () => {
+    const name = templateName.trim();
+    const body = templateBody.trim();
+    if (!name || body.length < 10 || saving) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const response = await api.post('/templates', {
+        type: 'DOCUMENT_LIBRE',
+        style_key: 'saninova',
+        name,
+        description: 'Modèle de document libre du cabinet',
+        body_html: body,
+        is_system: false,
+        is_default: false,
+      });
+      const created = response?.data as LibreTemplateDetail | undefined;
+      if (created?.id) {
+        setTemplates(prev => [
+          ...prev.filter(item => item.id !== created.id),
+          { id: created.id, name: created.name, description: created.description },
+        ]);
+      } else {
+        await loadTemplates();
+      }
+      setShowSave(false);
+    } catch (requestError: any) {
+      const status = requestError?.response?.status;
+      setError(
+        status === 403
+          ? 'Vous n’avez pas l’autorisation d’enregistrer un modèle.'
+          : requestError?.response?.data?.detail || 'Impossible d’enregistrer ce modèle.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border-b border-slate-200 bg-white/70 px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">Mes modèles</div>
+          <p className="mt-1 text-[10px] font-semibold text-slate-500">
+            Un modèle remplit le titre et le contenu uniquement après votre clic.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openSave}
+          disabled={!title.trim() || content.trim().length < 10}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Save size={14} /> Enregistrer comme modèle
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2" aria-label="Modèles de document libre du cabinet">
+        {loading ? (
+          <span className="text-[10px] font-bold text-slate-400">Chargement des modèles…</span>
+        ) : templates.length > 0 ? (
+          templates.map(template => (
+            <button
+              key={template.id}
+              type="button"
+              onClick={() => void applyTemplate(template.id)}
+              disabled={applyingId !== null}
+              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[11px] font-bold text-slate-600 transition-all hover:border-primary/30 hover:text-primary disabled:opacity-50"
+            >
+              <FileText size={14} className="shrink-0" />
+              <span className="truncate">{template.name}</span>
+            </button>
+          ))
+        ) : (
+          <span className="text-[10px] font-bold text-slate-400">Aucun modèle personnalisé enregistré.</span>
+        )}
+      </div>
+
+      {error && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">{error}</p>}
+
+      {showSave && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="libre-template-save-title">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Document libre</p>
+                <h3 id="libre-template-save-title" className="mt-1 text-lg font-black text-slate-900">Enregistrer comme modèle</h3>
+              </div>
+              <button type="button" onClick={() => setShowSave(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50" aria-label="Fermer">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-600">Nom du modèle / titre appliqué *</span>
+                <input
+                  value={templateName}
+                  onChange={event => setTemplateName(event.target.value)}
+                  maxLength={100}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  placeholder="Ex. Lettre au médecin traitant"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-600">Contenu du modèle *</span>
+                <textarea
+                  value={templateBody}
+                  onChange={event => setTemplateBody(event.target.value)}
+                  className="min-h-44 w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  aria-label="Contenu du modèle de document libre"
+                />
+              </label>
+              <p className="text-[10px] font-semibold text-slate-500">
+                Destinataire, date, format et alignement restent propres au document en cours.
+              </p>
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => setShowSave(false)} className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveTemplate()}
+                disabled={!templateName.trim() || templateBody.trim().length < 10 || saving}
+                className="min-h-10 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-40"
+              >
+                {saving ? 'Enregistrement…' : 'Enregistrer le modèle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface LibreFormProps {
   title: string;
@@ -164,6 +375,16 @@ export const LibreForm: React.FC<LibreFormProps> = ({
       {/* ✍️ Zone de Rédaction avec Toolbar */}
       <div className="flex-1 min-h-[400px] flex flex-col bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden relative">
         
+        <LibreTemplatePresets
+          title={title}
+          content={content}
+          onApply={(nextTitle, nextContent) => {
+            markDirty();
+            setTitle(nextTitle);
+            setContent(nextContent);
+          }}
+        />
+
         {/* Toolbar */}
         <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex items-center gap-2 flex-wrap">
           <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
