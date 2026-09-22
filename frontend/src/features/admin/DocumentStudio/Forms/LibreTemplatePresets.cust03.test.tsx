@@ -53,6 +53,37 @@ describe('CUST-03 document libre templates', () => {
     });
   });
 
+  it('does not overwrite a current document when replacement is declined', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/templates') {
+        return { data: [{ id: 'libre-guard', name: 'Autre titre', description: null }] } as never;
+      }
+      return {
+        data: {
+          id: 'libre-guard',
+          name: 'Autre titre',
+          body_html: 'Autre contenu proposé par le modèle.',
+        },
+      } as never;
+    });
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const onApply = vi.fn();
+    render(
+      <LibreTemplatePresets
+        title="Titre actuel"
+        content="Contenu actuel du praticien."
+        onApply={onApply}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Autre titre/i }));
+
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+    expect(onApply).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
   it('bounds an existing long document title to the template schema limit', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: [] } as never);
     const longTitle = 'T'.repeat(140);
