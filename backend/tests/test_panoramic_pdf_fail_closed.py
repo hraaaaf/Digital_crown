@@ -81,6 +81,10 @@ def test_rendered_pdf_copy_removes_unsupported_clinical_claims():
         "Analyse Clinique & Diagnostics",
         "Spécialiste en Orthodontie",
         "aide au diagnostic",
+        "cryptographiquement signé",
+        "Rapport validé numériquement par",
+        "Sceau d'Authenticité",
+        "Digital Crown Elite Compliance v4.0",
     )
     for token in forbidden:
         assert token not in rendered
@@ -91,6 +95,9 @@ def test_rendered_pdf_copy_removes_unsupported_clinical_claims():
     assert ">Praticien<" in rendered
     assert "L'absence d'annotation ne constitue pas une conclusion de normalité" in rendered
     assert "Aucun diagnostic ni traitement n'est généré automatiquement" in rendered
+    assert "Vérification documentaire" in rendered
+    assert "Praticien associé au dossier" in rendered
+    assert "référence de vérification" in rendered
 
 
 def test_empty_markdown_fallback_is_observational_not_diagnostic():
