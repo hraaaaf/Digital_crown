@@ -196,7 +196,6 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     const input = document.querySelector('input[placeholder="Ex: ORDONNANCE, LETTRE..."]');
     return input instanceof HTMLInputElement && input.value === expected;
   }, marker, { timeout: 10000 });
-  if (await libreTitle.inputValue() !== marker) throw new Error('history edit did not hydrate document title');
   actions.push('history-edit');
 
   await page.goto(`${patientUrl}?tab=archives`, { waitUntil: 'networkidle', timeout: 90000 });
