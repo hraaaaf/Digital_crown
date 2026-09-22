@@ -2,6 +2,7 @@ name: PC-08 Runtime AFTER Visual Evidence
 
 on:
   pull_request:
+    types: [opened, reopened, synchronize]
     branches: [master]
     paths:
       - ".github/workflows/pc08-runtime-after-visual.yml"
