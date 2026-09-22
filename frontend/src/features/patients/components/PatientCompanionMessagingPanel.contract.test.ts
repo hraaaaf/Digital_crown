@@ -19,7 +19,8 @@ describe('PatientCompanionMessagingPanel truth contract', () => {
     expect(source).toContain("'Envoyé depuis le cabinet'");
     expect(source).toContain("'Reçu sur l’appareil'");
     expect(source).toContain("'Lu'");
-    expect(source).toContain("'Lu par le cabinet'");
+    // Staff-side messages use recipient-relative "Lu"; the patient-side contract
+    // separately requires "Lu par le cabinet" where that perspective is meaningful.
     expect(source).not.toContain("'Livré'");
     expect(source).not.toContain("'En ligne'");
   });
