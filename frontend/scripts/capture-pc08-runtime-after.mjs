@@ -139,7 +139,21 @@ for (const viewport of [
   { width: 1280, height: 900, label: '1280x900' },
 ]) {
   await staffPage.setViewportSize({ width: viewport.width, height: viewport.height });
-  await staffPanel.scrollIntoViewIfNeeded();
+  await staffPanel.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  const geometry = await staffPage.evaluate(() => {
+    const panel = document.querySelector('[data-pc08-staff-messaging]');
+    const stickyHeader = document.querySelector('header.lg\\:sticky');
+    if (!panel) return { visible: false, overlappedByHeader: false };
+    const panelRect = panel.getBoundingClientRect();
+    const headerRect = stickyHeader?.getBoundingClientRect();
+    return {
+      visible: panelRect.bottom > 0 && panelRect.top < window.innerHeight,
+      overlappedByHeader: Boolean(headerRect && panelRect.top < headerRect.bottom && panelRect.bottom > headerRect.top),
+    };
+  });
+  if (!geometry.visible || geometry.overlappedByHeader) {
+    throw new Error(`staff capture geometry invalid ${viewport.label}: ${JSON.stringify(geometry)}`);
+  }
   const overflow = await staffPage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (overflow) throw new Error(`staff overflow ${viewport.label}`);
   const shot = `staff-after-${viewport.label}.png`;
