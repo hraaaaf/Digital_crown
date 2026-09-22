@@ -52,6 +52,31 @@ describe('CUST-03 certificate templates', () => {
     });
   });
 
+  it('does not overwrite an existing certificate draft when replacement is declined', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/templates') {
+        return { data: [{ id: 'tpl-guard', name: 'Nouveau modèle', description: null }] } as never;
+      }
+      return {
+        data: {
+          id: 'tpl-guard',
+          name: 'Nouveau modèle',
+          body_html: 'Nouveau texte proposé par le modèle.',
+        },
+      } as never;
+    });
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const onApply = vi.fn();
+    render(<CertificateTemplatePresets content="Brouillon actuel du praticien." onApply={onApply} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Nouveau modèle/i }));
+
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+    expect(onApply).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
   it('creates through DocumentTemplate and copies the saved draft into the editable certificate', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: [] } as never);
     vi.mocked(api.post).mockResolvedValue({
