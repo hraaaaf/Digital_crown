@@ -84,6 +84,12 @@ jobs:
           EOF
           done
 
+      - name: Prepare PWA dev harness
+        run: |
+          mkdir -p before/frontend/dev-dist after/frontend/dev-dist
+          : > before/frontend/dev-dist/registerSW.js
+          : > after/frontend/dev-dist/registerSW.js
+
       - name: Capture BEFORE and AFTER
         working-directory: after/frontend
         run: |
