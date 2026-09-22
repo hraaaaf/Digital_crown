@@ -106,7 +106,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await trashAction.waitFor({ state: 'visible' });
   await assertCompactPatientTabs();
   await waitForTransientToasts();
-  await trashLabel.scrollIntoViewIfNeeded();
+  await trashAction.evaluate((node) => node.scrollIntoView({ block: 'center', inline: 'nearest' }));
   const trashShot = `after-panoramic-trash-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, trashShot), animations: 'disabled', fullPage: false });
 
