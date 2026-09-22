@@ -332,3 +332,17 @@ New real-runtime Playwright action harnesses are now part of the candidate gate:
 These harnesses do **not** promote G4 to PASS by their presence. Certification remains pending their exact-head workflow execution together with CI/build, P7 and browser inventory.
 
 Workflow hygiene correction: duplicate Panoramic action execution was removed before the current exact-head run.
+
+
+## 2026-09-22 — G4-F Panoramic engineering + report hardening
+
+Panoramic certification was expanded before accepting step 27:
+- responsive layout hardened with min-width containment, responsive findings padding and long-annotation wrapping;
+- Playwright geometry evidence checks document/body width against the active viewport at 390×844 and 1280×900;
+- report target recorded in `V1_07_G4_PANORAMIC_REPORT_TARGET.md`;
+- deterministic report output now uses structured technique / documented observation domains / synthesis instead of count-style machine summaries;
+- raw PDF copy no longer claims cryptographic signature, digital validation or orthodontic specialty without supporting evidence;
+- free visual annotations are inserted before the final synthesis so the synthesis remains the closing report section;
+- browser certification now requires the generated narrative to contain the structured `TECHNIQUE` and `SYNTHÈSE` headings.
+
+Status remains NON CERTIFIED until the exact-head browser/runtime gate completes successfully.
