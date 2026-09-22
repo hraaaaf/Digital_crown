@@ -83,9 +83,9 @@ def _access_projection(rows: list[PatientCompanionAccess]) -> list[dict[str, Any
 @router.get("/admin/patients/{patient_id}/messages")
 def staff_message_thread(
     patient_id: int,
+    response: Response,
     access_id: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=50),
-    response: Response = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -129,9 +129,9 @@ def staff_send_message(
 ):
     patient = staff_patient_or_404(db, current_user, patient_id)
     employer_id = int(current_user.get_employer_id())
-    access_public_id = normalize_uuid(body.access_id, code="INVALID_ACCESS_ID")
-    client_message_id = normalize_uuid(body.client_message_id, code="INVALID_CLIENT_MESSAGE_ID")
     try:
+        access_public_id = normalize_uuid(body.access_id, code="INVALID_ACCESS_ID")
+        client_message_id = normalize_uuid(body.client_message_id, code="INVALID_CLIENT_MESSAGE_ID")
         text = normalize_message_body(body.body)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
@@ -190,7 +190,10 @@ def staff_mark_messages_read(
 ):
     patient = staff_patient_or_404(db, current_user, patient_id)
     employer_id = int(current_user.get_employer_id())
-    access_public_id = normalize_uuid(body.access_id, code="INVALID_ACCESS_ID")
+    try:
+        access_public_id = normalize_uuid(body.access_id, code="INVALID_ACCESS_ID")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
     access = _active_patient_access(
         db,
         employer_id=employer_id,
