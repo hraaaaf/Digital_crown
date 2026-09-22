@@ -47,7 +47,9 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  page.once('dialog',d=>d.accept(`G4 annotation ${viewport.width}`));
  const box=await svg.boundingBox(); if(!box) throw new Error('panoramic SVG box missing');
  await svg.click({position:{x:Math.max(5,box.width*0.62),y:Math.max(5,box.height*0.36)}});
- await page.getByText(`G4 annotation ${viewport.width}`,{exact:true}).waitFor({state:'visible',timeout:10000});
+ const annotationText=page.getByText(`G4 annotation ${viewport.width}`,{exact:true});
+ await annotationText.first().waitFor({state:'visible',timeout:10000});
+ if(await annotationText.count()<2) throw new Error('panoramic annotation not mirrored in image and findings panel');
 
  await svg.click({position:{x:Math.max(5,box.width*0.58),y:Math.max(5,box.height*0.40)}});
  await page.getByRole('heading',{name:'Diagnostic Clinique'}).waitFor({state:'visible',timeout:10000});
@@ -93,10 +95,11 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  await page.getByRole('button',{name:"Supprimer définitivement l'examen panoramique"}).first().click(); const del=await delP; if(!del.ok()) throw new Error(`panoramic delete ${del.status()}`);
  const deletedId=Number(new URL(del.url()).pathname.split('/').pop()); if((await analyses()).some(x=>Number(x.id)===deletedId)) throw new Error('deleted panoramic still present');
 
- const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+ const geometry=await page.evaluate(()=>({documentWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth,bodyWidth:document.body.scrollWidth}));
+ const overflow=geometry.documentWidth>geometry.viewportWidth+2||geometry.bodyWidth>geometry.viewportWidth+2;
  const shot=`g4-panoramic-${viewport.width}x${viewport.height}.png`; await page.screenshot({path:path.join(outDir,shot),animations:'disabled'});
  if(overflow) throw new Error('panoramic horizontal overflow'); if(pageErrors.length) throw new Error('panoramic page errors: '+pageErrors.join(' | ')); if(http5xx.length) throw new Error('panoramic HTTP5xx: '+JSON.stringify(http5xx));
- evidence.push({viewport,firstId:a.id,secondId:b.id,report:gen.status(),edit:put.status(),preview:preview.status(),download:download.status(),deletedId,shot});
+ evidence.push({viewport,firstId:a.id,secondId:b.id,report:gen.status(),edit:put.status(),preview:preview.status(),download:download.status(),deletedId,geometry,shot});
  await context.close();
 }
 await browser.close(); await api.dispose();
