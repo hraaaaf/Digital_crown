@@ -166,7 +166,7 @@ try {
           'stock-quantity-refusal',
           'stock-add-refusal',
           'stock-delete-refusal',
-        ].includes(scenario);
+        ].includes(scenario) || (phase === 'before' && scenario === 'stock-delete-confirm');
         const unexpected = runtimeErrors.filter(error => {
           if (error.startsWith('pageerror:')) {
             return !(phase === 'before' && expectedFailureScenario && error.includes('503'));
