@@ -64,6 +64,9 @@ async function wizardRoot(page,name){
 }
 
 for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  const masterSeedForViewport = await api.put(masterUrl, { headers, data: seededPlan });
+  if (!masterSeedForViewport.ok()) throw new Error(`clinical master-plan viewport seed failed: ${viewport.width}x${viewport.height}`);
+
   const context=await browser.newContext({viewport,colorScheme:'light'});
   const page=await context.newPage();
   await seedAuth(page);
