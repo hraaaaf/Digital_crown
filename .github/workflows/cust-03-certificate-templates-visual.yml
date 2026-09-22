@@ -165,8 +165,16 @@ jobs:
             rows.push({ kind, viewport, overflow, errors: [...errors], shot });
 
             if (kind === 'after') {
+              await page.getByRole('button', { name: 'Aptitude traitement' }).click();
+              await page.getByRole('dialog', { name: 'Remplacer le brouillon actuel ?' }).waitFor();
+              const overwriteOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+              const overwriteShot = `after-overwrite-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({ path: path.join(output, overwriteShot), fullPage: true, animations: 'disabled' });
+              rows.push({ kind:'after-overwrite', viewport, overflow:overwriteOverflow, errors:[...errors], shot:overwriteShot });
+              await page.getByRole('button', { name: 'Conserver mon brouillon' }).click();
+
               await page.getByRole('button', { name: 'Créer un modèle' }).click();
-              await page.getByRole('dialog').waitFor();
+              await page.getByRole('dialog', { name: 'Créer un modèle' }).waitFor();
               const modalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
               const modalShot = `after-modal-${viewport.width}x${viewport.height}.png`;
               await page.screenshot({ path: path.join(output, modalShot), fullPage: true, animations: 'disabled' });
