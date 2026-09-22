@@ -95,7 +95,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
  await page.getByRole('button',{name:'Historique',exact:true}).click(); await page.locator('[data-m4b-history]').waitFor({state:'visible'});
  page.once('dialog',d=>d.accept());
  const delP=page.waitForResponse(r=>/\/api\/ia\/panoramic\/\d+$/.test(new URL(r.url()).pathname)&&r.request().method()==='DELETE',{timeout:15000});
- await page.getByRole('button',{name:"Supprimer définitivement l'examen panoramique"}).first().click(); const del=await delP; if(!del.ok()) throw new Error(`panoramic delete ${del.status()}`);
+ await page.getByRole('button',{name:"Mettre à la corbeille"}).first().click(); const del=await delP; if(!del.ok()) throw new Error(`panoramic trash ${del.status()}`);
  const deletedId=Number(new URL(del.url()).pathname.split('/').pop()); if((await analyses()).some(x=>Number(x.id)===deletedId)) throw new Error('deleted panoramic still present');
 
  const geometry=await page.evaluate(()=>({documentWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth,bodyWidth:document.body.scrollWidth}));
