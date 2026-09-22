@@ -68,3 +68,23 @@ No section may infer normality merely from an absent annotation. Normal findings
 
 ### Gap against current engine
 Current engine already covers many tooth-level findings, periodontium, prosthetics/implants and some sinus/TMJ findings, but it does not yet model explicit image-quality/assessability, clinical question, jawbone as its own domain, or explicit practitioner-confirmed normal states. These gaps must be closed before final Panoramic certification.
+
+
+## Implemented deterministic core — 2026-09-22
+
+Implemented on the G4 branch:
+- canonical 8-domain ontology: dental anomalies, restorations/prostheses/implants, caries, apical/endodontic, periodontium, jawbone, TMJ, sinuses;
+- optional clinical question and explicit image-quality/assessability state;
+- per-domain state is exactly one of `not_assessed | normal | abnormal`;
+- negative/normal wording is emitted only for an explicit practitioner-confirmed `normal` state;
+- missing domains remain explicitly non-assessed;
+- abnormal free text is preserved verbatim at the domain level;
+- report context is persisted inside the panoramic analysis evidence payload;
+- output sections now mirror the structured-report corpus domains instead of internal dental-specialty UI categories;
+- terminology guardrails keep radiographic signs below unsupported histologic/clinical diagnoses:
+  - periapical finding -> radiolucent periapical image, not cyst/granuloma;
+  - peri-implant finding -> peri-implant bone loss, not automatic peri-implantitis;
+  - condylar finding -> osseous remodeling, not automatic TMJ arthrosis;
+  - generalized periodontal radiographic loss -> bone-loss wording, not automatic periodontitis diagnosis.
+
+The UI decision-tree is intentionally not changed in this backend lot; exposing these structured fields visually requires its own BEFORE/AFTER responsive evidence pass.
