@@ -38,3 +38,33 @@ Produce a professional, deterministic panoramic radiography report from practiti
 - PDF presentation tests;
 - exact-head G4 panoramic browser action at 390x844 and 1280x900;
 - no horizontal overflow and no runtime/page/HTTP5xx errors.
+
+
+## Evidence expansion — reporting corpus / assets
+
+External evidence review identified a directly relevant 2026 hospital study of 50 dental panoramic images comparing narrative reports with structured reports produced by a board-certified dentist. Its panoramic structured-report template explicitly covers dental anomalies, restorations, carious lesions, periodontal structures, apical changes, jawbone, temporomandibular joints and paranasal sinuses. The published example also records examination quality/assessability, teeth present by quadrant, restorations/crowns, caries by tooth/surface, periodontal bone loss, jawbone, TMJ and paranasal sinuses.
+
+Additional public panoramic datasets support the finding ontology but are not treated as report-text corpora:
+- Tufts Dental Database: 1,000 panoramic radiographs with expert abnormality/tooth labels and radiologist eye-tracking/think-aloud expertise.
+- 2024 radiologist-labelled dataset: 936 panoramic radiographs / 23,619 annotations covering tooth numbering and dental conditions.
+- 2026 multi-focus dataset: 8,655 images / 30,186 pixel-level lesion annotations.
+
+### Engine design derived from evidence
+The Digital Crown engine should be a deterministic decision-tree/text-module compiler, not an LLM narrator. Internal canonical fields should cover:
+1. examination context / clinical question when explicitly entered;
+2. image quality and assessability;
+3. dentition / teeth present or missing in FDI notation;
+4. restorations and prosthetic/implant status;
+5. caries and tooth-level abnormalities;
+6. endodontic / periapical findings;
+7. periodontium / alveolar bone;
+8. jawbone;
+9. TMJ;
+10. paranasal/maxillary sinuses;
+11. free practitioner annotations;
+12. concise synthesis generated only from documented findings.
+
+No section may infer normality merely from an absent annotation. Normal findings require an explicit practitioner-confirmed normal state. Image-derived tooth detection may populate location/inventory support only within its validated capability; it must not create diagnoses.
+
+### Gap against current engine
+Current engine already covers many tooth-level findings, periodontium, prosthetics/implants and some sinus/TMJ findings, but it does not yet model explicit image-quality/assessability, clinical question, jawbone as its own domain, or explicit practitioner-confirmed normal states. These gaps must be closed before final Panoramic certification.
