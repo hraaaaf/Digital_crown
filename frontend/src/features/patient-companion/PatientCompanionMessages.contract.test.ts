@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.resolve(__dirname, 'PatientCompanionMessages
 describe('PatientCompanionMessages truth contract', () => {
   it('requires enrolled secure transport but not cabinet reachability for offline queueing', () => {
     expect(source).toContain('const canSend = transportReady && bytes > 0 && bytes <= MAX_BODY_BYTES && !busy;');
-    expect(source).toContain("if (!enabled)");
+    expect(source).toContain("if (!transportReady || !enabled)");
     expect(source).toContain('Message chiffré enregistré sur cet appareil · non envoyé.');
     expect(source).toContain("state: 'local_queued'");
   });
