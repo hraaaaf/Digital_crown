@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { cn } from '../../../../utils/cn';
 import { api } from '../../../../services/api';
+import { TemplateOverwriteDialog } from './TemplateOverwriteDialog';
 
 import type { ValidationError } from '../useDocumentGenerator';
 import { isLibreDirty, setLibreDirty } from '../LibreDirtyState';
@@ -24,6 +25,7 @@ export const LibreTemplatePresets: React.FC<{
   const [templates, setTemplates] = React.useState<LibreTemplateSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [applyingId, setApplyingId] = React.useState<string | null>(null);
+  const [pendingTemplate, setPendingTemplate] = React.useState<{ name: string; body: string } | null>(null);
   const [showSave, setShowSave] = React.useState(false);
   const [templateName, setTemplateName] = React.useState('');
   const [templateBody, setTemplateBody] = React.useState('');
@@ -64,8 +66,8 @@ export const LibreTemplatePresets: React.FC<{
       }
       const wouldReplace = (title.trim() && title.trim() !== template.name) || (content.trim() && content.trim() !== body);
       if (wouldReplace) {
-        const confirmed = window.confirm('Remplacer le titre et le contenu actuels par ce modèle ?');
-        if (!confirmed) return;
+        setPendingTemplate({ name: template.name, body });
+        return;
       }
       onApply(template.name, body);
     } catch {
@@ -162,6 +164,18 @@ export const LibreTemplatePresets: React.FC<{
       </div>
 
       {error && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">{error}</p>}
+
+      {pendingTemplate && (
+        <TemplateOverwriteDialog
+          modelName={pendingTemplate.name}
+          scopeLabel="Document libre"
+          onCancel={() => setPendingTemplate(null)}
+          onConfirm={() => {
+            onApply(pendingTemplate.name, pendingTemplate.body);
+            setPendingTemplate(null);
+          }}
+        />
+      )}
 
       {showSave && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="libre-template-save-title">
