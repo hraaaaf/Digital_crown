@@ -184,8 +184,8 @@ jobs:
             rows.push({ kind, viewport, overflow, errors:[...errors], shot });
 
             if (kind === 'after') {
-              await page.getByRole('button', { name: /Enregistrer ce brouillon/i }).click();
-              await page.getByRole('dialog', { name: /Enregistrer un preset/i }).waitFor();
+              await page.getByRole('button', { name: /Enregistrer comme modèle/i }).click();
+              await page.getByRole('dialog', { name: /Enregistrer un modèle/i }).waitFor();
               const saveOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
               const saveShot = `after-save-${viewport.width}x${viewport.height}.png`;
               await page.screenshot({ path: path.join(output, saveShot), fullPage: true, animations: 'disabled' });
