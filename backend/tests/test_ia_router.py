@@ -232,3 +232,37 @@ class TestPanoramicAnalyses:
             headers=auth_headers,
         )
         assert r.status_code in (200, 404)
+
+
+    def test_generate_panoramic_report_persists_explicit_structured_context(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "PANOCONTEXT")
+        analysis = _make_panoramic_analysis(db, pat.id)
+        r = client.post(
+            "/api/ia/generate-panoramic-report",
+            json={
+                "analysis_id": analysis.id,
+                "manual_anomalies": {"16": ["carie_dentinaire"]},
+                "global_findings": [],
+                "rejected_detections": [],
+                "visual_annotations": [],
+                "report_context": {
+                    "clinical_question": "Bilan préthérapeutique.",
+                    "image_quality": "diagnostic",
+                    "caries": {"status": "abnormal", "note": "Image carieuse documentée en 16."},
+                    "jawbone": {"status": "normal"},
+                    "tmj": {"status": "not_assessed"},
+                },
+            },
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert "### QUESTION CLINIQUE" in body["report_narrative"]
+        assert "Bilan préthérapeutique." in body["report_narrative"]
+        assert "Pas d'anomalie osseuse maxillo-mandibulaire documentée." in body["report_narrative"]
+
+        db.refresh(analysis)
+        context = analysis.detections_data["report_context"]
+        assert context["image_quality"] == "diagnostic"
+        assert context["caries"]["status"] == "abnormal"
+        assert context["jawbone"]["status"] == "normal"
