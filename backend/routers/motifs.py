@@ -77,7 +77,6 @@ def _assert_unique_label(db: Session, tenant_id: int, label: str, *, exclude_id:
         raise HTTPException(status_code=409, detail="Ce motif existe déjà dans le cabinet.")
 
 
-@router.get("")
 @router.get("/")
 def list_cabinet_motifs(
     include_inactive: bool = False,
@@ -93,7 +92,6 @@ def list_cabinet_motifs(
     return [_payload(row) for row in rows]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_cabinet_motif(
     body: CabinetMotifCreate,
