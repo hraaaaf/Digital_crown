@@ -121,7 +121,8 @@ const staffReadResponse = await staffReadResponsePromise;
 if (!staffReadResponse.ok()) {
   throw new Error(`staff read mutation failed: ${staffReadResponse.status()}`);
 }
-await staffPage.getByText('Lu', { exact: true }).waitFor({ timeout: 30000 });
+const staffMessageBubble = staffPage.getByText(selfBody, { exact: true }).locator('..');
+await staffMessageBubble.getByText(/· Lu$/, { exact: false }).waitFor({ timeout: 30000 });
 
 const staffReply = 'Réponse sécurisée du cabinet — votre message a bien été consulté.';
 await staffPage.getByPlaceholder('Écrire au patient…').fill(staffReply);
