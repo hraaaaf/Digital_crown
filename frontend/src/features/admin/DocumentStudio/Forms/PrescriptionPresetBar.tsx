@@ -67,7 +67,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
       setPresets(Array.isArray(response?.data) ? response.data : []);
     } catch {
       setPresets([]);
-      setError('Impossible de charger les presets du praticien.');
+      setError('Impossible de charger vos modèles d’ordonnance.');
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
       } catch {
         if (active) {
           setPresets([]);
-          setError('Impossible de charger les presets du praticien.');
+          setError('Impossible de charger vos modèles d’ordonnance.');
         }
       } finally {
         if (active) setLoading(false);
@@ -97,7 +97,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
   const applyPreset = (preset: PresetSummary) => {
     const incoming = Array.isArray(preset.drugs) ? preset.drugs : [];
     if (!incoming.length) {
-      setError('Ce preset ne contient aucune ligne réutilisable.');
+      setError('Ce modèle ne contient aucune ligne de prescription.');
       return;
     }
     if (drugs.some(drug => drug.name.trim()) && !sameDraft(drugs, incoming)) {
@@ -125,7 +125,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
     } catch (requestError: any) {
       setError(
         requestError?.response?.data?.detail
-        || 'Impossible d’enregistrer ce preset.',
+        || 'Impossible d’enregistrer ce modèle.',
       );
     } finally {
       setSaving(false);
@@ -142,7 +142,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
     } catch (requestError: any) {
       setError(
         requestError?.response?.data?.detail
-        || 'Impossible de supprimer ce preset.',
+        || 'Impossible de supprimer ce modèle.',
       );
     } finally {
       setDeletingId(null);
@@ -155,15 +155,15 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
     <section
       data-cust04-presets
       className="rounded-2xl border border-border-main bg-glass-bg/70 p-3 shadow-sm backdrop-blur-xl sm:p-4"
-      aria-label="Presets personnels d’ordonnance"
+      aria-label="Modèles personnels d’ordonnance"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">
-            Mes presets
+            Mes modèles
           </div>
           <p className="mt-1 max-w-2xl text-[10px] font-semibold leading-relaxed text-text-muted">
-            Un preset remplit uniquement les lignes de prescription après votre clic. Il reste entièrement éditable.
+            Un modèle remplit uniquement les lignes de prescription après votre clic. Vous pouvez ensuite tout modifier.
           </p>
         </div>
         <button
@@ -176,13 +176,13 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
           disabled={!hasReusableDraft}
           className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <BookmarkPlus size={14} /> Enregistrer ce brouillon
+          <BookmarkPlus size={14} /> Enregistrer comme modèle
         </button>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         {loading ? (
-          <span className="text-[10px] font-bold text-text-muted">Chargement des presets…</span>
+          <span className="text-[10px] font-bold text-text-muted">Chargement des modèles…</span>
         ) : presets.length ? (
           presets.map(preset => (
             <div
@@ -199,7 +199,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
               </button>
               <button
                 type="button"
-                aria-label={`Supprimer le preset ${preset.label || preset.act_context}`}
+                aria-label={`Supprimer le modèle ${preset.label || preset.act_context}`}
                 disabled={deletingId !== null}
                 onClick={() => void deletePreset(preset)}
                 className="inline-flex w-10 shrink-0 items-center justify-center border-l border-border-main text-text-muted transition hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
@@ -209,7 +209,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
             </div>
           ))
         ) : (
-          <span className="text-[10px] font-bold text-text-muted">Aucun preset personnel enregistré.</span>
+          <span className="text-[10px] font-bold text-text-muted">Aucun modèle personnel enregistré.</span>
         )}
       </div>
 
@@ -232,7 +232,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
               Remplacer les lignes actuelles ?
             </h3>
             <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
-              Le preset « {pendingApply.label || pendingApply.act_context} » remplacera uniquement les lignes de prescription. Le patient, la date et l’indication restent inchangés.
+              Le modèle « {pendingApply.label || pendingApply.act_context} » remplacera uniquement les lignes de prescription. Le patient, la date et l’indication restent inchangés.
             </p>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
@@ -240,7 +240,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
                 onClick={() => setPendingApply(null)}
                 className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
               >
-                Conserver mon brouillon
+                Conserver l’ordonnance actuelle
               </button>
               <button
                 type="button"
@@ -250,7 +250,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
                 }}
                 className="min-h-10 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
               >
-                Remplacer par le preset
+                Remplacer par ce modèle
               </button>
             </div>
           </div>
@@ -269,7 +269,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ordonnance</p>
                 <h3 id="cust04-save-title" className="mt-1 text-lg font-black text-slate-900">
-                  Enregistrer un preset
+                  Enregistrer un modèle
                 </h3>
               </div>
               <button
@@ -283,12 +283,12 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
             </div>
 
             <label className="mt-5 block space-y-1.5">
-              <span className="text-xs font-bold text-slate-600">Nom du preset *</span>
+              <span className="text-xs font-bold text-slate-600">Nom du modèle *</span>
               <input
                 value={presetName}
                 onChange={event => setPresetName(event.target.value)}
                 maxLength={100}
-                placeholder="Ex. Post-op personnel"
+                placeholder="Ex. Post-opératoire personnel"
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
               />
             </label>
