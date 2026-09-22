@@ -43,8 +43,8 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   });
   await page.getByRole('button',{name:'Historique',exact:true}).click();
   await page.locator('[data-m4b-history]').waitFor({state:'visible',timeout:15000});
-  await page.getByText('Suppression définitive',{exact:true}).waitFor({state:'visible',timeout:10000});
-  await page.getByRole('button',{name:"Supprimer définitivement l'examen panoramique",exact:true}).first().waitFor({state:'visible'});
+  await page.getByText('Corbeille récupérable',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByRole('button',{name:"Mettre l'examen panoramique à la corbeille",exact:true}).first().waitFor({state:'visible'});
   const shot=`before-panoramic-trash-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({path:path.join(outDir,shot),fullPage:false,animations:'disabled'});
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
@@ -55,6 +55,6 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
 }
 await browser.close();
 await api.dispose();
-const summary={status:'PASS',phase:'BEFORE',expectedCopy:'Suppression définitive',evidence};
+const summary={status:'PASS',phase:'BEFORE',expectedCopy:'Corbeille récupérable',evidence};
 fs.writeFileSync(path.join(outDir,'summary.json'),JSON.stringify(summary,null,2));
 console.log('G4_PANORAMIC_TRASH_BEFORE '+JSON.stringify(summary));
