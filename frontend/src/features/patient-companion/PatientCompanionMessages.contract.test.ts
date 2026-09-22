@@ -25,6 +25,7 @@ describe('PatientCompanionMessages truth contract', () => {
 
   it('forces unbroken secure message bodies to wrap on narrow mobile layouts', () => {
     expect(source.match(/\[overflow-wrap:anywhere\]/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(source.match(/min-w-0 max-w-\[88%\]/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
   it('keeps attachments out of the PC-08 initial slice', () => {
