@@ -150,7 +150,7 @@ Verified gap:
 
 Decision:
 do not reuse the 5/10-minute helper as the message-product limit.
-PC-08 implements a persistent per-access patient send bound of **60 new messages per rolling hour** and bounded sync pages. Idempotent retries of an already-stored `client_message_id` return the original result and do not consume an additional send. This limit is a new PC-08 contract, not pre-existing behavior.
+PC-08 implements two distinct controls: a persistent per-access patient send bound of **60 new messages per rolling hour**, plus a transport-abuse ceiling of **240 authenticated PC-08 remote commands per 10 minutes per access + client IP** using the shared limiter with a PC-08-specific maximum. Idempotent retries of an already-stored `client_message_id` return the original result and do not consume an additional message-send slot. Existing domains keep the shared limiter default of 5 attempts / 10 minutes unchanged.
 
 ### Retention / deletion / evidence
 
