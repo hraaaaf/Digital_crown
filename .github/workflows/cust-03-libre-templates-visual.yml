@@ -114,6 +114,9 @@ jobs:
           createRoot(document.getElementById('root')!).render(<Harness />);
           EOF
           done
+          mkdir -p before/frontend/src/features/admin/DocumentStudio/Forms
+          cp after/frontend/src/features/admin/DocumentStudio/Forms/TemplateOverwriteDialog.tsx \
+            before/frontend/src/features/admin/DocumentStudio/Forms/TemplateOverwriteDialog.tsx
 
       - name: Prepare PWA dev harness
         run: |
