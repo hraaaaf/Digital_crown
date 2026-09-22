@@ -21,6 +21,12 @@ describe('PatientCompanionMessages truth contract', () => {
     expect(source).not.toContain('écrit…');
   });
 
+
+
+  it('forces unbroken secure message bodies to wrap on narrow mobile layouts', () => {
+    expect(source.match(/\[overflow-wrap:anywhere\]/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('keeps attachments out of the PC-08 initial slice', () => {
     expect(source).not.toContain('type="file"');
     expect(source).not.toContain('accept="image');
