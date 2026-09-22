@@ -139,7 +139,13 @@ for (const viewport of [
   { width: 1280, height: 900, label: '1280x900' },
 ]) {
   await staffPage.setViewportSize({ width: viewport.width, height: viewport.height });
-  await staffPanel.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await staffPanel.evaluate(element => element.scrollIntoView({ block: 'start', inline: 'nearest' }));
+  await staffPage.evaluate(() => {
+    const stickyHeader = document.querySelector('header.lg\\:sticky');
+    const headerRect = stickyHeader?.getBoundingClientRect();
+    const offset = headerRect ? headerRect.height + 16 : 16;
+    window.scrollBy({ top: -offset, left: 0, behavior: 'instant' });
+  });
   const geometry = await staffPage.evaluate(() => {
     const panel = document.querySelector('[data-pc08-staff-messaging]');
     const stickyHeader = document.querySelector('header.lg\\:sticky');
