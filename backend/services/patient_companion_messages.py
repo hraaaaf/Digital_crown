@@ -51,6 +51,15 @@ def serialize_message(row: PatientCompanionMessage) -> dict[str, Any]:
     }
 
 
+def lock_access_for_messaging(db: Session, access: PatientCompanionAccess) -> None:
+    db.query(PatientCompanionAccess.id).filter(
+        PatientCompanionAccess.id == access.id,
+        PatientCompanionAccess.employer_id == access.employer_id,
+        PatientCompanionAccess.patient_id == access.patient_id,
+        PatientCompanionAccess.revoked_at.is_(None),
+    ).with_for_update().one()
+
+
 def _scoped_query(db: Session, access: PatientCompanionAccess):
     return db.query(PatientCompanionMessage).filter(
         PatientCompanionMessage.access_id == access.id,
@@ -115,6 +124,7 @@ def handle_message_send(
     except ValueError as exc:
         return _reject(str(exc))
 
+    lock_access_for_messaging(db, access)
     existing = _scoped_query(db, access).filter(
         PatientCompanionMessage.client_message_id == client_message_id,
     ).first()
