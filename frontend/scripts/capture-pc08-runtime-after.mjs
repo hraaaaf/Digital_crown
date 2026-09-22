@@ -139,6 +139,15 @@ for (const viewport of [
   { width: 1280, height: 900, label: '1280x900' },
 ]) {
   await staffPage.setViewportSize({ width: viewport.width, height: viewport.height });
+  await staffPage.evaluate(() => {
+    document.querySelector('[data-pc08-capture-spacer]')?.remove();
+    const spacer = document.createElement('div');
+    spacer.setAttribute('data-pc08-capture-spacer', 'true');
+    spacer.style.height = '320px';
+    spacer.style.width = '1px';
+    spacer.style.pointerEvents = 'none';
+    document.body.appendChild(spacer);
+  });
   await staffPanel.evaluate(element => element.scrollIntoView({ block: 'start', inline: 'nearest' }));
   await staffPage.evaluate(() => {
     const stickyHeader = document.querySelector('header.lg\\:sticky');
