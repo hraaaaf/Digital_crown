@@ -64,6 +64,9 @@ class PrescriptionService(LegacyPrescriptionService):
                 "dosage": d.get("dosage", ""),
                 "forme": d.get("forme", ""),
                 "posologie": d.get("posologie", ""),
+                "type": d.get("type", "MEDICAMENT"),
+                "quantite": d.get("quantite"),
+                "non_substituable": bool(d.get("non_substituable", False)),
             }
             for d in drugs
         ]
@@ -142,6 +145,7 @@ class PrescriptionService(LegacyPrescriptionService):
             {
                 "id": preset.id,
                 "act_context": preset.act_code,
+                "label": preset.act_code.strip().lower().capitalize(),
                 "drugs": preset.drugs_json,
             }
             for preset in presets

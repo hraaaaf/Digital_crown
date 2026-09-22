@@ -1,0 +1,177 @@
+name: CUST-02 Motif Selector Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cust-02-motif-selector-visual.yml"
+      - "frontend/src/features/patients/components/MotifSelector.tsx"
+      - "frontend/src/test/customMotifsCust02.test.ts"
+      - "backend/routers/motifs.py"
+      - "backend/models.py"
+      - "alembic/versions/cust02000015_add_cabinet_motifs.py"
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout AFTER
+        uses: actions/checkout@v4
+        with:
+          path: after
+
+      - name: Checkout BEFORE base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: before
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: after/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: after/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          ln -s "$(realpath node_modules)" ../../before/frontend/node_modules
+
+      - name: Inject identical harnesses
+        run: |
+          for root in before/frontend after/frontend; do
+            cat > "$root/cust02-motifs.html" <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>CUST-02 Motifs</title>
+            </head>
+            <body class="bg-white">
+              <div id="root"></div>
+              <script type="module" src="/src/cust02-motifs.tsx"></script>
+            </body>
+          </html>
+          EOF
+            cat > "$root/src/cust02-motifs.tsx" <<'EOF'
+          import React, { useState } from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { MotifSelector } from './features/patients/components/MotifSelector';
+
+          function Harness() {
+            const [selected, setSelected] = useState(['douleur_aigue', 'ancien motif libre', 'cm_inactive']);
+            return (
+              <main className="mx-auto max-w-2xl p-5">
+                <h1 className="mb-4 text-xl font-black text-slate-900">Nouveau patient</h1>
+                <label className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">
+                  Motif(s) de première consultation
+                </label>
+                <MotifSelector selected={selected} onChange={setSelected} />
+              </main>
+            );
+          }
+
+          createRoot(document.getElementById('root')!).render(<Harness />);
+          EOF
+          done
+
+      - name: Prepare PWA dev harness
+        run: |
+          mkdir -p before/frontend/dev-dist after/frontend/dev-dist
+          : > before/frontend/dev-dist/registerSW.js
+          : > after/frontend/dev-dist/registerSW.js
+
+      - name: Capture BEFORE and AFTER
+        working-directory: after/frontend
+        run: |
+          cat > cust02-visual.mjs <<'EOF'
+          import path from 'node:path';
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+
+          const afterRoot = process.cwd();
+          const beforeRoot = path.resolve('../../before/frontend');
+          const output = path.resolve('../../artifacts/cust-02-motifs');
+          await fs.mkdir(output, { recursive: true });
+
+          const beforeServer = await createServer({ root: beforeRoot, server: { host: '127.0.0.1', port: 4186, strictPort: true }, clearScreen: false });
+          const afterServer = await createServer({ root: afterRoot, server: { host: '127.0.0.1', port: 4187, strictPort: true }, clearScreen: false });
+          await beforeServer.listen();
+          await afterServer.listen();
+
+          const browser = await chromium.launch({ headless: true });
+          const viewports = [{width:390,height:844},{width:768,height:1024},{width:1280,height:900}];
+          const rows = [];
+
+          const capture = async (kind, port, viewport) => {
+            const context = await browser.newContext({ viewport, colorScheme: 'light' });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push(String(e)));
+            page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+            await page.route('**/api/motifs**', route => route.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify([
+                { id:'cm_active', label:'Contrôle gouttière ancienne', category_id:'ORTHODONTIE', urgency:'planifié', is_active:true, source:'cabinet' },
+                { id:'cm_inactive', label:'Ancien contrôle cabinet', category_id:'CABINET', urgency:'normal', is_active:false, source:'cabinet' },
+              ]),
+            }));
+            await page.goto(`http://127.0.0.1:${port}/cust02-motifs.html`, { waitUntil: 'networkidle' });
+            await page.getByText('Motif(s) de première consultation', { exact: true }).waitFor();
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+            const shot = `${kind}-${viewport.width}x${viewport.height}.png`;
+            await page.screenshot({ path: path.join(output, shot), fullPage: true, animations: 'disabled' });
+            rows.push({ kind, viewport, overflow, errors, shot });
+
+            if (kind === 'after') {
+              await page.getByRole('button', { name: 'Ajouter un motif' }).click();
+              await page.getByRole('dialog').waitFor();
+              const modalShot = `after-modal-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({ path: path.join(output, modalShot), fullPage: true, animations: 'disabled' });
+              rows.push({ kind:'after-modal', viewport, overflow:false, errors:[], shot:modalShot });
+            }
+            await context.close();
+          };
+
+          try {
+            for (const viewport of viewports) {
+              await capture('before', 4186, viewport);
+              await capture('after', 4187, viewport);
+            }
+          } finally {
+            await browser.close();
+            await beforeServer.close();
+            await afterServer.close();
+          }
+
+          const failures = rows.filter(row => row.overflow || row.errors.length);
+          await fs.writeFile(path.join(output, 'evidence.json'), JSON.stringify(rows, null, 2));
+          await fs.writeFile(path.join(output, 'summary.json'), JSON.stringify({
+            beforeSha: process.env.BASE_SHA,
+            afterSha: process.env.HEAD_SHA,
+            viewports,
+            screenshots: rows.length,
+            failures,
+          }, null, 2));
+          if (failures.length) process.exit(1);
+          EOF
+          BASE_SHA="${{ github.event.pull_request.base.sha }}" HEAD_SHA="${{ github.event.pull_request.head.sha }}" node cust02-visual.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cust-02-motif-selector-before-after
+          path: artifacts/cust-02-motifs
+          if-no-files-found: error
+          retention-days: 14

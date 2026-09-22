@@ -24,3 +24,11 @@ export interface LabJob {
   created_at: string;
   updated_at: string;
 }
+
+
+export interface Lab {
+  id: number;
+  name: string;
+  phone?: string;
+  notes?: string;
+}
