@@ -33,7 +33,7 @@ const STATUS_ORDER: LabJobStatus[] = [
 
 const STATUS_LABELS: Record<LabJobStatus, string> = {
   [LabJobStatus.PRESCRIPTION]: "Prescription",
-  [LabJobStatus.SENT]: "Envoyé au labo",
+  [LabJobStatus.SENT]: "Envoyé au laboratoire",
   [LabJobStatus.IN_PROGRESS]: "En fabrication",
   [LabJobStatus.TRY_IN]: "Essayage",
   [LabJobStatus.READY]: "Prêt / Terminé",
@@ -242,7 +242,7 @@ export const LabJobsBoard: React.FC = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl p-6 shadow-xl w-full max-w-md border border-slate-200">
-            <h2 className="text-lg font-black text-slate-800 mb-1 tracking-tight">Nouvelle demande labo</h2>
+            <h2 className="text-lg font-black text-slate-800 mb-1 tracking-tight">Nouvelle demande au laboratoire</h2>
             <p className="mb-4 text-[11px] font-medium text-slate-500">Les listes proposées viennent uniquement de votre cabinet.</p>
 
             <div className="space-y-4">
