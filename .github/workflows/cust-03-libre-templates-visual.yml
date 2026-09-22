@@ -1,0 +1,216 @@
+name: CUST-03 Document Libre Templates Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cust-03-libre-templates-visual.yml"
+      - "frontend/src/features/admin/DocumentStudio/Forms/LibreForm.tsx"
+      - "frontend/src/features/admin/DocumentStudio/Forms/LibreTemplatePresets.cust03.test.tsx"
+      - "docs/customization/CUST_03_USER_TEMPLATES_GOAL.md"
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout AFTER
+        uses: actions/checkout@v4
+        with:
+          path: after
+
+      - name: Checkout BEFORE base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: before
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: after/frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: after/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          ln -s "$(realpath node_modules)" ../../before/frontend/node_modules
+
+      - name: Inject identical harnesses
+        run: |
+          for root in before/frontend after/frontend; do
+            cat > "$root/cust03-libre.html" <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>CUST-03 Document Libre Templates</title>
+            </head>
+            <body class="bg-white">
+              <div id="root"></div>
+              <script type="module" src="/src/cust03-libre.tsx"></script>
+            </body>
+          </html>
+          EOF
+            cat > "$root/src/cust03-libre.tsx" <<'EOF'
+          import React, { useState } from 'react';
+          import { createRoot } from 'react-dom/client';
+          import './index.css';
+          import { LibreForm } from './features/admin/DocumentStudio/Forms/LibreForm';
+
+          function Harness() {
+            const [title, setTitle] = useState('Lettre au médecin traitant');
+            const [content, setContent] = useState('Cher confrère, merci de recevoir ce patient pour avis spécialisé.\n\nBien confraternellement.');
+            const [customPatient, setCustomPatient] = useState('');
+            const [customDate, setCustomDate] = useState('');
+            const [hideHeader, setHideHeader] = useState(false);
+            const [pageSize, setPageSize] = useState<'A5' | 'A4'>('A5');
+            const [alignment, setAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
+
+            return (
+              <main className="mx-auto max-w-5xl px-3 py-4 sm:px-5">
+                <h1 className="mb-2 text-xl font-black text-slate-900">Document Studio</h1>
+                <LibreForm
+                  title={title}
+                  setTitle={setTitle}
+                  content={content}
+                  setContent={setContent}
+                  customPatient={customPatient}
+                  setCustomPatient={setCustomPatient}
+                  customDate={customDate}
+                  setCustomDate={setCustomDate}
+                  hideHeader={hideHeader}
+                  setHideHeader={setHideHeader}
+                  pageSize={pageSize}
+                  setPageSize={setPageSize}
+                  alignment={alignment}
+                  setAlignment={setAlignment}
+                  validationErrors={[]}
+                />
+              </main>
+            );
+          }
+
+          createRoot(document.getElementById('root')!).render(<Harness />);
+          EOF
+          done
+
+      - name: Prepare PWA dev harness
+        run: |
+          mkdir -p before/frontend/dev-dist after/frontend/dev-dist
+          : > before/frontend/dev-dist/registerSW.js
+          : > after/frontend/dev-dist/registerSW.js
+
+      - name: Capture BEFORE and AFTER
+        working-directory: after/frontend
+        run: |
+          cat > cust03-libre-visual.mjs <<'EOF'
+          import path from 'node:path';
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+
+          const afterRoot = process.cwd();
+          const beforeRoot = path.resolve('../../before/frontend');
+          const output = path.resolve('../../artifacts/cust-03-libre-templates');
+          await fs.mkdir(output, { recursive: true });
+
+          const beforeServer = await createServer({ root: beforeRoot, server: { host: '127.0.0.1', port: 4192, strictPort: true }, clearScreen: false });
+          const afterServer = await createServer({ root: afterRoot, server: { host: '127.0.0.1', port: 4193, strictPort: true }, clearScreen: false });
+          await beforeServer.listen();
+          await afterServer.listen();
+
+          const browser = await chromium.launch({ headless: true });
+          const viewports = [{width:390,height:844},{width:768,height:1024},{width:1280,height:900}];
+          const rows = [];
+
+          const capture = async (kind, port, viewport) => {
+            const context = await browser.newContext({ viewport, colorScheme: 'light' });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push(String(e)));
+            page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+
+            await page.route('**/api/templates**', route => {
+              const url = new URL(route.request().url());
+              if (/\/api\/templates\/?$/.test(url.pathname)) {
+                return route.fulfill({
+                  status: 200,
+                  contentType: 'application/json',
+                  body: JSON.stringify([
+                    { id:'libre-a', name:'Lettre confrère', description:'Modèle cabinet', is_default:false },
+                    { id:'libre-b', name:'Attestation de suivi', description:'Modèle cabinet', is_default:false },
+                  ]),
+                });
+              }
+              return route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                  id:'libre-a',
+                  name:'Lettre confrère',
+                  body_html:'Cher confrère, je vous adresse ce patient pour avis spécialisé.',
+                }),
+              });
+            });
+
+            await page.goto(`http://127.0.0.1:${port}/cust03-libre.html`, { waitUntil: 'networkidle' });
+            await page.getByPlaceholder('Rédigez votre document ici... Utilisez la barre d\'outils pour mettre en forme le texte.').waitFor();
+            if (kind === 'after') {
+              await page.getByText('Mes modèles', { exact: true }).waitFor();
+            }
+
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+            const shot = `${kind}-${viewport.width}x${viewport.height}.png`;
+            await page.screenshot({ path: path.join(output, shot), fullPage: true, animations: 'disabled' });
+            rows.push({ kind, viewport, overflow, errors: [...errors], shot });
+
+            if (kind === 'after') {
+              await page.getByRole('button', { name: 'Enregistrer comme modèle' }).click();
+              await page.getByRole('dialog').waitFor();
+              const modalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+              const modalShot = `after-modal-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({ path: path.join(output, modalShot), fullPage: true, animations: 'disabled' });
+              rows.push({ kind:'after-modal', viewport, overflow:modalOverflow, errors:[...errors], shot:modalShot });
+            }
+            await context.close();
+          };
+
+          try {
+            for (const viewport of viewports) {
+              await capture('before', 4192, viewport);
+              await capture('after', 4193, viewport);
+            }
+          } finally {
+            await browser.close();
+            await beforeServer.close();
+            await afterServer.close();
+          }
+
+          const failures = rows.filter(row => row.overflow || row.errors.length);
+          await fs.writeFile(path.join(output, 'evidence.json'), JSON.stringify(rows, null, 2));
+          await fs.writeFile(path.join(output, 'summary.json'), JSON.stringify({
+            beforeSha: process.env.BASE_SHA,
+            afterSha: process.env.HEAD_SHA,
+            viewports,
+            screenshots: rows.length,
+            failures,
+          }, null, 2));
+          if (failures.length) process.exit(1);
+          EOF
+          BASE_SHA="${{ github.event.pull_request.base.sha }}" HEAD_SHA="${{ github.event.pull_request.head.sha }}" node cust03-libre-visual.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cust-03-libre-templates-before-after
+          path: artifacts/cust-03-libre-templates
+          if-no-files-found: error
+          retention-days: 14
