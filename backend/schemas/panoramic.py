@@ -110,6 +110,7 @@ class PanoramicDomainAssessment(BaseModel):
 
 class PanoramicReportContext(BaseModel):
     clinical_question: Optional[str] = None
+    clinical_answer: Optional[str] = None
     image_quality: Literal["not_assessed", "diagnostic", "limited", "non_diagnostic"] = "not_assessed"
     image_quality_note: Optional[str] = None
     dental_anomalies: PanoramicDomainAssessment = Field(default_factory=PanoramicDomainAssessment)
