@@ -153,7 +153,7 @@ jobs:
 
             if (kind === 'after') {
               await page.getByRole('button',{name:/Nouvelle demande/i}).click();
-              await page.getByText('Nouvelle demande labo',{exact:true}).waitFor();
+              await page.getByText('Nouvelle demande au laboratoire',{exact:true}).waitFor();
               const requestShot=`after-request-${viewport.width}x${viewport.height}.png`;
               await page.screenshot({path:path.join(output,requestShot),fullPage:true,animations:'disabled'});
               rows.push({kind:'after-request',viewport,overflow:false,errors:[...errors],shot:requestShot});
