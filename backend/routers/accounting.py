@@ -243,7 +243,8 @@ def get_accounting_honoraires(
                 display_title = doc.clinical_data['payments'][0].get('motif', doc.clinical_data['payments'][0].get('description', display_title))
 
         items.append({
-            "id": f"doc_{doc.id}", 
+            "id": f"doc_{doc.id}",
+            "document_archive_id": doc.id,
             "patient_id": doc.patient_id, 
             "patient_name": f"{doc.patient.nom} {doc.patient.prenom}", 
             "assurance": doc.patient.assurance or "AUCUNE", 
@@ -263,6 +264,7 @@ def get_accounting_honoraires(
         display_title = f"{acte.libelle}"
         items.append({
             "id": f"acte_{acte.id}",
+            "document_archive_id": acte.document_archive_id,
             "patient_id": acte.patient_id,
             "patient_name": f"{acte.patient.nom} {acte.patient.prenom}",
             "assurance": acte.patient.assurance or "AUCUNE",

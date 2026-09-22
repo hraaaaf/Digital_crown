@@ -95,7 +95,7 @@ def build_context(
 
 def _canonical_local_path(db_path: str) -> Path:
     normalized = str(db_path or "").replace("\\", "/").lstrip("/")
-    if ".." in Path(normalized).parts:
+    if ".." in normalized.split("/"):
         raise SuperimpositionSourceError(
             "SOURCE_PATH_INVALID",
             "Canonical cephalogram path contains traversal segments.",

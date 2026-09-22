@@ -235,10 +235,21 @@ class AccountingService:
         items.sort(key=lambda x: x["date"], reverse=True)
 
         today = datetime.now()
-        installments = db.query(models.Installment).join(models.InstallmentPlan).join(models.Patient).filter(
-            models.Installment.status == "EN_ATTENTE",
-            models.Patient.employer_id == user_employer_id
-        ).all()
+        installments = (
+            db.query(models.Installment)
+            .join(models.InstallmentPlan)
+            .join(models.Patient, models.InstallmentPlan.patient_id == models.Patient.id)
+            .outerjoin(models.Acte, models.InstallmentPlan.acte_id == models.Acte.id)
+            .filter(
+                models.Installment.status == "EN_ATTENTE",
+                models.Patient.employer_id == user_employer_id,
+                or_(
+                    models.InstallmentPlan.acte_id.is_(None),
+                    models.Acte.deleted_at.is_(None),
+                ),
+            )
+            .all()
+        )
         
         proactive_alerts = []
         for inst in installments:

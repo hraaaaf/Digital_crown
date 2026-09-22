@@ -6,9 +6,9 @@ from backend import env_loader
 def test_cabinet_without_crypto_secret_fails_closed(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "cabinet")
     monkeypatch.delenv("CABINET_MASTER_KEY_HEX", raising=False)
-    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setenv("SECRET_KEY", "s" * 64)
 
-    with pytest.raises(RuntimeError, match="cabinet/production refuse"):
+    with pytest.raises(RuntimeError, match="CABINET_MASTER_KEY_HEX"):
         env_loader._enforce_cabinet_crypto_secret()
 
 
@@ -31,6 +31,7 @@ def test_cabinet_accepts_strong_dedicated_master_key(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "cabinet")
     monkeypatch.setenv("SECRET_KEY", "jwt-signing-secret-" + "b" * 32)
     monkeypatch.setenv("CABINET_MASTER_KEY_HEX", "a" * 64)
+    monkeypatch.setenv("SECRET_KEY", "s" * 64)
 
     env_loader._enforce_cabinet_crypto_secret()
 

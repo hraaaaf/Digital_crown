@@ -1,0 +1,90 @@
+name: PC-02 AFTER Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/pc02-after-visual.yml
+      - frontend/scripts/capture-pc02-after.mjs
+      - frontend/src/features/patient-companion/**
+      - docs/ux/PC_01_PATIENT_WALLET_TARGET.md
+      - docs/clinic/patient_companion/**
+
+concurrency:
+  group: pc02-agenda-after-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agenda-after-evidence:
+    name: PC-02 agenda AFTER
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Record immutable identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install AFTER frontend and browsers
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Start AFTER Vite server
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/frontend"
+          npm run dev -- --host 127.0.0.1 --port 5175 >/tmp/pc02-after.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:5175/ >/dev/null && exit 0 || true
+            sleep 1
+          done
+          exit 1
+      - name: Capture PC-02 AFTER evidence
+        working-directory: frontend
+        env:
+          PC02_AFTER_URL: http://127.0.0.1:5175
+          PC02_EVIDENCE_DIR: ../artifacts/pc02-agenda-after
+        run: node scripts/capture-pc02-after.mjs
+      - name: Assert PC-02 AFTER evidence contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          items=json.loads(Path("artifacts/pc02-agenda-after/evidence.json").read_text())
+          assert len(items) == 4, len(items)
+          assert all(not x["horizontalOverflow"] for x in items)
+          keys={(x["browser"],x["phase"],x["viewport"]["width"],x["viewport"]["height"]) for x in items}
+          for browser in ("chromium","webkit"):
+              for phase in ("after",):
+                  for width,height in ((360,800),(390,844)):
+                      assert (browser,phase,width,height) in keys
+          print("pc02_after_evidence=PASS")
+          PY
+      - name: Record proof metadata
+        shell: bash
+        run: |
+          printf 'base=%s\nhead=%s\nviewports=360x800,390x844\nbrowsers=chromium,webkit\noffline_reload=no\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/pc02-agenda-after/result.txt
+          cp /tmp/pc02-after.log artifacts/pc02-agenda-after/after/vite.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc02-agenda-after
+          path: artifacts/pc02-agenda-after
+          if-no-files-found: error
+          retention-days: 30

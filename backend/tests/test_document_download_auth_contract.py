@@ -14,7 +14,7 @@ def _access_token(auth_headers: dict[str, str]) -> str:
 
 def test_document_download_rejects_query_token(client, auth_headers):
     token = _access_token(auth_headers)
-    client.cookies.delete("access_token")
+    client.cookies.clear()
     response = client.get(f"/api/documents/999999/download?token={token}")
     assert response.status_code == 401
 

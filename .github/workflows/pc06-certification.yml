@@ -1,0 +1,86 @@
+name: PC-06 Patient Finance Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_finance.py"
+      - "backend/services/patient_companion_finance.py"
+      - "backend/tests/test_patient_companion_finance.py"
+      - "frontend/src/features/patient-companion/**"
+      - ".github/workflows/pc06-certification.yml"
+      - "docs/clinic/patient_companion/PC_06_*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pc06-backend:
+    name: PC-06 finance truth boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: test
+      SECRET_KEY: pc06-certification-only-secret-key-000001
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact head
+        if: github.event_name == 'pull_request'
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install focused Python dependencies
+        run: >-
+          python -m pip install
+          pytest==9.0.3
+          "pydantic[email]==2.6.3"
+          fastapi==0.115.6
+          passlib==1.7.4
+          bcrypt==3.2.2
+          python-dotenv==1.0.1
+          pydantic-settings==2.2.1
+          python-jose==3.5.0
+          python-multipart==0.0.31
+          qrcode==8.2
+          pillow==12.2.0
+          SQLAlchemy==2.0.28
+          httpx==0.28.1
+          jwcrypto==1.6.1
+          firebase-admin==7.5.0
+          sentry-sdk[fastapi]==2.69.0
+
+      - name: PC-06 backend reconciliation + isolation
+        run: python -m pytest backend/tests/test_patient_companion_finance.py -q --maxfail=1
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: PC-06 frontend truth-boundary tests
+        working-directory: frontend
+        run: npm test -- --run src/features/patient-companion/PatientCompanionFinance.test.tsx
+
+      - name: Frontend production build
+        working-directory: frontend
+        run: npm run build

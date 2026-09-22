@@ -512,6 +512,7 @@ class DocumentPreviewResponse(BaseModel):
 
 class HonoraireItem(BaseModel):
     id: Union[int, str]
+    document_archive_id: Optional[int] = None
     patient_id: int
     patient_name: str
     assurance: Optional[str] = "AUCUNE"
@@ -521,6 +522,7 @@ class HonoraireItem(BaseModel):
     file_url: str
     payment_status: Optional[str] = "EN_ATTENTE"
     validated_by: Optional[str] = None
+    is_collected: Optional[bool] = None
 
 
 class HonoraireListResponse(BaseModel):

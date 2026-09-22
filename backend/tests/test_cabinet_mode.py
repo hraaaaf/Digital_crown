@@ -1,6 +1,8 @@
 """Tests CABINET-PILOT-BLOCKERS-1 — mode ENVIRONMENT=cabinet, bind LAN,
 et non-embarquement de secrets dans l'EXE."""
 import os
+
+import pytest
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -55,52 +57,54 @@ class TestEnvironmentInvariants:
 
 class TestRunPyHostResolution:
     def _resolve(self, env_vars):
-        import importlib.util
-        spec = importlib.util.find_spec("run") if False else None
-        # run.py n'est pas un module du package backend — on importe la
-        # fonction directement depuis le fichier.
         import importlib.util as ilu
         import pathlib
+
         run_path = pathlib.Path(__file__).parent.parent.parent / "run.py"
-        spec = ilu.spec_from_file_location("_run_module", run_path)
-        # NB : on n'exécute PAS le module (il importe backend.main = lourd) ;
-        # on teste la logique en la reproduisant depuis l'env — la source de
-        # vérité est vérifiée par le test source-level ci-dessous.
-        env = env_vars.get("ENVIRONMENT", "development").lower()
-        default_host = "127.0.0.1"
-        host = env_vars.get("CABINET_HOST", default_host)
-        port = int(env_vars.get("CABINET_PORT", "8005"))
-        return host, port
+        spec = ilu.spec_from_file_location("_run_module_for_network_test", run_path)
+        module = ilu.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        with patch.dict(os.environ, env_vars, clear=True):
+            return module._resolve_runtime_network()
 
     def test_dev_defaults_to_localhost(self):
-        host, port = self._resolve({})
+        host, port, https_enabled, _, _ = self._resolve({})
         assert host == "127.0.0.1"
         assert port == 8005
+        assert https_enabled is False
 
     def test_cabinet_defaults_to_loopback(self):
-        host, _ = self._resolve({"ENVIRONMENT": "cabinet"})
+        host, _, https_enabled, _, _ = self._resolve({"ENVIRONMENT": "cabinet"})
         assert host == "127.0.0.1"
+        assert https_enabled is False
 
     def test_production_defaults_to_localhost(self):
-        host, _ = self._resolve({"ENVIRONMENT": "production"})
+        host, _, _, _, _ = self._resolve({"ENVIRONMENT": "production"})
         assert host == "127.0.0.1"
 
-    def test_explicit_cabinet_host_wins(self):
-        host, _ = self._resolve({"ENVIRONMENT": "development", "CABINET_HOST": "192.168.1.50"})
+    def test_explicit_host_wins_in_development(self):
+        host, _, _, _, _ = self._resolve(
+            {"ENVIRONMENT": "development", "CABINET_HOST": "192.168.1.50"}
+        )
         assert host == "192.168.1.50"
 
+    def test_cabinet_lan_bind_requires_https(self):
+        with pytest.raises(RuntimeError, match="HTTPS"):
+            self._resolve({"ENVIRONMENT": "cabinet", "CABINET_HOST": "0.0.0.0"})
+
     def test_explicit_port_wins(self):
-        _, port = self._resolve({"CABINET_PORT": "9000"})
+        _, port, _, _, _ = self._resolve({"CABINET_PORT": "9000"})
         assert port == 9000
 
     def test_run_py_source_uses_env_vars(self):
-        """Vérifie que run.py contient réellement la logique testée ci-dessus."""
+        """Vérifie que run.py garde le contrat réseau fail-closed."""
         import pathlib
         source = (pathlib.Path(__file__).parent.parent.parent / "run.py").read_text(encoding="utf-8")
         assert "CABINET_HOST" in source
         assert "CABINET_PORT" in source
-        assert 'os.environ.get("CABINET_HOST", "127.0.0.1")' in source
-        assert 'host="127.0.0.1"' not in source  # uvicorn reçoit la valeur résolue, pas un bind hardcodé
+        assert "_resolve_runtime_network" in source
+        assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in source
 
 
 class TestSpecNoSecrets:

@@ -220,13 +220,19 @@ def test_media_share_requires_explicit_same_patient_grant(client, db):
         json={"resource_type": "media", "resource_id": media_a.id},
     )
     assert grant.status_code == 201, grant.text
+    granted = grant.json()
     client.cookies.clear()
     shares = client.get(
         f"/api/patient-companion/contexts/{access_id}/shares",
         headers=_patient_headers(),
     )
     assert shares.status_code == 200
-    assert [x["resource_id"] for x in shares.json()["items"]] == [media_a.id]
+    items = shares.json()["items"]
+    assert len(items) == 1
+    assert items[0]["share_id"] == granted["share_id"]
+    assert items[0]["resource_type"] == "media"
+    assert items[0]["asset_type"] == "PHOTO"
+    assert "resource_id" not in items[0]
 
 
 def test_access_revocation_is_immediate(client, db):

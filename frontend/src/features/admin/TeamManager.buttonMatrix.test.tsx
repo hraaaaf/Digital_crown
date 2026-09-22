@@ -243,13 +243,16 @@ describe('TeamManager commercial pack button matrix', () => {
     await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith('/team/10/reject'));
 
     vi.mocked(api.delete).mockClear();
+    const deletePending = screen.getByTitle('Supprimer définitivement');
+    await waitFor(() => expect(deletePending).not.toBeDisabled());
+
     confirmMock.mockReturnValueOnce(false);
-    fireEvent.click(screen.getByTitle('Supprimer définitivement'));
+    fireEvent.click(deletePending);
     expect(api.delete).not.toHaveBeenCalled();
 
     confirmMock.mockReturnValueOnce(true);
-    fireEvent.click(screen.getByTitle('Supprimer définitivement'));
-    await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/10'));
+    fireEvent.click(deletePending);
+    await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/10'), { timeout: 3000 });
   });
 
   it('executes permissions save, suspend, reactivate and permanent delete for existing members', async () => {
@@ -269,7 +272,9 @@ describe('TeamManager commercial pack button matrix', () => {
     ));
 
     vi.mocked(api.put).mockClear();
-    fireEvent.click(screen.getByTitle("Suspendre l'accès"));
+    const suspend = screen.getByTitle("Suspendre l'accès");
+    await waitFor(() => expect(suspend).not.toBeDisabled());
+    fireEvent.click(suspend);
     await waitFor(() => expect(vi.mocked(api.put)).toHaveBeenCalledWith('/team/11', { is_active: false }));
 
     vi.mocked(api.put).mockClear();

@@ -115,6 +115,8 @@ jobs:
                   "patient_companion_accesses",
                   "patient_companion_invitations",
                   "patient_companion_share_grants",
+                  "patient_companion_notification_preferences",
+                  "patient_companion_notification_receipts",
                   "cabinet_settings",
                   "agenda_exceptions",
                   "cabinet_specialties",
@@ -134,6 +136,14 @@ jobs:
                   "patients": {"deleted_at", "deleted_by"},
                   "proactive_alerts": {"snoozed_until"},
                   "users": {"nom_complet_ar", "inpe_professionnel"},
+                  "patient_companion_notification_preferences": {
+                      "access_id", "employer_id", "patient_id",
+                      "appointments", "documents", "questionnaires", "consents",
+                  },
+                  "patient_companion_notification_receipts": {
+                      "access_id", "employer_id", "patient_id",
+                      "source_key", "read_at", "snoozed_until",
+                  },
                   "zka_pairing_tokens": {"user_id", "manual_code"},
                   "cabinet_settings": {"employer_id", "weekly_schedule_json"},
                   "agenda_exceptions": {"employer_id"},

@@ -209,6 +209,7 @@ async def lifespan(app: FastAPI):
         )
 
     firebase_sync_task = None
+    patient_relay_task = None
     try:
         boot_policy = assert_runtime_startup_allowed(_cfg)
 
@@ -273,6 +274,21 @@ async def lifespan(app: FastAPI):
             if boot_policy != REHEARSAL_MIGRATION_ONLY
             else None
         )
+        relay_url_configured = bool(_cfg.PATIENT_COMPANION_RELAY_URL.strip())
+        relay_secret_configured = bool(_cfg.PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET.strip())
+        if relay_url_configured != relay_secret_configured:
+            logger.warning(
+                "Patient Companion relay disabled: URL/bootstrap configuration is incomplete."
+            )
+        patient_relay_task = (
+            asyncio.create_task(_periodic_patient_companion_relay())
+            if (
+                boot_policy != REHEARSAL_MIGRATION_ONLY
+                and relay_url_configured
+                and relay_secret_configured
+            )
+            else None
+        )
 
     except asyncio.CancelledError:
         raise
@@ -284,6 +300,8 @@ async def lifespan(app: FastAPI):
 
     if firebase_sync_task is not None:
         firebase_sync_task.cancel()
+    if patient_relay_task is not None:
+        patient_relay_task.cancel()
     logger.info("Arret de l'API...")
 
 
@@ -344,6 +362,32 @@ async def _sync_all_licenses_from_firebase() -> None:
 
     except Exception as e:
         logger.error(f"Erreur sync licences Firebase : {e}")
+
+
+def _poll_patient_companion_relay_sync() -> dict[str, int]:
+    from backend.services.patient_companion_relay_worker import poll_relay_bindings_once
+    with database.SessionLocal() as db:
+        return poll_relay_bindings_once(
+            db,
+            bootstrap_secret=app_settings.PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET.strip(),
+        )
+
+
+async def _periodic_patient_companion_relay() -> None:
+    interval = max(2, min(int(app_settings.PATIENT_COMPANION_RELAY_POLL_SECONDS), 60))
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            result = await run_in_threadpool(_poll_patient_companion_relay_sync)
+            if result.get("failed"):
+                logger.warning(
+                    "Patient Companion relay poll: %s binding(s) failed; retry scheduled.",
+                    result["failed"],
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            logger.exception("Patient Companion relay poll failed; retry scheduled.")
 
 
 async def _periodic_firebase_sync() -> None:
@@ -438,6 +482,12 @@ async def license_check_middleware(request: Request, call_next):
         except (TypeError, ValueError):
             return JSONResponse(status_code=401, content={"detail": "TOKEN_INVALID"})
         is_ok, reason = await get_mobile_user_license_status(mobile_user_id)
+    elif token_type == "patient_companion":
+        try:
+            patient_tenant_id = int(payload["tenant_id"])
+        except (TypeError, ValueError, KeyError):
+            return JSONResponse(status_code=401, content={"detail": "TOKEN_INVALID"})
+        is_ok, reason = await get_mobile_user_license_status(patient_tenant_id)
     else:
         email = subject
         # SuperAdmin : bypass total, jamais bloqué
@@ -474,6 +524,7 @@ _BOUNDED_PUBLIC_JSON_PATHS = {
     "/api/public/activate-trial",
     "/api/mobile/claim-token",
     "/api/mobile/refresh-token",
+    "/api/patient-companion/pair",
 }
 
 
@@ -595,6 +646,9 @@ app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Super Adm
 
 from backend.routers import public as public_router
 app.include_router(public_router.router, prefix="/api/public", tags=["Public"])
+
+from backend.routers import patient_companion
+app.include_router(patient_companion.router, prefix="/api/patient-companion", tags=["Patient Companion"])
 
 # --- HEALTH CHECK ---
 @app.get("/health", include_in_schema=False)

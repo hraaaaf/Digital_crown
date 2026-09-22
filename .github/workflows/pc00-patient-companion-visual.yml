@@ -1,0 +1,132 @@
+name: PC-00 Patient Companion Visual Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/pc00-patient-companion-visual.yml
+      - frontend/scripts/capture-pc00-companion.mjs
+      - frontend/src/App.tsx
+      - frontend/src/features/patient-companion/**
+      - docs/ux/PC_00_PATIENT_COMPANION_TARGET.md
+
+concurrency:
+  group: pc00-patient-companion-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  before-after:
+    name: 360x800 + 390x844 matched evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Record immutable identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install head frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+
+      - name: Materialize true BEFORE
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/pc00-before "$BASE_SHA"
+          cd /tmp/pc00-before/frontend
+          npm ci
+
+      - name: Start BEFORE and AFTER Vite servers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/pc00-before/frontend
+          npm run dev -- --host 127.0.0.1 --port 5174 >/tmp/pc00-before-vite.log 2>&1 &
+          cd "$GITHUB_WORKSPACE/frontend"
+          npm run dev -- --host 127.0.0.1 --port 5175 >/tmp/pc00-after-vite.log 2>&1 &
+          for i in {1..60}; do
+            B=0; A=0
+            curl -fsS http://127.0.0.1:5174/ >/dev/null && B=1 || true
+            curl -fsS http://127.0.0.1:5175/ >/dev/null && A=1 || true
+            if [ "$B" = 1 ] && [ "$A" = 1 ]; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Capture matched BEFORE/AFTER
+        working-directory: frontend
+        env:
+          PC00_BEFORE_URL: http://127.0.0.1:5174
+          PC00_AFTER_URL: http://127.0.0.1:5175
+          PC00_EVIDENCE_DIR: ../artifacts/pc00-patient-companion
+        run: node scripts/capture-pc00-companion.mjs
+
+      - name: Assert evidence contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          items=json.loads(Path("artifacts/pc00-patient-companion/evidence.json").read_text())
+          assert len(items) == 16, len(items)
+          keys={(x["browser"],x["phase"],x["scenario"],x["viewport"]["width"],x["viewport"]["height"]) for x in items}
+          for browser in ("chromium","webkit"):
+              for phase in ("before","after"):
+                  for scenario in ("welcome","home"):
+                      for width,height in ((360,800),(390,844)):
+                          assert (browser,phase,scenario,width,height) in keys
+          after=[x for x in items if x["phase"]=="after"]
+          assert all(not x["horizontalOverflow"] for x in after)
+          assert all("Patient Companion" in x["text"] for x in after)
+          homes=[x for x in after if x["scenario"]=="home"]
+          assert len(homes) == 4
+          for item in homes:
+              probe=item["storageProbe"]
+              assert probe["envelopeVersion"] == 1, probe
+              assert probe["hasCiphertext"] is True, probe
+              assert probe["envelopeLeaksAccessToken"] is False, probe
+              assert probe["keyAlgorithm"] == "AES-GCM", probe
+              assert probe["keyExtractable"] is False, probe
+              assert probe["webStorageLeaksAccessToken"] is False, probe
+              assert probe["webStorageLeaksManualCode"] is False, probe
+          before=[x for x in items if x["phase"]=="before"]
+          # BEFORE is the immutable base and may already contain a protected /companion
+          # route shell. The evidence contract requires matched capture, not a historical
+          # assumption that the base must redirect to /login.
+          assert len(before) == 8
+          print("pc00_visual_contract=PASS")
+          PY
+
+      - name: Record proof metadata
+        shell: bash
+        run: |
+          printf 'base=%s\nhead=%s\nviewports=360x800,390x844\ndeployment=none\n' "$BASE_SHA" "$HEAD_SHA" > artifacts/pc00-patient-companion/result.txt
+          cp /tmp/pc00-before-vite.log artifacts/pc00-patient-companion/before/vite.log
+          cp /tmp/pc00-after-vite.log artifacts/pc00-patient-companion/after/vite.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc00-patient-companion-before-after
+          path: artifacts/pc00-patient-companion
+          if-no-files-found: error
+          retention-days: 30

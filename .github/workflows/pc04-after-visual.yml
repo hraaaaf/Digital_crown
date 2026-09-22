@@ -1,0 +1,66 @@
+name: PC-04 AFTER Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/pc04-after-visual.yml
+      - frontend/scripts/capture-pc04-after.mjs
+      - frontend/src/features/patient-companion/**
+      - backend/routers/patient_companion_consents.py
+      - backend/services/patient_companion_consents.py
+      - backend/services/patient_signature_png.py
+      - backend/models_patient_companion.py
+      - docs/clinic/patient_companion/**
+
+concurrency:
+  group: pc04-after-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Start AFTER
+        shell: bash
+        run: |
+          cd frontend
+          npm run dev -- --host 127.0.0.1 --port 5179 >/tmp/pc04-after.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5179/ >/dev/null && break || sleep 1; done
+      - name: Capture AFTER
+        working-directory: frontend
+        env:
+          PC04_AFTER_URL: http://127.0.0.1:5179
+          PC04_EVIDENCE_DIR: ../artifacts/pc04-consent-after
+        run: node scripts/capture-pc04-after.mjs
+      - name: Assert evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          items=json.loads(Path("artifacts/pc04-consent-after/evidence.json").read_text())
+          assert len(items)==4
+          assert all(not x["horizontalOverflow"] for x in items)
+          print("pc04_after=PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc04-consent-after
+          path: artifacts/pc04-consent-after
+          if-no-files-found: error
+          retention-days: 30

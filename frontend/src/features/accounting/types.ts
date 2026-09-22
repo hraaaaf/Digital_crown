@@ -1,5 +1,6 @@
 export interface HonoraireItem {
   id: number | string;
+  document_archive_id?: number | null;
   patient_id: number;
   patient_name: string;
   assurance: string;

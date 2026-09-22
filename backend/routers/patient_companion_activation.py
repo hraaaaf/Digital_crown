@@ -79,6 +79,7 @@ def get_patient_companion_staff_status(
     invitation = db.query(PatientCompanionInvitation).filter(
         PatientCompanionInvitation.employer_id == employer_id,
         PatientCompanionInvitation.patient_id == patient.id,
+        PatientCompanionInvitation.recipient_type == "local_bridge",
         PatientCompanionInvitation.consumed_at.is_(None),
         PatientCompanionInvitation.revoked_at.is_(None),
         PatientCompanionInvitation.expires_at > now,
@@ -363,7 +364,6 @@ def get_patient_appointments(
     ).order_by(models.Appointment.datetime_start.asc()).limit(limit).all()
     return {"items": [
         {
-            "id": row.id,
             "datetime_start": row.datetime_start,
             "duration_minutes": row.duration_minutes,
             "motif": row.motif or "Consultation",

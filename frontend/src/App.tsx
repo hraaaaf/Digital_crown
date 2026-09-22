@@ -40,6 +40,7 @@ const PartnerSupplierPage = lazy(() => import('./pages/PartnerSupplierPage').the
 const PartnerProductPage = lazy(() => import('./pages/PartnerProductPage').then(m => ({ default: m.PartnerProductPage })));
 const WaitingRoomPage  = lazy(() => import('./pages/WaitingRoomPage').then(m => ({ default: m.WaitingRoomPage })));
 const LegalPage        = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
+const PatientCompanionApp = lazy(() => import('./features/patient-companion/PatientCompanionApp').then(m => ({ default: m.PatientCompanionApp })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -367,6 +368,9 @@ function App() {
             <Suspense fallback={<PageLoader />}><MobileSuperAdminView /></Suspense>
           </MobileProtectedRoute>
         } />
+
+        {/* Patient Companion: local-first patient boundary paired by one-time QR/code */}
+        <Route path="/companion" element={<Suspense fallback={<PageLoader />}><PatientCompanionApp /></Suspense>} />
 
         {/* Page marketing publique (avant connexion) */}
         <Route path="/landing" element={<LandingPage />} />
