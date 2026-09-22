@@ -127,7 +127,7 @@ def test_pc08_cross_access_cursor_is_rejected(db, dentiste):
     db.commit()
     cursor = sent.response["message"]["message_id"]
 
-    result = handle_message_sync(db, access_b, {"after_message_id": cursor})
+    result = handle_message_sync(db, access_b, {"before_message_id": cursor})
     assert result.status == "REJECTED"
     assert result.response["code"] == "MESSAGE_CURSOR_NOT_FOUND"
 
