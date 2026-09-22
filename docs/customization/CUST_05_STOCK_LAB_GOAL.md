@@ -93,3 +93,7 @@ Laboratoires du cabinet
 6. aucun laboratoire legacy non attribué n'est exposé ;
 7. BEFORE/AFTER 390×844, 768×1024, 1280×900 ;
 8. modals “Nouvelle demande” et “Laboratoires du cabinet” certifiés visuellement.
+
+
+## Note de certification visuelle
+Le workflow visuel ignore uniquement le bruit transitoire Vite `Outdated Optimize Dep` observé sur la baseline BEFORE. Les erreurs console produit, page errors et overflows restent bloquants.
