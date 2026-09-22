@@ -64,6 +64,9 @@ class PrescriptionService(LegacyPrescriptionService):
                 "dosage": d.get("dosage", ""),
                 "forme": d.get("forme", ""),
                 "posologie": d.get("posologie", ""),
+                "type": d.get("type", "MEDICAMENT"),
+                "quantite": d.get("quantite"),
+                "non_substituable": bool(d.get("non_substituable", False)),
             }
             for d in drugs
         ]
