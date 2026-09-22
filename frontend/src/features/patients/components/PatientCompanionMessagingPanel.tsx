@@ -42,8 +42,15 @@ export const PatientCompanionMessagingPanel = ({ patientId }: { patientId: numbe
         access_id: resolved,
         message_ids: unread.map((item: Message) => item.message_id),
       });
-      const refreshed = await api.get(`/patient-companion/admin/patients/${patientId}/messages`, { params: { access_id: resolved } });
-      setItems(Array.isArray(refreshed.data.items) ? refreshed.data.items : []);
+      // The mutation is canonical and already succeeded. Reflect that truth
+      // immediately in the staff thread instead of depending on a second GET
+      // repaint; the next refresh still reconciles from cabinet persistence.
+      const readAt = new Date().toISOString();
+      setItems((response.data.items || []).map((item: Message) =>
+        item.sender_kind === 'PATIENT' && unread.some((candidate: Message) => candidate.message_id === item.message_id)
+          ? { ...item, staff_read_at: item.staff_read_at || readAt }
+          : item
+      ));
     }
   }, [patientId]);
 
