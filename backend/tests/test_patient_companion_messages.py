@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, Response
 
@@ -25,6 +26,14 @@ from backend.services.patient_companion_messages import (
     handle_message_send,
     handle_message_sync,
 )
+from backend.services.patient_companion_remote_crypto import (
+    decrypt_and_verify,
+    generate_p256_keypair,
+    sign_and_encrypt,
+)
+from backend.services.patient_companion_remote_keys import enroll_remote_keyset
+from backend.services.patient_companion_remote_worker import process_remote_envelope
+from relay.contract import RelayInnerMessage, RELAY_MAX_BLOB_BYTES
 
 
 def _patient(db, dentiste, suffix: str):
@@ -290,3 +299,119 @@ def test_pc08_staff_cannot_send_to_access_of_another_patient(db, dentiste):
         assert exc.status_code == 404
     else:
         raise AssertionError("cross-patient access unexpectedly accepted")
+
+
+def _protect_remote(raw: bytes) -> bytes:
+    return b"pc08-test-protected:" + raw
+
+
+def _unprotect_remote(raw: bytes) -> bytes:
+    return raw.removeprefix(b"pc08-test-protected:")
+
+
+def test_pc08_remote_registry_dispatches_message_sync_through_real_crypto(db, dentiste):
+    patient = _patient(db, dentiste, "REMOTE")
+    _identity, access = _access(db, dentiste, patient, "SELF")
+    db.add(PatientCompanionMessage(
+        access_id=access.id,
+        employer_id=dentiste.id,
+        patient_id=patient.id,
+        client_message_id=str(uuid.uuid4()),
+        sender_kind="STAFF",
+        sender_user_id=dentiste.id,
+        body="Message chiffré de test",
+    ))
+    patient_sig_private, patient_sig_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="sig")
+    patient_enc_private, patient_enc_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="enc")
+    keyset, cabinet_sig, cabinet_enc = enroll_remote_keyset(
+        db,
+        access=access,
+        patient_signing_kid=patient_sig_public["kid"],
+        patient_signing_public_jwk=patient_sig_public,
+        patient_encryption_kid=patient_enc_public["kid"],
+        patient_encryption_public_jwk=patient_enc_public,
+        protect=_protect_remote,
+    )
+    db.commit()
+
+    now = datetime.now(timezone.utc)
+    request = RelayInnerMessage(
+        message_id=uuid.uuid4(),
+        access_id=uuid.UUID(access.public_id),
+        sent_at=now,
+        expires_at=now + timedelta(minutes=10),
+        idempotency_key=uuid.uuid4(),
+        operation="message.sync",
+        payload={},
+    )
+    token = sign_and_encrypt(
+        request.model_dump(mode="json"),
+        sender_signing_private_jwk=patient_sig_private,
+        recipient_encryption_public_jwk=json.loads(cabinet_enc.public_jwk_json),
+        sender_signing_kid=keyset.patient_signing_kid,
+        recipient_encryption_kid=keyset.cabinet_encryption_kid,
+    )
+    ack_token = process_remote_envelope(
+        db,
+        access=access,
+        keyset=keyset,
+        compact_jwe=token,
+        unprotect=_unprotect_remote,
+    )
+    ack = decrypt_and_verify(
+        ack_token,
+        recipient_encryption_private_jwk=patient_enc_private,
+        sender_signing_public_jwk=json.loads(cabinet_sig.public_jwk_json),
+        expected_sender_signing_kid=keyset.cabinet_signing_kid,
+        expected_recipient_encryption_kid=keyset.patient_encryption_kid,
+    )
+    assert ack["payload"]["status"] == "ACCEPTED"
+    assert ack["payload"]["result"]["code"] == "MESSAGE_SYNC"
+    assert ack["payload"]["result"]["items"][0]["body"] == "Message chiffré de test"
+
+
+def test_pc08_twenty_max_messages_fit_real_jose_relay_envelope():
+    cabinet_sig_private, cabinet_sig_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="sig")
+    _patient_enc_private, patient_enc_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="enc")
+    now = datetime.now(timezone.utc)
+    messages = [
+        {
+            "message_id": str(uuid.uuid4()),
+            "client_message_id": str(uuid.uuid4()),
+            "sender_kind": "STAFF",
+            "body": "x" * PC08_MAX_BODY_BYTES,
+            "created_at": now.isoformat(),
+            "staff_read_at": None,
+            "patient_received_at": None,
+            "patient_read_at": None,
+        }
+        for _ in range(20)
+    ]
+    ack = RelayInnerMessage(
+        message_id=uuid.uuid4(),
+        access_id=uuid.uuid4(),
+        sent_at=now,
+        expires_at=now + timedelta(minutes=10),
+        idempotency_key=uuid.uuid4(),
+        operation="command.result",
+        payload={
+            "request_message_id": str(uuid.uuid4()),
+            "request_operation": "message.sync",
+            "status": "ACCEPTED",
+            "result": {
+                "code": "MESSAGE_SYNC",
+                "items": messages,
+                "before_cursor": messages[0]["message_id"],
+                "has_more": True,
+                "limit": 20,
+            },
+        },
+    )
+    blob = sign_and_encrypt(
+        ack.model_dump(mode="json"),
+        sender_signing_private_jwk=cabinet_sig_private,
+        recipient_encryption_public_jwk=patient_enc_public,
+        sender_signing_kid=cabinet_sig_public["kid"],
+        recipient_encryption_kid=patient_enc_public["kid"],
+    )
+    assert len(blob.encode("utf-8")) < RELAY_MAX_BLOB_BYTES
