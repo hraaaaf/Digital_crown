@@ -432,7 +432,7 @@ export function PatientCompanionMessages({
                     ? 'ml-auto border-primary/15 bg-primary/5'
                     : 'mr-auto border-border-main bg-background'}`}
                 >
-                  <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-relaxed text-main">
+                  <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm font-semibold leading-relaxed text-main">
                     {item.body}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-black text-text-muted">
@@ -449,7 +449,7 @@ export function PatientCompanionMessages({
                 key={item.clientMessageId}
                 className="ml-auto max-w-[88%] rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3"
               >
-                <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-relaxed text-main">
+                <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm font-semibold leading-relaxed text-main">
                   {item.body}
                 </p>
                 <p className="mt-2 text-[9px] font-black text-amber-800">{pendingStatus(item)}</p>
