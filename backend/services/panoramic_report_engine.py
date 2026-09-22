@@ -1,7 +1,13 @@
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+from backend.services.panoramic_report_ontology import (
+    PANORAMIC_DOMAIN_TITLES,
+    PANORAMIC_EXPLICIT_NORMAL_TEXT,
+    PANORAMIC_REPORT_DOMAINS,
+)
 
 # Manual practitioner labels only. The report engine must not upgrade these
 # observations into diagnoses, normality claims, treatment plans, or billing acts.
@@ -113,6 +119,7 @@ class PanoramicReportEngine:
         detections: List[Dict] = None,
         manual_anomalies: Dict[int, List[str]] = None,
         global_findings: List[str] = None,
+        report_context: Optional[Dict] = None,
     ) -> str:
         try:
             if isinstance(detections, dict):
@@ -120,6 +127,7 @@ class PanoramicReportEngine:
             detections = detections or []
             manual_anomalies = manual_anomalies or {}
             global_findings = global_findings or []
+            report_context = report_context or {}
 
             teeth_ids: Dict[int, set] = {}
             for fdi_str, anomalies in manual_anomalies.items():
@@ -138,12 +146,40 @@ class PanoramicReportEngine:
                 for anomaly_id in anomalies:
                     anomalies[anomaly_id].sort()
 
-            lines: List[str] = [
+            lines: List[str] = []
+
+            clinical_question = (report_context.get("clinical_question") or "").strip()
+            if clinical_question:
+                lines.extend([
+                    "### QUESTION CLINIQUE",
+                    f"- {clinical_question}",
+                    "",
+                ])
+
+            lines.extend([
                 "### TECHNIQUE",
                 "- Radiographie panoramique numérique.",
-                "- Compte rendu déterministe limité aux constatations explicitement documentées et validées par le praticien.",
+            ])
+            quality = report_context.get("image_quality", "not_assessed")
+            quality_note = (report_context.get("image_quality_note") or "").strip()
+            if quality == "diagnostic":
+                lines.append("- Qualité jugée suffisante par le praticien pour la lecture panoramique.")
+            elif quality == "limited":
+                text = "- Qualité limitée pour la lecture panoramique."
+                if quality_note:
+                    text += f" {quality_note}"
+                lines.append(text)
+            elif quality == "non_diagnostic":
+                text = "- Examen jugé non interprétable dans son ensemble par le praticien."
+                if quality_note:
+                    text += f" {quality_note}"
+                lines.append(text)
+            else:
+                lines.append("- Qualité / interprétabilité : non évaluée dans les données structurées.")
+            lines.extend([
+                "- Le compte rendu reprend uniquement les constatations explicitement documentées par le praticien.",
                 "",
-            ]
+            ])
 
             if "denture_mixte" in global_findings:
                 lines.extend([
@@ -178,6 +214,28 @@ class PanoramicReportEngine:
                 lines.extend(f"- {finding}." for finding in general_findings)
                 lines.append("")
 
+            structured_review = []
+            unassessed_domains = []
+            for domain in PANORAMIC_REPORT_DOMAINS:
+                raw = report_context.get(domain) or {}
+                status = raw.get("status", "not_assessed")
+                note = (raw.get("note") or "").strip()
+                if status == "normal":
+                    structured_review.append(PANORAMIC_EXPLICIT_NORMAL_TEXT[domain])
+                elif status == "abnormal":
+                    title = PANORAMIC_DOMAIN_TITLES[domain]
+                    structured_review.append(
+                        f"{title} : {note}" if note
+                        else f"{title} : anomalie signalée par le praticien, détail non renseigné."
+                    )
+                else:
+                    unassessed_domains.append(PANORAMIC_DOMAIN_TITLES[domain])
+
+            if structured_review:
+                lines.append("### REVUE STRUCTURÉE COMPLÉMENTAIRE")
+                lines.extend(f"- {item}" for item in structured_review)
+                lines.append("")
+
             lines.append("### SYNTHÈSE")
             synthesis = self._build_synthesis(section_items, general_findings)
             if synthesis:
@@ -187,9 +245,13 @@ class PanoramicReportEngine:
                     "- Aucune constatation n'a été documentée dans les annotations fournies ; "
                     "cela ne constitue pas une conclusion de normalité radiographique."
                 )
-            lines.append(
-                "- Les territoires sans annotation explicite restent non documentés et ne sont pas déclarés normaux par ce compte rendu."
-            )
+            if report_context:
+                if unassessed_domains:
+                    lines.append("- Domaines non évalués explicitement : " + ", ".join(unassessed_domains) + ".")
+            else:
+                lines.append(
+                    "- Les territoires sans annotation explicite restent non documentés et ne sont pas déclarés normaux par ce compte rendu."
+                )
             lines.append(
                 "- Toute interprétation diagnostique ou décision thérapeutique relève du praticien après corrélation avec l'examen clinique."
             )
