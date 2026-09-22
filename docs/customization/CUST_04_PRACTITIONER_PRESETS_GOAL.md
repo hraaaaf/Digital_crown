@@ -61,3 +61,59 @@ Dans le studio actif :
 - contre-indications automatisées ;
 - prescription automatique depuis diagnostic/acte ;
 - déploiement Vercel.
+
+
+## Décision de persistance vérifiée
+CUST-04 réutilise `DoctorPrescriptionPreference` et les endpoints existants :
+- GET `/api/prescriptions/habits/presets`
+- POST `/api/prescriptions/preferences`
+- DELETE `/api/prescriptions/preferences/{act_code}`
+
+Aucune nouvelle table. Aucune migration.
+
+Pour CUST-04, `act_code` est traité dans l'UI comme **nom explicite du preset choisi par le praticien**.
+Il ne doit jamais être dérivé d'un diagnostic, d'un acte, d'un rendez-vous ou d'une donnée patient.
+
+Le preset ne stocke que les lignes de prescription réutilisables :
+- médicament / examen ;
+- dosage ;
+- forme ;
+- posologie ;
+- quantité si disponible ;
+- statut non substituable si disponible.
+
+Il ne stocke jamais :
+- patient ;
+- date ;
+- indication courante ;
+- acte clinique courant ;
+- allergies / contexte médical ;
+- résultat d'une règle clinique.
+
+## Mockup target avant implémentation
+
+```text
+Prescription
+
+┌ Mes presets ─────────────────────────────────────────────┐
+│ [ Post-op perso ] [ Antibiothérapie perso ]             │
+│                                  [+ Enregistrer ce brouillon]
+│ “Un preset remplit uniquement les lignes après votre clic.”
+└──────────────────────────────────────────────────────────┘
+
+[cards médicament/examen éditables existantes]
+
+Appliquer un preset avec brouillon existant
+┌──────────────────────────────────────────────────────────┐
+│ Remplacer les lignes actuelles ?                         │
+│ Le preset remplace uniquement les lignes de prescription.│
+│                 Conserver     Remplacer                  │
+└──────────────────────────────────────────────────────────┘
+
+Enregistrer un preset
+┌──────────────────────────────────────────────────────────┐
+│ Nom du preset                                            │
+│ 3 lignes seront enregistrées.                            │
+│                         Annuler   Enregistrer             │
+└──────────────────────────────────────────────────────────┘
+```
