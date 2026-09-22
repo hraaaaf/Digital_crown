@@ -49,7 +49,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   await (await fieldAfter(page,'Avance (MAD)')).fill('200');
   await (await fieldAfter(page,'Nbre Mensualités')).fill('2');
   await page.getByRole('button',{name:/Générer le tableau des échéances/i}).click();
-  await page.getByDisplayValue('Mensualité 1').waitFor({state:'visible',timeout:10000});
+  await page.locator('input[value="Mensualité 1"]').waitFor({state:'visible',timeout:10000});
   await page.getByRole('button',{name:'Enregistrer le plan',exact:true}).waitFor({state:'visible'});
   const footerSave=page.getByRole('button',{name:'Enregistrer',exact:true});
   await footerSave.waitFor({state:'visible',timeout:10000});
