@@ -414,3 +414,11 @@ Final integration/certification evidence:
 - PR merge is not authorized by this certification and remains a separate human action.
 
 G4 certification scope is therefore closed on the evidence above. Unrelated/transversal workflow failures triggered by the long-lived PR are not reclassified as G4 failures; they must be handled by their own owning lots before any repository-wide merge decision.
+
+
+## 2026-09-22 — Master reconciliation checkpoint
+
+- Reconciliation merge commit: `0ec6f7f3356722acc6938f71999deef6b1440565`.
+- Current `master` integrated through `4a47d54c07256089cc81054c40bc23c20cd1ceba`.
+- Post-merge relation: branch ahead, behind `0`; PR #633 mergeable again.
+- G4 tail must be re-certified on the post-reconciliation exact head; skipped target steps do not count as proof.
