@@ -137,6 +137,21 @@ async function uploadPanoramic() {
 }
 
 describe('PanoramicStudio G4 deep interaction matrix', () => {
+  it('uses semantic theme tokens for the clinical-entry helper', async () => {
+    render(<PanoramicStudio patientId={7} patientName="Sara BENALI" />);
+    await uploadPanoramic();
+
+    const title = screen.getByText('Mode Saisie Clinique');
+    const helper = title.parentElement?.parentElement;
+    const icon = helper?.firstElementChild;
+
+    expect(helper?.className).toContain('bg-primary/10');
+    expect(helper?.className).toContain('border-primary/20');
+    expect(title.className).toContain('text-primary');
+    expect(icon?.className).toContain('bg-primary');
+    expect(helper?.className).not.toContain('indigo');
+  });
+
   it('uploads a new panoramic exam and keeps the empty state until backend ACK', async () => {
     render(<PanoramicStudio patientId={7} patientName="Sara BENALI" />);
     expect(screen.getByText('AUCUNE RADIOGRAPHIE CHARGÉE')).toBeTruthy();
