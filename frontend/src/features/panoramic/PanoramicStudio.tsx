@@ -128,6 +128,12 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       }
       setAnnotations([]);
       setResult(responseData);
+      try {
+        const comparisonResponse = await api.get(`/ia/patients/${patientId}/panoramic-comparison`);
+        setEvolutionData(comparisonResponse.data);
+      } catch {
+        setEvolutionData(null);
+      }
     } catch (err) {
       console.error("Erreur lors de l'upload de la panoramique :", err);
       toast.error("Erreur lors de l'analyse panoramique.");
