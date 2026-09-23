@@ -5,6 +5,7 @@ on:
       - "frontend/src/features/admin/Settings/**"
       - "frontend/src/features/admin/TeamManager.tsx"
       - "frontend/scripts/certify-v1-07-g5-browser-actions.mjs"
+      - "frontend/scripts/capture-v1-07-g5-runtime-preferences-visual.mjs"
       - "scripts/t2_runtime_server.py"
       - ".github/workflows/v1-07-g5-browser-actions.yml"
   workflow_dispatch:
@@ -68,3 +69,13 @@ jobs:
       - name: Certify Settings actions
         working-directory: frontend
         run: node scripts/certify-v1-07-g5-browser-actions.mjs
+      - name: Capture runtime preference BEFORE / AFTER
+        working-directory: frontend
+        run: node scripts/capture-v1-07-g5-runtime-preferences-visual.mjs
+      - name: Upload G5 runtime preference visual evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-runtime-preferences-visual
+          path: frontend/artifacts/g5-runtime-preferences-visual/
+          if-no-files-found: error
+          retention-days: 30
