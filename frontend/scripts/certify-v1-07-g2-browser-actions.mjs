@@ -95,11 +95,15 @@ for(const viewport of viewports){
  pass(viewport,'patient-dossier-navigation');
 
  await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
+ const deleteSearch=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+ await deleteSearch.fill('T2-0001');
+ const deleteRow=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first();
+ await deleteRow.waitFor({state:'visible',timeout:10000});
  await page.route('**/api/patients/'+patient.id,async route=>{
    if(route.request().method()==='DELETE') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced delete refusal"}'});
    return route.continue();
  });
- const deleteButton=page.getByRole('button',{name:'Supprimer définitivement'}).first();
+ const deleteButton=deleteRow.getByRole('button',{name:'Supprimer définitivement'});
  if(await deleteButton.count()){
    await deleteButton.click();
    const confirmInput=page.getByPlaceholder('T2 CERTIFICATION');
