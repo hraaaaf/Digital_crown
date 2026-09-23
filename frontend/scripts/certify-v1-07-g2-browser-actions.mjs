@@ -25,6 +25,93 @@ for(const viewport of viewports){
  const page=await ctx.newPage();
  await seed(page);
 
+
+ let dashboardAppointment={
+   id:701,
+   start_time:'2026-09-23T10:00:00',
+   status:'PRÉVU',
+   description:'Certification Dashboard',
+   patient:{nom:'DASHBOARD',prenom:'Browser'}
+ };
+ let appointmentPutCalls=0;
+ await page.route('**/api/appointments/**',async route=>{
+   const req=route.request();
+   const url=new URL(req.url());
+   if(req.method()==='GET' && url.pathname==='/api/appointments/'){
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([dashboardAppointment])});
+   }
+   if(req.method()==='PUT' && url.pathname==='/api/appointments/701'){
+     appointmentPutCalls+=1;
+     const body=req.postDataJSON();
+     dashboardAppointment={...dashboardAppointment,status:body.status};
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(dashboardAppointment)});
+   }
+   return route.continue();
+ });
+
+ let dashboardAlerts=[
+   {id:21,patient_id:patient.id,nom:'DASH',prenom:'Snooze',type:'FOLLOWUP',title:'Alerte snooze',message:'',action:'Rappeler',priority:1},
+   {id:22,patient_id:patient.id,nom:'DASH',prenom:'Read',type:'FOLLOWUP',title:'Alerte read',message:'',action:'Contrôler',priority:2},
+   {id:23,patient_id:patient.id,nom:'DASH',prenom:'Navigate',type:'FOLLOWUP',title:'Alerte navigate',message:'',action:'Ouvrir dossier',priority:1}
+ ];
+ let snoozeCalls=0,readCalls=0;
+ await page.route('**/api/intelligence/alerts/**',async route=>{
+   const req=route.request();
+   const url=new URL(req.url());
+   if(req.method()==='GET' && url.pathname==='/api/intelligence/alerts/today'){
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({total:dashboardAlerts.length,alerts:dashboardAlerts})});
+   }
+   let match=url.pathname.match(/^\/api\/intelligence\/alerts\/(\d+)\/snooze$/);
+   if(req.method()==='PATCH' && match){
+     snoozeCalls+=1;
+     dashboardAlerts=dashboardAlerts.filter(a=>a.id!==Number(match[1]));
+     return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+   }
+   match=url.pathname.match(/^\/api\/intelligence\/alerts\/(\d+)\/read$/);
+   if(req.method()==='PATCH' && match){
+     readCalls+=1;
+     dashboardAlerts=dashboardAlerts.filter(a=>a.id!==Number(match[1]));
+     return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+   }
+   return route.continue();
+ });
+
+ const bridgeOptions={
+   expires_in:300,
+   targets:[{
+     id:77,name:'Dr Mobile Browser',email:'mobile@example.com',role:'DENTISTE',is_current_user:true,
+     destinations:[{id:'dashboard',label:'Tableau de bord'},{id:'agenda',label:'Agenda'}]
+   }]
+ };
+ let pairingCalls=0,revokeCalls=0,failNextRevoke=true;
+ await page.route('**/api/mobile/bridge-options',route=>route.fulfill({
+   status:200,contentType:'application/json',body:JSON.stringify(bridgeOptions)
+ }));
+ await page.route('**/api/mobile/bridge-pairing',async route=>{
+   pairingCalls+=1;
+   const body=route.request().postDataJSON();
+   if(body.target_user_id!==77 || body.destination!=='dashboard') throw new Error('mobile pairing payload mismatch');
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+     qr_code:'data:image/png;base64,iVBORw0KGgo=',
+     token_code:'G2MOB1',
+     expires_in:300,
+     target_user_id:77,
+     target_user_name:'Dr Mobile Browser',
+     target_role:'DENTISTE',
+     destination:'dashboard',
+     destination_label:'Tableau de bord',
+     contains_patient_data:false
+   })});
+ });
+ await page.route('**/api/admin/revoke-mobile',async route=>{
+   revokeCalls+=1;
+   if(failNextRevoke){
+     failNextRevoke=false;
+     return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced mobile revoke refusal'})});
+   }
+   return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+ });
+
  await page.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
 
  const pilotage=page.getByRole('button',{name:/Pilotage du cabinet/i});
@@ -49,6 +136,91 @@ for(const viewport of viewports){
    },panelId);
    pass(viewport,'dashboard-management-collapse',{panelId});
  }
+
+ // Waiting room: each click must persist to the fixture, refetch and drive the next UI state.
+ const arrived=page.getByRole('button',{name:'Marquer Arrivé',exact:true});
+ await arrived.waitFor({state:'visible',timeout:10000});
+ await arrived.click();
+ await page.getByRole('button',{name:'Installer au Fauteuil',exact:true}).waitFor({state:'visible',timeout:10000});
+ if(dashboardAppointment.status!=='EN_S_ATTENTE' || appointmentPutCalls!==1) throw new Error('waiting-room arrival ACK mismatch');
+ pass(viewport,'dashboard-waiting-arrived',{appointmentPutCalls});
+
+ await page.getByRole('button',{name:'Installer au Fauteuil',exact:true}).click();
+ await page.getByRole('button',{name:'Terminer la Séance',exact:true}).waitFor({state:'visible',timeout:10000});
+ if(dashboardAppointment.status!=='EN_FAUTEUIL' || appointmentPutCalls!==2) throw new Error('waiting-room chair ACK mismatch');
+ pass(viewport,'dashboard-waiting-chair',{appointmentPutCalls});
+
+ await page.getByRole('button',{name:'Terminer la Séance',exact:true}).click();
+ await page.getByText(/Patient Sortant : DASHBOARD Browser/i).waitFor({state:'visible',timeout:10000});
+ if(dashboardAppointment.status!=='TERMINÉ' || appointmentPutCalls!==3) throw new Error('waiting-room completion ACK mismatch');
+ pass(viewport,'dashboard-waiting-complete-ghost-action',{appointmentPutCalls});
+
+ for(const label of ['Encaisser les soins du jour',"Remettre l'ordonnance",'Fixer le RDV de contrôle']){
+   const checkbox=page.getByLabel(label,{exact:true});
+   await checkbox.check();
+ }
+ await page.getByText('Action terminée !',{exact:true}).waitFor({state:'visible',timeout:5000});
+ await page.getByText(/Patient Sortant : DASHBOARD Browser/i).waitFor({state:'detached',timeout:3000});
+ pass(viewport,'dashboard-ghost-checklist-completion');
+
+ // Alerts: ACK removes only the targeted alert; navigation opens the patient dossier.
+ const snoozeRow=page.getByText(/DASH Snooze/i).locator('xpath=ancestor::div[.//button[@aria-label="Reporter cette alerte de 24h"]][1]');
+ await snoozeRow.getByRole('button',{name:'Reporter cette alerte de 24h'}).click();
+ await page.getByText(/DASH Snooze/i).waitFor({state:'detached',timeout:10000});
+ if(snoozeCalls!==1 || dashboardAlerts.some(a=>a.id===21)) throw new Error('alert snooze ACK mismatch');
+ pass(viewport,'dashboard-alert-snooze',{snoozeCalls});
+
+ const readRow=page.getByText(/DASH Read/i).locator('xpath=ancestor::div[.//button[@aria-label="Marquer cette alerte comme lue"]][1]');
+ await readRow.getByRole('button',{name:'Marquer cette alerte comme lue'}).click();
+ await page.getByText(/DASH Read/i).waitFor({state:'detached',timeout:10000});
+ if(readCalls!==1 || dashboardAlerts.some(a=>a.id===22)) throw new Error('alert mark-read ACK mismatch');
+ pass(viewport,'dashboard-alert-mark-read',{readCalls});
+
+ // Mobile security: real modal focus, pairing, refusal, success, Escape close + focus restoration.
+ const mobileOpen=page.getByRole('button',{name:'Appairer le téléphone mobile',exact:true});
+ if(await mobileOpen.count()){
+   await mobileOpen.click();
+   const dialog=page.getByRole('dialog',{name:'Sécurité mobile'});
+   await dialog.waitFor({state:'visible',timeout:10000});
+   const closeMobile=dialog.getByRole('button',{name:'Fermer la fenêtre de sécurité mobile'});
+   await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Fermer la fenêtre de sécurité mobile');
+   pass(viewport,'dashboard-mobile-dialog-focus');
+
+   const target=dialog.getByLabel('Utilisateur mobile cible');
+   const destination=dialog.getByLabel('Destination mobile');
+   await target.selectOption('77');
+   await destination.selectOption('dashboard');
+   await dialog.getByRole('button',{name:/Générer le QR de connexion/i}).click();
+   await dialog.getByText('G2MOB1',{exact:true}).waitFor({state:'visible',timeout:10000});
+   if(pairingCalls!==1) throw new Error('mobile pairing ACK count mismatch');
+   pass(viewport,'dashboard-mobile-pairing',{pairingCalls});
+
+   page.once('dialog',d=>d.accept());
+   await dialog.getByRole('button',{name:/Révoquer tous les accès mobiles/i}).click();
+   await dialog.getByText('forced mobile revoke refusal',{exact:true}).waitFor({state:'visible',timeout:10000});
+   if(revokeCalls!==1) throw new Error('mobile revoke refusal count mismatch');
+   if(!(await dialog.getByText('G2MOB1',{exact:true}).count())) throw new Error('mobile pairing disappeared after refused revoke');
+   pass(viewport,'dashboard-mobile-revoke-refusal-non-mutation');
+
+   page.once('dialog',d=>d.accept());
+   await dialog.getByRole('button',{name:/Révoquer tous les accès mobiles/i}).click();
+   await dialog.getByText(/Tous les téléphones ont été déconnectés/i).waitFor({state:'visible',timeout:10000});
+   if(revokeCalls!==2) throw new Error('mobile revoke ACK count mismatch');
+   if(await dialog.getByText('G2MOB1',{exact:true}).count()) throw new Error('mobile pairing remained after revoke ACK');
+   pass(viewport,'dashboard-mobile-revoke-ack',{revokeCalls});
+
+   await page.keyboard.press('Escape');
+   await dialog.waitFor({state:'detached',timeout:5000});
+   await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Appairer le téléphone mobile');
+   pass(viewport,'dashboard-mobile-escape-focus-restore');
+ }
+
+ // Alert navigation is checked last because it intentionally leaves the Dashboard.
+ const navigateAlert=page.getByText(/DASH Navigate/i);
+ await navigateAlert.click();
+ await page.waitForURL(new RegExp('/patients/'+patient.id+'(?:\\?|$)'),{timeout:10000});
+ pass(viewport,'dashboard-alert-patient-navigation',{patientId:patient.id});
+ await page.goBack({waitUntil:'networkidle'});
 
  const quick=page.getByRole('button',{name:'Ajout rapide'});
  if(await quick.count()){
@@ -329,6 +501,11 @@ for(const viewport of viewports){
    pass(viewport,'patient-delete-refusal-non-mutation');
  }
  await page.unroute('**/api/patients/'+patient.id);
+ await page.unroute('**/api/appointments/**');
+ await page.unroute('**/api/intelligence/alerts/**');
+ await page.unroute('**/api/mobile/bridge-options');
+ await page.unroute('**/api/mobile/bridge-pairing');
+ await page.unroute('**/api/admin/revoke-mobile');
  await ctx.close();
 }
 
