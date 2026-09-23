@@ -141,11 +141,11 @@ for(const viewport of viewports){
     if(await star.count()){
       await star.click();
       const favs=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
-      if(!favs.includes('DET')) throw new Error('library favorite did not persist');
+      if(!favs.includes('detartrage-surfacage')) throw new Error('library favorite did not persist');
       prove(viewport,'library-favorite-persistence');
     }
     await card.click();
-    await page.waitForURL('**/bibliotheque/DET');
+    await page.waitForURL('**/bibliotheque/detartrage-surfacage');
     prove(viewport,'library-deeplink-navigation');
   }
 
