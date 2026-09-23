@@ -341,6 +341,7 @@ for(const viewport of viewports){
   if(!await shellPage.evaluate(()=>Boolean(localStorage.getItem('token')))) throw new Error('logout cancel cleared session');
   prove(viewport,'shell-logout-cancel-non-mutation');
 
+  await shellPage.addInitScript(()=>{ if(location.pathname==='/login') localStorage.removeItem('token'); });
   await logout.click();
   await shellPage.getByRole('button',{name:'Confirmer',exact:true}).click();
   await shellPage.waitForURL('**/login',{timeout:10000});
