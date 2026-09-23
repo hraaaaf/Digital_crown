@@ -126,10 +126,20 @@ describe('StockPage G7 interactive matrix', () => {
   it('requires explicit confirmation before permanent deletion', async () => {
     renderStock();
     const row = (await screen.findByText('Gants nitrile')).closest('tr')!;
-    fireEvent.click(within(row).getByTitle('Supprimer'));
+    const opener = within(row).getByTitle('Supprimer');
+    fireEvent.click(opener);
 
-    expect(screen.getByRole('dialog', { name: 'Supprimer cet article ?' })).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'Supprimer cet article ?' });
+    expect(dialog).toBeTruthy();
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
     expect(api.delete).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Supprimer cet article ?' })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+
+    fireEvent.click(opener);
 
     fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
     expect(screen.queryByRole('dialog', { name: 'Supprimer cet article ?' })).toBeNull();
