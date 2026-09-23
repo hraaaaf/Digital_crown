@@ -209,7 +209,7 @@ for(const viewport of viewports){
     await cabinet.blur();
     profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
-    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
 
     // Advanced bilingual header: open, add/delete FR+AR rows, persist a manual line, then reset from canonical cabinet data.
     const headerToggle=page.getByRole('button',{name:/En-tête bilingue/i});
@@ -240,7 +240,7 @@ for(const viewport of viewports){
     await firstFrInput.fill('G5 Header Custom');
     profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
-    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
     profileCheck=await api.get('/api/clinics/me',{headers});
     profileBody=await profileCheck.json();
     if(profileBody.header_customized!==true || profileBody.header_lines_fr?.[0]!=='G5 Header Custom'){
@@ -253,7 +253,7 @@ for(const viewport of viewports){
     await resetHeader.click();
     profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
-    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
     profileCheck=await api.get('/api/clinics/me',{headers});
     profileBody=await profileCheck.json();
     if(profileBody.header_lines_fr?.[0]==='G5 Header Custom') throw new Error('profile header reset left manual content active');
@@ -530,7 +530,7 @@ for(const viewport of viewports){
     const save=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await save.waitFor({state:'visible',timeout:5000});
     await save.click();
-    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
     const check=await api.get('/api/clinics/me',{headers});
     if(!check.ok()) throw new Error('runtime profile persistence verification failed');
     const body=await check.json();
