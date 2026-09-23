@@ -392,7 +392,9 @@ export const ProfileTab: React.FC = () => {
               <h4 className="font-black text-amber-900">Logo du Cabinet</h4>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-8">
-              <div
+              <button
+                type="button"
+                aria-label="Choisir le logo du cabinet"
                 className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center cursor-pointer hover:bg-amber-100/50 transition-all relative group overflow-hidden"
                 onClick={() => document.getElementById('logo-input')?.click()}
               >
@@ -413,7 +415,7 @@ export const ProfileTab: React.FC = () => {
                     <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Choisir Logo</span>
                   </div>
                 )}
-              </div>
+              </button>
               <div className="flex-1 space-y-2">
                 <p className="text-xs font-bold text-amber-800">Traitement du fichier</p>
                 <h5 className="text-sm font-bold text-amber-900 mb-2">Logo optimisé pour les documents</h5>
