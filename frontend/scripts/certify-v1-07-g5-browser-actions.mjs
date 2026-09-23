@@ -182,7 +182,12 @@ for(const viewport of viewports){
     header_font_scale:brandingOriginal.header_font_scale,
     footer_font_scale:brandingOriginal.footer_font_scale,
     header_line_height:brandingOriginal.header_line_height,
-    footer_line_height:brandingOriginal.footer_line_height
+    footer_line_height:brandingOriginal.footer_line_height,
+    qr_code_enabled:Boolean(brandingOriginal.qr_code_enabled),
+    qr_code_type:brandingOriginal.qr_code_type||'VCARD',
+    qr_code_value:brandingOriginal.qr_code_value||'',
+    qr_code_label:brandingOriginal.qr_code_label||'',
+    content_offset_y:Number(brandingOriginal.content_offset_y||0)
   };
   const originalAnimatedBg=await page.evaluate(()=>localStorage.getItem('app_background_animated')==='true');
 
@@ -238,6 +243,64 @@ for(const viewport of viewports){
     throw new Error('branding reset did not persist Royal preset');
   }
   prove(viewport,'settings-branding-reset-save');
+
+  // StudioControls — exercise every QR type + persisted value/label + content position + reset.
+  await openBranding();
+  let qrToggle=page.getByRole('button',{name:/^(Activer|Désactiver) le code QR$/});
+  let qrEnabled=(await qrToggle.getAttribute('aria-label'))?.startsWith('Désactiver')===true;
+  if(!qrEnabled) await qrToggle.click();
+
+  const qrTypes=['Contact','Site Web','Instagram','WhatsApp','Maps','Vérification du document','Suivi du paiement'];
+  for(const qrType of qrTypes){
+    const typeButton=page.getByRole('button',{name:qrType,exact:true});
+    await typeButton.click();
+    const typeClass=await typeButton.getAttribute('class');
+    if(!(typeClass||'').includes('border-[var(--text-main)]')) throw new Error('QR type did not become selected: '+qrType);
+    prove(viewport,'settings-branding-qr-type-'+qrType);
+  }
+
+  await page.getByRole('button',{name:'Site Web',exact:true}).click();
+  await page.getByPlaceholder('https://cabinet.ma').fill('https://g5-browser.example');
+  await page.getByPlaceholder('Ex: Prenez RDV').fill('G5 Browser');
+  const positionSlider=page.getByRole('slider',{name:'Position verticale du contenu'});
+  await positionSlider.evaluate(el=>{
+    const input=el;
+    input.value='0.6';
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  await page.getByText('6 mm plus bas',{exact:true}).waitFor({state:'visible',timeout:5000});
+
+  let studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+  await studioSave.waitFor({state:'visible',timeout:5000});
+  await studioSave.click();
+  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  let studioCheck=await api.get('/api/clinics/me',{headers});
+  let studioBody=await studioCheck.json();
+  if(studioBody.qr_code_enabled!==true || studioBody.qr_code_type!=='WEBSITE' || studioBody.qr_code_value!=='https://g5-browser.example' || studioBody.qr_code_label!=='G5 Browser'){
+    throw new Error('branding QR StudioControls did not persist');
+  }
+  if(Math.abs(Number(studioBody.content_offset_y)-0.6)>0.001) throw new Error('branding content offset did not persist');
+  prove(viewport,'settings-branding-studio-controls-save');
+
+  await page.getByRole('button',{name:'Réinitialiser la position verticale du contenu',exact:true}).click();
+  studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+  await studioSave.click();
+  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  studioCheck=await api.get('/api/clinics/me',{headers});
+  studioBody=await studioCheck.json();
+  if(Math.abs(Number(studioBody.content_offset_y))>0.001) throw new Error('branding content offset reset did not persist');
+  prove(viewport,'settings-branding-content-position-reset');
+
+  qrToggle=page.getByRole('button',{name:'Désactiver le code QR',exact:true});
+  await qrToggle.click();
+  studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+  await studioSave.click();
+  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  studioCheck=await api.get('/api/clinics/me',{headers});
+  studioBody=await studioCheck.json();
+  if(studioBody.qr_code_enabled!==false) throw new Error('branding QR disable did not persist');
+  prove(viewport,'settings-branding-qr-disable');
 
   // Restore original backend branding fixture.
   const restoreBranding=await api.put('/api/clinics/me',{headers,data:originalBrandingPatch});
