@@ -7,6 +7,7 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
 if(!login.ok()) throw new Error('G3 login failed');
 const tokens=await login.json();
+const headers={Authorization:'Bearer '+tokens.access_token};
 
 const browser=await chromium.launch({headless:true});
 const viewports=[{width:390,height:844},{width:1280,height:900}];
@@ -118,6 +119,93 @@ for(const viewport of viewports){
       await page.unroute('**/api/appointments/**');
     }
   }
+
+  // Appointment create -> real backend ACK -> visible view -> edit ACK -> delete ACK.
+  const uniquePatient='G3 Browser '+viewport.width;
+  const uniqueMotif='Contrôle G3 '+viewport.width;
+  const updatedMotif='Contrôle G3 modifié '+viewport.width;
+
+  await page.route('**/api/appointments/check-conflicts*',route=>route.fulfill({
+    status:200,contentType:'application/json',body:'[]'
+  }));
+
+  const successAddCandidates=[
+    page.getByRole('button',{name:/Nouveau rendez-vous/i}),
+    page.getByRole('button',{name:/Ajouter.*rendez-vous/i}),
+    page.getByRole('button',{name:/Nouveau RDV/i}),
+    page.getByRole('button',{name:/Nouveau RV/i}),
+  ];
+  let successOpened=false;
+  for(const locator of successAddCandidates){
+    if(await locator.count()){
+      await locator.first().click();
+      successOpened=true;
+      break;
+    }
+  }
+  if(!successOpened) throw new Error('no appointment create control for success path');
+
+  const successDialog=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
+  await successDialog.waitFor({state:'visible',timeout:5000});
+  const patientField=successDialog.getByPlaceholder('Rechercher ou saisir un nom...');
+  await patientField.fill(uniquePatient);
+  const actField=successDialog.getByPlaceholder("Saisir l'acte ou rechercher dans le catalogue...");
+  await actField.fill(uniqueMotif);
+
+  const createAckPromise=page.waitForResponse(
+    r=>r.request().method()==='POST' && /\/api\/appointments\/?(?:\?|$)/.test(r.url()),
+    {timeout:10000},
+  );
+  await successDialog.getByRole('button',{name:'Confirmer le RDV',exact:true}).click();
+  const createAck=await createAckPromise;
+  if(!createAck.ok()) throw new Error('appointment create ACK failed '+createAck.status()+': '+await createAck.text());
+  await successDialog.waitFor({state:'hidden',timeout:10000});
+
+  let persisted=(await (await api.get('/api/appointments/',{headers})).json()).find(x=>x.patient_name===uniquePatient);
+  if(!persisted) throw new Error('created appointment not persisted in backend');
+  prove(viewport,'agenda-create-success-persistence',{appointmentId:persisted.id});
+
+  const createdItem=page.locator('.appointment-item').filter({hasText:uniquePatient}).first();
+  await createdItem.waitFor({state:'visible',timeout:10000});
+  await createdItem.click();
+  const persistedEditDialog=page.getByRole('dialog',{name:'Modifier le Rendez-vous'});
+  await persistedEditDialog.waitFor({state:'visible',timeout:5000});
+
+  const editAct=persistedEditDialog.getByPlaceholder("Saisir l'acte ou rechercher dans le catalogue...");
+  await editAct.fill(updatedMotif);
+  const editAckPromise=page.waitForResponse(
+    r=>r.request().method()==='PUT' && r.url().includes('/api/appointments/'+persisted.id),
+    {timeout:10000},
+  );
+  await persistedEditDialog.getByRole('button',{name:'Modifier le RDV',exact:true}).click();
+  const editAck=await editAckPromise;
+  if(!editAck.ok()) throw new Error('appointment edit ACK failed '+editAck.status()+': '+await editAck.text());
+  await persistedEditDialog.waitFor({state:'hidden',timeout:10000});
+
+  persisted=(await (await api.get('/api/appointments/',{headers})).json()).find(x=>x.id===persisted.id);
+  if(!persisted || persisted.motif!==updatedMotif) throw new Error('edited appointment not persisted');
+  prove(viewport,'agenda-edit-success-persistence',{appointmentId:persisted.id});
+
+  const updatedItem=page.locator('.appointment-item').filter({hasText:uniquePatient}).first();
+  await updatedItem.waitFor({state:'visible',timeout:10000});
+  await updatedItem.click();
+  const deleteSuccessDialog=page.getByRole('dialog',{name:'Modifier le Rendez-vous'});
+  await deleteSuccessDialog.waitFor({state:'visible',timeout:5000});
+  page.once('dialog',async d=>d.accept());
+  const deleteAckPromise=page.waitForResponse(
+    r=>r.request().method()==='DELETE' && r.url().includes('/api/appointments/'+persisted.id),
+    {timeout:10000},
+  );
+  await deleteSuccessDialog.getByRole('button',{name:'Supprimer',exact:true}).click();
+  const deleteAck=await deleteAckPromise;
+  if(!deleteAck.ok()) throw new Error('appointment delete ACK failed '+deleteAck.status()+': '+await deleteAck.text());
+  await deleteSuccessDialog.waitFor({state:'hidden',timeout:10000});
+  if(await page.locator('.appointment-item').filter({hasText:uniquePatient}).count()) throw new Error('deleted appointment remained visible');
+  const afterDelete=await (await api.get('/api/appointments/',{headers})).json();
+  if(afterDelete.some(x=>x.id===persisted.id)) throw new Error('deleted appointment remained persisted');
+  prove(viewport,'agenda-delete-success-persistence',{appointmentId:persisted.id});
+
+  await page.unroute('**/api/appointments/check-conflicts*');
 
   // Existing appointment edit/delete: exercise visible controls with refusal + non-mutation.
   const existing=page.locator('.appointment-item').first();
