@@ -153,7 +153,12 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
     localStreamRef.current = stream;
     if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-    const peer = new RTCPeerConnection({ iceServers: [] });
+    const iceResponse = await api.get(
+      '/patient-companion/admin/patients/' + patientId + '/teleconsultations/' + session.session_id + '/ice-config',
+      { params: { access_id: accessId } },
+    );
+    const iceServers: RTCIceServer[] = Array.isArray(iceResponse.data?.ice_servers) ? iceResponse.data.ice_servers : [];
+    const peer = new RTCPeerConnection({ iceServers });
     peerRef.current = peer;
     accessRef.current = accessId;
     setCurrent(session);
