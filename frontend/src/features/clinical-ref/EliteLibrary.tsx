@@ -362,7 +362,7 @@ export const EliteLibrary: React.FC = () => {
                 }
 
                 return (
-                  <button key={p.act_code} onClick={() => openPanel(p.act_code)} className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[20px] p-5 text-left relative flex flex-col gap-4 hover:border-[var(--text-main)] hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--text-main)]/5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 transition-all group">
+                  <button key={p.act_code} data-protocol-code={p.act_code} onClick={() => openPanel(p.act_code)} className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[20px] p-5 text-left relative flex flex-col gap-4 hover:border-[var(--text-main)] hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--text-main)]/5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 transition-all group">
                     <div className="flex items-center justify-between font-outfit text-[11px] text-[var(--text-muted)] tracking-wider uppercase font-bold">
                       <span className="text-[var(--primary)]">{p.category || 'Général'}</span>
                       <span onClick={e => toggleFav(e, p.act_code)} className={cn("text-[20px] w-8 h-8 flex items-center justify-center rounded-xl transition-all hover:bg-amber-50", isFav ? "text-amber-500" : "text-[var(--border-color)] hover:text-amber-500")}>
