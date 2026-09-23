@@ -1,6 +1,6 @@
 # PC-09 — Teleconsultation — START HANDOVER
 
-Status: AUDIT LOCKED
+Status: IMPLEMENTATION COMPLETE — CERTIFICATION IN PROGRESS
 Base: master after PC-08 POST-MERGE VERIFIED closeout
 Previous lot: PC-08 — Secure Messaging
 Deployment: none
@@ -154,3 +154,34 @@ Next exact:
 5. certify runtime + visual;
 6. human gate;
 7. merge / post-merge.
+
+
+## Implementation checkpoint — 2026-09-23
+
+Implemented and code-reviewed:
+- canonical session lifecycle with `CREATED` pre-join truth;
+- patient does not see a session until staff has actually joined;
+- explicit patient `Accepter et rejoindre` consent wording;
+- explicit patient `Refuser` transition;
+- WebRTC media plane with no recording;
+- provider-agnostic short-lived coturn-compatible credentials;
+- direct connectivity remains available; TURN is automatic ICE fallback when configured;
+- real peer failure persists canonical `FAILED`;
+- signal rows purged on end/reject/failure and observed expiry;
+- media fails closed on session-control loss;
+- staff start failures stop acquired media resources.
+
+Remaining app gates:
+1. exact-head PC-09 certification;
+2. exact-head PostgreSQL Alembic schema certification;
+3. exact-head CI;
+4. runtime AFTER visual evidence;
+5. human visual approval;
+6. merge / post-merge.
+
+External remote-production gate remains separate:
+- controlled reachable TURN endpoint;
+- distinct-network + forced-relay E2E;
+- measured signaling/reconnect behavior.
+
+No Vercel deployment.
