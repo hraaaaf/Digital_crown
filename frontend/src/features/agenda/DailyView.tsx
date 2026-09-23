@@ -162,7 +162,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
   const flexAppointments = appointments.filter(a => a.scheduling_type && a.scheduling_type !== 'EXACT_TIME');
 
   return (
-    <div className="w-full space-y-6">
+    <div data-testid="agenda-day-view" className="w-full space-y-6">
       
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">
