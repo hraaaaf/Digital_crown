@@ -23,11 +23,20 @@ class Lab(Base):
     __tablename__ = "labs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    employer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("employer_id", "name", name="uq_labs_tenant_name"),
+    )
 
 
 class LabJob(Base):
