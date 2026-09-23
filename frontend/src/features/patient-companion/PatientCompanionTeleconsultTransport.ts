@@ -3,7 +3,7 @@ import { sendRemoteCommand } from './PatientCompanionRemoteCommandTransport';
 
 export type TeleconsultSession = {
   session_id: string;
-  state: 'WAITING_PATIENT' | 'WAITING_STAFF' | 'NEGOTIATING' | 'CONNECTED' | 'ENDED' | 'REJECTED' | 'EXPIRED' | 'FAILED';
+  state: 'CREATED' | 'WAITING_PATIENT' | 'WAITING_STAFF' | 'NEGOTIATING' | 'CONNECTED' | 'ENDED' | 'REJECTED' | 'EXPIRED' | 'FAILED';
   created_at: string;
   expires_at: string;
   patient_joined_at?: string | null;
@@ -87,6 +87,12 @@ export const PatientCompanionTeleconsultTransport = {
   async connected(pairing: PatientPairing, sessionId: string): Promise<TeleconsultSession> {
     const result = await command(pairing, 'teleconsult.connected', { session_id: sessionId });
     if (result.status !== 'ACCEPTED') throw new Error(String(result.result.code || 'Connexion non confirmée.'));
+    return result.result.session as TeleconsultSession;
+  },
+
+  async reject(pairing: PatientPairing, sessionId: string): Promise<TeleconsultSession> {
+    const result = await command(pairing, 'teleconsult.reject', { session_id: sessionId });
+    if (result.status !== 'ACCEPTED') throw new Error(String(result.result.code || 'Refus non confirmé.'));
     return result.result.session as TeleconsultSession;
   },
 
