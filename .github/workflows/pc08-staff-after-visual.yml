@@ -77,10 +77,10 @@ jobs:
         working-directory: /tmp/pc08-staff-after
         run: |
           PYTHONPATH=. python - <<'PY' >> "$GITHUB_ENV"
-import os
-from backend.core.runtime_safety import database_target_fingerprint
-print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(os.environ["DATABASE_URL"]))
-PY
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(os.environ["DATABASE_URL"]))
+          PY
 
       - name: Install exact AFTER frontend
         working-directory: /tmp/pc08-staff-after/frontend
