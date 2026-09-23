@@ -70,7 +70,7 @@ async function pairPatient(browserType, relationshipType, viewport) {
 }
 
 const self = await pairPatient(chromium, 'SELF', { width: 390, height: 844 });
-const selfBody = 'Suivi sécurisé patient — ' + 'A'.repeat(700);
+const selfBody = 'Bonjour, j’ai une légère sensibilité depuis hier après le soin. Est-ce normal et dois-je éviter quelque chose aujourd’hui ?';
 await self.page.getByPlaceholder('Écrire au cabinet…').fill(selfBody);
 const selfSend = self.page.getByRole('button', { name: 'Envoyer' });
 await selfSend.waitFor({ state: 'visible' });
@@ -78,7 +78,7 @@ await selfSend.click();
 await self.page.getByText('Reçu par le cabinet', { exact: true }).waitFor({ timeout: 30000 });
 
 const parent = await pairPatient(webkit, 'PARENT', { width: 390, height: 844 });
-const parentBody = 'Message parent via WebKit';
+const parentBody = 'Bonjour, je vous écris en tant que parent pour confirmer que tout va bien depuis le dernier rendez-vous.';
 await parent.page.getByPlaceholder('Écrire au cabinet…').fill(parentBody);
 await parent.page.getByRole('button', { name: 'Envoyer' }).click();
 await parent.page.getByText('Reçu par le cabinet', { exact: true }).waitFor({ timeout: 30000 });
@@ -125,7 +125,7 @@ if (!staffReadResponse.ok()) {
 const staffMessageBubble = staffPage.getByText(selfBody, { exact: true }).locator('..');
 await staffMessageBubble.getByText(/· Lu$/, { exact: false }).waitFor({ timeout: 30000 });
 
-const staffReply = 'Réponse sécurisée du cabinet — votre message a bien été consulté.';
+const staffReply = 'Bonjour, merci pour votre message. Une légère sensibilité peut être normale aujourd’hui. Évitez simplement les aliments très durs et contactez-nous si la douleur augmente.';
 await staffPage.getByPlaceholder('Écrire au patient…').fill(staffReply);
 await staffPage.getByRole('button', { name: 'Envoyer' }).click();
 await staffPage.getByText(staffReply, { exact: true }).waitFor({ timeout: 30000 });
