@@ -42,9 +42,9 @@ describe('IATab G5 runtime preference controls', () => {
     expect(state.staged).toContainEqual({ performance_mode: true });
   });
 
-  it('stages contextual clinical tips without immediate backend mutation', () => {
+  it('stages AI activity animation preference without immediate backend mutation', () => {
     render(<IATab />);
-    fireEvent.click(screen.getByRole('button', { name: 'Conseils cliniques contextuels' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Animation d’activité IA' }));
     expect(state.staged).toContainEqual({ clinical_tips_enabled: false });
   });
 
@@ -57,7 +57,7 @@ describe('IATab G5 runtime preference controls', () => {
   it('reflects current profile truth through aria-pressed state', () => {
     render(<IATab />);
     expect(screen.getByRole('button', { name: 'Mode Performance' }).getAttribute('aria-pressed')).toBe('false');
-    expect(screen.getByRole('button', { name: 'Conseils cliniques contextuels' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Animation d’activité IA' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Indicateurs de suivi patient' }).getAttribute('aria-pressed')).toBe('true');
   });
 });
