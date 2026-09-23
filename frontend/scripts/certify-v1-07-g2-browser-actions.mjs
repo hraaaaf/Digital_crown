@@ -344,6 +344,95 @@ for(const viewport of viewports){
  await page.unroute('**/api/patients/');
  await page.unroute('**/api/patients/'+createdId);
 
+ // Duplicate detection: opening existing dossier must not create a patient.
+ await page.goto('http://127.0.0.1:5173/patients/new?nom=DUPLICATE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
+ await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({available:true})}));
+ let duplicateCreateCalls=0;
+ await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+   status:200,contentType:'application/json',body:JSON.stringify({
+     has_duplicate:true,
+     existing_patient:{
+       id:patient.id,nom:patient.nom,prenom:patient.prenom,date_naissance:patient.date_naissance,created_at:'2026-01-01'
+     }
+   })
+ }));
+ await page.route('**/api/patients/**',async route=>{
+   if(route.request().method()==='POST'){
+     duplicateCreateCalls+=1;
+     return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({detail:'unexpected create'})});
+   }
+   return route.continue();
+ });
+ await page.locator('input[name="numero_dossier"]').fill('G2-DUP-OPEN');
+ await page.locator('input[name="date_naissance"]').fill('1990-01-01');
+ await page.locator('select[name="sexe"]').selectOption('F');
+ await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
+ await page.getByText('Patient similaire trouvé',{exact:true}).waitFor({state:'visible',timeout:10000});
+ if(duplicateCreateCalls!==0) throw new Error('duplicate detection created before explicit choice');
+ await page.getByRole('button',{name:/Ouvrir le dossier existant/i}).click();
+ await page.waitForURL(new RegExp('/patients/'+patient.id+'(?:\\?|$)'),{timeout:10000});
+ if(duplicateCreateCalls!==0) throw new Error('open existing duplicate triggered create');
+ pass(viewport,'patient-duplicate-open-existing-non-mutation');
+ await page.unroute('**/api/patients/**');
+ await page.unroute('**/api/patients/check-duplicate');
+ await page.unroute('**/api/patients/check-dossier/*');
+
+ // Explicit force-create is the only duplicate path allowed to mutate.
+ await page.goto('http://127.0.0.1:5173/patients/new?nom=FORCE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
+ await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({available:true})}));
+ await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+   status:200,contentType:'application/json',body:JSON.stringify({
+     has_duplicate:true,
+     existing_patient:{id:patient.id,nom:patient.nom,prenom:patient.prenom,date_naissance:patient.date_naissance,created_at:'2026-01-01'}
+   })
+ }));
+ const forceCreatedId=9199;
+ let forceCreateCalls=0;
+ await page.route('**/api/patients/?force_create=true',async route=>{
+   if(route.request().method()==='POST'){
+     forceCreateCalls+=1;
+     const body=route.request().postDataJSON();
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:forceCreatedId,...body})});
+   }
+   return route.continue();
+ });
+ await page.route('**/api/patients/'+forceCreatedId,async route=>{
+   if(route.request().method()==='GET'){
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+       id:forceCreatedId,numero_dossier:'G2-DUP-FORCE',nom:'FORCE',prenom:'Case',
+       date_naissance:'1990-01-01',sexe:'F',telephone:'',assurance:'AUCUNE',is_ortho_active:false
+     })});
+   }
+   return route.continue();
+ });
+ await page.locator('input[name="numero_dossier"]').fill('G2-DUP-FORCE');
+ await page.locator('input[name="date_naissance"]').fill('1990-01-01');
+ await page.locator('select[name="sexe"]').selectOption('F');
+ await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
+ await page.getByText('Patient similaire trouvé',{exact:true}).waitFor({state:'visible',timeout:10000});
+ if(forceCreateCalls!==0) throw new Error('force-create mutated before explicit confirmation');
+ await page.getByRole('button',{name:/Créer quand même/i}).click();
+ await page.waitForURL(new RegExp('/patients/'+forceCreatedId+'(?:\\?|$)'),{timeout:10000});
+ if(forceCreateCalls!==1) throw new Error('explicit force-create ACK mismatch');
+ pass(viewport,'patient-duplicate-explicit-force-create',{forceCreateCalls});
+ await page.unroute('**/api/patients/'+forceCreatedId);
+ await page.unroute('**/api/patients/?force_create=true');
+ await page.unroute('**/api/patients/check-duplicate');
+ await page.unroute('**/api/patients/check-dossier/*');
+
+ // Cancel from create form is navigation-only and must not call create.
+ await page.goto('http://127.0.0.1:5173/patients/new',{waitUntil:'networkidle',timeout:90000});
+ let cancelCreateCalls=0;
+ await page.route('**/api/patients/**',async route=>{
+   if(route.request().method()==='POST') cancelCreateCalls+=1;
+   return route.continue();
+ });
+ await page.getByRole('button',{name:'Annuler',exact:true}).click();
+ await page.waitForURL('**/patients',{timeout:10000});
+ if(cancelCreateCalls!==0) throw new Error('patient create cancel triggered mutation');
+ pass(viewport,'patient-create-cancel-non-mutation');
+ await page.unroute('**/api/patients/**');
+
  await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'/edit',{waitUntil:'networkidle',timeout:90000});
  const editNameLabel=page.locator('label').filter({hasText:/^Nom$/}).first();
  const editNameInput=editNameLabel.locator('..').locator('input').first();
