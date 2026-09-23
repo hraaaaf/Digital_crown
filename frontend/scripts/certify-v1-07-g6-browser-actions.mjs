@@ -43,7 +43,7 @@ for(const viewport of viewports){
   const card=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
   if(!(await card.count())) throw new Error('target client card missing');
 
-  // Plan mutation with backend verification, then restore GOLD.
+  // Plan mutation: ACK persistence, restore, then explicit refusal with backend non-mutation.
   const plan=card.locator('select').first();
   if(await plan.count()){
     const original=await plan.inputValue();
@@ -58,8 +58,8 @@ for(const viewport of viewports){
     const planAckBody=await planAck.json();
     if(planAckBody.subscription_plan!==targetPlan) throw new Error('plan response ACK mismatch');
 
-    const verify=await api.get('/api/superadmin/clients',{headers});
-    const row=(await verify.json()).find(x=>x.id===target.id);
+    let verify=await api.get('/api/superadmin/clients',{headers});
+    let row=(await verify.json()).find(x=>x.id===target.id);
     if(row.subscription_plan!==targetPlan) throw new Error('plan ACK not persisted');
     prove(viewport,'superadmin-plan-persistence',{from:original,to:targetPlan});
 
@@ -70,6 +70,125 @@ for(const viewport of viewports){
     await plan.selectOption(original);
     const restorePlanAck=await restorePlanAckPromise;
     if(!restorePlanAck.ok()) throw new Error('plan restore refused '+restorePlanAck.status()+': '+await restorePlanAck.text());
+
+    await page.route('**/api/superadmin/clients/'+target.id+'/plan?*',route=>route.fulfill({
+      status:409,
+      contentType:'application/json',
+      body:JSON.stringify({detail:'Passage au pack refusé par la certification'})
+    }));
+    await plan.selectOption(targetPlan);
+    await page.getByText('Passage au pack refusé par la certification',{exact:true}).waitFor({state:'visible',timeout:10000});
+    verify=await api.get('/api/superadmin/clients',{headers});
+    row=(await verify.json()).find(x=>x.id===target.id);
+    if(row.subscription_plan!==original) throw new Error('refused plan change mutated backend');
+    prove(viewport,'superadmin-plan-refusal-non-mutation',{plan:targetPlan});
+    await page.unroute('**/api/superadmin/clients/'+target.id+'/plan?*');
+    await page.reload({waitUntil:'networkidle',timeout:90000});
+    await page.getByText('Dr T2 Browser',{exact:true}).waitFor({state:'visible',timeout:10000});
+  }
+
+  // Every exposed licence duration button must ACK and increase persisted expiry.
+  const durationCases=[
+    {label:/\+\s*1\s*MOIS/i,action:'1m',days:30},
+    {label:/\+\s*3\s*MOIS/i,action:'3m',days:90},
+    {label:/\+\s*6\s*MOIS/i,action:'6m',days:180},
+    {label:/\+\s*1\s*AN/i,action:'1y',days:365},
+  ];
+  for(const item of durationCases){
+    const liveCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
+    const beforeResp=await api.get('/api/superadmin/clients',{headers});
+    const before=(await beforeResp.json()).find(x=>x.id===target.id);
+    const beforeExpiry=before.license_expires_at?new Date(before.license_expires_at).getTime():Date.now();
+    const ackPromise=page.waitForResponse(
+      r=>r.request().method()==='POST' && r.url().includes('/api/superadmin/clients/'+target.id+'/grant-license') && r.url().includes('action='+item.action),
+      {timeout:10000},
+    );
+    await liveCard.getByRole('button',{name:item.label}).click();
+    const ack=await ackPromise;
+    if(!ack.ok()) throw new Error('licence '+item.action+' refused '+ack.status());
+    const afterResp=await api.get('/api/superadmin/clients',{headers});
+    const after=(await afterResp.json()).find(x=>x.id===target.id);
+    const afterExpiry=new Date(after.license_expires_at).getTime();
+    if(!(after.is_licensed===true && afterExpiry>beforeExpiry)) throw new Error('licence '+item.action+' did not persist a later expiry');
+    prove(viewport,'superadmin-license-'+item.action,{days:item.days});
+  }
+
+  // WhatsApp renewal must surface the safe no-phone refusal before any external transport.
+  const renewalCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
+  const renewal=renewalCard.getByTitle('WhatsApp de relance');
+  if(await renewal.count()){
+    const ackPromise=page.waitForResponse(
+      r=>r.request().method()==='POST' && r.url().includes('/api/superadmin/clients/'+target.id+'/send-renewal-email'),
+      {timeout:10000},
+    );
+    await renewal.click();
+    const ack=await ackPromise;
+    if(ack.status()!==409) throw new Error('renewal refusal status mismatch '+ack.status());
+    await page.getByText("Aucun numéro de téléphone trouvé pour l'envoi WhatsApp.",{exact:true}).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'superadmin-renewal-whatsapp-safe-refusal',{status:ack.status()});
+  }
+
+  // Suspend -> UI immutable status -> reactivate. Confirmation cancel must not mutate.
+  let liveCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
+  let suspend=liveCard.getByTitle('Suspendre');
+  if(await suspend.count()){
+    page.once('dialog',d=>d.dismiss());
+    await suspend.click();
+    await page.waitForTimeout(100);
+    let verify=await api.get('/api/superadmin/clients',{headers});
+    let row=(await verify.json()).find(x=>x.id===target.id);
+    if(row.is_suspended) throw new Error('suspend cancel mutated backend');
+
+    page.once('dialog',d=>d.accept());
+    await suspend.click();
+    await page.getByTitle('Réactiver').waitFor({state:'visible',timeout:10000});
+    verify=await api.get('/api/superadmin/clients',{headers});
+    row=(await verify.json()).find(x=>x.id===target.id);
+    if(!row.is_suspended) throw new Error('suspend ACK not persisted');
+    prove(viewport,'superadmin-suspend-ack');
+
+    liveCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
+    page.once('dialog',d=>d.accept());
+    await liveCard.getByTitle('Réactiver').click();
+    await page.getByTitle('Suspendre').waitFor({state:'visible',timeout:10000});
+    verify=await api.get('/api/superadmin/clients',{headers});
+    row=(await verify.json()).find(x=>x.id===target.id);
+    if(row.is_suspended) throw new Error('reactivate did not restore fixture');
+    prove(viewport,'superadmin-reactivate-restore');
+  }
+
+  // Archive disables mutable commercial controls, then unarchive restores the fixture.
+  liveCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
+  const archive=liveCard.getByTitle('Archiver');
+  if(await archive.count()){
+    page.once('dialog',d=>d.dismiss());
+    await archive.click();
+    await page.waitForTimeout(100);
+    let verify=await api.get('/api/superadmin/clients',{headers});
+    let row=(await verify.json()).find(x=>x.id===target.id);
+    if(row.is_archived) throw new Error('archive cancel mutated backend');
+
+    page.once('dialog',d=>d.accept());
+    await archive.click();
+    const archivedCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
+    await archivedCard.getByTitle('Désarchiver').waitFor({state:'visible',timeout:10000});
+    if(!(await archivedCard.locator('select').first().isDisabled())) throw new Error('archived plan control remains enabled');
+    for(const label of [/\+\s*1\s*MOIS/i,/\+\s*3\s*MOIS/i,/\+\s*6\s*MOIS/i,/\+\s*1\s*AN/i]){
+      if(!(await archivedCard.getByRole('button',{name:label}).isDisabled())) throw new Error('archived licence duration remains enabled');
+    }
+    if(!(await archivedCard.getByTitle('WhatsApp de relance').isDisabled())) throw new Error('archived renewal control remains enabled');
+    verify=await api.get('/api/superadmin/clients',{headers});
+    row=(await verify.json()).find(x=>x.id===target.id);
+    if(!row.is_archived) throw new Error('archive ACK not persisted');
+    prove(viewport,'superadmin-archive-immutable-controls');
+
+    page.once('dialog',d=>d.accept());
+    await archivedCard.getByTitle('Désarchiver').click();
+    await page.getByTitle('Archiver').waitFor({state:'visible',timeout:10000});
+    verify=await api.get('/api/superadmin/clients',{headers});
+    row=(await verify.json()).find(x=>x.id===target.id);
+    if(row.is_archived) throw new Error('unarchive did not restore fixture');
+    prove(viewport,'superadmin-unarchive-restore');
   }
 
   // Internal notes persistence.
