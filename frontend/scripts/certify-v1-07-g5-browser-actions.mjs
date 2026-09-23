@@ -136,6 +136,7 @@ for(const viewport of viewports){
   await setToggle(controls.aiAnimation,true);
   await setToggle(controls.badges,true);
   await saveRuntime({performance_mode:true,clinical_tips_enabled:true,show_patient_badges:true});
+  await page.reload({waitUntil:'networkidle',timeout:90000});
 
   await page.waitForFunction(()=>document.body.classList.contains('performance-mode'));
   const perfComputed=await page.evaluate(()=>{
@@ -182,6 +183,7 @@ for(const viewport of viewports){
   await setToggle(controls.aiAnimation,false);
   await setToggle(controls.badges,false);
   await saveRuntime({performance_mode:false,clinical_tips_enabled:false,show_patient_badges:false});
+  await page.reload({waitUntil:'networkidle',timeout:90000});
 
   await page.waitForFunction(()=>!document.body.classList.contains('performance-mode'));
   prove(viewport,'settings-performance-consumer-disabled');
