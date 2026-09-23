@@ -774,6 +774,7 @@ for(const viewport of viewports){
  if(await restrictedPage.getByRole('button',{name:'Appairer le téléphone mobile'}).count()) throw new Error('restricted user sees mobile admin control');
  if(await restrictedPage.getByRole('button',{name:/Pilotage du cabinet/i}).count()) throw new Error('restricted user sees accounting management panel');
  if(await restrictedPage.getByRole('link',{name:'Patients',exact:true}).count()) throw new Error('restricted user sees Patients navigation');
+ if(await restrictedPage.getByTitle('Réglages').count()) throw new Error('restricted user sees Settings entry');
  pass(viewport,'dashboard-restricted-hidden-controls');
 
  const restrictedQuick=restrictedPage.getByRole('button',{name:'Ajout rapide'});
@@ -786,6 +787,11 @@ for(const viewport of viewports){
  await restrictedPage.waitForURL('**/dashboard',{timeout:10000});
  if(await restrictedPage.getByRole('button',{name:/Import CSV/i}).count()) throw new Error('restricted direct patients route exposed patient controls');
  pass(viewport,'patients-direct-route-permission-guard');
+
+ await restrictedPage.goto('http://127.0.0.1:5173/settings',{waitUntil:'networkidle',timeout:90000});
+ await restrictedPage.waitForURL('**/dashboard',{timeout:10000});
+ if(await restrictedPage.getByText(/Performance & Assistance|Mon Équipe|Sécurité & Backup/i).count()) throw new Error('restricted direct settings route exposed settings controls');
+ pass(viewport,'settings-direct-route-permission-guard');
  await restrictedCtx.close();
 }
 
