@@ -1,6 +1,6 @@
 # PC-09 — Teleconsultation — START HANDOVER
 
-Status: START READY
+Status: AUDIT LOCKED
 Base: master after PC-08 POST-MERGE VERIFIED closeout
 Previous lot: PC-08 — Secure Messaging
 Deployment: none
@@ -89,3 +89,36 @@ PC-08:
 8. merge / post-merge / closeout.
 
 No PC-09 implementation is claimed by this handover.
+
+
+## Audit closeout — 2026-09-23
+
+Verified:
+- no existing WebRTC/getUserMedia/WebSocket/STUN/TURN implementation in repo;
+- Patient Companion identity/access/revocation can be reused;
+- existing signed/encrypted remote command channel is control/signaling capable but is not a real-time media transport;
+- appointment opaque references can safely provide optional session context;
+- no recording is part of PC-09.
+
+Architecture locked in:
+`docs/clinic/patient_companion/PC_09_TELECONSULTATION_ARCHITECTURE_MAP.md`
+
+Implementation decision:
+- canonical session state in cabinet DB;
+- encrypted authenticated signaling/control;
+- WebRTC for media;
+- configurable ICE servers;
+- explicit camera/microphone permission;
+- connected UI only from actual peer connection state;
+- no recording;
+- no Vercel deployment.
+
+Known external gate:
+- no controlled TURN service is currently configured, so reliable arbitrary off-network media cannot yet be certified.
+
+Next exact:
+1. implement session model/state machine and authorization;
+2. implement signaling contract;
+3. implement patient/staff WebRTC UI with explicit permissions;
+4. certify deterministic app behavior;
+5. stop only at TURN/network E2E gate or human visual gate.
