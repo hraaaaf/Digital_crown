@@ -4,6 +4,9 @@ on:
     paths:
       - "frontend/src/pages/StockPage.tsx"
       - "frontend/src/pages/PartnerMarketplacePage.tsx"
+      - "frontend/src/pages/PartnerCatalogAdminPage.tsx"
+      - "frontend/src/pages/PartnerSupplierPage.tsx"
+      - "frontend/src/pages/PartnerProductPage.tsx"
       - "frontend/src/features/partnerMarketplace/**"
       - "frontend/src/features/clinical-ref/**"
       - "frontend/scripts/certify-v1-07-g7-browser-actions.mjs"
@@ -25,6 +28,7 @@ jobs:
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
+      T2_SUPERADMIN_EMAIL: "g7-superadmin@digitalcrown.test"
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
