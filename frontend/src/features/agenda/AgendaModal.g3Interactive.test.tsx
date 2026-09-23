@@ -154,6 +154,33 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('restores a free-text patient name when editing a walk-in appointment', async () => {
+    const editingAppointment = {
+      id: 56,
+      patient_id: null,
+      patient_name: 'VISITEUR Libre',
+      motif: 'Urgence',
+      datetime_start: '2026-09-21T11:00:00',
+      duration_minutes: 30,
+      status: 'PRÉVU',
+    };
+    const { onSaved, onClose } = renderCreate({ editingAppointment });
+
+    expect(await screen.findByDisplayValue('VISITEUR Libre')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier le RDV' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith(
+      '/appointments/56',
+      expect.objectContaining({
+        patient_id: null,
+        patient_name: 'VISITEUR Libre',
+        motif: 'Urgence',
+      }),
+    ));
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('deletes only after explicit confirmation and does not report success on refusal', async () => {
     const editingAppointment = {
       id: 55,
