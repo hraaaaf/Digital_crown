@@ -120,3 +120,20 @@ Remediation:
 - dedicated test reproduces two synchronous native clicks while the first POST remains unresolved and requires exactly one POST.
 
 Certification remains pending exact-head browser proof.
+
+
+## Deep browser reconciliation — 2026-09-23
+
+The real-Chromium G8 dialog contract is now complete on the Stock destructive confirmation surface:
+- exact preferred autofocus lands on Annuler;
+- body + html scrolling are locked while open;
+- Shift+Tab from first wraps to last and Tab from last wraps to first;
+- Escape closes;
+- document scroll state is restored;
+- focus returns to the exact Supprimer opener.
+
+The representative Stock add single-flight proof remains native double-click based and requires exactly one POST while the first request is unresolved.
+
+OfflineQueueViewer retains its component-level truth matrix. No mount of OfflineQueueViewer was found in the inspected visible V1 surfaces (MainLayout, Mobile Dashboard, Mobile Context, Mobile Onboarding), so it is not falsely promoted to browser evidence for a currently unexposed surface. If it becomes visibly mounted before freeze, it must enter the browser denominator.
+
+G8 functional deep-check status: RECONCILED IN HARNESS + inherited deep G2/G3/G5/G6/G7 evidence. Certification remains pending exact-head browser/CI and inherited matched visual gates.
