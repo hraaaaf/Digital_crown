@@ -123,7 +123,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
 
   const processSignal = useCallback(async (signal: TeleconsultSignal, peer: RTCPeerConnection) => {
     if (signal.signal_type === 'answer') {
-      await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
+      await peer.setRemoteDescription(signal.payload as unknown as RTCSessionDescriptionInit);
       return;
     }
     if (signal.signal_type === 'ice') {
