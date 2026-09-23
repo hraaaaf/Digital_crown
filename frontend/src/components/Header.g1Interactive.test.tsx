@@ -71,16 +71,19 @@ describe('Header G1 interactive matrix', () => {
     expect(screen.getAllByRole('link', { name: /Gestion des Dentistes/i }).every(link => link.getAttribute('href') === '/super-admin')).toBe(true);
   });
 
-  it('hides Settings entry without settings permission and shows it for cabinet owner', () => {
+  it('hides Settings and Treasury shortcuts without permission and shows Settings for cabinet owner', async () => {
     mockUser = {
       is_superadmin: false,
       nom_complet: 'Restricted',
       role: 'SECRETAIRE',
       employer_id: 1,
-      permissions: { settings: false },
+      permissions: { settings: false, accounting: false },
     };
     const first = renderHeader();
     expect(screen.queryByTitle('Réglages')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: "Ouvrir le centre d’attention" }));
+    expect(await screen.findByText('Centre d’attention')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Trésorerie' })).toBeNull();
     first.unmount();
 
     mockUser = {
