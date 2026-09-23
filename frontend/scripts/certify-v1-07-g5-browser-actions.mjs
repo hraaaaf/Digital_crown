@@ -82,7 +82,39 @@ for(const viewport of viewports){
 
     // Every contact toggle must change enabled/disabled input truth, then restore it.
     for(const contactLabel of ['Tél. Fixe','Tél. Mobile','WhatsApp','Instagram']){
-      const contactToggle=page.getByRole('button',{name:new RegExp('^(Activer|Désactiver) '+contactLabel.replace('.','\\.')+'
+      const contactToggle=page.locator('button[aria-label$="'+contactLabel+'"]').first();
+      await contactToggle.waitFor({state:'visible',timeout:5000});
+      const before=(await contactToggle.getAttribute('aria-pressed'))==='true';
+      const card=contactToggle.locator('xpath=ancestor::div[contains(@class,"bg-white")][1]');
+      const input=card.locator('input[type="text"]');
+      if((await input.isDisabled())===before) throw new Error('profile contact input initial enabled truth mismatch: '+contactLabel);
+      await contactToggle.click();
+      const after=(await contactToggle.getAttribute('aria-pressed'))==='true';
+      if(after===before || (await input.isDisabled())===after) throw new Error('profile contact toggle effect mismatch: '+contactLabel);
+      await contactToggle.click();
+      const restored=(await contactToggle.getAttribute('aria-pressed'))==='true';
+      if(restored!==before || (await input.isDisabled())===restored) throw new Error('profile contact toggle restore mismatch: '+contactLabel);
+    }
+    prove(viewport,'settings-profile-all-contact-toggles');
+
+    // Dynamic Arabic keyboard: exercise every revealed key and Space, then restore the source field.
+    const customArabic=page.getByPlaceholder('مثال: زراعة الأسنان');
+    const originalCustomArabic=await customArabic.inputValue();
+    await customArabic.fill('');
+    await customArabic.focus();
+    const arabicKeys=['ض','ص','ث','ق','ف','غ','ع','ه','خ','ح','ج','د','ش','س','ي','ب','ل','ا','ت','ن','م','ك','ط','ئ','ء','ؤ','ر','لا','ى','ة','و','ز','ظ'];
+    for(const key of arabicKeys){
+      await page.getByRole('button',{name:key,exact:true}).click();
+    }
+    await page.getByRole('button',{name:'Espace',exact:true}).click();
+    const arabicExpected=arabicKeys.join('')+' ';
+    if(await customArabic.inputValue()!==arabicExpected) throw new Error('Arabic keyboard did not append every key in order');
+    prove(viewport,'settings-profile-arabic-keyboard-all-keys',{keyCount:arabicKeys.length+1});
+    await customArabic.fill(originalCustomArabic);
+    await page.mouse.click(2,2);
+    await page.waitForTimeout(50);
+
+    await cabinet.fill('Cabinet T2 Certification Browser');
     await cabinet.blur();
 
     // Toggle Orthodontie relative to original state.
