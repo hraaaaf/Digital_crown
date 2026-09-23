@@ -66,3 +66,41 @@ Status: CODE REMEDIATED — CERTIFICATION PENDING matched visual evidence + exac
 
 ## Browser escalation
 G1 also requires real Chromium proof: landing/auth/register/trial/setup/onboarding/navigation controls must be inventoried and action-tested with success/refusal/navigation truth. Component tests and visual evidence remain supporting proof, not the final interaction certificate.
+
+
+## Deep interaction reconciliation — public/auth/mobile
+
+The browser gate now requires both refusal truth and success ACK for critical public/auth controls where an isolated deterministic success contract is available.
+
+### Landing demo request
+- refusal must not render success;
+- success HTTP ACK must render `Demande envoyée !`.
+
+### Registration
+- both legal consents remain mandatory before enablement;
+- refusal must preserve an error/no false success;
+- success ACK must render `Demande Envoyée`.
+
+### Trial activation
+- preview truth is required;
+- refused activation must not render success;
+- successful activation ACK must render the backend success message.
+
+### Login
+- refusal must not navigate;
+- real isolated-runtime credential success must navigate to Dashboard.
+
+### Mobile pairing
+Success proof is not mocked around the security boundary.
+
+The G1 isolated workflow now provides a test-only `CABINET_MASTER_KEY_HEX`; the browser gate:
+1. authenticates the real T2 owner;
+2. calls the real `/api/mobile/bridge-pairing` endpoint for an Agenda destination;
+3. receives a real six-digit one-shot code;
+4. submits that code through the actual Onboarding UI;
+5. executes the real client secp256r1 ECDH handshake;
+6. accepts only the server ECDH + AES-GCM encrypted master-key response;
+7. reaches visible `Appairage réussi`;
+8. resolves the server bridge destination and navigates to `/mobile/dashboard?tab=agenda`.
+
+The existing refusal path remains mandatory as a separate non-false-success proof.
