@@ -100,6 +100,13 @@ for (const access of [selfAccess, parentAccess]) {
     { headers: authHeaders, data: { access_id: access.access_id, ttl_minutes: 60 } },
   );
   if (!response.ok()) throw new Error('create teleconsult ' + access.relationship_type + ' ' + response.status());
+  const created = await response.json();
+  if (created?.session?.state !== 'CREATED') throw new Error('teleconsult must start CREATED');
+  const joined = await api.post(
+    '/api/patient-companion/admin/patients/' + patient.id + '/teleconsultations/' + created.session.session_id + '/join',
+    { headers: authHeaders, data: { access_id: access.access_id } },
+  );
+  if (!joined.ok()) throw new Error('join teleconsult ' + access.relationship_type + ' ' + joined.status());
 }
 
 for (const target of [chromiumPatient, webkitPatient]) {
