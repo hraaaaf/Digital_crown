@@ -7,6 +7,7 @@ import { cabinetApi } from './services/templateApi';
 import { API_BASE } from './services/api';
 import { safeStorage } from './hooks/useLocalStorage';
 import { useAuthStore } from './stores/useAuthStore';
+import { hasAccess } from './utils/accessControl';
 
 // Chargés immédiatement (première interaction utilisateur)
 import { Dashboard } from './pages/Dashboard';
@@ -96,6 +97,12 @@ const ContextualToaster = () => {
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
+
+const PermissionRoute = ({ permission, children }: { permission: string; children: React.ReactNode }) => {
+  const user = useAuthStore(state => state.user);
+  if (!hasAccess(user, permission)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -223,11 +230,11 @@ const ProtectedRoutes = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/agenda" element={<AgendaPage />} />
           <Route path="/accounting" element={<AccountingPage />} />
-          <Route path="/patients" element={<PatientList />} />
-          <Route path="/patients/new" element={<AddPatientForm />} />
-          <Route path="/patients/:id" element={<PatientDetails />} />
-          <Route path="/patients/:id/archives" element={<PatientDocuments />} />
-          <Route path="/patients/:id/edit" element={<EditPatientForm />} />
+          <Route path="/patients" element={<PermissionRoute permission="patients"><PatientList /></PermissionRoute>} />
+          <Route path="/patients/new" element={<PermissionRoute permission="patients"><AddPatientForm /></PermissionRoute>} />
+          <Route path="/patients/:id" element={<PermissionRoute permission="patients"><PatientDetails /></PermissionRoute>} />
+          <Route path="/patients/:id/archives" element={<PermissionRoute permission="patients"><PatientDocuments /></PermissionRoute>} />
+          <Route path="/patients/:id/edit" element={<PermissionRoute permission="patients"><EditPatientForm /></PermissionRoute>} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route
