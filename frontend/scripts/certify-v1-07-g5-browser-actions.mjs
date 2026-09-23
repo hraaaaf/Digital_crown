@@ -154,9 +154,9 @@ for(const viewport of viewports){
   }
   prove(viewport,'settings-performance-consumer-enabled',perfComputed);
 
-  const logo=page.getByAltText('Digital Crown AI').first();
+  const logo=page.getByAltText('Digital Crown').first();
   await page.evaluate(()=>window.dispatchEvent(new Event('ai-generation-start')));
-  await page.waitForFunction(()=>document.querySelector('img[alt="Digital Crown AI"]')?.classList.contains('animate-logo-pulse-light'));
+  await page.waitForFunction(()=>document.querySelector('img[alt="Digital Crown"]')?.classList.contains('animate-logo-pulse-light'));
   prove(viewport,'settings-ai-activity-animation-enabled');
   await page.evaluate(()=>window.dispatchEvent(new Event('ai-generation-end')));
 
