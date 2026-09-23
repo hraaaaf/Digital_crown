@@ -21,6 +21,25 @@ type Signal = {
 
 const terminal = new Set(['ENDED', 'REJECTED', 'EXPIRED', 'FAILED']);
 
+const waitForIceGathering = (peer: RTCPeerConnection, timeoutMs = 5000) => new Promise<void>(resolve => {
+  if (peer.iceGatheringState === 'complete') {
+    resolve();
+    return;
+  }
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    peer.removeEventListener('icegatheringstatechange', onChange);
+    resolve();
+  };
+  const onChange = () => {
+    if (peer.iceGatheringState === 'complete') finish();
+  };
+  peer.addEventListener('icegatheringstatechange', onChange);
+  window.setTimeout(finish, timeoutMs);
+});
+
 export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId: number }) {
   const [accesses, setAccesses] = useState<Access[]>([]);
   const [selectedAccess, setSelectedAccess] = useState('');
@@ -113,7 +132,10 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
         await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
-        await sendSignal('answer', { type: answer.type, sdp: answer.sdp || '' });
+        await waitForIceGathering(peer);
+        const localDescription = peer.localDescription;
+        if (!localDescription) throw new Error('Préparation de la connexion impossible.');
+        await sendSignal('answer', { type: localDescription.type, sdp: localDescription.sdp || '' });
       } else if (signal.signal_type === 'ice') {
         const candidate = signal.payload as unknown as RTCIceCandidateInit;
         if (candidate?.candidate) await peer.addIceCandidate(candidate);
@@ -140,9 +162,6 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
     peer.ontrack = event => {
       for (const track of event.streams[0]?.getTracks() || [event.track]) remoteStreamRef.current.addTrack(track);
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
-    };
-    peer.onicecandidate = event => {
-      if (event.candidate) void sendSignal('ice', event.candidate.toJSON() as unknown as Record<string, unknown>);
     };
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === 'connected' && !connectedReportedRef.current) {
