@@ -101,7 +101,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setActSearch(editingAppointment.motif || '');
         setStatus(editingAppointment.status);
         if (editingAppointment.patient_id) {
-           setSelectedPatient({ id: editingAppointment.patient_id, nom: editingAppointment.patient_name?.split(' ')[0] || '', prenom: editingAppointment.patient_name?.split(' ')[1] || '' });
+          setSelectedPatient({ id: editingAppointment.patient_id, nom: editingAppointment.patient_name?.split(' ')[0] || '', prenom: editingAppointment.patient_name?.split(' ')[1] || '' });
+          setPatientSearch('');
+        } else {
+          setSelectedPatient(null);
+          setPatientSearch(editingAppointment.patient_name || '');
         }
       } else {
         setDateValue(selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
