@@ -259,6 +259,7 @@ for(const viewport of viewports){
   const shellCtx=await browser.newContext({viewport,colorScheme:'light'});
   const shellPage=await shellCtx.newPage();
   await shellPage.addInitScript(v=>{
+    if(location.pathname==='/login') return;
     localStorage.setItem('token',v.access);
     localStorage.setItem('refresh_token',v.refresh||'');
     localStorage.setItem('appMode','prod');

@@ -147,7 +147,7 @@ describe('AgendaTab G5 settings matrix', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/agenda/exceptions/5'));
-    expect(screen.queryByText('Congés')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Congés')).toBeNull());
   });
 
   it('fails closed when settings truth cannot be loaded and retries', async () => {

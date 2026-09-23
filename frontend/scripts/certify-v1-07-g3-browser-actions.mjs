@@ -242,6 +242,10 @@ for(const viewport of viewports){
   const persistedEditDialog=page.getByRole('dialog',{name:'Modifier le Rendez-vous'});
   await persistedEditDialog.waitFor({state:'visible',timeout:5000});
 
+  const editDate=persistedEditDialog.locator('input[type="date"]');
+  await editDate.waitFor({state:'visible',timeout:5000});
+  const editDateHandle=await editDate.elementHandle();
+  await page.waitForFunction(el=>Boolean(el?.value),editDateHandle,{timeout:5000});
   const editAct=persistedEditDialog.getByPlaceholder("Saisir l'acte ou rechercher dans le catalogue...");
   await editAct.fill(updatedMotif);
   const editAckPromise=page.waitForResponse(

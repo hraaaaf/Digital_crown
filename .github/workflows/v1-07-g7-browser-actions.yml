@@ -28,8 +28,8 @@ jobs:
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
-      SUPERADMIN_EMAIL: "g7-superadmin@digitalcrown.test"
-      T2_SUPERADMIN_EMAIL: "g7-superadmin@digitalcrown.test"
+      SUPERADMIN_EMAIL: "g7-superadmin@digitalcrown.ma"
+      T2_SUPERADMIN_EMAIL: "g7-superadmin@digitalcrown.ma"
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"

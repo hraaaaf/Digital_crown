@@ -348,10 +348,11 @@ for(const viewport of viewports){
   const previewOriginalPosition=await previewPosition.inputValue();
   const previewChanged=previewOriginalPosition==='0.1'?'0.2':'0.1';
   await previewPosition.evaluate((el,value)=>{
-    const input=el;
-    input.value=value;
-    input.dispatchEvent(new Event('input',{bubbles:true}));
-    input.dispatchEvent(new Event('change',{bubbles:true}));
+    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;
+    if(!setter) throw new Error('native range value setter unavailable');
+    setter.call(el,value);
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
   },previewChanged);
   await page.getByText('À actualiser',{exact:true}).waitFor({state:'visible',timeout:5000});
   await page.getByRole('button',{name:'Actualiser le rendu',exact:true}).click();
@@ -367,10 +368,11 @@ for(const viewport of viewports){
   prove(viewport,'settings-branding-pdf-preview-open');
 
   await previewPosition.evaluate((el,value)=>{
-    const input=el;
-    input.value=value;
-    input.dispatchEvent(new Event('input',{bubbles:true}));
-    input.dispatchEvent(new Event('change',{bubbles:true}));
+    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;
+    if(!setter) throw new Error('native range value setter unavailable');
+    setter.call(el,value);
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
   },previewOriginalPosition);
   await page.unroute('**/api/documents/sample-preview');
   await page.unroute('**/g5-preview.pdf');

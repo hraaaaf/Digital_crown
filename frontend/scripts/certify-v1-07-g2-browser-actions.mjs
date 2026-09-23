@@ -313,6 +313,7 @@ for(const viewport of viewports){
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
  }));
+ await page.getByText('Numéro disponible',{exact:true}).waitFor({state:'visible',timeout:5000});
  await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
  await page.getByText(/Vérification anti-doublon indisponible/i).waitFor({state:'visible',timeout:10000});
  if(!page.url().includes('/patients/new')) throw new Error('create form navigated after duplicate-check refusal');
