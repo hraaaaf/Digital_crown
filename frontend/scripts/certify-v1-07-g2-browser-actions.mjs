@@ -481,26 +481,130 @@ for(const viewport of viewports){
  await page.unroute('**/api/patients/'+patient.id);
 
  await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
- const deleteSearch=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+
+ // Patient List sort + keyboard activation on a deterministic browser-only list.
+ const sortPatients=[
+   {...patient,id:9101,numero_dossier:'G2-ZETA',nom:'ZETA',prenom:'Zoé'},
+   {...patient,id:9102,numero_dossier:'G2-ALPHA',nom:'ALPHA',prenom:'Alice'},
+   patient
+ ];
+ await page.route('**/api/patients/',async route=>{
+   if(route.request().method()==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(sortPatients)});
+   return route.continue();
+ });
+ await page.reload({waitUntil:'networkidle',timeout:90000});
+ const sortSelect=page.locator('select').filter({hasText:'Plus Récents'}).first();
+ await sortSelect.selectOption('az');
+ let firstName=await page.locator('tbody tr').first().locator('td').nth(1).innerText();
+ if(!firstName.toUpperCase().includes('ALPHA')) throw new Error('patient A-Z sort consumer mismatch: '+firstName);
+ await sortSelect.selectOption('za');
+ firstName=await page.locator('tbody tr').first().locator('td').nth(1).innerText();
+ if(!firstName.toUpperCase().includes('ZETA')) throw new Error('patient Z-A sort consumer mismatch: '+firstName);
+ pass(viewport,'patient-list-sort-consumer');
+
+ const keyboardSearch=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+ await keyboardSearch.fill('T2-0001');
+ const keyboardRow=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first();
+ await keyboardRow.focus();
+ await keyboardRow.press('Enter');
+ await page.waitForURL(new RegExp('/patients/'+patient.id+'(?:\\?|$)'),{timeout:10000});
+ pass(viewport,'patient-list-keyboard-navigation');
+ await page.goBack({waitUntil:'networkidle'});
+
+ // CSV import: successful multipart result and refusal with modal retained.
+ await page.getByRole('button',{name:/Import CSV/i}).click();
+ const csvDialog=page.getByRole('dialog').filter({hasText:'Importer des patients'});
+ const csvFile=csvDialog.locator('input[type="file"]');
+ const csvImport=csvDialog.getByRole('button',{name:'Importer',exact:true});
+ if(!(await csvImport.isDisabled())) throw new Error('CSV import enabled without file');
+ await csvFile.setInputFiles({name:'patients.csv',mimeType:'text/csv',buffer:Buffer.from('nom,prenom,date_naissance\nTEST,CSV,1990-01-01')});
+ let csvCalls=0;
+ await page.route('**/api/patients/import-csv',async route=>{
+   csvCalls+=1;
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+     created:1,skipped_duplicates:1,errors:[{row:3,reason:'ligne invalide'}]
+   })});
+ });
+ await csvImport.click();
+ await csvDialog.getByText('1',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+ if(csvCalls!==1) throw new Error('CSV import ACK count mismatch');
+ await csvDialog.getByText('ligne invalide',{exact:true}).waitFor({state:'visible',timeout:5000});
+ pass(viewport,'patient-csv-import-result',{csvCalls});
+ await csvDialog.getByRole('button',{name:'Fermer',exact:true}).click();
+ await page.unroute('**/api/patients/import-csv');
+
+ await page.getByRole('button',{name:/Import CSV/i}).click();
+ const csvDialogRefusal=page.getByRole('dialog').filter({hasText:'Importer des patients'});
+ const csvFileRefusal=csvDialogRefusal.locator('input[type="file"]');
+ await csvFileRefusal.setInputFiles({name:'bad.csv',mimeType:'text/csv',buffer:Buffer.from('bad')});
+ let csvRefusalCalls=0;
+ await page.route('**/api/patients/import-csv',async route=>{
+   csvRefusalCalls+=1;
+   return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced CSV refusal'})});
+ });
+ await csvDialogRefusal.getByRole('button',{name:'Importer',exact:true}).click();
+ await page.getByText('forced CSV refusal',{exact:true}).waitFor({state:'visible',timeout:10000});
+ if(csvRefusalCalls!==1 || !(await csvDialogRefusal.isVisible())) throw new Error('CSV refusal contract mismatch');
+ pass(viewport,'patient-csv-import-refusal-non-close',{csvRefusalCalls});
+ await csvDialogRefusal.getByRole('button',{name:'Annuler',exact:true}).click();
+ await page.unroute('**/api/patients/import-csv');
+
  await deleteSearch.fill('T2-0001');
- const deleteRow=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first();
+ let deleteRow=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first();
  await deleteRow.waitFor({state:'visible',timeout:10000});
+
+ // Wrong confirmation is blocked; cancel closes without mutation.
+ let deleteButton=deleteRow.getByRole('button',{name:'Supprimer définitivement'});
+ await deleteButton.click();
+ let confirmInput=page.getByPlaceholder('T2 CERTIFICATION');
+ await confirmInput.fill('WRONG');
+ let confirm=page.getByRole('button',{name:'Supprimer',exact:true});
+ if(!(await confirm.isDisabled())) throw new Error('patient delete enabled with wrong confirmation text');
+ await page.getByRole('button',{name:'Annuler',exact:true}).click();
+ await page.getByRole('dialog',{name:'Supprimer le dossier'}).waitFor({state:'detached',timeout:5000});
+ if(!(await page.getByText(/CERTIFICATION\s+T2/i).count())) throw new Error('patient disappeared after delete cancel');
+ pass(viewport,'patient-delete-wrong-confirm-and-cancel');
+
+ // Backend refusal must preserve the row.
  await page.route('**/api/patients/'+patient.id,async route=>{
    if(route.request().method()==='DELETE') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced delete refusal"}'});
    return route.continue();
  });
- const deleteButton=deleteRow.getByRole('button',{name:'Supprimer définitivement'});
- if(await deleteButton.count()){
-   await deleteButton.click();
-   const confirmInput=page.getByPlaceholder('T2 CERTIFICATION');
-   await confirmInput.fill('T2 CERTIFICATION');
-   const confirm=page.getByRole('button',{name:'Supprimer',exact:true});
-   await confirm.click();
-   await page.waitForTimeout(400);
-   if(!(await page.getByText(/CERTIFICATION\s+T2/i).count())) throw new Error('patient disappeared after refused delete');
-   pass(viewport,'patient-delete-refusal-non-mutation');
- }
+ deleteRow=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first();
+ await deleteRow.getByRole('button',{name:'Supprimer définitivement'}).click();
+ confirmInput=page.getByPlaceholder('T2 CERTIFICATION');
+ await confirmInput.fill('T2 CERTIFICATION');
+ confirm=page.getByRole('button',{name:'Supprimer',exact:true});
+ await confirm.click();
+ await page.waitForTimeout(300);
+ if(!(await page.getByText(/CERTIFICATION\s+T2/i).count())) throw new Error('patient disappeared after refused delete');
+ pass(viewport,'patient-delete-refusal-non-mutation');
  await page.unroute('**/api/patients/'+patient.id);
+
+ // ACK removes from client/cache; hard reload proves real backend fixture was never mutated.
+ let deleteAckCalls=0;
+ await page.route('**/api/patients/'+patient.id,async route=>{
+   if(route.request().method()==='DELETE'){
+     deleteAckCalls+=1;
+     return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+   }
+   return route.continue();
+ });
+ deleteButton=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first().getByRole('button',{name:'Supprimer définitivement'});
+ await deleteButton.click();
+ confirmInput=page.getByPlaceholder('T2 CERTIFICATION');
+ await confirmInput.fill('T2 CERTIFICATION');
+ await page.getByRole('button',{name:'Supprimer',exact:true}).click();
+ await page.getByText(/CERTIFICATION\s+T2/i).waitFor({state:'detached',timeout:10000});
+ if(deleteAckCalls!==1) throw new Error('patient delete ACK count mismatch');
+ pass(viewport,'patient-delete-ack-local-removal',{deleteAckCalls});
+ await page.unroute('**/api/patients/'+patient.id);
+
+ await page.reload({waitUntil:'networkidle',timeout:90000});
+ await page.getByPlaceholder('Rechercher par nom, prénom ou dossier...').fill('T2-0001');
+ await page.getByText(/CERTIFICATION\s+T2/i).first().waitFor({state:'visible',timeout:10000});
+ pass(viewport,'patient-delete-fixture-real-data-untouched');
+ await page.unroute('**/api/patients/');
  await page.unroute('**/api/appointments/**');
  await page.unroute('**/api/intelligence/alerts/**');
  await page.unroute('**/api/mobile/bridge-options');
