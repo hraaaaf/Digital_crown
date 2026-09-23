@@ -78,8 +78,9 @@ for(const viewport of viewports){
    pass(viewport,'patient-list-view-mode-persistence');
  }
 
- await listSearch.fill('');
- const edit=page.getByRole('button',{name:'Modifier les infos'}).first();
+ const patientRow=page.getByRole('row').filter({hasText:/CERTIFICATION\s+T2/i}).first();
+ await patientRow.waitFor({state:'visible',timeout:10000});
+ const edit=patientRow.getByRole('button',{name:'Modifier les infos'});
  if(await edit.count()){
    await Promise.all([
      page.waitForURL(new RegExp('/patients/'+patient.id+'/edit')),
