@@ -143,6 +143,8 @@ for(const viewport of viewports){
         await page.getByRole('button',{name:'Créer',exact:true}).click();
         await page.getByText(/tarif doit être un nombre positif ou nul/i).waitFor({state:'visible',timeout:5000});
         prove(viewport,'settings-catalog-invalid-price-refusal');
+        const cancel=page.getByRole('button',{name:'Annuler',exact:true}).last();
+        if(await cancel.count()) await cancel.click();
       }
     }
   }
