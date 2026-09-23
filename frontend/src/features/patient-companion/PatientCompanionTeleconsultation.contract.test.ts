@@ -39,6 +39,14 @@ describe('PC-09 teleconsultation truth contract', () => {
     expect(staff).not.toContain("recording");
   });
 
+  it('persists real peer failure instead of leaving a false connecting state', () => {
+    expect(patient).toContain("peer.connectionState === 'failed'");
+    expect(patient).toContain("PatientCompanionTeleconsultTransport.failed");
+    expect(staff).toContain("peer.connectionState === 'failed'");
+    expect(staff).toContain("PEER_CONNECTION_FAILED");
+    expect(transport).toContain("'teleconsult.failed'");
+  });
+
   it('ends tracks and peer connection explicitly', () => {
     expect(patient).toContain("track.stop()");
     expect(patient).toContain("peerRef.current?.close()");
