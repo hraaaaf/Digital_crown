@@ -11,7 +11,10 @@ if(!restrictedLogin.ok()) throw new Error('G2 restricted login failed');
 const restrictedTokens=await restrictedLogin.json();
 const headers={Authorization:'Bearer '+tokens.access_token};
 const patients=await api.get('/api/patients',{headers});
-const patient=(await patients.json()).find(x=>x.numero_dossier==='T2-0001');
+if(!patients.ok()) throw new Error('G2 patients fixture read failed '+patients.status()+': '+await patients.text());
+const patientsBody=await patients.json();
+const patientList=Array.isArray(patientsBody)?patientsBody:(Array.isArray(patientsBody?.items)?patientsBody.items:(Array.isArray(patientsBody?.patients)?patientsBody.patients:[]));
+const patient=patientList.find(x=>x.numero_dossier==='T2-0001');
 if(!patient) throw new Error('T2 patient missing');
 
 const browser=await chromium.launch({headless:true});
