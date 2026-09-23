@@ -90,6 +90,15 @@ export const PatientCompanionTeleconsultTransport = {
     return result.result.session as TeleconsultSession;
   },
 
+  async failed(pairing: PatientPairing, sessionId: string, failureCode: 'PEER_CONNECTION_FAILED'): Promise<TeleconsultSession> {
+    const result = await command(pairing, 'teleconsult.failed', {
+      session_id: sessionId,
+      failure_code: failureCode,
+    });
+    if (result.status !== 'ACCEPTED') throw new Error(String(result.result.code || 'Échec de connexion non confirmé.'));
+    return result.result.session as TeleconsultSession;
+  },
+
   async reject(pairing: PatientPairing, sessionId: string): Promise<TeleconsultSession> {
     const result = await command(pairing, 'teleconsult.reject', { session_id: sessionId });
     if (result.status !== 'ACCEPTED') throw new Error(String(result.result.code || 'Refus non confirmé.'));
