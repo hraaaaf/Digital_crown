@@ -268,9 +268,13 @@ for(const viewport of viewports){
   prove(viewport,'marketplace-search-availability-category');
 
   const readsBeforeRefresh=catalogReads;
+  const catalogRefresh=page.waitForResponse(
+    r=>r.request().method()==='GET' && r.url().includes('/api/partner-catalog/products'),
+    {timeout:10000},
+  );
   await page.getByRole('button',{name:'Actualiser',exact:true}).click();
-  await page.waitForFunction(([before])=>true,[readsBeforeRefresh]);
-  if(catalogReads<=readsBeforeRefresh) throw new Error('marketplace Actualiser did not reread catalog');
+  const catalogRefreshAck=await catalogRefresh;
+  if(!catalogRefreshAck.ok() || catalogReads<=readsBeforeRefresh) throw new Error('marketplace Actualiser did not reread catalog');
   prove(viewport,'marketplace-explicit-refresh',{catalogReads});
 
   const plus=page.getByRole('button',{name:'Ajouter une unité de Composite universel',exact:true});
