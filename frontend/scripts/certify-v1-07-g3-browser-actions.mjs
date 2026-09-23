@@ -309,6 +309,25 @@ for(const viewport of viewports){
     if(await cancelEdit.count()) await cancelEdit.click();
   }
 
+  // Pending actions: ACK then refetched UI consequence.
+  const requestCard=page.locator('div.border-2').filter({hasText:'Pending Browser'}).first();
+  await requestCard.getByRole('button',{name:'Demander confirmation',exact:true}).click();
+  await page.getByText(/Message template copié/i).waitFor({state:'visible',timeout:10000});
+  if(requestConfirmCalls!==1 || pendingRequests.find(r=>r.id===7001)?.status!=='EN_ATTENTE_CONFIRM') throw new Error('pending request-confirmation mismatch');
+  prove(viewport,'agenda-pending-request-confirmation',{requestConfirmCalls});
+
+  const confirmCard=page.locator('div.border-2').filter({hasText:'Pending Confirm'}).first();
+  await confirmCard.getByRole('button',{name:'Confirmer',exact:true}).click();
+  await page.getByText('Pending Confirm',{exact:true}).waitFor({state:'detached',timeout:10000});
+  if(confirmPendingCalls!==1 || pendingRequests.some(r=>r.id===7002)) throw new Error('pending confirm mismatch');
+  prove(viewport,'agenda-pending-confirm',{confirmPendingCalls});
+
+  const rejectCard=page.locator('div.border-2').filter({hasText:'Pending Reject'}).first();
+  page.once('dialog',d=>d.accept());
+  await rejectCard.getByRole('button',{name:'Refuser',exact:true}).click();
+  await page.getByText('Pending Reject',{exact:true}).waitFor({state:'detached',timeout:10000});
+  if(rejectPendingCalls!==1 || pendingRequests.some(r=>r.id===7003)) throw new Error('pending reject mismatch');
+  prove(viewport,'agenda-pending-reject',{rejectPendingCalls});
   // Pending-only toggle -> prove active agenda visibility actually changes.
   const pendingOnly=page.getByRole('button',{name:'Afficher seulement',exact:true});
   await pendingOnly.waitFor({state:'visible',timeout:5000});
