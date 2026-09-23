@@ -342,26 +342,197 @@ for(const viewport of viewports){
   await page.unroute('**/api/agenda/exceptions');
   await page.unroute('**/api/agenda/exceptions/*');
 
-  // Catalog: invalid tariff must be blocked before mutation.
+  // Catalog — deep contract through the real catalog store endpoints and refetch.
+  let catalogSpecialties=[{
+    id:1,name:'Soins',color:'#3B82F6',
+    acts:[{id:10,specialty_id:1,name:'Détartrage',code:'DET',base_price:500,color:'#60A5FA',is_active:true}],
+    pathologies:[{id:20,specialty_id:1,name:'Gingivite',description:'Inflammation',is_active:true}]
+  }];
+  let nextSpecialtyId=2,nextActId=11,nextPathologyId=21;
+  let catalogCreateSpecialty=0,catalogUpdateSpecialty=0,catalogCreateAct=0,catalogUpdateAct=0,catalogCreatePathology=0,catalogUpdatePathology=0;
+  let failCatalogRead=false,failNextSpecialtyCreate=false;
+
+  await page.route('**/api/catalog/**',async route=>{
+    const req=route.request();
+    const method=req.method();
+    const path=new URL(req.url()).pathname;
+    const json=(status,body)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
+
+    if(method==='GET' && path==='/api/catalog/specialties'){
+      if(failCatalogRead) return json(503,{detail:'catalog unavailable'});
+      return json(200,catalogSpecialties);
+    }
+    if(method==='POST' && path==='/api/catalog/specialties'){
+      if(failNextSpecialtyCreate){
+        failNextSpecialtyCreate=false;
+        return json(503,{detail:'forced specialty refusal'});
+      }
+      catalogCreateSpecialty+=1;
+      const body=req.postDataJSON();
+      const created={id:nextSpecialtyId++,...body,acts:[],pathologies:[]};
+      catalogSpecialties=[...catalogSpecialties,created];
+      return json(200,created);
+    }
+    let match=path.match(/^\/api\/catalog\/specialties\/(\d+)$/);
+    if(method==='PUT' && match){
+      catalogUpdateSpecialty+=1;
+      const id=Number(match[1]);
+      const body=req.postDataJSON();
+      catalogSpecialties=catalogSpecialties.map(s=>s.id===id?{...s,...body}:s);
+      return json(200,catalogSpecialties.find(s=>s.id===id));
+    }
+    match=path.match(/^\/api\/catalog\/specialties\/(\d+)\/acts$/);
+    if(method==='POST' && match){
+      catalogCreateAct+=1;
+      const specialtyId=Number(match[1]);
+      const body=req.postDataJSON();
+      const created={id:nextActId++,specialty_id:specialtyId,...body};
+      catalogSpecialties=catalogSpecialties.map(s=>s.id===specialtyId?{...s,acts:[...s.acts,created]}:s);
+      return json(200,created);
+    }
+    match=path.match(/^\/api\/catalog\/acts\/(\d+)$/);
+    if(method==='PUT' && match){
+      catalogUpdateAct+=1;
+      const id=Number(match[1]);
+      const body=req.postDataJSON();
+      let updated=null;
+      catalogSpecialties=catalogSpecialties.map(s=>({...s,acts:s.acts.map(a=>{
+        if(a.id!==id) return a;
+        updated={...a,...body};
+        return updated;
+      })}));
+      return json(200,updated||{});
+    }
+    match=path.match(/^\/api\/catalog\/specialties\/(\d+)\/pathologies$/);
+    if(method==='POST' && match){
+      catalogCreatePathology+=1;
+      const specialtyId=Number(match[1]);
+      const body=req.postDataJSON();
+      const created={id:nextPathologyId++,specialty_id:specialtyId,...body};
+      catalogSpecialties=catalogSpecialties.map(s=>s.id===specialtyId?{...s,pathologies:[...s.pathologies,created]}:s);
+      return json(200,created);
+    }
+    match=path.match(/^\/api\/catalog\/pathologies\/(\d+)$/);
+    if(method==='PUT' && match){
+      catalogUpdatePathology+=1;
+      const id=Number(match[1]);
+      const body=req.postDataJSON();
+      let updated=null;
+      catalogSpecialties=catalogSpecialties.map(s=>({...s,pathologies:s.pathologies.map(p=>{
+        if(p.id!==id) return p;
+        updated={...p,...body};
+        return updated;
+      })}));
+      return json(200,updated||{});
+    }
+    return json(500,{detail:'unexpected G5 catalog request '+method+' '+path});
+  });
+
   const catalog=page.getByRole('button',{name:'Catalogue Actes',exact:true});
   if(await catalog.count()){
     await catalog.click();
-    const addAct=page.getByRole('button',{name:/Ajouter un acte/i}).first();
-    if(await addAct.count()){
-      await addAct.click();
-      const name=page.getByPlaceholder('Ex. Détartrage');
-      const price=page.getByPlaceholder('0');
-      if(await name.count() && await price.count()){
-        await name.fill('G5 Browser Invalid');
-        await price.fill('-20');
-        await page.getByRole('button',{name:'Créer',exact:true}).click();
-        await page.getByText(/tarif doit être un nombre positif ou nul/i).waitFor({state:'visible',timeout:5000});
-        prove(viewport,'settings-catalog-invalid-price-refusal');
-        const cancel=page.getByRole('button',{name:'Annuler',exact:true}).last();
-        if(await cancel.count()) await cancel.click();
-      }
-    }
+    await page.getByText('Détartrage',{exact:true}).waitFor({state:'visible',timeout:10000});
+
+    // Create specialty.
+    await page.getByRole('button',{name:/Nouvelle spécialité/i}).click();
+    let catalogDialog=page.getByRole('dialog');
+    await catalogDialog.getByPlaceholder('Ex. Orthodontie').fill('  Orthodontie   Clinique ');
+    await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
+    await page.getByText('Orthodontie Clinique',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(catalogCreateSpecialty!==1) throw new Error('catalog specialty create ACK mismatch');
+    prove(viewport,'settings-catalog-specialty-create',{catalogCreateSpecialty});
+
+    // Edit specialty and prove refetch result.
+    await page.getByRole('button',{name:'Modifier Soins',exact:true}).click();
+    catalogDialog=page.getByRole('dialog');
+    const specialtyName=catalogDialog.getByPlaceholder('Ex. Orthodontie');
+    await specialtyName.fill('Soins restaurateurs');
+    await catalogDialog.getByRole('button',{name:'Enregistrer',exact:true}).click();
+    await page.getByText('Soins restaurateurs',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(catalogUpdateSpecialty!==1) throw new Error('catalog specialty update ACK mismatch');
+    prove(viewport,'settings-catalog-specialty-edit',{catalogUpdateSpecialty});
+
+    // Select the edited specialty.
+    await page.getByRole('button',{name:/Soins restaurateurs/i}).first().click();
+    await page.getByText('Détartrage',{exact:true}).waitFor({state:'visible',timeout:5000});
+
+    // Invalid price must never reach store/API.
+    await page.getByRole('button',{name:/Ajouter un acte/i}).click();
+    catalogDialog=page.getByRole('dialog');
+    await catalogDialog.getByPlaceholder('Ex. Détartrage').fill('Consultation invalide');
+    await catalogDialog.getByPlaceholder('0').fill('-20');
+    await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
+    await catalogDialog.getByText(/tarif doit être un nombre positif ou nul/i).waitFor({state:'visible',timeout:5000});
+    if(catalogCreateAct!==0) throw new Error('catalog invalid tariff leaked an API mutation');
+    prove(viewport,'settings-catalog-invalid-price-refusal');
+    await catalogDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+
+    // Create act.
+    await page.getByRole('button',{name:/Ajouter un acte/i}).click();
+    catalogDialog=page.getByRole('dialog');
+    await catalogDialog.getByPlaceholder('Ex. Détartrage').fill('Consultation');
+    await catalogDialog.getByPlaceholder('Ex. DET').fill('CONS');
+    await catalogDialog.getByPlaceholder('0').fill('350');
+    await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
+    await page.getByText('Consultation',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(catalogCreateAct!==1 || !catalogSpecialties[0].acts.some(a=>a.code==='CONS')) throw new Error('catalog act create ACK mismatch');
+    prove(viewport,'settings-catalog-act-create',{catalogCreateAct});
+
+    // Edit/deactivate existing act.
+    await page.getByRole('button',{name:"Modifier l'acte Détartrage",exact:true}).click();
+    catalogDialog=page.getByRole('dialog');
+    await catalogDialog.getByRole('checkbox',{name:'Actif'}).uncheck();
+    await catalogDialog.getByRole('button',{name:'Enregistrer',exact:true}).click();
+    const detArticle=page.getByText('Détartrage',{exact:true}).locator('xpath=ancestor::article[1]');
+    await detArticle.getByText('Inactif',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(catalogUpdateAct!==1 || catalogSpecialties[0].acts.find(a=>a.id===10)?.is_active!==false) throw new Error('catalog act deactivate ACK mismatch');
+    prove(viewport,'settings-catalog-act-deactivate',{catalogUpdateAct});
+
+    // Create pathology.
+    await page.getByRole('button',{name:/Ajouter une pathologie/i}).click();
+    catalogDialog=page.getByRole('dialog');
+    await catalogDialog.getByPlaceholder('Ex. Gingivite').fill('Parodontite');
+    await catalogDialog.getByPlaceholder('Description facultative').fill('Atteinte parodontale');
+    await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
+    await page.getByText('Parodontite',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(catalogCreatePathology!==1) throw new Error('catalog pathology create ACK mismatch');
+    prove(viewport,'settings-catalog-pathology-create',{catalogCreatePathology});
+
+    // Edit/deactivate pathology.
+    await page.getByRole('button',{name:'Modifier la pathologie Gingivite',exact:true}).click();
+    catalogDialog=page.getByRole('dialog');
+    await catalogDialog.getByRole('checkbox',{name:'Actif'}).uncheck();
+    await catalogDialog.getByRole('button',{name:'Enregistrer',exact:true}).click();
+    const gingArticle=page.getByText('Gingivite',{exact:true}).locator('xpath=ancestor::article[1]');
+    await gingArticle.getByText('Inactif',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(catalogUpdatePathology!==1 || catalogSpecialties[0].pathologies.find(p=>p.id===20)?.is_active!==false) throw new Error('catalog pathology deactivate ACK mismatch');
+    prove(viewport,'settings-catalog-pathology-deactivate',{catalogUpdatePathology});
+
+    // Mutation refusal keeps modal open and state unchanged.
+    const specialtyCountBefore=catalogSpecialties.length;
+    failNextSpecialtyCreate=true;
+    await page.getByRole('button',{name:/Nouvelle spécialité/i}).click();
+    catalogDialog=page.getByRole('dialog');
+    await catalogDialog.getByPlaceholder('Ex. Orthodontie').fill('Implantologie refusée');
+    await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
+    await page.waitForTimeout(200);
+    if(!(await catalogDialog.isVisible())) throw new Error('catalog refusal closed modal');
+    if(catalogSpecialties.length!==specialtyCountBefore) throw new Error('catalog refusal mutated specialty state');
+    prove(viewport,'settings-catalog-mutation-refusal-non-mutation');
+    await catalogDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+
+    // Read failure must fail closed, then retry restores truth.
+    failCatalogRead=true;
+    await page.getByRole('button',{name:'Profil Cabinet',exact:true}).click();
+    await page.getByRole('button',{name:'Catalogue Actes',exact:true}).click();
+    await page.getByText('Catalogue indisponible',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(await page.getByText('Détartrage',{exact:true}).count()) throw new Error('catalog stale contents exposed during read failure');
+    failCatalogRead=false;
+    await page.getByRole('button',{name:'Réessayer',exact:true}).click();
+    await page.getByText('Détartrage',{exact:true}).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'settings-catalog-read-retry');
   }
+  await page.unroute('**/api/catalog/**');
 
   // Security/restore — deep contract: export, compatible preflight, cancel, prepare, exact confirmation, apply/status, refusal.
   const security=page.getByRole('button',{name:'Sécurité & Backup',exact:true});
