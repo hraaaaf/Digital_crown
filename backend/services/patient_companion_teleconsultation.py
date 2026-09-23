@@ -22,6 +22,7 @@ from backend.services.patient_companion_remote_worker import RemoteDomainResult
 PC09_MAX_SIGNAL_BYTES = 24 * 1024
 PC09_SIGNAL_SYNC_LIMIT = 5
 PC09_TERMINAL_STATES = {"ENDED", "REJECTED", "EXPIRED", "FAILED"}
+PC09_REJECTABLE_STATES = {"WAITING_PATIENT", "WAITING_STAFF", "NEGOTIATING"}
 PC09_SIGNAL_TYPES = {"offer", "answer", "ice"}
 PC09_FAILURE_CODES = {"PEER_CONNECTION_FAILED"}
 
@@ -174,6 +175,8 @@ def fail_session(row: PatientCompanionTeleconsultSession, actor: str, failure_co
 def reject_session(row: PatientCompanionTeleconsultSession, actor: str) -> None:
     if row.state in PC09_TERMINAL_STATES:
         return
+    if row.state not in PC09_REJECTABLE_STATES:
+        raise ValueError("SESSION_NOT_REJECTABLE")
     row.state = "REJECTED"
     row.ended_at = datetime.utcnow()
     row.ended_by = actor
@@ -464,7 +467,10 @@ def handle_teleconsult_reject(
     if expire_if_needed(row):
         purge_signals(db, row)
         return _reject("SESSION_EXPIRED")
-    reject_session(row, "PATIENT")
+    try:
+        reject_session(row, "PATIENT")
+    except ValueError as exc:
+        return _reject(str(exc))
     purge_signals(db, row)
     db.flush()
     return RemoteDomainResult(status="ACCEPTED", response={"code": "SESSION_REJECTED", "session": serialize_session(row)})
