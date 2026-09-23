@@ -7,6 +7,11 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
 if(!login.ok()) throw new Error('G5 login failed');
 const tokens=await login.json();
+const headers={Authorization:'Bearer '+tokens.access_token};
+const patientsResp=await api.get('/api/patients',{headers});
+if(!patientsResp.ok()) throw new Error('G5 patients fixture read failed');
+const patient=(await patientsResp.json()).find(x=>x.numero_dossier==='T2-0001');
+if(!patient) throw new Error('G5 T2 patient missing');
 
 const browser=await chromium.launch({headless:true});
 const viewports=[{width:390,height:844},{width:1280,height:900}];
@@ -87,26 +92,124 @@ for(const viewport of viewports){
     }
   }
 
-  // Performance/assistance: stage controls and require the shared save boundary if exposed.
-  const ia=page.getByRole('button',{name:'Performance & Assistance',exact:true});
-  if(await ia.count()){
-    await ia.click();
-    for(const label of ['Mode Performance','Conseils cliniques contextuels','Indicateurs de suivi patient']){
-      const toggle=page.getByRole('button',{name:label,exact:true});
-      if(await toggle.count()){
-        const before=await toggle.getAttribute('aria-pressed');
-        await toggle.click();
-        const after=await toggle.getAttribute('aria-pressed');
-        if(before===after) throw new Error(label+' did not toggle');
-        prove(viewport,'settings-runtime-'+label);
-      }
+  // Performance/assistance — deep contract: stage -> save -> backend -> consumer effect -> inverse -> restore.
+  const openRuntimeSettings=async()=>{
+    await page.goto('http://127.0.0.1:5173/settings',{waitUntil:'networkidle',timeout:90000});
+    const iaTab=page.getByRole('button',{name:'Performance & Assistance',exact:true});
+    await iaTab.waitFor({state:'visible',timeout:10000});
+    await iaTab.click();
+    return {
+      perf: page.getByRole('button',{name:'Mode Performance',exact:true}),
+      aiAnimation: page.getByRole('button',{name:'Animation d’activité IA',exact:true}),
+      badges: page.getByRole('button',{name:'Indicateurs de suivi patient',exact:true}),
+    };
+  };
+  const setToggle=async(toggle,target)=>{
+    await toggle.waitFor({state:'visible',timeout:5000});
+    const current=(await toggle.getAttribute('aria-pressed'))==='true';
+    if(current!==target) await toggle.click();
+    const after=(await toggle.getAttribute('aria-pressed'))==='true';
+    if(after!==target) throw new Error('runtime toggle did not reach target state');
+  };
+  const saveRuntime=async(expected)=>{
+    const save=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+    await save.waitFor({state:'visible',timeout:5000});
+    await save.click();
+    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    const check=await api.get('/api/clinics/me',{headers});
+    if(!check.ok()) throw new Error('runtime profile persistence verification failed');
+    const body=await check.json();
+    for(const [key,value] of Object.entries(expected)){
+      if(body[key]!==value) throw new Error('runtime ACK mismatch '+key+': '+body[key]+' !== '+value);
     }
-    const sharedSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
-    if(await sharedSave.count()){
-      await sharedSave.click();
-      prove(viewport,'settings-shared-save');
-    }
+  };
+
+  let controls=await openRuntimeSettings();
+  const original={
+    performance_mode:(await controls.perf.getAttribute('aria-pressed'))==='true',
+    clinical_tips_enabled:(await controls.aiAnimation.getAttribute('aria-pressed'))==='true',
+    show_patient_badges:(await controls.badges.getAttribute('aria-pressed'))==='true',
+  };
+
+  // Enable all three, then prove the actual consumer behavior.
+  await setToggle(controls.perf,true);
+  await setToggle(controls.aiAnimation,true);
+  await setToggle(controls.badges,true);
+  await saveRuntime({performance_mode:true,clinical_tips_enabled:true,show_patient_badges:true});
+
+  await page.waitForFunction(()=>document.body.classList.contains('performance-mode'));
+  const perfComputed=await page.evaluate(()=>{
+    const probe=document.createElement('div');
+    probe.style.transition='opacity 2s';
+    probe.style.animation='pulse 2s infinite';
+    document.body.appendChild(probe);
+    const style=getComputedStyle(probe);
+    const result={transitionDuration:style.transitionDuration,animationName:style.animationName};
+    probe.remove();
+    return result;
+  });
+  if(perfComputed.transitionDuration!=='0s' || perfComputed.animationName!=='none') {
+    throw new Error('performance mode CSS consumer not applied');
   }
+  prove(viewport,'settings-performance-consumer-enabled',perfComputed);
+
+  const logo=page.getByAltText('Digital Crown AI').first();
+  await page.evaluate(()=>window.dispatchEvent(new Event('ai-generation-start')));
+  await page.waitForFunction(()=>document.querySelector('img[alt="Digital Crown AI"]')?.classList.contains('animate-logo-pulse-light'));
+  prove(viewport,'settings-ai-activity-animation-enabled');
+  await page.evaluate(()=>window.dispatchEvent(new Event('ai-generation-end')));
+
+  await page.route('**/api/patients/scores',route=>route.fulfill({
+    status:200,
+    contentType:'application/json',
+    body:JSON.stringify({
+      [patient.id]:{
+        score:null,grade:null,is_manual:false,comment:null,
+        details:{rdv_honores:1,rdv_annules:0,rdv_total_observe:1,total_facture:1000,total_encaisse:800,remaining_due:200,has_billing_data:true}
+      }
+    })
+  }));
+  await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
+  const listSearchEnabled=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+  await listSearchEnabled.fill('T2-0001');
+  await page.getByText(/CERTIFICATION\s+T2/i).first().waitFor({state:'visible',timeout:10000});
+  await page.getByRole('button',{name:'Tag cabinet manuel',exact:true}).first().waitFor({state:'visible',timeout:10000});
+  prove(viewport,'settings-patient-indicators-consumer-enabled',{patientId:patient.id});
+
+  // Disable all three, then prove their consumer effects disappear.
+  controls=await openRuntimeSettings();
+  await setToggle(controls.perf,false);
+  await setToggle(controls.aiAnimation,false);
+  await setToggle(controls.badges,false);
+  await saveRuntime({performance_mode:false,clinical_tips_enabled:false,show_patient_badges:false});
+
+  await page.waitForFunction(()=>!document.body.classList.contains('performance-mode'));
+  prove(viewport,'settings-performance-consumer-disabled');
+
+  await page.evaluate(()=>window.dispatchEvent(new Event('ai-generation-start')));
+  await page.waitForTimeout(100);
+  const logoClass=await logo.getAttribute('class');
+  if((logoClass||'').includes('animate-logo-pulse-light')) throw new Error('AI activity animation still active while disabled');
+  prove(viewport,'settings-ai-activity-animation-disabled');
+  await page.evaluate(()=>window.dispatchEvent(new Event('ai-generation-end')));
+
+  await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
+  const listSearchDisabled=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+  await listSearchDisabled.fill('T2-0001');
+  await page.getByText(/CERTIFICATION\s+T2/i).first().waitFor({state:'visible',timeout:10000});
+  if(await page.getByRole('button',{name:'Tag cabinet manuel',exact:true}).count()) {
+    throw new Error('patient indicators still rendered while disabled');
+  }
+  prove(viewport,'settings-patient-indicators-consumer-disabled',{patientId:patient.id});
+  await page.unroute('**/api/patients/scores');
+
+  // Restore the isolated fixture to its original state and verify backend truth.
+  controls=await openRuntimeSettings();
+  await setToggle(controls.perf,original.performance_mode);
+  await setToggle(controls.aiAnimation,original.clinical_tips_enabled);
+  await setToggle(controls.badges,original.show_patient_badges);
+  await saveRuntime(original);
+  prove(viewport,'settings-runtime-preferences-restored',original);
 
   // Agenda: prove refusal leaves dirty state visible.
   const agenda=page.getByRole('button',{name:'Horaires & Agenda',exact:true});
