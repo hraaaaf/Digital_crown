@@ -108,7 +108,7 @@ describe('Sidebar G1 navigation matrix', () => {
   it('gates the AI activity logo pulse by the persisted animation preference', async () => {
     localStorage.setItem('clinical_tips_enabled', 'true');
     renderSidebar();
-    const logo = screen.getByAltText('Digital Crown AI');
+    const logo = screen.getByAltText('Digital Crown');
 
     window.dispatchEvent(new Event('ai-generation-start'));
     await waitFor(() => expect(logo.className).toContain('animate-logo-pulse-light'));
@@ -119,7 +119,7 @@ describe('Sidebar G1 navigation matrix', () => {
     cleanup();
     localStorage.setItem('clinical_tips_enabled', 'false');
     renderSidebar();
-    const disabledLogo = screen.getByAltText('Digital Crown AI');
+    const disabledLogo = screen.getByAltText('Digital Crown');
     window.dispatchEvent(new Event('ai-generation-start'));
     await waitFor(() => expect(disabledLogo.className).not.toContain('animate-logo-pulse-light'));
   });
