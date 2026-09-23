@@ -28,7 +28,7 @@ import { cn } from '../../../../utils/cn';
 import { API_BASE } from '../../../../services/api';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 
-const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus, type = "text", disabled = false }: any) => {
+const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus, onBlur, type = "text", disabled = false }: any) => {
   const [localVal, setLocalVal] = React.useState(value);
   React.useEffect(() => { setLocalVal(value); }, [value]);
   return (
@@ -39,6 +39,7 @@ const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus
       onChange={e => setLocalVal(e.target.value)}
       onBlur={() => {
         if (localVal !== value) onChange({ target: { name, value: localVal } } as any);
+        onBlur?.();
       }}
       className={className}
       placeholder={placeholder}
@@ -263,11 +264,11 @@ export const ProfileTab: React.FC = () => {
                 className={cn(inputClass, "text-right font-amiri text-lg", !canEditPractitionerIdentity && 'opacity-60 cursor-not-allowed')}
                 placeholder="مثال: بنموسى أشرف"
                 onFocus={() => setShowArKeyboard({type: 'name'})}
+                onBlur={() => setShowArKeyboard(null)}
                 disabled={!canEditPractitionerIdentity}
               />
               {showArKeyboard?.type === 'name' && canEditPractitionerIdentity && (
                 <div className="absolute top-full right-0 mt-2 z-50">
-                  <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                   <ArabicKeyboard onInput={(char) => {
                     const newVal = (profile.nom_praticien_ar || '') + char;
                     if (!profile.header_customized) {
@@ -365,11 +366,11 @@ export const ProfileTab: React.FC = () => {
                     className={inputClass + " text-right font-amiri text-lg"}
                     placeholder="مثال: زراعة الأسنان"
                     onFocus={() => setShowArKeyboard({type: 'custom_spec'})}
+                    onBlur={() => setShowArKeyboard(null)}
                   />
                   {showArKeyboard?.type === 'custom_spec' && (
                     <div className="absolute top-full right-0 mt-2 z-50">
-                      <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
-                      <ArabicKeyboard onInput={(char) => {
+                          <ArabicKeyboard onInput={(char) => {
                         const currentVal = useSettingsStore.getState().profile.custom_specialty_ar || '';
                         const newVal = currentVal + char;
                         handleProfileChange({ target: { name: 'custom_specialty_ar', value: newVal } } as any);
@@ -540,6 +541,7 @@ export const ProfileTab: React.FC = () => {
                           dir="rtl"
                           value={line}
                           onFocus={() => setShowArKeyboard({type: 'header', idx})}
+                          onBlur={() => setShowArKeyboard(null)}
                           onChange={(e) => {
                             const newLines = [...(profile.header_lines_ar || [])];
                             newLines[idx] = e.target.value;
@@ -548,7 +550,6 @@ export const ProfileTab: React.FC = () => {
                         />
                         {showArKeyboard?.type === 'header' && showArKeyboard.idx === idx && (
                           <div className="absolute top-full right-0 mt-2 z-50">
-                            <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                             <ArabicKeyboard onInput={(char) => {
                               const newLines = [...(profile.header_lines_ar || [])];
                               newLines[idx] = (newLines[idx] || '') + char;

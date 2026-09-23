@@ -288,7 +288,14 @@ for(const viewport of viewports){
 
   const openSidebar=async()=>{
     const agendaLink=shellPage.getByRole('link',{name:'Agenda',exact:true});
-    if(!(await agendaLink.isVisible().catch(()=>false))){
+    const box=await agendaLink.boundingBox().catch(()=>null);
+    const viewport=shellPage.viewportSize();
+    const inViewport=Boolean(
+      box && viewport &&
+      box.x < viewport.width && box.x + box.width > 0 &&
+      box.y < viewport.height && box.y + box.height > 0
+    );
+    if(!inViewport){
       const menu=shellPage.getByRole('button',{name:'Menu',exact:true});
       if(await menu.count()) await menu.click();
     }

@@ -19,6 +19,8 @@ os.environ["TELEMETRY_ENABLED"] = "false"
 os.environ["CLOUD_AI_ENABLED"] = "false"
 os.environ["DEBUG"] = "false"
 os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
+if os.environ.get("T2_SUPERADMIN_EMAIL") and not os.environ.get("SUPERADMIN_EMAIL"):
+    os.environ["SUPERADMIN_EMAIL"] = os.environ["T2_SUPERADMIN_EMAIL"]
 
 # La certification T2 enchaîne plusieurs authentifications valides dans un même
 # processus. Le limiteur produit (5 tentatives / 10 min) reste inchangé ; seul
@@ -26,6 +28,19 @@ os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
 # pas mutuellement avant le dernier contrôle print/PDF.
 import backend.utils.rate_limit as rate_limit
 rate_limit.MAX_ATTEMPTS = 100
+
+# check_rate_limit binds its default max_attempts at function definition time.
+# Raising the module constant alone does not change that bound default, so the
+# long T2 matrix can still hit the production 5-attempt ceiling. This isolated
+# CI runtime overrides only the callable seam; product defaults remain intact.
+_original_check_rate_limit = rate_limit.check_rate_limit
+def _t2_check_rate_limit(request, scope="auth", *, max_attempts=None):
+    return _original_check_rate_limit(
+        request,
+        scope,
+        max_attempts=rate_limit.MAX_ATTEMPTS if max_attempts is None else max_attempts,
+    )
+rate_limit.check_rate_limit = _t2_check_rate_limit
 
 from backend import database, models
 from backend.models_imaging_p4 import ImagingTrashRecord  # noqa: F401 - register table in Base metadata

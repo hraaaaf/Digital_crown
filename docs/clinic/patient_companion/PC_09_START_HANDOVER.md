@@ -1,0 +1,91 @@
+# PC-09 — Teleconsultation — START HANDOVER
+
+Status: START READY
+Base: master after PC-08 POST-MERGE VERIFIED closeout
+Previous lot: PC-08 — Secure Messaging
+Deployment: none
+
+## Canonical scope
+Roadmap source: `docs/clinic/patient_companion/PATIENT_COMPANION_CANONICAL.md`.
+
+Next canonical lot:
+- PC-09 — Teleconsultation.
+
+## Inherited doctrine
+- cabinet remains the clinical source of truth;
+- Patient Companion remains local-first and privacy-preserving;
+- zero LLM runtime;
+- no Firebase/SaaS plaintext clinical data plane;
+- no Vercel deployment without explicit authorization;
+- no implementation before audit of existing remote/video primitives.
+
+## Mandatory first audit
+Before implementing Teleconsultation, inspect and map:
+- any existing video/audio consultation code or dependencies;
+- current Patient Companion remote transport and identity binding;
+- authentication, tenant/patient binding and revocation;
+- browser/device permissions for camera and microphone;
+- whether any signaling/STUN/TURN infrastructure already exists;
+- encryption boundaries and metadata exposure;
+- consent and medico-legal requirements;
+- call state truth: ringing/connected/ended/failed;
+- offline and reconnect behavior;
+- mobile/web compatibility;
+- audit logging and retention;
+- accessibility and fallback behavior;
+- whether recording is absent, optional or prohibited;
+- whether appointment context can safely launch a consultation.
+
+## Safety / truth rules
+- never claim connected before an authoritative session state exists;
+- no silent recording;
+- no clinical media through generic push payloads;
+- no hidden second source of truth;
+- revoked access must terminate future remote access;
+- explicit camera/microphone permission boundaries;
+- fail closed on identity or transport mismatch.
+
+## Goal / Success / Proof to lock after audit
+Goal:
+Provide a privacy-preserving patient↔cabinet teleconsultation flow through Patient Companion with truthful session state, explicit permissions and exact identity binding.
+
+Success must become observable and cover at minimum:
+- exact patient/tenant/staff binding;
+- secure signaling/media boundary;
+- explicit camera/microphone consent;
+- truthful call lifecycle states;
+- reconnect/failure behavior;
+- revocation behavior;
+- auditability;
+- responsive patient and cabinet UX;
+- no recording unless explicitly designed and authorized.
+
+Proof must include:
+- architecture map;
+- backend/permission tests where applicable;
+- transport/session lifecycle tests;
+- frontend truth-boundary tests;
+- BEFORE / target / AFTER evidence on relevant mobile and desktop viewports;
+- exact-head CI;
+- adversarial review;
+- human visual approval before merge.
+
+## Previous lot proof
+PC-08:
+- human visual gate approved;
+- runtime run `35859746972`: SUCCESS;
+- PR #677 merged as `6a785791d50d32305a0b7fcde4bc0bd8bcb62f05`;
+- post-merge product-file identity verified;
+- no Vercel deployment.
+
+## Next exact
+1. audit existing teleconsultation/video/audio primitives;
+2. write the PC-09 architecture map;
+3. identify gaps and fail-closed requirements;
+4. lock exact PC-09 Goal / Success / Proof;
+5. only then implement the minimal safe flow;
+6. certify exact-head + visual;
+7. human gate;
+8. merge / post-merge / closeout.
+
+No PC-09 implementation is claimed by this handover.

@@ -153,7 +153,7 @@ describe('StockPage G7 interactive matrix', () => {
     const dialog = screen.getByRole('dialog', { name: 'Supprimer cet article ?' });
     expect(dialog).toBeTruthy();
     await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Annuler' })));
     expect(api.delete).not.toHaveBeenCalled();
 
     fireEvent.keyDown(document, { key: 'Escape' });
