@@ -31,6 +31,8 @@ jobs:
       ENVIRONMENT: test
       SECRET_KEY: patient-indicators-cert-secret-000001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
       TELEMETRY_ENABLED: 'false'
       CLOUD_AI_ENABLED: 'false'
       DEBUG: 'false'

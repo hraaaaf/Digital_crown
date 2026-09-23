@@ -295,7 +295,7 @@ def test_signature_response_payload_satisfies_archive_contract(monkeypatch):
     doc.status = models.DocumentStatus.ACTIF
     doc.created_at = datetime(2026, 9, 21, 21, 0, 0)
     doc.updated_at = datetime(2026, 9, 21, 21, 0, 0)
-    doc.document_type = models.DocumentType.LIBRE
+    doc.document_type = models.DocumentType.DOCUMENT_LIBRE
     doc.author_practitioner_id = 1
     doc.signed_by_practitioner_id = 1
     doc.signed_at = datetime(2026, 9, 21, 21, 1, 0)

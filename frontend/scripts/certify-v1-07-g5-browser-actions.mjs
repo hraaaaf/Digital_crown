@@ -157,7 +157,7 @@ for(const viewport of viewports){
     const file=page.locator('input[type="file"]').first();
     if(await file.count()){
       await file.setInputFiles({name:'bad.enc',mimeType:'application/octet-stream',buffer:Buffer.from('bad')});
-      await page.getByText('Backup corrompu',{exact:true}).waitFor({state:'visible',timeout:5000});
+      await page.getByRole('main').getByText('Backup corrompu',{exact:true}).waitFor({state:'visible',timeout:5000});
       if(await page.getByRole('button',{name:/Préparer la restauration/i}).count()) throw new Error('prepare exposed after refused preflight');
       if(await page.getByRole('button',{name:/Redémarrer et restaurer/i}).count()) throw new Error('apply exposed after refused preflight');
       prove(viewport,'settings-restore-preflight-refusal');
