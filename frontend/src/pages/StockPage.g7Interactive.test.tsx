@@ -91,7 +91,7 @@ describe('StockPage G7 interactive matrix', () => {
   });
 
   it('keeps stock creation single-flight under synchronous double submit', async () => {
-    let resolvePost: ((value: unknown) => void) | null = null;
+    let resolvePost!: (value: unknown) => void;
     vi.mocked(api.post).mockImplementationOnce(() => new Promise(resolve => { resolvePost = resolve; }) as never);
 
     renderStock();
@@ -107,7 +107,7 @@ describe('StockPage G7 interactive matrix', () => {
     submit.click();
 
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
-    resolvePost?.({ data: { id: 2 } });
+    resolvePost({ data: { id: 2 } });
     await waitFor(() => expect(screen.queryByText('Nouvel article')).toBeNull());
   });
 
