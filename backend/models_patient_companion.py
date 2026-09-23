@@ -751,3 +751,78 @@ class PatientCompanionMessage(Base):
     )
     patient_received_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     patient_read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class PatientCompanionTeleconsultSession(Base):
+    """Canonical PC-09 teleconsultation session. Media is never persisted here."""
+
+    __tablename__ = "patient_companion_teleconsult_sessions"
+    __table_args__ = (
+        Index("ix_pc09_session_access_state", "access_id", "state"),
+        Index("ix_pc09_session_tenant_patient_state", "employer_id", "patient_id", "state"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    appointment_ref_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("patient_companion_appointment_refs.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    created_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    state: Mapped[str] = mapped_column(String(24), nullable=False, default="WAITING_PATIENT", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    patient_joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    staff_joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    patient_connected_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    staff_connected_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    connected_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ended_by: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    failure_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+
+class PatientCompanionTeleconsultSignal(Base):
+    """Access-scoped WebRTC signaling envelope metadata/payload. Never audio/video media."""
+
+    __tablename__ = "patient_companion_teleconsult_signals"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id", "client_signal_id",
+            name="uq_pc09_signal_session_client",
+        ),
+        Index("ix_pc09_signal_session_id_order", "session_id", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_teleconsult_sessions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    client_signal_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    sender_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    sender_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    )
+    signal_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
