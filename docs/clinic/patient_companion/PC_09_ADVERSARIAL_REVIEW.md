@@ -1,6 +1,6 @@
 # PC-09 — Teleconsultation — Adversarial Review
 
-Status: CHANGES / INFRASTRUCTURE GATE IDENTIFIED
+Status: APP FINDINGS RESOLVED — EXTERNAL REMOTE-NETWORK GATE REMAINS
 Date: 2026-09-23
 
 ## Scope reviewed
@@ -31,7 +31,9 @@ Date: 2026-09-23
 - sessions expire.
 
 ### Permissions / media
-- camera and microphone acquisition happens only after explicit Rejoindre / Démarrer action;
+- patient copy now uses explicit `Accepter et rejoindre` before camera/microphone permission;
+- patient can explicitly `Refuser` without activating media;
+- staff media permission/start failure closes local tracks/peer resources;
 - no MediaRecorder path exists;
 - no audio/video payload is persisted in Digital Crown;
 - local tracks are stopped and RTCPeerConnection is closed on cleanup/end.
@@ -77,13 +79,15 @@ Remaining external gate:
 - remote-network E2E must include at least one forced-relay TURN scenario before production certification.
 
 ### A3 — Signaling metadata retention
-Severity: MEDIUM.
+Severity: RESOLVED in app candidate.
 
 SDP/ICE signaling can expose networking metadata. It is not clinical media, but unnecessary long-term retention is undesirable.
 
-Required correction:
-- purge session signaling rows when a session is explicitly ended;
-- expired-session cleanup must not retain signaling indefinitely.
+Verified correction:
+- signaling rows are purged on explicit end;
+- signaling rows are purged on patient reject;
+- signaling rows are purged on peer failure;
+- expired-session cleanup purges signaling when the session is observed.
 
 ### A4 — Visual proof cannot prove media-network reliability
 Severity: EXPECTED.
@@ -101,7 +105,7 @@ It must not be presented as proof that a real remote media path works.
 1. PC-09 backend/frontend exact-head certification green.
 2. PostgreSQL Alembic schema certification green.
 3. runtime visual AFTER evidence green at target viewports.
-4. signaling retention correction.
+4. app truth/retention corrections preserved on exact-head CI.
 5. human visual approval.
 6. merge may occur only with PC-09 explicitly classified as local/direct-network capable if real-time signaling + TURN E2E is still missing.
 
@@ -116,3 +120,40 @@ Full remote teleconsultation certification requires:
 - proof that CONNECTED never appears before real peer connection.
 
 No Vercel deployment is authorized.
+
+
+### A5 — Pre-join truth
+Severity: RESOLVED.
+
+Original issue:
+- staff session creation claimed `staff_joined_at` before camera/microphone/media setup had actually succeeded.
+
+Correction:
+- a new session starts `CREATED`;
+- `staff_joined_at` remains null at creation;
+- patient list hides `CREATED`;
+- only the explicit staff join after media setup moves the session to `WAITING_PATIENT`.
+
+### A6 — Peer/control-plane failure truth
+Severity: RESOLVED.
+
+Corrections:
+- real browser peer `failed` state is persisted as canonical `FAILED`;
+- failure codes are allow-listed;
+- signaling is purged on failure;
+- patient and staff media are stopped when session-control synchronization is lost;
+- staff startup failures stop acquired tracks/peer resources.
+
+### A7 — Consent / decline boundary
+Severity: RESOLVED.
+
+Corrections:
+- patient sees explicit acceptance wording before media permission;
+- CTA is `Accepter et rejoindre`;
+- separate `Refuser` action exists and does not activate camera/microphone;
+- `REJECTED` is now a real terminal transition;
+- rejection is restricted to pre-connected states.
+
+### Standards cross-check
+- coturn TURN REST authentication design checked against the coturn turnserver documentation: time-limited `timestamp:username` + Base64(HMAC-SHA1(shared-secret, username)).
+- browser ICE configuration and camera/microphone permission boundaries checked against MDN `RTCPeerConnection` and `getUserMedia()` documentation.
