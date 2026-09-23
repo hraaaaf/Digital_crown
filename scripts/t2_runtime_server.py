@@ -101,6 +101,16 @@ with database.SessionLocal() as db:
             hide_footer=False,
         ))
 
+    if superadmin_email and superadmin and not db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == superadmin.id).first():
+        db.add(models.CabinetConfig(
+            owner_id=superadmin.id,
+            nom_cabinet="Cabinet T2 SuperAdmin",
+            nom_praticien="T2 SuperAdmin",
+            is_initialized=True,
+            hide_header=False,
+            hide_footer=False,
+        ))
+
     patient = db.query(models.Patient).filter(
         models.Patient.numero_dossier == "T2-0001",
         models.Patient.employer_id == user.id,
