@@ -102,7 +102,7 @@ Rules:
 
 ## 5. Permission boundary
 
-Camera and microphone are requested only after an explicit user action such as “Rejoindre la consultation”.
+Camera and microphone are requested only after the patient explicitly chooses “Accepter et rejoindre”.
 
 Before browser permission is requested, UI explains:
 - camera use;
@@ -134,7 +134,7 @@ No background auto-answer.
 
 Minimal Patient Companion flow:
 1. session appears only for the active paired access;
-2. patient taps “Rejoindre”;
+2. patient explicitly taps “Accepter et rejoindre”;
 3. permission explainer;
 4. browser camera/microphone prompt;
 5. waiting/connecting;
@@ -213,3 +213,12 @@ Therefore:
 - “reliable remote teleconsultation across arbitrary patient networks” cannot be certified until a controlled TURN endpoint is actually deployed/configured and tested.
 
 No Vercel deployment is authorized.
+
+
+## 13. Consent / TURN UX decision — 2026-09-23
+
+- The patient explicitly accepts the teleconsultation through the `Accepter et rejoindre` action before browser media permission is requested.
+- The UI states that camera and microphone activate only after the patient's action and that PC-09 does not record the consultation.
+- TURN/STUN selection is a transport implementation detail and is not presented as a separate patient consent choice.
+- WebRTC keeps direct connectivity available and uses configured TURN candidates automatically through ICE when needed.
+- No TURN provider or networking jargon appears in patient or staff UI.
