@@ -105,7 +105,7 @@ for (const access of [selfAccess, parentAccess]) {
 for (const target of [chromiumPatient, webkitPatient]) {
   await target.page.getByRole('button', { name: 'Actualiser' }).click();
   await target.panel.getByText('Prête à rejoindre', { exact: true }).waitFor({ timeout: 30000 });
-  await target.panel.getByRole('button', { name: 'Rejoindre' }).waitFor({ state: 'visible' });
+  await target.panel.getByRole('button', { name: 'Accepter et rejoindre' }).waitFor({ state: 'visible' });
 }
 
 const patientCaptures = [];
