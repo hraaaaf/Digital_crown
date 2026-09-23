@@ -41,34 +41,128 @@ for(const viewport of viewports){
     }
   }
 
-  // Profile: stage a real change, then persist explicitly on isolated runtime.
+  // Profile — deep contract: identity, specialty, contacts, save refusal, logo upload/delete, fixture restore.
+  const originalProfileResp=await api.get('/api/clinics/me',{headers});
+  if(!originalProfileResp.ok()) throw new Error('profile original read failed');
+  const originalProfile=await originalProfileResp.json();
+  const originalProfileRestore={
+    nom_cabinet:originalProfile.nom_cabinet,
+    specialty_ids:originalProfile.specialty_ids||[],
+    custom_specialty_fr:originalProfile.custom_specialty_fr||'',
+    custom_specialty_ar:originalProfile.custom_specialty_ar||'',
+    header_lines_fr:originalProfile.header_lines_fr||[],
+    header_lines_ar:originalProfile.header_lines_ar||[],
+    header_customized:Boolean(originalProfile.header_customized),
+    contacts_json:originalProfile.contacts_json||{},
+    footer_phones:originalProfile.footer_phones||''
+  };
+
   const profileTab=page.getByRole('button',{name:'Profil Cabinet',exact:true});
   if(await profileTab.count()){
     await profileTab.click();
     const cabinet=page.getByPlaceholder('Ex: Cabinet Dentaire Benmoussa');
-    if(await cabinet.count()){
-      const original=await cabinet.inputValue();
-      await cabinet.fill('Cabinet T2 Certification Browser');
-      await cabinet.blur();
-      const save=page.getByRole('button',{name:/Mettre à jour le profil|Enregistrer la configuration/i}).first();
-      if(await save.count()){
-        await save.click();
-        await page.waitForTimeout(400);
-        const check=await api.get('/api/clinics/me',{headers:{Authorization:'Bearer '+tokens.access_token}});
-        if(!check.ok()) throw new Error('profile persistence verification failed');
-        const body=await check.json();
-        const saved=body.nom_cabinet||body.name||'';
-        if(saved!=='Cabinet T2 Certification Browser') throw new Error('profile ACK did not persist cabinet name');
-        prove(viewport,'settings-profile-save-persistence');
-      }
-      // restore isolated fixture if the same control is still reachable.
-      if(await cabinet.count()){
-        await cabinet.fill(original||'Cabinet T2 Certification');
-        await cabinet.blur();
-        const saveAgain=page.getByRole('button',{name:/Mettre à jour le profil|Enregistrer la configuration/i}).first();
-        if(await saveAgain.count()) await saveAgain.click();
-      }
+    await cabinet.waitFor({state:'visible',timeout:10000});
+    await cabinet.fill('Cabinet T2 Certification Browser');
+    await cabinet.blur();
+
+    // Toggle Orthodontie relative to original state.
+    const ortho=page.getByRole('button',{name:/Orthodontie/i}).first();
+    const originalOrtho=(originalProfile.specialty_ids||[]).includes('ortho');
+    const orthoClass=await ortho.getAttribute('class');
+    const currentOrtho=(orthoClass||'').includes('border-primary');
+    if(currentOrtho===originalOrtho) await ortho.click();
+
+    // Enable WhatsApp and set a deterministic value.
+    let whatsappToggle=page.getByRole('button',{name:/^(Activer|Désactiver) WhatsApp$/});
+    const whatsappWasEnabled=(originalProfile.contacts_json?.whatsapp?.enabled)===true;
+    const whatsappEnabledNow=(await whatsappToggle.getAttribute('aria-label'))?.startsWith('Désactiver')===true;
+    if(!whatsappEnabledNow) await whatsappToggle.click();
+    whatsappToggle=page.getByRole('button',{name:/^Désactiver WhatsApp$/});
+    const whatsappCard=whatsappToggle.locator('xpath=ancestor::div[contains(@class,"bg-white")][1]');
+    const whatsappInput=whatsappCard.locator('input[type="text"]');
+    await whatsappInput.fill('0612345678');
+
+    let profileSave=page.getByRole('button',{name:/Mettre à jour le profil|✓ Enregistré !/}).first();
+    await profileSave.click();
+    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    let profileCheck=await api.get('/api/clinics/me',{headers});
+    let profileBody=await profileCheck.json();
+    if(profileBody.nom_cabinet!=='Cabinet T2 Certification Browser') throw new Error('profile cabinet name did not persist');
+    const savedOrtho=(profileBody.specialty_ids||[]).includes('ortho');
+    if(savedOrtho===originalOrtho) throw new Error('profile specialty toggle did not persist');
+    if(profileBody.contacts_json?.whatsapp?.enabled!==true || profileBody.contacts_json?.whatsapp?.value!=='0612345678'){
+      throw new Error('profile WhatsApp contact did not persist');
     }
+    prove(viewport,'settings-profile-identity-specialty-contact-save');
+
+    // Refused save must not mutate persisted backend state.
+    await cabinet.fill('Cabinet G5 Refused Value');
+    await cabinet.blur();
+    let refusedProfilePut=0;
+    await page.route('**/api/clinics/me',async route=>{
+      if(route.request().method()==='PUT'){
+        refusedProfilePut+=1;
+        return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced profile refusal"}'});
+      }
+      return route.continue();
+    });
+    profileSave=page.getByRole('button',{name:/Mettre à jour le profil|✓ Enregistré !/}).first();
+    await profileSave.click();
+    await page.getByText('Erreur lors de la sauvegarde',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.unroute('**/api/clinics/me');
+    profileCheck=await api.get('/api/clinics/me',{headers});
+    profileBody=await profileCheck.json();
+    if(refusedProfilePut!==1 || profileBody.nom_cabinet!=='Cabinet T2 Certification Browser'){
+      throw new Error('profile refused save mutated backend');
+    }
+    prove(viewport,'settings-profile-save-refusal-non-mutation',{refusedProfilePut});
+
+    // Logo upload/delete are isolated from the filesystem but exercise the real UI/store ACK path.
+    let logoUploadCalls=0,logoDeleteCalls=0;
+    await page.route('**/api/clinics/me/logo',async route=>{
+      if(route.request().method()==='POST'){
+        logoUploadCalls+=1;
+        return route.fulfill({status:200,contentType:'application/json',body:'{"logo_url":"/uploads/g5-browser-logo.png"}'});
+      }
+      return route.continue();
+    });
+    const logoInput=page.locator('#logo-input');
+    await logoInput.setInputFiles({name:'g5-logo.png',mimeType:'image/png',buffer:Buffer.from('g5-logo')});
+    await page.getByAltText('Logo').waitFor({state:'visible',timeout:10000});
+    if(logoUploadCalls!==1) throw new Error('profile logo upload ACK mismatch');
+    prove(viewport,'settings-profile-logo-upload',{logoUploadCalls});
+    await page.unroute('**/api/clinics/me/logo');
+
+    await page.route('**/api/clinics/me',async route=>{
+      if(route.request().method()==='PUT'){
+        const body=route.request().postDataJSON();
+        if(Object.keys(body).length===1 && body.logo_path===null){
+          logoDeleteCalls+=1;
+          return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+        }
+      }
+      return route.continue();
+    });
+    await page.getByRole('button',{name:/Supprimer le logo/i}).click();
+    await page.getByAltText('Logo').waitFor({state:'detached',timeout:10000});
+    if(logoDeleteCalls!==1) throw new Error('profile logo delete ACK mismatch');
+    prove(viewport,'settings-profile-logo-delete',{logoDeleteCalls});
+    await page.unroute('**/api/clinics/me');
+
+    // Restore the real isolated profile fields changed by this scenario.
+    const restoreProfile=await api.put('/api/clinics/me',{headers,data:originalProfileRestore});
+    if(!restoreProfile.ok()) throw new Error('profile fixture restore failed');
+    profileCheck=await api.get('/api/clinics/me',{headers});
+    profileBody=await profileCheck.json();
+    if(profileBody.nom_cabinet!==originalProfileRestore.nom_cabinet) throw new Error('profile fixture name restore mismatch');
+    if(JSON.stringify(profileBody.specialty_ids||[])!==JSON.stringify(originalProfileRestore.specialty_ids||[])) throw new Error('profile fixture specialties restore mismatch');
+    const restoredWhatsapp=profileBody.contacts_json?.whatsapp||{enabled:false,value:''};
+    const originalWhatsapp=originalProfileRestore.contacts_json?.whatsapp||{enabled:false,value:''};
+    if(Boolean(restoredWhatsapp.enabled)!==Boolean(originalWhatsapp.enabled) || (restoredWhatsapp.value||'')!==(originalWhatsapp.value||'')){
+      throw new Error('profile fixture contacts restore mismatch');
+    }
+    prove(viewport,'settings-profile-fixture-restored',{whatsappWasEnabled});
+    await page.reload({waitUntil:'networkidle',timeout:90000});
   }
 
   // Branding — deep contract: preview consumer, preset persistence/reset, animated background real consumer + reload.
