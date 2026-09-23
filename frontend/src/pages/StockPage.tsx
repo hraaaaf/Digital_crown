@@ -410,6 +410,7 @@ export const StockPage = () => {
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => adjustQuantite(item, -1)}
+                        aria-label={`Diminuer la quantité de ${item.nom}`}
                         disabled={item.quantite <= 0}
                         className="w-6 h-6 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-100 disabled:opacity-30 transition-colors"
                       >
@@ -423,6 +424,7 @@ export const StockPage = () => {
                       </span>
                       <button
                         onClick={() => adjustQuantite(item, 1)}
+                        aria-label={`Augmenter la quantité de ${item.nom}`}
                         className="w-6 h-6 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition-colors"
                       >
                         <Plus size={10} />
