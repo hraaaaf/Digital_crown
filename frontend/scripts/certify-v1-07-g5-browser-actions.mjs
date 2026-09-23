@@ -136,7 +136,7 @@ for(const viewport of viewports){
 
     let profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
-    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
     let profileCheck=await api.get('/api/clinics/me',{headers});
     let profileBody=await profileCheck.json();
     if(profileBody.nom_cabinet!=='Cabinet T2 Certification Browser') throw new Error('profile cabinet name did not persist');
