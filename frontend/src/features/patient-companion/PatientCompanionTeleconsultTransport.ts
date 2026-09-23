@@ -40,6 +40,14 @@ export const PatientCompanionTeleconsultTransport = {
     return Array.isArray(result.result.items) ? result.result.items as TeleconsultSession[] : [];
   },
 
+  async iceConfig(pairing: PatientPairing, sessionId: string): Promise<RTCIceServer[]> {
+    const result = await command(pairing, 'teleconsult.ice-config', { session_id: sessionId });
+    if (result.status !== 'ACCEPTED' || result.result.code !== 'ICE_CONFIG') {
+      throw new Error(String(result.result.code || 'Configuration réseau indisponible.'));
+    }
+    return Array.isArray(result.result.ice_servers) ? result.result.ice_servers as RTCIceServer[] : [];
+  },
+
   async join(pairing: PatientPairing, sessionId: string): Promise<TeleconsultSession> {
     const result = await command(pairing, 'teleconsult.join', { session_id: sessionId });
     if (result.status !== 'ACCEPTED') throw new Error(String(result.result.code || 'Impossible de rejoindre.'));
