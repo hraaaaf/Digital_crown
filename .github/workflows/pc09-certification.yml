@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "alembic/versions/pc090000016_add_pc09_teleconsultation.py"
+      - "backend/config.py"
       - "backend/models_patient_companion.py"
       - "backend/routers/patient_companion.py"
       - "backend/routers/patient_companion_teleconsultation.py"
