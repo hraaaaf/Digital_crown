@@ -89,9 +89,15 @@ describe('AgendaStudio G3 interactive shell matrix', () => {
     expect(await screen.findByText('Demandes en attente (1)')).toBeTruthy();
     expect(screen.getByText('Pending request 5')).toBeTruthy();
 
+    expect(screen.getByText('Week view')).toBeTruthy();
     const toggle = screen.getByRole('button', { name: 'Afficher seulement' });
     fireEvent.click(toggle);
     expect(screen.getByRole('button', { name: 'Afficher tout' })).toBeTruthy();
+    expect(screen.queryByText('Week view')).toBeNull();
+    expect(screen.getByText('Pending request 5')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher tout' }));
+    expect(screen.getByText('Week view')).toBeTruthy();
   });
 
   it('blocks the next holiday only after backend ACK', async () => {
