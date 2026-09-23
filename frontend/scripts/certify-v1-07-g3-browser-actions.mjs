@@ -181,6 +181,104 @@ for(const viewport of viewports){
   }
 
   await page.unroute('**/api/appointments/pending');
+
+  // MOBILE NOTIFICATIONS — real Chromium filter/navigation/refresh + ACK/refusal consequences.
+  const notificationFixture=[
+    {
+      id:8101,
+      patient_id:101,
+      patient_name:'Sara BENALI',
+      type:'OVERDUE_PAYMENT_HIGH',
+      title:'Paiement en retard',
+      message:'Solde à traiter',
+      priority:'HIGH',
+      created_at:'2030-01-15T09:00:00Z'
+    },
+    {
+      id:8102,
+      patient_id:102,
+      patient_name:'Omar ALAMI',
+      type:'PATIENT_FOLLOWUP',
+      title:'Contrôle patient',
+      message:'Suivi courant',
+      priority:'LOW',
+      created_at:'2030-01-15T09:05:00Z'
+    }
+  ];
+  await page.route('**/api/mobile/notifications',route=>route.fulfill({
+    status:200,
+    contentType:'application/json',
+    body:JSON.stringify({total:notificationFixture.length,alerts:notificationFixture})
+  }));
+  await page.route('**/api/mobile/notifications/8101/read',route=>route.fulfill({
+    status:200,contentType:'application/json',body:'{"ok":true}'
+  }));
+  await page.route('**/api/mobile/notifications/8102/snooze',route=>route.fulfill({
+    status:503,contentType:'application/json',body:'{"detail":"Report refusé"}'
+  }));
+
+  await page.goto('http://127.0.0.1:5173/mobile/g3-cert?tab=notifications',{waitUntil:'networkidle',timeout:90000});
+  await page.getByText('Paiement en retard',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByText('Contrôle patient',{exact:true}).waitFor({state:'visible',timeout:10000});
+
+  await page.getByRole('button',{name:'Prioritaires',exact:true}).click();
+  await page.getByText('Paiement en retard',{exact:true}).waitFor({state:'visible',timeout:5000});
+  if(await page.getByText('Contrôle patient',{exact:true}).count()) throw new Error('notification priority filter leaked info alert');
+  prove(viewport,'mobile-notifications-priority-filter');
+
+  await page.getByRole('button',{name:'Toutes',exact:true}).click();
+  await page.getByText('Contrôle patient',{exact:true}).waitFor({state:'visible',timeout:5000});
+
+  const urgentArticle=page.locator('article').filter({hasText:'Paiement en retard'});
+  await urgentArticle.getByRole('button',{name:'Voir finance',exact:true}).click();
+  await page.getByTestId('g3-mobile-navigation').filter({hasText:'navigate:finance'}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'mobile-notifications-navigation-consequence');
+
+  await urgentArticle.getByRole('button',{name:/Lu$/}).click();
+  await page.getByText('Paiement en retard',{exact:true}).waitFor({state:'hidden',timeout:5000});
+  prove(viewport,'mobile-notifications-read-ack-removes-alert');
+
+  const infoArticle=page.locator('article').filter({hasText:'Contrôle patient'});
+  await infoArticle.getByRole('button',{name:/24 h/}).click();
+  await page.getByText('Report refusé',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByText('Contrôle patient',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'mobile-notifications-snooze-refusal-preserves-alert');
+
+  await page.getByRole('button',{name:'Actualiser les notifications',exact:true}).click();
+  await page.getByText('Paiement en retard',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'mobile-notifications-refresh-rereads-backend');
+
+  await page.unroute('**/api/mobile/notifications');
+  await page.unroute('**/api/mobile/notifications/8101/read');
+  await page.unroute('**/api/mobile/notifications/8102/snooze');
+
+  // MOBILE WAITING ROOM — ACK removes patient from waiting; refusal preserves patient + surfaces error.
+  await page.route('**/api/mobile/appointments/9101/status',route=>route.fulfill({
+    status:200,contentType:'application/json',body:'{"ok":true}'
+  }));
+  await page.route('**/api/mobile/appointments/9102/status',route=>route.fulfill({
+    status:503,contentType:'application/json',body:'{"detail":"Transition refusée"}'
+  }));
+
+  await page.goto('http://127.0.0.1:5173/mobile/g3-cert?tab=waiting-room',{waitUntil:'networkidle',timeout:90000});
+  await page.getByLabel('2 patients en salle d’attente',{exact:true}).waitFor({state:'visible',timeout:5000});
+
+  const sara=page.locator('[data-mob5i-waiting-patient="9101"]');
+  await sara.getByRole('button',{name:/Au fauteuil/i}).click();
+  await sara.waitFor({state:'hidden',timeout:5000});
+  await page.getByLabel('1 patient en salle d’attente',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'mobile-waiting-room-status-ack-removes-patient');
+
+  const omar=page.locator('[data-mob5i-waiting-patient="9102"]');
+  await omar.getByRole('button',{name:/Au fauteuil/i}).click();
+  await page.getByRole('alert').filter({hasText:'Transition refusée'}).waitFor({state:'visible',timeout:5000});
+  await omar.waitFor({state:'visible',timeout:5000});
+  await page.getByLabel('1 patient en salle d’attente',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'mobile-waiting-room-status-refusal-preserves-patient');
+
+  await page.unroute('**/api/mobile/appointments/9101/status');
+  await page.unroute('**/api/mobile/appointments/9102/status');
+
   await ctx.close();
 }
 
