@@ -60,6 +60,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   const cursorRef = useRef<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const connectedReportedRef = useRef(false);
+  const failedReportedRef = useRef(false);
   const refreshBusyRef = useRef(false);
   const syncBusyRef = useRef(false);
 
@@ -86,6 +87,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     cursorRef.current = null;
     connectedReportedRef.current = false;
+    failedReportedRef.current = false;
     setMediaStarted(false);
   }, [stopPolling]);
 
@@ -188,8 +190,24 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
           void PatientCompanionTeleconsultTransport.connected(pairing, session.session_id)
 .then(setCurrent)
             .catch(() => setMessage('Connexion établie, confirmation du cabinet en attente.'));
-        } else if (peer.connectionState === 'failed') {
-          setMessage('Connexion impossible sur ce réseau.');
+        } else if (peer.connectionState === 'failed' && !failedReportedRef.current) {
+          failedReportedRef.current = true;
+          const current = sessionRef.current;
+          if (!current) {
+            cleanupPeer();
+            setMessage('Connexion impossible sur ce réseau.');
+            return;
+          }
+          void PatientCompanionTeleconsultTransport.failed(pairing, current.session_id, 'PEER_CONNECTION_FAILED')
+            .then(failed => {
+              setCurrent(failed);
+              cleanupPeer();
+              setMessage('Connexion impossible sur ce réseau.');
+            })
+            .catch(() => {
+              cleanupPeer();
+              setMessage('Connexion impossible sur ce réseau.');
+            });
         }
       };
 
