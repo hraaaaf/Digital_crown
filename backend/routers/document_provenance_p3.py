@@ -52,6 +52,7 @@ class CephaloPDFRequestP3(schemas.CephaloPDFRequest):
 
 def _document_archive_out_payload(doc: models.DocumentArchive) -> dict:
     payload = {column.key: getattr(doc, column.key) for column in doc.__table__.columns}
+    payload["tags"] = list(payload.get("tags") or [])
     payload["file_exists"] = resolve_document_storage_path(doc).is_file()
     payload["download_url"] = f"/api/documents/{doc.id}/download"
     return payload
