@@ -131,7 +131,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
     const signals: Signal[] = Array.isArray(response.data?.signals) ? response.data.signals : [];
     for (const signal of signals) {
       if (signal.signal_type === 'offer') {
-        await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
+        await peer.setRemoteDescription(signal.payload as unknown as RTCSessionDescriptionInit);
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
         await waitForIceGathering(peer);
