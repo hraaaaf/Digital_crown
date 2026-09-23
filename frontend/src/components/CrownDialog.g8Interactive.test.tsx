@@ -43,6 +43,38 @@ describe('CrownDialog G8 transverse interaction matrix', () => {
     opener.remove();
   });
 
+  it('preserves the original opener when the close callback identity changes while open', () => {
+    const opener = document.createElement('button');
+    opener.textContent='Stable opener';
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const firstClose=vi.fn();
+    const secondClose=vi.fn();
+    const view=render(
+      <CrownDialog open onClose={firstClose} ariaLabel="Stable dialog">
+        <button data-dialog-autofocus>Inside</button>
+      </CrownDialog>,
+    );
+
+    expect(document.activeElement).toBe(screen.getByRole('button',{name:'Inside'}));
+
+    view.rerender(
+      <CrownDialog open onClose={secondClose} ariaLabel="Stable dialog">
+        <button data-dialog-autofocus>Inside</button>
+      </CrownDialog>,
+    );
+
+    view.rerender(
+      <CrownDialog open={false} onClose={secondClose} ariaLabel="Stable dialog">
+        <button>Inside</button>
+      </CrownDialog>,
+    );
+
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
   it('closes on Escape through the single explicit close callback', () => {
     const onClose=vi.fn();
     render(<CrownDialog open onClose={onClose} ariaLabel="Test dialog"><button>Inside</button></CrownDialog>);

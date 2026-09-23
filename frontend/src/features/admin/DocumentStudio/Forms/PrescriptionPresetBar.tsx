@@ -174,7 +174,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
             setShowSave(true);
           }}
           disabled={!hasReusableDraft}
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/20 bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <BookmarkPlus size={14} /> Enregistrer comme modèle
         </button>
@@ -187,7 +187,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
           presets.map(preset => (
             <div
               key={preset.id}
-              className="inline-flex min-h-10 max-w-full items-stretch overflow-hidden rounded-xl border border-border-main bg-card"
+              className="inline-flex min-h-11 max-w-full items-stretch overflow-hidden rounded-xl border border-border-main bg-card"
             >
               <button
                 type="button"
@@ -238,7 +238,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
               <button
                 type="button"
                 onClick={() => setPendingApply(null)}
-                className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
               >
                 Conserver l’ordonnance actuelle
               </button>
@@ -248,7 +248,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
                   setDrugs(hydratePresetDrugs(pendingApply.drugs || [], drugs));
                   setPendingApply(null);
                 }}
-                className="min-h-10 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+                className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
               >
                 Remplacer par ce modèle
               </button>
@@ -301,7 +301,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSave(false)}
-                className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
               >
                 Annuler
               </button>
@@ -309,7 +309,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
                 type="button"
                 onClick={() => void savePreset()}
                 disabled={!presetName.trim() || !hasReusableDraft || saving}
-                className="min-h-10 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-40"
+                className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-40"
               >
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </button>

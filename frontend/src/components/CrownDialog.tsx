@@ -22,6 +22,11 @@ const FOCUSABLE = [
 export function CrownDialog({ open, onClose, ariaLabel, children, className }: CrownDialogProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -42,7 +47,7 @@ export function CrownDialog({ open, onClose, ariaLabel, children, className }: C
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       // Contract: event.key === 'Tab' is the only path that enters the focus trap.
@@ -71,7 +76,7 @@ export function CrownDialog({ open, onClose, ariaLabel, children, className }: C
       document.documentElement.style.overflow = previousHtmlOverflow;
       openerRef.current?.focus({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
 

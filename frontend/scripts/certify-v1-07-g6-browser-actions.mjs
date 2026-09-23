@@ -48,15 +48,28 @@ for(const viewport of viewports){
   if(await plan.count()){
     const original=await plan.inputValue();
     const targetPlan=original==='GOLD'?'PREMIUM':'GOLD';
+    const planAckPromise=page.waitForResponse(
+      r=>r.request().method()==='PATCH' && r.url().includes('/api/superadmin/clients/'+target.id+'/plan'),
+      {timeout:10000},
+    );
     await plan.selectOption(targetPlan);
-    await page.waitForTimeout(350);
+    const planAck=await planAckPromise;
+    if(!planAck.ok()) throw new Error('plan mutation refused '+planAck.status()+': '+await planAck.text());
+    const planAckBody=await planAck.json();
+    if(planAckBody.subscription_plan!==targetPlan) throw new Error('plan response ACK mismatch');
+
     const verify=await api.get('/api/superadmin/clients',{headers});
     const row=(await verify.json()).find(x=>x.id===target.id);
     if(row.subscription_plan!==targetPlan) throw new Error('plan ACK not persisted');
     prove(viewport,'superadmin-plan-persistence',{from:original,to:targetPlan});
 
+    const restorePlanAckPromise=page.waitForResponse(
+      r=>r.request().method()==='PATCH' && r.url().includes('/api/superadmin/clients/'+target.id+'/plan'),
+      {timeout:10000},
+    );
     await plan.selectOption(original);
-    await page.waitForTimeout(300);
+    const restorePlanAck=await restorePlanAckPromise;
+    if(!restorePlanAck.ok()) throw new Error('plan restore refused '+restorePlanAck.status()+': '+await restorePlanAck.text());
   }
 
   // Internal notes persistence.
