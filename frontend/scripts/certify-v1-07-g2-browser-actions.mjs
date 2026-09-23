@@ -6,6 +6,9 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
 if(!login.ok()) throw new Error('G2 browser login failed');
 const tokens=await login.json();
+const restrictedLogin=await api.post('/api/auth/login',{form:{username:'t2-restricted@cabinet.ma',password}});
+if(!restrictedLogin.ok()) throw new Error('G2 restricted login failed');
+const restrictedTokens=await restrictedLogin.json();
 const headers={Authorization:'Bearer '+tokens.access_token};
 const patients=await api.get('/api/patients',{headers});
 const patient=(await patients.json()).find(x=>x.numero_dossier==='T2-0001');
@@ -755,6 +758,35 @@ for(const viewport of viewports){
  await page.unroute('**/api/mobile/bridge-pairing');
  await page.unroute('**/api/admin/revoke-mobile');
  await ctx.close();
+
+ // Restricted employee session — prove UI permission boundaries and direct-route fail-closed behavior.
+ const restrictedCtx=await browser.newContext({viewport,colorScheme:'light'});
+ const restrictedPage=await restrictedCtx.newPage();
+ await restrictedPage.addInitScript(v=>{
+   localStorage.setItem('token',v.access);
+   localStorage.setItem('refresh_token',v.refresh||'');
+   localStorage.setItem('appMode','prod');
+ },{access:restrictedTokens.access_token,refresh:restrictedTokens.refresh_token});
+ await restrictedPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
+ await restrictedPage.getByText(/Bonjour, T2 Restricted Secretary/i).waitFor({state:'visible',timeout:10000});
+
+ if(await restrictedPage.getByRole('button',{name:'Chercher un patient'}).count()) throw new Error('restricted user sees patient search');
+ if(await restrictedPage.getByRole('button',{name:'Appairer le téléphone mobile'}).count()) throw new Error('restricted user sees mobile admin control');
+ if(await restrictedPage.getByRole('button',{name:/Pilotage du cabinet/i}).count()) throw new Error('restricted user sees accounting management panel');
+ if(await restrictedPage.getByRole('link',{name:'Patients',exact:true}).count()) throw new Error('restricted user sees Patients navigation');
+ pass(viewport,'dashboard-restricted-hidden-controls');
+
+ const restrictedQuick=restrictedPage.getByRole('button',{name:'Ajout rapide'});
+ await restrictedQuick.click();
+ if(await restrictedPage.getByRole('menuitem',{name:/Nouveau Patient/i}).count()) throw new Error('restricted user sees New Patient quick action');
+ await restrictedPage.getByRole('menuitem',{name:/Nouveau RDV/i}).waitFor({state:'visible',timeout:5000});
+ pass(viewport,'dashboard-restricted-agenda-only-quick-action');
+
+ await restrictedPage.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
+ await restrictedPage.waitForURL('**/dashboard',{timeout:10000});
+ if(await restrictedPage.getByRole('button',{name:/Import CSV/i}).count()) throw new Error('restricted direct patients route exposed patient controls');
+ pass(viewport,'patients-direct-route-permission-guard');
+ await restrictedCtx.close();
 }
 
 await browser.close();
