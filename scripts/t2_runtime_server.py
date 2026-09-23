@@ -24,6 +24,19 @@ os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
 import backend.utils.rate_limit as rate_limit
 rate_limit.MAX_ATTEMPTS = 100
 
+# check_rate_limit binds its default max_attempts at function definition time.
+# Raising the module constant alone does not change that bound default, so the
+# long T2 matrix can still hit the production 5-attempt ceiling. This isolated
+# CI runtime overrides only the callable seam; product defaults remain intact.
+_original_check_rate_limit = rate_limit.check_rate_limit
+def _t2_check_rate_limit(request, scope="auth", *, max_attempts=None):
+    return _original_check_rate_limit(
+        request,
+        scope,
+        max_attempts=rate_limit.MAX_ATTEMPTS if max_attempts is None else max_attempts,
+    )
+rate_limit.check_rate_limit = _t2_check_rate_limit
+
 from backend import database, models
 from backend.security import get_password_hash
 

@@ -16,6 +16,7 @@ import { PatientCompanionAgendaTransport, type AgendaOperation } from './Patient
 import { PatientCompanionQuestionnaires } from './PatientCompanionQuestionnaires';
 import { PatientCompanionConsentVault } from './PatientCompanionConsentVault';
 import { PatientCompanionNotifications } from './PatientCompanionNotifications';
+import { PatientCompanionMessages } from './PatientCompanionMessages';
 import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto';
 import { PatientCompanionFinance } from './PatientCompanionFinance';
 
@@ -743,6 +744,7 @@ export const PatientCompanionApp = () => {
               ) : null}
             </section>
             <PatientCompanionNotifications pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
+            <PatientCompanionMessages pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <PatientCompanionConsentVault pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <section className="mt-3 grid gap-3" aria-label="Portefeuille Patient Companion">
               <WalletSection title="Mes documents & médias" empty="Aucun document ou média partagé.">

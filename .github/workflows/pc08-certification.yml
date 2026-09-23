@@ -1,0 +1,89 @@
+name: PC-08 Secure Messaging Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "alembic/versions/pc080000015_add_pc08_secure_messages.py"
+      - "backend/core/schema_runtime.py"
+      - "backend/models_patient_companion.py"
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_messages.py"
+      - "backend/services/patient_companion_messages.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "backend/utils/rate_limit.py"
+      - "backend/tests/test_patient_companion_messages.py"
+      - "backend/tests/test_patient_companion_messages_jose_size.py"
+      - "frontend/src/features/patient-companion/PatientCompanionMessageTransport.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionMessageTransport.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionMessages.contract.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionMessages.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionStorage.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionStorage.messaging.contract.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.contract.test.ts"
+      - "frontend/src/features/patients/components/PatientCompanionPanel.tsx"
+      - ".github/workflows/pc08-certification.yml"
+      - "docs/clinic/patient_companion/PC_08_*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pc08:
+    name: PC-08 backend + frontend contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: test
+      SECRET_KEY: pc08-certification-only-secret-key-000001
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact head
+        if: github.event_name == 'pull_request'
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: PC-08 backend security + truth tests
+        run: python -m pytest backend/tests/test_patient_companion_messages.py backend/tests/test_patient_companion_messages_jose_size.py -q --maxfail=1
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: PC-08 frontend messaging truth tests
+        working-directory: frontend
+        run: >-
+          npm test -- --run
+          src/features/patient-companion/PatientCompanionMessageTransport.test.ts
+          src/features/patient-companion/PatientCompanionMessages.contract.test.ts
+          src/features/patient-companion/PatientCompanionStorage.messaging.contract.test.ts
+          src/features/patients/components/PatientCompanionMessagingPanel.contract.test.ts
+
+      - name: Frontend production build
+        working-directory: frontend
+        run: npm run build

@@ -62,7 +62,7 @@ def _save() -> None:
                 pass
 
 
-def check_rate_limit(request: Request, scope: str = "auth") -> None:
+def check_rate_limit(request: Request, scope: str = "auth", *, max_attempts: int = MAX_ATTEMPTS) -> None:
     client_ip = request.client.host if request.client else "unknown"
     key = f"{scope}:{client_ip}"
     now = time.time()
@@ -75,7 +75,7 @@ def check_rate_limit(request: Request, scope: str = "auth") -> None:
             _attempts.pop(expired_key, None)
 
         count, first_time = _attempts.get(key, (0, now))
-        if count >= MAX_ATTEMPTS:
+        if count >= max_attempts:
             retry_after = max(1, int(LIMIT_WINDOW - (now - first_time)))
             _save()
             raise HTTPException(

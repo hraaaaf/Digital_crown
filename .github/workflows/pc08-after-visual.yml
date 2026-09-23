@@ -1,0 +1,72 @@
+name: PC-08 AFTER Visual Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/pc08-after-visual.yml
+      - frontend/scripts/capture-pc08-after.mjs
+      - frontend/src/features/patient-companion/**
+      - frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx
+      - docs/clinic/patient_companion/PC_08_*.md
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pc08-after-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Start AFTER
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5183 >/tmp/pc08-after.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5183/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/pc08-after.log
+          exit 1
+      - name: Capture AFTER
+        working-directory: frontend
+        env:
+          PC08_AFTER_URL: http://127.0.0.1:5183
+          PC08_AFTER_DIR: ../artifacts/pc08-after
+        run: node scripts/capture-pc08-after.mjs
+      - name: Assert evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          items=json.loads(Path("artifacts/pc08-after/report.json").read_text())
+          assert len(items)==4
+          assert all(not x["overflow"] for x in items)
+          assert all(not x["pageErrors"] and not x["consoleErrors"] for x in items)
+          print("pc08_after=PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pc08-after-${{ github.event.pull_request.head.sha }}
+          path: artifacts/pc08-after
+          if-no-files-found: error
+          retention-days: 30

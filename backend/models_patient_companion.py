@@ -688,3 +688,66 @@ class PatientCompanionConsentEvidence(Base):
     signature_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     signature_size: Mapped[int] = mapped_column(nullable=False)
     signed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PatientCompanionMessage(Base):
+    """Canonical access-scoped secure text message between one Patient Companion access and cabinet staff."""
+
+    __tablename__ = "patient_companion_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "access_id",
+            "client_message_id",
+            name="uq_pc08_message_access_client",
+        ),
+        Index(
+            "ix_pc08_message_access_created",
+            "access_id",
+            "created_at",
+        ),
+        Index(
+            "ix_pc08_message_tenant_patient_access",
+            "employer_id",
+            "patient_id",
+            "access_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_id: Mapped[str] = mapped_column(
+        String(36),
+        unique=True,
+        nullable=False,
+        index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    employer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    client_message_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    sender_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    sender_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    staff_read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    staff_read_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    patient_received_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    patient_read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

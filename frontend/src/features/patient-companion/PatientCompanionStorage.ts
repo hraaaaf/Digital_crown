@@ -85,6 +85,35 @@ export type PatientEmergencyPhotoQueueState = {
   errorCode?: string;
 };
 
+
+export type PatientSecureMessage = {
+  messageId: string;
+  clientMessageId: string;
+  senderKind: 'PATIENT' | 'STAFF';
+  body: string;
+  createdAt: string;
+  staffReadAt?: string | null;
+  patientReceivedAt?: string | null;
+  patientReadAt?: string | null;
+};
+
+export type PatientPendingMessage = {
+  clientMessageId: string;
+  idempotencyKey: string;
+  body: string;
+  state: 'local_queued' | 'remote_pending' | 'rejected';
+  createdAt: string;
+  updatedAt: string;
+  errorCode?: string;
+};
+
+export type PatientMessageReceiptQueue = {
+  idempotencyKey: string;
+  operation: 'message.received' | 'message.read';
+  messageIds: string[];
+  createdAt: string;
+};
+
 export type PatientWalletSnapshot = {
   version: 1;
   accessId: string;
@@ -93,6 +122,11 @@ export type PatientWalletSnapshot = {
   shares: PatientShare[];
   agendaRequests?: PatientAgendaRequestState[];
   emergencyPhotos?: PatientEmergencyPhotoQueueState[];
+  secureMessages?: PatientSecureMessage[];
+  pendingMessages?: PatientPendingMessage[];
+  pendingMessageReceipts?: PatientMessageReceiptQueue[];
+  messageBeforeCursor?: string | null;
+  messageHasMore?: boolean;
 };
 
 export type PatientCompanionVaultState = {
@@ -396,6 +430,43 @@ export const PatientCompanionStorage = {
     return next;
   },
 
+  async saveMessagingState(
+    accessId: string,
+    patch: {
+      secureMessages?: PatientSecureMessage[];
+      pendingMessages?: PatientPendingMessage[];
+      pendingMessageReceipts?: PatientMessageReceiptQueue[];
+      messageBeforeCursor?: string | null;
+      messageHasMore?: boolean;
+    },
+  ): Promise<PatientCompanionVaultState> {
+    const current = await this.load();
+    if (!current.pairings.some(item => item.context.access_id === accessId)) {
+      throw new Error('Contexte Patient Companion inconnu.');
+    }
+    const existing = current.cache[accessId];
+    const snapshot: PatientWalletSnapshot = existing || {
+      version: 1,
+      accessId,
+      syncedAt: new Date(0).toISOString(),
+      appointments: [],
+      shares: [],
+    };
+    const next: PatientCompanionVaultState = {
+      ...current,
+      cache: {
+        ...current.cache,
+        [accessId]: {
+          ...snapshot,
+          ...patch,
+          syncedAt: new Date().toISOString(),
+        },
+      },
+    };
+    await writeValue(STATE_ID, await encryptState(next));
+    return next;
+  },
+
   async saveEmergencyPhotoQueue(
     accessId: string,
     emergencyPhotos: PatientEmergencyPhotoQueueState[],
@@ -436,6 +507,21 @@ export const PatientCompanionStorage = {
         : {}),
       ...(snapshot.emergencyPhotos === undefined && previous?.emergencyPhotos
         ? { emergencyPhotos: previous.emergencyPhotos }
+        : {}),
+      ...(snapshot.secureMessages === undefined && previous?.secureMessages
+        ? { secureMessages: previous.secureMessages }
+        : {}),
+      ...(snapshot.pendingMessages === undefined && previous?.pendingMessages
+        ? { pendingMessages: previous.pendingMessages }
+        : {}),
+      ...(snapshot.pendingMessageReceipts === undefined && previous?.pendingMessageReceipts
+        ? { pendingMessageReceipts: previous.pendingMessageReceipts }
+        : {}),
+      ...(snapshot.messageBeforeCursor === undefined && previous?.messageBeforeCursor !== undefined
+        ? { messageBeforeCursor: previous.messageBeforeCursor }
+        : {}),
+      ...(snapshot.messageHasMore === undefined && previous?.messageHasMore !== undefined
+        ? { messageHasMore: previous.messageHasMore }
         : {}),
     };
     const next: PatientCompanionVaultState = {
