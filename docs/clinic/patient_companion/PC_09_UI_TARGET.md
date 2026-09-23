@@ -22,6 +22,17 @@ The dentist and patient must never see STUN/TURN/SDP/ICE/WebRTC jargon.
 ## BEFORE
 No PC-09 teleconsultation surface exists in the current certified Patient Companion UI.
 
+Canonical BEFORE evidence is the final certified PC-08 runtime artifact, captured immediately before PC-09 implementation at the same Patient Companion/staff surfaces:
+- approved pre-PC-09 HEAD: `1bbc1621a90a681cc1fb34fa846dbb3ec3c68c26`;
+- runtime run: `35859746972` → SUCCESS;
+- artifact: `10750431243`;
+- digest: `sha256:9181923334458fe680cd8c93beac24d08f2e0c724ea2ea6a0264727b913b287a`;
+- patient Chromium: 360×800 + 390×844;
+- patient WebKit: existing PC-08 runtime captures;
+- staff: 390×844 + 768×1024 + 1280×900.
+
+The BEFORE evidence proves absence of the PC-09 surface. PC-09 AFTER must use the same target viewport classes.
+
 ## Reference / mockup
 
 ### Patient — idle
