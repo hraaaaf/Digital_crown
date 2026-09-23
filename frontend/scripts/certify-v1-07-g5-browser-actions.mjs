@@ -987,6 +987,82 @@ for(const viewport of viewports){
     await page.unroute('**/api/team**');
   }
 
+  // Settings shell — fail closed on profile read and preserve dirty state after shared-save refusal.
+  const shellPage=await ctx.newPage();
+  await seed(shellPage);
+  let failProfileRead=true;
+  await shellPage.route('**/api/clinics/me',async route=>{
+    const method=route.request().method();
+    if(method==='GET' && failProfileRead){
+      return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced profile read failure"}'});
+    }
+    return route.continue();
+  });
+  await shellPage.goto('http://127.0.0.1:5173/settings',{waitUntil:'networkidle',timeout:90000});
+  await shellPage.getByText('Profil indisponible',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(await shellPage.getByPlaceholder('Ex: Cabinet Dentaire Benmoussa').count()) throw new Error('settings exposed profile controls during read failure');
+  failProfileRead=false;
+  await shellPage.getByRole('button',{name:'Réessayer',exact:true}).click();
+  await shellPage.getByPlaceholder('Ex: Cabinet Dentaire Benmoussa').waitFor({state:'visible',timeout:10000});
+  prove(viewport,'settings-shell-read-failure-retry');
+  await shellPage.unroute('**/api/clinics/me');
+
+  await shellPage.getByRole('button',{name:'Performance & Assistance',exact:true}).click();
+  const shellPerf=shellPage.getByRole('button',{name:'Mode Performance',exact:true});
+  await shellPerf.click();
+  await shellPage.getByTestId('settings-save-bar').waitFor({state:'visible',timeout:5000});
+  let refusedSharedSave=0;
+  await shellPage.route('**/api/clinics/me',async route=>{
+    if(route.request().method()==='PUT'){
+      refusedSharedSave+=1;
+      return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced shared save refusal"}'});
+    }
+    return route.continue();
+  });
+  await shellPage.getByRole('button',{name:'Enregistrer la configuration',exact:true}).click();
+  await shellPage.getByText('Erreur lors de la sauvegarde',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(refusedSharedSave!==1) throw new Error('settings shared save refusal request mismatch');
+  await shellPage.getByTestId('settings-save-bar').waitFor({state:'visible',timeout:5000});
+  prove(viewport,'settings-shell-shared-save-refusal-dirty',{refusedSharedSave});
+  await shellPage.close();
+
+  // Practitioner context — API truth, explicit selection continuity, owner fallback.
+  const practitionerPage=await ctx.newPage();
+  await seed(practitionerPage);
+  await practitionerPage.route('**/api/appointments/multi-practitioner*',route=>route.fulfill({
+    status:200,
+    contentType:'application/json',
+    body:JSON.stringify({dentists:[
+      {dentist_id:7,dentist_name:'Dr Owner',appointments:[{},{}]},
+      {dentist_id:8,dentist_name:'Dr Associate',appointments:[{}]}
+    ]})
+  }));
+  await practitionerPage.goto('http://127.0.0.1:5173/settings',{waitUntil:'networkidle',timeout:90000});
+  const practitionerRegion=practitionerPage.getByRole('region',{name:'Contexte praticien'});
+  await practitionerRegion.waitFor({state:'visible',timeout:10000});
+  const associate=practitionerRegion.getByRole('button',{name:/Dr Associate/i});
+  await associate.click();
+  if((await associate.getAttribute('aria-pressed'))!=='true') throw new Error('practitioner explicit selection did not activate');
+  await practitionerPage.getByRole('link',{name:'Agenda',exact:true}).click();
+  await practitionerPage.waitForURL('**/agenda');
+  const agendaPractitioner=practitionerPage.getByRole('region',{name:'Contexte praticien'}).getByRole('button',{name:/Dr Associate/i});
+  await agendaPractitioner.waitFor({state:'visible',timeout:10000});
+  if((await agendaPractitioner.getAttribute('aria-pressed'))!=='true') throw new Error('practitioner selection did not survive SPA navigation');
+  prove(viewport,'settings-practitioner-selection-continuity');
+  await practitionerPage.close();
+
+  const fallbackPage=await ctx.newPage();
+  await seed(fallbackPage);
+  await fallbackPage.route('**/api/appointments/multi-practitioner*',route=>route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced practitioner read failure"}'}));
+  await fallbackPage.goto('http://127.0.0.1:5173/settings',{waitUntil:'networkidle',timeout:90000});
+  const fallbackRegion=fallbackPage.getByRole('region',{name:'Contexte praticien'});
+  await fallbackRegion.waitFor({state:'visible',timeout:10000});
+  const fallbackButtons=fallbackRegion.getByRole('button');
+  if(await fallbackButtons.count()!==1) throw new Error('practitioner owner fallback did not produce exactly one selectable practitioner');
+  if((await fallbackButtons.first().getAttribute('aria-pressed'))!=='true') throw new Error('practitioner fallback is not selected');
+  prove(viewport,'settings-practitioner-owner-fallback');
+  await fallbackPage.close();
+
   await ctx.close();
 }
 
