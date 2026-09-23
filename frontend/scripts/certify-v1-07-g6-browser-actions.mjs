@@ -191,18 +191,39 @@ for(const viewport of viewports){
     prove(viewport,'superadmin-unarchive-restore');
   }
 
-  // Internal notes persistence.
-  const notesButton=card.getByTitle('Notes internes');
+  // Internal notes: cancel non-mutation, ACK persistence, then restore isolated fixture.
+  const notesButton=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]').getByTitle('Notes internes');
   if(await notesButton.count()){
+    const originalNotes=(await (await api.get('/api/superadmin/clients',{headers})).json()).find(x=>x.id===target.id)?.internal_notes??null;
+
     await notesButton.click();
-    const field=page.getByPlaceholder(/Notes sur ce client/);
-    await field.fill('G6 browser certification note');
-    await page.getByRole('button',{name:'Enregistrer',exact:true}).click();
+    let notesDialog=page.getByRole('dialog',{name:'Notes internes SuperAdmin'});
+    const field=notesDialog.getByPlaceholder(/Notes sur ce client/);
+    await field.fill('G6 cancel note');
+    await notesDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+    let verify=await api.get('/api/superadmin/clients',{headers});
+    let row=(await verify.json()).find(x=>x.id===target.id);
+    if((row.internal_notes??null)!==originalNotes) throw new Error('notes cancel mutated backend');
+    prove(viewport,'superadmin-notes-cancel-non-mutation');
+
+    await notesButton.click();
+    notesDialog=page.getByRole('dialog',{name:'Notes internes SuperAdmin'});
+    await notesDialog.getByPlaceholder(/Notes sur ce client/).fill('G6 browser certification note');
+    await notesDialog.getByRole('button',{name:'Enregistrer',exact:true}).click();
     await page.waitForTimeout(300);
-    const verify=await api.get('/api/superadmin/clients',{headers});
-    const row=(await verify.json()).find(x=>x.id===target.id);
+    verify=await api.get('/api/superadmin/clients',{headers});
+    row=(await verify.json()).find(x=>x.id===target.id);
     if(row.internal_notes!=='G6 browser certification note') throw new Error('notes ACK not persisted');
     prove(viewport,'superadmin-notes-persistence');
+
+    const restore=await api.patch('/api/superadmin/clients/'+target.id+'/notes',{headers,data:{internal_notes:originalNotes}});
+    if(!restore.ok()) throw new Error('notes fixture restore failed');
+    verify=await api.get('/api/superadmin/clients',{headers});
+    row=(await verify.json()).find(x=>x.id===target.id);
+    if((row.internal_notes??null)!==originalNotes) throw new Error('notes fixture restore mismatch');
+    prove(viewport,'superadmin-notes-fixture-restored');
+    await page.reload({waitUntil:'networkidle',timeout:90000});
+    await page.getByText('Dr T2 Browser',{exact:true}).waitFor({state:'visible',timeout:10000});
   }
 
   // License history real browser read.
