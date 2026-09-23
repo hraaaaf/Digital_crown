@@ -201,8 +201,15 @@ Observable success requires:
 
 A reliable remote WebRTC call generally needs TURN for restrictive NAT/firewall cases.
 
-Repository audit found no current TURN service/configuration. Therefore:
+Repository audit found no deployed/controlled TURN service. PC-09 now includes provider-agnostic coturn-compatible ephemeral credential generation:
+- TURN URLs + shared secret remain server configuration;
+- the browser receives only short-lived HMAC-derived credentials;
+- the shared secret never leaves the cabinet backend;
+- no TURN vendor is hard-coded.
+
+Therefore:
 - application/session/signaling implementation can proceed;
-- “reliable remote teleconsultation across arbitrary patient networks” cannot be certified until a controlled TURN endpoint and credentials are available and tested.
+- a TURN service can later be connected without redesigning the UI/media contract;
+- “reliable remote teleconsultation across arbitrary patient networks” cannot be certified until a controlled TURN endpoint is actually deployed/configured and tested.
 
 No Vercel deployment is authorized.
