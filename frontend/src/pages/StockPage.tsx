@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Package, AlertTriangle, Plus, Minus, Edit2, Trash2, X, Search, CheckCircle2
@@ -71,10 +71,13 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
     notes:         item?.notes         ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -95,6 +98,7 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
     } catch (err: any) {
       setError(mutationErrorMessage(err, isEdit ? "La modification n'a pas été enregistrée." : "L'article n'a pas été ajouté."));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
