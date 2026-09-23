@@ -29,11 +29,25 @@ for(const viewport of viewports){
 
  const pilotage=page.getByRole('button',{name:/Pilotage du cabinet/i});
  if(await pilotage.count()){
+   const panelId=await pilotage.getAttribute('aria-controls');
+   if(!panelId) throw new Error('management panel aria-controls missing');
+
    await pilotage.click();
-   await page.waitForTimeout(150);
-   pass(viewport,'dashboard-management-expand');
+   await page.waitForFunction(id=>{
+     const button=document.querySelector('[aria-controls="'+id+'"]');
+     const panel=document.getElementById(id);
+     return button?.getAttribute('aria-expanded')==='true' && !!panel;
+   },panelId);
+   await page.locator('#'+panelId).waitFor({state:'visible',timeout:5000});
+   pass(viewport,'dashboard-management-expand',{panelId});
+
    await pilotage.click();
-   pass(viewport,'dashboard-management-collapse');
+   await page.waitForFunction(id=>{
+     const button=document.querySelector('[aria-controls="'+id+'"]');
+     const panel=document.getElementById(id);
+     return button?.getAttribute('aria-expanded')==='false' && !panel;
+   },panelId);
+   pass(viewport,'dashboard-management-collapse',{panelId});
  }
 
  const quick=page.getByRole('button',{name:'Ajout rapide'});
@@ -71,12 +85,44 @@ for(const viewport of viewports){
    await grid.click();
    const mode=await page.evaluate(()=>localStorage.getItem('patient_list_view_mode'));
    if(mode!=='grid') throw new Error('grid mode did not persist');
+   if(await page.locator('table').count()) throw new Error('table still rendered in grid mode');
+   await page.locator('div[role="button"]').filter({hasText:/CERTIFICATION\s+T2/i}).first().waitFor({state:'visible',timeout:5000});
+
+   await page.reload({waitUntil:'networkidle',timeout:90000});
+   if((await page.evaluate(()=>localStorage.getItem('patient_list_view_mode')))!=='grid') throw new Error('grid mode lost after reload');
+   if(await page.locator('table').count()) throw new Error('table rendered after grid reload');
+   await page.locator('div[role="button"]').filter({hasText:/CERTIFICATION\s+T2/i}).first().waitFor({state:'visible',timeout:5000});
+
    const table=page.getByRole('button',{name:'Vue Table'});
    await table.click();
    const tableMode=await page.evaluate(()=>localStorage.getItem('patient_list_view_mode'));
    if(tableMode!=='table') throw new Error('table mode did not persist');
-   pass(viewport,'patient-list-view-mode-persistence');
+   await page.locator('table').waitFor({state:'visible',timeout:5000});
+   await page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first().waitFor({state:'visible',timeout:5000});
+
+   await page.reload({waitUntil:'networkidle',timeout:90000});
+   if((await page.evaluate(()=>localStorage.getItem('patient_list_view_mode')))!=='table') throw new Error('table mode lost after reload');
+   await page.locator('table').waitFor({state:'visible',timeout:5000});
+   pass(viewport,'patient-list-view-mode-consumer-persistence');
  }
+
+ // No-result create CTA -> exact query handoff -> visible AddPatientForm prefill.
+ const searchAfterReload=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+ await searchAfterReload.fill('G2ABSENT nour');
+ await page.getByText('Aucun patient trouvé',{exact:true}).waitFor({state:'visible',timeout:5000});
+ await page.getByRole('button',{name:'Ajouter ce patient',exact:true}).click();
+ await page.waitForURL(/\/patients\/new\?nom=G2ABSENT&prenom=nour/,{timeout:10000});
+ const nomInput=page.locator('input[name="nom"]');
+ const prenomInput=page.locator('input[name="prenom"]');
+ await nomInput.waitFor({state:'visible',timeout:5000});
+ if((await nomInput.inputValue())!=='G2ABSENT') throw new Error('absent-search nom prefill lost');
+ if((await prenomInput.inputValue())!=='nour') throw new Error('absent-search prenom prefill lost');
+ await page.getByText(/Patient "G2ABSENT nour" introuvable/i).waitFor({state:'visible',timeout:5000});
+ pass(viewport,'patient-no-result-add-prefill-handoff');
+
+ await page.goBack({waitUntil:'networkidle'});
+ const listSearchAfterPrefill=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
+ await listSearchAfterPrefill.fill('T2-0001');
 
  const patientRow=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first();
  await patientRow.waitFor({state:'visible',timeout:10000});
