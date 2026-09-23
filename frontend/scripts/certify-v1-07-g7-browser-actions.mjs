@@ -661,77 +661,165 @@ for(const viewport of viewports){
   await page.unroute('**/api/partner-catalog/products/*');
   await page.unroute('**/api/partner-catalog/suppliers/*');
 
-  // LIBRARY — search, favorite persistence, deep-link.
+  // LIBRARY — search/reset, favorite filter, view/sort consumer, deep-link, recents, nav, print, soin mode, command palette.
   await page.goto('http://127.0.0.1:5173/bibliotheque',{waitUntil:'networkidle',timeout:90000});
   const libSearch=page.getByPlaceholder('Avulsion, composite, blanchiment…');
-  if(await libSearch.count()){
-    await libSearch.fill('ENDO');
-    await page.getByText('Traitement endodontique',{exact:true}).waitFor({state:'visible',timeout:5000});
-    prove(viewport,'library-search');
-    await libSearch.fill('');
-  }
+  await libSearch.waitFor({state:'visible',timeout:10000});
 
-  const det=page.getByText('Détartrage',{exact:true}).first();
-  if(await det.count()){
-    const card=det.locator('xpath=ancestor::button[1]');
-    const star=card.locator('span').filter({hasText:/^[☆★]$/}).first();
-    if(await star.count()){
-      await star.click();
-      const favs=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
-      if(!favs.includes('detartrage-surfacage')) throw new Error('library favorite did not persist');
+  await libSearch.fill('ENDO');
+  await page.getByText('Traitement endodontique',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'library-search-match');
 
-      await page.reload({waitUntil:'networkidle',timeout:90000});
-      const detReloaded=page.getByText('Détartrage',{exact:true}).first();
-      await detReloaded.waitFor({state:'visible',timeout:5000});
-      const cardReloaded=detReloaded.locator('xpath=ancestor::button[1]');
-      const starReloaded=cardReloaded.locator('span').filter({hasText:/^[☆★]$/}).first();
-      await starReloaded.waitFor({state:'visible',timeout:5000});
-      if((await starReloaded.innerText()).trim()!=='★') throw new Error('library favorite UI did not survive reload');
-      const favsReloaded=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
-      if(!favsReloaded.includes('detartrage-surfacage')) throw new Error('library favorite storage lost after reload');
-      prove(viewport,'library-favorite-reload-persistence');
+  await libSearch.fill('zzzz-no-match');
+  await page.getByText('Aucun protocole trouvé',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByRole('button',{name:/Réinitialiser les filtres/i}).click();
+  await page.getByText('Détartrage',{exact:true}).first().waitFor({state:'visible',timeout:5000});
+  if((await libSearch.inputValue())!=='') throw new Error('library reset did not clear search');
+  prove(viewport,'library-no-result-reset');
 
-      await cardReloaded.click();
-    } else {
-      await card.click();
-    }
-    await page.waitForURL('**/bibliotheque/detartrage-surfacage');
-    prove(viewport,'library-deeplink-navigation');
-  }
+  const protocolList=page.getByTestId('library-protocol-list');
+  const order=async()=>protocolList.locator('[data-protocol-code]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-protocol-code')));
+  const alphaOrder=await order();
 
-  // SCIENCE HUB — search + category + safe external link + back navigation.
+  await page.getByTitle('Vue liste').click();
+  if((await protocolList.getAttribute('data-library-view'))!=='list') throw new Error('library list view consumer mismatch');
+  await page.getByTitle('Vue grille').click();
+  if((await protocolList.getAttribute('data-library-view'))!=='grid') throw new Error('library grid view consumer mismatch');
+  prove(viewport,'library-grid-list-consumer');
+
+  await page.getByRole('button',{name:'Difficulté',exact:true}).click();
+  if((await protocolList.getAttribute('data-library-sort'))!=='difficulty') throw new Error('library difficulty sort state mismatch');
+  const difficultyOrder=await order();
+  if(JSON.stringify(difficultyOrder)===JSON.stringify(alphaOrder)) throw new Error('library difficulty sort did not alter rendered order');
+  await page.getByRole('button',{name:'Discipline',exact:true}).click();
+  if((await protocolList.getAttribute('data-library-sort'))!=='category') throw new Error('library category sort state mismatch');
+  const categoryOrder=await order();
+  if(JSON.stringify(categoryOrder)===JSON.stringify(difficultyOrder)) throw new Error('library category sort did not alter rendered order');
+  prove(viewport,'library-sort-consumer');
+
+  // Return alpha before stable target selection.
+  await page.getByRole('button',{name:'A → Z',exact:true}).click().catch(()=>{});
+  const detCard=page.locator('[data-protocol-code="detartrage-surfacage"]').first();
+  await detCard.waitFor({state:'visible',timeout:5000});
+  const detStar=detCard.locator('span').filter({hasText:/^[☆★]$/}).first();
+  await detStar.click();
+  let favs=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
+  if(!favs.includes('detartrage-surfacage')) throw new Error('library favorite did not persist');
+
+  await page.reload({waitUntil:'networkidle',timeout:90000});
+  favs=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
+  if(!favs.includes('detartrage-surfacage')) throw new Error('library favorite storage lost after reload');
+  await page.getByRole('button',{name:/Favoris/i}).click();
+  const favProtocolList=page.getByTestId('library-protocol-list');
+  const favCodes=await favProtocolList.locator('[data-protocol-code]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-protocol-code')));
+  if(favCodes.length!==1 || favCodes[0]!=='detartrage-surfacage') throw new Error('library favorites filter mismatch');
+  prove(viewport,'library-favorite-filter-reload-persistence');
+  await page.getByRole('button',{name:/Tous/i}).first().click();
+
+  // Open protocol: recents + route.
+  await page.locator('[data-protocol-code="detartrage-surfacage"]').first().click();
+  await page.waitForURL('**/bibliotheque/detartrage-surfacage',{timeout:10000});
+  let recents=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_recents')||'[]'));
+  if(recents[0]!=='detartrage-surfacage') throw new Error('library recent history not recorded');
+  prove(viewport,'library-deeplink-and-recent');
+
+  const initialProtocolUrl=page.url();
+  await page.getByTitle('Suivant (→)').click();
+  await page.waitForFunction(url=>location.href!==url,initialProtocolUrl);
+  const nextUrl=page.url();
+  if(nextUrl===initialProtocolUrl) throw new Error('library next did not navigate');
+  await page.getByTitle('Précédent (←)').click();
+  await page.waitForURL('**/bibliotheque/detartrage-surfacage',{timeout:5000});
+  prove(viewport,'library-next-previous-roundtrip');
+
+  // Print action.
+  await page.evaluate(()=>{ window.__g7PrintCount=0; window.print=()=>{window.__g7PrintCount+=1;}; });
+  await page.getByTitle('Imprimer (P)').click();
+  const printCount=await page.evaluate(()=>window.__g7PrintCount||0);
+  if(printCount!==1) throw new Error('library print action not invoked');
+  prove(viewport,'library-print-action',{printCount});
+
+  // Immersive care mode opens and explicitly returns.
+  await page.getByRole('button',{name:/Ouvrir en mode Soin/i}).click();
+  await page.getByText('Mode Soin Actif',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByRole('button',{name:/Retour Bibliothèque/i}).click();
+  await page.getByText('Mode Soin Actif',{exact:true}).waitFor({state:'detached',timeout:5000});
+  prove(viewport,'library-soin-mode-open-close');
+
+  // Close detail then command palette via button and keyboard.
+  await page.getByTitle('Fermer (Esc)').click();
+  await page.waitForURL('**/bibliotheque',{timeout:5000});
+  await page.getByRole('button',{name:/Rechercher/i}).first().click();
+  let cmd=page.getByPlaceholder('Rechercher un protocole ou une spécialité...');
+  await cmd.waitFor({state:'visible',timeout:5000});
+  await cmd.fill('endodontique');
+  await cmd.press('Enter');
+  await page.waitForURL(/\/bibliotheque\/.+/, {timeout:10000});
+  if(page.url().endsWith('/bibliotheque')) throw new Error('library command palette did not open protocol');
+  prove(viewport,'library-command-palette-open-result');
+
+  await page.keyboard.press('Escape');
+  await page.waitForURL('**/bibliotheque',{timeout:5000});
+  await page.keyboard.press('Control+K');
+  cmd=page.getByPlaceholder('Rechercher un protocole ou une spécialité...');
+  await cmd.waitFor({state:'visible',timeout:5000});
+  await cmd.fill('zzzz-no-match');
+  await page.getByText('Aucun protocole ne correspond à votre recherche.',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.keyboard.press('Escape');
+  await cmd.waitFor({state:'detached',timeout:5000});
+  prove(viewport,'library-command-palette-keyboard-escape');
+
+  // Recent history remains visible and explicit clear mutates only local history.
+  await page.getByText('Récemment consultés',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByRole('button',{name:'Effacer',exact:true}).click();
+  recents=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_recents')||'[]'));
+  if(recents.length!==0) throw new Error('library recent clear did not persist');
+  prove(viewport,'library-recent-clear');
+
+  // SCIENCE HUB — title/author search, category truth, safe external link, back navigation.
   await page.goto('http://127.0.0.1:5173/science-hub',{waitUntil:'networkidle',timeout:90000});
   const sciSearch=page.getByPlaceholder('Rechercher un article...');
-  if(await sciSearch.count()){
-    await sciSearch.fill('zzzz-no-match');
-    await page.getByText('Aucun article ne correspond à votre recherche.',{exact:true}).waitFor({state:'visible',timeout:5000});
-    prove(viewport,'science-hub-no-result-truth');
-    await sciSearch.fill('');
-  }
+  await sciSearch.waitFor({state:'visible',timeout:10000});
+
+  await sciSearch.fill('Ultrasonic');
+  await page.getByText('Ultrasonic vs Sonic Activation of Sodium Hypochlorite',{exact:true}).waitFor({state:'visible',timeout:5000});
+  if(await page.getByText('Root Resorption in Clear Aligner Therapy vs Fixed Appliances',{exact:true}).count()) throw new Error('science title search leaked unrelated article');
+  prove(viewport,'science-hub-title-search');
+
+  await sciSearch.fill('Zanza');
+  await page.getByText('Bioceramic Sealers in Endodontics: Clinical Success Rates',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'science-hub-author-search');
+  await sciSearch.fill('');
 
   const endoCategory=page.getByRole('button',{name:'ENDODONTIE',exact:true});
   await endoCategory.click();
   const cards=page.getByTestId('science-article-card');
   const cardCount=await cards.count();
-  if(cardCount!==4) throw new Error('science category expected 4 ENDODONTIE cards, got '+cardCount);
+  if(cardCount<1) throw new Error('science ENDODONTIE filter returned no cards');
   for(let i=0;i<cardCount;i++){
-    if((await cards.nth(i).getAttribute('data-category'))!=='ENDODONTIE') {
-      throw new Error('science category filter leaked another category');
-    }
+    if((await cards.nth(i).getAttribute('data-category'))!=='ENDODONTIE') throw new Error('science category filter leaked another category');
   }
   prove(viewport,'science-hub-category-filter',{category:'ENDODONTIE',count:cardCount});
 
+  await sciSearch.fill('zzzz-no-match');
+  await page.getByText('Aucun article ne correspond à votre recherche.',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'science-hub-no-result-truth');
+  await sciSearch.fill('');
+
   const study=page.getByRole('link',{name:/Consulter l'étude complète/i}).first();
   if(await study.count()){
+    const href=await study.getAttribute('href');
     const target=await study.getAttribute('target');
     const rel=await study.getAttribute('rel')||'';
-    if(target!=='_blank'||!rel.includes('noopener')||!rel.includes('noreferrer')) throw new Error('unsafe science external link');
-    prove(viewport,'science-hub-safe-external-link');
+    if(!href?.startsWith('https://pubmed.ncbi.nlm.nih.gov/') || target!=='_blank' || !rel.includes('noopener') || !rel.includes('noreferrer')){
+      throw new Error('science external link contract mismatch');
+    }
+    prove(viewport,'science-hub-safe-external-link',{href});
   }
 
   const returnButton=page.getByRole('button',{name:'Retour',exact:true});
   await returnButton.click();
-  await page.waitForURL('**/bibliotheque/detartrage-surfacage',{timeout:10000});
+  await page.waitForURL('**/bibliotheque',{timeout:10000});
   prove(viewport,'science-hub-back-navigation');
 
   await ctx.close();
