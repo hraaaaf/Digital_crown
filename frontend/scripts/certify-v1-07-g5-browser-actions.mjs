@@ -655,6 +655,70 @@ for(const viewport of viewports){
     return route.continue();
   });
 
+  // Practitioner availability sub-module fixture.
+  const practitionerRows=[
+    {practitioner_id:7,practitioner_name:'Dr Owner',inherits_cabinet:true},
+    {practitioner_id:8,practitioner_name:'Dr Associate',inherits_cabinet:true}
+  ];
+  const practitionerSettings=new Map([
+    [7,{practitioner_id:7,practitioner_name:'Dr Owner',inherits_cabinet:true,weekly_schedule:null}],
+    [8,{practitioner_id:8,practitioner_name:'Dr Associate',inherits_cabinet:true,weekly_schedule:null}]
+  ]);
+  const practitionerExceptions=new Map([[7,[]],[8,[]]]);
+  let practitionerPutCalls=0,practitionerResetCalls=0,practitionerAbsencePostCalls=0,practitionerAbsenceDeleteCalls=0;
+  let failPractitionerSettingsId=null;
+  await page.route('**/api/agenda/practitioners*',async route=>{
+    const req=route.request();
+    const method=req.method();
+    const path=new URL(req.url()).pathname;
+    const json=(status,body)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
+
+    if(method==='GET' && path==='/api/agenda/practitioners') return json(200,practitionerRows);
+    let match=path.match(/^\/api\/agenda\/practitioners\/(\d+)\/settings$/);
+    if(match){
+      const id=Number(match[1]);
+      if(method==='GET'){
+        if(failPractitionerSettingsId===id) return json(503,{detail:'forced practitioner settings failure'});
+        return json(200,practitionerSettings.get(id));
+      }
+      if(method==='PUT'){
+        practitionerPutCalls+=1;
+        const body=req.postDataJSON();
+        const saved={practitioner_id:id,practitioner_name:practitionerRows.find(x=>x.practitioner_id===id)?.practitioner_name||'Praticien',inherits_cabinet:false,weekly_schedule:body.weekly_schedule,updated_at:'2026-09-23T10:00:00Z'};
+        practitionerSettings.set(id,saved);
+        return json(200,saved);
+      }
+      if(method==='DELETE'){
+        practitionerResetCalls+=1;
+        const reset={practitioner_id:id,practitioner_name:practitionerRows.find(x=>x.practitioner_id===id)?.practitioner_name||'Praticien',inherits_cabinet:true,weekly_schedule:null};
+        practitionerSettings.set(id,reset);
+        return json(200,{});
+      }
+    }
+    match=path.match(/^\/api\/agenda\/practitioners\/(\d+)\/exceptions$/);
+    if(match){
+      const id=Number(match[1]);
+      if(method==='GET') return json(200,practitionerExceptions.get(id)||[]);
+      if(method==='POST'){
+        practitionerAbsencePostCalls+=1;
+        const body=req.postDataJSON();
+        const rows=practitionerExceptions.get(id)||[];
+        const created={id:70+practitionerAbsencePostCalls,practitioner_id:id,start_date:body.start_date,end_date:body.end_date,reason:body.reason,created_at:'2026-09-23T10:00:00Z'};
+        practitionerExceptions.set(id,[...rows,created]);
+        return json(200,created);
+      }
+    }
+    match=path.match(/^\/api\/agenda\/practitioners\/(\d+)\/exceptions\/(\d+)$/);
+    if(match && method==='DELETE'){
+      practitionerAbsenceDeleteCalls+=1;
+      const id=Number(match[1]);
+      const exceptionId=Number(match[2]);
+      practitionerExceptions.set(id,(practitionerExceptions.get(id)||[]).filter(x=>x.id!==exceptionId));
+      return json(200,{});
+    }
+    return json(500,{detail:'unexpected practitioner availability request '+method+' '+path});
+  });
+
   const agenda=page.getByRole('button',{name:'Horaires & Agenda',exact:true});
   if(await agenda.count()){
     await agenda.click();
@@ -720,10 +784,79 @@ for(const viewport of viewports){
     await page.getByText('Formation',{exact:true}).waitFor({state:'detached',timeout:10000});
     if(agendaDeleteCalls!==1 || agendaExceptions.some(x=>x.reason==='Formation')) throw new Error('agenda closure delete ACK mismatch');
     prove(viewport,'settings-agenda-closure-delete',{agendaDeleteCalls});
+
+    // Practitioner availability: both practitioner selectors + every weekday Plage action.
+    const availability=page.getByTestId('practitioner-availability-panel');
+    await availability.getByRole('button',{name:/Dr Owner/i}).waitFor({state:'visible',timeout:10000});
+    await availability.getByRole('button',{name:/Dr Associate/i}).click();
+    await availability.getByText(/Dr Associate suit les horaires du cabinet/i).waitFor({state:'visible',timeout:10000});
+    await availability.getByRole('button',{name:/Dr Owner/i}).click();
+    await availability.getByText(/Dr Owner suit les horaires du cabinet/i).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'settings-practitioner-availability-selection');
+
+    await availability.getByRole('button',{name:'Personnaliser',exact:true}).click();
+    const practitionerDays=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+    for(const day of practitionerDays){
+      const dayArticle=availability.getByText(day,{exact:true}).locator('xpath=ancestor::article[1]');
+      await dayArticle.getByRole('button',{name:'Plage',exact:true}).click();
+      const added=dayArticle.getByRole('button',{name:'Retirer plage '+day+' 3',exact:true});
+      await added.waitFor({state:'visible',timeout:5000});
+      await added.click();
+      await added.waitFor({state:'detached',timeout:5000});
+    }
+    prove(viewport,'settings-practitioner-availability-all-add-remove-slots',{dayCount:practitionerDays.length});
+
+    const mondayAvailability=availability.getByText('Lundi',{exact:true}).locator('xpath=ancestor::article[1]');
+    await mondayAvailability.getByLabel('Lundi plage 1 début').fill('08:30');
+    await availability.getByRole('button',{name:'Enregistrer',exact:true}).click();
+    await page.getByText('Disponibilités praticien enregistrées',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(practitionerPutCalls!==1 || practitionerSettings.get(7)?.weekly_schedule?.monday?.intervals?.[0]?.start!=='08:30'){
+      throw new Error('practitioner availability save ACK mismatch');
+    }
+    prove(viewport,'settings-practitioner-availability-save',{practitionerPutCalls});
+
+    await availability.getByRole('button',{name:'Hériter du cabinet',exact:true}).click();
+    await availability.getByText(/Dr Owner suit les horaires du cabinet/i).waitFor({state:'visible',timeout:10000});
+    if(practitionerResetCalls!==1 || practitionerSettings.get(7)?.inherits_cabinet!==true) throw new Error('practitioner inheritance reset mismatch');
+    prove(viewport,'settings-practitioner-availability-inherit',{practitionerResetCalls});
+
+    // Invalid absence range must be blocked before API mutation.
+    const absenceStart=availability.getByLabel('Début');
+    const absenceEnd=availability.getByLabel('Fin');
+    const absenceReason=availability.getByLabel('Motif');
+    await absenceStart.fill('2026-10-03T12:00');
+    await absenceEnd.fill('2026-10-03T11:00');
+    await absenceReason.fill('Formation G5');
+    await availability.getByRole('button',{name:'Ajouter',exact:true}).click();
+    await availability.getByText(/La fin de l’indisponibilité doit être après son début/i).waitFor({state:'visible',timeout:5000});
+    if(practitionerAbsencePostCalls!==0) throw new Error('invalid practitioner absence reached API');
+    prove(viewport,'settings-practitioner-absence-local-refusal');
+
+    await absenceEnd.fill('2026-10-03T15:00');
+    await availability.getByRole('button',{name:'Ajouter',exact:true}).click();
+    const absenceRow=availability.getByText('Formation G5',{exact:true}).locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]');
+    await absenceRow.waitFor({state:'visible',timeout:10000});
+    if(practitionerAbsencePostCalls!==1) throw new Error('practitioner absence create ACK mismatch');
+    await absenceRow.getByRole('button',{name:'Retirer',exact:true}).click();
+    await availability.getByText('Formation G5',{exact:true}).waitFor({state:'detached',timeout:10000});
+    if(practitionerAbsenceDeleteCalls!==1) throw new Error('practitioner absence delete ACK mismatch');
+    prove(viewport,'settings-practitioner-absence-create-delete',{practitionerAbsencePostCalls,practitionerAbsenceDeleteCalls});
+
+    // Selected practitioner read failure must surface truth; selecting another practitioner recovers.
+    failPractitionerSettingsId=8;
+    await availability.getByRole('button',{name:/Dr Associate/i}).click();
+    await availability.getByText('Impossible de charger les disponibilités de ce praticien.',{exact:true}).waitFor({state:'visible',timeout:10000});
+    failPractitionerSettingsId=null;
+    await availability.getByRole('button',{name:/Dr Owner/i}).click();
+    await availability.getByText(/Dr Owner suit les horaires du cabinet/i).waitFor({state:'visible',timeout:10000});
+    await availability.getByRole('button',{name:/Dr Associate/i}).click();
+    await availability.getByText(/Dr Associate suit les horaires du cabinet/i).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'settings-practitioner-availability-read-recovery');
   }
   await page.unroute('**/api/agenda/settings');
   await page.unroute('**/api/agenda/exceptions');
   await page.unroute('**/api/agenda/exceptions/*');
+  await page.unroute('**/api/agenda/practitioners*');
 
   // Catalog — deep contract through the real catalog store endpoints and refetch.
   let catalogSpecialties=[{
