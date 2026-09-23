@@ -47,6 +47,13 @@ describe('PC-09 teleconsultation truth contract', () => {
     expect(transport).toContain("'teleconsult.failed'");
   });
 
+  it('fails closed media when session control is lost', () => {
+    expect(patient).toContain("cleanupPeer();");
+    expect(patient).toContain("Synchronisation de la consultation impossible.");
+    expect(staff).toContain("stopPeer();");
+    expect(staff).toContain("Connexion au patient interrompue.");
+  });
+
   it('ends tracks and peer connection explicitly', () => {
     expect(patient).toContain("track.stop()");
     expect(patient).toContain("peerRef.current?.close()");
