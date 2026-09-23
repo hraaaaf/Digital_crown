@@ -120,6 +120,12 @@ def mark_connected(row: PatientCompanionTeleconsultSession, actor: str) -> None:
         row.state = "NEGOTIATING"
 
 
+def purge_signals(db: Session, row: PatientCompanionTeleconsultSession) -> None:
+    db.query(PatientCompanionTeleconsultSignal).filter(
+        PatientCompanionTeleconsultSignal.session_id == row.id,
+    ).delete(synchronize_session=False)
+
+
 def end_session(row: PatientCompanionTeleconsultSession, actor: str) -> None:
     if row.state in PC09_TERMINAL_STATES:
         return
@@ -348,6 +354,7 @@ def handle_teleconsult_end(
     if row is None:
         return _reject("SESSION_NOT_FOUND")
     end_session(row, "PATIENT")
+    purge_signals(db, row)
     db.flush()
     return RemoteDomainResult(status="ACCEPTED", response={"code": "SESSION_ENDED", "session": serialize_session(row)})
 
