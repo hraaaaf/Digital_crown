@@ -8,7 +8,8 @@ if(!login.ok()) throw new Error('G7 login failed');
 const tokens=await login.json();
 const superEmail=process.env.T2_SUPERADMIN_EMAIL;
 if(!superEmail) throw new Error('T2_SUPERADMIN_EMAIL required for G7 partner admin');
-const superLogin=await api.post('/api/auth/login',{form:{username:superEmail,password}});
+const superApi=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+const superLogin=await superApi.post('/api/auth/login',{form:{username:superEmail,password}});
 if(!superLogin.ok()) throw new Error('G7 superadmin login failed');
 const superTokens=await superLogin.json();
 
