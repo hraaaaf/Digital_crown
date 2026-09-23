@@ -50,13 +50,13 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   }, [user]);
 
   const [isAiActive, setIsAiActive] = useState(false);
-  const [tipsEnabled, setTipsEnabled] = useState(localStorage.getItem('clinical_tips_enabled') !== 'false');
+  const [aiActivityAnimationEnabled, setAiActivityAnimationEnabled] = useState(localStorage.getItem('clinical_tips_enabled') !== 'false');
   
   // CTO Rigor: Global event listener for AI animation & Settings changes
   useEffect(() => {
     const handleAiStart = () => setIsAiActive(true);
     const handleAiEnd = () => setIsAiActive(false);
-    const handlePrefChange = () => setTipsEnabled(localStorage.getItem('clinical_tips_enabled') !== 'false');
+    const handlePrefChange = () => setAiActivityAnimationEnabled(localStorage.getItem('clinical_tips_enabled') !== 'false');
     
     window.addEventListener('ai-generation-start', handleAiStart);
     window.addEventListener('ai-generation-end', handleAiEnd);
@@ -111,7 +111,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
               alt="Digital Crown" 
               className={cn(
                 "h-auto w-full max-w-[190px] object-contain transition-all duration-700", 
-                (isAiActive && tipsEnabled) && "animate-logo-pulse-light"
+                (isAiActive && aiActivityAnimationEnabled) && "animate-logo-pulse-light"
               )} 
               style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
             />
