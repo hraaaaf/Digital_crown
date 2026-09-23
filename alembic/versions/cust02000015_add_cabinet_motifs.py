@@ -1,14 +1,14 @@
 """CUST-02 cabinet consultation motifs.
 
 Revision ID: cust02000015
-Revises: pc070000014
+Revises: pc080000015
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 revision = "cust02000015"
-down_revision = "pc070000014"
+down_revision = "pc080000015"
 branch_labels = None
 depends_on = None
 
