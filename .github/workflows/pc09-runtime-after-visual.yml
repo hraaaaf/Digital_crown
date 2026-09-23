@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/pc09-runtime-after-visual.yml"
       - "frontend/scripts/capture-pc09-runtime-after.mjs"
+      - "backend/config.py"
       - "backend/models_patient_companion.py"
       - "backend/routers/patient_companion_teleconsultation.py"
       - "backend/services/patient_companion_teleconsultation.py"
