@@ -73,6 +73,7 @@ for(const viewport of viewports){
   await row.getByTitle('Supprimer').click();
   const dialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
   await dialog.waitFor({state:'visible',timeout:5000});
+  await page.waitForFunction(()=>!!document.activeElement?.closest('[role="dialog"]'),undefined,{timeout:5000});
   const activeInside=await page.evaluate(()=>!!document.activeElement?.closest('[role="dialog"]'));
   if(!activeInside) throw new Error('delete dialog did not own focus');
   prove(viewport,'dialog-focus-entry');
