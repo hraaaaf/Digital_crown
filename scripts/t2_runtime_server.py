@@ -74,6 +74,34 @@ with database.SessionLocal() as db:
         db.commit()
         db.refresh(user)
 
+    restricted = db.query(models.User).filter(models.User.email == "t2-restricted@cabinet.ma").first()
+    if not restricted:
+        restricted = models.User(
+            email="t2-restricted@cabinet.ma",
+            hashed_password=get_password_hash(runtime_password),
+            role=models.UserRole.SECRETAIRE,
+            nom_complet="T2 Restricted Secretary",
+            is_active=True,
+            is_licensed=True,
+            approval_status=models.ApprovalStatus.APPROVED.value,
+            employer_id=user.id,
+            permissions={
+                "agenda": True,
+                "patients": False,
+                "prescriptions": False,
+                "accounting": False,
+                "payments": False,
+                "clinical": False,
+                "panoramic": False,
+                "cephalo": False,
+                "settings": False,
+                "admin": False,
+            },
+        )
+        db.add(restricted)
+        db.commit()
+        db.refresh(restricted)
+
     superadmin_email = os.environ.get("T2_SUPERADMIN_EMAIL", "").strip().lower()
     if superadmin_email:
         superadmin = db.query(models.User).filter(models.User.email == superadmin_email).first()
