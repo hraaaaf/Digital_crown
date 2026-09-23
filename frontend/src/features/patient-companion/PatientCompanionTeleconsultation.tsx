@@ -15,6 +15,25 @@ type Props = {
 
 const terminalStates = new Set(['ENDED', 'REJECTED', 'EXPIRED', 'FAILED']);
 
+const waitForIceGathering = (peer: RTCPeerConnection, timeoutMs = 5000) => new Promise<void>(resolve => {
+  if (peer.iceGatheringState === 'complete') {
+    resolve();
+    return;
+  }
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    peer.removeEventListener('icegatheringstatechange', onChange);
+    resolve();
+  };
+  const onChange = () => {
+    if (peer.iceGatheringState === 'complete') finish();
+  };
+  peer.addEventListener('icegatheringstatechange', onChange);
+  window.setTimeout(finish, timeoutMs);
+});
+
 function sessionLabel(state: TeleconsultSession['state']): string {
   if (state === 'CONNECTED') return 'En consultation';
   if (state === 'NEGOTIATING') return 'Connexion en cours';
@@ -40,6 +59,8 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   const cursorRef = useRef<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const connectedReportedRef = useRef(false);
+  const refreshBusyRef = useRef(false);
+  const syncBusyRef = useRef(false);
 
   const setCurrent = (session: TeleconsultSession | null) => {
     sessionRef.current = session;
@@ -75,7 +96,8 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   }, [mediaStarted]);
 
   const refresh = useCallback(async () => {
-    if (!enabled || !pairing.remoteTransport) return;
+    if (!enabled || !pairing.remoteTransport || refreshBusyRef.current) return;
+    refreshBusyRef.current = true;
     try {
       const items = await PatientCompanionTeleconsultTransport.list(pairing);
       setSessions(items);
@@ -85,6 +107,8 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Téléconsultation indisponible.');
+    } finally {
+      refreshBusyRef.current = false;
     }
   }, [active, enabled, pairing]);
 
@@ -107,7 +131,8 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
 
   const syncActive = useCallback(async () => {
     const current = sessionRef.current;
-    if (!current || !peerRef.current) return;
+    if (!current || !peerRef.current || syncBusyRef.current) return;
+    syncBusyRef.current = true;
     try {
       const result = await PatientCompanionTeleconsultTransport.sync(
         pairing,
@@ -122,6 +147,8 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
       if (terminalStates.has(result.session.state)) cleanupPeer();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Synchronisation de la consultation impossible.');
+    } finally {
+      syncBusyRef.current = false;
     }
   }, [cleanupPeer, pairing, processSignal]);
 
@@ -153,16 +180,6 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
       };
 
-      peer.onicecandidate = event => {
-        if (!event.candidate) return;
-        void PatientCompanionTeleconsultTransport.signal(
-          pairing,
-          session.session_id,
-          'ice',
-          event.candidate.toJSON() as unknown as Record<string, unknown>,
-        ).catch(() => setMessage('Connexion réseau instable.'));
-      };
-
       peer.onconnectionstatechange = () => {
         if (peer.connectionState === 'connected' && !connectedReportedRef.current) {
           connectedReportedRef.current = true;
@@ -176,15 +193,18 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
 
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
+      await waitForIceGathering(peer);
+      const localDescription = peer.localDescription;
+      if (!localDescription) throw new Error('Préparation de la connexion impossible.');
       await PatientCompanionTeleconsultTransport.signal(
         pairing,
         session.session_id,
         'offer',
-        { type: offer.type, sdp: offer.sdp || '' },
+        { type: localDescription.type, sdp: localDescription.sdp || '' },
       );
 
       setMediaStarted(true);
-      pollTimerRef.current = window.setInterval(() => void syncActive(), 1000);
+      pollTimerRef.current = window.setInterval(() => void syncActive(), 1500);
       setMessage('Connexion au cabinet en cours…');
     } catch (error) {
       cleanupPeer();
