@@ -295,3 +295,15 @@ def test_pc09_signaling_is_purged_after_terminal_session(db, dentiste):
     assert db.query(PatientCompanionTeleconsultSignal).filter(
         PatientCompanionTeleconsultSignal.session_id == row.id
     ).count() == 0
+
+
+def test_pc09_patient_only_join_truthfully_waits_for_staff(db, dentiste):
+    patient = _patient(db, dentiste, "WAITSTAFF")
+    _identity, access = _access(db, dentiste, patient)
+    row = _session(db, dentiste, patient, access)
+    row.staff_joined_at = None
+
+    mark_joined(row, "PATIENT")
+    assert row.state == "WAITING_STAFF"
+    assert row.patient_joined_at is not None
+    assert row.staff_joined_at is None
