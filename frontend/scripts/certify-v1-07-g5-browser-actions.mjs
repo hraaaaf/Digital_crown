@@ -296,6 +296,53 @@ for(const viewport of viewports){
   await page.getByText('Tableau de bord',{exact:true}).first().waitFor({state:'visible',timeout:10000});
   prove(viewport,'settings-branding-preview-consumer');
 
+  // Real document preview controls: generate -> stale -> refresh -> open.
+  await page.getByRole('button',{name:'Document',exact:true}).click();
+  let previewPostCalls=0,previewPdfCalls=0;
+  await page.route('**/api/documents/sample-preview',route=>{
+    previewPostCalls+=1;
+    return route.fulfill({status:200,contentType:'application/json',body:'{"pdf_url":"/g5-preview.pdf"}'});
+  });
+  await page.route('**/g5-preview.pdf',route=>{
+    previewPdfCalls+=1;
+    return route.fulfill({status:200,contentType:'application/pdf',body:Buffer.from('%PDF-1.4\n%%EOF')});
+  });
+  await page.getByRole('button',{name:'Générer le rendu PDF réel',exact:true}).click();
+  await page.getByText('Rendu à jour',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(previewPostCalls!==1 || previewPdfCalls!==1) throw new Error('branding real PDF preview generation mismatch');
+  prove(viewport,'settings-branding-pdf-preview-generate',{previewPostCalls,previewPdfCalls});
+
+  const previewPosition=page.getByRole('slider',{name:'Position verticale du contenu'});
+  const previewOriginalPosition=await previewPosition.inputValue();
+  const previewChanged=previewOriginalPosition==='0.1'?'0.2':'0.1';
+  await previewPosition.evaluate((el,value)=>{
+    const input=el;
+    input.value=value;
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },previewChanged);
+  await page.getByText('À actualiser',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByRole('button',{name:'Actualiser le rendu',exact:true}).click();
+  await page.getByText('Rendu à jour',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(previewPostCalls!==2 || previewPdfCalls!==2) throw new Error('branding real PDF preview refresh mismatch');
+  prove(viewport,'settings-branding-pdf-preview-refresh',{previewPostCalls,previewPdfCalls});
+
+  const popupPromise=page.waitForEvent('popup',{timeout:5000}).catch(()=>null);
+  await page.getByRole('button',{name:'Ouvrir',exact:true}).click();
+  const popup=await popupPromise;
+  if(!popup) throw new Error('branding PDF Open did not create a browser target');
+  await popup.close();
+  prove(viewport,'settings-branding-pdf-preview-open');
+
+  await previewPosition.evaluate((el,value)=>{
+    const input=el;
+    input.value=value;
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  },previewOriginalPosition);
+  await page.unroute('**/api/documents/sample-preview');
+  await page.unroute('**/g5-preview.pdf');
+
   // Ambiance modal close/cancel semantics before applying a preset.
   await page.getByRole('button',{name:/Ambiance active/i}).click();
   await page.getByRole('heading',{name:/ambiances cohérentes, prêtes à l'emploi/i}).waitFor({state:'visible',timeout:5000});
