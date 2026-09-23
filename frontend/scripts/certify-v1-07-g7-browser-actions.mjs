@@ -12,6 +12,9 @@ const superApi=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const superLogin=await superApi.post('/api/auth/login',{form:{username:superEmail,password}});
 if(!superLogin.ok()) throw new Error('G7 superadmin login failed');
 const superTokens=await superLogin.json();
+const superMe=await superApi.get('/api/auth/me',{headers:{Authorization:'Bearer '+superTokens.access_token}});
+if(!superMe.ok()) throw new Error('G7 superadmin /auth/me failed');
+const superUser=await superMe.json();
 
 const browser=await chromium.launch({headless:true});
 const viewports=[{width:390,height:844},{width:1280,height:900}];
@@ -341,7 +344,8 @@ for(const viewport of viewports){
     localStorage.setItem('token',v.access);
     localStorage.setItem('refresh_token',v.refresh||'');
     localStorage.setItem('appMode','prod');
-  },{access:superTokens.access_token,refresh:superTokens.refresh_token});
+    localStorage.setItem('auth-storage',JSON.stringify({state:{user:v.user,isAuthenticated:true},version:0}));
+  },{access:superTokens.access_token,refresh:superTokens.refresh_token,user:superUser});
 
   let adminSuppliers=[{
     id:11,supplierKey:'atlas',name:'Atlas Dental',badge:'Local',description:'Supplier',promise:'24h',
