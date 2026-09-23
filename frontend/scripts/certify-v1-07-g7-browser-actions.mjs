@@ -24,67 +24,181 @@ for(const viewport of viewports){
   const page=await ctx.newPage();
   await seed(page);
 
-  // STOCK — truthful read + filters + destructive refusal/non-mutation.
+  // STOCK — read truth, search/category, CRUD/quantity success + refusal + non-mutation.
+  let stockItems=[{
+    id:1,nom:'Gants nitrile',categorie:'CONSOMMABLE',quantite:10,seuil_alerte:5,unite:'boîte',
+    prix_unitaire:30,fournisseur:'Supplier',notes:'Taille M',alerte:false
+  }];
+  let nextStockId=2;
+  let readFailuresRemaining=1;
+  let failNextCreate=false,failNextPatch=false,failNextDelete=false;
+  let createCalls=0,patchCalls=0,deleteCalls=0;
+
   await page.route('**/api/stock/items',async route=>{
-    const m=route.request().method();
-    if(m==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
-      id:1,nom:'Gants nitrile',categorie:'CONSOMMABLE',quantite:10,seuil_alerte:5,unite:'boîte',
-      prix_unitaire:30,fournisseur:'Supplier',notes:'Taille M',alerte:false
-    }])});
-    if(m==='POST') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Article refusé"}'});
+    const req=route.request();
+    if(req.method()==='GET'){
+      if(readFailuresRemaining>0){
+        readFailuresRemaining-=1;
+        return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Stock indisponible'})});
+      }
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(stockItems)});
+    }
+    if(req.method()==='POST'){
+      createCalls+=1;
+      if(failNextCreate){
+        failNextCreate=false;
+        return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Article refusé'})});
+      }
+      const body=req.postDataJSON();
+      const created={id:nextStockId++,...body,alerte:Number(body.quantite)<=Number(body.seuil_alerte)};
+      stockItems=[...stockItems,created];
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(created)});
+    }
     return route.continue();
   });
-  await page.route('**/api/stock/alerts',route=>route.fulfill({status:200,contentType:'application/json',body:'{"count":0,"items":[]}'}));
-  await page.route('**/api/stock/items/1',async route=>{
-    const m=route.request().method();
-    if(m==='DELETE') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Suppression refusée"}'});
-    if(m==='PATCH') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Quantité refusée"}'});
+  await page.route('**/api/stock/items/*',async route=>{
+    const req=route.request();
+    const id=Number(new URL(req.url()).pathname.split('/').pop());
+    if(req.method()==='PATCH'){
+      patchCalls+=1;
+      if(failNextPatch){
+        failNextPatch=false;
+        return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Mutation stock refusée'})});
+      }
+      const body=req.postDataJSON();
+      stockItems=stockItems.map(item=>item.id===id?{...item,...body,alerte:Number(body.quantite??item.quantite)<=Number(body.seuil_alerte??item.seuil_alerte)}:item);
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(stockItems.find(item=>item.id===id))});
+    }
+    if(req.method()==='DELETE'){
+      deleteCalls+=1;
+      if(failNextDelete){
+        failNextDelete=false;
+        return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Suppression refusée'})});
+      }
+      stockItems=stockItems.filter(item=>item.id!==id);
+      return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+    }
     return route.continue();
+  });
+  await page.route('**/api/stock/alerts',route=>{
+    const alertItems=stockItems.filter(item=>Number(item.quantite)<=Number(item.seuil_alerte));
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({count:alertItems.length,items:alertItems})});
   });
 
   await page.goto('http://127.0.0.1:5173/stock',{waitUntil:'networkidle',timeout:90000});
+  await page.getByText('Stock indisponible',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(await page.getByText('Aucun article. Commencez par en ajouter un.',{exact:true}).count()) throw new Error('stock read failure rendered false empty state');
+  await page.getByRole('button',{name:'Réessayer',exact:true}).click();
   await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:10000});
+  prove(viewport,'stock-read-failure-retry');
+
   const search=page.getByPlaceholder('Rechercher…');
   await search.fill('absent');
   await page.getByText('Aucun résultat pour cette recherche.',{exact:true}).waitFor({state:'visible',timeout:5000});
   await search.fill('');
-  prove(viewport,'stock-search-truth');
+  await page.getByRole('button',{name:'Matériaux',exact:true}).click();
+  await page.getByText('Aucun résultat pour cette recherche.',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByRole('button',{name:'Tous',exact:true}).click();
+  await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'stock-search-category-filter-restore');
 
-  const row=page.getByText('Gants nitrile',{exact:true}).locator('xpath=ancestor::tr');
-  const buttons=row.locator('button');
-  if(await buttons.count()>=2){
-    await buttons.nth(1).click();
-    await page.getByText('Action stock non enregistrée',{exact:true}).waitFor({state:'visible',timeout:5000});
-    await page.getByText('Quantité refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
-    prove(viewport,'stock-quantity-refusal');
-  }
+  // Quantity ACK then refusal preserves persisted/UI state.
+  await page.getByRole('button',{name:'Augmenter la quantité de Gants nitrile',exact:true}).click();
+  await page.waitForFunction(()=>document.body.innerText.includes('11 boîte'));
+  if(stockItems.find(i=>i.id===1)?.quantite!==11) throw new Error('stock quantity ACK not persisted in fixture');
+  prove(viewport,'stock-quantity-success',{patchCalls});
 
-  const del=row.getByTitle('Supprimer');
-  if(await del.count()){
-    await del.click();
-    const dialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
-    await dialog.waitFor({state:'visible',timeout:5000});
-    await page.getByRole('button',{name:'Supprimer définitivement',exact:true}).click();
-    await dialog.getByText('Suppression refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
-    if(!(await page.getByText('Gants nitrile',{exact:true}).count())) throw new Error('stock item disappeared after refused delete');
-    prove(viewport,'stock-delete-refusal-non-mutation');
-    const cancel=dialog.getByRole('button',{name:'Annuler',exact:true});
-    if(await cancel.count()) await cancel.click();
-  }
+  failNextPatch=true;
+  await page.getByRole('button',{name:'Augmenter la quantité de Gants nitrile',exact:true}).click();
+  await page.getByText('Mutation stock refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
+  if(stockItems.find(i=>i.id===1)?.quantite!==11) throw new Error('stock quantity refusal mutated state');
+  await page.getByText(/11 boîte/).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'stock-quantity-refusal-non-mutation',{patchCalls});
 
-  const add=page.getByRole('button',{name:/Ajouter un article/i});
-  if(await add.count()){
-    await add.click();
-    const modal=page.getByText('Nouvel article',{exact:true}).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-    await modal.getByPlaceholder('Ex: Gants nitrile S').fill('Masques FFP2');
-    await modal.getByRole('button',{name:'Ajouter',exact:true}).click();
-    await modal.getByText('Article refusé',{exact:true}).waitFor({state:'visible',timeout:5000});
-    prove(viewport,'stock-add-refusal-preserves-modal');
-  }
+  // Add success.
+  await page.getByRole('button',{name:/Ajouter un article/i}).click();
+  let stockDialog=page.getByRole('dialog',{name:'Nouvel article'});
+  await stockDialog.getByPlaceholder('Ex: Gants nitrile S').fill('Masques FFP2');
+  await stockDialog.locator('select').selectOption('MATERIAU');
+  await stockDialog.locator('input[type="number"]').nth(0).fill('7');
+  await stockDialog.locator('input[type="number"]').nth(1).fill('3');
+  await stockDialog.getByRole('button',{name:'Ajouter',exact:true}).click();
+  await stockDialog.waitFor({state:'detached',timeout:10000});
+  await page.getByText('Masques FFP2',{exact:true}).waitFor({state:'visible',timeout:10000});
+  const createdStock=stockItems.find(i=>i.nom==='Masques FFP2');
+  if(!createdStock || createCalls<1) throw new Error('stock add ACK mismatch');
+  prove(viewport,'stock-add-success',{id:createdStock.id});
+
+  // Add refusal keeps modal and does not append item.
+  failNextCreate=true;
+  const stockCountBeforeRefusedAdd=stockItems.length;
+  await page.getByRole('button',{name:/Ajouter un article/i}).click();
+  stockDialog=page.getByRole('dialog',{name:'Nouvel article'});
+  await stockDialog.getByPlaceholder('Ex: Gants nitrile S').fill('Article refusé browser');
+  await stockDialog.getByRole('button',{name:'Ajouter',exact:true}).click();
+  await stockDialog.getByText('Article refusé',{exact:true}).waitFor({state:'visible',timeout:5000});
+  if(!(await stockDialog.isVisible()) || stockItems.length!==stockCountBeforeRefusedAdd) throw new Error('stock add refusal contract mismatch');
+  prove(viewport,'stock-add-refusal-preserves-modal');
+  await stockDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+
+  // Edit success then refusal/non-mutation.
+  let createdRow=page.getByText('Masques FFP2',{exact:true}).locator('xpath=ancestor::tr');
+  await createdRow.hover();
+  await createdRow.getByTitle('Modifier').click();
+  stockDialog=page.getByRole('dialog',{name:'Modifier l’article'});
+  const stockName=stockDialog.getByPlaceholder('Ex: Gants nitrile S');
+  await stockName.fill('Masques FFP3');
+  await stockDialog.getByRole('button',{name:'Mettre à jour',exact:true}).click();
+  await stockDialog.waitFor({state:'detached',timeout:10000});
+  await page.getByText('Masques FFP3',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(stockItems.find(i=>i.id===createdStock.id)?.nom!=='Masques FFP3') throw new Error('stock edit ACK mismatch');
+  prove(viewport,'stock-edit-success');
+
+  createdRow=page.getByText('Masques FFP3',{exact:true}).locator('xpath=ancestor::tr');
+  await createdRow.hover();
+  await createdRow.getByTitle('Modifier').click();
+  stockDialog=page.getByRole('dialog',{name:'Modifier l’article'});
+  failNextPatch=true;
+  await stockDialog.getByPlaceholder('Ex: Gants nitrile S').fill('Masques SHOULD NOT SAVE');
+  await stockDialog.getByRole('button',{name:'Mettre à jour',exact:true}).click();
+  await stockDialog.getByText('Mutation stock refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
+  if(stockItems.find(i=>i.id===createdStock.id)?.nom!=='Masques FFP3') throw new Error('stock edit refusal mutated state');
+  prove(viewport,'stock-edit-refusal-non-mutation');
+  await stockDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+
+  // Delete cancel, refusal, then ACK removal.
+  createdRow=page.getByText('Masques FFP3',{exact:true}).locator('xpath=ancestor::tr');
+  await createdRow.hover();
+  await createdRow.getByTitle('Supprimer').click();
+  let deleteDialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
+  await deleteDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+  if(!stockItems.some(i=>i.id===createdStock.id)) throw new Error('stock delete cancel mutated state');
+  prove(viewport,'stock-delete-cancel-non-mutation');
+
+  createdRow=page.getByText('Masques FFP3',{exact:true}).locator('xpath=ancestor::tr');
+  await createdRow.hover();
+  await createdRow.getByTitle('Supprimer').click();
+  deleteDialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
+  failNextDelete=true;
+  await deleteDialog.getByRole('button',{name:'Supprimer définitivement',exact:true}).click();
+  await deleteDialog.getByText('Suppression refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
+  if(!stockItems.some(i=>i.id===createdStock.id)) throw new Error('stock delete refusal mutated state');
+  prove(viewport,'stock-delete-refusal-non-mutation',{deleteCalls});
+  await deleteDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+
+  createdRow=page.getByText('Masques FFP3',{exact:true}).locator('xpath=ancestor::tr');
+  await createdRow.hover();
+  await createdRow.getByTitle('Supprimer').click();
+  deleteDialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
+  await deleteDialog.getByRole('button',{name:'Supprimer définitivement',exact:true}).click();
+  await deleteDialog.waitFor({state:'detached',timeout:10000});
+  await page.getByText('Masques FFP3',{exact:true}).waitFor({state:'detached',timeout:10000});
+  if(stockItems.some(i=>i.id===createdStock.id)) throw new Error('stock delete ACK did not remove item');
+  prove(viewport,'stock-delete-success',{deleteCalls});
 
   await page.unroute('**/api/stock/items');
+  await page.unroute('**/api/stock/items/*');
   await page.unroute('**/api/stock/alerts');
-  await page.unroute('**/api/stock/items/1');
 
   // MARKETPLACE — real controller with deterministic HTTP fixture.
   await page.route('**/api/partner-orders/meta',route=>route.fulfill({status:200,contentType:'application/json',body:'{"strategyPresets":[]}'}));
