@@ -21,6 +21,7 @@ from backend.services.patient_companion_teleconsultation import (
     handle_teleconsult_sync,
     mark_connected,
     mark_joined,
+    purge_signals,
     sync_signals,
 )
 from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
@@ -272,3 +273,25 @@ def test_pc09_max_signal_batch_fits_real_jose_relay_envelope():
         recipient_encryption_kid=patient_enc_public["kid"],
     )
     assert len(blob.encode("utf-8")) < RELAY_MAX_BLOB_BYTES
+
+
+def test_pc09_signaling_is_purged_after_terminal_session(db, dentiste):
+    patient = _patient(db, dentiste, "PURGE")
+    _identity, access = _access(db, dentiste, patient)
+    row = _session(db, dentiste, patient, access)
+    mark_joined(row, "PATIENT")
+    add_signal(
+        db, row,
+        sender_kind="PATIENT",
+        sender_user_id=None,
+        client_signal_id=str(uuid.uuid4()),
+        signal_type="offer",
+        payload={"type": "offer", "sdp": "v=0"},
+    )
+    assert db.query(PatientCompanionTeleconsultSignal).filter(
+        PatientCompanionTeleconsultSignal.session_id == row.id
+    ).count() == 1
+    purge_signals(db, row)
+    assert db.query(PatientCompanionTeleconsultSignal).filter(
+        PatientCompanionTeleconsultSignal.session_id == row.id
+    ).count() == 0
