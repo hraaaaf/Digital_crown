@@ -58,7 +58,7 @@ for(const viewport of viewports){
   })}));
   await page.route('**/api/public/activate-trial',route=>route.fulfill({status:400,contentType:'application/json',body:'{"detail":"Code déjà utilisé."}'}));
   await page.goto('http://127.0.0.1:5173/activate?code=DC-BROWSER',{waitUntil:'networkidle',timeout:90000});
-  await page.getByDisplayValue('invite@example.com').waitFor({state:'visible',timeout:5000});
+  await page.locator('input[value="invite@example.com"]').waitFor({state:'visible',timeout:5000});
   await page.getByPlaceholder('8 caractères minimum').fill('Secret123!');
   const trialChecks=page.getByRole('checkbox');
   await trialChecks.nth(0).check();

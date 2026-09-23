@@ -45,7 +45,7 @@ for(const viewport of viewports){
     const prenom=page.getByPlaceholder('Prénom');
     if(await prenom.count()){
       await prenom.fill('Sara');
-      await page.getByPlaceholder('Nom').fill('BENALI');
+      await page.getByPlaceholder('Nom',{exact:true}).fill('BENALI');
       await page.getByPlaceholder('Motif de la visite').fill('Contrôle');
       await page.getByRole('button',{name:/Créer demande/i}).click();
       await page.getByText('Créneau indisponible',{exact:true}).waitFor({state:'visible',timeout:5000});
