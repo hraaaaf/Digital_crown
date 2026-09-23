@@ -148,6 +148,7 @@ describe('StockPage G7 interactive matrix', () => {
     renderStock();
     const row = (await screen.findByText('Gants nitrile')).closest('tr')!;
     const opener = within(row).getByTitle('Supprimer');
+    opener.focus();
     fireEvent.click(opener);
 
     const dialog = screen.getByRole('dialog', { name: 'Supprimer cet article ?' });
