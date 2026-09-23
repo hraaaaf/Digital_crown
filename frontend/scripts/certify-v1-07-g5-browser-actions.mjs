@@ -273,6 +273,18 @@ for(const viewport of viewports){
   await page.getByText('Tableau de bord',{exact:true}).first().waitFor({state:'visible',timeout:10000});
   prove(viewport,'settings-branding-preview-consumer');
 
+  // Ambiance modal close/cancel semantics before applying a preset.
+  await page.getByRole('button',{name:/Ambiance active/i}).click();
+  await page.getByRole('heading',{name:/ambiances cohérentes, prêtes à l'emploi/i}).waitFor({state:'visible',timeout:5000});
+  await page.getByRole('button',{name:'Fermer les ambiances',exact:true}).click();
+  await page.getByRole('heading',{name:/ambiances cohérentes, prêtes à l'emploi/i}).waitFor({state:'detached',timeout:5000});
+  prove(viewport,'settings-branding-ambiance-close');
+
+  await page.getByRole('button',{name:/Ambiance active/i}).click();
+  await page.getByRole('button',{name:'Annuler',exact:true}).click();
+  await page.getByRole('heading',{name:/ambiances cohérentes, prêtes à l'emploi/i}).waitFor({state:'detached',timeout:5000});
+  prove(viewport,'settings-branding-ambiance-cancel');
+
   // Apply Swiss preset -> shared save -> backend truth.
   await page.getByRole('button',{name:/Ambiance active/i}).click();
   await page.getByRole('button',{name:/Swiss Clinic \(Ligne Claire\)/i}).click();
