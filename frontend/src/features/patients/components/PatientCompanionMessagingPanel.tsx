@@ -90,9 +90,9 @@ export const PatientCompanionMessagingPanel = ({ patientId }: { patientId: numbe
     <section data-pc08-staff-messaging className="rounded-2xl sm:rounded-[1.75rem] border border-border-main bg-card-bg shadow-elite p-4 sm:p-5 md:p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-primary"><ShieldCheck size={18} /><span className="text-[10px] font-black uppercase tracking-[0.16em]">Canal chiffré</span></div>
-          <h3 className="mt-1 text-lg sm:text-xl font-black text-main">Messages sécurisés</h3>
-          <p className="mt-1 text-xs sm:text-sm font-medium text-text-muted">Messagerie asynchrone. « Lu » apparaît uniquement après un accusé explicite.</p>
+          <div className="flex items-center gap-2 text-primary"><ShieldCheck size={18} /></div>
+          <h3 className="mt-1 text-lg sm:text-xl font-black text-main">Messages</h3>
+          <p className="mt-1 text-xs sm:text-sm font-medium text-text-muted">Échange sécurisé avec le patient.</p>
         </div>
         <button type="button" aria-label="Actualiser les messages" onClick={() => void load(selected || undefined)} className="min-h-11 min-w-11 rounded-xl border border-border-main inline-flex items-center justify-center text-text-muted"><RefreshCcw size={16} /></button>
       </div>
