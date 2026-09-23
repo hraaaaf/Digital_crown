@@ -143,7 +143,7 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const handleSetPlan = async (userId: number, plan: string) => {
     try {
-      await api.patch(`/superadmin/clients/${userId}/plan`, null, { params: { plan } });
+      await api.patch(`/superadmin/clients/${userId}/plan`, {}, { params: { plan } });
       toast.success(`Pack ${plan} attribué.`);
       fetchClients();
     } catch (err: any) {
