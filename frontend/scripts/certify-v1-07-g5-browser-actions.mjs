@@ -364,14 +364,167 @@ for(const viewport of viewports){
     await page.unroute('**/api/admin/restore/preflight');
   }
 
-  // Team: certify that the surface is reachable and dynamic controls join denominator.
+  // Team — deep browser contract with deterministic isolated API state.
   const team=page.getByRole('button',{name:'Mon Équipe',exact:true});
   if(await team.count()){
+    let teamMembers=[
+      {id:11,email:'active@example.com',role:'SECRETAIRE',nom_complet:'Active User',telephone_mobile:null,is_active:true,approval_status:'approved',approval_note:null,created_at:null,permissions:{agenda:true,patients:true}},
+      {id:12,email:'inactive@example.com',role:'SECRETAIRE',nom_complet:'Inactive User',telephone_mobile:null,is_active:false,approval_status:'approved',approval_note:null,created_at:null,permissions:{agenda:true,patients:true}},
+      {id:10,email:'pending-approve@example.com',role:'SECRETAIRE',nom_complet:'Pending Approve',telephone_mobile:null,is_active:false,approval_status:'pending',approval_note:null,created_at:null,permissions:{agenda:true,patients:true}},
+      {id:13,email:'pending-reject@example.com',role:'SECRETAIRE',nom_complet:'Pending Reject',telephone_mobile:null,is_active:false,approval_status:'pending',approval_note:null,created_at:null,permissions:{agenda:true,patients:true}}
+    ];
+    let nextTeamId=20;
+    let teamCreateCalls=0,approveCalls=0,rejectCalls=0,permissionCalls=0,statusCalls=0,deleteCalls=0;
+    let failNextStatus=false;
+
+    await page.route('**/api/team**',async route=>{
+      const req=route.request();
+      const method=req.method();
+      const url=new URL(req.url());
+      const path=url.pathname;
+      const json=(status,body)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
+
+      if(method==='GET' && path==='/api/team/quota'){
+        const pending=teamMembers.filter(m=>m.approval_status==='pending').length;
+        return json(200,{plan:'ELITE',dentistes_used:1,dentistes_max:null,secretaires_used:teamMembers.length,secretaires_max:null,pending_count:pending,can_add_dentiste:true,can_add_secretaire:true});
+      }
+      if(method==='GET' && path==='/api/team/') return json(200,teamMembers);
+
+      if(method==='POST' && path==='/api/team/'){
+        teamCreateCalls+=1;
+        const body=req.postDataJSON();
+        const member={id:nextTeamId++,...body,is_active:true,approval_status:'approved',approval_note:null,created_at:null};
+        teamMembers=[...teamMembers,member];
+        return json(200,member);
+      }
+
+      let match=path.match(/^\/api\/team\/(\d+)\/approve$/);
+      if(method==='POST' && match){
+        approveCalls+=1;
+        const id=Number(match[1]);
+        teamMembers=teamMembers.map(m=>m.id===id?{...m,approval_status:'approved',is_active:true}:m);
+        return json(200,{});
+      }
+      match=path.match(/^\/api\/team\/(\d+)\/reject$/);
+      if(method==='POST' && match){
+        rejectCalls+=1;
+        const id=Number(match[1]);
+        teamMembers=teamMembers.map(m=>m.id===id?{...m,approval_status:'rejected',is_active:false}:m);
+        return json(200,{});
+      }
+      match=path.match(/^\/api\/team\/(\d+)$/);
+      if(method==='PUT' && match){
+        const id=Number(match[1]);
+        const body=req.postDataJSON();
+        if(Object.prototype.hasOwnProperty.call(body,'permissions')){
+          permissionCalls+=1;
+          teamMembers=teamMembers.map(m=>m.id===id?{...m,permissions:body.permissions}:m);
+          return json(200,{});
+        }
+        if(Object.prototype.hasOwnProperty.call(body,'is_active')){
+          statusCalls+=1;
+          if(failNextStatus){
+            failNextStatus=false;
+            return json(503,{detail:'forced team status refusal'});
+          }
+          teamMembers=teamMembers.map(m=>m.id===id?{...m,is_active:body.is_active}:m);
+          return json(200,{});
+        }
+      }
+      if(method==='DELETE' && match){
+        deleteCalls+=1;
+        const id=Number(match[1]);
+        teamMembers=teamMembers.filter(m=>m.id!==id);
+        return json(200,{});
+      }
+      return json(500,{detail:'unexpected G5 team request '+method+' '+path});
+    });
+
     await team.click();
-    await page.waitForTimeout(300);
-    const dynamicControls=await page.locator('button:visible,input:visible,select:visible').count();
-    if(dynamicControls===0) throw new Error('Team surface exposes zero controls');
-    prove(viewport,'settings-team-surface-dynamic-controls',{dynamicControls});
+    await page.getByText('Active User',{exact:true}).waitFor({state:'visible',timeout:10000});
+
+    // Create
+    await page.getByRole('button',{name:/Ajouter un membre/i}).click();
+    await page.getByPlaceholder('Ex: Fatima Zahra').fill('Browser New Member');
+    await page.getByPlaceholder('assistante@cabinet.com').fill('browser-new@example.com');
+    await page.getByPlaceholder('••••••••').fill('TestPass123!');
+    await page.getByRole('button',{name:'Créer le compte',exact:true}).click();
+    await page.getByText('Browser New Member',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(teamCreateCalls!==1) throw new Error('team create ACK count mismatch');
+    prove(viewport,'settings-team-create',{teamCreateCalls});
+
+    const pendingCard=name=>page.getByText(name,{exact:true}).locator('xpath=ancestor::div[.//button[normalize-space()="Valider"]][1]');
+    const memberCard=name=>page.getByText(name,{exact:true}).locator('xpath=ancestor::div[.//button[@title="Gérer les permissions"]][1]');
+
+    // Approve pending identity
+    await pendingCard('Pending Approve').getByRole('button',{name:'Valider',exact:true}).click();
+    const approvedCard=memberCard('Pending Approve');
+    await approvedCard.getByText('Actif',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(approveCalls!==1) throw new Error('team approve ACK count mismatch');
+    prove(viewport,'settings-team-approve',{approveCalls});
+
+    // Reject another pending identity with explicit confirmation
+    page.once('dialog',dialog=>dialog.accept());
+    await pendingCard('Pending Reject').getByRole('button',{name:'Refuser',exact:true}).click();
+    const rejectedCard=memberCard('Pending Reject');
+    await rejectedCard.getByText('Refusé',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(rejectCalls!==1) throw new Error('team reject ACK count mismatch');
+    if(await rejectedCard.getByTitle("Suspendre l'accès").count()) throw new Error('rejected identity exposes suspend action');
+    if(await rejectedCard.getByTitle("Réactiver l'accès").count()) throw new Error('rejected identity exposes reactivate action');
+    prove(viewport,'settings-team-reject',{rejectCalls});
+
+    // Permissions
+    let activeCard=memberCard('Active User');
+    await activeCard.hover();
+    await activeCard.getByTitle('Gérer les permissions').click();
+    const permissionsDialog=page.getByText(/Droits d'accès : Active User/).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+    const patientsPermission=permissionsDialog.getByRole('checkbox',{name:/Dossiers Patients/i});
+    const beforePatients=await patientsPermission.isChecked();
+    await patientsPermission.setChecked(!beforePatients);
+    await permissionsDialog.getByRole('button',{name:'Enregistrer',exact:true}).click();
+    await page.getByText(/Permissions de Active User mises à jour/i).waitFor({state:'visible',timeout:10000});
+    if(permissionCalls!==1) throw new Error('team permissions ACK count mismatch');
+    const storedPermissions=teamMembers.find(m=>m.id===11)?.permissions||{};
+    if(storedPermissions.patients===beforePatients) throw new Error('team permissions did not persist');
+    prove(viewport,'settings-team-permissions',{permissionCalls});
+
+    // Refused status mutation must not alter UI state.
+    activeCard=memberCard('Active User');
+    await activeCard.hover();
+    failNextStatus=true;
+    await activeCard.getByTitle("Suspendre l'accès").click();
+    await page.getByText('Erreur lors de la modification du statut.',{exact:true}).waitFor({state:'visible',timeout:10000});
+    activeCard=memberCard('Active User');
+    await activeCard.getByText('Actif',{exact:true}).waitFor({state:'visible',timeout:5000});
+    if(teamMembers.find(m=>m.id===11)?.is_active!==true) throw new Error('team status changed after refused mutation');
+    prove(viewport,'settings-team-status-refusal-non-mutation');
+
+    const closeTeamError=page.getByRole('button',{name:"Fermer l'erreur"});
+    if(await closeTeamError.count()) await closeTeamError.click();
+
+    // Suspend then reactivate after ACK/refetch.
+    activeCard=memberCard('Active User');
+    await activeCard.hover();
+    await activeCard.getByTitle("Suspendre l'accès").click();
+    activeCard=memberCard('Active User');
+    await activeCard.getByText('Suspendu',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await activeCard.hover();
+    await activeCard.getByTitle("Réactiver l'accès").click();
+    activeCard=memberCard('Active User');
+    await activeCard.getByText('Actif',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(statusCalls<3) throw new Error('team status mutation count incomplete');
+    prove(viewport,'settings-team-suspend-reactivate',{statusCalls});
+
+    // Delete the created member with explicit confirmation.
+    const newCard=memberCard('Browser New Member');
+    await newCard.hover();
+    page.once('dialog',dialog=>dialog.accept());
+    await newCard.getByTitle('Supprimer définitivement').click();
+    await page.getByText('Browser New Member',{exact:true}).waitFor({state:'detached',timeout:10000});
+    if(deleteCalls!==1) throw new Error('team delete ACK count mismatch');
+    prove(viewport,'settings-team-delete',{deleteCalls});
+
+    await page.unroute('**/api/team**');
   }
 
   await ctx.close();
