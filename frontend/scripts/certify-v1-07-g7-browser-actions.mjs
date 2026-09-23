@@ -12,6 +12,11 @@ const superApi=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const superLogin=await superApi.post('/api/auth/login',{form:{username:superEmail,password}});
 if(!superLogin.ok()) throw new Error('G7 superadmin login failed');
 const superTokens=await superLogin.json();
+const superHeaders={Authorization:'Bearer '+superTokens.access_token};
+const superMeResponse=await superApi.get('/api/auth/me',{headers:superHeaders});
+if(!superMeResponse.ok()) throw new Error('G7 superadmin /me failed '+superMeResponse.status()+': '+await superMeResponse.text());
+const superProfile=await superMeResponse.json();
+if(superProfile?.is_superadmin!==true) throw new Error('G7 backend did not recognize superadmin fixture');
 
 const browser=await chromium.launch({headless:true});
 const viewports=[{width:390,height:844},{width:1280,height:900}];
@@ -341,7 +346,11 @@ for(const viewport of viewports){
     localStorage.setItem('token',v.access);
     localStorage.setItem('refresh_token',v.refresh||'');
     localStorage.setItem('appMode','prod');
-  },{access:superTokens.access_token,refresh:superTokens.refresh_token});
+    localStorage.setItem('auth-storage',JSON.stringify({
+      state:{user:v.profile,isAuthenticated:true},
+      version:0,
+    }));
+  },{access:superTokens.access_token,refresh:superTokens.refresh_token,profile:superProfile});
 
   let adminSuppliers=[{
     id:11,supplierKey:'atlas',name:'Atlas Dental',badge:'Local',description:'Supplier',promise:'24h',
