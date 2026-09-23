@@ -254,19 +254,113 @@ for(const viewport of viewports){
     }
   }
 
-  // Security/restore: force preflight refusal and ensure prepare/apply never appear.
+  // Security/restore — deep contract: export, compatible preflight, cancel, prepare, exact confirmation, apply/status, refusal.
   const security=page.getByRole('button',{name:'Sécurité & Backup',exact:true});
   if(await security.count()){
     await security.click();
-    await page.route('**/api/admin/restore/preflight',route=>route.fulfill({status:400,contentType:'application/json',body:'{"detail":"Backup corrompu"}'}));
+
+    let exportCalls=0;
+    await page.route('**/api/admin/export-db',route=>{
+      exportCalls+=1;
+      return route.fulfill({
+        status:200,
+        contentType:'application/octet-stream',
+        headers:{'content-disposition':'attachment; filename="clinic.dcbackup"'},
+        body:Buffer.from('backup')
+      });
+    });
+    await page.getByRole('button',{name:/Créer et télécharger la sauvegarde/i}).click();
+    await page.getByText('Sauvegarde chiffrée créée et téléchargée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(exportCalls!==1) throw new Error('verified backup export request count mismatch');
+    prove(viewport,'settings-backup-export',{exportCalls});
+    await page.unroute('**/api/admin/export-db');
+
+    const preflightReady={
+      restore_id:'restore-g5',
+      status:'preflight_ready',
+      original_name:'backup.enc',
+      size_bytes:2048,
+      archive_type:'ENC',
+      backup_created_at:'2026-09-19',
+      compatible:true,
+      restore_database:true,
+      restore_media:false,
+      media_file_count:0,
+      preserved:['media'],
+      warnings:[],
+      errors:[]
+    };
+    const prepared={...preflightReady,status:'prepared',prepared_at:'2026-09-19T12:00:00Z'};
+    const success={...prepared,status:'success',message:'Restauration terminée',smoke_check:'ok',rollback:'not_needed'};
+    let preflightCalls=0,prepareCalls=0,applyCalls=0,statusCalls=0,cancelCalls=0;
+
+    await page.route('**/api/admin/restore/preflight',route=>{
+      preflightCalls+=1;
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(preflightReady)});
+    });
+    await page.route('**/api/admin/restore/restore-g5/prepare',route=>{
+      prepareCalls+=1;
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(prepared)});
+    });
+    await page.route('**/api/admin/restore/restore-g5/apply',route=>{
+      applyCalls+=1;
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...prepared,status:'scheduled'})});
+    });
+    await page.route('**/api/admin/restore/restore-g5/status',route=>{
+      statusCalls+=1;
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(success)});
+    });
+    await page.route('**/api/admin/restore/restore-g5',route=>{
+      if(route.request().method()==='DELETE'){
+        cancelCalls+=1;
+        return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+      }
+      return route.continue();
+    });
+
     const file=page.locator('input[type="file"]').first();
-    if(await file.count()){
-      await file.setInputFiles({name:'bad.enc',mimeType:'application/octet-stream',buffer:Buffer.from('bad')});
-      await page.getByRole('main').getByText('Backup corrompu',{exact:true}).waitFor({state:'visible',timeout:5000});
-      if(await page.getByRole('button',{name:/Préparer la restauration/i}).count()) throw new Error('prepare exposed after refused preflight');
-      if(await page.getByRole('button',{name:/Redémarrer et restaurer/i}).count()) throw new Error('apply exposed after refused preflight');
-      prove(viewport,'settings-restore-preflight-refusal');
-    }
+    await file.setInputFiles({name:'backup.enc',mimeType:'application/octet-stream',buffer:Buffer.from('backup')});
+    await page.getByText('Préflight validé',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(preflightCalls!==1 || prepareCalls!==0 || applyCalls!==0) throw new Error('restore mutated before explicit prepare/apply');
+    prove(viewport,'settings-restore-preflight-compatible',{preflightCalls});
+
+    await page.getByRole('button',{name:/Fermer ce préflight/i}).click();
+    await page.waitForFunction(()=>!document.body.innerText.includes('Préflight validé'));
+    if(cancelCalls!==1 || applyCalls!==0) throw new Error('restore cancel contract mismatch');
+    prove(viewport,'settings-restore-cancel',{cancelCalls});
+
+    await file.setInputFiles({name:'backup.enc',mimeType:'application/octet-stream',buffer:Buffer.from('backup')});
+    await page.getByText('Préflight validé',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByRole('button',{name:/Préparer la restauration/i}).click();
+    const confirmation=page.getByPlaceholder('RESTAURER');
+    await confirmation.waitFor({state:'visible',timeout:10000});
+    if(prepareCalls!==1 || applyCalls!==0) throw new Error('restore prepare gate mismatch');
+
+    await confirmation.fill('restaurer');
+    const apply=page.getByRole('button',{name:/Redémarrer et restaurer/i});
+    if(!(await apply.isDisabled())) throw new Error('restore apply enabled without exact confirmation');
+    if(applyCalls!==0) throw new Error('restore apply called before exact confirmation');
+
+    await confirmation.fill('RESTAURER');
+    if(await apply.isDisabled()) throw new Error('restore apply remained disabled with exact confirmation');
+    await apply.click();
+    await page.getByText('Restauration terminée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(applyCalls!==1 || statusCalls<1) throw new Error('restore apply/status contract mismatch');
+    prove(viewport,'settings-restore-apply-terminal-success',{prepareCalls,applyCalls,statusCalls});
+
+    await page.unroute('**/api/admin/restore/preflight');
+    await page.unroute('**/api/admin/restore/restore-g5/prepare');
+    await page.unroute('**/api/admin/restore/restore-g5/apply');
+    await page.unroute('**/api/admin/restore/restore-g5/status');
+    await page.unroute('**/api/admin/restore/restore-g5');
+
+    await page.getByRole('button',{name:/Fermer ce préflight/i}).click().catch(()=>{});
+    await page.route('**/api/admin/restore/preflight',route=>route.fulfill({status:400,contentType:'application/json',body:'{"detail":"Backup corrompu"}'}));
+    await file.setInputFiles({name:'bad.enc',mimeType:'application/octet-stream',buffer:Buffer.from('bad')});
+    await page.getByRole('main').getByText('Backup corrompu',{exact:true}).waitFor({state:'visible',timeout:5000});
+    if(await page.getByRole('button',{name:/Préparer la restauration/i}).count()) throw new Error('prepare exposed after refused preflight');
+    if(await page.getByRole('button',{name:/Redémarrer et restaurer/i}).count()) throw new Error('apply exposed after refused preflight');
+    prove(viewport,'settings-restore-preflight-refusal');
     await page.unroute('**/api/admin/restore/preflight');
   }
 
