@@ -26,6 +26,8 @@ from backend.services.patient_companion_teleconsultation import (
     build_ice_servers,
     add_signal,
     handle_teleconsult_join,
+    handle_teleconsult_list,
+    handle_teleconsult_reject,
     handle_teleconsult_sync,
     mark_connected,
     mark_joined,
@@ -84,6 +86,60 @@ def _session(db, dentiste, patient, access, *, minutes: int = 60):
     db.add(row)
     db.flush()
     return row
+
+
+
+
+
+def test_pc09_staff_create_starts_created_without_claiming_staff_join(db, dentiste):
+    patient = _patient(db, dentiste, "CREATED")
+    _identity, access = _access(db, dentiste, patient)
+
+    created = staff_create_teleconsultation(
+        patient.id,
+        StaffSessionCreate(access_id=access.public_id, ttl_minutes=60),
+        Response(),
+        db,
+        dentiste,
+    )
+    row = db.query(PatientCompanionTeleconsultSession).filter(
+        PatientCompanionTeleconsultSession.public_id == created["session"]["session_id"]
+    ).one()
+    assert row.state == "CREATED"
+    assert row.staff_joined_at is None
+
+    hidden = handle_teleconsult_list(db, access, {})
+    assert hidden.status == "ACCEPTED"
+    assert hidden.response["items"] == []
+
+    mark_joined(row, "STAFF")
+    visible = handle_teleconsult_list(db, access, {})
+    assert visible.response["items"][0]["session_id"] == row.public_id
+    assert visible.response["items"][0]["state"] == "WAITING_PATIENT"
+
+
+def test_pc09_patient_reject_is_terminal_and_purges_signaling(db, dentiste):
+    patient = _patient(db, dentiste, "REJECT")
+    _identity, access = _access(db, dentiste, patient)
+    row = _session(db, dentiste, patient, access)
+    add_signal(
+        db, row,
+        sender_kind="STAFF",
+        sender_user_id=dentiste.id,
+        client_signal_id=str(uuid.uuid4()),
+        signal_type="offer",
+        payload={"type": "offer", "sdp": "v=0"},
+    )
+
+    result = handle_teleconsult_reject(db, access, {"session_id": row.public_id})
+    assert result.status == "ACCEPTED"
+    assert result.response["code"] == "SESSION_REJECTED"
+    assert row.state == "REJECTED"
+    assert row.ended_by == "PATIENT"
+    assert row.ended_at is not None
+    assert db.query(PatientCompanionTeleconsultSignal).filter(
+        PatientCompanionTeleconsultSignal.session_id == row.id
+    ).count() == 0
 
 
 def test_pc09_connected_requires_both_real_peer_reports(db, dentiste):
