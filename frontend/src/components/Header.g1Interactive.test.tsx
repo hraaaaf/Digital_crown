@@ -6,7 +6,7 @@ import { api } from '../services/api';
 import { cabinetApi } from '../services/templateApi';
 import { authService } from '../services/auth';
 
-let mockUser: any = { is_superadmin: false, nom_complet: 'Dr Test', role: 'DENTISTE' };
+let mockUser: any = { is_superadmin: false, nom_complet: 'Dr Test', role: 'DENTISTE', employer_id: null };
 
 vi.mock('../stores/useAuthStore', () => ({
   useAuthStore: () => ({ user: mockUser }),
@@ -23,7 +23,7 @@ function renderHeader(props: { isCrownBotOpen?: boolean; crownBotUnreadCount?: n
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockUser = { is_superadmin: false, nom_complet: 'Dr Test', role: 'DENTISTE' };
+  mockUser = { is_superadmin: false, nom_complet: 'Dr Test', role: 'DENTISTE', employer_id: null };
   vi.mocked(cabinetApi.getMine).mockResolvedValue({ nom_cabinet: 'Cabinet Test', header_lines_fr: ['Dr Test'] } as never);
   vi.mocked(api.get).mockResolvedValue({
     data: {
@@ -69,6 +69,28 @@ describe('Header G1 interactive matrix', () => {
     mockUser = { is_superadmin: true, nom_complet: 'Admin', role: 'DENTISTE' };
     renderHeader();
     expect(screen.getAllByRole('link', { name: /Gestion des Dentistes/i }).every(link => link.getAttribute('href') === '/super-admin')).toBe(true);
+  });
+
+  it('hides Settings entry without settings permission and shows it for cabinet owner', () => {
+    mockUser = {
+      is_superadmin: false,
+      nom_complet: 'Restricted',
+      role: 'SECRETAIRE',
+      employer_id: 1,
+      permissions: { settings: false },
+    };
+    const first = renderHeader();
+    expect(screen.queryByTitle('Réglages')).toBeNull();
+    first.unmount();
+
+    mockUser = {
+      is_superadmin: false,
+      nom_complet: 'Owner',
+      role: 'DENTISTE',
+      employer_id: null,
+    };
+    renderHeader();
+    expect(screen.getByTitle('Réglages')).toBeTruthy();
   });
 
   it('requires explicit confirmation before logout and Cancel is non-mutating', async () => {
