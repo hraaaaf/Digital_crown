@@ -79,6 +79,8 @@ export const EliteScienceHub: React.FC = () => {
           {filteredArticles.map((article) => (
             <motion.div
               key={article.id}
+              data-testid="science-article-card"
+              data-category={article.category}
               layout
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
