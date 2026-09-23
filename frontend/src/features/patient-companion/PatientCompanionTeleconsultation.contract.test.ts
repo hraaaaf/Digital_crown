@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const patient = readFileSync(new URL('./PatientCompanionTeleconsultation.tsx', import.meta.url), 'utf8');
-const staff = readFileSync(new URL('../patients/components/PatientCompanionTeleconsultationPanel.tsx', import.meta.url), 'utf8');
-const transport = readFileSync(new URL('./PatientCompanionTeleconsultTransport.ts', import.meta.url), 'utf8');
+const patient = readFileSync(resolve(process.cwd(), 'src/features/patient-companion/PatientCompanionTeleconsultation.tsx'), 'utf8');
+const staff = readFileSync(resolve(process.cwd(), 'src/features/patients/components/PatientCompanionTeleconsultationPanel.tsx'), 'utf8');
+const transport = readFileSync(resolve(process.cwd(), 'src/features/patient-companion/PatientCompanionTeleconsultTransport.ts'), 'utf8');
 
 describe('PC-09 teleconsultation truth contract', () => {
   it('requests camera and microphone only from an explicit join/start handler', () => {
