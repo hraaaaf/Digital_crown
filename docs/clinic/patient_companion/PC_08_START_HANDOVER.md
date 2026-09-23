@@ -1,6 +1,6 @@
 # PC-08 — Secure Messaging — START HANDOVER
 
-Status: START READY
+Status: POST-MERGE VERIFIED
 Target base: master after PC-07 POST-MERGE VERIFIED closeout
 Previous lot: PC-07 — Emergency Photo
 Deployment: none
@@ -90,3 +90,25 @@ Proof must include:
 9. merge / post-merge / next lot.
 
 No implementation is claimed by this handover.
+
+
+## Closeout — 2026-09-23
+
+Goal achieved:
+- secure patient↔cabinet messaging implemented with truthful read/pending states and no fake realtime;
+- clinician UI simplified to user-facing wording without transport jargon;
+- no Vercel deployment.
+
+Final evidence:
+- human visual approval received on the final 1280×900 staff capture;
+- approved visual/runtime HEAD: `1bbc1621a90a681cc1fb34fa846dbb3ec3c68c26`;
+- exact-head runtime run `35859746972`: SUCCESS;
+- artifact `10750431243`;
+- artifact digest `sha256:9181923334458fe680cd8c93beac24d08f2e0c724ea2ea6a0264727b913b287a`;
+- PR #677 merged into master as `6a785791d50d32305a0b7fcde4bc0bd8bcb62f05`;
+- post-merge master HEAD verified equal to merge SHA;
+- 37 PC-08 changed paths compared between approved HEAD and merged master: every product file is byte-identical; only `.github/workflows/pc08-runtime-after-visual.yml` differs because it was realigned to the canonical master workflow before merge;
+- post-merge PC-08 visual workflows reporting failure had zero jobs and are trigger noise, not product failures.
+
+Next canonical lot:
+- PC-09 — Teleconsultation.
