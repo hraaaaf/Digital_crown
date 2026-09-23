@@ -343,7 +343,7 @@ for(const viewport of viewports){
 
   await logout.click();
   await shellPage.getByRole('button',{name:'Confirmer',exact:true}).click();
-  await shellPage.waitForURL('**/landing',{timeout:10000});
+  await shellPage.waitForFunction(()=>window.location.pathname==='/landing',undefined,{timeout:10000});
   if(await shellPage.evaluate(()=>Boolean(localStorage.getItem('token')))) throw new Error('logout confirm kept access token');
   prove(viewport,'shell-logout-confirm-clears-session');
   await shellPage.unroute('**/api/intelligence/connect-hub');
