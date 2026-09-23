@@ -29,6 +29,7 @@ from backend.services.patient_companion_teleconsultation import (
     build_ice_servers,
     end_session,
     expire_if_needed,
+    fail_session,
     mark_connected,
     mark_joined,
     normalize_uuid,
@@ -63,6 +64,10 @@ class StaffSignalCreate(StaffSessionAction):
     client_signal_id: str = Field(min_length=36, max_length=36)
     signal_type: str = Field(min_length=3, max_length=16)
     payload: dict[str, Any]
+
+
+class StaffFailureAction(StaffSessionAction):
+    failure_code: str = Field(min_length=1, max_length=64)
 
 
 def _active_access(
@@ -339,6 +344,38 @@ def staff_report_connected(
         mark_connected(row, "STAFF")
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+    db.commit()
+    return {"session": serialize_session(row)}
+
+
+@router.post("/admin/patients/{patient_id}/teleconsultations/{session_id}/failed")
+def staff_report_failed(
+    patient_id: int,
+    session_id: str,
+    body: StaffFailureAction,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    patient = staff_patient_or_404(db, current_user, patient_id)
+    employer_id = int(current_user.get_employer_id())
+    access = _active_access(db, employer_id=employer_id, patient_id=patient.id, access_id=body.access_id)
+    row = _staff_session(db, employer_id=employer_id, patient_id=patient.id, access=access, session_id=session_id, lock=True)
+    if row.state == "EXPIRED":
+        raise HTTPException(status_code=409, detail="SESSION_EXPIRED")
+    try:
+        fail_session(row, "STAFF", body.failure_code)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    purge_signals(db, row)
+    db.add(models.AuditLog(
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="PATIENT_COMPANION_TELECONSULT_FAILED",
+        resource_type="PatientCompanionTeleconsultSession",
+        resource_id=row.public_id,
+        severity="WARNING",
+        details=f"failure_code={row.failure_code}",
+    ))
     db.commit()
     return {"session": serialize_session(row)}
 
