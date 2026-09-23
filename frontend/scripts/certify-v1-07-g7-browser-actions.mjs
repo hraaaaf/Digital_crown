@@ -6,6 +6,11 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
 if(!login.ok()) throw new Error('G7 login failed');
 const tokens=await login.json();
+const superEmail=process.env.T2_SUPERADMIN_EMAIL;
+if(!superEmail) throw new Error('T2_SUPERADMIN_EMAIL required for G7 partner admin');
+const superLogin=await api.post('/api/auth/login',{form:{username:superEmail,password}});
+if(!superLogin.ok()) throw new Error('G7 superadmin login failed');
+const superTokens=await superLogin.json();
 
 const browser=await chromium.launch({headless:true});
 const viewports=[{width:390,height:844},{width:1280,height:900}];
