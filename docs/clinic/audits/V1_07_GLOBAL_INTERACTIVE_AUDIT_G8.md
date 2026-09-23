@@ -105,3 +105,18 @@ A dedicated real-Chromium transverse gate now complements the existing component
 Harness: `frontend/scripts/certify-v1-07-g8-browser-adversarial.mjs`.
 Workflow: `.github/workflows/v1-07-g8-browser-adversarial.yml`.
 G8 remains uncertified until this exact-head browser gate and inherited G1→G7/G4 gates are green.
+
+
+## Single-flight stock mutation defect
+
+Exact browser evidence on HEAD `915ac3f048803cb7aa82687130233622a1de0fb7`:
+- G8 run `#35850635466` failed with `single-flight violated: POST count=2`;
+- the Stock add modal relied only on React `saving` state, which does not synchronously block two DOM clicks fired before rerender;
+- this is a product mutation-safety defect, not a harness false positive.
+
+Remediation:
+- `StockModal` now uses a synchronous `savingRef` guard in addition to the disabled UI state;
+- the guard is acquired before the POST/PATCH and released in `finally`;
+- dedicated test reproduces two synchronous native clicks while the first POST remains unresolved and requires exactly one POST.
+
+Certification remains pending exact-head browser proof.
