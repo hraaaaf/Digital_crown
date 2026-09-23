@@ -90,6 +90,14 @@ with database.SessionLocal() as db:
         db.commit()
         db.refresh(user)
 
+    # Seed and claim the legacy dental catalog while the isolated T2 database has
+    # exactly one root cabinet. Later certification fixtures intentionally add
+    # other root users, at which point tenant ownership can no longer be inferred.
+    from backend.seed_catalog import seed_catalog
+    from backend.services import cabinet_catalog_store
+    seed_catalog(db)
+    cabinet_catalog_store.claim_legacy_if_unambiguous(db)
+
     restricted = db.query(models.User).filter(models.User.email == "t2-restricted@cabinet.ma").first()
     if not restricted:
         restricted = models.User(
