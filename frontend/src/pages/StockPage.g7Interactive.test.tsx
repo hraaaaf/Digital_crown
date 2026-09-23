@@ -90,6 +90,27 @@ describe('StockPage G7 interactive matrix', () => {
     ).toBeGreaterThan(1));
   });
 
+  it('keeps stock creation single-flight under synchronous double submit', async () => {
+    let resolvePost: ((value: unknown) => void) | null = null;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise(resolve => { resolvePost = resolve; }) as never);
+
+    renderStock();
+    await screen.findByText('Gants nitrile');
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter un article/i }));
+
+    const modal = screen.getByText('Nouvel article').closest('div.fixed')!;
+    const scoped = within(modal as HTMLElement);
+    fireEvent.change(scoped.getByPlaceholderText('Ex: Gants nitrile S'), { target: { value: 'Masques single-flight' } });
+    const submit = scoped.getByRole('button', { name: 'Ajouter' }) as HTMLButtonElement;
+
+    submit.click();
+    submit.click();
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    resolvePost?.({ data: { id: 2 } });
+    await waitFor(() => expect(screen.queryByText('Nouvel article')).toBeNull());
+  });
+
   it('edits an existing item through PATCH', async () => {
     renderStock();
     const name = await screen.findByText('Gants nitrile');
