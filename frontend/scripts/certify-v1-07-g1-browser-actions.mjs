@@ -31,6 +31,13 @@ for(const viewport of viewports){
   }
   await page.unroute('**/api/public/demo-request');
 
+  // Landing success ACK: same control must reach a real visible success state.
+  await page.route('**/api/public/demo-request',route=>route.fulfill({status:200,contentType:'application/json',body:'{"ok":true}'}));
+  await page.getByRole('button',{name:/Envoyer ma demande/i}).click();
+  await page.getByRole('heading',{name:'Demande envoyée !',exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'landing-demo-success-ack');
+  await page.unroute('**/api/public/demo-request');
+
   // Register: legal gating + backend refusal truth.
   await page.goto('http://127.0.0.1:5173/register',{waitUntil:'networkidle',timeout:90000});
   await page.getByPlaceholder('Dr. Jean Dupont').fill('Dr Browser');
@@ -52,6 +59,19 @@ for(const viewport of viewports){
   prove(viewport,'register-refusal-no-false-success');
   await page.unroute('**/api/auth/signup');
 
+  await page.goto('http://127.0.0.1:5173/register',{waitUntil:'networkidle',timeout:90000});
+  await page.getByPlaceholder('Dr. Jean Dupont').fill('Dr Browser Success');
+  await page.getByPlaceholder('votre@email.com').fill('browser-success@example.com');
+  await page.getByPlaceholder('8 caractères minimum').fill('Secret123!');
+  const successChecks=page.getByRole('checkbox');
+  await successChecks.nth(0).check();
+  await successChecks.nth(1).check();
+  await page.route('**/api/auth/signup',route=>route.fulfill({status:200,contentType:'application/json',body:'{"ok":true}'}));
+  await page.getByRole('button',{name:/Créer mon compte/i}).click();
+  await page.getByRole('heading',{name:'Demande Envoyée',exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'register-success-ack');
+  await page.unroute('**/api/auth/signup');
+
   // Trial activation: preview + explicit activation refusal.
   await page.route('**/api/public/trial-code/DC-BROWSER',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
     email:'invite@example.com',nom_complet:'Dr Invite',cabinet_name:'Cabinet Invite',trial_days:30,expires_at:'2030-01-01T00:00:00Z'
@@ -68,6 +88,24 @@ for(const viewport of viewports){
   if(await page.getByText('Essai activé',{exact:true}).count()) throw new Error('false trial activation success');
   prove(viewport,'trial-preview-and-refusal-truth');
   await page.unroute('**/api/public/trial-code/DC-BROWSER');
+  await page.unroute('**/api/public/activate-trial');
+
+  await page.route('**/api/public/trial-code/DC-BROWSER-SUCCESS',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+    email:'invite-success@example.com',nom_complet:'Dr Invite Success',cabinet_name:'Cabinet Invite Success',trial_days:30,expires_at:'2030-01-01T00:00:00Z'
+  })}));
+  await page.route('**/api/public/activate-trial',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+    message:'Essai activé. Vous pouvez maintenant vous connecter.'
+  })}));
+  await page.goto('http://127.0.0.1:5173/activate?code=DC-BROWSER-SUCCESS',{waitUntil:'networkidle',timeout:90000});
+  await page.locator('input[value="invite-success@example.com"]').waitFor({state:'visible',timeout:5000});
+  await page.getByPlaceholder('8 caractères minimum').fill('Secret123!');
+  const successTrialChecks=page.getByRole('checkbox');
+  await successTrialChecks.nth(0).check();
+  await successTrialChecks.nth(1).check();
+  await page.getByRole('button',{name:/Activer Mon Essai/i}).click();
+  await page.getByText('Essai activé. Vous pouvez maintenant vous connecter.',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'trial-activation-success-ack');
+  await page.unroute('**/api/public/trial-code/DC-BROWSER-SUCCESS');
   await page.unroute('**/api/public/activate-trial');
 
   // Login refusal then real isolated-runtime success.
