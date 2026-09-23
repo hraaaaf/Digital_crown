@@ -26,6 +26,7 @@ from backend.routers.patient_companion_common import (
 from backend.services.patient_companion_remote_worker import process_remote_envelope
 from backend.services.patient_companion_teleconsultation import (
     add_signal,
+    build_ice_servers,
     end_session,
     expire_if_needed,
     mark_connected,
@@ -218,6 +219,35 @@ def staff_create_teleconsultation(
     db.refresh(row)
     response.headers["Cache-Control"] = "no-store"
     return {"session": {**serialize_session(row), "access_id": access.public_id}}
+
+
+@router.get("/admin/patients/{patient_id}/teleconsultations/{session_id}/ice-config")
+def staff_teleconsult_ice_config(
+    patient_id: int,
+    session_id: str,
+    access_id: str = Query(min_length=36, max_length=36),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    patient = staff_patient_or_404(db, current_user, patient_id)
+    employer_id = int(current_user.get_employer_id())
+    access = _active_access(db, employer_id=employer_id, patient_id=patient.id, access_id=access_id)
+    row = _staff_session(
+        db,
+        employer_id=employer_id,
+        patient_id=patient.id,
+        access=access,
+        session_id=session_id,
+        lock=False,
+    )
+    if row.state == "EXPIRED":
+        raise HTTPException(status_code=409, detail="SESSION_EXPIRED")
+    return {
+        "ice_servers": build_ice_servers(
+            session_id=row.public_id,
+            actor=f"staff-{current_user.id}",
+        ),
+    }
 
 
 @router.post("/admin/patients/{patient_id}/teleconsultations/{session_id}/join")
