@@ -7,16 +7,6 @@ on:
         description: "Exact PC-08 product HEAD to certify"
         required: true
         type: string
-  push:
-    branches:
-      - feature/patient-companion-pc08-secure-messaging
-    paths:
-      - ".github/workflows/pc08-runtime-after-visual.yml"
-      - "frontend/scripts/capture-pc08-runtime-after.mjs"
-      - "frontend/src/features/patient-companion/**"
-      - "frontend/src/features/patient-companion/PatientCompanionMessages.contract.test.ts"
-      - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx"
-      - "frontend/src/features/patients/components/PatientCompanionPanel.tsx"
   pull_request:
     types: [opened, reopened, synchronize]
     branches: [master]
@@ -36,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pc08-runtime-after-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
+  group: pc08-runtime-after-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -44,7 +34,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      PRODUCT_HEAD: ${{ github.event_name == 'workflow_dispatch' && inputs.product_head || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      PRODUCT_HEAD: ${{ github.event_name == 'workflow_dispatch' && inputs.product_head || github.event.pull_request.head.sha }}
       ENVIRONMENT: test
       SECRET_KEY: pc08-runtime-after-isolated-secret-key-000000000001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
