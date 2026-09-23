@@ -1,7 +1,13 @@
-import { chromium } from 'playwright';
+import { chromium, request } from 'playwright';
 
 const password=process.env.T2_PASSWORD;
 if(!password) throw new Error('T2_PASSWORD required');
+
+const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+const apiLogin=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
+if(!apiLogin.ok()) throw new Error('G1 API login failed');
+const apiTokens=await apiLogin.json();
+const apiHeaders={Authorization:'Bearer '+apiTokens.access_token};
 
 const browser=await chromium.launch({headless:true});
 const viewports=[{width:390,height:844},{width:1280,height:900}];
@@ -145,8 +151,33 @@ for(const viewport of viewports){
     await page.unroute('**/*');
   }
 
+  // Mobile pairing success: real bridge generation + real ECDH claim + server destination.
+  const me=await api.get('/api/auth/me',{headers:apiHeaders});
+  if(!me.ok()) throw new Error('G1 /me failed for secure pairing');
+  const meBody=await me.json();
+  const bridge=await api.post('/api/mobile/bridge-pairing',{
+    headers:apiHeaders,
+    data:{target_user_id:meBody.id,destination:'agenda'},
+  });
+  if(!bridge.ok()) throw new Error('secure bridge generation failed '+bridge.status()+': '+await bridge.text());
+  const bridgeBody=await bridge.json();
+  if(!/^\d{6}$/.test(bridgeBody.token_code||'')) throw new Error('secure bridge manual code invalid');
+
+  await page.goto('http://127.0.0.1:5173/mobile/onboarding',{waitUntil:'networkidle',timeout:90000});
+  const securePairing=page.getByLabel("Code d'appairage à 6 chiffres");
+  await securePairing.waitFor({state:'visible',timeout:10000});
+  await securePairing.fill(bridgeBody.token_code);
+  const secureOk=page.getByRole('button',{name:"Valider le code d'appairage"});
+  if(await secureOk.isDisabled()) throw new Error('secure pairing submit remained disabled');
+  await secureOk.click();
+  await page.getByText('Appairage réussi',{exact:true}).waitFor({state:'visible',timeout:15000});
+  prove(viewport,'mobile-pairing-secure-ecdh-success',{destination:bridgeBody.destination});
+  await page.waitForURL(/\/mobile\/dashboard\?tab=agenda/,{timeout:10000});
+  prove(viewport,'mobile-pairing-destination-navigation');
+
   await ctx.close();
 }
 
 await browser.close();
+await api.dispose();
 console.log('G1_BROWSER_ACTIONS',JSON.stringify({status:'PASS',proofs}));
