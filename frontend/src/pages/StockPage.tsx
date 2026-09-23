@@ -118,12 +118,12 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? "Modifier l’article" : "Nouvel article"} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100">
           <h2 className="text-sm font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>
             {isEdit ? 'Modifier l\'article' : 'Nouvel article'}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} aria-label="Fermer la fiche article" className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
             <X size={18} className="text-slate-400" />
           </button>
         </div>
