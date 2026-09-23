@@ -213,7 +213,7 @@ for(const viewport of viewports){
    await dialog.getByRole('button',{name:/Révoquer tous les accès mobiles/i}).click();
    await dialog.getByText(/Tous les téléphones ont été déconnectés/i).waitFor({state:'visible',timeout:10000});
    if(revokeCalls!==2) throw new Error('mobile revoke ACK count mismatch');
-   if(await dialog.getByText('G2MOB1',{exact:true}).count()) throw new Error('mobile pairing remained after revoke ACK');
+   await dialog.getByText('G2MOB1',{exact:true}).waitFor({state:'detached',timeout:5000});
    pass(viewport,'dashboard-mobile-revoke-ack',{revokeCalls});
 
    await page.keyboard.press('Escape');
