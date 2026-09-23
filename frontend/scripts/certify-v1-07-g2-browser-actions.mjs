@@ -433,11 +433,49 @@ for(const viewport of viewports){
  pass(viewport,'patient-create-cancel-non-mutation');
  await page.unroute('**/api/patients/**');
 
+ let editReadCalls=0;
+ await page.route('**/api/patients/'+patient.id,async route=>{
+   if(route.request().method()==='GET'){
+     editReadCalls+=1;
+     if(editReadCalls===1) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced edit read failure'})});
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(patient)});
+   }
+   return route.continue();
+ });
  await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'/edit',{waitUntil:'networkidle',timeout:90000});
+ await page.getByText('Impossible de charger le patient',{exact:true}).waitFor({state:'visible',timeout:10000});
+ if(await page.locator('form').count()) throw new Error('edit form exposed defaults after read failure');
+ await page.getByRole('button',{name:/Réessayer/i}).click();
+ await page.getByDisplayValue(patient.nom,{exact:true}).waitFor({state:'visible',timeout:10000});
+ if(editReadCalls!==2) throw new Error('edit read retry count mismatch');
+ pass(viewport,'patient-edit-read-failure-retry',{editReadCalls});
+ await page.unroute('**/api/patients/'+patient.id);
  const editNameLabel=page.locator('label').filter({hasText:/^Nom$/}).first();
  const editNameInput=editNameLabel.locator('..').locator('input').first();
  await editNameInput.waitFor({state:'visible',timeout:10000});
  const originalName=await editNameInput.inputValue();
+
+ let conflictEditCalls=0;
+ await page.route('**/api/patients/'+patient.id,async route=>{
+   if(route.request().method()==='PUT'){
+     conflictEditCalls+=1;
+     return route.fulfill({
+       status:409,
+       contentType:'application/json',
+       body:JSON.stringify({detail:{message:'Conflit avec un patient existant.'}})
+     });
+   }
+   return route.continue();
+ });
+ let conflictDialog='';
+ page.once('dialog',async dialog=>{ conflictDialog=dialog.message(); await dialog.accept(); });
+ await editNameInput.fill('G2 CONFLICT');
+ await page.getByRole('button',{name:/Valider les modifications/i}).click();
+ await page.waitForTimeout(200);
+ if(conflictEditCalls!==1 || !/Conflit avec un patient existant/i.test(conflictDialog)) throw new Error('patient edit 409 conflict not surfaced');
+ if(!page.url().includes('/edit')) throw new Error('patient edit conflict navigated away');
+ pass(viewport,'patient-edit-conflict-non-navigation',{conflictEditCalls});
+ await page.unroute('**/api/patients/'+patient.id);
 
  let refusedEditCalls=0;
  await page.route('**/api/patients/'+patient.id,async route=>{
@@ -470,6 +508,23 @@ for(const viewport of viewports){
  await page.waitForURL(new RegExp('/patients/'+patient.id+'(?:\\?|$)'),{timeout:10000});
  if(acceptedEditCalls!==1) throw new Error('patient edit ACK count mismatch');
  pass(viewport,'patient-edit-success-ack-navigation',{acceptedEditCalls});
+ await page.unroute('**/api/patients/'+patient.id);
+
+ let dossierReadCalls=0;
+ await page.route('**/api/patients/'+patient.id,async route=>{
+   if(route.request().method()==='GET'){
+     dossierReadCalls+=1;
+     if(dossierReadCalls===1) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced dossier read failure'})});
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(patient)});
+   }
+   return route.continue();
+ });
+ await page.goto('http://127.0.0.1:5173/patients/'+patient.id,{waitUntil:'networkidle',timeout:90000});
+ await page.getByText('Impossible de charger le dossier',{exact:true}).waitFor({state:'visible',timeout:10000});
+ await page.getByRole('button',{name:/Réessayer/i}).click();
+ await page.locator('main[data-flow-patient-surface]').waitFor({state:'visible',timeout:10000});
+ if(dossierReadCalls!==2) throw new Error('patient dossier retry count mismatch');
+ pass(viewport,'patient-dossier-read-failure-retry',{dossierReadCalls});
  await page.unroute('**/api/patients/'+patient.id);
 
  await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
