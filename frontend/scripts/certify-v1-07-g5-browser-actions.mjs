@@ -1138,7 +1138,7 @@ for(const viewport of viewports){
     ];
     let nextTeamId=20;
     let teamCreateCalls=0,approveCalls=0,rejectCalls=0,permissionCalls=0,statusCalls=0,deleteCalls=0;
-    let failNextStatus=false;
+    let failNextStatus=false,failTeamRead=false;
 
     await page.route('**/api/team**',async route=>{
       const req=route.request();
@@ -1151,7 +1151,10 @@ for(const viewport of viewports){
         const pending=teamMembers.filter(m=>m.approval_status==='pending').length;
         return json(200,{plan:'ELITE',dentistes_used:1,dentistes_max:null,secretaires_used:teamMembers.length,secretaires_max:null,pending_count:pending,can_add_dentiste:true,can_add_secretaire:true});
       }
-      if(method==='GET' && path==='/api/team/') return json(200,teamMembers);
+      if(method==='GET' && path==='/api/team/') {
+        if(failTeamRead) return json(503,{detail:'forced team read failure'});
+        return json(200,teamMembers);
+      }
 
       if(method==='POST' && path==='/api/team/'){
         teamCreateCalls+=1;
@@ -1206,15 +1209,46 @@ for(const viewport of viewports){
     await team.click();
     await page.getByText('Active User',{exact:true}).waitFor({state:'visible',timeout:10000});
 
-    // Create
+    // Create form auxiliary controls + role/permission semantics.
     await page.getByRole('button',{name:/Ajouter un membre/i}).click();
+    const roleSelect=page.getByRole('combobox',{name:'Rôle du collaborateur'});
+    if(await roleSelect.inputValue()!=='SECRETAIRE') throw new Error('team create default role is not secretary');
+    if(!(await page.getByRole('checkbox',{name:/Dossiers Patients/i}).isChecked())) throw new Error('team secretary default patients permission missing');
+    if(await page.getByRole('checkbox',{name:/Prescriptions/i}).isChecked()) throw new Error('team secretary default prescriptions permission unexpectedly enabled');
+
+    const passwordInput=page.getByPlaceholder('••••••••');
+    await passwordInput.fill('TestPass123!');
+    if(await passwordInput.getAttribute('type')!=='password') throw new Error('team password is not masked by default');
+    await page.getByRole('button',{name:'Afficher le mot de passe',exact:true}).click();
+    if(await passwordInput.getAttribute('type')!=='text') throw new Error('team password reveal did not work');
+    await page.getByRole('button',{name:'Masquer le mot de passe',exact:true}).click();
+    if(await passwordInput.getAttribute('type')!=='password') throw new Error('team password re-mask did not work');
+    prove(viewport,'settings-team-password-reveal-hide');
+
+    await page.getByRole('button',{name:'Annuler',exact:true}).click();
+    await page.getByText('Nouveau sous-compte',{exact:true}).waitFor({state:'detached',timeout:5000});
+    if(teamCreateCalls!==0) throw new Error('team create cancel triggered a mutation');
+    prove(viewport,'settings-team-create-cancel');
+
+    await page.getByRole('button',{name:/Ajouter un membre/i}).click();
+    const createRole=page.getByRole('combobox',{name:'Rôle du collaborateur'});
+    await createRole.selectOption('DENTISTE');
+    if(!(await page.getByRole('checkbox',{name:/Prescriptions/i}).isChecked())) throw new Error('team dentist defaults did not enable prescriptions');
+    const settingsPermission=page.getByRole('checkbox',{name:/Réglages Cabinet/i});
+    if(await settingsPermission.isChecked()) throw new Error('team dentist settings permission should default false');
+    await settingsPermission.check();
+
     await page.getByPlaceholder('Ex: Fatima Zahra').fill('Browser New Member');
     await page.getByPlaceholder('assistante@cabinet.com').fill('browser-new@example.com');
     await page.getByPlaceholder('••••••••').fill('TestPass123!');
+    await page.getByPlaceholder('06 00 00 00 00').fill('0600000000');
     await page.getByRole('button',{name:'Créer le compte',exact:true}).click();
     await page.getByText('Browser New Member',{exact:true}).waitFor({state:'visible',timeout:10000});
-    if(teamCreateCalls!==1) throw new Error('team create ACK count mismatch');
-    prove(viewport,'settings-team-create',{teamCreateCalls});
+    const createdMember=teamMembers.find(m=>m.nom_complet==='Browser New Member');
+    if(teamCreateCalls!==1 || createdMember?.role!=='DENTISTE' || createdMember?.permissions?.settings!==true){
+      throw new Error('team create role/permissions ACK mismatch');
+    }
+    prove(viewport,'settings-team-create',{teamCreateCalls,role:createdMember.role});
 
     const pendingCard=name=>page.getByText(name,{exact:true}).locator('xpath=ancestor::div[.//button[normalize-space()="Valider"]][1]');
     const memberCard=name=>page.getByText(name,{exact:true}).locator('xpath=ancestor::div[.//button[@title="Gérer les permissions"]][1]');
@@ -1236,11 +1270,29 @@ for(const viewport of viewports){
     if(await rejectedCard.getByTitle("Réactiver l'accès").count()) throw new Error('rejected identity exposes reactivate action');
     prove(viewport,'settings-team-reject',{rejectCalls});
 
-    // Permissions
+    // Permissions modal close/cancel semantics, then persisted update.
     let activeCard=memberCard('Active User');
     await activeCard.hover();
     await activeCard.getByTitle('Gérer les permissions').click();
-    const permissionsDialog=page.getByText(/Droits d'accès : Active User/).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+    let permissionsDialog=page.getByText(/Droits d'accès : Active User/).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+    await permissionsDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+    await page.getByText(/Droits d'accès : Active User/).waitFor({state:'detached',timeout:5000});
+    if(permissionCalls!==0) throw new Error('team permissions cancel triggered mutation');
+    prove(viewport,'settings-team-permissions-cancel');
+
+    activeCard=memberCard('Active User');
+    await activeCard.hover();
+    await activeCard.getByTitle('Gérer les permissions').click();
+    permissionsDialog=page.getByText(/Droits d'accès : Active User/).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+    await permissionsDialog.getByRole('button',{name:'Fermer les permissions',exact:true}).click();
+    await page.getByText(/Droits d'accès : Active User/).waitFor({state:'detached',timeout:5000});
+    if(permissionCalls!==0) throw new Error('team permissions close triggered mutation');
+    prove(viewport,'settings-team-permissions-close');
+
+    activeCard=memberCard('Active User');
+    await activeCard.hover();
+    await activeCard.getByTitle('Gérer les permissions').click();
+    permissionsDialog=page.getByText(/Droits d'accès : Active User/).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
     const patientsPermission=permissionsDialog.getByRole('checkbox',{name:/Dossiers Patients/i});
     const beforePatients=await patientsPermission.isChecked();
     await patientsPermission.setChecked(!beforePatients);
@@ -1286,6 +1338,17 @@ for(const viewport of viewports){
     await page.getByText('Browser New Member',{exact:true}).waitFor({state:'detached',timeout:10000});
     if(deleteCalls!==1) throw new Error('team delete ACK count mismatch');
     prove(viewport,'settings-team-delete',{deleteCalls});
+
+    // Team truth gate read failure -> no management UI -> retry restores truth.
+    failTeamRead=true;
+    await page.getByRole('button',{name:'Performance & Assistance',exact:true}).click();
+    await page.getByRole('button',{name:'Mon Équipe',exact:true}).click();
+    await page.getByText('Équipe indisponible',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(await page.getByRole('button',{name:/Ajouter un membre/i}).count()) throw new Error('team controls exposed while truth gate failed');
+    failTeamRead=false;
+    await page.getByRole('button',{name:'Réessayer',exact:true}).click();
+    await page.getByText('Active User',{exact:true}).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'settings-team-read-retry');
 
     await page.unroute('**/api/team**');
   }
