@@ -223,6 +223,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
       await startMedia(session, selectedAccess);
       setMessage('En attente du patient…');
     } catch (error: any) {
+      stopPeer();
       const name = error instanceof DOMException ? error.name : '';
       setMessage(name === 'NotAllowedError'
         ? 'Autorisez la caméra et le microphone pour démarrer.'
@@ -241,6 +242,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
       await startMedia(session, accessId);
       setMessage('En attente du patient…');
     } catch (error: any) {
+      stopPeer();
       setMessage(error?.message || 'Impossible d’ouvrir la consultation.');
     } finally {
       setBusy(false);
