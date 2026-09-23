@@ -104,3 +104,28 @@ The G1 isolated workflow now provides a test-only `CABINET_MASTER_KEY_HEX`; the 
 8. resolves the server bridge destination and navigates to `/mobile/dashboard?tab=agenda`.
 
 The existing refusal path remains mandatory as a separate non-false-success proof.
+
+
+## Deep browser Setup / shared shell — 2026-09-23
+
+The G1 real-Chromium gate now additionally proves:
+- Setup step-1 validation blocks progression without backend mutation;
+- real next/back progression to step 7;
+- setup finalization refusal keeps the wizard, does not call complete-setup, and does not persist theme;
+- setup ACK verifies the canonical cabinet payload, completes setup, persists theme only after backend ACK, and reaches Dashboard;
+- Sidebar clicks reach Agenda, Patients, Clinical Library and Procurement canonical routes;
+- Header Settings reaches /settings;
+- Attention Center item reaches its exact destination;
+- logout cancel preserves the session; confirmed logout clears the token and reaches Landing.
+
+Permission defect found during this reconciliation:
+- the Header Settings entry rendered even with settings=false;
+- /settings had no frontend permission route guard.
+
+Remediation:
+- Header Settings visibility now uses hasAccess(user, "settings");
+- /settings is wrapped in PermissionRoute permission="settings";
+- restricted-employee browser proof requires Settings hidden and direct /settings redirected to Dashboard;
+- Header component regression test covers restricted vs owner visibility.
+
+Functional deep-check status: COMPLETE IN HARNESS. Certification remains pending exact-head browser/CI and matched landing-geography visual evidence.
