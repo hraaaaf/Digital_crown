@@ -850,7 +850,172 @@ for(const viewport of viewports){
   // Security/restore — deep contract: export, compatible preflight, cancel, prepare, exact confirmation, apply/status, refusal.
   const security=page.getByRole('button',{name:'Sécurité & Backup',exact:true});
   if(await security.count()){
+    // Install deterministic Mobile Security + Audit fixtures before mounting the Security tab.
+    let bridgeOptionsCalls=0,bridgePairingCalls=0,revokeMobileCalls=0;
+    let failBridgeOptions=false,failNextBridgePairing=false;
+    const bridgeTargets=[
+      {id:1,name:'Dr T2 Browser',email:'t2-browser@cabinet.ma',role:'DENTISTE',is_current_user:true,destinations:[
+        {id:'dashboard',label:'Tableau de bord mobile'},
+        {id:'agenda',label:'Agenda mobile'}
+      ]},
+      {id:2,name:'Assistante G5',email:'assistante-g5@cabinet.ma',role:'SECRETAIRE',is_current_user:false,destinations:[
+        {id:'agenda',label:'Agenda mobile'},
+        {id:'frontdesk',label:'Accueil mobile'}
+      ]}
+    ];
+    await page.route('**/api/mobile/bridge-options',route=>{
+      bridgeOptionsCalls+=1;
+      if(failBridgeOptions) return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Options mobiles indisponibles"}'});
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({targets:bridgeTargets,expires_in:300})});
+    });
+    await page.route('**/api/mobile/bridge-pairing',route=>{
+      bridgePairingCalls+=1;
+      if(failNextBridgePairing){
+        failNextBridgePairing=false;
+        return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Pairing refusé"}'});
+      }
+      const body=route.request().postDataJSON();
+      const target=bridgeTargets.find(x=>x.id===body.target_user_id);
+      const destination=target?.destinations.find(x=>x.id===body.destination);
+      const qrSvg=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="black"/></svg>').toString('base64');
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+        qr_code:'data:image/svg+xml;base64,'+qrSvg,
+        token_code:'G5MOBILE',
+        expires_in:300,
+        target_user_id:body.target_user_id,
+        target_user_name:target?.name||'Utilisateur',
+        target_role:target?.role||'',
+        destination:body.destination,
+        destination_label:destination?.label||body.destination,
+        contains_patient_data:false
+      })});
+    });
+    await page.route('**/api/admin/revoke-mobile',route=>{
+      revokeMobileCalls+=1;
+      return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+    });
+
+    let auditCalls=[];
+    let failAuditRead=false;
+    const makeAuditLog=(id,action='LOGIN_SUCCESS',severity='INFO')=>({
+      id,
+      timestamp:'2026-09-23T10:00:00Z',
+      user_id:1,
+      employer_id:1,
+      action,
+      resource_type:'Patient',
+      resource_id:String(id),
+      severity,
+      ip_address:'127.0.0.1',
+      details:'G5 audit detail '+id
+    });
+    await page.route('**/api/admin/audit-logs*',route=>{
+      const url=new URL(route.request().url());
+      const action=url.searchParams.get('action')||'';
+      const severity=url.searchParams.get('severity')||'';
+      const offset=Number(url.searchParams.get('offset')||'0');
+      auditCalls.push({action,severity,offset});
+      if(failAuditRead) return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"audit unavailable"}'});
+      if(action || severity){
+        const log=makeAuditLog(100,action||'DELETE',severity||'WARNING');
+        return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({logs:[log],total:1})});
+      }
+      const logs=offset>=20
+        ? [21,22,23,24,25].map(id=>makeAuditLog(id,id===21?'DELETE':'LOGIN_SUCCESS',id===21?'WARNING':'INFO'))
+        : Array.from({length:20},(_,i)=>makeAuditLog(i+1,i===0?'DELETE':'LOGIN_SUCCESS',i===0?'WARNING':'INFO'));
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({logs,total:25})});
+    });
+
     await security.click();
+
+    // Mobile Security — options, target/destination, pairing success/refusal, revoke cancel/ACK, options retry.
+    await page.getByRole('heading',{name:'Compagnon Mobile',exact:true}).waitFor({state:'visible',timeout:10000});
+    const targetSelect=page.getByRole('combobox',{name:'Utilisateur mobile cible'});
+    const destinationSelect=page.getByRole('combobox',{name:'Destination mobile'});
+    await targetSelect.waitFor({state:'visible',timeout:10000});
+    if(bridgeOptionsCalls<1) throw new Error('mobile bridge options were not loaded');
+
+    await targetSelect.selectOption('2');
+    await destinationSelect.selectOption('frontdesk');
+    await page.getByRole('button',{name:'Générer le QR de connexion',exact:true}).click();
+    await page.getByText('G5MOBILE',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByAltText('QR de connexion Digital Crown Mobile').waitFor({state:'visible',timeout:5000});
+    if(bridgePairingCalls!==1) throw new Error('mobile pairing success call mismatch');
+    prove(viewport,'settings-mobile-pairing-success',{bridgePairingCalls});
+
+    await targetSelect.selectOption('1');
+    await page.getByText('G5MOBILE',{exact:true}).waitFor({state:'detached',timeout:5000});
+    failNextBridgePairing=true;
+    await page.getByRole('button',{name:'Générer le QR de connexion',exact:true}).click();
+    await page.getByText('Pairing refusé',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(await page.getByText('G5MOBILE',{exact:true}).count()) throw new Error('mobile pairing refusal left stale pairing visible');
+    prove(viewport,'settings-mobile-pairing-refusal-non-mutation');
+
+    page.once('dialog',dialog=>dialog.dismiss());
+    await page.getByRole('button',{name:/Révoquer tous les accès mobiles/i}).click();
+    if(revokeMobileCalls!==0) throw new Error('mobile revoke called despite cancelled confirmation');
+    prove(viewport,'settings-mobile-revoke-cancel');
+
+    page.once('dialog',dialog=>dialog.accept());
+    await page.getByRole('button',{name:/Révoquer tous les accès mobiles/i}).click();
+    await page.getByText(/Tous les téléphones ont été déconnectés/i).waitFor({state:'visible',timeout:10000});
+    if(revokeMobileCalls!==1) throw new Error('mobile revoke ACK count mismatch');
+    prove(viewport,'settings-mobile-revoke-success',{revokeMobileCalls});
+
+    failBridgeOptions=true;
+    await page.getByRole('button',{name:'Performance & Assistance',exact:true}).click();
+    await page.getByRole('button',{name:'Sécurité & Backup',exact:true}).click();
+    await page.getByText('Options mobiles indisponibles',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(!(await targetSelect.isDisabled())) throw new Error('mobile target selector enabled during options read failure');
+    failBridgeOptions=false;
+    await page.getByText('Options mobiles indisponibles',{exact:true}).locator('xpath=ancestor::div[1]').getByRole('button',{name:'Réessayer',exact:true}).click();
+    await targetSelect.waitFor({state:'visible',timeout:10000});
+    await page.waitForFunction(()=>!document.body.innerText.includes('Options mobiles indisponibles'));
+    prove(viewport,'settings-mobile-options-retry',{bridgeOptionsCalls});
+
+    // Audit log — filters, refresh, details, pagination, read failure + retry.
+    await page.getByRole('heading',{name:"Journal d'Audit",exact:true}).waitFor({state:'visible',timeout:10000});
+    const actionFilter=page.getByRole('combobox',{name:'Filtrer le journal par action'});
+    const severityFilter=page.getByRole('combobox',{name:'Filtrer le journal par sévérité'});
+    await actionFilter.selectOption('DELETE');
+    await page.getByText('Suppression',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+    if(!auditCalls.some(x=>x.action==='DELETE')) throw new Error('audit action filter did not reach backend query');
+    prove(viewport,'settings-audit-action-filter');
+
+    await severityFilter.selectOption('WARNING');
+    await page.getByText('Attention',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+    if(!auditCalls.some(x=>x.action==='DELETE'&&x.severity==='WARNING')) throw new Error('audit severity filter did not compose with action filter');
+    prove(viewport,'settings-audit-severity-filter');
+
+    await actionFilter.selectOption('');
+    await severityFilter.selectOption('');
+    await page.getByText('25 entrées',{exact:true}).waitFor({state:'visible',timeout:10000});
+    const refreshBefore=auditCalls.length;
+    await page.getByRole('button',{name:'Rafraîchir le journal',exact:true}).click();
+    await page.waitForFunction(expected=>document.body.innerText.includes('25 entrées'),refreshBefore);
+    if(auditCalls.length<=refreshBefore) throw new Error('audit refresh did not refetch');
+
+    const detailsButton=page.getByRole('button',{name:/Voir les détails/i}).first();
+    await detailsButton.click();
+    await page.getByText('G5 audit detail 1',{exact:true}).waitFor({state:'visible',timeout:5000});
+    prove(viewport,'settings-audit-details-expand');
+
+    await page.getByRole('button',{name:/Suivant/i}).click();
+    await page.getByText('Page 2 / 2',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(!auditCalls.some(x=>x.offset===20)) throw new Error('audit pagination did not request second page');
+    await page.getByRole('button',{name:/Précédent/i}).click();
+    await page.getByText('Page 1 / 2',{exact:true}).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'settings-audit-pagination');
+
+    failAuditRead=true;
+    await page.getByRole('button',{name:'Rafraîchir le journal',exact:true}).click();
+    await page.getByText("Journal d'audit indisponible",{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(await page.getByText('Aucun log trouvé',{exact:true}).count()) throw new Error('audit read failure rendered a false empty state');
+    failAuditRead=false;
+    const auditError=page.getByText("Journal d'audit indisponible",{exact:true}).locator('xpath=ancestor::div[contains(@class,"rounded")][1]');
+    await auditError.getByRole('button',{name:'Réessayer',exact:true}).click();
+    await page.getByText('25 entrées',{exact:true}).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'settings-audit-read-retry');
 
     let exportCalls=0;
     await page.route('**/api/admin/export-db',route=>{
@@ -955,6 +1120,11 @@ for(const viewport of viewports){
     if(await page.getByRole('button',{name:/Redémarrer et restaurer/i}).count()) throw new Error('apply exposed after refused preflight');
     prove(viewport,'settings-restore-preflight-refusal');
     await page.unroute('**/api/admin/restore/preflight');
+
+    await page.unroute('**/api/mobile/bridge-options');
+    await page.unroute('**/api/mobile/bridge-pairing');
+    await page.unroute('**/api/admin/revoke-mobile');
+    await page.unroute('**/api/admin/audit-logs*');
   }
 
   // Team — deep browser contract with deterministic isolated API state.
