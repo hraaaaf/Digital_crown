@@ -199,10 +199,9 @@ def staff_create_teleconsultation(
         patient_id=patient.id,
         appointment_ref_id=appointment_ref_id,
         created_by_user_id=current_user.id,
-        state="WAITING_PATIENT",
+        state="CREATED",
         created_at=now,
         expires_at=now + timedelta(minutes=body.ttl_minutes),
-        staff_joined_at=now,
     )
     db.add(row)
     db.flush()
