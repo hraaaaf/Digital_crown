@@ -159,6 +159,14 @@ def purge_signals(db: Session, row: PatientCompanionTeleconsultSession) -> None:
     ).delete(synchronize_session=False)
 
 
+def reject_session(row: PatientCompanionTeleconsultSession, actor: str) -> None:
+    if row.state in PC09_TERMINAL_STATES:
+        return
+    row.state = "REJECTED"
+    row.ended_at = datetime.utcnow()
+    row.ended_by = actor
+
+
 def end_session(row: PatientCompanionTeleconsultSession, actor: str) -> None:
     if row.state in PC09_TERMINAL_STATES:
         return
@@ -274,6 +282,7 @@ def handle_teleconsult_list(
             PatientCompanionTeleconsultSession.access_id == access.id,
             PatientCompanionTeleconsultSession.employer_id == access.employer_id,
             PatientCompanionTeleconsultSession.patient_id == access.patient_id,
+            PatientCompanionTeleconsultSession.state != "CREATED",
         )
         .order_by(PatientCompanionTeleconsultSession.id.desc())
         .limit(20)
@@ -400,6 +409,29 @@ def handle_teleconsult_connected(
     return RemoteDomainResult(status="ACCEPTED", response={"code": "PEER_CONNECTED", "session": serialize_session(row)})
 
 
+def handle_teleconsult_reject(
+    db: Session,
+    access: PatientCompanionAccess,
+    payload: dict[str, Any],
+) -> RemoteDomainResult:
+    if set(payload) != {"session_id"}:
+        return _reject("INVALID_REQUEST")
+    try:
+        session_id = normalize_uuid(payload.get("session_id"), "INVALID_SESSION_ID")
+    except ValueError as exc:
+        return _reject(str(exc))
+    row = _scoped_session(db, access, session_id, lock=True)
+    if row is None:
+        return _reject("SESSION_NOT_FOUND")
+    if expire_if_needed(row):
+        purge_signals(db, row)
+        return _reject("SESSION_EXPIRED")
+    reject_session(row, "PATIENT")
+    purge_signals(db, row)
+    db.flush()
+    return RemoteDomainResult(status="ACCEPTED", response={"code": "SESSION_REJECTED", "session": serialize_session(row)})
+
+
 def handle_teleconsult_end(
     db: Session,
     access: PatientCompanionAccess,
@@ -427,5 +459,6 @@ PC09_REMOTE_HANDLERS = {
     "teleconsult.signal": handle_teleconsult_signal,
     "teleconsult.sync": handle_teleconsult_sync,
     "teleconsult.connected": handle_teleconsult_connected,
+    "teleconsult.reject": handle_teleconsult_reject,
     "teleconsult.end": handle_teleconsult_end,
 }
