@@ -6,6 +6,7 @@ import {
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
+import { CrownDialog } from '../components/CrownDialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -458,19 +459,29 @@ export const StockPage = () => {
         )}
       </div>
 
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
-          <section role="dialog" aria-modal="true" aria-labelledby="stock-delete-title" className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
-            <h2 id="stock-delete-title" className="text-lg font-black text-slate-800">Supprimer cet article ?</h2>
+      <CrownDialog
+        open={deleteTarget !== null}
+        ariaLabel="Supprimer cet article ?"
+        onClose={() => {
+          if (deletingId === null) {
+            setDeleteTarget(null);
+            setMutationError(null);
+          }
+        }}
+        className="max-w-md"
+      >
+        {deleteTarget && (
+          <section className="w-full rounded-[2rem] bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-black text-slate-800">Supprimer cet article ?</h2>
             <p className="mt-2 text-sm font-semibold text-slate-600">{deleteTarget.nom} sera supprimé définitivement du stock.</p>
             {mutationError && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{mutationError}</div>}
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => { if (deletingId === null) { setDeleteTarget(null); setMutationError(null); } }} disabled={deletingId !== null} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-50">Annuler</button>
+              <button type="button" data-dialog-autofocus onClick={() => { if (deletingId === null) { setDeleteTarget(null); setMutationError(null); } }} disabled={deletingId !== null} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-50">Annuler</button>
               <button type="button" onClick={() => void handleDelete(deleteTarget.id)} disabled={deletingId === deleteTarget.id} className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50">{deletingId === deleteTarget.id ? 'Suppression…' : 'Supprimer définitivement'}</button>
             </div>
           </section>
-        </div>
-      )}
+        )}
+      </CrownDialog>
 
       {/* Modal */}
       {modalItem !== undefined && (
