@@ -111,8 +111,9 @@ for(const viewport of viewports){
     if(await customArabic.inputValue()!==arabicExpected) throw new Error('Arabic keyboard did not append every key in order');
     prove(viewport,'settings-profile-arabic-keyboard-all-keys',{keyCount:arabicKeys.length+1});
     await customArabic.fill(originalCustomArabic);
-    await page.mouse.click(2,2);
-    await page.waitForTimeout(50);
+    const arabicBackdrop=page.locator('[data-arabic-keyboard-backdrop]').last();
+    await arabicBackdrop.click({position:{x:1,y:1}});
+    await arabicBackdrop.waitFor({state:'detached',timeout:5000});
 
     await cabinet.fill('Cabinet T2 Certification Browser');
     await cabinet.blur();
