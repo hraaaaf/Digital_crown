@@ -72,7 +72,7 @@ Use deterministic Playwright harness.
 Matched viewports:
 - 390 × 844
 - 768 × 1024
-- 1440 × 1000
+- 1280 × 900
 
 Scenarios:
 - expired licence;
@@ -110,4 +110,4 @@ Correct the geography claim without changing layout or CTA hierarchy.
 Add `landing-geography` to the truth-safety visual harness at:
 - 390 × 844
 - 768 × 1024
-- 1440 × 1000
+- 1280 × 900
