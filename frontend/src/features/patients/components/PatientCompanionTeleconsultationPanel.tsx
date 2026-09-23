@@ -6,6 +6,7 @@ import { api } from '../../../services/api';
 type Access = { access_id: string; relationship_type: string; created_at: string };
 type Session = {
   session_id: string;
+  access_id?: string | null;
   state: 'WAITING_PATIENT' | 'WAITING_STAFF' | 'NEGOTIATING' | 'CONNECTED' | 'ENDED' | 'REJECTED' | 'EXPIRED' | 'FAILED';
   created_at: string;
   expires_at: string;
@@ -60,6 +61,11 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
   }, []);
 
   useEffect(() => stopPeer, [stopPeer]);
+
+  useEffect(() => {
+    if (mediaStarted && localVideoRef.current && localStreamRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+    if (mediaStarted && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
+  }, [mediaStarted]);
 
   const load = useCallback(async () => {
     const response = await api.get('/patient-companion/admin/patients/' + patientId + '/teleconsultations');
@@ -165,7 +171,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
         access_id: selectedAccess,
         ttl_minutes: 60,
       });
-      const session = response.data.session as Session;
+      const session = { ...(response.data.session as Session), access_id: selectedAccess };
       setSessions(items => [session, ...items]);
       await startMedia(session, selectedAccess);
       setMessage('En attente du patient…');
@@ -180,7 +186,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
   };
 
   const resume = async (session: Session) => {
-    const accessId = selectedAccess || accesses[0]?.access_id;
+    const accessId = session.access_id || selectedAccess || accesses[0]?.access_id;
     if (!accessId) return;
     setBusy(true);
     setMessage('');
@@ -208,7 +214,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
     }
   };
 
-  const currentAvailable = sessions.find(item => !terminal.has(item.state));
+  const currentAvailable = sessions.find(item => !terminal.has(item.state) && (!selectedAccess || item.access_id === selectedAccess));
 
   return (
     <section data-pc09-staff className="rounded-2xl sm:rounded-[1.75rem] border border-border-main bg-card-bg p-4 sm:p-5 md:p-6 shadow-elite">
