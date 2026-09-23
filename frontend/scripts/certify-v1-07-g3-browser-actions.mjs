@@ -25,17 +25,43 @@ for(const viewport of viewports){
   const ctx=await browser.newContext({viewport,colorScheme:'light'});
   const page=await ctx.newPage();
   await seed(page);
+  await page.route('**/api/appointments/pending',route=>route.fulfill({
+    status:200,
+    contentType:'application/json',
+    body:JSON.stringify([{
+      id:7001,
+      patient_name:'Pending Browser',
+      phone:'0600000000',
+      motif:'Contrôle',
+      datetime_start:'2030-01-15T10:00:00',
+      duration_minutes:30,
+      status:'EN_ATTENTE_DEMANDE',
+      source:'browser-cert',
+      expires_at:'2030-01-15T12:00:00'
+    }])
+  }));
   await page.goto('http://127.0.0.1:5173/agenda',{waitUntil:'networkidle',timeout:90000});
 
-  // Core view switching.
-  for(const label of [/Jour$/i,/Semaine$/i,/Mois$/i,/Multi$/i]){
-    const b=page.getByRole('button',{name:label}).first();
-    if(await b.count()){
-      await b.click();
-      await page.waitForTimeout(200);
-      prove(viewport,'agenda-view-'+String(label));
-    }
+  // Core view switching -> prove the actual consumer view, not only the click.
+  const viewCases=[
+    {label:/Jour$/i,testId:'agenda-day-view',name:'day'},
+    {label:/Semaine$/i,testId:'agenda-week-view',name:'week'},
+    {label:/Mois$/i,testId:'agenda-month-view',name:'month'},
+  ];
+  for(const item of viewCases){
+    const b=page.getByRole('button',{name:item.label}).first();
+    await b.click();
+    await page.getByTestId(item.testId).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'agenda-view-'+item.name);
   }
+  const multi=page.getByRole('button',{name:/Multi$/i}).first();
+  await multi.click();
+  await page.getByText('Vue multi-praticien',{exact:true}).waitFor({state:'visible',timeout:10000});
+  prove(viewport,'agenda-view-multi');
+
+  // Return to week for the mutation scenarios below.
+  await page.getByRole('button',{name:/Semaine$/i}).first().click();
+  await page.getByTestId('agenda-week-view').waitFor({state:'visible',timeout:10000});
 
   // Frontdesk modal: explicit refusal must keep form open.
   const frontdesk=page.getByTitle('Nouvelle demande de rendez-vous');
@@ -124,13 +150,21 @@ for(const viewport of viewports){
     if(await cancelEdit.count()) await cancelEdit.click();
   }
 
-  // Pending-only toggle if present.
+  // Pending-only toggle -> prove active agenda visibility actually changes.
   const pendingOnly=page.getByRole('button',{name:'Afficher seulement',exact:true});
-  if(await pendingOnly.count()){
-    await pendingOnly.click();
-    await page.getByRole('button',{name:'Afficher tout',exact:true}).waitFor({state:'visible',timeout:5000});
-    prove(viewport,'agenda-pending-filter-toggle');
-  }
+  await pendingOnly.waitFor({state:'visible',timeout:5000});
+  await page.getByText('Pending Browser',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await page.getByTestId('agenda-active-view').waitFor({state:'visible',timeout:5000});
+  await pendingOnly.click();
+  await page.getByRole('button',{name:'Afficher tout',exact:true}).waitFor({state:'visible',timeout:5000});
+  if(await page.getByTestId('agenda-active-view').count()) throw new Error('pending-only did not hide active agenda view');
+  await page.getByText('Pending Browser',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'agenda-pending-filter-hides-active-view');
+
+  await page.getByRole('button',{name:'Afficher tout',exact:true}).click();
+  await page.getByTestId('agenda-active-view').waitFor({state:'visible',timeout:5000});
+  await page.getByTestId('agenda-week-view').waitFor({state:'visible',timeout:5000});
+  prove(viewport,'agenda-pending-filter-restores-active-view');
 
   // Google import modal open/close + invalid file non-mutation.
   const importButton=page.getByTitle('Importer depuis Google Agenda');
@@ -146,6 +180,7 @@ for(const viewport of viewports){
     if(await cancel.count()) await cancel.click();
   }
 
+  await page.unroute('**/api/appointments/pending');
   await ctx.close();
 }
 
