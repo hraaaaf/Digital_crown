@@ -8,6 +8,9 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const login=await api.post('/api/auth/login',{form:{username:superEmail,password}});
 if(!login.ok()) throw new Error('G6 superadmin login failed');
 const tokens=await login.json();
+const dentistLogin=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
+if(!dentistLogin.ok()) throw new Error('G6 dentist login failed');
+const dentistTokens=await dentistLogin.json();
 const headers={Authorization:'Bearer '+tokens.access_token};
 
 const me=await api.get('/api/auth/me',{headers});
@@ -316,6 +319,48 @@ for(const viewport of viewports){
   }
 
   await ctx.close();
+
+  // Real visible licence lock flow lives in LoginPage (?locked=true), not the orphan LicenseStatusPage.
+  const lockedCtx=await browser.newContext({viewport,colorScheme:'light'});
+  const lockedPage=await lockedCtx.newPage();
+  await lockedPage.addInitScript(v=>{
+    localStorage.setItem('token',v.access);
+    localStorage.setItem('refresh_token',v.refresh||'');
+    localStorage.setItem('appMode','prod');
+  },{access:dentistTokens.access_token,refresh:dentistTokens.refresh_token});
+  let recheckCalls=0;
+  await lockedPage.route('**/api/clinics/recheck-license',route=>{
+    recheckCalls+=1;
+    if(recheckCalls===1) return route.fulfill({status:402,contentType:'application/json',body:JSON.stringify({detail:'Licence toujours invalide'})});
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'ok'})});
+  });
+  await lockedPage.goto('http://127.0.0.1:5173/login?locked=true',{waitUntil:'networkidle',timeout:90000});
+  await lockedPage.getByText('Accès Verrouillé',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await lockedPage.getByRole('button',{name:'Revérifier la licence',exact:true}).click();
+  await lockedPage.getByText(/La licence est toujours invalide/i).waitFor({state:'visible',timeout:10000});
+  if(recheckCalls!==1 || !lockedPage.url().includes('locked=true')) throw new Error('licence recheck refusal false-success');
+  prove(viewport,'license-lock-recheck-refusal',{recheckCalls});
+
+  await lockedPage.getByRole('button',{name:'Revérifier la licence',exact:true}).click();
+  await lockedPage.waitForURL('**/dashboard',{timeout:10000});
+  if(recheckCalls!==2) throw new Error('licence recheck ACK count mismatch');
+  prove(viewport,'license-lock-recheck-success',{recheckCalls});
+  await lockedPage.unroute('**/api/clinics/recheck-license');
+  await lockedCtx.close();
+
+  const logoutCtx=await browser.newContext({viewport,colorScheme:'light'});
+  const logoutPage=await logoutCtx.newPage();
+  await logoutPage.addInitScript(v=>{
+    localStorage.setItem('token',v.access);
+    localStorage.setItem('refresh_token',v.refresh||'');
+    localStorage.setItem('appMode','prod');
+  },{access:dentistTokens.access_token,refresh:dentistTokens.refresh_token});
+  await logoutPage.goto('http://127.0.0.1:5173/login?locked=true',{waitUntil:'networkidle',timeout:90000});
+  await logoutPage.getByRole('button',{name:'Se déconnecter',exact:true}).click();
+  await logoutPage.waitForFunction(()=>!localStorage.getItem('token'),undefined,{timeout:10000});
+  await logoutPage.getByRole('button',{name:/Se connecter/i}).waitFor({state:'visible',timeout:10000});
+  prove(viewport,'license-lock-logout-clears-session');
+  await logoutCtx.close();
 }
 
 await browser.close();
