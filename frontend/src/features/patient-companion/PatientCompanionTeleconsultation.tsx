@@ -168,8 +168,9 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
 
       const joined = await PatientCompanionTeleconsultTransport.join(pairing, session.session_id);
       setCurrent(joined);
+      const iceServers = await PatientCompanionTeleconsultTransport.iceConfig(pairing, session.session_id);
 
-      const peer = new RTCPeerConnection({ iceServers: [] });
+      const peer = new RTCPeerConnection({ iceServers });
       peerRef.current = peer;
       for (const track of stream.getTracks()) peer.addTrack(track, stream);
 
