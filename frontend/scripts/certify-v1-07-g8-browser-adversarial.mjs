@@ -70,19 +70,38 @@ for(const viewport of viewports){
   });
   await page.goto('http://127.0.0.1:5173/stock',{waitUntil:'networkidle',timeout:90000});
   const row=page.getByText('Gants nitrile',{exact:true}).locator('xpath=ancestor::tr');
-  await row.getByTitle('Supprimer').click();
+  const deleteOpener=row.getByTitle('Supprimer');
+  await deleteOpener.click();
   const dialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
   await dialog.waitFor({state:'visible',timeout:5000});
-  await page.waitForFunction(()=>!!document.activeElement?.closest('[role="dialog"]'),undefined,{timeout:5000});
-  const activeInside=await page.evaluate(()=>!!document.activeElement?.closest('[role="dialog"]'));
-  if(!activeInside) throw new Error('delete dialog did not own focus');
-  prove(viewport,'dialog-focus-entry');
+  await page.waitForFunction(()=>document.activeElement?.textContent?.trim()==='Annuler',undefined,{timeout:5000});
+  const locked=await page.evaluate(()=>({
+    body:document.body.style.overflow,
+    html:document.documentElement.style.overflow,
+  }));
+  if(locked.body!=='hidden' || locked.html!=='hidden') throw new Error('delete dialog did not lock document scroll');
+  prove(viewport,'dialog-autofocus-scroll-lock');
+
+  await page.keyboard.press('Shift+Tab');
+  const shiftTarget=await page.evaluate(()=>document.activeElement?.textContent?.trim());
+  if(shiftTarget!=='Supprimer définitivement') throw new Error('dialog Shift+Tab did not wrap to last control: '+shiftTarget);
+  await page.keyboard.press('Tab');
+  const tabTarget=await page.evaluate(()=>document.activeElement?.textContent?.trim());
+  if(tabTarget!=='Annuler') throw new Error('dialog Tab did not wrap to first control: '+tabTarget);
+  prove(viewport,'dialog-focus-loop');
 
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'hidden',timeout:5000});
-  prove(viewport,'dialog-escape-close');
+  await page.waitForFunction(()=>document.activeElement?.getAttribute('title')==='Supprimer',undefined,{timeout:5000});
+  const restored=await page.evaluate(()=>({
+    opener:document.activeElement?.getAttribute('title'),
+    body:document.body.style.overflow,
+    html:document.documentElement.style.overflow,
+  }));
+  if(restored.opener!=='Supprimer' || restored.body==='hidden' || restored.html==='hidden') throw new Error('dialog close did not restore focus/scroll');
+  prove(viewport,'dialog-escape-focus-scroll-restore');
 
-  await row.getByTitle('Supprimer').click();
+  await deleteOpener.click();
   await page.getByRole('button',{name:'Supprimer définitivement',exact:true}).click();
   await dialog.getByText('Suppression refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
   if(!(await page.getByText('Gants nitrile',{exact:true}).count())) throw new Error('delete refusal mutated visible stock');
@@ -107,7 +126,7 @@ for(const viewport of viewports){
   });
   await page.goto('http://127.0.0.1:5173/stock',{waitUntil:'networkidle',timeout:90000});
   await page.getByRole('button',{name:/Ajouter un article/i}).click();
-  const modal=page.getByText('Nouvel article',{exact:true}).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+  const modal=page.getByRole('dialog',{name:'Nouvel article'});
   await modal.getByPlaceholder('Ex: Gants nitrile S').fill('Masques single-flight');
   const add=modal.getByRole('button',{name:'Ajouter',exact:true});
   await add.evaluate(el=>{(el).click();(el).click();});
