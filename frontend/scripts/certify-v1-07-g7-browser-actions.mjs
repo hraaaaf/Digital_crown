@@ -167,7 +167,7 @@ for(const viewport of viewports){
     prove(viewport,'library-deeplink-navigation');
   }
 
-  // SCIENCE HUB — search + category + safe external link contract.
+  // SCIENCE HUB — search + category + safe external link + back navigation.
   await page.goto('http://127.0.0.1:5173/science-hub',{waitUntil:'networkidle',timeout:90000});
   const sciSearch=page.getByPlaceholder('Rechercher un article...');
   if(await sciSearch.count()){
@@ -176,6 +176,19 @@ for(const viewport of viewports){
     prove(viewport,'science-hub-no-result-truth');
     await sciSearch.fill('');
   }
+
+  const endoCategory=page.getByRole('button',{name:'ENDODONTIE',exact:true});
+  await endoCategory.click();
+  const cards=page.getByTestId('science-article-card');
+  const cardCount=await cards.count();
+  if(cardCount!==4) throw new Error('science category expected 4 ENDODONTIE cards, got '+cardCount);
+  for(let i=0;i<cardCount;i++){
+    if((await cards.nth(i).getAttribute('data-category'))!=='ENDODONTIE') {
+      throw new Error('science category filter leaked another category');
+    }
+  }
+  prove(viewport,'science-hub-category-filter',{category:'ENDODONTIE',count:cardCount});
+
   const study=page.getByRole('link',{name:/Consulter l'étude complète/i}).first();
   if(await study.count()){
     const target=await study.getAttribute('target');
@@ -183,6 +196,11 @@ for(const viewport of viewports){
     if(target!=='_blank'||!rel.includes('noopener')||!rel.includes('noreferrer')) throw new Error('unsafe science external link');
     prove(viewport,'science-hub-safe-external-link');
   }
+
+  const returnButton=page.getByRole('button',{name:'Retour',exact:true});
+  await returnButton.click();
+  await page.waitForURL('**/bibliotheque/detartrage-surfacage',{timeout:10000});
+  prove(viewport,'science-hub-back-navigation');
 
   await ctx.close();
 }
