@@ -71,26 +71,112 @@ for(const viewport of viewports){
     }
   }
 
-  // Branding: preview scope/local runtime preference must not require backend persistence.
-  const branding=page.getByRole('button',{name:'Design & Ambiance',exact:true});
-  if(await branding.count()){
-    await branding.click();
-    const doc=page.getByRole('button',{name:'Document',exact:true});
-    if(await doc.count()){
-      await doc.click();
-      const scope=await page.evaluate(()=>localStorage.getItem('branding_preview_scope'));
-      if(scope!=='doc') throw new Error('branding preview scope not persisted locally');
-      prove(viewport,'settings-branding-preview-local');
-    }
-    const animated=page.getByRole('button',{name:'Arrière-plan animé',exact:true});
-    if(await animated.count()){
-      const before=await animated.getAttribute('aria-pressed');
-      await animated.click();
-      const after=await animated.getAttribute('aria-pressed');
-      if(before===after) throw new Error('animated background toggle did not change');
-      prove(viewport,'settings-branding-runtime-toggle');
-    }
+  // Branding — deep contract: preview consumer, preset persistence/reset, animated background real consumer + reload.
+  const brandingOriginalResp=await api.get('/api/clinics/me',{headers});
+  if(!brandingOriginalResp.ok()) throw new Error('branding original profile read failed');
+  const brandingOriginal=await brandingOriginalResp.json();
+  const originalBrandingPatch={
+    primary_color:brandingOriginal.primary_color,
+    secondary_color:brandingOriginal.secondary_color,
+    accent_color:brandingOriginal.accent_color,
+    font_fr:brandingOriginal.font_fr,
+    selected_template:brandingOriginal.selected_template,
+    selected_theme:brandingOriginal.selected_theme,
+    margin_top:brandingOriginal.margin_top,
+    margin_bottom:brandingOriginal.margin_bottom,
+    header_logo_scale:brandingOriginal.header_logo_scale,
+    header_font_scale:brandingOriginal.header_font_scale,
+    footer_font_scale:brandingOriginal.footer_font_scale,
+    header_line_height:brandingOriginal.header_line_height,
+    footer_line_height:brandingOriginal.footer_line_height
+  };
+  const originalAnimatedBg=await page.evaluate(()=>localStorage.getItem('app_background_animated')==='true');
+
+  const openBranding=async()=>{
+    await page.goto('http://127.0.0.1:5173/settings',{waitUntil:'networkidle',timeout:90000});
+    const tab=page.getByRole('button',{name:'Design & Ambiance',exact:true});
+    await tab.waitFor({state:'visible',timeout:10000});
+    await tab.click();
+    await page.getByRole('button',{name:'Arrière-plan animé',exact:true}).waitFor({state:'visible',timeout:10000});
+  };
+
+  await openBranding();
+
+  // Preview selector must alter the actual preview surface without backend mutation.
+  const profileBeforePreview=await api.get('/api/clinics/me',{headers});
+  const profileBeforePreviewBody=await profileBeforePreview.json();
+  await page.getByRole('button',{name:'Document',exact:true}).click();
+  await page.getByText('PDF réel',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  const scopeDoc=await page.evaluate(()=>localStorage.getItem('branding_preview_scope'));
+  if(scopeDoc!=='doc') throw new Error('branding document preview scope not persisted');
+  const profileAfterPreview=await api.get('/api/clinics/me',{headers});
+  const profileAfterPreviewBody=await profileAfterPreview.json();
+  if(JSON.stringify(profileAfterPreviewBody)!==JSON.stringify(profileBeforePreviewBody)) throw new Error('branding preview mutated backend profile');
+  await page.getByRole('button',{name:'Application',exact:true}).click();
+  await page.getByText('Tableau de bord',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  prove(viewport,'settings-branding-preview-consumer');
+
+  // Apply Swiss preset -> shared save -> backend truth.
+  await page.getByRole('button',{name:/Ambiance active/i}).click();
+  await page.getByRole('button',{name:/Swiss Clinic \(Ligne Claire\)/i}).click();
+  await page.getByRole('button',{name:/Appliquer l'ambiance/i}).click();
+  let sharedBrandingSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+  await sharedBrandingSave.waitFor({state:'visible',timeout:5000});
+  await sharedBrandingSave.click();
+  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  let brandingCheck=await api.get('/api/clinics/me',{headers});
+  let brandingBody=await brandingCheck.json();
+  if(brandingBody.selected_theme!=='graphite' || brandingBody.selected_template!=='swiss' || brandingBody.font_fr!=='inter'){
+    throw new Error('branding Swiss preset did not persist');
   }
+  prove(viewport,'settings-branding-preset-save');
+
+  // Reset requires explicit confirmation and persists Royal preset.
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:/Réinitialiser/i}).click();
+  sharedBrandingSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+  await sharedBrandingSave.waitFor({state:'visible',timeout:5000});
+  await sharedBrandingSave.click();
+  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  brandingCheck=await api.get('/api/clinics/me',{headers});
+  brandingBody=await brandingCheck.json();
+  if(brandingBody.selected_theme!=='elite' || brandingBody.selected_template!=='royal' || brandingBody.font_fr!=='playfair'){
+    throw new Error('branding reset did not persist Royal preset');
+  }
+  prove(viewport,'settings-branding-reset-save');
+
+  // Restore original backend branding fixture.
+  const restoreBranding=await api.put('/api/clinics/me',{headers,data:originalBrandingPatch});
+  if(!restoreBranding.ok()) throw new Error('branding original profile restore failed');
+
+  // Animated background ON/OFF must mount/unmount the real MainLayout consumer and survive reload.
+  await openBranding();
+  let animated=page.getByRole('button',{name:'Arrière-plan animé',exact:true});
+  let animatedState=(await animated.getAttribute('aria-pressed'))==='true';
+  if(!animatedState) await animated.click();
+  await page.getByTestId('animated-background').waitFor({state:'visible',timeout:10000});
+  await page.reload({waitUntil:'networkidle',timeout:90000});
+  await page.getByTestId('animated-background').waitFor({state:'visible',timeout:10000});
+  prove(viewport,'settings-branding-background-enabled');
+
+  await openBranding();
+  animated=page.getByRole('button',{name:'Arrière-plan animé',exact:true});
+  animatedState=(await animated.getAttribute('aria-pressed'))==='true';
+  if(animatedState) await animated.click();
+  await page.getByTestId('animated-background').waitFor({state:'detached',timeout:10000});
+  await page.reload({waitUntil:'networkidle',timeout:90000});
+  if(await page.getByTestId('animated-background').count()) throw new Error('animated background persisted while disabled');
+  prove(viewport,'settings-branding-background-disabled');
+
+  // Restore original local background preference.
+  await openBranding();
+  animated=page.getByRole('button',{name:'Arrière-plan animé',exact:true});
+  animatedState=(await animated.getAttribute('aria-pressed'))==='true';
+  if(animatedState!==originalAnimatedBg) await animated.click();
+  await page.reload({waitUntil:'networkidle',timeout:90000});
+  const restoredBgCount=await page.getByTestId('animated-background').count();
+  if((restoredBgCount>0)!==originalAnimatedBg) throw new Error('animated background original state not restored');
+  prove(viewport,'settings-branding-fixture-restored',{originalAnimatedBg});
 
   // Performance/assistance — deep contract: stage -> save -> backend -> consumer effect -> inverse -> restore.
   const openRuntimeSettings=async()=>{
