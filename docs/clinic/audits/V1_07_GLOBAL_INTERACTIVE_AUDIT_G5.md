@@ -189,3 +189,50 @@ Because the visible Settings copy changed, G5 now carries a targeted BEFORE/AFTE
 - manifest records baseline SHA + exact candidate HEAD + viewport matrix.
 
 The visual change is not certified until the artifact is produced, inspected, compared and scored.
+
+
+## Deep browser reconciliation completed — Settings / Security / Team — 2026-09-23
+
+The G5 Chromium gate now applies the canonical full interaction contract across the visible Settings denominator.
+
+### Profile / Branding / Agenda / Catalogue
+- successful staged changes are verified through the shared save/ACK path and their downstream rendered state;
+- refusal paths retain dirty/modal state and never render false success;
+- Agenda overlap validation blocks mutation before transport;
+- closures are added/removed only through explicit confirmed mutations;
+- Catalogue create/edit/deactivate and invalid-tariff/refusal paths preserve backend/UI truth;
+- Branding preview remains non-mutating while persisted preferences are verified after save.
+
+### Runtime preferences
+- Performance: ON/OFF -> backend save -> reload -> real `body.performance-mode` consumer and computed animation/transition behavior;
+- the misleading `Conseils cliniques contextuels` label was corrected to `Animation d’activité IA` because the surviving consumer only gates the Digital Crown logo pulse;
+- AI activity animation: ON/OFF -> save -> reload -> actual `ai-generation-start/end` consumer;
+- patient indicators: ON/OFF -> save -> reload/navigation -> actual `PatientScoreBadge` presence/absence;
+- initial isolated fixture state is restored after proof.
+
+### Backup / Restore
+The browser gate proves:
+- verified encrypted export request;
+- compatible preflight with zero destructive mutation;
+- cancel/delete of the prepared restore context;
+- prepare gate;
+- exact `RESTAURER` confirmation (wrong case/text stays blocked);
+- apply + terminal status;
+- refused/corrupt preflight never exposes destructive prepare/apply controls.
+
+All restore mutations are intercepted in the isolated certification runtime; no real restoration is executed.
+
+### Team
+The former shallow “surface reachable” proof was replaced with deterministic state transitions:
+- create -> ACK -> member visible;
+- approve -> Actif;
+- reject with explicit confirmation -> Refusé and no suspend/reactivate actions;
+- permissions save -> persisted fixture state;
+- refused status mutation -> visible error + non-mutation;
+- suspend -> Suspendu -> reactivate -> Actif;
+- permanent delete -> confirmed ACK -> member removed.
+
+### Practitioner context
+Multi-practitioner, owner fallback and secretary-employer fallback remain reconciled against backend truth.
+
+Functional deep-check status: COMPLETE IN HARNESS. G5 remains NOT CERTIFIED until exact-head browser/CI and its matched runtime-preference visual artifact are green and inspected.
