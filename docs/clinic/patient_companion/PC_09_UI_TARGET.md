@@ -9,7 +9,7 @@ Make teleconsultation feel like a normal clinical action, not a networking tool.
 The dentist and patient must never see STUN/TURN/SDP/ICE/WebRTC jargon.
 
 ## Success
-- explicit user action before camera/microphone permission;
+- explicit patient acceptance before camera/microphone permission;
 - clear waiting / connecting / connected / ended states;
 - no false “connected” state;
 - local + remote video surfaces are readable;
@@ -40,9 +40,11 @@ The BEFORE evidence proves absence of the PC-09 surface. PC-09 AFTER must use th
 ┌─────────────────────────────────┐
 │  ◉ Téléconsultation             │
 │  Consultation vidéo             │
-│  La caméra et le microphone     │
-│  ne s’activent qu’après votre   │
-│  action.                        │
+│  En rejoignant, vous acceptez     │
+│  cette téléconsultation.        │
+│  Caméra + micro uniquement      │
+│  après votre action.            │
+│  Aucun enregistrement.          │
 │                                 │
 │  Aucune téléconsultation        │
 │  en attente                     │
@@ -54,7 +56,7 @@ The BEFORE evidence proves absence of the PC-09 surface. PC-09 AFTER must use th
 │  Téléconsultation               │
 │  Consultation vidéo             │
 │                                 │
-│  Prête à rejoindre      [Join]  │
+│  Prête à rejoindre   [Accepter] │
 │  Créée aujourd’hui              │
 └─────────────────────────────────┘
 
@@ -92,7 +94,7 @@ The BEFORE evidence proves absence of the PC-09 surface. PC-09 AFTER must use th
 Allowed:
 - Téléconsultation
 - Consultation vidéo
-- Rejoindre
+- Accepter et rejoindre
 - Connexion en cours
 - En consultation
 - Terminer
