@@ -227,7 +227,7 @@ for(const viewport of viewports){
   await setupPage.getByPlaceholder('Dr. Jean Dupont').fill('Dr Browser Setup');
   await setupPage.getByRole('button',{name:/Continuer/i}).click();
   await setupPage.locator('[data-flow-step="2"]').waitFor({state:'visible',timeout:5000});
-  await setupPage.getByRole('button',{name:/Précédent/i}).click();
+  await setupPage.getByRole('button',{name:/Retour/i}).click();
   await setupPage.locator('[data-flow-step="1"]').waitFor({state:'visible',timeout:5000});
   await setupPage.getByRole('button',{name:/Continuer/i}).click();
   for(let step=3;step<=7;step++){
