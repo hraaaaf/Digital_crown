@@ -58,6 +58,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
   const cursorRef = useRef<string | null>(null);
   const pollRef = useRef<number | null>(null);
   const connectedReportedRef = useRef(false);
+  const failedReportedRef = useRef(false);
 
   const setCurrent = (session: Session | null) => {
     sessionRef.current = session;
@@ -76,6 +77,7 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     cursorRef.current = null;
     connectedReportedRef.current = false;
+    failedReportedRef.current = false;
     setMediaStarted(false);
   }, []);
 
@@ -176,8 +178,26 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
         void api.post('/patient-companion/admin/patients/' + patientId + '/teleconsultations/' + current.session_id + '/connected', {
           access_id: accessRef.current,
         }).then(response => setCurrent(response.data.session)).catch(() => setMessage('Confirmation de connexion en attente.'));
-      } else if (peer.connectionState === 'failed') {
-        setMessage('Connexion impossible sur ce réseau.');
+      } else if (peer.connectionState === 'failed' && !failedReportedRef.current) {
+        failedReportedRef.current = true;
+        const current = sessionRef.current;
+        const accessId = accessRef.current;
+        if (!current || !accessId) {
+          stopPeer();
+          setMessage('Connexion impossible sur ce réseau.');
+          return;
+        }
+        void api.post(
+          '/patient-companion/admin/patients/' + patientId + '/teleconsultations/' + current.session_id + '/failed',
+          { access_id: accessId, failure_code: 'PEER_CONNECTION_FAILED' },
+        ).then(response => {
+          setCurrent(response.data.session);
+          stopPeer();
+          setMessage('Connexion impossible sur ce réseau.');
+        }).catch(() => {
+          stopPeer();
+          setMessage('Connexion impossible sur ce réseau.');
+        });
       }
     };
 
