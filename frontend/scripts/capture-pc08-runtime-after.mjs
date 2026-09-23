@@ -140,7 +140,13 @@ for (const viewport of [
 ]) {
   await staffPage.setViewportSize({ width: viewport.width, height: viewport.height });
   if (viewport.width >= 1024) {
-    await staffPage.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+    await staffPage.evaluate(() => {
+      const appScroller = document.querySelector('main.overflow-y-auto');
+      if (!(appScroller instanceof HTMLElement)) {
+        throw new Error('PC-08 app scroller not found');
+      }
+      appScroller.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    });
   } else {
     await staffPanel.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
   }
