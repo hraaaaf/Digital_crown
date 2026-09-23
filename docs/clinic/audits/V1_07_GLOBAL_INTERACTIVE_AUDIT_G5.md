@@ -139,3 +139,39 @@ Status: FUNCTIONALLY RECONCILED — CERTIFICATION PENDING EXACT-HEAD TESTS + BUI
 
 ## Browser escalation
 G5 is no longer certifiable from component matrices + CI alone. Every visible Settings tab/control, Team action and Backup/Restore gate must be reconciled against the real Chromium denominator and exercised by Playwright with observable staged-save, ACK/refusal, restore-state and non-mutation proof.
+
+
+## Deep interaction contract — runtime preferences
+
+The G5 browser gate now requires end-to-end consumer proof for every runtime preference, not only toggle/state proof.
+
+### Mode Performance
+Required proof:
+- toggle ON;
+- shared save ACK persisted through `PUT /clinics/me`;
+- reload;
+- `document.body.performance-mode` present;
+- computed CSS proves transitions/animations are neutralized;
+- toggle OFF + save + reload removes the consumer effect.
+
+### Animation d’activité IA
+The previous label `Conseils cliniques contextuels` was a product-truth defect: the current consumer in `Sidebar.tsx` does not display clinical advice. It only gates the Digital Crown logo pulse during `ai-generation-start/end`.
+
+The UI label/description is therefore aligned to the real runtime contract:
+- **Animation d’activité IA**;
+- no automatic clinical advice is claimed;
+- ON + save + reload -> AI generation event adds `animate-logo-pulse-light`;
+- OFF + save + reload -> the same event must not animate the logo.
+
+No retired automatic clinical-tip interruption is reintroduced.
+
+### Indicateurs de suivi patient
+Required proof:
+- toggle ON;
+- save ACK persisted;
+- reload/navigation to Patients;
+- deterministic `/patients/scores` fixture exposes a real `PatientScoreBadge` consumer;
+- toggle OFF + save + reload/navigation hides that consumer;
+- final fixture state restored and backend truth rechecked.
+
+These three controls are not certifiable from `aria-pressed`, local state, or save-bar behavior alone.
