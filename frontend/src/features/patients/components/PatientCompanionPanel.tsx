@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 import { PatientCompanionMessagingPanel } from './PatientCompanionMessagingPanel';
+import { PatientCompanionTeleconsultationPanel } from './PatientCompanionTeleconsultationPanel';
 
 type ResourceType = 'document' | 'media';
 
@@ -311,6 +312,7 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
         </section>
       )}
 
+      <PatientCompanionTeleconsultationPanel patientId={patientId} />
       <PatientCompanionMessagingPanel patientId={patientId} />
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">

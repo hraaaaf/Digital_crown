@@ -1,0 +1,78 @@
+name: PC-09 Teleconsultation Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "alembic/versions/pc090000016_add_pc09_teleconsultation.py"
+      - "backend/config.py"
+      - "backend/models_patient_companion.py"
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_teleconsultation.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "backend/services/patient_companion_teleconsultation.py"
+      - "backend/tests/test_patient_companion_teleconsultation.py"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultTransport.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultation.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultation.contract.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionTeleconsultationPanel.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionPanel.tsx"
+      - ".github/workflows/pc09-certification.yml"
+      - "docs/clinic/patient_companion/PC_09_*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pc09:
+    name: PC-09 backend + frontend truth contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: test
+      SECRET_KEY: pc09-certification-only-secret-key-000001
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact head
+        if: github.event_name == 'pull_request'
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: PC-09 backend truth + isolation tests
+        run: python -m pytest backend/tests/test_patient_companion_teleconsultation.py -q --maxfail=1
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: PC-09 frontend truth contract
+        working-directory: frontend
+        run: npm test -- --run src/features/patient-companion/PatientCompanionTeleconsultation.contract.test.ts
+
+      - name: Frontend production build
+        working-directory: frontend
+        run: npm run build
