@@ -26,10 +26,8 @@ for(const viewport of viewports){
   const ctx=await browser.newContext({viewport,colorScheme:'light'});
   const page=await ctx.newPage();
   await seed(page);
-  await page.route('**/api/appointments/pending',route=>route.fulfill({
-    status:200,
-    contentType:'application/json',
-    body:JSON.stringify([{
+  let pendingRequests=[
+    {
       id:7001,
       patient_name:'Pending Browser',
       phone:'0600000000',
@@ -39,8 +37,51 @@ for(const viewport of viewports){
       status:'EN_ATTENTE_DEMANDE',
       source:'browser-cert',
       expires_at:'2030-01-15T12:00:00'
-    }])
+    },
+    {
+      id:7002,
+      patient_name:'Pending Confirm',
+      phone:'0600000001',
+      motif:'Consultation',
+      datetime_start:'2030-01-15T11:00:00',
+      duration_minutes:30,
+      status:'EN_ATTENTE_DEMANDE',
+      source:'browser-cert',
+      expires_at:'2030-01-15T13:00:00'
+    },
+    {
+      id:7003,
+      patient_name:'Pending Reject',
+      phone:'0600000002',
+      motif:'Contrôle',
+      datetime_start:'2030-01-15T12:00:00',
+      duration_minutes:30,
+      status:'EN_ATTENTE_DEMANDE',
+      source:'browser-cert',
+      expires_at:'2030-01-15T14:00:00'
+    }
+  ];
+  let requestConfirmCalls=0,confirmPendingCalls=0,rejectPendingCalls=0;
+  await page.route('**/api/appointments/pending',route=>route.fulfill({
+    status:200,
+    contentType:'application/json',
+    body:JSON.stringify(pendingRequests)
   }));
+  await page.route('**/api/appointments/7001/request-confirmation',route=>{
+    requestConfirmCalls+=1;
+    pendingRequests=pendingRequests.map(r=>r.id===7001?{...r,status:'EN_ATTENTE_CONFIRM'}:r);
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({message:'confirmation requested'})});
+  });
+  await page.route('**/api/appointments/7002/confirm',route=>{
+    confirmPendingCalls+=1;
+    pendingRequests=pendingRequests.filter(r=>r.id!==7002);
+    return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+  });
+  await page.route('**/api/appointments/7003/reject',route=>{
+    rejectPendingCalls+=1;
+    pendingRequests=pendingRequests.filter(r=>r.id!==7003);
+    return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+  });
   await page.goto('http://127.0.0.1:5173/agenda',{waitUntil:'networkidle',timeout:90000});
 
   // Core view switching -> prove the actual consumer view, not only the click.
@@ -64,23 +105,53 @@ for(const viewport of viewports){
   await page.getByRole('button',{name:/Semaine$/i}).first().click();
   await page.getByTestId('agenda-week-view').waitFor({state:'visible',timeout:10000});
 
-  // Frontdesk modal: explicit refusal must keep form open.
+  // Frontdesk modal: refusal preserves form; ACK closes and the new pending request appears after refetch.
   const frontdesk=page.getByTitle('Nouvelle demande de rendez-vous');
   if(await frontdesk.count()){
     await page.route('**/api/frontdesk/appointment-request',route=>route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Créneau indisponible"}'}));
     await frontdesk.click();
-    const prenom=page.getByPlaceholder('Prénom');
-    if(await prenom.count()){
-      await prenom.fill('Sara');
-      await page.getByPlaceholder('Nom',{exact:true}).fill('BENALI');
-      await page.getByPlaceholder('Motif de la visite').fill('Contrôle');
-      await page.getByRole('button',{name:/Créer demande/i}).click();
-      await page.getByText('Créneau indisponible',{exact:true}).waitFor({state:'visible',timeout:5000});
-      if(!(await page.getByPlaceholder('Prénom').count())) throw new Error('frontdesk closed after refusal');
-      prove(viewport,'frontdesk-refusal-no-false-success');
-      const cancel=page.getByRole('button',{name:'Annuler',exact:true});
-      if(await cancel.count()) await cancel.click();
-    }
+    let frontdeskDialog=page.getByRole('dialog',{name:'Nouvelle demande de RDV'});
+    await frontdeskDialog.waitFor({state:'visible',timeout:5000});
+    await frontdeskDialog.getByPlaceholder('Prénom').fill('Sara');
+    await frontdeskDialog.getByPlaceholder('Nom',{exact:true}).fill('BENALI');
+    await frontdeskDialog.getByPlaceholder('Motif de la visite').fill('Contrôle');
+    await frontdeskDialog.getByRole('button',{name:/Créer demande/i}).click();
+    await frontdeskDialog.getByText('Créneau indisponible',{exact:true}).waitFor({state:'visible',timeout:5000});
+    if(!(await frontdeskDialog.isVisible())) throw new Error('frontdesk closed after refusal');
+    prove(viewport,'frontdesk-refusal-no-false-success');
+    await frontdeskDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+    await page.unroute('**/api/frontdesk/appointment-request');
+
+    let frontdeskCreateCalls=0;
+    await page.route('**/api/frontdesk/appointment-request',async route=>{
+      frontdeskCreateCalls+=1;
+      const body=route.request().postDataJSON();
+      if(body.first_name!=='Nora' || body.last_name!=='FRONTDESK') throw new Error('frontdesk success payload mismatch');
+      const created={
+        id:7099,
+        patient_name:'FRONTDESK Nora',
+        phone:body.phone||null,
+        motif:body.appointment_reason||null,
+        datetime_start:body.requested_start,
+        duration_minutes:body.duration_minutes,
+        status:'EN_ATTENTE_DEMANDE',
+        source:'frontdesk',
+        expires_at:'2030-01-15T15:00:00'
+      };
+      pendingRequests=[...pendingRequests,created];
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(created)});
+    });
+    await frontdesk.click();
+    frontdeskDialog=page.getByRole('dialog',{name:'Nouvelle demande de RDV'});
+    await frontdeskDialog.getByPlaceholder('Prénom').fill('Nora');
+    await frontdeskDialog.getByPlaceholder('Nom',{exact:true}).fill('FRONTDESK');
+    await frontdeskDialog.getByPlaceholder('Téléphone (optionnel)').fill('0611223344');
+    await frontdeskDialog.getByPlaceholder('Motif de la visite').fill('Contrôle succès');
+    await frontdeskDialog.getByRole('button',{name:/Créer demande/i}).click();
+    await frontdeskDialog.waitFor({state:'detached',timeout:10000});
+    await page.getByText('FRONTDESK Nora',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(frontdeskCreateCalls!==1 || !pendingRequests.some(r=>r.id===7099)) throw new Error('frontdesk success ACK/refetch mismatch');
+    prove(viewport,'frontdesk-success-ack-visible',{frontdeskCreateCalls});
     await page.unroute('**/api/frontdesk/appointment-request');
   }
 
