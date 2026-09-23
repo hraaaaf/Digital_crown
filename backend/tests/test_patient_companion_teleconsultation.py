@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -8,6 +12,7 @@ import pytest
 from fastapi import HTTPException, Response
 
 from backend import models
+from backend.config import settings as app_settings
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionIdentity,
@@ -18,6 +23,7 @@ from backend.routers.patient_companion_teleconsultation import StaffSessionCreat
 from backend.services.patient_companion_teleconsultation import (
     PC09_MAX_SIGNAL_BYTES,
     PC09_SIGNAL_SYNC_LIMIT,
+    build_ice_servers,
     add_signal,
     handle_teleconsult_join,
     handle_teleconsult_sync,
@@ -406,3 +412,37 @@ def test_pc09_remote_registry_dispatches_access_scoped_list_through_real_crypto(
     assert ack["payload"]["status"] == "ACCEPTED"
     assert ack["payload"]["result"]["code"] == "SESSION_LIST"
     assert ack["payload"]["result"]["items"][0]["session_id"] == row.public_id
+
+
+def test_pc09_turn_config_falls_back_to_direct_only_when_unconfigured(monkeypatch):
+    monkeypatch.setattr(app_settings, "PATIENT_COMPANION_TURN_URLS", "")
+    monkeypatch.setattr(app_settings, "PATIENT_COMPANION_TURN_SECRET", "")
+    assert build_ice_servers(session_id=str(uuid.uuid4()), actor="patient") == []
+
+
+def test_pc09_turn_credentials_are_short_lived_and_never_expose_shared_secret(monkeypatch):
+    secret = "pc09-turn-shared-secret-test"
+    monkeypatch.setattr(
+        app_settings,
+        "PATIENT_COMPANION_TURN_URLS",
+        "turn:turn.example.test:3478?transport=udp,turns:turn.example.test:5349?transport=tcp",
+    )
+    monkeypatch.setattr(app_settings, "PATIENT_COMPANION_TURN_SECRET", secret)
+    monkeypatch.setattr(app_settings, "PATIENT_COMPANION_TURN_TTL_SECONDS", 900)
+    session_id = str(uuid.uuid4())
+
+    servers = build_ice_servers(session_id=session_id, actor="patient")
+    assert len(servers) == 1
+    item = servers[0]
+    assert item["urls"] == [
+        "turn:turn.example.test:3478?transport=udp",
+        "turns:turn.example.test:5349?transport=tcp",
+    ]
+    assert item["credentialType"] == "password"
+    expires = int(item["username"].split(":", 1)[0])
+    assert int(time.time()) + 60 <= expires <= int(time.time()) + 910
+    expected = base64.b64encode(
+        hmac.new(secret.encode("utf-8"), item["username"].encode("utf-8"), hashlib.sha1).digest()
+    ).decode("ascii")
+    assert item["credential"] == expected
+    assert secret not in json.dumps(servers)
