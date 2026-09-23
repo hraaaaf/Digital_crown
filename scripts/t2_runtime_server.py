@@ -19,6 +19,8 @@ os.environ["TELEMETRY_ENABLED"] = "false"
 os.environ["CLOUD_AI_ENABLED"] = "false"
 os.environ["DEBUG"] = "false"
 os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
+if os.environ.get("T2_SUPERADMIN_EMAIL") and not os.environ.get("SUPERADMIN_EMAIL"):
+    os.environ["SUPERADMIN_EMAIL"] = os.environ["T2_SUPERADMIN_EMAIL"]
 
 # La certification T2 enchaîne plusieurs authentifications valides dans un même
 # processus. Le limiteur produit (5 tentatives / 10 min) reste inchangé ; seul
