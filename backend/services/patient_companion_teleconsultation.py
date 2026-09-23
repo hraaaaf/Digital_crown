@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
+import time
 import uuid
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from backend.config import settings as app_settings
 from backend.models_patient_companion import (
     PatientCompanionAccess,
     PatientCompanionTeleconsultSession,
@@ -53,6 +58,29 @@ def serialize_signal(row: PatientCompanionTeleconsultSignal) -> dict[str, Any]:
         "payload": json.loads(row.payload_json),
         "created_at": row.created_at.isoformat(),
     }
+
+
+def build_ice_servers(*, session_id: str, actor: str) -> list[dict[str, Any]]:
+    raw_urls = app_settings.PATIENT_COMPANION_TURN_URLS.strip()
+    secret = app_settings.PATIENT_COMPANION_TURN_SECRET.strip()
+    if not raw_urls or not secret:
+        return []
+    urls = [item.strip() for item in raw_urls.split(",") if item.strip()]
+    if not urls:
+        return []
+    ttl = max(60, min(int(app_settings.PATIENT_COMPANION_TURN_TTL_SECONDS), 3600))
+    expires = int(time.time()) + ttl
+    safe_actor = "".join(ch for ch in actor if ch.isalnum() or ch in "-_")[:64] or "pc09"
+    username = f"{expires}:{safe_actor}-{session_id}"
+    credential = base64.b64encode(
+        hmac.new(secret.encode("utf-8"), username.encode("utf-8"), hashlib.sha1).digest()
+    ).decode("ascii")
+    return [{
+        "urls": urls,
+        "username": username,
+        "credential": credential,
+        "credentialType": "password",
+    }]
 
 
 def _reject(code: str) -> RemoteDomainResult:
@@ -205,6 +233,32 @@ def sync_signals(
             raise ValueError("SIGNAL_CURSOR_NOT_FOUND")
         q = q.filter(PatientCompanionTeleconsultSignal.id > cursor.id)
     return q.order_by(PatientCompanionTeleconsultSignal.id.asc()).limit(PC09_SIGNAL_SYNC_LIMIT).all()
+
+
+def handle_teleconsult_ice_config(
+    db: Session,
+    access: PatientCompanionAccess,
+    payload: dict[str, Any],
+) -> RemoteDomainResult:
+    if set(payload) != {"session_id"}:
+        return _reject("INVALID_REQUEST")
+    try:
+        session_id = normalize_uuid(payload.get("session_id"), "INVALID_SESSION_ID")
+    except ValueError as exc:
+        return _reject(str(exc))
+    row = _scoped_session(db, access, session_id)
+    if row is None:
+        return _reject("SESSION_NOT_FOUND")
+    if expire_if_needed(row):
+        purge_signals(db, row)
+        return _reject("SESSION_EXPIRED")
+    return RemoteDomainResult(
+        status="ACCEPTED",
+        response={
+            "code": "ICE_CONFIG",
+            "ice_servers": build_ice_servers(session_id=row.public_id, actor="patient"),
+        },
+    )
 
 
 def handle_teleconsult_list(
@@ -367,6 +421,7 @@ def handle_teleconsult_end(
 
 
 PC09_REMOTE_HANDLERS = {
+    "teleconsult.ice-config": handle_teleconsult_ice_config,
     "teleconsult.list": handle_teleconsult_list,
     "teleconsult.join": handle_teleconsult_join,
     "teleconsult.signal": handle_teleconsult_signal,
