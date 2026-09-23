@@ -203,7 +203,10 @@ export function PatientCompanionTeleconsultationPanel({ patientId }: { patientId
 
     await api.post('/patient-companion/admin/patients/' + patientId + '/teleconsultations/' + session.session_id + '/join', { access_id: accessId });
     setMediaStarted(true);
-    pollRef.current = window.setInterval(() => void poll().catch(() => setMessage('Connexion au patient interrompue.')), 1000);
+    pollRef.current = window.setInterval(() => void poll().catch(() => {
+      stopPeer();
+      setMessage('Connexion au patient interrompue.');
+    }), 1000);
   };
 
   const create = async () => {
