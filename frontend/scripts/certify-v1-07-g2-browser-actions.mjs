@@ -792,6 +792,35 @@ for(const viewport of viewports){
  await restrictedPage.waitForURL('**/dashboard',{timeout:10000});
  if(await restrictedPage.getByText(/Performance & Assistance|Mon Équipe|Sécurité & Backup/i).count()) throw new Error('restricted direct settings route exposed settings controls');
  pass(viewport,'settings-direct-route-permission-guard');
+
+ await restrictedPage.goto('http://127.0.0.1:5173/accounting',{waitUntil:'networkidle',timeout:90000});
+ await restrictedPage.waitForURL('**/dashboard',{timeout:10000});
+ pass(viewport,'accounting-direct-route-permission-guard');
+
+ await restrictedPage.goto('http://127.0.0.1:5173/approvisionnement',{waitUntil:'networkidle',timeout:90000});
+ await restrictedPage.waitForURL('**/dashboard',{timeout:10000});
+ pass(viewport,'procurement-direct-route-permission-guard');
+
+ await restrictedPage.goto('http://127.0.0.1:5173/super-admin',{waitUntil:'networkidle',timeout:90000});
+ await restrictedPage.waitForURL('**/dashboard',{timeout:10000});
+ if(await restrictedPage.getByText(/Gestion Globale des Licences/i).count()) throw new Error('restricted direct super-admin route exposed privileged UI');
+ pass(viewport,'superadmin-direct-route-permission-guard');
+
+ await restrictedPage.goto('http://127.0.0.1:5173/agenda',{waitUntil:'networkidle',timeout:90000});
+ await restrictedPage.waitForURL('**/agenda',{timeout:10000});
+ proveAgenda: {
+   const url=new URL(restrictedPage.url());
+   if(url.pathname!=='/agenda') throw new Error('agenda permission positive path failed');
+ }
+ pass(viewport,'agenda-positive-permission-route');
+
+ await restrictedPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
+ const restrictedAttention=restrictedPage.getByRole('button',{name:'Ouvrir le centre d’attention',exact:true});
+ if(await restrictedAttention.count()){
+   await restrictedAttention.click();
+   if(await restrictedPage.getByRole('link',{name:'Trésorerie',exact:true}).count()) throw new Error('restricted user sees treasury shortcut');
+   pass(viewport,'dashboard-restricted-treasury-shortcut-hidden');
+ }
  await restrictedCtx.close();
 }
 
