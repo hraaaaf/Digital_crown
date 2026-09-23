@@ -535,6 +535,132 @@ for(const viewport of viewports){
   await adminPage.unroute('**/api/partner-orders**');
   await adminCtx.close();
 
+  // PARTNER DETAIL PAGES — supplier filters/deeplink/retry + product cart/discontinued/not-found truth.
+  const detailSupplier={
+    id:11,supplierKey:'atlas',name:'Atlas Dental',badge:'Local',description:'Fournisseur test',
+    promise:'24h',apiBaseUrl:null,syncMode:'manual',isActive:true,productCount:2
+  };
+  const detailProducts=[
+    {
+      id:101,supplierId:11,supplierName:'Atlas Dental',externalProductId:'P101',
+      name:'Composite universel',sku:'CMP-101',dentalCategory:'Restauration',dentalSpecialty:'Omnipratique',
+      unit:'seringue',price:390,availability:'AVAILABLE',shortDescription:'Composite test',
+      longDescription:'Composite premium',benefits:['Facile'],isFeatured:true,sortOrder:1
+    },
+    {
+      id:102,supplierId:11,supplierName:'Atlas Dental',externalProductId:'P102',
+      name:'Produit arrêté',sku:'OLD-102',dentalCategory:'Endodontie',dentalSpecialty:'Endodontie',
+      unit:'boîte',price:120,availability:'DISCONTINUED',shortDescription:'Ancien produit',
+      longDescription:'Ancien produit',benefits:[],isFeatured:false,sortOrder:2
+    }
+  ];
+  let detailCatalogReads=0;
+  let failSupplierReads=1;
+  await page.route('**/api/partner-catalog/meta',route=>{
+    detailCatalogReads+=1;
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+      categories:['Restauration','Endodontie'],specialties:['Omnipratique','Endodontie'],availability:['AVAILABLE','DISCONTINUED']
+    })});
+  });
+  await page.route('**/api/partner-catalog/suppliers',route=>{
+    detailCatalogReads+=1;
+    if(failSupplierReads>0){
+      failSupplierReads-=1;
+      return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'supplier read failure'})});
+    }
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([detailSupplier])});
+  });
+  await page.route('**/api/partner-catalog/products',route=>{
+    detailCatalogReads+=1;
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(detailProducts)});
+  });
+  await page.route('**/api/partner-catalog/products/*',route=>{
+    detailCatalogReads+=1;
+    const id=Number(new URL(route.request().url()).pathname.split('/').pop());
+    const item=detailProducts.find(x=>x.id===id);
+    if(!item) return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:'not found'})});
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(item)});
+  });
+  await page.route('**/api/partner-catalog/suppliers/*',route=>{
+    detailCatalogReads+=1;
+    const id=Number(new URL(route.request().url()).pathname.split('/').pop());
+    if(id!==11) return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:'not found'})});
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(detailSupplier)});
+  });
+
+  // Supplier page must fail closed, retry, filter, reload and deep-link.
+  await page.goto('http://127.0.0.1:5173/approvisionnement/partenaire/11',{waitUntil:'networkidle',timeout:90000});
+  await page.getByText('Impossible de charger le catalogue de ce fournisseur',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(await page.getByRole('link',{name:/Composite universel/i}).count()) throw new Error('supplier page exposed cached product during first read failure');
+  await page.getByRole('button',{name:'Réessayer',exact:true}).click();
+  await page.getByRole('link',{name:/Composite universel/i}).waitFor({state:'visible',timeout:10000});
+  prove(viewport,'partner-supplier-read-failure-retry');
+
+  const supplierReadsBeforeReload=detailCatalogReads;
+  const supplierReloadPromise=page.waitForResponse(
+    r=>r.request().method()==='GET' && r.url().includes('/api/partner-catalog/products'),
+    {timeout:10000}
+  );
+  await page.getByRole('button',{name:'Recharger',exact:true}).click();
+  const supplierReloadAck=await supplierReloadPromise;
+  if(!supplierReloadAck.ok() || detailCatalogReads<=supplierReadsBeforeReload) throw new Error('supplier Recharger did not refetch');
+  prove(viewport,'partner-supplier-explicit-reload',{detailCatalogReads});
+
+  await page.getByRole('button',{name:'Endodontie',exact:true}).first().click();
+  await page.getByRole('link',{name:/Produit arrêté/i}).waitFor({state:'visible',timeout:5000});
+  if(await page.getByRole('link',{name:/Composite universel/i}).count()) throw new Error('supplier category filter leaked product');
+  await page.getByRole('button',{name:'Omnipratique',exact:true}).click();
+  await page.getByText(/Aucun produit ne correspond/i).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'partner-supplier-category-specialty-filter');
+
+  await page.getByRole('button',{name:'Toutes',exact:true}).first().click();
+  await page.getByRole('button',{name:'Toutes',exact:true}).last().click();
+  const productLink=page.getByRole('link',{name:/Composite universel/i});
+  const productHref=await productLink.getAttribute('href');
+  if(productHref!=='/approvisionnement/produits/101') throw new Error('supplier product deep-link mismatch '+productHref);
+  await productLink.click();
+  await page.waitForURL('**/approvisionnement/produits/101',{timeout:10000});
+  await page.getByRole('heading',{name:'Composite universel',level:1}).waitFor({state:'visible',timeout:10000});
+  prove(viewport,'partner-supplier-product-deeplink');
+
+  // Product page: canonical links + cart +/- persistence across reload.
+  const backLink=page.getByRole('link',{name:/Retour catalogue/i});
+  if((await backLink.getAttribute('href'))!=='/approvisionnement') throw new Error('product back link mismatch');
+  const supplierLink=page.getByRole('link',{name:/Voir fournisseur/i});
+  if((await supplierLink.getAttribute('href'))!=='/approvisionnement/partenaire/11') throw new Error('product supplier link mismatch');
+
+  const productPlus=page.getByRole('button',{name:'Ajouter une unité de Composite universel',exact:true});
+  const productMinus=page.getByRole('button',{name:'Retirer une unité de Composite universel',exact:true});
+  await productPlus.click();
+  await productPlus.click();
+  await page.getByRole('link',{name:/2 dans le panier/i}).waitFor({state:'visible',timeout:5000});
+  await productMinus.click();
+  await page.getByRole('link',{name:/1 dans le panier/i}).waitFor({state:'visible',timeout:5000});
+  await page.reload({waitUntil:'networkidle',timeout:90000});
+  await page.getByRole('link',{name:/1 dans le panier/i}).waitFor({state:'visible',timeout:10000});
+  prove(viewport,'partner-product-cart-reload-persistence');
+
+  // Discontinued product must not expose ordering controls.
+  await page.goto('http://127.0.0.1:5173/approvisionnement/produits/102',{waitUntil:'networkidle',timeout:90000});
+  await page.getByRole('heading',{name:'Produit arrêté',level:1}).waitFor({state:'visible',timeout:10000});
+  await page.getByText(/ne peut plus être commandé/i).waitFor({state:'visible',timeout:5000});
+  if(await page.getByRole('button',{name:/Ajouter une unité/i}).count()) throw new Error('discontinued product exposes add quantity');
+  if(await page.getByText('Retourner à la commande partenaire',{exact:true}).count()) throw new Error('discontinued product exposes order return action');
+  prove(viewport,'partner-product-discontinued-order-lock');
+
+  // Missing product truth -> explicit state -> return catalogue.
+  await page.goto('http://127.0.0.1:5173/approvisionnement/produits/999',{waitUntil:'networkidle',timeout:90000});
+  await page.getByText('Produit introuvable.',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByRole('button',{name:'Revenir au catalogue',exact:true}).click();
+  await page.waitForURL('**/approvisionnement',{timeout:10000});
+  prove(viewport,'partner-product-not-found-return');
+
+  await page.unroute('**/api/partner-catalog/meta');
+  await page.unroute('**/api/partner-catalog/suppliers');
+  await page.unroute('**/api/partner-catalog/products');
+  await page.unroute('**/api/partner-catalog/products/*');
+  await page.unroute('**/api/partner-catalog/suppliers/*');
+
   // LIBRARY — search, favorite persistence, deep-link.
   await page.goto('http://127.0.0.1:5173/bibliotheque',{waitUntil:'networkidle',timeout:90000});
   const libSearch=page.getByPlaceholder('Avulsion, composite, blanchiment…');
