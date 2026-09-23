@@ -38,6 +38,11 @@ describe('document edit consistency regression', () => {
     expect(patientStore).not.toContain('sessionStorage.setItem');
   });
 
+  it('maps persisted libre document enum values back to the libre editor', () => {
+    expect(documentHub).toContain("type === 'document_libre'");
+    expect(documentHub).toContain("type === 'lettre_medicale'");
+  });
+
   it('hydrates the complete honoraires financial state before regeneration', () => {
     expect(patientDocuments).toContain('payment_status?: string');
     expect(patientDocuments).toContain('is_accounted?: boolean');

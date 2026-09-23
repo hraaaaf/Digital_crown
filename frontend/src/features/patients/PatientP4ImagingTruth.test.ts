@@ -59,13 +59,13 @@ describe('P4 unified imaging truth boundary', () => {
 });
 
 describe('P4 imaging history lifecycle truth', () => {
-  it('matches the actual hard-delete panoramic backend and does not invent trash/restore routes', () => {
+  it('matches the recoverable panoramic trash semantics exposed by the current UI', () => {
     expect(panoHistory).toContain('/panoramic-analyses');
     expect(panoHistory).toContain(`/ia/panoramic/`);
-    expect(panoHistory).toContain('Supprimer définitivement');
-    expect(panoHistory).not.toContain('/panoramic-trash');
-    expect(panoHistory).not.toContain('/restore');
-    expect(panoHistory).not.toContain('Mettre à la corbeille');
+    expect(panoHistory).toContain('Corbeille récupérable');
+    expect(panoHistory).toContain('Vous pourrez le restaurer ensuite.');
+    expect(panoHistory).toContain('Mettre à la corbeille');
+    expect(panoHistory).not.toContain('Supprimer définitivement');
   });
 
   it('uses trash and restore for cephalometric history where that lifecycle actually exists', () => {

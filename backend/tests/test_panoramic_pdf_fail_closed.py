@@ -1,5 +1,6 @@
 """Fail-closed contract for panoramic PDF presentation."""
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from backend.services.generators.panoramic_elite_gen import PanoramicEliteGenerator
@@ -81,6 +82,10 @@ def test_rendered_pdf_copy_removes_unsupported_clinical_claims():
         "Analyse Clinique & Diagnostics",
         "Spécialiste en Orthodontie",
         "aide au diagnostic",
+        "cryptographiquement signé",
+        "Rapport validé numériquement par",
+        "Sceau d'Authenticité",
+        "Digital Crown Elite Compliance v4.0",
     )
     for token in forbidden:
         assert token not in rendered
@@ -103,3 +108,14 @@ def test_empty_markdown_fallback_is_observational_not_diagnostic():
             "findings": ["Aucune observation documentée."],
         }
     ]
+
+
+def test_raw_template_uses_document_verification_without_signature_overclaim():
+    template = Path("backend/templates/panoramic_elite.html").read_text(encoding="utf-8")
+
+    assert "Vérification documentaire" in template
+    assert "Praticien associé au dossier" in template
+    assert "référence de vérification" in template
+    assert "cryptographiquement signé" not in template
+    assert "Rapport validé numériquement par" not in template
+    assert "Sceau d'Authenticité" not in template

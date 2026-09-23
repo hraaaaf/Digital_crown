@@ -48,6 +48,19 @@ def test_health_ok(client):
     assert data["db"] == "ok"
 
 
+def test_root_health_error_does_not_expose_exception_detail(client, monkeypatch):
+    def _explode():
+        raise RuntimeError("postgresql://secret-user:secret-password@private-host/db")
+
+    monkeypatch.setattr("backend.main.database.SessionLocal", _explode)
+    response = client.get("/health")
+
+    assert response.status_code == 503
+    assert "secret-password" not in response.text
+    assert "private-host" not in response.text
+    assert response.json() == {"status": "degraded", "db": "error"}
+
+
 # --- Pagination ---
 
 def test_patient_list_returns_x_total_count(client, db):

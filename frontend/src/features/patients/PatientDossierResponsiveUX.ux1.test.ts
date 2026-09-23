@@ -25,6 +25,11 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(css).toContain('overflow: visible !important');
     expect(css).toContain('mask-image: none !important');
     expect(css).not.toContain('scroll-snap-type: x mandatory');
+    expect(patient).toContain('data-patient-tab-mobile-label');
+    expect(patient).toContain('className="sm:hidden text-[8px] leading-none tracking-[0.02em]"');
+    expect(patient).toContain('data-patient-tab-desktop-label');
+    expect(patient).toContain('className="hidden sm:inline"');
+    expect(patient).not.toContain('max-sm:after:content-[attr(data-mobile-label)]');
   });
 
   it('shows all imaging modalities in a compact three-column layout', () => {

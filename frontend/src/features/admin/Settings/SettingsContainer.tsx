@@ -242,7 +242,7 @@ const SettingsContainer: React.FC = () => {
         `}</style>
       )}
       <div className="flex flex-col lg:flex-row gap-12 items-start min-w-0">
-        <div className="w-full lg:w-80 space-y-8 sticky top-24 min-w-0">
+        <div className="w-full lg:w-80 space-y-8 min-w-0 lg:sticky lg:top-24">
           <div className="flex items-center gap-4 mb-10 min-w-0">
             <div className="w-14 h-14 shrink-0 bg-primary text-white rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-primary/30">
               <SettingsIcon size={28} />

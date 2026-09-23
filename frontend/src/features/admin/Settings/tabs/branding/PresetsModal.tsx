@@ -51,14 +51,16 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({ open, currentPreset,
         <div className="p-8 border-b border-[var(--border-color)] flex items-start justify-between">
           <div>
             <h2 className="font-medium text-[26px] text-[var(--text-main)] leading-tight mb-2">
-              6 ambiances cohérentes, prêtes à l'emploi
+              {PRESETS.length} ambiances cohérentes, prêtes à l'emploi
             </h2>
             <p className="text-[14px] text-[var(--text-muted)]">
               Ces préréglages appliquent instantanément la typographie, la palette de couleurs et la densité idéale pour vos documents.
             </p>
           </div>
           <button 
+            type="button"
             onClick={onClose}
+            aria-label="Fermer les ambiances"
             className="p-2 text-[var(--text-muted)] hover:bg-[var(--bg-medical-pearl)] rounded-lg transition-colors"
           >
             <X size={20} />

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Bilan Radiographique Élite - {{ patient_nom }}</title>
+    <title>Bilan radiographique panoramique - {{ patient_nom }}</title>
     <style>
         :root {
             --dc-primary: {{ primary_color }};
@@ -358,8 +358,8 @@
     <div class="page-container">
         
         <div class="elite-header">
-            <h1>Bilan Radiographique & Clinique</h1>
-            <div class="badge-ia">Intelligence Artificielle Loki-Silvres v4.0</div>
+            <h1>Bilan radiographique panoramique</h1>
+            <div class="badge-ia">Repérage dentaire assisté</div>
         </div>
 
         <div class="patient-card">
@@ -393,7 +393,7 @@
             {% if pano_url %}
             <div class="main-radio">
                 <img src="{{ pano_url }}" alt="Radiographie Panoramique">
-                <div class="img-caption">Orthopantomogramme (Panoramique Dentaire) - Analyse IA Multi-Quadrant</div>
+                <div class="img-caption">Orthopantomogramme (radiographie panoramique dentaire)</div>
             </div>
             {% endif %}
             
@@ -408,7 +408,7 @@
         </div>
 
         <div class="findings-section">
-            <h2 class="section-title">Analyse Clinique & Diagnostics</h2>
+            <h2 class="section-title">Observations radiographiques documentées</h2>
             
             <div class="category-grid">
                 {% for cat in categories %}
@@ -465,28 +465,28 @@
                 {% if qr_code_base64 %}
                 <img src="{{ qr_code_base64 }}" alt="QR Code Elite Verification">
                 <div class="qr-text">
-                    <div class="title">Sceau d'Authenticité</div>
-                    <div class="desc">Ce document est cryptographiquement signé. Scannez pour consulter l'original sur le portail Digital Crown.</div>
+                    <div class="title">Vérification documentaire</div>
+                    <div class="desc">Scannez pour accéder à la référence de vérification du document Digital Crown.</div>
                 </div>
                 {% endif %}
             </div>
             
             <div class="signature-block">
-                <div class="sig-status">Rapport validé numériquement par</div>
+                <div class="sig-status">Praticien associé au dossier</div>
                 <div class="doctor-signature">{{ doctor_name }}</div>
-                <div class="sig-status">Spécialiste en Orthodontie</div>
+                
             </div>
         </div>
 
         <div class="confidentiality-note" style="font-style: italic;">
-            Analyse radiologique assistée par ordinateur : les constats sont fournis à titre d'aide au diagnostic
-            et demeurent souverainement validés et assumés par le praticien signataire. Ils ne se substituent pas
-            au jugement clinique.
+            Le traitement automatique est limité au repérage dentaire. Les observations affichées proviennent des
+            annotations du praticien. L'absence d'annotation ne constitue pas une conclusion de normalité.
+            Aucun diagnostic ni traitement n'est généré automatiquement.
         </div>
 
         <div class="confidentiality-note">
             Ce document contient des informations médicales confidentielles protégées par le secret professionnel.
-            Toute divulgation non autorisée est strictement interdite. Digital Crown Elite Compliance v4.0.
+            Toute divulgation non autorisée est strictement interdite. Digital Crown.
         </div>
 
     </div>

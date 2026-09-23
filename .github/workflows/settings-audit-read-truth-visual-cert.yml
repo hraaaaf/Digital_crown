@@ -71,8 +71,9 @@ jobs:
               await page.goto('http://127.0.0.1:4178/settings-audit-read-truth-cert.html',{waitUntil:'networkidle'});
               await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
               await page.getByRole('button',{name:'Sécurité & Backup',exact:true}).click();
-              await page.getByText("Journal d'audit indisponible",{exact:true}).waitFor({state:'visible',timeout:15000});
-              await page.getByRole('button',{name:'Réessayer',exact:true}).waitFor({state:'visible'});
+              const auditError=page.getByText("Journal d'audit indisponible",{exact:true});
+              await auditError.waitFor({state:'visible',timeout:15000});
+              await auditError.locator('xpath=ancestor::div[contains(@class,"rounded-3xl")][1]').getByRole('button',{name:'Réessayer',exact:true}).waitFor({state:'visible'});
               const text=await page.locator('body').innerText();
               if(text.includes('Aucun log trouvé')) throw new Error('False empty audit history visible after failed read');
               if(text.includes('0 entrée')) throw new Error('False zero audit count visible after failed read');

@@ -66,13 +66,13 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
           disabled={loading}
           className="min-h-11 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-5 py-3 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-wider whitespace-nowrap hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
         >
-          <Archive size={14} className="shrink-0" /> <span>Enregistrer</span>
+          <Archive size={14} className="shrink-0" /> <span>{activeTab === 'echeancier' ? 'Générer PDF' : 'Enregistrer'}</span>
         </button>
 
         <button
           type="button"
           onClick={() => preparesFreshPdf
-            ? onGenerate(true, false, false, false)
+            ? onGenerate(true, false, false, true)
             : onGenerate(false, true, false, false)}
           disabled={loading}
           className="min-h-11 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-wider whitespace-nowrap hover:bg-black dark:hover:bg-slate-100 transition-all shadow-md active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"

@@ -16,6 +16,7 @@ from backend.models_document_provenance_p3 import (
     install_document_provenance_p3,
 )
 from backend.schemas.document_provenance_p3 import DocumentArchiveOutP3
+from backend.routers.document_provenance_p3 import _document_archive_out_payload
 from backend.services.document_provenance_context import (
     effective_document_practitioner_id,
     get_document_author_practitioner_id,
@@ -277,3 +278,36 @@ def test_p3_replaces_stable_generation_routes_once(client):
     assert document_routes[0].endpoint.__name__ == "generate_document_with_provenance"
     assert len(cephalo_routes) == 1
     assert cephalo_routes[0].endpoint.__name__ == "generate_cephalo_pdf_with_provenance"
+
+
+def test_signature_response_payload_satisfies_archive_contract(monkeypatch):
+    doc = models.DocumentArchive()
+    doc.id = 7
+    doc.patient_id = 101
+    doc.filename = "signed.pdf"
+    doc.original_filename = "signed.pdf"
+    doc.file_path = "static/archives/101/signed.pdf"
+    doc.file_size = 123
+    doc.file_hash = "abc123"
+    doc.document_group_id = "group-7"
+    doc.version_number = 1
+    doc.is_latest_version = True
+    doc.status = models.DocumentStatus.ACTIF
+    doc.created_at = datetime(2026, 9, 21, 21, 0, 0)
+    doc.updated_at = datetime(2026, 9, 21, 21, 0, 0)
+    doc.document_type = models.DocumentType.DOCUMENT_LIBRE
+    doc.author_practitioner_id = 1
+    doc.signed_by_practitioner_id = 1
+    doc.signed_at = datetime(2026, 9, 21, 21, 1, 0)
+
+    monkeypatch.setattr(
+        "backend.routers.document_provenance_p3.resolve_document_storage_path",
+        lambda _doc: __import__("pathlib").Path("/definitely/missing/signed.pdf"),
+    )
+
+    payload = _document_archive_out_payload(doc)
+    validated = DocumentArchiveOutP3.model_validate(payload)
+
+    assert validated.download_url == "/api/documents/7/download"
+    assert validated.file_exists is False
+    assert validated.signed_by_practitioner_id == 1

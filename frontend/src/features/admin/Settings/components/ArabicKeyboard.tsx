@@ -13,7 +13,7 @@ export const ArabicKeyboard: React.FC<ArabicKeyboardProps> = ({ onInput }) => {
 
   return (
     <div 
-      className="grid grid-cols-11 gap-1 p-2 bg-slate-900 rounded-xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200 z-[60]"
+      className="relative z-[60] grid grid-cols-11 gap-1 p-2 bg-slate-900 rounded-xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200"
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => e.stopPropagation()}
     >

@@ -25,6 +25,7 @@ export const EliteScienceHub: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div className="flex items-center gap-4">
           <button 
+            aria-label="Retour"
             onClick={() => navigate(-1)}
             className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all shadow-sm"
           >
@@ -78,6 +79,8 @@ export const EliteScienceHub: React.FC = () => {
           {filteredArticles.map((article) => (
             <motion.div
               key={article.id}
+              data-testid="science-article-card"
+              data-category={article.category}
               layout
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

@@ -72,10 +72,10 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-label="Nouvelle demande de RDV" className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl font-bold">Nouvelle demande de RDV</h2>
-          <button onClick={onClose} disabled={loading} className="p-2 hover:bg-gray-100 rounded-lg">
+          <button onClick={onClose} disabled={loading} aria-label="Fermer la demande de RDV" className="p-2 hover:bg-gray-100 rounded-lg">
             <X size={20} />
           </button>
         </div>

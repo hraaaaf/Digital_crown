@@ -382,6 +382,7 @@ export const TeamManager: React.FC = () => {
                 Rôle du collaborateur
               </label>
               <select
+                aria-label="Rôle du collaborateur"
                 value={form.role}
                 onChange={(e) => {
                   const role = e.target.value;
@@ -439,6 +440,7 @@ export const TeamManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

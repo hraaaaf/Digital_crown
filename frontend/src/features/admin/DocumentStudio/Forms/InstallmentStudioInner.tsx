@@ -186,10 +186,31 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         status: 'PAYE',
         payment_method: item.paymentMethod,
       });
-      setItems(current => current.map(row => row.id === item.id ? { ...row, paid: res.data.status === 'PAYE', paymentMethod: undefined } : row));
+      if (res.data.status !== 'PAYE') {
+        throw new Error('Encaissement non confirmé par le serveur');
+      }
+
+      const acknowledgedPlanId = Number(res.data.plan_id);
+      const plansResponse = await api.get(`/installments/patient/${patientId}`);
+      const reloadedPlan = (plansResponse.data || []).find((plan: any) => Number(plan.id) === acknowledgedPlanId);
+      if (!reloadedPlan) {
+        throw new Error('Plan encaissé introuvable après enregistrement');
+      }
+      setLoadedPlanId(reloadedPlan.id);
+      setTitle(reloadedPlan.title || DEFAULT_TITLE);
+      setTotalAmount(reloadedPlan.total_amount || 0);
+      setItems((reloadedPlan.installments || []).map((inst: any) => ({
+        id: String(inst.id),
+        label: inst.label || 'Versement',
+        amount: Number(inst.amount),
+        dueDate: inst.due_date ? inst.due_date.split('T')[0] : '',
+        paid: inst.status === 'PAYE',
+        sendReminder: false,
+        persisted: true,
+      })));
       toast.success('Paiement enregistré');
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Encaissement refusé');
+      toast.error(error?.response?.data?.detail || error?.message || 'Encaissement refusé');
     } finally {
       setCollectingId(null);
     }

@@ -77,7 +77,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   }, [selectedDate]);
 
   return (
-    <div className="w-full space-y-6">
+    <div data-testid="agenda-month-view" className="w-full space-y-6">
       <div className="flex justify-end gap-3 px-2">
         <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-blue-500")} />

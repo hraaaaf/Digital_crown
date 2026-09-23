@@ -7,6 +7,7 @@ import { cabinetApi } from './services/templateApi';
 import { API_BASE } from './services/api';
 import { safeStorage } from './hooks/useLocalStorage';
 import { useAuthStore } from './stores/useAuthStore';
+import { hasAccess } from './utils/accessControl';
 
 // Chargés immédiatement (première interaction utilisateur)
 import { Dashboard } from './pages/Dashboard';
@@ -96,6 +97,12 @@ const ContextualToaster = () => {
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
+
+const PermissionRoute = ({ permission, children }: { permission: string; children: React.ReactNode }) => {
+  const user = useAuthStore(state => state.user);
+  if (!hasAccess(user, permission)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -221,33 +228,33 @@ const ProtectedRoutes = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/agenda" element={<AgendaPage />} />
-          <Route path="/accounting" element={<AccountingPage />} />
-          <Route path="/patients" element={<PatientList />} />
-          <Route path="/patients/new" element={<AddPatientForm />} />
-          <Route path="/patients/:id" element={<PatientDetails />} />
-          <Route path="/patients/:id/archives" element={<PatientDocuments />} />
-          <Route path="/patients/:id/edit" element={<EditPatientForm />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/agenda" element={<PermissionRoute permission="agenda"><AgendaPage /></PermissionRoute>} />
+          <Route path="/accounting" element={<PermissionRoute permission="accounting"><AccountingPage /></PermissionRoute>} />
+          <Route path="/patients" element={<PermissionRoute permission="patients"><PatientList /></PermissionRoute>} />
+          <Route path="/patients/new" element={<PermissionRoute permission="patients"><AddPatientForm /></PermissionRoute>} />
+          <Route path="/patients/:id" element={<PermissionRoute permission="patients"><PatientDetails /></PermissionRoute>} />
+          <Route path="/patients/:id/archives" element={<PermissionRoute permission="patients"><PatientDocuments /></PermissionRoute>} />
+          <Route path="/patients/:id/edit" element={<PermissionRoute permission="patients"><EditPatientForm /></PermissionRoute>} />
+          <Route path="/settings" element={<PermissionRoute permission="settings"><Settings /></PermissionRoute>} />
           <Route path="/analytics" element={<Analytics />} />
           <Route
             path="/labo"
             element={<ComingSoon title="Module Labo" description="Ce module n’est pas disponible dans cette version." />} />
           <Route path="/stock" element={<StockPage />} />
-          <Route path="/approvisionnement" element={<PartnerMarketplacePage />} />
+          <Route path="/approvisionnement" element={<PermissionRoute permission="patients"><PartnerMarketplacePage /></PermissionRoute>} />
           <Route
             path="/approvisionnement/admin"
             element={user?.is_superadmin ? <PartnerCatalogAdminPage /> : <Navigate to="/approvisionnement" replace />}
           />
-          <Route path="/approvisionnement/partenaire/:partnerId" element={<PartnerSupplierPage />} />
-          <Route path="/approvisionnement/produits/:productId" element={<PartnerProductPage />} />
+          <Route path="/approvisionnement/partenaire/:partnerId" element={<PermissionRoute permission="patients"><PartnerSupplierPage /></PermissionRoute>} />
+          <Route path="/approvisionnement/produits/:productId" element={<PermissionRoute permission="patients"><PartnerProductPage /></PermissionRoute>} />
           <Route
             path="/salle-attente"
             element={<ComingSoon title="Salle d'attente" description="Ce module n’est pas disponible dans cette version." />} />
           <Route path="/bibliotheque" element={<EliteLibrary />} />
           <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
           <Route path="/science-hub" element={<EliteScienceHub />} />
-          <Route path="/super-admin" element={<SuperAdminDashboard />} />
+          <Route path="/super-admin" element={user?.is_superadmin ? <SuperAdminDashboard /> : <Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Suspense>

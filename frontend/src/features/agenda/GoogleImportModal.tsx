@@ -112,6 +112,9 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Import Google Agenda"
           className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         >
           {/* Header */}
@@ -127,6 +130,7 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
             </div>
             <button
               onClick={onClose}
+              aria-label="Fermer l’import Google Agenda"
               className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
             >
               <X size={20} />

@@ -335,14 +335,14 @@ export const EliteLibrary: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className={cn(view === 'grid' ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" : "flex flex-col bg-[var(--card-bg)] rounded-3xl border border-[var(--border-color)] overflow-hidden shadow-sm")}>
+            <div data-testid="library-protocol-list" data-library-view={view} data-library-sort={sort} className={cn(view === 'grid' ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" : "flex flex-col bg-[var(--card-bg)] rounded-3xl border border-[var(--border-color)] overflow-hidden shadow-sm")}>
               {filtered.map((p, idx) => {
                 const isFav = favorites.includes(p.act_code);
                 const nCrit = p.checklist.filter(c => c.critical).length;
                 
                 if (view === 'list') {
                   return (
-                    <button key={p.act_code} onClick={() => openPanel(p.act_code)} className={cn("grid grid-cols-[1.4fr_140px_1fr_auto] items-center gap-6 p-5 border-b border-[var(--border-color)]/50 hover:bg-[var(--bg-medical-pearl)] transition-colors text-left group", idx === filtered.length - 1 && "border-b-0")}>
+                    <button key={p.act_code} data-protocol-code={p.act_code} onClick={() => openPanel(p.act_code)} className={cn("grid grid-cols-[1.4fr_140px_1fr_auto] items-center gap-6 p-5 border-b border-[var(--border-color)]/50 hover:bg-[var(--bg-medical-pearl)] transition-colors text-left group", idx === filtered.length - 1 && "border-b-0")}>
                       <span>
                         <span className="font-outfit text-[11px] text-[var(--text-muted)] uppercase tracking-wider font-bold">{p.category || 'Général'}</span><br/>
                         <span className="font-serif font-medium text-[19px] leading-snug text-[var(--text-main)]">{p.act_names[0]}</span>
@@ -362,7 +362,7 @@ export const EliteLibrary: React.FC = () => {
                 }
 
                 return (
-                  <button key={p.act_code} onClick={() => openPanel(p.act_code)} className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[20px] p-5 text-left relative flex flex-col gap-4 hover:border-[var(--text-main)] hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--text-main)]/5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 transition-all group">
+                  <button key={p.act_code} data-protocol-code={p.act_code} onClick={() => openPanel(p.act_code)} className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[20px] p-5 text-left relative flex flex-col gap-4 hover:border-[var(--text-main)] hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--text-main)]/5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 transition-all group">
                     <div className="flex items-center justify-between font-outfit text-[11px] text-[var(--text-muted)] tracking-wider uppercase font-bold">
                       <span className="text-[var(--primary)]">{p.category || 'Général'}</span>
                       <span onClick={e => toggleFav(e, p.act_code)} className={cn("text-[20px] w-8 h-8 flex items-center justify-center rounded-xl transition-all hover:bg-amber-50", isFav ? "text-amber-500" : "text-[var(--border-color)] hover:text-amber-500")}>

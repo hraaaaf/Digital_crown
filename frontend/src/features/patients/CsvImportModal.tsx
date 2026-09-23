@@ -71,7 +71,7 @@ export const CsvImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
+      <div role="dialog" aria-modal="true" aria-label="Importer des patients" className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
@@ -84,7 +84,7 @@ export const CsvImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) 
               <p className="text-xs text-slate-400 font-medium">Fichier CSV — nom, prenom, date_naissance</p>
             </div>
           </div>
-          <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+          <button onClick={handleClose} aria-label="Fermer l’import CSV" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
             <X size={18} className="text-slate-400" />
           </button>
         </div>

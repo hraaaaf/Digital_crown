@@ -659,8 +659,9 @@ async def health_check():
             from sqlalchemy import text
             db.execute(text("SELECT 1"))
         return {"status": "ok", "db": "ok"}
-    except Exception as e:
-        return JSONResponse(status_code=503, content={"status": "degraded", "db": str(e)})
+    except Exception:
+        logger.exception("Root health database probe failed")
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": "error"})
 
 
 def _get_app_version() -> str:

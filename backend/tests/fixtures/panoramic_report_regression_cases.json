@@ -1,0 +1,88 @@
+[
+  {
+    "id": "empty-unassessed",
+    "input": {
+      "manual_anomalies": {},
+      "global_findings": [],
+      "report_context": {}
+    },
+    "required": ["### TECHNIQUE", "### SYNTHÈSE", "ne sont pas déclarés normaux"],
+    "forbidden": ["Pas d'autre image carieuse documentée.", "### CONDUITE À TENIR"]
+  },
+  {
+    "id": "pre-treatment-focus-review",
+    "input": {
+      "manual_anomalies": {},
+      "global_findings": [],
+      "report_context": {
+        "clinical_question": "Recherche de foyer infectieux avant traitement médical.",
+        "clinical_answer": "Aucun foyer infectieux n'est retenu dans les constatations explicitement validées.",
+        "image_quality": "diagnostic",
+        "dental_anomalies": {"status": "normal"},
+        "restorations": {"status": "normal"},
+        "caries": {"status": "normal"},
+        "apical": {"status": "normal"},
+        "periodontium": {"status": "normal"},
+        "jawbone": {"status": "normal"},
+        "tmj": {"status": "normal"},
+        "sinuses": {"status": "normal"}
+      }
+    },
+    "required": ["### QUESTION CLINIQUE", "### RÉPONSE À LA QUESTION CLINIQUE", "Pas d'anomalie osseuse maxillo-mandibulaire documentée."],
+    "forbidden": ["Domaines non évalués explicitement"]
+  },
+  {
+    "id": "periodontal-implant",
+    "input": {
+      "manual_anomalies": {
+        "46": ["implant", "peri_implantite"],
+        "36": ["alveolyse_v"]
+      },
+      "global_findings": ["alveolyse_gen_moderee"],
+      "report_context": {
+        "image_quality": "diagnostic",
+        "periodontium": {"status": "abnormal", "note": "Perte osseuse généralisée documentée par le praticien."}
+      }
+    },
+    "required": ["### PARODONTE ET SUPPORT OSSEUX", "Perte osseuse péri-implantaire", "Alvéolyse horizontale généralisée modérée"],
+    "forbidden": ["Péri-implantite", "parodontite avancée"]
+  },
+  {
+    "id": "periapical-endodontic",
+    "input": {
+      "manual_anomalies": {
+        "36": ["lesion_periapicale", "tr_incomplet"],
+        "46": ["instrument_fracture"]
+      },
+      "global_findings": []
+    },
+    "required": ["### RÉGIONS PÉRIAPICALES / ENDODONTIE", "Image radioclaire périapicale", "Traitement canalaire incomplet", "Instrument fracturé intra-canalaire"],
+    "forbidden": ["kyste/granulome"]
+  },
+  {
+    "id": "sinus-tmj",
+    "input": {
+      "manual_anomalies": {
+        "26": ["opacite_sinus"],
+        "16": ["arthrose_atm"]
+      },
+      "global_findings": []
+    },
+    "required": ["### SINUS MAXILLAIRES", "### ARTICULATIONS TEMPORO-MANDIBULAIRES", "Opacité sinusienne", "Remaniements osseux condyliens"],
+    "forbidden": ["Arthrose de l'ATM"]
+  },
+  {
+    "id": "limited-quality-free-note",
+    "input": {
+      "manual_anomalies": {},
+      "global_findings": [],
+      "report_context": {
+        "image_quality": "limited",
+        "image_quality_note": "Superposition cervicale antérieure.",
+        "jawbone": {"status": "abnormal", "note": "Zone radio-opaque mandibulaire droite à corréler cliniquement."}
+      }
+    },
+    "required": ["Qualité limitée pour la lecture panoramique.", "### MAXILLAIRE ET MANDIBULE", "Zone radio-opaque mandibulaire droite à corréler cliniquement."],
+    "forbidden": ["diagnostic automatique"]
+  }
+]

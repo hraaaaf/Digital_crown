@@ -97,7 +97,7 @@ async function capture(browserName, browser, phase, scenario, viewport) {
     let storageProbe = null;
     if (phase === 'after' && scenario === 'home') {
       const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open('digital-crown-patient-companion', 1);
+        const request = indexedDB.open('digital-crown-patient-companion');
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });

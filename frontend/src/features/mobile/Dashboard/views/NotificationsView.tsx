@@ -140,7 +140,7 @@ export function NotificationsView({
         </div>
       )}
 
-      {!loading && visible.length === 0 && (
+      {!loading && !error && visible.length === 0 && (
         <div className="rounded-[24px] border border-glass-border bg-card px-5 py-8 text-center shadow-sm">
           <Bell size={28} className="mx-auto text-primary" />
           <h2 className="mt-3 text-[16px] font-black text-text-main">Aucune alerte à traiter</h2>

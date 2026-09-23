@@ -11,6 +11,7 @@
   --color-primary: var(--primary);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
+  --color-on-primary: var(--text-on-primary);
   
   /* TOKENS ELITE (Arrondis & Ombres) */
   --radius-elite: 24px;

@@ -41,12 +41,12 @@ export const PanoramicHistory: React.FC<PanoramicHistoryProps> = ({ patientId, o
 
   useEffect(() => { void fetchHistory(); }, [fetchHistory, reloadKey]);
 
-  const deletePermanently = async (analysis: PanoramicAnalysis) => {
-    if (!window.confirm('Supprimer définitivement cet examen panoramique ? Cette action supprime aussi le fichier et ne peut pas être annulée.')) return;
+  const moveToTrash = async (analysis: PanoramicAnalysis) => {
+    if (!window.confirm('Mettre cet examen panoramique à la corbeille ? Vous pourrez le restaurer ensuite.')) return;
     try {
       await api.delete(`/ia/panoramic/${analysis.id}`);
       setAnalyses(prev => prev.filter(item => item.id !== analysis.id));
-      toast.success('Examen panoramique supprimé définitivement.');
+      toast.success('Examen panoramique déplacé vers la corbeille.');
       onDelete?.(analysis.id);
     } catch (deleteError) {
       console.error(deleteError);
@@ -62,7 +62,7 @@ export const PanoramicHistory: React.FC<PanoramicHistoryProps> = ({ patientId, o
     <div className="space-y-4" data-m4b-history>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2"><Activity size={16}/>Historique des examens ({analyses.length})</h3>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suppression définitive</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Corbeille récupérable</p>
       </div>
 
       {error ? (
@@ -87,7 +87,7 @@ export const PanoramicHistory: React.FC<PanoramicHistoryProps> = ({ patientId, o
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                   <PanoramicMobileBridge analysisId={analysis.id} examLabel={dateStr}/>
-                  <button data-m4b-touch type="button" onClick={(event) => { event.stopPropagation(); void deletePermanently(analysis); }} className="min-w-11 min-h-11 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all border border-rose-100/50 hover:border-rose-500 shadow-sm active:scale-95 z-10" title="Supprimer définitivement" aria-label="Supprimer définitivement l'examen panoramique"><Trash2 size={16}/></button>
+                  <button data-m4b-touch type="button" onClick={(event) => { event.stopPropagation(); void moveToTrash(analysis); }} className="min-w-11 min-h-11 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all border border-rose-100/50 hover:border-rose-500 shadow-sm active:scale-95 z-10" title="Mettre à la corbeille" aria-label="Mettre l'examen panoramique à la corbeille"><Trash2 size={16}/></button>
                   <div className="hidden lg:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest">Ouvrir dans le studio <ExternalLink size={14}/></div>
                   <div className="min-w-11 min-h-11 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all"><ChevronRight size={20}/></div>
                 </div>

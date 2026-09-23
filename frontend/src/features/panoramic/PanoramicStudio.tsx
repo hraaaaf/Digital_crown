@@ -35,6 +35,70 @@ interface ImageFilters {
   invert: boolean;
 }
 
+const PANORAMIC_REPORT_DOMAINS = [
+  { key: 'dental_anomalies', label: 'Dentition et anomalies dentaires' },
+  { key: 'restorations', label: 'Restaurations / prothèses / implants' },
+  { key: 'caries', label: 'Lésions carieuses' },
+  { key: 'apical', label: 'Régions périapicales / endodontie' },
+  { key: 'periodontium', label: 'Parodonte et support osseux' },
+  { key: 'jawbone', label: 'Maxillaire et mandibule' },
+  { key: 'tmj', label: 'Articulations temporo-mandibulaires' },
+  { key: 'sinuses', label: 'Sinus maxillaires' }
+] as const;
+
+type PanoramicDomainKey = typeof PANORAMIC_REPORT_DOMAINS[number]['key'];
+type PanoramicDomainStatus = 'not_assessed' | 'normal' | 'abnormal';
+type PanoramicImageQuality = 'not_assessed' | 'diagnostic' | 'limited' | 'non_diagnostic';
+
+interface PanoramicDomainAssessment {
+  status: PanoramicDomainStatus;
+  note: string;
+}
+
+interface PanoramicReportContext {
+  clinical_question: string;
+  clinical_answer: string;
+  image_quality: PanoramicImageQuality;
+  image_quality_note: string;
+  domains: Record<PanoramicDomainKey, PanoramicDomainAssessment>;
+}
+
+const createDefaultReportContext = (): PanoramicReportContext => ({
+  clinical_question: '',
+  clinical_answer: '',
+  image_quality: 'not_assessed',
+  image_quality_note: '',
+  domains: {
+    dental_anomalies: { status: 'not_assessed', note: '' },
+    restorations: { status: 'not_assessed', note: '' },
+    caries: { status: 'not_assessed', note: '' },
+    apical: { status: 'not_assessed', note: '' },
+    periodontium: { status: 'not_assessed', note: '' },
+    jawbone: { status: 'not_assessed', note: '' },
+    tmj: { status: 'not_assessed', note: '' },
+    sinuses: { status: 'not_assessed', note: '' }
+  }
+});
+
+const reportContextFromStored = (stored: any): PanoramicReportContext => {
+  const next = createDefaultReportContext();
+  if (!stored || typeof stored !== 'object') return next;
+  next.clinical_question = stored.clinical_question || '';
+  next.clinical_answer = stored.clinical_answer || '';
+  next.image_quality = stored.image_quality || 'not_assessed';
+  next.image_quality_note = stored.image_quality_note || '';
+  for (const domain of PANORAMIC_REPORT_DOMAINS) {
+    const assessment = stored[domain.key];
+    if (assessment && typeof assessment === 'object') {
+      next.domains[domain.key] = {
+        status: assessment.status || 'not_assessed',
+        note: assessment.note || ''
+      };
+    }
+  }
+  return next;
+};
+
 const URGENT_ANOMALY_IDS = new Set([
   'carie_profonde', 'lesion_periapicale', 'perforation', 'peri_implantite', 'reste_radiculaire'
 ]);
@@ -58,6 +122,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const [downloading, setDownloading] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [reportContext, setReportContext] = useState<PanoramicReportContext>(createDefaultReportContext);
   const { toothAnomalies, globalFindings, toggleGlobalFinding, resetAll, toggleAnomaly } = usePanoramicStore();
 
   const mainImageSrc = useAuthenticatedImage(result?.file_url || '');
@@ -88,6 +153,8 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       created_at: analysis.created_at
     };
     setAnnotations(analysis.detections_data?.visual_annotations || []);
+    const storedContext = analysis.detections_data?.report_context;
+    setReportContext(reportContextFromStored(storedContext));
 
     if (compareMode) {
       setCompareResult(data);
@@ -103,6 +170,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     if (!file) return;
 
     resetAll();
+    setReportContext(createDefaultReportContext());
     setLoading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -128,6 +196,12 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       }
       setAnnotations([]);
       setResult(responseData);
+      try {
+        const comparisonResponse = await api.get(`/ia/patients/${patientId}/panoramic-comparison`);
+        setEvolutionData(comparisonResponse.data);
+      } catch {
+        setEvolutionData(null);
+      }
     } catch (err) {
       console.error("Erreur lors de l'upload de la panoramique :", err);
       toast.error("Erreur lors de l'analyse panoramique.");
@@ -150,7 +224,14 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         manual_anomalies: toothAnomalies,
         global_findings: globalFindings,
         rejected_detections: rejectedIndices,
-        visual_annotations: annotations
+        visual_annotations: annotations,
+        report_context: {
+          clinical_question: reportContext.clinical_question || null,
+          clinical_answer: reportContext.clinical_answer || null,
+          image_quality: reportContext.image_quality,
+          image_quality_note: reportContext.image_quality_note || null,
+          ...reportContext.domains
+        }
       });
 
       setResult((prev: any) => ({ ...prev, report_narrative: response.data.report_narrative }));
@@ -231,7 +312,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const filterString = `brightness(${imgFilters.brightness}%) contrast(${imgFilters.contrast}%) invert(${imgFilters.invert ? 100 : 0}%)`;
 
   return (
-    <div className="flex flex-col lg:flex-row h-auto min-h-screen lg:h-full gap-4 lg:gap-6 bg-slate-50/50 p-4 lg:p-6 overflow-y-auto lg:overflow-hidden">
+    <div className="flex min-w-0 flex-col lg:flex-row h-auto min-h-screen lg:h-full gap-4 lg:gap-6 bg-slate-50/50 p-4 lg:p-6 overflow-y-auto lg:overflow-hidden">
       <div className="flex-1 flex flex-col gap-4 overflow-hidden min-h-[50vh] lg:min-h-0">
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4">
           <div>
@@ -411,7 +492,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         </div>
       </div>
 
-      <div className="w-full lg:w-[400px] flex flex-col gap-4 shrink-0 lg:overflow-hidden min-h-[600px] lg:min-h-0">
+      <div className="w-full min-w-0 lg:w-[400px] flex flex-col gap-4 shrink-0 lg:overflow-hidden min-h-[600px] lg:min-h-0">
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200/60 flex-1 overflow-hidden flex flex-col">
           {result ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
@@ -449,14 +530,110 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
               ) : sidebarTab === 'report' ? (
                 <div className="flex-1 flex flex-col"><ReportViewer markdown={result.report_narrative} isGenerating={loading} engineName="Radiographie panoramique" onDownload={handleDownloadPDF} isDownloading={downloading} onPreview={handlePreview} onSaveEdit={handleSaveReport} /></div>
               ) : (
-                <div className="p-8 space-y-8 flex-1 flex flex-col">
-                  <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3 shrink-0">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm"><Type size={14} className="text-white" /></div>
+                <div className="min-w-0 p-4 sm:p-6 lg:p-8 space-y-8 flex-1 flex flex-col">
+                  <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-start gap-3 shrink-0">
+                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shrink-0 shadow-sm"><Type size={14} className="text-on-primary" /></div>
                     <div>
-                      <p className="text-[11px] font-black text-indigo-900 uppercase tracking-wider">Mode Saisie Clinique</p>
-                      <p className="text-[10px] text-indigo-700/80 mt-0.5 leading-snug">Cliquez sur une dent dans la radio pour ouvrir le panneau de constatations. Les observations saisies apparaissent ci-dessous.</p>
+                      <p className="text-[11px] font-black text-primary uppercase tracking-wider">Mode Saisie Clinique</p>
+                      <p className="text-[10px] text-primary/80 mt-0.5 leading-snug">Cliquez sur une dent dans la radio pour ouvrir le panneau de constatations. Les observations saisies apparaissent ci-dessous.</p>
                     </div>
                   </div>
+
+                  <details className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
+                      Revue structurée
+                    </summary>
+                    <div className="mt-4 space-y-4">
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Question clinique</span>
+                        <input
+                          value={reportContext.clinical_question}
+                          onChange={(e) => setReportContext(prev => ({ ...prev, clinical_question: e.target.value }))}
+                          placeholder="Optionnelle"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-indigo-400"
+                        />
+                      </label>
+
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Qualité de l'examen</span>
+                        <select
+                          aria-label="Qualité de l'examen panoramique"
+                          value={reportContext.image_quality}
+                          onChange={(e) => setReportContext(prev => ({ ...prev, image_quality: e.target.value as PanoramicImageQuality }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400"
+                        >
+                          <option value="not_assessed">Non évaluée</option>
+                          <option value="diagnostic">Interprétable</option>
+                          <option value="limited">Limitée</option>
+                          <option value="non_diagnostic">Non interprétable</option>
+                        </select>
+                        {(reportContext.image_quality === 'limited' || reportContext.image_quality === 'non_diagnostic') && (
+                          <input
+                            value={reportContext.image_quality_note}
+                            onChange={(e) => setReportContext(prev => ({ ...prev, image_quality_note: e.target.value }))}
+                            placeholder="Précision sur la qualité"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-indigo-400"
+                          />
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        {PANORAMIC_REPORT_DOMAINS.map((domain) => {
+                          const assessment = reportContext.domains[domain.key];
+                          return (
+                            <div key={domain.key} className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                              <div className="text-[11px] font-black text-slate-700 leading-snug">{domain.label}</div>
+                              <select
+                                aria-label={`Revue structurée — ${domain.label}`}
+                                value={assessment.status}
+                                onChange={(e) => {
+                                  const status = e.target.value as PanoramicDomainStatus;
+                                  setReportContext(prev => ({
+                                    ...prev,
+                                    domains: {
+                                      ...prev.domains,
+                                      [domain.key]: { status, note: status === 'abnormal' ? prev.domains[domain.key].note : '' }
+                                    }
+                                  }));
+                                }}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400"
+                              >
+                                <option value="not_assessed">Non évalué</option>
+                                <option value="normal">Sans anomalie documentée</option>
+                                <option value="abnormal">Anomalie documentée</option>
+                              </select>
+                              {assessment.status === 'abnormal' && (
+                                <input
+                                  aria-label={`Note — ${domain.label}`}
+                                  value={assessment.note}
+                                  onChange={(e) => setReportContext(prev => ({
+                                    ...prev,
+                                    domains: {
+                                      ...prev.domains,
+                                      [domain.key]: { ...prev.domains[domain.key], note: e.target.value }
+                                    }
+                                  }))}
+                                  placeholder="Observation radiographique concise (optionnelle)"
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-indigo-400"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Réponse à la question clinique</span>
+                        <textarea
+                          value={reportContext.clinical_answer}
+                          onChange={(e) => setReportContext(prev => ({ ...prev, clinical_answer: e.target.value }))}
+                          placeholder="Optionnelle"
+                          rows={3}
+                          className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-indigo-400"
+                        />
+                      </label>
+                    </div>
+                  </details>
 
                   {(annotations.length > 0 || manualAnomaliesList.length > 0) && (
                     <div className="space-y-4">
@@ -479,7 +656,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                         })}
                         {annotations.map((ann) => (
                           <div key={ann.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center group transition-all">
-                            <span className="text-xs font-bold text-slate-700">{ann.text}</span>
+                            <span className="min-w-0 break-words text-xs font-bold text-slate-700">{ann.text}</span>
                             <button onClick={() => setAnnotations(prev => prev.filter(a => a.id !== ann.id))} className="text-red-400 hover:text-red-600 transition-all p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
                           </div>
                         ))}

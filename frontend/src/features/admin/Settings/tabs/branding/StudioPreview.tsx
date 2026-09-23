@@ -143,13 +143,13 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
                 <div className="h-2 w-20 rounded bg-[var(--border-color)] opacity-50" />
               </div>
             </div>
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+            <div
+              aria-hidden="true"
+              className="flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white"
               style={{ backgroundColor: profile.primary_color || 'var(--primary)' }}
             >
               Dossier <ArrowRight size={14} />
-            </button>
+            </div>
           </div>
         </div>
       </div>

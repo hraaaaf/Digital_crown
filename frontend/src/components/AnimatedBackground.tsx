@@ -2,7 +2,7 @@ import React from 'react';
 
 export const AnimatedBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden bg-transparent">
+    <div data-testid="animated-background" className="fixed inset-0 pointer-events-none overflow-hidden bg-transparent">
       
       {/* COUCHE 1 : MESH GRADIENT */}
       <div className="absolute inset-0 opacity-30">

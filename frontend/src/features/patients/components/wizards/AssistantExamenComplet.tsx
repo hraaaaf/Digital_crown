@@ -233,7 +233,7 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
     setAnswers(newAnswers);
 
     if (currentStep < totalSteps - 1) {
-      setTimeout(() => setCurrentStep(prev => prev + 1), 280);
+      setTimeout(() => setCurrentStep(prev => Math.min(prev + 1, totalSteps - 1)), 280);
     } else {
       setIsCalculating(true);
       setTimeout(() => {

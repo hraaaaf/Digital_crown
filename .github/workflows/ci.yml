@@ -19,6 +19,12 @@ on:
     branches: [main, master, "S[0-9]*", "redressement*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      backend_only:
+        description: "Run only the full backend regression job"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -65,8 +71,11 @@ jobs:
         run: python -m pytest backend/tests -q
 
   frontend:
+    if: github.event_name != 'workflow_dispatch' || inputs.backend_only != true
     name: Frontend (tests & build)
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     defaults:
       run:
         working-directory: frontend
@@ -83,13 +92,155 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Test suite
-        run: npm test
+      - name: Test suite — shard 1/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=1/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 2/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=2/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 3/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=3/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 4/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=4/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 5/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=5/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 6/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=6/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 7/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=7/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 8/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=8/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 9/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=9/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 10/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=10/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 11/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=11/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 12/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=12/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
 
       - name: Build
         run: npm run build
 
   prod-gate:
+    if: github.event_name != 'workflow_dispatch' || inputs.backend_only != true
     name: Garde production (négatif)
     runs-on: ubuntu-latest
     steps:
