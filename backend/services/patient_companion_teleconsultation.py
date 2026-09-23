@@ -98,7 +98,12 @@ def mark_joined(row: PatientCompanionTeleconsultSession, actor: str) -> None:
         row.staff_joined_at = row.staff_joined_at or now
     else:
         raise ValueError("INVALID_ACTOR")
-    row.state = "NEGOTIATING" if row.patient_joined_at and row.staff_joined_at else "WAITING_PATIENT"
+    if row.patient_joined_at and row.staff_joined_at:
+        row.state = "NEGOTIATING"
+    elif row.patient_joined_at:
+        row.state = "WAITING_STAFF"
+    else:
+        row.state = "WAITING_PATIENT"
 
 
 def mark_connected(row: PatientCompanionTeleconsultSession, actor: str) -> None:
@@ -221,7 +226,8 @@ def handle_teleconsult_list(
         .all()
     )
     for row in rows:
-        expire_if_needed(row)
+        if expire_if_needed(row):
+            purge_signals(db, row)
     return RemoteDomainResult(
         status="ACCEPTED",
         response={"code": "SESSION_LIST", "items": [serialize_session(row) for row in rows]},
@@ -296,7 +302,8 @@ def handle_teleconsult_sync(
     row = _scoped_session(db, access, session_id, lock=True)
     if row is None:
         return _reject("SESSION_NOT_FOUND")
-    expire_if_needed(row)
+    if expire_if_needed(row):
+        purge_signals(db, row)
     try:
         signals = sync_signals(
             db, row,
