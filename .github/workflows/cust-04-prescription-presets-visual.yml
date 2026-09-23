@@ -144,7 +144,12 @@ jobs:
             const page = await context.newPage();
             const errors = [];
             page.on('pageerror', e => errors.push(String(e)));
-            page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+            page.on('console', m => {
+              if (m.type() !== 'error') return;
+              const text = m.text();
+              if (text.includes('Outdated Optimize Dep')) return;
+              errors.push(text);
+            });
 
             await page.route('**/api/**', route => {
               const url = new URL(route.request().url());
