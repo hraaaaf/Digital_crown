@@ -235,7 +235,7 @@ const ProtectedRoutes = () => {
           <Route path="/patients/:id" element={<PermissionRoute permission="patients"><PatientDetails /></PermissionRoute>} />
           <Route path="/patients/:id/archives" element={<PermissionRoute permission="patients"><PatientDocuments /></PermissionRoute>} />
           <Route path="/patients/:id/edit" element={<PermissionRoute permission="patients"><EditPatientForm /></PermissionRoute>} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings" element={<PermissionRoute permission="settings"><Settings /></PermissionRoute>} />
           <Route path="/analytics" element={<Analytics />} />
           <Route
             path="/labo"
