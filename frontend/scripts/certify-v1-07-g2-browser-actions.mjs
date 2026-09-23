@@ -81,8 +81,10 @@ for(const viewport of viewports){
  await listSearch.fill('');
  const edit=page.getByRole('button',{name:'Modifier les infos'}).first();
  if(await edit.count()){
-   await edit.click();
-   await page.waitForURL(new RegExp('/patients/'+patient.id+'/edit'));
+   await Promise.all([
+     page.waitForURL(new RegExp('/patients/'+patient.id+'/edit')),
+     edit.click(),
+   ]);
    pass(viewport,'patient-edit-navigation');
    await page.goBack({waitUntil:'networkidle'});
  }
