@@ -154,3 +154,57 @@ Status: CODE REMEDIATED — CERTIFICATION PENDING matched BEFORE/AFTER evidence 
 
 ## Browser escalation
 G7 requires real Chromium action proof for Stock, Marketplace, partner administration and Library/Science Hub. Stock destructive/refusal truth must be exercised in-browser, not inferred from component tests. Marketplace cart/checkout and partner-admin mutations require visible result/refusal proof.
+
+
+## Deep browser reconciliation — 2026-09-23
+
+The G7 browser gate now proves the exposed operational contracts through their actual consequences:
+
+### Stock
+- explicit read failure, no false empty state, Retry -> verified data;
+- search/category filters;
+- quantity ACK and refusal/non-mutation;
+- add ACK and refusal with modal preserved;
+- edit ACK and refusal/non-mutation;
+- delete cancel, refusal/non-mutation, and ACK removal;
+- add/edit overlay now exposes dialog semantics and named close control;
+- quantity +/- controls now have action-specific accessible names.
+
+### Marketplace
+- canonical strategy + active supplier fixture, so checkout reaches the actual POST boundary;
+- search / availability / category effects and explicit catalog refresh;
+- cart +/- and reload persistence;
+- checkout close preserves cart;
+- refused DRAFT POST preserves dialog/cart;
+- successful DRAFT POST closes checkout and clears/disables cart.
+
+### Partner administration
+The previous G7 workflow had no SuperAdmin fixture, so `/approvisionnement/admin` was not browser-certifiable. The workflow now provisions an isolated T2 SuperAdmin and the browser gate covers:
+- supplier create ACK/refetch and refusal/non-mutation;
+- product create with numeric/benefit normalization and visible refetch;
+- local catalog filtering;
+- partner-order reconciliation refusal/non-mutation then ACK/refetch;
+- explicit canonical reload.
+
+### Supplier / Product details
+- supplier read failure without stale cache -> Retry -> canonical data;
+- supplier reload, category/specialty filters, exact product deep-link;
+- product canonical links, +/- cart changes and reload persistence;
+- discontinued product exposes no ordering controls;
+- missing product renders explicit not-found truth and returns to catalog;
+- product quantity controls now expose action-specific accessible names.
+
+### Clinical Library / Science Hub
+- search match, no-result and reset;
+- favorite persistence + favorites filter after reload;
+- grid/list rendered consumer proof and sort-order effect;
+- protocol deep-link + recent history;
+- next/previous round-trip;
+- print action;
+- immersive Soin mode open/close;
+- command palette by button and Ctrl+K, search/open/no-result/Escape;
+- recent history clear;
+- Science Hub title search, author search, category purity, truthful no-result, safe external link, router back.
+- stale hardcoded expectation of 4 ENDODONTIE cards was removed; certification now checks semantic category purity against the current source data.
+
+Functional deep-check status: COMPLETE IN HARNESS. G7 remains NOT CERTIFIED until exact-head browser/CI are green and the required matched Stock truth-safety visual evidence is inspected.
