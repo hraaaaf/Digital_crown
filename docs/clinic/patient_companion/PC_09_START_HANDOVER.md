@@ -1,6 +1,6 @@
 # PC-09 — Teleconsultation — START HANDOVER
 
-Status: START READY
+Status: IMPLEMENTATION COMPLETE — CERTIFICATION IN PROGRESS
 Base: master after PC-08 POST-MERGE VERIFIED closeout
 Previous lot: PC-08 — Secure Messaging
 Deployment: none
@@ -89,3 +89,99 @@ PC-08:
 8. merge / post-merge / closeout.
 
 No PC-09 implementation is claimed by this handover.
+
+
+## Audit closeout — 2026-09-23
+
+Verified:
+- no existing WebRTC/getUserMedia/WebSocket/STUN/TURN implementation in repo;
+- Patient Companion identity/access/revocation can be reused;
+- existing signed/encrypted remote command channel is control/signaling capable but is not a real-time media transport;
+- appointment opaque references can safely provide optional session context;
+- no recording is part of PC-09.
+
+Architecture locked in:
+`docs/clinic/patient_companion/PC_09_TELECONSULTATION_ARCHITECTURE_MAP.md`
+
+Implementation decision:
+- canonical session state in cabinet DB;
+- encrypted authenticated signaling/control;
+- WebRTC for media;
+- configurable ICE servers;
+- explicit camera/microphone permission;
+- connected UI only from actual peer connection state;
+- no recording;
+- no Vercel deployment.
+
+Known external gate:
+- no controlled TURN service is currently configured, so reliable arbitrary off-network media cannot yet be certified.
+
+Next exact:
+1. implement session model/state machine and authorization;
+2. implement signaling contract;
+3. implement patient/staff WebRTC UI with explicit permissions;
+4. certify deterministic app behavior;
+5. stop only at TURN/network E2E gate or human visual gate.
+
+
+## Audit outcome — 2026-09-23
+
+Verified:
+- no existing WebRTC/getUserMedia/RTCPeerConnection/WebSocket media implementation in the repo;
+- no existing STUN/TURN configuration or teleconsultation vendor SDK;
+- existing Patient Companion remote transport is suitable for authenticated control/signaling, not for audio/video media transport;
+- existing access/identity/revocation model is reusable;
+- appointment references may be reused as optional context;
+- no recording primitive exists.
+
+Architecture locked in:
+`docs/clinic/patient_companion/PC_09_TELECONSULTATION_ARCHITECTURE_MAP.md`
+
+Implementation direction:
+- WebRTC media plane;
+- Patient Companion access-bound control/signaling;
+- explicit permissions;
+- truthful lifecycle;
+- no recording;
+- injectable ICE config;
+- production readiness blocked until TURN is provisioned and validated.
+
+Next exact:
+1. implement the minimal PC-09 session domain + lifecycle;
+2. add staff/patient entry points;
+3. add WebRTC signaling + media flow behind injectable ICE config;
+4. test permission/revocation/failure truth boundaries;
+5. certify runtime + visual;
+6. human gate;
+7. merge / post-merge.
+
+
+## Implementation checkpoint — 2026-09-23
+
+Implemented and code-reviewed:
+- canonical session lifecycle with `CREATED` pre-join truth;
+- patient does not see a session until staff has actually joined;
+- explicit patient `Accepter et rejoindre` consent wording;
+- explicit patient `Refuser` transition;
+- WebRTC media plane with no recording;
+- provider-agnostic short-lived coturn-compatible credentials;
+- direct connectivity remains available; TURN is automatic ICE fallback when configured;
+- real peer failure persists canonical `FAILED`;
+- signal rows purged on end/reject/failure and observed expiry;
+- media fails closed on session-control loss;
+- staff start failures stop acquired media resources.
+
+Remaining app gates:
+1. exact-head PC-09 certification;
+2. exact-head PostgreSQL Alembic schema certification;
+3. exact-head CI;
+4. runtime AFTER visual evidence;
+5. human visual approval;
+6. merge / post-merge.
+
+External remote-production gate remains separate:
+- controlled reachable TURN endpoint;
+- distinct-network + forced-relay E2E;
+- measured signaling/reconnect behavior.
+
+No Vercel deployment.

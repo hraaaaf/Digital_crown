@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     PATIENT_COMPANION_RELAY_URL: str = ""
     PATIENT_COMPANION_RELAY_BOOTSTRAP_SECRET: str = ""
     PATIENT_COMPANION_RELAY_POLL_SECONDS: int = 5
+    # PC-09 — provider-agnostic TURN REST credentials (coturn-compatible).
+    # The shared secret stays server-side; browsers receive only short-lived credentials.
+    PATIENT_COMPANION_TURN_URLS: str = ""
+    PATIENT_COMPANION_TURN_SECRET: str = ""
+    PATIENT_COMPANION_TURN_TTL_SECONDS: int = 900
 
     # Transactional Email
     SMTP_HOST: str = ""
