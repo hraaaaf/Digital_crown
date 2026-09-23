@@ -267,7 +267,7 @@ export const ProfileTab: React.FC = () => {
               />
               {showArKeyboard?.type === 'name' && canEditPractitionerIdentity && (
                 <div className="absolute top-full right-0 mt-2 z-50">
-                  <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
+                  <div data-arabic-keyboard-backdrop className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                   <ArabicKeyboard onInput={(char) => {
                     const newVal = (profile.nom_praticien_ar || '') + char;
                     if (!profile.header_customized) {
@@ -368,7 +368,7 @@ export const ProfileTab: React.FC = () => {
                   />
                   {showArKeyboard?.type === 'custom_spec' && (
                     <div className="absolute top-full right-0 mt-2 z-50">
-                      <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
+                      <div data-arabic-keyboard-backdrop className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                       <ArabicKeyboard onInput={(char) => {
                         const currentVal = useSettingsStore.getState().profile.custom_specialty_ar || '';
                         const newVal = currentVal + char;
@@ -548,7 +548,7 @@ export const ProfileTab: React.FC = () => {
                         />
                         {showArKeyboard?.type === 'header' && showArKeyboard.idx === idx && (
                           <div className="absolute top-full right-0 mt-2 z-50">
-                            <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
+                            <div data-arabic-keyboard-backdrop className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                             <ArabicKeyboard onInput={(char) => {
                               const newLines = [...(profile.header_lines_ar || [])];
                               newLines[idx] = (newLines[idx] || '') + char;
