@@ -10,6 +10,7 @@ The dentist and patient must never see STUN/TURN/SDP/ICE/WebRTC jargon.
 
 ## Success
 - explicit patient acceptance before camera/microphone permission;
+- explicit decline action without activating camera/microphone;
 - clear waiting / connecting / connected / ended states;
 - no false “connected” state;
 - local + remote video surfaces are readable;
@@ -56,7 +57,9 @@ The BEFORE evidence proves absence of the PC-09 surface. PC-09 AFTER must use th
 │  Téléconsultation               │
 │  Consultation vidéo             │
 │                                 │
-│  Prête à rejoindre   [Accepter] │
+│  Prête à rejoindre               │
+│  [ Accepter et rejoindre ]       │
+│  [ Refuser ]                     │
 │  Créée aujourd’hui              │
 └─────────────────────────────────┘
 
@@ -95,6 +98,7 @@ Allowed:
 - Téléconsultation
 - Consultation vidéo
 - Accepter et rejoindre
+- Refuser
 - Connexion en cours
 - En consultation
 - Terminer
