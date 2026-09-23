@@ -147,11 +147,10 @@ for (const viewport of [
       if (!(appScroller instanceof HTMLElement) || !(panel instanceof HTMLElement)) {
         throw new Error('PC-08 desktop capture geometry target missing');
       }
-      const scrollerRect = appScroller.getBoundingClientRect();
       const panelRect = panel.getBoundingClientRect();
       const headerRect = stickyHeader?.getBoundingClientRect();
-      const headerHeight = headerRect ? headerRect.height : 0;
-      const targetTop = appScroller.scrollTop + (panelRect.top - scrollerRect.top) - headerHeight - 16;
+      const desiredTop = headerRect ? headerRect.bottom + 16 : 16;
+      const targetTop = appScroller.scrollTop + (panelRect.top - desiredTop);
       appScroller.scrollTo({ top: Math.max(0, targetTop), left: 0, behavior: 'instant' });
     });
   } else {
