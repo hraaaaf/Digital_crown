@@ -1,6 +1,6 @@
 # PC-09 — Teleconsultation — Certification Candidate
 
-Status: EVIDENCE IN PROGRESS
+Status: APP CANDIDATE READY — EXACT-HEAD EVIDENCE IN PROGRESS
 Date: 2026-09-23
 PR: #689
 Branch: `feature/patient-companion-pc09-teleconsultation`
@@ -40,10 +40,13 @@ CONNECTED requires:
 - bounded signal payload + bounded sync batches;
 - real JOSE envelope-size test;
 - signaling purge on end/expiry;
-- explicit camera/microphone action boundary;
+- explicit patient acceptance + decline before camera/microphone permission;
+- session starts `CREATED`; staff join is not claimed until media setup reaches the join action;
 - patient + staff WebRTC UI;
 - no MediaRecorder path;
 - local tracks stopped and peer connection closed;
+- canonical `FAILED` persisted from real peer failure;
+- fail-closed media cleanup when session-control sync is lost;
 - deterministic frontend truth contract;
 - runtime visual harness prepared.
 
