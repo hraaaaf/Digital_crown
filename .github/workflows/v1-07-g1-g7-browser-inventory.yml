@@ -73,6 +73,7 @@ jobs:
       - name: Enumerate G1-G7 controls
         working-directory: frontend
         run: |
+          set -o pipefail
           mkdir -p ../artifacts/v1-07-g1-g7-browser-inventory
           node scripts/inventory-v1-07-g1-g7-browser-controls.mjs 2>&1 | tee ../artifacts/v1-07-g1-g7-browser-inventory/runner.log
       - name: Upload evidence
