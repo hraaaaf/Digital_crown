@@ -82,7 +82,7 @@ for(const viewport of viewports){
     const whatsappInput=whatsappCard.locator('input[type="text"]');
     await whatsappInput.fill('0612345678');
 
-    let profileSave=page.getByRole('button',{name:/Mettre à jour le profil|✓ Enregistré !/}).first();
+    let profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
     await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
     let profileCheck=await api.get('/api/clinics/me',{headers});
@@ -106,7 +106,7 @@ for(const viewport of viewports){
       }
       return route.continue();
     });
-    profileSave=page.getByRole('button',{name:/Mettre à jour le profil|✓ Enregistré !/}).first();
+    profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
     await page.getByText('Erreur lors de la sauvegarde',{exact:true}).waitFor({state:'visible',timeout:10000});
     await page.unroute('**/api/clinics/me');
@@ -148,6 +148,64 @@ for(const viewport of viewports){
     if(logoDeleteCalls!==1) throw new Error('profile logo delete ACK mismatch');
     prove(viewport,'settings-profile-logo-delete',{logoDeleteCalls});
     await page.unroute('**/api/clinics/me');
+
+    // Return the staged cabinet name to the last persisted truth before testing advanced header controls.
+    await cabinet.fill('Cabinet T2 Certification Browser');
+    await cabinet.blur();
+    profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+    await profileSave.click();
+    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+
+    // Advanced bilingual header: open, add/delete FR+AR rows, persist a manual line, then reset from canonical cabinet data.
+    const headerToggle=page.getByRole('button',{name:/En-tête bilingue/i});
+    await headerToggle.click();
+    if((await headerToggle.getAttribute('aria-expanded'))!=='true') throw new Error('profile advanced header did not open');
+
+    let frDeletes=page.getByRole('button',{name:/Supprimer la ligne française/});
+    let arDeletes=page.getByRole('button',{name:/Supprimer la ligne arabe/});
+    const frBefore=await frDeletes.count();
+    const arBefore=await arDeletes.count();
+
+    await page.getByRole('button',{name:'+ Ligne FR',exact:true}).click();
+    frDeletes=page.getByRole('button',{name:/Supprimer la ligne française/});
+    if(await frDeletes.count()!==frBefore+1) throw new Error('profile + Ligne FR did not add a row');
+    await page.getByRole('button',{name:'Supprimer la ligne française '+(frBefore+1),exact:true}).click();
+    if(await page.getByRole('button',{name:/Supprimer la ligne française/}).count()!==frBefore) throw new Error('profile FR delete did not remove the added row');
+    prove(viewport,'settings-profile-header-fr-add-delete');
+
+    await page.getByRole('button',{name:'+ Ligne AR',exact:true}).click();
+    arDeletes=page.getByRole('button',{name:/Supprimer la ligne arabe/});
+    if(await arDeletes.count()!==arBefore+1) throw new Error('profile + Ligne AR did not add a row');
+    await page.getByRole('button',{name:'Supprimer la ligne arabe '+(arBefore+1),exact:true}).click();
+    if(await page.getByRole('button',{name:/Supprimer la ligne arabe/}).count()!==arBefore) throw new Error('profile AR delete did not remove the added row');
+    prove(viewport,'settings-profile-header-ar-add-delete');
+
+    const firstFrDelete=page.getByRole('button',{name:'Supprimer la ligne française 1',exact:true});
+    const firstFrInput=firstFrDelete.locator('xpath=..').locator('input');
+    await firstFrInput.fill('G5 Header Custom');
+    profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+    await profileSave.click();
+    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    profileCheck=await api.get('/api/clinics/me',{headers});
+    profileBody=await profileCheck.json();
+    if(profileBody.header_customized!==true || profileBody.header_lines_fr?.[0]!=='G5 Header Custom'){
+      throw new Error('profile manual header did not persist');
+    }
+    prove(viewport,'settings-profile-header-custom-save');
+
+    const resetHeader=page.getByRole('button',{name:/Réinitialiser depuis le cabinet|Modèle Benmoussa/});
+    const resetHeaderLabel=(await resetHeader.innerText()).trim();
+    await resetHeader.click();
+    profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+    await profileSave.click();
+    await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    profileCheck=await api.get('/api/clinics/me',{headers});
+    profileBody=await profileCheck.json();
+    if(profileBody.header_lines_fr?.[0]==='G5 Header Custom') throw new Error('profile header reset left manual content active');
+    if(resetHeaderLabel.includes('Réinitialiser') && profileBody.header_customized!==false){
+      throw new Error('profile owner header reset did not restore automatic mode');
+    }
+    prove(viewport,'settings-profile-header-reset',{resetHeaderLabel});
 
     // Restore the real isolated profile fields changed by this scenario.
     const restoreProfile=await api.put('/api/clinics/me',{headers,data:originalProfileRestore});
