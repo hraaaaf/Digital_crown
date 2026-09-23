@@ -31,6 +31,7 @@ from backend.services.patient_companion_teleconsultation import (
     mark_connected,
     mark_joined,
     normalize_uuid,
+    purge_signals,
     serialize_session,
     serialize_signal,
     sync_signals,
@@ -138,7 +139,10 @@ def staff_list_teleconsultations(
     ).order_by(PatientCompanionAccess.created_at.asc()).all()
     changed = False
     for row in rows:
-        changed = expire_if_needed(row) or changed
+        expired = expire_if_needed(row)
+        if expired:
+            purge_signals(db, row)
+        changed = expired or changed
     if changed:
         db.commit()
     if response is not None:
@@ -323,6 +327,7 @@ def staff_end_teleconsultation(
     access = _active_access(db, employer_id=employer_id, patient_id=patient.id, access_id=body.access_id)
     row = _staff_session(db, employer_id=employer_id, patient_id=patient.id, access=access, session_id=session_id, lock=True)
     end_session(row, "STAFF")
+    purge_signals(db, row)
     db.add(models.AuditLog(
         user_id=current_user.id,
         employer_id=employer_id,
