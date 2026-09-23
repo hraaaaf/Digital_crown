@@ -1,7 +1,7 @@
 # Digital Crown — Patient Companion — Canonical Resume
 
-Last verified update: 2026-09-21 — PC-07 POST-MERGE VERIFIED; PC-08 start ready
-Active lot: PC-08 — Secure Messaging — audit gate
+Last verified update: 2026-09-23 — PC-08 POST-MERGE VERIFIED; PC-09 start ready
+Active lot: PC-09 — Teleconsultation — start ready
 
 ## Product doctrine
 
@@ -301,3 +301,21 @@ Next exact:
 2. verify final master contains the four closeout docs;
 3. start PC-08 Secure Messaging with audit-before-code;
 4. no Vercel deployment.
+
+
+## PC-08 post-merge closeout — 2026-09-23
+
+- human visual gate: APPROVED;
+- approved exact-head runtime: `1bbc1621a90a681cc1fb34fa846dbb3ec3c68c26`;
+- runtime evidence: run `35859746972` → SUCCESS;
+- artifact `10750431243`, digest `sha256:9181923334458fe680cd8c93beac24d08f2e0c724ea2ea6a0264727b913b287a`;
+- PR #677 merged as `6a785791d50d32305a0b7fcde4bc0bd8bcb62f05`;
+- post-merge master HEAD equals merge SHA;
+- all PC-08 product files are byte-identical between approved HEAD and merged master; only the runtime workflow differs by intentional alignment to the canonical master workflow;
+- no Vercel deployment.
+
+Next exact:
+1. prepare PC-09 Teleconsultation start handover;
+2. audit existing video/remote consultation primitives before implementation;
+3. lock PC-09 Goal / Success / Proof;
+4. no Vercel deployment without explicit authorization.
