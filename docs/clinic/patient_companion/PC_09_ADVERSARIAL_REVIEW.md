@@ -66,8 +66,14 @@ Severity: BLOCKING for arbitrary off-network media reliability.
 Current browser peer configuration intentionally has no hard-coded third-party ICE/TURN service.
 Direct connectivity can work in permissive/local networks but cannot be claimed across restrictive NAT/firewall environments.
 
-Decision:
-- TURN credentials must be short-lived/configured, never hard-coded;
+Correction implemented in candidate:
+- TURN configuration is provider-agnostic;
+- credentials are generated server-side using coturn-compatible time-limited HMAC credentials;
+- the shared TURN secret is never returned to clients;
+- no third-party TURN URL or credential is hard-coded.
+
+Remaining external gate:
+- no controlled TURN server is deployed/configured yet;
 - remote-network E2E must include at least one forced-relay TURN scenario before production certification.
 
 ### A3 — Signaling metadata retention
