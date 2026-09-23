@@ -84,3 +84,22 @@ Status: CODE REMEDIATED — CERTIFICATION PENDING matched BEFORE/AFTER evidence 
 
 ## Browser escalation
 G6 requires a dedicated real Chromium action pass for SuperAdmin, plans, licences and trial-code controls. A normal dentist fixture cannot certify privileged controls; the browser certification must use a dedicated isolated privileged fixture and prove mutation ACK/refusal plus immutable suspended/archived boundaries.
+
+
+## Deep browser reconciliation — 2026-09-23
+
+The G6 browser gate now proves:
+- plan ACK persistence + restore + explicit 409 refusal/non-mutation;
+- every exposed licence duration (+1m/+3m/+6m/+1y) through backend ACK and later persisted expiry;
+- safe WhatsApp no-phone refusal before any external transport;
+- suspend cancel/non-mutation, suspend ACK, reactivate restore;
+- archive cancel/non-mutation, archived immutable controls, unarchive restore;
+- notes cancel, save persistence and fixture restore;
+- trial create refusal, create+clipboard after ACK, existing-link copy, revoke refusal, revoke ACK, and explicit refresh against the real trial-codes endpoint;
+- the real visible locked-licence LoginPage flow: 402 recheck refusal, successful recheck to Dashboard, and logout clearing the session.
+
+LicenseStatusPage.tsx is not wired through the current inspected App/MainLayout visible V1 route flow; browser proof therefore uses the exposed LoginPage lock handling and LicenseBanner rather than an unreachable surface.
+
+SuperAdmin notes/history modals now expose dialog semantics and a named history-close control.
+
+Functional deep-check status: COMPLETE IN HARNESS. Certification remains pending exact-head browser/CI and applicable matched visual evidence.
