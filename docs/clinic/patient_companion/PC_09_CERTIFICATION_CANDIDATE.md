@@ -15,6 +15,7 @@ Provide a privacy-preserving patient↔cabinet teleconsultation flow with exact 
 - browser WebRTC carries audio/video;
 - Patient Companion signed/encrypted operations carry session/signaling control only;
 - no recording;
+- provider-agnostic coturn-compatible short-lived TURN credentials supported, with server-side shared secret;
 - no Vercel deployment.
 
 ## Product truth
@@ -77,9 +78,11 @@ No green status is claimed until exact run results are recorded here.
 The existing Patient Companion relay is command/ACK and has not been certified for real-time signaling latency/recovery.
 
 ### TURN
-No controlled TURN service/configuration currently exists.
+The candidate can now consume a controlled TURN service using short-lived server-generated credentials without exposing the shared secret.
 
-Therefore the current candidate must not be described as reliable arbitrary off-network teleconsultation.
+No controlled TURN service is actually deployed/configured yet.
+
+Therefore the current candidate must still not be described as reliable arbitrary off-network teleconsultation until forced-relay remote E2E passes.
 
 ## Full remote-production gate
 Before claiming full remote teleconsultation:
