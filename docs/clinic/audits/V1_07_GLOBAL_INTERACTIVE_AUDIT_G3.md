@@ -158,3 +158,47 @@ G3 functional matrices are now consolidated. Certification remains blocked only 
 
 ## Browser escalation
 G3 requires a real Chromium action pass in addition to component matrices: Agenda navigation/views, appointment create/edit/delete, Frontdesk, import, notifications and waiting-room actions must be exercised with observable ACK/refusal/non-mutation outcomes. Runtime-discovered dynamic controls join the denominator.
+
+
+## Deep interaction reconciliation — 2026-09-23
+
+### View switching
+The browser action gate now proves the actual rendered consumer after each control:
+- Jour -> `agenda-day-view`;
+- Semaine -> `agenda-week-view`;
+- Mois -> `agenda-month-view`;
+- Multi -> visible `Vue multi-praticien`.
+
+The view switch is no longer accepted from the click alone.
+
+### Pending-only product defect
+The visible `Afficher seulement` control previously mutated only its own label:
+- `showPendingOnly` existed;
+- no render/data branch consumed it;
+- the active Agenda view remained present.
+
+This was a real ghost-control defect.
+
+Remediation:
+- while pending-only is active, `agenda-active-view` is not rendered;
+- pending request cards remain visible;
+- `Afficher tout` restores the previously active Agenda view;
+- component and Chromium proofs require hide + restore behavior.
+
+### Matched visual evidence
+Because the correction changes the visible page after an interaction, G3 carries a matched BEFORE/AFTER visual gate:
+- true BEFORE source: `AgendaStudio.tsx` from `aef6a80afbdfcb5045fb681aae329a1fbe7793fc`;
+- AFTER source: exact workflow checkout HEAD;
+- same action: click `Afficher seulement` with one deterministic pending request;
+- viewports: 360×800, 390×844, 768×1024, 1280×900;
+- capture script: `frontend/scripts/capture-v1-07-g3-pending-only-visual.mjs`;
+- artifact: `g3-pending-only-visual`.
+
+The visual change is not certified until the artifact is produced, inspected, compared and scored.
+
+## Remaining semantic depth gaps
+G3 remains semantically open until applicable control contracts are closed, notably:
+- appointment create/edit/delete real success ACK paths in Chromium where not already covered by reusable exact behavior proof;
+- Google import successful import path;
+- Notifications and Waiting Room real-Chromium action pass, not component matrices alone;
+- any runtime-discovered dynamic control not yet reconciled.
