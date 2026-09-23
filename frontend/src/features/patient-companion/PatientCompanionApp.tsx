@@ -19,6 +19,7 @@ import { PatientCompanionNotifications } from './PatientCompanionNotifications';
 import { PatientCompanionMessages } from './PatientCompanionMessages';
 import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto';
 import { PatientCompanionFinance } from './PatientCompanionFinance';
+import { PatientCompanionTeleconsultation } from './PatientCompanionTeleconsultation';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 
@@ -744,6 +745,7 @@ export const PatientCompanionApp = () => {
               ) : null}
             </section>
             <PatientCompanionNotifications pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
+            <PatientCompanionTeleconsultation pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <PatientCompanionMessages pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <PatientCompanionConsentVault pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <section className="mt-3 grid gap-3" aria-label="Portefeuille Patient Companion">
