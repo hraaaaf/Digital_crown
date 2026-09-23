@@ -13,7 +13,7 @@ const scenarios = [
   'stock-add-refusal',
   'stock-delete-refusal',
 ];
-const viewports = [[390,844],[768,1024],[1440,1000]];
+const viewports = [[390,844],[768,1024],[1280,900]];
 
 await fs.mkdir(out,{recursive:true});
 const browser = await chromium.launch();
