@@ -149,6 +149,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
       }
       if (terminalStates.has(result.session.state)) cleanupPeer();
     } catch (error) {
+      cleanupPeer();
       setMessage(error instanceof Error ? error.message : 'Synchronisation de la consultation impossible.');
     } finally {
       syncBusyRef.current = false;
