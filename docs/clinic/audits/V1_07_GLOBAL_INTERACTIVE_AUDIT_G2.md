@@ -192,3 +192,52 @@ G2 functional implementation work is now substantially covered. Certification st
 
 ## Browser escalation
 G2 is no longer certifiable from component matrices + CI alone. Dashboard, Patients and Patient dossier controls must be enumerated and exercised in real Chromium. The shared G1→G7 browser factory supplies the runtime denominator; a G2 Playwright action pass must reconcile Dashboard/Patients controls to observable navigation, mutation ACK/refusal and non-mutation outcomes before certification.
+
+
+## Deep browser reconciliation completed — 2026-09-23
+
+The G2 Chromium gate now proves the visible contracts through their real consequences, not click/state alone.
+
+### Dashboard
+- waiting-room chain: PRÉVU -> EN_S_ATTENTE -> EN_FAUTEUIL -> TERMINÉ with fixture ACK/refetch after every mutation;
+- Ghost Action checklist appears only after completion and disappears only after all actions are completed;
+- proactive alerts: snooze/read remove only the targeted alert after ACK; patient alert navigation reaches the exact dossier;
+- Mobile Security: dialog focus ownership, pairing payload/ACK, revoke refusal keeps pairing, revoke ACK clears pairing, Escape closes and restores focus;
+- management/quick actions remain permission-gated.
+
+### Patient list
+- deterministic A→Z / Z→A sort consumer proof and keyboard row activation;
+- CSV file gate, multipart ACK result truth, backend refusal with modal retained;
+- delete wrong-confirmation blocked, cancel non-mutating, backend refusal preserves the row, ACK removes locally, hard reload proves the isolated real fixture was never deleted;
+- no-result add-patient handoff preserves search identity in the create route.
+
+### Add / Edit patient
+- duplicate-check outage fails closed;
+- detected duplicate never creates automatically;
+- open-existing path is non-mutating;
+- force-create only mutates after explicit user choice;
+- create cancel is non-mutating;
+- edit read failure is fail-closed + Retry;
+- edit 409 conflict/refusal never navigates as success;
+- create/edit success ACK paths verify payload and navigation while Playwright interception prevents mutation of the real T2 patient fixture.
+
+### Patient dossier
+- tab controls verify both URL state and rendered `data-flow-patient-surface`;
+- Documents create/history round-trip;
+- Modifier and RDV quick actions reach their actual destinations, with RDV preserving `prefillPatientId`;
+- patient-load failure + Retry;
+- ortho activation refusal stays locked; ACK unlocks the cephalometry consumer.
+
+### Permission boundary
+A real product defect was found and remediated:
+- `/patients*` routes had backend permission enforcement but no equivalent React route guard;
+- `/settings` and the Header Settings entry had the same frontend exposure gap.
+
+The isolated restricted employee fixture (`agenda=true`, `patients/settings/accounting/admin=false`) now proves:
+- patient/settings navigation and privileged Dashboard controls are hidden;
+- Nouveau RDV remains available while Nouveau Patient is hidden;
+- direct `/patients` and `/settings` deep-links fail closed to Dashboard.
+
+`CsvImportModal` also gained dialog semantics and a named close control during this reconciliation.
+
+Functional deep-check status: COMPLETE IN HARNESS. G2 remains NOT CERTIFIED until the exact-head browser/CI gates are green.
