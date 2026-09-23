@@ -102,6 +102,25 @@ with database.SessionLocal() as db:
         db.commit()
         db.refresh(restricted)
 
+    for setup_email, setup_name in (
+        ("t2-setup-390@cabinet.ma", "Dr T2 Setup Mobile"),
+        ("t2-setup-1280@cabinet.ma", "Dr T2 Setup Desktop"),
+    ):
+        setup_user = db.query(models.User).filter(models.User.email == setup_email).first()
+        if not setup_user:
+            setup_user = models.User(
+                email=setup_email,
+                hashed_password=get_password_hash(runtime_password),
+                role=models.UserRole.DENTISTE,
+                nom_complet=setup_name,
+                is_active=True,
+                is_licensed=True,
+                approval_status=models.ApprovalStatus.APPROVED.value,
+            )
+            db.add(setup_user)
+            db.commit()
+            db.refresh(setup_user)
+
     superadmin_email = os.environ.get("T2_SUPERADMIN_EMAIL", "").strip().lower()
     if superadmin_email:
         superadmin = db.query(models.User).filter(models.User.email == superadmin_email).first()
