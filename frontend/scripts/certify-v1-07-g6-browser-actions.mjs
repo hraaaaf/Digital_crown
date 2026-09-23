@@ -191,7 +191,7 @@ for(const viewport of viewports){
 
     page.once('dialog',d=>d.accept());
     await archivedCard.getByTitle('Désarchiver').click();
-    await page.getByTitle('Archiver').waitFor({state:'visible',timeout:10000});
+    await page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]').getByTitle('Archiver').waitFor({state:'visible',timeout:10000});
     verify=await api.get('/api/superadmin/clients',{headers});
     row=(await verify.json()).find(x=>x.id===target.id);
     if(row.is_archived) throw new Error('unarchive did not restore fixture');
