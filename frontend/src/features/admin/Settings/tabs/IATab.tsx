@@ -31,15 +31,16 @@ const ToggleRow = ({ icon, title, description, state, onToggle, activeColorClass
 export const IATab: React.FC = () => {
   const profile = useSettingsStore((state) => state.profile);
   const performanceMode = profile.performance_mode ?? safeStorage.get('performanceMode') === 'true';
-  const clinicalTipsEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinical_tips_enabled') !== 'false';
+  const aiActivityAnimationEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinical_tips_enabled') !== 'false';
   const patientIndicatorsEnabled = profile.show_patient_badges ?? true;
 
   const togglePerformanceMode = () => {
     stageRuntimePreferences({ performance_mode: !performanceMode });
   };
 
-  const toggleClinicalTips = () => {
-    stageRuntimePreferences({ clinical_tips_enabled: !clinicalTipsEnabled });
+  const toggleAiActivityAnimation = () => {
+    // Legacy persistence key retained for backward compatibility; UI semantics are animation-only.
+    stageRuntimePreferences({ clinical_tips_enabled: !aiActivityAnimationEnabled });
   };
 
   return (
@@ -62,10 +63,10 @@ export const IATab: React.FC = () => {
 
           <ToggleRow
             icon={<Activity size={18} className="text-emerald-500" />}
-            title="Conseils cliniques contextuels"
-            description="Affiche les bulles de conseil déjà disponibles dans les écrans compatibles, notamment la céphalométrie et la navigation clinique."
-            state={clinicalTipsEnabled}
-            onToggle={toggleClinicalTips}
+            title="Animation d’activité IA"
+            description="Anime discrètement le logo Digital Crown pendant une opération IA. Aucun conseil clinique automatique n’est affiché."
+            state={aiActivityAnimationEnabled}
+            onToggle={toggleAiActivityAnimation}
             activeColorClass="bg-emerald-500"
           />
 
