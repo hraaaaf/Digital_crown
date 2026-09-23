@@ -8,6 +8,9 @@ describe('PC-09 teleconsultation truth contract', () => {
   it('requests camera and microphone only from an explicit join/start handler', () => {
     expect(patient).toContain("getUserMedia({ video: true, audio: true })");
     expect(patient).toContain("onClick={() => void join(shown)}");
+    expect(patient).toContain("Accepter et rejoindre");
+    expect(patient).toContain("vous acceptez cette téléconsultation");
+    expect(patient).toContain("Aucun enregistrement.");
     expect(staff).toContain("getUserMedia({ video: true, audio: true })");
     expect(staff).toContain("Démarrer une téléconsultation");
   });
