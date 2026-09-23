@@ -344,21 +344,55 @@ for(const viewport of viewports){
   await page.getByTestId('agenda-week-view').waitFor({state:'visible',timeout:5000});
   prove(viewport,'agenda-pending-filter-restores-active-view');
 
-  // Google import modal open/close + invalid file non-mutation.
+  // Google import: invalid file blocked, then valid ICS -> backend persistence -> visible Agenda -> cleanup.
   const importButton=page.getByTitle('Importer depuis Google Agenda');
   if(await importButton.count()){
     await importButton.click();
-    const file=page.locator('input[type="file"]').last();
-    if(await file.count()){
-      await file.setInputFiles({name:'empty.ics',mimeType:'text/calendar',buffer:Buffer.from('invalid')});
-      await page.getByText('Aucun rendez-vous valide trouvé dans ce fichier.',{exact:true}).waitFor({state:'visible',timeout:5000});
-      prove(viewport,'agenda-import-invalid-file-blocked');
-    }
-    const cancel=page.getByRole('button',{name:'Annuler',exact:true});
-    if(await cancel.count()) await cancel.click();
+    let importDialog=page.getByRole('dialog',{name:'Import Google Agenda'});
+    await importDialog.waitFor({state:'visible',timeout:5000});
+    let file=importDialog.locator('input[type="file"]');
+    await file.setInputFiles({name:'empty.ics',mimeType:'text/calendar',buffer:Buffer.from('invalid')});
+    await importDialog.getByText('Aucun rendez-vous valide trouvé dans ce fichier.',{exact:true}).waitFor({state:'visible',timeout:5000});
+    prove(viewport,'agenda-import-invalid-file-blocked');
+    await importDialog.getByRole('button',{name:'Annuler',exact:true}).click();
+
+    const importName='G3 ICS Import '+viewport.width;
+    await importButton.click();
+    importDialog=page.getByRole('dialog',{name:'Import Google Agenda'});
+    file=importDialog.locator('input[type="file"]');
+    const ics=[
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'DTSTART:20260923T100000Z',
+      'DTEND:20260923T104500Z',
+      'SUMMARY:'+importName,
+      'DESCRIPTION:Import browser certification',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+    await file.setInputFiles({name:'g3-valid.ics',mimeType:'text/calendar',buffer:Buffer.from(ics)});
+    await importDialog.getByText('1/1 rendez-vous sélectionnés',{exact:true}).waitFor({state:'visible',timeout:5000});
+    await importDialog.getByRole('button',{name:"Confirmer l'import",exact:true}).click();
+    await importDialog.waitFor({state:'detached',timeout:10000});
+
+    const importedList=await (await api.get('/api/appointments/',{headers})).json();
+    const imported=importedList.find(x=>x.patient_name===importName);
+    if(!imported) throw new Error('agenda ICS import not persisted');
+    await page.locator('.appointment-item').filter({hasText:importName}).first().waitFor({state:'visible',timeout:10000});
+    prove(viewport,'agenda-import-success-persistence-visible',{appointmentId:imported.id});
+
+    const cleanup=await api.delete('/api/appointments/'+imported.id,{headers});
+    if(!cleanup.ok()) throw new Error('agenda ICS cleanup delete failed');
+    const afterCleanup=await (await api.get('/api/appointments/',{headers})).json();
+    if(afterCleanup.some(x=>x.id===imported.id)) throw new Error('agenda ICS cleanup did not remove appointment');
+    prove(viewport,'agenda-import-fixture-cleanup',{appointmentId:imported.id});
   }
 
   await page.unroute('**/api/appointments/pending');
+  await page.unroute('**/api/appointments/7001/request-confirmation');
+  await page.unroute('**/api/appointments/7002/confirm');
+  await page.unroute('**/api/appointments/7003/reject');
 
   // MOBILE NOTIFICATIONS — real Chromium filter/navigation/refresh + ACK/refusal consequences.
   const notificationFixture=[
