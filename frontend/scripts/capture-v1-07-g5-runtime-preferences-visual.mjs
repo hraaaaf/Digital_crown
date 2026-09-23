@@ -7,6 +7,7 @@ const password=process.env.T2_PASSWORD;
 if(!password) throw new Error('T2_PASSWORD required');
 
 const baselineSha='915ac3f048803cb7aa82687130233622a1de0fb7';
+const currentHead=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',cwd:path.resolve('..')}).trim();
 const sourcePath=path.resolve('src/features/admin/Settings/tabs/IATab.tsx');
 const artifactDir=path.resolve('artifacts/g5-runtime-preferences-visual');
 fs.mkdirSync(artifactDir,{recursive:true});
@@ -65,7 +66,7 @@ try{
 
   fs.writeFileSync(path.join(artifactDir,'manifest.json'),JSON.stringify({
     baselineSha,
-    currentHead:process.env.GITHUB_SHA||null,
+    currentHead,
     viewports,
     beforeLabel:'Conseils cliniques contextuels',
     afterLabel:'Animation d’activité IA',
@@ -77,4 +78,4 @@ try{
   await api.dispose();
 }
 
-console.log('G5_RUNTIME_VISUAL_CAPTURE',JSON.stringify({status:'PASS',baselineSha,viewports:viewports.map(v=>v.name)}));
+console.log('G5_RUNTIME_VISUAL_CAPTURE',JSON.stringify({status:'PASS',baselineSha,currentHead,viewports:viewports.map(v=>v.name)}));
