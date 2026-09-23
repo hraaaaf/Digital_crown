@@ -34,7 +34,7 @@ async function seed(page){
 function prove(viewport,action,detail={}){proofs.push({viewport:viewport.width+'x'+viewport.height,action,status:'PASS',...detail});}
 
 for(const viewport of viewports){
-  const ctx=await browser.newContext({viewport,colorScheme:'light'});
+  const ctx=await browser.newContext({viewport,colorScheme:'light',permissions:['clipboard-read','clipboard-write']});
   const page=await ctx.newPage();
   await seed(page);
   await page.goto('http://127.0.0.1:5173/super-admin',{waitUntil:'networkidle',timeout:90000});
@@ -236,49 +236,83 @@ for(const viewport of viewports){
     if(await close.count()) await close.click();
   }
 
-  // Trial code create + reload + revoke.
+  // Trial codes — refusal, exact create payload, clipboard after ACK, copy, revoke refusal, revoke ACK.
   const email=page.getByPlaceholder('Email professionnel');
   if(await email.count()){
+    const refusedEmail='g6-refused-'+viewport.width+'@example.com';
+    await page.route('**/api/superadmin/trial-codes',async route=>{
+      if(route.request().method()==='POST') return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced trial create refusal'})});
+      return route.continue();
+    });
+    await email.fill(refusedEmail);
+    await page.getByRole('button',{name:/Générer Et Copier Le Lien/i}).click();
+    await page.getByText("Erreur lors de la création du code.",{exact:true}).waitFor({state:'visible',timeout:10000});
+    const refusedCodes=await api.get('/api/superadmin/trial-codes',{headers});
+    if((await refusedCodes.json()).some(x=>x.email===refusedEmail)) throw new Error('refused trial create persisted');
+    prove(viewport,'superadmin-trial-create-refusal-non-mutation');
+    await page.unroute('**/api/superadmin/trial-codes');
+
     const unique='g6-'+viewport.width+'@example.com';
     await email.fill(unique);
     const name=page.getByPlaceholder('Nom complet');
     if(await name.count()) await name.fill('Dr Browser G6');
     const cabinet=page.getByPlaceholder('Nom du cabinet');
     if(await cabinet.count()) await cabinet.fill('Cabinet G6');
-    await page.getByRole('button',{name:/Générer Et Copier Le Lien/i}).click();
-    await page.waitForTimeout(400);
+    const notes=page.getByPlaceholder('Notes internes');
+    if(await notes.count()) await notes.fill('Prospect browser G6');
+    const trialDays=page.getByPlaceholder('Durée essai');
+    if(await trialDays.count()) await trialDays.fill('45');
+    const expiresDays=page.getByPlaceholder('Validité du code');
+    if(await expiresDays.count()) await expiresDays.fill('12');
 
+    await page.getByRole('button',{name:/Générer Et Copier Le Lien/i}).click();
+    await page.waitForTimeout(300);
     const codes=await api.get('/api/superadmin/trial-codes',{headers});
     const created=(await codes.json()).find(x=>x.email===unique);
-    if(!created) throw new Error('trial code ACK not persisted');
-    prove(viewport,'superadmin-trial-create',{codeId:created.id});
+    if(!created || created.trial_days!==45) throw new Error('trial code ACK/payload not persisted');
+    const copiedAfterCreate=await page.evaluate(()=>navigator.clipboard.readText());
+    if(copiedAfterCreate!==created.activation_url) throw new Error('trial create clipboard mismatch');
+    prove(viewport,'superadmin-trial-create-copy',{codeId:created.id});
 
     const codeText=page.getByText(created.code,{exact:true});
     await codeText.waitFor({state:'visible',timeout:10000});
-    const codeRow=codeText.locator('xpath=ancestor::*[.//button[contains(.,"Révoquer")]][1]');
-    const revoke=codeRow.getByRole('button',{name:'Révoquer',exact:true});
-    if(await revoke.count()){
-      await revoke.click();
-      await page.waitForTimeout(350);
-      const refreshed=await api.get('/api/superadmin/trial-codes',{headers});
-      const after=(await refreshed.json()).find(x=>x.id===created.id);
-      if(!after?.revoked_at) throw new Error('trial revoke not persisted');
-      prove(viewport,'superadmin-trial-revoke',{codeId:created.id});
-    }
+    let codeRow=codeText.locator('xpath=ancestor::*[.//button[contains(.,"Révoquer")]][1]');
+    await codeRow.getByRole('button',{name:/Copier Le Lien/i}).click();
+    const copiedExisting=await page.evaluate(()=>navigator.clipboard.readText());
+    if(copiedExisting!==created.activation_url) throw new Error('existing trial copy mismatch');
+    prove(viewport,'superadmin-trial-copy-existing');
+
+    await page.route('**/api/superadmin/trial-codes/'+created.id+'/revoke',route=>route.fulfill({
+      status:409,contentType:'application/json',body:JSON.stringify({detail:'Code déjà utilisé'})
+    }));
+    await codeRow.getByRole('button',{name:'Révoquer',exact:true}).click();
+    await page.getByText('Code déjà utilisé',{exact:true}).waitFor({state:'visible',timeout:10000});
+    let refreshed=await api.get('/api/superadmin/trial-codes',{headers});
+    let after=(await refreshed.json()).find(x=>x.id===created.id);
+    if(after?.revoked_at) throw new Error('refused trial revoke mutated backend');
+    prove(viewport,'superadmin-trial-revoke-refusal-non-mutation');
+    await page.unroute('**/api/superadmin/trial-codes/'+created.id+'/revoke');
+
+    codeRow=page.getByText(created.code,{exact:true}).locator('xpath=ancestor::*[.//button[contains(.,"Révoquer")]][1]');
+    await codeRow.getByRole('button',{name:'Révoquer',exact:true}).click();
+    await page.waitForTimeout(300);
+    refreshed=await api.get('/api/superadmin/trial-codes',{headers});
+    after=(await refreshed.json()).find(x=>x.id===created.id);
+    if(!after?.revoked_at) throw new Error('trial revoke not persisted');
+    prove(viewport,'superadmin-trial-revoke',{codeId:created.id});
   }
 
-  // Explicit refresh -> prove a real clients re-read and stable rendered result.
+  // Explicit trial-code refresh -> prove the endpoint this button actually owns.
   const refresh=page.getByRole('button',{name:'Actualiser',exact:true});
   if(await refresh.count()){
     const refreshAckPromise=page.waitForResponse(
-      r=>r.request().method()==='GET' && r.url().includes('/api/superadmin/clients'),
+      r=>r.request().method()==='GET' && r.url().includes('/api/superadmin/trial-codes'),
       {timeout:10000},
     );
     await refresh.click();
     const refreshAck=await refreshAckPromise;
-    if(!refreshAck.ok()) throw new Error('superadmin refresh refused '+refreshAck.status());
-    await page.getByText('Dr T2 Browser',{exact:true}).waitFor({state:'visible',timeout:10000});
-    prove(viewport,'superadmin-explicit-refresh',{status:refreshAck.status()});
+    if(!refreshAck.ok()) throw new Error('trial-code refresh refused '+refreshAck.status());
+    prove(viewport,'superadmin-trial-explicit-refresh',{status:refreshAck.status()});
   }
 
   await ctx.close();
