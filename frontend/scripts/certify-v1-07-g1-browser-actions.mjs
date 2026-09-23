@@ -176,6 +176,84 @@ for(const viewport of viewports){
   prove(viewport,'mobile-pairing-destination-navigation');
 
   await ctx.close();
+
+  // SETUP WIZARD — validation, back/next, refusal without persistence, then full ACK to Dashboard.
+  const setupCtx=await browser.newContext({viewport,colorScheme:'light'});
+  const setupPage=await setupCtx.newPage();
+  await setupPage.addInitScript(v=>{
+    localStorage.setItem('token',v.access);
+    localStorage.setItem('refresh_token',v.refresh||'');
+    localStorage.setItem('appMode','prod');
+    localStorage.removeItem('digitalcrown_theme');
+    sessionStorage.removeItem('digitalcrown-setup-storage');
+  },{access:apiTokens.access_token,refresh:apiTokens.refresh_token});
+
+  let setupInitialized=false;
+  let failSetupCreate=true;
+  let setupCreateCalls=0,completeSetupCalls=0;
+  let setupPayload=null;
+  await setupPage.route('**/api/clinics/init-status',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({is_initialized:setupInitialized})
+  }));
+  await setupPage.route('**/api/clinics/me/practitioner',route=>route.fulfill({
+    status:404,contentType:'application/json',body:JSON.stringify({detail:'not configured'})
+  }));
+  await setupPage.route('**/api/clinics/me',route=>{
+    if(route.request().method()==='GET') return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:'not configured'})});
+    return route.continue();
+  });
+  await setupPage.route('**/api/clinics/',async route=>{
+    if(route.request().method()!=='POST') return route.continue();
+    setupCreateCalls+=1;
+    setupPayload=route.request().postDataJSON();
+    if(failSetupCreate) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced setup refusal'})});
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...setupPayload,is_initialized:false})});
+  });
+  await setupPage.route('**/api/clinics/complete-setup',route=>{
+    completeSetupCalls+=1;
+    setupInitialized=true;
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({is_initialized:true})});
+  });
+
+  await setupPage.goto('http://127.0.0.1:5173/setup',{waitUntil:'networkidle',timeout:90000});
+  await setupPage.locator('[data-flow-step="1"]').waitFor({state:'visible',timeout:10000});
+  await setupPage.getByRole('button',{name:/Continuer/i}).click();
+  if((await setupPage.locator('[data-flow-step="1"]').count())!==1) throw new Error('setup advanced with missing required identity');
+  if(setupCreateCalls!==0) throw new Error('setup validation triggered backend mutation');
+  prove(viewport,'setup-step1-required-validation');
+
+  await setupPage.getByPlaceholder(/Cabinet Dentaire|Centre Dentaire/).fill('Cabinet Browser Setup');
+  await setupPage.getByPlaceholder('Étage, Résidence, Rue, Ville...').fill('Rabat Browser');
+  await setupPage.getByPlaceholder('Dr. Jean Dupont').fill('Dr Browser Setup');
+  await setupPage.getByRole('button',{name:/Continuer/i}).click();
+  await setupPage.locator('[data-flow-step="2"]').waitFor({state:'visible',timeout:5000});
+  await setupPage.getByRole('button',{name:/Précédent/i}).click();
+  await setupPage.locator('[data-flow-step="1"]').waitFor({state:'visible',timeout:5000});
+  await setupPage.getByRole('button',{name:/Continuer/i}).click();
+  for(let step=3;step<=7;step++){
+    await setupPage.getByRole('button',{name:/Continuer/i}).click();
+    await setupPage.locator('[data-flow-step="'+step+'"]').waitFor({state:'visible',timeout:5000});
+  }
+  prove(viewport,'setup-next-back-step-flow');
+
+  if(await setupPage.evaluate(()=>localStorage.getItem('digitalcrown_theme')!==null)) throw new Error('setup theme persisted before backend ACK');
+  await setupPage.getByRole('button',{name:/Finaliser l.Installation/i}).click();
+  await setupPage.getByText(/Échec de l'initialisation/i).waitFor({state:'visible',timeout:10000});
+  if(!setupPage.url().includes('/setup') || completeSetupCalls!==0) throw new Error('setup refusal produced false navigation/completion');
+  if(await setupPage.evaluate(()=>localStorage.getItem('digitalcrown_theme')!==null)) throw new Error('setup refusal persisted theme');
+  prove(viewport,'setup-finalization-refusal-non-mutation',{setupCreateCalls});
+
+  failSetupCreate=false;
+  await setupPage.getByRole('button',{name:/Finaliser l.Installation/i}).click();
+  await setupPage.waitForURL('**/dashboard',{timeout:15000});
+  if(setupCreateCalls!==2 || completeSetupCalls!==1) throw new Error('setup success ACK count mismatch');
+  if(setupPayload?.nom_cabinet!=='Cabinet Browser Setup' || setupPayload?.nom!=='Dr Browser Setup' || setupPayload?.footer_address!=='Rabat Browser'){
+    throw new Error('setup final payload mismatch');
+  }
+  const persistedTheme=await setupPage.evaluate(()=>localStorage.getItem('digitalcrown_theme'));
+  if(!persistedTheme) throw new Error('setup theme not persisted after ACK');
+  prove(viewport,'setup-finalization-success-ack',{theme:persistedTheme});
+  await setupCtx.close();
 }
 
 await browser.close();
