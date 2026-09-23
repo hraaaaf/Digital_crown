@@ -120,7 +120,98 @@ for(const viewport of viewports){
  await page.getByText(/Patient "G2ABSENT nour" introuvable/i).waitFor({state:'visible',timeout:5000});
  pass(viewport,'patient-no-result-add-prefill-handoff');
 
- await page.goBack({waitUntil:'networkidle'});
+ // Add patient — duplicate-check refusal must fail closed; successful ACK navigates to the created dossier.
+ const dossierInput=page.locator('input[name="numero_dossier"]');
+ const birthInput=page.locator('input[name="date_naissance"]');
+ const sexInput=page.locator('select[name="sexe"]');
+ await dossierInput.fill('G2-BROWSER-NEW');
+ await birthInput.fill('1990-01-01');
+ await sexInput.selectOption('F');
+
+ await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
+   status:200,contentType:'application/json',body:JSON.stringify({available:true})
+ }));
+ await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+   status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
+ }));
+ await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
+ await page.getByText(/Vérification anti-doublon indisponible/i).waitFor({state:'visible',timeout:10000});
+ if(!page.url().includes('/patients/new')) throw new Error('create form navigated after duplicate-check refusal');
+ pass(viewport,'patient-create-duplicate-check-refusal-non-mutation');
+ await page.unroute('**/api/patients/check-duplicate');
+
+ let createCalls=0;
+ const createdId=9099;
+ await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+   status:200,contentType:'application/json',body:JSON.stringify({has_duplicate:false})
+ }));
+ await page.route('**/api/patients/',async route=>{
+   if(route.request().method()==='POST'){
+     createCalls+=1;
+     const body=route.request().postDataJSON();
+     if(body.nom!=='G2ABSENT' || body.prenom!=='nour') throw new Error('create payload lost search-prefill identity');
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:createdId,...body})});
+   }
+   return route.continue();
+ });
+ await page.route('**/api/patients/'+createdId,async route=>{
+   if(route.request().method()==='GET'){
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+       id:createdId,numero_dossier:'G2-BROWSER-NEW',nom:'G2ABSENT',prenom:'nour',
+       date_naissance:'1990-01-01',sexe:'F',telephone:'',assurance:'AUCUNE',is_ortho_active:false
+     })});
+   }
+   return route.continue();
+ });
+ await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
+ await page.waitForURL(new RegExp('/patients/'+createdId+'(?:\\?|$)'),{timeout:10000});
+ if(createCalls!==1) throw new Error('patient create ACK count mismatch');
+ pass(viewport,'patient-create-success-ack-navigation',{createdId,createCalls});
+ await page.unroute('**/api/patients/check-dossier/*');
+ await page.unroute('**/api/patients/check-duplicate');
+ await page.unroute('**/api/patients/');
+ await page.unroute('**/api/patients/'+createdId);
+
+ await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'/edit',{waitUntil:'networkidle',timeout:90000});
+ const editNameLabel=page.locator('label').filter({hasText:/^Nom$/}).first();
+ const editNameInput=editNameLabel.locator('..').locator('input').first();
+ await editNameInput.waitFor({state:'visible',timeout:10000});
+ const originalName=await editNameInput.inputValue();
+
+ let refusedEditCalls=0;
+ await page.route('**/api/patients/'+patient.id,async route=>{
+   if(route.request().method()==='PUT'){
+     refusedEditCalls+=1;
+     return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced edit refusal'})});
+   }
+   return route.continue();
+ });
+ await editNameInput.fill('G2 REFUSED');
+ await page.getByRole('button',{name:/Valider les modifications/i}).click();
+ await page.waitForTimeout(300);
+ if(refusedEditCalls!==1) throw new Error('patient edit refusal request count mismatch');
+ if(!page.url().includes('/edit')) throw new Error('patient edit navigated after refused save');
+ pass(viewport,'patient-edit-refusal-non-navigation',{refusedEditCalls});
+ await page.unroute('**/api/patients/'+patient.id);
+
+ let acceptedEditCalls=0;
+ await page.route('**/api/patients/'+patient.id,async route=>{
+   if(route.request().method()==='PUT'){
+     acceptedEditCalls+=1;
+     const body=route.request().postDataJSON();
+     if(body.nom!=='G2 ACCEPTED') throw new Error('patient edit ACK payload mismatch');
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...patient,nom:'G2 ACCEPTED'})});
+   }
+   return route.continue();
+ });
+ await editNameInput.fill('G2 ACCEPTED');
+ await page.getByRole('button',{name:/Valider les modifications/i}).click();
+ await page.waitForURL(new RegExp('/patients/'+patient.id+'(?:\\?|$)'),{timeout:10000});
+ if(acceptedEditCalls!==1) throw new Error('patient edit ACK count mismatch');
+ pass(viewport,'patient-edit-success-ack-navigation',{acceptedEditCalls});
+ await page.unroute('**/api/patients/'+patient.id);
+
+ await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
  const listSearchAfterPrefill=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
  await listSearchAfterPrefill.fill('T2-0001');
 
