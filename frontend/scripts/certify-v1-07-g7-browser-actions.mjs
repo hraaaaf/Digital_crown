@@ -333,6 +333,208 @@ for(const viewport of viewports){
   await page.unroute('**/api/partner-catalog/products');
   await page.unroute('**/api/partner-orders');
 
+  // PARTNER ADMIN — privileged browser context, mutable supplier/product/order truth.
+  const adminCtx=await browser.newContext({viewport,colorScheme:'light'});
+  const adminPage=await adminCtx.newPage();
+  await adminPage.addInitScript(v=>{
+    localStorage.setItem('token',v.access);
+    localStorage.setItem('refresh_token',v.refresh||'');
+    localStorage.setItem('appMode','prod');
+  },{access:superTokens.access_token,refresh:superTokens.refresh_token});
+
+  let adminSuppliers=[{
+    id:11,supplierKey:'atlas',name:'Atlas Dental',badge:'Local',description:'Supplier',promise:'24h',
+    apiBaseUrl:null,syncMode:'manual',isActive:true,productCount:1
+  }];
+  let adminProducts=[{
+    id:101,supplierId:11,supplierName:'Atlas Dental',externalProductId:'P101',
+    name:'Composite universel',sku:'CMP-101',dentalCategory:'Restauration',dentalSpecialty:'Omnipratique',
+    unit:'seringue',price:390,availability:'AVAILABLE',shortDescription:'Composite test',
+    longDescription:'Long',benefits:['Facile'],isFeatured:true,sortOrder:1
+  }];
+  let adminOrders=[{
+    id:55,orderNumber:'CMD-055',partnerName:'Atlas Dental',strategyLabel:'Commission',
+    status:'DRAFT',estimatedTotal:780,currentTotal:780,recognizedRevenueAmount:0,
+    partnerReference:null,statusNote:null
+  }];
+  const adminMeta={
+    categories:['Restauration'],specialties:['Omnipratique'],availability:['AVAILABLE','ON_REQUEST']
+  };
+  const ordersMeta={supportedStatuses:['DRAFT','CONFIRMED','FULFILLED','CANCELLED']};
+  let nextSupplierId=20,nextProductId=200;
+  let supplierCreateCalls=0,productCreateCalls=0,reconcileCalls=0;
+  let failNextSupplier=false,failNextReconcile=true;
+  let adminReadCount=0;
+
+  await adminPage.route('**/api/partner-catalog/**',async route=>{
+    const req=route.request();
+    const url=new URL(req.url());
+    const path=url.pathname;
+    const json=(status,body)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
+    if(req.method()==='GET'){
+      adminReadCount+=1;
+      if(path==='/api/partner-catalog/meta') return json(200,adminMeta);
+      if(path==='/api/partner-catalog/suppliers') return json(200,adminSuppliers);
+      if(path==='/api/partner-catalog/products') return json(200,adminProducts);
+    }
+    if(req.method()==='POST' && path==='/api/partner-catalog/suppliers'){
+      supplierCreateCalls+=1;
+      if(failNextSupplier){
+        failNextSupplier=false;
+        return json(409,{detail:'Clé fournisseur déjà utilisée'});
+      }
+      const body=req.postDataJSON();
+      const created={id:nextSupplierId++,...body,productCount:0};
+      adminSuppliers=[...adminSuppliers,created];
+      return json(200,created);
+    }
+    if(req.method()==='POST' && path==='/api/partner-catalog/products'){
+      productCreateCalls+=1;
+      const body=req.postDataJSON();
+      const supplier=adminSuppliers.find(x=>x.id===Number(body.supplierId));
+      const created={id:nextProductId++,...body,supplierName:supplier?.name||null};
+      adminProducts=[...adminProducts,created];
+      return json(200,created);
+    }
+    return json(500,{detail:'unexpected partner-admin catalog request '+req.method()+' '+path});
+  });
+
+  await adminPage.route('**/api/partner-orders**',async route=>{
+    const req=route.request();
+    const url=new URL(req.url());
+    const path=url.pathname;
+    const json=(status,body)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
+    if(req.method()==='GET'){
+      adminReadCount+=1;
+      if(path==='/api/partner-orders/meta') return json(200,ordersMeta);
+      if(path==='/api/partner-orders') return json(200,adminOrders);
+    }
+    const match=path.match(/^\/api\/partner-orders\/(\d+)$/);
+    if(req.method()==='PATCH' && match){
+      reconcileCalls+=1;
+      if(failNextReconcile){
+        failNextReconcile=false;
+        return json(409,{detail:'Transition de statut refusée'});
+      }
+      const id=Number(match[1]);
+      const body=req.postDataJSON();
+      adminOrders=adminOrders.map(order=>order.id===id?{
+        ...order,
+        status:body.status,
+        currentTotal:body.currentTotal,
+        partnerReference:body.partnerReference,
+        statusNote:body.note,
+      }:order);
+      return json(200,adminOrders.find(order=>order.id===id));
+    }
+    return json(500,{detail:'unexpected partner-admin order request '+req.method()+' '+path});
+  });
+
+  await adminPage.goto('http://127.0.0.1:5173/approvisionnement/admin',{waitUntil:'networkidle',timeout:90000});
+  if(!adminPage.url().includes('/approvisionnement/admin')) throw new Error('partner admin redirected despite superadmin fixture');
+  await adminPage.getByText('Atlas Dental',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  await adminPage.getByText('CMD-055',{exact:true}).waitFor({state:'visible',timeout:10000});
+  prove(viewport,'partner-admin-canonical-load');
+
+  // Supplier ACK -> refetch -> visible.
+  let supplierSection=adminPage.getByText('Ajouter un fournisseur',{exact:true}).locator('xpath=ancestor::section[1]');
+  let supplierInputs=supplierSection.locator('input[type="text"]');
+  await supplierInputs.nth(0).fill('medix');
+  await supplierInputs.nth(1).fill('Medix Dental');
+  await supplierSection.getByRole('button',{name:'Ajouter fournisseur',exact:true}).click();
+  await adminPage.getByText('Fournisseur partenaire ajouté.',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await adminPage.getByText('Medix Dental',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  if(supplierCreateCalls!==1 || !adminSuppliers.some(x=>x.supplierKey==='medix')) throw new Error('partner supplier ACK/refetch mismatch');
+  prove(viewport,'partner-admin-supplier-create',{supplierCreateCalls});
+
+  // Supplier refusal -> no false append.
+  supplierSection=adminPage.getByText('Ajouter un fournisseur',{exact:true}).locator('xpath=ancestor::section[1]');
+  supplierInputs=supplierSection.locator('input[type="text"]');
+  await supplierInputs.nth(0).fill('atlas-duplicate');
+  await supplierInputs.nth(1).fill('Duplicate Supplier');
+  failNextSupplier=true;
+  const suppliersBeforeRefusal=adminSuppliers.length;
+  await supplierSection.getByRole('button',{name:'Ajouter fournisseur',exact:true}).click();
+  await adminPage.getByText('Clé fournisseur déjà utilisée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(adminSuppliers.length!==suppliersBeforeRefusal) throw new Error('partner supplier refusal mutated fixture');
+  prove(viewport,'partner-admin-supplier-refusal-non-mutation');
+
+  // Product create with normalized numeric/benefit data -> refetch -> visible.
+  const productSection=adminPage.getByText('Ajouter un produit',{exact:true}).locator('xpath=ancestor::section[1]');
+  const productSelects=productSection.locator('select');
+  const productText=productSection.locator('input[type="text"]');
+  const productNumbers=productSection.locator('input[type="number"]');
+  const productAreas=productSection.locator('textarea');
+  await productSelects.nth(0).selectOption('11');
+  await productText.nth(0).fill('EXT-9');
+  await productText.nth(1).fill('Gants premium');
+  await productText.nth(2).fill('GLV-9');
+  await productSelects.nth(1).selectOption('Restauration');
+  await productSelects.nth(2).selectOption('Omnipratique');
+  await productText.nth(3).fill('boite');
+  await productNumbers.nth(0).fill('125.5');
+  await productSelects.nth(3).selectOption('AVAILABLE');
+  await productNumbers.nth(1).fill('4');
+  await productAreas.nth(0).fill('Court');
+  await productAreas.nth(1).fill('Longue');
+  await productAreas.nth(2).fill('Sans latex\nConfort');
+  const featured=productSection.locator('input[type="checkbox"]').last();
+  if(!(await featured.isChecked())) await featured.check();
+  await productSection.getByRole('button',{name:'Ajouter produit',exact:true}).click();
+  await adminPage.getByText('Produit partenaire ajouté.',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await adminPage.getByText('Gants premium',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  const addedProduct=adminProducts.find(x=>x.sku==='GLV-9');
+  if(productCreateCalls!==1 || !addedProduct || Number(addedProduct.price)!==125.5 || Number(addedProduct.sortOrder)!==4){
+    throw new Error('partner product create normalization mismatch');
+  }
+  if(JSON.stringify(addedProduct.benefits)!==JSON.stringify(['Sans latex','Confort'])) throw new Error('partner product benefits normalization mismatch');
+  prove(viewport,'partner-admin-product-create',{productCreateCalls});
+
+  // Catalog filter is local/non-mutating.
+  const catalogSection=adminPage.getByText('Catalogue fournisseur',{exact:true}).locator('xpath=ancestor::section[1]');
+  const catalogSearch=catalogSection.locator('input[type="text"]').first();
+  await catalogSearch.fill('zzzz-absent');
+  await catalogSection.getByText('Aucun produit ne correspond aux filtres',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await catalogSearch.fill('GLV-9');
+  await catalogSection.getByText('Gants premium',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'partner-admin-catalog-filter');
+
+  // Reconciliation refusal preserves truth; second ACK persists/refetches.
+  let orderCard=adminPage.getByText('CMD-055',{exact:true}).locator('xpath=ancestor::div[contains(@class,"border")][1]');
+  const orderSelect=orderCard.locator('select').first();
+  const orderNumber=orderCard.locator('input[type="number"]').first();
+  const orderTexts=orderCard.locator('input[type="text"]');
+  const orderNote=orderCard.locator('textarea').first();
+  await orderSelect.selectOption('CONFIRMED');
+  await orderNumber.fill('750');
+  await orderTexts.nth(0).fill('REF-77');
+  await orderNote.fill('Confirmé par fournisseur');
+  await orderCard.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+  await adminPage.getByText('Transition de statut refusée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(reconcileCalls!==1 || adminOrders[0].status!=='DRAFT' || Number(adminOrders[0].currentTotal)!==780) throw new Error('partner reconciliation refusal mutated truth');
+  prove(viewport,'partner-admin-reconcile-refusal-non-mutation',{reconcileCalls});
+
+  orderCard=adminPage.getByText('CMD-055',{exact:true}).locator('xpath=ancestor::div[contains(@class,"border")][1]');
+  await orderCard.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+  await adminPage.getByText(/Commande CMD-055 mise à jour/i).waitFor({state:'visible',timeout:10000});
+  if(reconcileCalls!==2 || adminOrders[0].status!=='CONFIRMED' || Number(adminOrders[0].currentTotal)!==750 || adminOrders[0].partnerReference!=='REF-77'){
+    throw new Error('partner reconciliation ACK/refetch mismatch');
+  }
+  prove(viewport,'partner-admin-reconcile-success',{reconcileCalls});
+
+  // Explicit reload -> actual canonical reads.
+  const readsBeforeAdminReload=adminReadCount;
+  const reloadButton=adminPage.getByRole('button',{name:'Recharger',exact:true}).first();
+  await reloadButton.click();
+  await adminPage.waitForResponse(r=>r.request().method()==='GET' && r.url().includes('/api/partner-catalog/products'),{timeout:10000}).catch(()=>null);
+  await adminPage.waitForTimeout(100);
+  if(adminReadCount<=readsBeforeAdminReload) throw new Error('partner admin Recharger did not refetch canonical truth');
+  prove(viewport,'partner-admin-explicit-reload',{adminReadCount});
+
+  await adminPage.unroute('**/api/partner-catalog/**');
+  await adminPage.unroute('**/api/partner-orders**');
+  await adminCtx.close();
+
   // LIBRARY — search, favorite persistence, deep-link.
   await page.goto('http://127.0.0.1:5173/bibliotheque',{waitUntil:'networkidle',timeout:90000});
   const libSearch=page.getByPlaceholder('Avulsion, composite, blanchiment…');
