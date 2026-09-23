@@ -122,3 +122,35 @@ Next exact:
 3. implement patient/staff WebRTC UI with explicit permissions;
 4. certify deterministic app behavior;
 5. stop only at TURN/network E2E gate or human visual gate.
+
+
+## Audit outcome — 2026-09-23
+
+Verified:
+- no existing WebRTC/getUserMedia/RTCPeerConnection/WebSocket media implementation in the repo;
+- no existing STUN/TURN configuration or teleconsultation vendor SDK;
+- existing Patient Companion remote transport is suitable for authenticated control/signaling, not for audio/video media transport;
+- existing access/identity/revocation model is reusable;
+- appointment references may be reused as optional context;
+- no recording primitive exists.
+
+Architecture locked in:
+`docs/clinic/patient_companion/PC_09_TELECONSULTATION_ARCHITECTURE_MAP.md`
+
+Implementation direction:
+- WebRTC media plane;
+- Patient Companion access-bound control/signaling;
+- explicit permissions;
+- truthful lifecycle;
+- no recording;
+- injectable ICE config;
+- production readiness blocked until TURN is provisioned and validated.
+
+Next exact:
+1. implement the minimal PC-09 session domain + lifecycle;
+2. add staff/patient entry points;
+3. add WebRTC signaling + media flow behind injectable ICE config;
+4. test permission/revocation/failure truth boundaries;
+5. certify runtime + visual;
+6. human gate;
+7. merge / post-merge.
