@@ -116,8 +116,8 @@ def _staff_session(
 @router.get("/admin/patients/{patient_id}/teleconsultations")
 def staff_list_teleconsultations(
     patient_id: int,
+    response: Response,
     access_id: str | None = Query(default=None),
-    response: Response = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -143,6 +143,7 @@ def staff_list_teleconsultations(
         db.commit()
     if response is not None:
         response.headers["Cache-Control"] = "no-store"
+    access_by_id = {item.id: item.public_id for item in accesses}
     return {
         "accesses": [
             {
@@ -152,7 +153,10 @@ def staff_list_teleconsultations(
             }
             for item in accesses
         ],
-        "items": [serialize_session(row) for row in rows],
+        "items": [
+            {**serialize_session(row), "access_id": access_by_id.get(row.access_id)}
+            for row in rows
+        ],
     }
 
 
@@ -209,7 +213,7 @@ def staff_create_teleconsultation(
     db.commit()
     db.refresh(row)
     response.headers["Cache-Control"] = "no-store"
-    return {"session": serialize_session(row)}
+    return {"session": {**serialize_session(row), "access_id": access.public_id}}
 
 
 @router.post("/admin/patients/{patient_id}/teleconsultations/{session_id}/join")
