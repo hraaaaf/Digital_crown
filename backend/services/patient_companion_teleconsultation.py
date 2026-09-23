@@ -23,6 +23,7 @@ PC09_MAX_SIGNAL_BYTES = 24 * 1024
 PC09_SIGNAL_SYNC_LIMIT = 5
 PC09_TERMINAL_STATES = {"ENDED", "REJECTED", "EXPIRED", "FAILED"}
 PC09_SIGNAL_TYPES = {"offer", "answer", "ice"}
+PC09_FAILURE_CODES = {"PEER_CONNECTION_FAILED"}
 
 
 def normalize_uuid(raw: Any, code: str) -> str:
@@ -157,6 +158,17 @@ def purge_signals(db: Session, row: PatientCompanionTeleconsultSession) -> None:
     db.query(PatientCompanionTeleconsultSignal).filter(
         PatientCompanionTeleconsultSignal.session_id == row.id,
     ).delete(synchronize_session=False)
+
+
+def fail_session(row: PatientCompanionTeleconsultSession, actor: str, failure_code: str) -> None:
+    if row.state in PC09_TERMINAL_STATES:
+        return
+    if failure_code not in PC09_FAILURE_CODES:
+        raise ValueError("INVALID_FAILURE_CODE")
+    row.state = "FAILED"
+    row.ended_at = datetime.utcnow()
+    row.ended_by = actor
+    row.failure_code = failure_code
 
 
 def reject_session(row: PatientCompanionTeleconsultSession, actor: str) -> None:
@@ -409,6 +421,32 @@ def handle_teleconsult_connected(
     return RemoteDomainResult(status="ACCEPTED", response={"code": "PEER_CONNECTED", "session": serialize_session(row)})
 
 
+def handle_teleconsult_failed(
+    db: Session,
+    access: PatientCompanionAccess,
+    payload: dict[str, Any],
+) -> RemoteDomainResult:
+    if set(payload) != {"session_id", "failure_code"}:
+        return _reject("INVALID_REQUEST")
+    try:
+        session_id = normalize_uuid(payload.get("session_id"), "INVALID_SESSION_ID")
+    except ValueError as exc:
+        return _reject(str(exc))
+    row = _scoped_session(db, access, session_id, lock=True)
+    if row is None:
+        return _reject("SESSION_NOT_FOUND")
+    if expire_if_needed(row):
+        purge_signals(db, row)
+        return _reject("SESSION_EXPIRED")
+    try:
+        fail_session(row, "PATIENT", str(payload.get("failure_code") or ""))
+    except ValueError as exc:
+        return _reject(str(exc))
+    purge_signals(db, row)
+    db.flush()
+    return RemoteDomainResult(status="ACCEPTED", response={"code": "SESSION_FAILED", "session": serialize_session(row)})
+
+
 def handle_teleconsult_reject(
     db: Session,
     access: PatientCompanionAccess,
@@ -459,6 +497,7 @@ PC09_REMOTE_HANDLERS = {
     "teleconsult.signal": handle_teleconsult_signal,
     "teleconsult.sync": handle_teleconsult_sync,
     "teleconsult.connected": handle_teleconsult_connected,
+    "teleconsult.failed": handle_teleconsult_failed,
     "teleconsult.reject": handle_teleconsult_reject,
     "teleconsult.end": handle_teleconsult_end,
 }
