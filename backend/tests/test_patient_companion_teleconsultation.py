@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -13,6 +14,8 @@ from backend.models_patient_companion import (
     PatientCompanionTeleconsultSignal,
 )
 from backend.services.patient_companion_teleconsultation import (
+    PC09_MAX_SIGNAL_BYTES,
+    PC09_SIGNAL_SYNC_LIMIT,
     add_signal,
     handle_teleconsult_join,
     handle_teleconsult_sync,
@@ -20,6 +23,8 @@ from backend.services.patient_companion_teleconsultation import (
     mark_joined,
     sync_signals,
 )
+from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
+from relay.contract import RelayInnerMessage, RELAY_MAX_BLOB_BYTES
 
 
 def _patient(db, dentiste, suffix: str):
@@ -213,3 +218,57 @@ def test_pc09_remote_sync_never_claims_connected_from_signaling_only(db, dentist
     assert result.response["session"]["state"] == "NEGOTIATING"
     assert result.response["session"]["connected_at"] is None
     assert result.response["signals"][0]["signal_type"] == "offer"
+
+
+def test_pc09_max_signal_batch_fits_real_jose_relay_envelope():
+    cabinet_sig_private, cabinet_sig_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="sig")
+    _patient_enc_private, patient_enc_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="enc")
+    now = datetime.now(timezone.utc)
+    signals = [
+        {
+            "signal_id": str(uuid.uuid4()),
+            "client_signal_id": str(uuid.uuid4()),
+            "sender_kind": "STAFF",
+            "signal_type": "offer" if index == 0 else "ice",
+            "payload": {"sdp": "x" * (PC09_MAX_SIGNAL_BYTES - 1024)},
+            "created_at": now.isoformat(),
+        }
+        for index in range(PC09_SIGNAL_SYNC_LIMIT)
+    ]
+    ack = RelayInnerMessage(
+        message_id=uuid.uuid4(),
+        access_id=uuid.uuid4(),
+        sent_at=now,
+        expires_at=now + timedelta(minutes=10),
+        idempotency_key=uuid.uuid4(),
+        operation="command.result",
+        payload={
+            "request_message_id": str(uuid.uuid4()),
+            "request_operation": "teleconsult.sync",
+            "status": "ACCEPTED",
+            "result": {
+                "code": "SESSION_SYNC",
+                "session": {
+                    "session_id": str(uuid.uuid4()),
+                    "state": "NEGOTIATING",
+                    "created_at": now.isoformat(),
+                    "expires_at": (now + timedelta(hours=1)).isoformat(),
+                    "patient_joined_at": now.isoformat(),
+                    "staff_joined_at": now.isoformat(),
+                    "connected_at": None,
+                    "ended_at": None,
+                    "ended_by": None,
+                    "failure_code": None,
+                },
+                "signals": signals,
+            },
+        },
+    )
+    blob = sign_and_encrypt(
+        ack.model_dump(mode="json"),
+        sender_signing_private_jwk=cabinet_sig_private,
+        recipient_encryption_public_jwk=patient_enc_public,
+        sender_signing_kid=cabinet_sig_public["kid"],
+        recipient_encryption_kid=patient_enc_public["kid"],
+    )
+    assert len(blob.encode("utf-8")) < RELAY_MAX_BLOB_BYTES
