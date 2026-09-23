@@ -200,18 +200,56 @@ for(const viewport of viewports){
   await page.unroute('**/api/stock/items/*');
   await page.unroute('**/api/stock/alerts');
 
-  // MARKETPLACE — real controller with deterministic HTTP fixture.
-  await page.route('**/api/partner-orders/meta',route=>route.fulfill({status:200,contentType:'application/json',body:'{"strategyPresets":[]}'}));
-  await page.route('**/api/partner-catalog/meta',route=>route.fulfill({status:200,contentType:'application/json',body:'{"categories":["Restauration"]}'}));
-  await page.route('**/api/partner-catalog/suppliers',route=>route.fulfill({status:200,contentType:'application/json',body:'[]'}));
-  await page.route('**/api/partner-catalog/products',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
-    id:'101',name:'Composite universel',sku:'CMP-101',category:'Restauration',specialty:'Omnipratique',
-    price:390,unit:'seringue',availability:'Disponible',description:'Composite',supplierId:'11',
-    supplierName:'Atlas Dental',benefits:[],isFeatured:true,sortOrder:1
-  }])}));
+  // MARKETPLACE — catalog truth, cart persistence, checkout close/refusal/success.
+  const strategy={
+    key:'sent_commission_10',
+    label:'Commission sur commande envoyée',
+    settlementBasis:'SENT_TO_PARTNER',
+    revenueModel:'COMMISSION_PERCENT',
+    commissionRate:10,
+    discountRate:0,
+    fixedFeeAmount:0,
+    description:'Browser certification'
+  };
+  const marketProduct={
+    id:101,supplierId:11,supplierName:'Atlas Dental',externalProductId:'P-101',
+    name:'Composite universel',sku:'CMP-101',dentalCategory:'Restauration',dentalSpecialty:'Omnipratique',
+    unit:'seringue',price:390,availability:'AVAILABLE',shortDescription:'Composite',longDescription:'Composite',
+    benefits:[],isFeatured:true,sortOrder:1
+  };
+  let catalogReads=0,orderCalls=0,failNextOrder=true;
+  await page.route('**/api/partner-orders/meta',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({strategyPresets:[strategy]})
+  }));
+  await page.route('**/api/partner-catalog/meta',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      categories:['Restauration'],specialties:['Omnipratique'],availability:['AVAILABLE','DISCONTINUED']
+    })
+  }));
+  await page.route('**/api/partner-catalog/suppliers',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify([{
+      id:11,supplierKey:'atlas',name:'Atlas Dental',isActive:true,productCount:1
+    }])
+  }));
+  await page.route('**/api/partner-catalog/products',route=>{
+    catalogReads+=1;
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([marketProduct])});
+  });
   await page.route('**/api/partner-orders',async route=>{
-    if(route.request().method()==='POST') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Brouillon refusé"}'});
-    return route.continue();
+    if(route.request().method()!=='POST') return route.continue();
+    orderCalls+=1;
+    const body=route.request().postDataJSON();
+    if(body.lines?.length!==1 || Number(body.lines[0]?.quantity)!==1 || body.lines[0]?.sku!=='CMP-101'){
+      throw new Error('marketplace order payload mismatch');
+    }
+    if(!body.customer?.fullName || !body.customer?.clinic || !body.customer?.phone || !body.customer?.email || !body.customer?.city){
+      throw new Error('marketplace customer payload incomplete');
+    }
+    if(failNextOrder){
+      failNextOrder=false;
+      return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Brouillon refusé'})});
+    }
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({orderNumber:'CMD-G7-1'})});
   });
 
   await page.goto('http://127.0.0.1:5173/approvisionnement',{waitUntil:'networkidle',timeout:90000});
@@ -222,20 +260,63 @@ for(const viewport of viewports){
   await marketSearch.fill('zzzz-no-match');
   if(await page.getByText('Composite universel',{exact:true}).count()) throw new Error('marketplace search did not filter product');
   await marketSearch.fill('CMP');
+  await page.getByRole('button',{name:'Disponibles',exact:true}).click();
+  if((await page.getByRole('button',{name:'Disponibles',exact:true}).getAttribute('aria-pressed'))!=='true') throw new Error('marketplace availability filter state mismatch');
+  await page.getByRole('button',{name:'Restauration',exact:true}).click();
+  if((await page.getByRole('button',{name:'Restauration',exact:true}).getAttribute('aria-pressed'))!=='true') throw new Error('marketplace category filter state mismatch');
   await page.getByText('Composite universel',{exact:true}).waitFor({state:'visible',timeout:5000});
-  prove(viewport,'marketplace-search-filter-and-restore');
+  prove(viewport,'marketplace-search-availability-category');
 
-  const plus=page.getByRole('button',{name:'Ajouter une unité de Composite universel'});
+  const readsBeforeRefresh=catalogReads;
+  await page.getByRole('button',{name:'Actualiser',exact:true}).click();
+  await page.waitForFunction(([before])=>true,[readsBeforeRefresh]);
+  if(catalogReads<=readsBeforeRefresh) throw new Error('marketplace Actualiser did not reread catalog');
+  prove(viewport,'marketplace-explicit-refresh',{catalogReads});
+
+  const plus=page.getByRole('button',{name:'Ajouter une unité de Composite universel',exact:true});
+  const minus=page.getByRole('button',{name:'Retirer une unité de Composite universel',exact:true});
   await plus.click();
-  const cart=page.getByRole('button',{name:/Ouvrir le panier, 1 unité/i});
+  await plus.click();
+  await page.getByRole('button',{name:/Ouvrir le panier, 2 unités/i}).first().waitFor({state:'visible',timeout:5000});
+  await minus.click();
+  await page.getByRole('button',{name:/Ouvrir le panier, 1 unité/i}).first().waitFor({state:'visible',timeout:5000});
+  prove(viewport,'marketplace-cart-plus-minus');
+
+  await page.reload({waitUntil:'networkidle',timeout:90000});
+  await page.getByRole('button',{name:/Ouvrir le panier, 1 unité/i}).first().waitFor({state:'visible',timeout:10000});
+  prove(viewport,'marketplace-cart-reload-persistence');
+
+  let cart=page.getByRole('button',{name:/Ouvrir le panier, 1 unité/i}).first();
   await cart.click();
-  const checkout=page.getByRole('dialog',{name:/Préparer le brouillon/i});
+  let checkout=page.getByRole('dialog',{name:/Préparer le brouillon/i});
   await checkout.waitFor({state:'visible',timeout:5000});
+  await checkout.getByRole('button',{name:'Fermer',exact:true}).click();
+  await checkout.waitFor({state:'detached',timeout:5000});
+  await page.getByRole('button',{name:/Ouvrir le panier, 1 unité/i}).first().waitFor({state:'visible',timeout:5000});
+  prove(viewport,'marketplace-checkout-close-preserves-cart');
+
+  cart=page.getByRole('button',{name:/Ouvrir le panier, 1 unité/i}).first();
+  await cart.click();
+  checkout=page.getByRole('dialog',{name:/Préparer le brouillon/i});
+  await checkout.getByLabel('Nom complet').fill('Dr G7 Browser');
+  await checkout.getByLabel('Cabinet').fill('Cabinet G7');
+  await checkout.getByLabel('Email').fill('g7@example.com');
+  await checkout.getByLabel('Téléphone').fill('0611111111');
+  await checkout.getByLabel('Ville').fill('Rabat');
   const save=checkout.getByRole('button',{name:'Enregistrer le brouillon',exact:true});
   await save.click();
-  await page.waitForTimeout(500);
-  if(!(await checkout.count())) throw new Error('marketplace checkout closed after refused draft');
-  prove(viewport,'marketplace-draft-refusal-preserves-checkout');
+  await checkout.getByText('Brouillon refusé',{exact:true}).waitFor({state:'visible',timeout:10000});
+  if(orderCalls!==1 || !(await checkout.isVisible())) throw new Error('marketplace refusal contract mismatch');
+  await page.getByRole('button',{name:/Ouvrir le panier, 1 unité/i}).first().waitFor({state:'visible',timeout:5000});
+  prove(viewport,'marketplace-draft-refusal-preserves-checkout',{orderCalls});
+
+  await save.click();
+  await checkout.waitFor({state:'detached',timeout:10000});
+  if(orderCalls!==2) throw new Error('marketplace draft success ACK count mismatch');
+  const emptyCartButton=page.getByRole('button',{name:/Ouvrir le panier, 0 unité/i}).first();
+  await emptyCartButton.waitFor({state:'visible',timeout:5000});
+  if(!(await emptyCartButton.isDisabled())) throw new Error('marketplace cart not emptied/disabled after draft ACK');
+  prove(viewport,'marketplace-draft-success-clears-cart',{orderCalls});
 
   await page.unroute('**/api/partner-orders/meta');
   await page.unroute('**/api/partner-catalog/meta');
