@@ -122,7 +122,7 @@ describe('SuperAdminDashboard commercial pack buttons', () => {
 
     await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalledWith(
       `/superadmin/clients/${id}/plan`,
-      null,
+      {},
       { params: { plan: to } },
     ));
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith(`Pack ${to} attribué.`);
