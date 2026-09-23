@@ -291,6 +291,9 @@ def handle_teleconsult_list(
 ) -> RemoteDomainResult:
     if payload:
         return _reject("INVALID_REQUEST")
+    # Session tests and remote handlers may use a Session with autoflush disabled.
+    # Flush pending join-state transitions before filtering CREATED sessions out.
+    db.flush()
     rows = (
         db.query(PatientCompanionTeleconsultSession)
         .filter(
