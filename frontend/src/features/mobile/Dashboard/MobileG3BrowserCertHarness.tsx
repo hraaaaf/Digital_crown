@@ -12,6 +12,7 @@ export function MobileG3BrowserCertHarness() {
   const tab = new URLSearchParams(window.location.search).get('tab') || 'notifications';
   const [appointments, setAppointments] = useState(WAITING_FIXTURE);
   const [error, setError] = useState<string | null>(null);
+  const [lastNavigation, setLastNavigation] = useState<string | null>(null);
   const snapshot = useMemo(() => ({
     generated_at: new Date().toISOString(),
     role: 'DENTISTE',
@@ -35,9 +36,10 @@ export function MobileG3BrowserCertHarness() {
     <main data-g3-browser-cert className="min-h-screen bg-background p-6 text-text-main">
       <p className="mb-4 text-xs font-black uppercase tracking-widest text-primary">G3 browser certification harness</p>
       {error && <p role="alert" className="mb-4 text-sm font-bold text-rose-600">{error}</p>}
+      {lastNavigation && <p data-testid="g3-mobile-navigation">navigate:{lastNavigation}</p>}
       {tab === 'waiting-room'
         ? <WaitingRoomView snapshot={snapshot as any} onStatusChange={onStatusChange as any} />
-        : <NotificationsView onNavigate={() => undefined} />}
+        : <NotificationsView onNavigate={(nextTab) => setLastNavigation(nextTab)} />}
     </main>
   );
 }
