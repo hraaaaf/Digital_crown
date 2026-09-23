@@ -131,6 +131,11 @@ def staff_list_teleconsultations(
         access = _active_access(db, employer_id=employer_id, patient_id=patient.id, access_id=access_id)
         q = q.filter(PatientCompanionTeleconsultSession.access_id == access.id)
     rows = q.order_by(PatientCompanionTeleconsultSession.id.desc()).limit(20).all()
+    accesses = db.query(PatientCompanionAccess).filter(
+        PatientCompanionAccess.employer_id == employer_id,
+        PatientCompanionAccess.patient_id == patient.id,
+        PatientCompanionAccess.revoked_at.is_(None),
+    ).order_by(PatientCompanionAccess.created_at.asc()).all()
     changed = False
     for row in rows:
         changed = expire_if_needed(row) or changed
@@ -138,7 +143,17 @@ def staff_list_teleconsultations(
         db.commit()
     if response is not None:
         response.headers["Cache-Control"] = "no-store"
-    return {"items": [serialize_session(row) for row in rows]}
+    return {
+        "accesses": [
+            {
+                "access_id": item.public_id,
+                "relationship_type": item.relationship_type,
+                "created_at": item.created_at,
+            }
+            for item in accesses
+        ],
+        "items": [serialize_session(row) for row in rows],
+    }
 
 
 @router.post("/admin/patients/{patient_id}/teleconsultations", status_code=201)
