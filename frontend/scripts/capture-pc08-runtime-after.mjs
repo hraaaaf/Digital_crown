@@ -142,10 +142,17 @@ for (const viewport of [
   if (viewport.width >= 1024) {
     await staffPage.evaluate(() => {
       const appScroller = document.querySelector('main.overflow-y-auto');
-      if (!(appScroller instanceof HTMLElement)) {
-        throw new Error('PC-08 app scroller not found');
+      const panel = document.querySelector('[data-pc08-staff-messaging]');
+      const stickyHeader = document.querySelector('header.lg\\:sticky');
+      if (!(appScroller instanceof HTMLElement) || !(panel instanceof HTMLElement)) {
+        throw new Error('PC-08 desktop capture geometry target missing');
       }
-      appScroller.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      const scrollerRect = appScroller.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      const headerRect = stickyHeader?.getBoundingClientRect();
+      const headerHeight = headerRect ? headerRect.height : 0;
+      const targetTop = appScroller.scrollTop + (panelRect.top - scrollerRect.top) - headerHeight - 16;
+      appScroller.scrollTo({ top: Math.max(0, targetTop), left: 0, behavior: 'instant' });
     });
   } else {
     await staffPanel.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
