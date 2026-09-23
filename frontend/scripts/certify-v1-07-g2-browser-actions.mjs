@@ -231,6 +231,83 @@ for(const viewport of viewports){
  await page.waitForURL(new RegExp('/patients/'+patient.id+'(?:\\?|$)'));
  pass(viewport,'patient-dossier-navigation');
 
+ // Dossier tabs must drive both URL state and the real rendered surface.
+ for(const [label,tab] of [['Vue d’ensemble','tracking'],['Clinique','clinical'],['Imagerie','radiology'],['Document','admin'],['Companion','companion'],['Finances','finances']]){
+   const tabButton=page.getByRole('button',{name:label,exact:true}).first();
+   if(await tabButton.count()){
+     await tabButton.click();
+     await page.waitForFunction(expected=>document.querySelector('main[data-flow-patient-surface]')?.getAttribute('data-flow-patient-surface')===expected,tab);
+     const url=new URL(page.url());
+     if((url.searchParams.get('tab')||'tracking')!==tab) throw new Error('patient dossier tab URL mismatch '+label);
+     pass(viewport,'patient-dossier-tab-'+tab);
+   }
+ }
+
+ // Documents create/history are distinct real consumers.
+ const documentTab=page.getByRole('button',{name:'Document',exact:true}).first();
+ if(await documentTab.count()){
+   await documentTab.click();
+   await page.waitForFunction(()=>document.querySelector('main[data-flow-patient-surface]')?.getAttribute('data-flow-patient-surface')==='admin');
+   const history=page.getByRole('button',{name:'Historique',exact:true});
+   await history.click();
+   await page.waitForFunction(()=>document.querySelector('main[data-flow-patient-surface]')?.getAttribute('data-flow-patient-surface')==='archives');
+   if(new URL(page.url()).searchParams.get('tab')!=='archives') throw new Error('documents history URL mismatch');
+   await page.getByRole('button',{name:'Créer',exact:true}).click();
+   await page.waitForFunction(()=>document.querySelector('main[data-flow-patient-surface]')?.getAttribute('data-flow-patient-surface')==='admin');
+   pass(viewport,'patient-documents-create-history-roundtrip');
+ }
+
+ // Quick edit -> real route.
+ await page.getByRole('button',{name:'Modifier',exact:true}).click();
+ await page.waitForURL(new RegExp('/patients/'+patient.id+'/edit'));
+ pass(viewport,'patient-dossier-quick-edit-navigation');
+ await page.goBack({waitUntil:'networkidle'});
+
+ // Quick RDV -> Agenda plus router state must carry the current patient.
+ const rdv=page.getByRole('button',{name:'RDV',exact:true});
+ if(await rdv.count()){
+   await rdv.click();
+   await page.waitForURL('**/agenda');
+   const navState=await page.evaluate(()=>history.state?.usr||null);
+   if(Number(navState?.prefillPatientId)!==Number(patient.id)) throw new Error('RDV navigation lost patient prefill state');
+   pass(viewport,'patient-dossier-quick-rdv-prefill',{patientId:patient.id});
+   await page.goBack({waitUntil:'networkidle'});
+ }
+
+ // Ortho activation: deterministic false fixture, refusal keeps module locked, ACK unlocks cephalo.
+ await page.route('**/api/patients/'+patient.id,async route=>{
+   if(route.request().method()==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...patient,is_ortho_active:false})});
+   return route.continue();
+ });
+ let orthoPatchCalls=0;
+ let failNextOrtho=true;
+ await page.route('**/api/patients/'+patient.id+'/ortho',async route=>{
+   if(route.request().method()==='PATCH'){
+     orthoPatchCalls+=1;
+     if(failNextOrtho){
+       failNextOrtho=false;
+       return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced ortho refusal'})});
+     }
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({is_ortho_active:true})});
+   }
+   return route.continue();
+ });
+ await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'?tab=radiology&radioTab=cephalo',{waitUntil:'networkidle',timeout:90000});
+ const activateOrtho=page.getByRole('button',{name:/Activer le Suivi Orthodontique/i});
+ if(await activateOrtho.count()){
+   await activateOrtho.click();
+   await page.waitForTimeout(250);
+   if(!(await page.getByText('Module Céphalométrique Verrouillé',{exact:true}).count())) throw new Error('cephalo unlocked after refused ortho activation');
+   pass(viewport,'patient-ortho-activation-refusal-non-mutation');
+
+   await activateOrtho.click();
+   await page.waitForFunction(()=>!document.body.innerText.includes('Module Céphalométrique Verrouillé'),undefined,{timeout:10000});
+   if(orthoPatchCalls!==2) throw new Error('ortho activation ACK count mismatch');
+   pass(viewport,'patient-ortho-activation-ack',{orthoPatchCalls});
+ }
+ await page.unroute('**/api/patients/'+patient.id+'/ortho');
+ await page.unroute('**/api/patients/'+patient.id);
+
  await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
  const deleteSearch=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
  await deleteSearch.fill('T2-0001');
