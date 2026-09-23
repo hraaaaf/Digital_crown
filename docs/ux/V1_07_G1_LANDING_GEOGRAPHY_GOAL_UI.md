@@ -31,7 +31,7 @@ Scenario:
 Matched viewports:
 - 390 × 844
 - 768 × 1024
-- 1440 × 1000
+- 1280 × 900
 
 True BEFORE must come from the PR base SHA using the audit-only harness.
 AFTER must come from exact PR HEAD.
