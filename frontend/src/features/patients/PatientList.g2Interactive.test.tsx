@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { PatientList } from './PatientList';
 import { api } from '../../services/api';
 
@@ -46,6 +46,11 @@ vi.mock('../../components/CrownDialog', () => ({
   CrownDialog: ({ open, children }: { open: boolean; children: React.ReactNode }) => (open ? <div>{children}</div> : null),
 }));
 
+function PatientCreateDestination() {
+  const location = useLocation();
+  return <div>Patient create destination {location.search}</div>;
+}
+
 function renderList() {
   return render(
     <MemoryRouter initialEntries={['/patients']}>
@@ -53,7 +58,7 @@ function renderList() {
         <Route path="/patients" element={<PatientList />} />
         <Route path="/patients/:id" element={<div>Patient detail destination</div>} />
         <Route path="/patients/:id/edit" element={<div>Patient edit destination</div>} />
-        <Route path="/patients/new" element={<div>Patient create destination</div>} />
+        <Route path="/patients/new" element={<PatientCreateDestination />} />
       </Routes>
     </MemoryRouter>,
   );
