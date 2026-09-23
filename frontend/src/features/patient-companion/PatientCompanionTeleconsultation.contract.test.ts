@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const patient = readFileSync(new URL('./PatientCompanionTeleconsultation.tsx', import.meta.url), 'utf8');
 const staff = readFileSync(new URL('../patients/components/PatientCompanionTeleconsultationPanel.tsx', import.meta.url), 'utf8');
+const transport = readFileSync(new URL('./PatientCompanionTeleconsultTransport.ts', import.meta.url), 'utf8');
 
 describe('PC-09 teleconsultation truth contract', () => {
   it('requests camera and microphone only from an explicit join/start handler', () => {
@@ -13,6 +14,14 @@ describe('PC-09 teleconsultation truth contract', () => {
     expect(patient).toContain("Aucun enregistrement.");
     expect(staff).toContain("getUserMedia({ video: true, audio: true })");
     expect(staff).toContain("Démarrer une téléconsultation");
+  });
+
+  it('offers explicit accept and decline actions before media starts', () => {
+    expect(patient).toContain("Accepter et rejoindre");
+    expect(patient).toContain("Refuser");
+    expect(patient).toContain("PatientCompanionTeleconsultTransport.reject");
+    expect(transport).toContain("'teleconsult.reject'");
+    expect(transport).toContain("'CREATED'");
   });
 
   it('reports connected only from the real WebRTC connection state', () => {
