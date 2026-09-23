@@ -196,6 +196,32 @@ def sync_signals(
     return q.order_by(PatientCompanionTeleconsultSignal.id.asc()).limit(PC09_SIGNAL_SYNC_LIMIT).all()
 
 
+def handle_teleconsult_list(
+    db: Session,
+    access: PatientCompanionAccess,
+    payload: dict[str, Any],
+) -> RemoteDomainResult:
+    if payload:
+        return _reject("INVALID_REQUEST")
+    rows = (
+        db.query(PatientCompanionTeleconsultSession)
+        .filter(
+            PatientCompanionTeleconsultSession.access_id == access.id,
+            PatientCompanionTeleconsultSession.employer_id == access.employer_id,
+            PatientCompanionTeleconsultSession.patient_id == access.patient_id,
+        )
+        .order_by(PatientCompanionTeleconsultSession.id.desc())
+        .limit(20)
+        .all()
+    )
+    for row in rows:
+        expire_if_needed(row)
+    return RemoteDomainResult(
+        status="ACCEPTED",
+        response={"code": "SESSION_LIST", "items": [serialize_session(row) for row in rows]},
+    )
+
+
 def handle_teleconsult_join(
     db: Session,
     access: PatientCompanionAccess,
@@ -327,6 +353,7 @@ def handle_teleconsult_end(
 
 
 PC09_REMOTE_HANDLERS = {
+    "teleconsult.list": handle_teleconsult_list,
     "teleconsult.join": handle_teleconsult_join,
     "teleconsult.signal": handle_teleconsult_signal,
     "teleconsult.sync": handle_teleconsult_sync,
