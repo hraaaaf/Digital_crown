@@ -175,3 +175,17 @@ Required proof:
 - final fixture state restored and backend truth rechecked.
 
 These three controls are not certifiable from `aria-pressed`, local state, or save-bar behavior alone.
+
+
+## Matched visual evidence — runtime preference copy
+
+Because the visible Settings copy changed, G5 now carries a targeted BEFORE/AFTER capture gate.
+
+- true BEFORE source: `IATab.tsx` from `915ac3f048803cb7aa82687130233622a1de0fb7`;
+- AFTER source: exact workflow checkout HEAD;
+- matched viewports: 360×800, 390×844, 768×1024, 1280×900;
+- capture script: `frontend/scripts/capture-v1-07-g5-runtime-preferences-visual.mjs`;
+- artifact: `g5-runtime-preferences-visual`;
+- manifest records baseline SHA + exact candidate HEAD + viewport matrix.
+
+The visual change is not certified until the artifact is produced, inspected, compared and scored.
