@@ -104,7 +104,12 @@ for(const viewport of viewports){
   await page.getByText('Composite universel',{exact:true}).waitFor({state:'visible',timeout:10000});
   const marketSearch=page.getByPlaceholder('Nom, référence ou SKU…');
   await marketSearch.fill('CMP');
-  prove(viewport,'marketplace-search');
+  await page.getByText('Composite universel',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await marketSearch.fill('zzzz-no-match');
+  if(await page.getByText('Composite universel',{exact:true}).count()) throw new Error('marketplace search did not filter product');
+  await marketSearch.fill('CMP');
+  await page.getByText('Composite universel',{exact:true}).waitFor({state:'visible',timeout:5000});
+  prove(viewport,'marketplace-search-filter-and-restore');
 
   const plus=page.getByRole('button',{name:'Ajouter une unité de Composite universel'});
   await plus.click();
@@ -142,9 +147,22 @@ for(const viewport of viewports){
       await star.click();
       const favs=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
       if(!favs.includes('detartrage-surfacage')) throw new Error('library favorite did not persist');
-      prove(viewport,'library-favorite-persistence');
+
+      await page.reload({waitUntil:'networkidle',timeout:90000});
+      const detReloaded=page.getByText('Détartrage',{exact:true}).first();
+      await detReloaded.waitFor({state:'visible',timeout:5000});
+      const cardReloaded=detReloaded.locator('xpath=ancestor::button[1]');
+      const starReloaded=cardReloaded.locator('span').filter({hasText:/^[☆★]$/}).first();
+      await starReloaded.waitFor({state:'visible',timeout:5000});
+      if((await starReloaded.innerText()).trim()!=='★') throw new Error('library favorite UI did not survive reload');
+      const favsReloaded=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
+      if(!favsReloaded.includes('detartrage-surfacage')) throw new Error('library favorite storage lost after reload');
+      prove(viewport,'library-favorite-reload-persistence');
+
+      await cardReloaded.click();
+    } else {
+      await card.click();
     }
-    await card.click();
     await page.waitForURL('**/bibliotheque/detartrage-surfacage');
     prove(viewport,'library-deeplink-navigation');
   }
