@@ -7,7 +7,7 @@ type Access = { access_id: string; relationship_type: string; created_at: string
 type Session = {
   session_id: string;
   access_id?: string | null;
-  state: 'WAITING_PATIENT' | 'WAITING_STAFF' | 'NEGOTIATING' | 'CONNECTED' | 'ENDED' | 'REJECTED' | 'EXPIRED' | 'FAILED';
+  state: 'CREATED' | 'WAITING_PATIENT' | 'WAITING_STAFF' | 'NEGOTIATING' | 'CONNECTED' | 'ENDED' | 'REJECTED' | 'EXPIRED' | 'FAILED';
   created_at: string;
   expires_at: string;
   connected_at?: string | null;
