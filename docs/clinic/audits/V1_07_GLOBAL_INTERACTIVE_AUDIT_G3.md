@@ -202,3 +202,14 @@ G3 remains semantically open until applicable control contracts are closed, nota
 - Google import successful import path;
 - Notifications and Waiting Room real-Chromium action pass, not component matrices alone;
 - any runtime-discovered dynamic control not yet reconciled.
+
+
+## Deep browser reconciliation completed — 2026-09-23
+
+Additional exact-browser contracts now implemented:
+- Frontdesk refusal preserves the modal; success verifies payload, closes, refetches, and renders the new pending request.
+- Pending request controls are exercised independently: request-confirmation ACK -> EN_ATTENTE_CONFIRM, confirm ACK -> card removed, reject ACK -> card removed after explicit confirmation.
+- Google Agenda import proves invalid-file non-mutation and a valid ICS success path through real T2-runtime bulk persistence, visible Agenda rendering, then verified cleanup.
+- Frontdesk and Google Import overlays now expose dialog semantics and named close controls.
+
+Functional deep-check status: COMPLETE IN HARNESS. Certification remains pending exact-head browser/CI and matched pending-only visual artifact inspection.
