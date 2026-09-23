@@ -143,6 +143,7 @@ for (const viewport of [
   { width: 1280, height: 900, label: '1280x900' },
 ]) {
   await staffPage.setViewportSize({ width: viewport.width, height: viewport.height });
+  await staffPage.waitForTimeout(400);
   if (viewport.width >= 1024) {
     await staffPage.evaluate(() => {
       const appScroller = document.querySelector('main.overflow-y-auto');
