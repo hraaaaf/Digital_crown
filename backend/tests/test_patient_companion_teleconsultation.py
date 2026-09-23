@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from fastapi import HTTPException, Response
 
 from backend import models
 from backend.models_patient_companion import (
@@ -13,6 +14,7 @@ from backend.models_patient_companion import (
     PatientCompanionTeleconsultSession,
     PatientCompanionTeleconsultSignal,
 )
+from backend.routers.patient_companion_teleconsultation import StaffSessionCreate, staff_create_teleconsultation
 from backend.services.patient_companion_teleconsultation import (
     PC09_MAX_SIGNAL_BYTES,
     PC09_SIGNAL_SYNC_LIMIT,
@@ -24,7 +26,9 @@ from backend.services.patient_companion_teleconsultation import (
     purge_signals,
     sync_signals,
 )
-from backend.services.patient_companion_remote_crypto import generate_p256_keypair, sign_and_encrypt
+from backend.services.patient_companion_remote_crypto import decrypt_and_verify, generate_p256_keypair, sign_and_encrypt
+from backend.services.patient_companion_remote_keys import enroll_remote_keyset
+from backend.services.patient_companion_remote_worker import process_remote_envelope
 from relay.contract import RelayInnerMessage, RELAY_MAX_BLOB_BYTES
 
 
@@ -307,3 +311,98 @@ def test_pc09_patient_only_join_truthfully_waits_for_staff(db, dentiste):
     assert row.state == "WAITING_STAFF"
     assert row.patient_joined_at is not None
     assert row.staff_joined_at is None
+
+
+def test_pc09_staff_cannot_create_session_for_other_patient_access(db, dentiste):
+    patient_a = _patient(db, dentiste, "STAFF-A")
+    patient_b = _patient(db, dentiste, "STAFF-B")
+    _identity, access_b = _access(db, dentiste, patient_b)
+
+    with pytest.raises(HTTPException) as exc:
+        staff_create_teleconsultation(
+            patient_a.id,
+            StaffSessionCreate(access_id=access_b.public_id, ttl_minutes=60),
+            Response(),
+            db,
+            dentiste,
+        )
+    assert exc.value.status_code == 404
+
+
+def test_pc09_staff_cannot_create_session_after_access_revocation(db, dentiste):
+    patient = _patient(db, dentiste, "REVOKED")
+    _identity, access = _access(db, dentiste, patient)
+    access.revoked_at = datetime.utcnow()
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        staff_create_teleconsultation(
+            patient.id,
+            StaffSessionCreate(access_id=access.public_id, ttl_minutes=60),
+            Response(),
+            db,
+            dentiste,
+        )
+    assert exc.value.status_code == 404
+
+
+def _protect_remote(raw: bytes) -> bytes:
+    return b"pc09-test-protected:" + raw
+
+
+def _unprotect_remote(raw: bytes) -> bytes:
+    return raw.removeprefix(b"pc09-test-protected:")
+
+
+def test_pc09_remote_registry_dispatches_access_scoped_list_through_real_crypto(db, dentiste):
+    patient = _patient(db, dentiste, "REMOTE")
+    _identity, access = _access(db, dentiste, patient)
+    row = _session(db, dentiste, patient, access)
+
+    patient_sig_private, patient_sig_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="sig")
+    patient_enc_private, patient_enc_public = generate_p256_keypair(kid=str(uuid.uuid4()), use="enc")
+    keyset, cabinet_sig, cabinet_enc = enroll_remote_keyset(
+        db,
+        access=access,
+        patient_signing_kid=patient_sig_public["kid"],
+        patient_signing_public_jwk=patient_sig_public,
+        patient_encryption_kid=patient_enc_public["kid"],
+        patient_encryption_public_jwk=patient_enc_public,
+        protect=_protect_remote,
+    )
+    db.commit()
+
+    now = datetime.now(timezone.utc)
+    request = RelayInnerMessage(
+        message_id=uuid.uuid4(),
+        access_id=uuid.UUID(access.public_id),
+        sent_at=now,
+        expires_at=now + timedelta(minutes=10),
+        idempotency_key=uuid.uuid4(),
+        operation="teleconsult.list",
+        payload={},
+    )
+    token = sign_and_encrypt(
+        request.model_dump(mode="json"),
+        sender_signing_private_jwk=patient_sig_private,
+        recipient_encryption_public_jwk=json.loads(cabinet_enc.public_jwk_json),
+        sender_signing_kid=keyset.patient_signing_kid,
+        recipient_encryption_kid=keyset.cabinet_encryption_kid,
+    )
+    ack_token = process_remote_envelope(
+        db,
+        access=access,
+        keyset=keyset,
+        compact_jwe=token,
+        unprotect=_unprotect_remote,
+    )
+    ack = decrypt_and_verify(
+        ack_token,
+        recipient_encryption_private_jwk=patient_enc_private,
+        sender_signing_public_jwk=json.loads(cabinet_sig.public_jwk_json),
+        expected_sender_signing_kid=keyset.cabinet_signing_kid,
+        expected_recipient_encryption_kid=keyset.patient_encryption_kid,
+    )
+    assert ack["payload"]["status"] == "ACCEPTED"
+    assert ack["payload"]["result"]["code"] == "SESSION_LIST"
+    assert ack["payload"]["result"]["items"][0]["session_id"] == row.public_id
