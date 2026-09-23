@@ -1,3 +1,4 @@
+# V1-07 FINAL EXACT-HEAD EVIDENCE CANDIDATE — trigger only, no runtime behavior change
 import os
 import sys
 import struct
