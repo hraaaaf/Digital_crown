@@ -588,7 +588,8 @@ for(const viewport of viewports){
     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(detailSupplier)});
   });
 
-  // Supplier page must fail closed, retry, filter, reload and deep-link.
+  // Supplier page must fail closed without stale cache, then retry, filter, reload and deep-link.
+  await page.evaluate(()=>{ for(const key of Object.keys(localStorage)){ if(key.startsWith('digitalcrown_partner_marketplace_cache_v1')) localStorage.removeItem(key); } });
   await page.goto('http://127.0.0.1:5173/approvisionnement/partenaire/11',{waitUntil:'networkidle',timeout:90000});
   await page.getByText('Impossible de charger le catalogue de ce fournisseur',{exact:true}).waitFor({state:'visible',timeout:10000});
   if(await page.getByRole('link',{name:/Composite universel/i}).count()) throw new Error('supplier page exposed cached product during first read failure');
@@ -698,7 +699,7 @@ for(const viewport of viewports){
   prove(viewport,'library-sort-consumer');
 
   // Return alpha before stable target selection.
-  await page.getByRole('button',{name:'A → Z',exact:true}).click().catch(()=>{});
+  await page.getByRole('button',{name:'A→Z',exact:true}).click();
   const detCard=page.locator('[data-protocol-code="detartrage-surfacage"]').first();
   await detCard.waitFor({state:'visible',timeout:5000});
   const detStar=detCard.locator('span').filter({hasText:/^[☆★]$/}).first();
