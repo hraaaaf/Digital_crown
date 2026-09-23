@@ -14,8 +14,8 @@ from backend.models_patient_companion import (
 )
 from backend.services.patient_companion_remote_worker import RemoteDomainResult
 
-PC09_MAX_SIGNAL_BYTES = 64 * 1024
-PC09_SIGNAL_SYNC_LIMIT = 100
+PC09_MAX_SIGNAL_BYTES = 24 * 1024
+PC09_SIGNAL_SYNC_LIMIT = 8
 PC09_TERMINAL_STATES = {"ENDED", "REJECTED", "EXPIRED", "FAILED"}
 PC09_SIGNAL_TYPES = {"offer", "answer", "ice"}
 
