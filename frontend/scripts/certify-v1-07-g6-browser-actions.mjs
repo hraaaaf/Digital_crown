@@ -148,7 +148,7 @@ for(const viewport of viewports){
 
     page.once('dialog',d=>d.accept());
     await suspend.click();
-    await page.getByTitle('Réactiver').waitFor({state:'visible',timeout:10000});
+    await page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]').getByTitle('Réactiver').waitFor({state:'visible',timeout:10000});
     verify=await api.get('/api/superadmin/clients',{headers});
     row=(await verify.json()).find(x=>x.id===target.id);
     if(!row.is_suspended) throw new Error('suspend ACK not persisted');
@@ -157,7 +157,7 @@ for(const viewport of viewports){
     liveCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
     page.once('dialog',d=>d.accept());
     await liveCard.getByTitle('Réactiver').click();
-    await page.getByTitle('Suspendre').waitFor({state:'visible',timeout:10000});
+    await page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]').getByTitle('Suspendre').waitFor({state:'visible',timeout:10000});
     verify=await api.get('/api/superadmin/clients',{headers});
     row=(await verify.json()).find(x=>x.id===target.id);
     if(row.is_suspended) throw new Error('reactivate did not restore fixture');
