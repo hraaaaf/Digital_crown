@@ -45,6 +45,8 @@ rate_limit.check_rate_limit = _t2_check_rate_limit
 from backend import database, models
 from backend.models_imaging_p4 import ImagingTrashRecord  # noqa: F401 - register table in Base metadata
 from backend.security import get_password_hash
+from backend.seed_catalog import CATALOG
+from backend.services import cabinet_catalog_store
 
 def _write_t2_png(path: Path, width: int = 1935, height: int = 2400) -> None:
     """Generate a deterministic local grayscale PNG for isolated cephalo browser proof."""
@@ -89,6 +91,30 @@ with database.SessionLocal() as db:
         db.add(user)
         db.commit()
         db.refresh(user)
+
+    # The product catalog is tenant-scoped. This isolated runtime creates several
+    # root users later, so legacy ownership cannot be inferred safely. Provision
+    # the T2 cabinet explicitly instead of relying on the legacy-claim fallback.
+    if not cabinet_catalog_store.list_catalog(db, user.id):
+        for spec_data in CATALOG:
+            specialty = cabinet_catalog_store.create_specialty(
+                db,
+                user.id,
+                {"name": spec_data["name"], "color": spec_data.get("color")},
+            )
+            for act_data in spec_data.get("acts", []):
+                cabinet_catalog_store.create_act(
+                    db,
+                    user.id,
+                    specialty["id"],
+                    {
+                        "name": act_data["name"],
+                        "base_price": float(act_data.get("base_price", 0) or 0),
+                        "code": act_data.get("code"),
+                        "color": act_data.get("color"),
+                        "is_active": True,
+                    },
+                )
 
     restricted = db.query(models.User).filter(models.User.email == "t2-restricted@cabinet.ma").first()
     if not restricted:
