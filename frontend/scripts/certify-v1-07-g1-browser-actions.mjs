@@ -254,6 +254,94 @@ for(const viewport of viewports){
   if(!persistedTheme) throw new Error('setup theme not persisted after ACK');
   prove(viewport,'setup-finalization-success-ack',{theme:persistedTheme});
   await setupCtx.close();
+
+  // SHARED SHELL — real clicks must reach canonical routes and preserve permission truth.
+  const shellCtx=await browser.newContext({viewport,colorScheme:'light'});
+  const shellPage=await shellCtx.newPage();
+  await shellPage.addInitScript(v=>{
+    localStorage.setItem('token',v.access);
+    localStorage.setItem('refresh_token',v.refresh||'');
+    localStorage.setItem('appMode','prod');
+  },{access:apiTokens.access_token,refresh:apiTokens.refresh_token});
+
+  await shellPage.route('**/api/intelligence/connect-hub',route=>route.fulfill({
+    status:200,
+    contentType:'application/json',
+    body:JSON.stringify({
+      total:1,
+      requires_attention:1,
+      delivery_semantics:'source_state_only',
+      items:[{
+        id:'g1-attention',
+        source:'treasury_hub',
+        title:'Relance certification',
+        message:'Paiement attendu',
+        destination:'/accounting?tab=treasury',
+        priority:'high',
+        channel:'in_app',
+        delivery_state:'source',
+        delivery_verified:false
+      }]
+    })
+  }));
+  await shellPage.route('**/api/auth/logout',route=>route.fulfill({status:200,contentType:'application/json',body:'{}'}));
+
+  const openSidebar=async()=>{
+    const agendaLink=shellPage.getByRole('link',{name:'Agenda',exact:true});
+    if(!(await agendaLink.isVisible().catch(()=>false))){
+      const menu=shellPage.getByRole('button',{name:'Menu',exact:true});
+      if(await menu.count()) await menu.click();
+    }
+  };
+  const clickSidebar=async(label,urlPattern)=>{
+    await openSidebar();
+    const link=shellPage.getByRole('link',{name:label,exact:true});
+    await link.waitFor({state:'visible',timeout:10000});
+    await link.click();
+    await shellPage.waitForURL(urlPattern,{timeout:10000});
+  };
+
+  await shellPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
+  await clickSidebar('Agenda','**/agenda');
+  prove(viewport,'shell-nav-agenda');
+  await clickSidebar('Patients','**/patients');
+  prove(viewport,'shell-nav-patients');
+  await clickSidebar('Bibliothèque clinique','**/bibliotheque');
+  prove(viewport,'shell-nav-library');
+  await clickSidebar('Approvisionnement','**/approvisionnement');
+  prove(viewport,'shell-nav-procurement');
+
+  const settingsLink=shellPage.getByTitle('Réglages');
+  await settingsLink.waitFor({state:'visible',timeout:10000});
+  await settingsLink.click();
+  await shellPage.waitForURL('**/settings',{timeout:10000});
+  prove(viewport,'shell-header-settings-navigation');
+
+  await shellPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
+  const attention=shellPage.getByRole('button',{name:'Ouvrir le centre d’attention',exact:true});
+  await attention.click();
+  await shellPage.getByText('Centre d’attention',{exact:true}).waitFor({state:'visible',timeout:5000});
+  const attentionLink=shellPage.getByRole('link',{name:/Relance certification/i});
+  await attentionLink.click();
+  await shellPage.waitForURL(/\/accounting\?tab=treasury/,{timeout:10000});
+  prove(viewport,'shell-attention-destination');
+
+  await shellPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
+  const logout=shellPage.getByTitle('Déconnexion');
+  await logout.click();
+  await shellPage.getByText('Êtes-vous sûr de vouloir vous déconnecter de votre session ?',{exact:true}).waitFor({state:'visible',timeout:5000});
+  await shellPage.getByRole('button',{name:'Annuler',exact:true}).click();
+  if(!await shellPage.evaluate(()=>Boolean(localStorage.getItem('token')))) throw new Error('logout cancel cleared session');
+  prove(viewport,'shell-logout-cancel-non-mutation');
+
+  await logout.click();
+  await shellPage.getByRole('button',{name:'Confirmer',exact:true}).click();
+  await shellPage.waitForURL('**/landing',{timeout:10000});
+  if(await shellPage.evaluate(()=>Boolean(localStorage.getItem('token')))) throw new Error('logout confirm kept access token');
+  prove(viewport,'shell-logout-confirm-clears-session');
+  await shellPage.unroute('**/api/intelligence/connect-hub');
+  await shellPage.unroute('**/api/auth/logout');
+  await shellCtx.close();
 }
 
 await browser.close();
