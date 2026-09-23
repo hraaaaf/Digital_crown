@@ -126,8 +126,11 @@ for(const viewport of viewports){
       }
       return route.continue();
     });
-    const logoInput=page.locator('#logo-input');
-    await logoInput.setInputFiles({name:'g5-logo.png',mimeType:'image/png',buffer:Buffer.from('g5-logo')});
+    const [logoChooser]=await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByRole('button',{name:'Choisir le logo du cabinet',exact:true}).click()
+    ]);
+    await logoChooser.setFiles({name:'g5-logo.png',mimeType:'image/png',buffer:Buffer.from('g5-logo')});
     await page.getByAltText('Logo').waitFor({state:'visible',timeout:10000});
     if(logoUploadCalls!==1) throw new Error('profile logo upload ACK mismatch');
     prove(viewport,'settings-profile-logo-upload',{logoUploadCalls});
