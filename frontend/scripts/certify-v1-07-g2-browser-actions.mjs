@@ -310,18 +310,18 @@ for(const viewport of viewports){
  await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({available:true})
  }));
- await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+ await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
  }));
  await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
  await page.getByText(/Vérification anti-doublon indisponible/i).waitFor({state:'visible',timeout:10000});
  if(!page.url().includes('/patients/new')) throw new Error('create form navigated after duplicate-check refusal');
  pass(viewport,'patient-create-duplicate-check-refusal-non-mutation');
- await page.unroute('**/api/patients/check-duplicate');
+ await page.unroute('**/api/patients/check-duplicate*');
 
  let createCalls=0;
  const createdId=9099;
- await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+ await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({has_duplicate:false})
  }));
  await page.route('**/api/patients/',async route=>{
@@ -347,7 +347,7 @@ for(const viewport of viewports){
  if(createCalls!==1) throw new Error('patient create ACK count mismatch');
  pass(viewport,'patient-create-success-ack-navigation',{createdId,createCalls});
  await page.unroute('**/api/patients/check-dossier/*');
- await page.unroute('**/api/patients/check-duplicate');
+ await page.unroute('**/api/patients/check-duplicate*');
  await page.unroute('**/api/patients/');
  await page.unroute('**/api/patients/'+createdId);
 
@@ -355,7 +355,7 @@ for(const viewport of viewports){
  await page.goto('http://127.0.0.1:5173/patients/new?nom=DUPLICATE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
  await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({available:true})}));
  let duplicateCreateCalls=0;
- await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+ await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({
      has_duplicate:true,
      existing_patient:{
@@ -381,13 +381,13 @@ for(const viewport of viewports){
  if(duplicateCreateCalls!==0) throw new Error('open existing duplicate triggered create');
  pass(viewport,'patient-duplicate-open-existing-non-mutation');
  await page.unroute('**/api/patients/**');
- await page.unroute('**/api/patients/check-duplicate');
+ await page.unroute('**/api/patients/check-duplicate*');
  await page.unroute('**/api/patients/check-dossier/*');
 
  // Explicit force-create is the only duplicate path allowed to mutate.
  await page.goto('http://127.0.0.1:5173/patients/new?nom=FORCE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
  await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({available:true})}));
- await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
+ await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({
      has_duplicate:true,
      existing_patient:{id:patient.id,nom:patient.nom,prenom:patient.prenom,date_naissance:patient.date_naissance,created_at:'2026-01-01'}
@@ -424,7 +424,7 @@ for(const viewport of viewports){
  pass(viewport,'patient-duplicate-explicit-force-create',{forceCreateCalls});
  await page.unroute('**/api/patients/'+forceCreatedId);
  await page.unroute('**/api/patients/?force_create=true');
- await page.unroute('**/api/patients/check-duplicate');
+ await page.unroute('**/api/patients/check-duplicate*');
  await page.unroute('**/api/patients/check-dossier/*');
 
  // Cancel from create form is navigation-only and must not call create.

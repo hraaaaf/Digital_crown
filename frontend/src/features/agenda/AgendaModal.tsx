@@ -314,7 +314,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate) return;
+    if (!dateValue) return;
     
     setLoading(true);
     try {
