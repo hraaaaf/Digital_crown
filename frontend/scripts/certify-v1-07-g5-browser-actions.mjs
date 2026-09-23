@@ -1311,8 +1311,14 @@ for(const viewport of viewports){
       return route.continue();
     });
 
-    const file=page.locator('input[type="file"]').first();
-    await file.setInputFiles({name:'backup.enc',mimeType:'application/octet-stream',buffer:Buffer.from('backup')});
+    const chooseRestoreFile=async(name,content)=>{
+      const [chooser]=await Promise.all([
+        page.waitForEvent('filechooser'),
+        page.getByRole('button',{name:'Analyser une sauvegarde',exact:true}).click()
+      ]);
+      await chooser.setFiles({name,mimeType:'application/octet-stream',buffer:Buffer.from(content)});
+    };
+    await chooseRestoreFile('backup.enc','backup');
     await page.getByText('Préflight validé',{exact:true}).waitFor({state:'visible',timeout:10000});
     if(preflightCalls!==1 || prepareCalls!==0 || applyCalls!==0) throw new Error('restore mutated before explicit prepare/apply');
     prove(viewport,'settings-restore-preflight-compatible',{preflightCalls});
@@ -1322,7 +1328,7 @@ for(const viewport of viewports){
     if(cancelCalls!==1 || applyCalls!==0) throw new Error('restore cancel contract mismatch');
     prove(viewport,'settings-restore-cancel',{cancelCalls});
 
-    await file.setInputFiles({name:'backup.enc',mimeType:'application/octet-stream',buffer:Buffer.from('backup')});
+    await chooseRestoreFile('backup.enc','backup');
     await page.getByText('Préflight validé',{exact:true}).waitFor({state:'visible',timeout:10000});
     await page.getByRole('button',{name:/Préparer la restauration/i}).click();
     const confirmation=page.getByPlaceholder('RESTAURER');
@@ -1349,7 +1355,7 @@ for(const viewport of viewports){
 
     await page.getByRole('button',{name:/Fermer ce préflight/i}).click().catch(()=>{});
     await page.route('**/api/admin/restore/preflight',route=>route.fulfill({status:400,contentType:'application/json',body:'{"detail":"Backup corrompu"}'}));
-    await file.setInputFiles({name:'bad.enc',mimeType:'application/octet-stream',buffer:Buffer.from('bad')});
+    await chooseRestoreFile('bad.enc','bad');
     await page.getByRole('main').getByText('Backup corrompu',{exact:true}).waitFor({state:'visible',timeout:5000});
     if(await page.getByRole('button',{name:/Préparer la restauration/i}).count()) throw new Error('prepare exposed after refused preflight');
     if(await page.getByRole('button',{name:/Redémarrer et restaurer/i}).count()) throw new Error('apply exposed after refused preflight');
