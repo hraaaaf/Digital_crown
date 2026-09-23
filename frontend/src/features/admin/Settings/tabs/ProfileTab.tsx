@@ -314,7 +314,9 @@ export const ProfileTab: React.FC = () => {
                 const isSelected = profile.specialty_ids?.includes(spec.id);
                 return (
                   <button
+                    type="button"
                     key={spec.id}
+                    aria-pressed={isSelected}
                     onClick={() => toggleSpecialty(spec.id)}
                     className={cn(
                       "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all group relative overflow-hidden",
@@ -587,6 +589,7 @@ export const ProfileTab: React.FC = () => {
                     onClick={() => toggleContact(type)}
                     className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-emerald-500" : "bg-slate-200")}
                     aria-label={`${c.enabled ? 'Désactiver' : 'Activer'} ${label}`}
+                    aria-pressed={c.enabled}
                   >
                     <div className={cn("w-3 h-3 bg-white rounded-full transition-all", c.enabled ? "translate-x-5" : "translate-x-0")} />
                   </button>
