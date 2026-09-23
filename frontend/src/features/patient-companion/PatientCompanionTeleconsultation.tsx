@@ -35,6 +35,7 @@ const waitForIceGathering = (peer: RTCPeerConnection, timeoutMs = 5000) => new P
 });
 
 function sessionLabel(state: TeleconsultSession['state']): string {
+  if (state === 'CREATED') return 'Préparation par le cabinet';
   if (state === 'CONNECTED') return 'En consultation';
   if (state === 'NEGOTIATING') return 'Connexion en cours';
   if (state === 'WAITING_PATIENT' || state === 'WAITING_STAFF') return 'Prête à rejoindre';
@@ -220,6 +221,22 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
     }
   };
 
+  const reject = async (session: TeleconsultSession) => {
+    if (busy) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const rejected = await PatientCompanionTeleconsultTransport.reject(pairing, session.session_id);
+      setCurrent(rejected);
+      setMessage('Téléconsultation refusée.');
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Refus non confirmé.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const end = async () => {
     const session = sessionRef.current;
     cleanupPeer();
@@ -267,7 +284,10 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
             <div className="flex items-center justify-between gap-3">
               <div><p className="text-sm font-black">{sessionLabel(shown.state)}</p><p className="mt-1 text-[10px] font-bold text-text-muted">Créée le {new Date(shown.created_at).toLocaleString()}</p></div>
               {!mediaStarted && !terminalStates.has(shown.state) && (
-                <button type="button" onClick={() => void join(shown)} disabled={busy || !enabled} className="min-h-[48px] rounded-xl bg-primary px-4 text-xs font-black text-white disabled:opacity-50">Accepter et rejoindre</button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button type="button" onClick={() => void join(shown)} disabled={busy || !enabled} className="min-h-[48px] rounded-xl bg-primary px-4 text-xs font-black text-white disabled:opacity-50">Accepter et rejoindre</button>
+                  <button type="button" onClick={() => void reject(shown)} disabled={busy || !enabled} className="min-h-[44px] rounded-xl border border-border-main bg-card-bg px-4 text-xs font-black text-text-muted disabled:opacity-50">Refuser</button>
+                </div>
               )}
             </div>
           </div>
