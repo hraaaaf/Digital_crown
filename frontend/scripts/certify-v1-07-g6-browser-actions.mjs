@@ -16,11 +16,14 @@ const headers={Authorization:'Bearer '+tokens.access_token};
 const me=await api.get('/api/auth/me',{headers});
 if(!me.ok()) throw new Error('G6 /me failed');
 const meBody=await me.json();
-if(meBody.is_superadmin!==true) throw new Error('isolated fixture is not superadmin');
+const meUser=meBody?.user ?? meBody;
+if(meUser?.is_superadmin!==true) throw new Error('isolated fixture is not superadmin');
 
 const clientsResp=await api.get('/api/superadmin/clients',{headers});
 if(!clientsResp.ok()) throw new Error('G6 clients read failed');
-const target=(await clientsResp.json()).find(x=>x.email==='t2-browser@cabinet.ma');
+const clientsBody=await clientsResp.json();
+const clientList=Array.isArray(clientsBody)?clientsBody:(Array.isArray(clientsBody?.items)?clientsBody.items:(Array.isArray(clientsBody?.clients)?clientsBody.clients:[]));
+const target=clientList.find(x=>x.email==='t2-browser@cabinet.ma');
 if(!target) throw new Error('G6 target client missing');
 
 const browser=await chromium.launch({headless:true});
