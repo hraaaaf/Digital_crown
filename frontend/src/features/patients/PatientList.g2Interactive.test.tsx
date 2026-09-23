@@ -134,9 +134,9 @@ describe('PatientList G2 interactive matrix', () => {
 
     const search = screen.getByPlaceholderText('Rechercher par nom, prénom ou dossier...');
     fireEvent.change(search, { target: { value: 'alami nour' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Créer "alami nour"/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Ajouter ce patient/i }));
 
-    expect(await screen.findByText('Patient create destination')).toBeTruthy();
+    expect(await screen.findByText(/Patient create destination \?nom=ALAMI&prenom=nour/i)).toBeTruthy();
   });
 
   it('persists the table/grid display choice', async () => {
