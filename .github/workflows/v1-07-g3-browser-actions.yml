@@ -10,6 +10,7 @@ on:
       - "frontend/src/features/mobile/Dashboard/MobileG3BrowserCertHarness.tsx"
       - "frontend/src/main.tsx"
       - "frontend/scripts/certify-v1-07-g3-browser-actions.mjs"
+      - "frontend/scripts/capture-v1-07-g3-pending-only-visual.mjs"
       - "scripts/t2_runtime_server.py"
       - ".github/workflows/v1-07-g3-browser-actions.yml"
   workflow_dispatch:
@@ -75,3 +76,13 @@ jobs:
       - name: Certify Agenda / Frontdesk actions
         working-directory: frontend
         run: node scripts/certify-v1-07-g3-browser-actions.mjs
+      - name: Capture pending-only BEFORE / AFTER
+        working-directory: frontend
+        run: node scripts/capture-v1-07-g3-pending-only-visual.mjs
+      - name: Upload G3 pending-only visual evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: g3-pending-only-visual
+          path: frontend/artifacts/g3-pending-only-visual/
+          if-no-files-found: error
+          retention-days: 30
