@@ -105,4 +105,23 @@ describe('Sidebar G1 navigation matrix', () => {
     fireEvent.click(backdrop!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+  it('gates the AI activity logo pulse by the persisted animation preference', async () => {
+    localStorage.setItem('clinical_tips_enabled', 'true');
+    renderSidebar();
+    const logo = screen.getByAltText('Digital Crown AI');
+
+    window.dispatchEvent(new Event('ai-generation-start'));
+    await waitFor(() => expect(logo.className).toContain('animate-logo-pulse-light'));
+
+    window.dispatchEvent(new Event('ai-generation-end'));
+    await waitFor(() => expect(logo.className).not.toContain('animate-logo-pulse-light'));
+
+    cleanup();
+    localStorage.setItem('clinical_tips_enabled', 'false');
+    renderSidebar();
+    const disabledLogo = screen.getByAltText('Digital Crown AI');
+    window.dispatchEvent(new Event('ai-generation-start'));
+    await waitFor(() => expect(disabledLogo.className).not.toContain('animate-logo-pulse-light'));
+  });
+
 });
