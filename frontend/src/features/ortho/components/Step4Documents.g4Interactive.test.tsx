@@ -147,7 +147,8 @@ describe('Cephalo Step4 G4 document controls',()=>{
     render(<Step4Documents P={P}/>);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByRole('button',{name:'Actualiser'}));
+    const refresh=await screen.findByRole('button',{name:'Actualiser'});
+    fireEvent.click(refresh);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
   });
 
