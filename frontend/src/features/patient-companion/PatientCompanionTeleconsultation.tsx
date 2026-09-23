@@ -54,7 +54,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const sessionRef = useRef<TeleconsultSession | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const remoteStreamRef = useRef<MediaStream>(new MediaStream());
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const cursorRef = useRef<string | null>(null);
@@ -82,7 +82,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
     peerRef.current = null;
     for (const track of localStreamRef.current?.getTracks() || []) track.stop();
     localStreamRef.current = null;
-    remoteStreamRef.current = new MediaStream();
+    remoteStreamRef.current = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     cursorRef.current = null;
@@ -158,7 +158,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
 
   const join = async (session: TeleconsultSession) => {
     if (!enabled || !pairing.remoteTransport || busy) return;
-    if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === 'undefined') {
+    if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === 'undefined' || typeof MediaStream === 'undefined') {
       setMessage('La caméra ou le microphone ne sont pas disponibles sur cet appareil.');
       return;
     }
@@ -176,13 +176,15 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
 
       const peer = new RTCPeerConnection({ iceServers });
       peerRef.current = peer;
+      const remoteStream = new MediaStream();
+      remoteStreamRef.current = remoteStream;
       for (const track of stream.getTracks()) peer.addTrack(track, stream);
 
       peer.ontrack = event => {
         for (const track of event.streams[0]?.getTracks() || [event.track]) {
-          remoteStreamRef.current.addTrack(track);
+          remoteStream.addTrack(track);
         }
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
       };
 
       peer.onconnectionstatechange = () => {
