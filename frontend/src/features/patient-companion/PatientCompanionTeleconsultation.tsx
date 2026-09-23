@@ -69,6 +69,11 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
 
   useEffect(() => cleanupPeer, [cleanupPeer]);
 
+  useEffect(() => {
+    if (mediaStarted && localVideoRef.current && localStreamRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+    if (mediaStarted && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
+  }, [mediaStarted]);
+
   const refresh = useCallback(async () => {
     if (!enabled || !pairing.remoteTransport) return;
     try {
@@ -195,7 +200,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   };
 
   const end = async () => {
-    const session = active;
+    const session = sessionRef.current;
     cleanupPeer();
     if (!session) return;
     try {
