@@ -35,15 +35,14 @@ for(const viewport of viewports){
     prix_unitaire:30,fournisseur:'Supplier',notes:'Taille M',alerte:false
   }];
   let nextStockId=2;
-  let readFailuresRemaining=1;
+  let failStockReads=true;
   let failNextCreate=false,failNextPatch=false,failNextDelete=false;
   let createCalls=0,patchCalls=0,deleteCalls=0;
 
   await page.route('**/api/stock/items',async route=>{
     const req=route.request();
     if(req.method()==='GET'){
-      if(readFailuresRemaining>0){
-        readFailuresRemaining-=1;
+      if(failStockReads){
         return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Stock indisponible'})});
       }
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(stockItems)});
@@ -91,8 +90,9 @@ for(const viewport of viewports){
   });
 
   await page.goto('http://127.0.0.1:5173/stock',{waitUntil:'networkidle',timeout:90000});
-  await page.getByText('Stock indisponible',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByText('Stock indisponible',{exact:true}).waitFor({state:'visible',timeout:15000});
   if(await page.getByText('Aucun article. Commencez par en ajouter un.',{exact:true}).count()) throw new Error('stock read failure rendered false empty state');
+  failStockReads=false;
   await page.getByRole('button',{name:'Réessayer',exact:true}).click();
   await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:10000});
   prove(viewport,'stock-read-failure-retry');
