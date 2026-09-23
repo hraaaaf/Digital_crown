@@ -127,11 +127,18 @@ for(const viewport of viewports){
     }
   }
 
-  // Explicit refresh if exposed.
+  // Explicit refresh -> prove a real clients re-read and stable rendered result.
   const refresh=page.getByRole('button',{name:'Actualiser',exact:true});
   if(await refresh.count()){
+    const refreshAckPromise=page.waitForResponse(
+      r=>r.request().method()==='GET' && r.url().includes('/api/superadmin/clients'),
+      {timeout:10000},
+    );
     await refresh.click();
-    prove(viewport,'superadmin-explicit-refresh');
+    const refreshAck=await refreshAckPromise;
+    if(!refreshAck.ok()) throw new Error('superadmin refresh refused '+refreshAck.status());
+    await page.getByText('Dr T2 Browser',{exact:true}).waitFor({state:'visible',timeout:10000});
+    prove(viewport,'superadmin-explicit-refresh',{status:refreshAck.status()});
   }
 
   await ctx.close();
