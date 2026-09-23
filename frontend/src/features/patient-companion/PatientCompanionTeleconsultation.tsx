@@ -32,6 +32,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   const [message, setMessage] = useState('');
   const [mediaStarted, setMediaStarted] = useState(false);
   const peerRef = useRef<RTCPeerConnection | null>(null);
+  const sessionRef = useRef<TeleconsultSession | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream>(new MediaStream());
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -39,6 +40,11 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   const cursorRef = useRef<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const connectedReportedRef = useRef(false);
+
+  const setCurrent = (session: TeleconsultSession | null) => {
+    sessionRef.current = session;
+    setActive(session);
+  };
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current !== null) {
@@ -70,7 +76,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
       setSessions(items);
       if (active) {
         const next = items.find(item => item.session_id === active.session_id);
-        if (next) setActive(next);
+        if (next) setCurrent(next);
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Téléconsultation indisponible.');
@@ -95,14 +101,15 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
   }, []);
 
   const syncActive = useCallback(async () => {
-    if (!active || !peerRef.current) return;
+    const current = sessionRef.current;
+    if (!current || !peerRef.current) return;
     try {
       const result = await PatientCompanionTeleconsultTransport.sync(
         pairing,
-        active.session_id,
+        current.session_id,
         cursorRef.current,
       );
-      setActive(result.session);
+      setCurrent(result.session);
       for (const signal of result.signals) {
         await processSignal(signal, peerRef.current);
         cursorRef.current = signal.signal_id;
@@ -111,7 +118,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Synchronisation de la consultation impossible.');
     }
-  }, [active, cleanupPeer, pairing, processSignal]);
+  }, [cleanupPeer, pairing, processSignal]);
 
   const join = async (session: TeleconsultSession) => {
     if (!enabled || !pairing.remoteTransport || busy) return;
@@ -128,7 +135,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
       const joined = await PatientCompanionTeleconsultTransport.join(pairing, session.session_id);
-      setActive(joined);
+      setCurrent(joined);
 
       const peer = new RTCPeerConnection({ iceServers: [] });
       peerRef.current = peer;
@@ -155,7 +162,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
         if (peer.connectionState === 'connected' && !connectedReportedRef.current) {
           connectedReportedRef.current = true;
           void PatientCompanionTeleconsultTransport.connected(pairing, session.session_id)
-            .then(setActive)
+.then(setCurrent)
             .catch(() => setMessage('Connexion établie, confirmation du cabinet en attente.'));
         } else if (peer.connectionState === 'failed') {
           setMessage('Connexion impossible sur ce réseau.');
@@ -193,7 +200,7 @@ export function PatientCompanionTeleconsultation({ pairing, enabled }: Props) {
     if (!session) return;
     try {
       const ended = await PatientCompanionTeleconsultTransport.end(pairing, session.session_id);
-      setActive(ended);
+      setCurrent(ended);
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Fin de consultation non confirmée.');
