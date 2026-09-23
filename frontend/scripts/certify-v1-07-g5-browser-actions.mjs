@@ -213,25 +213,134 @@ for(const viewport of viewports){
   await saveRuntime(original);
   prove(viewport,'settings-runtime-preferences-restored',original);
 
-  // Agenda: prove refusal leaves dirty state visible.
+  // Agenda — deep contract: success, local overlap refusal, backend refusal/non-mutation, closure add/delete, fixture restore.
+  const weekly=Object.fromEntries(
+    ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day=>[day,{
+      is_open:true,is_continuous:false,morning_start:'09:00',morning_end:'13:00',afternoon_start:'14:00',afternoon_end:'18:00'
+    }])
+  );
+  let agendaSettings={
+    opening_time_morning:'09:00',
+    closing_time_morning:'13:00',
+    opening_time_afternoon:'14:00',
+    closing_time_afternoon:'18:00',
+    is_continuous:false,
+    agenda_mode:'EXACT',
+    use_tickets:false,
+    weekly_schedule:weekly
+  };
+  let agendaExceptions=[{
+    id:5,start_date:'2026-09-25T00:00:00',end_date:'2026-09-25T23:59:59',reason:'Congés',is_holiday:false,created_at:'2026-09-19T00:00:00'
+  }];
+  let agendaPutAttempts=0,agendaPutAcks=0,agendaPostCalls=0,agendaDeleteCalls=0;
+  let failNextAgendaSave=false;
+
+  await page.route('**/api/agenda/settings',async route=>{
+    const method=route.request().method();
+    if(method==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(agendaSettings)});
+    if(method==='PUT'){
+      agendaPutAttempts+=1;
+      if(failNextAgendaSave){
+        failNextAgendaSave=false;
+        return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced schedule refusal"}'});
+      }
+      agendaSettings=route.request().postDataJSON();
+      agendaPutAcks+=1;
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(agendaSettings)});
+    }
+    return route.continue();
+  });
+  await page.route('**/api/agenda/exceptions',async route=>{
+    const method=route.request().method();
+    if(method==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(agendaExceptions)});
+    if(method==='POST'){
+      agendaPostCalls+=1;
+      const body=route.request().postDataJSON();
+      const created={id:6,start_date:body.start_date,end_date:body.end_date,reason:body.reason,is_holiday:false,created_at:'2026-09-23T00:00:00'};
+      agendaExceptions=[...agendaExceptions,created];
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(created)});
+    }
+    return route.continue();
+  });
+  await page.route('**/api/agenda/exceptions/*',async route=>{
+    if(route.request().method()==='DELETE'){
+      agendaDeleteCalls+=1;
+      const id=Number(new URL(route.request().url()).pathname.split('/').pop());
+      agendaExceptions=agendaExceptions.filter(x=>x.id!==id);
+      return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+    }
+    return route.continue();
+  });
+
   const agenda=page.getByRole('button',{name:'Horaires & Agenda',exact:true});
   if(await agenda.count()){
     await agenda.click();
-    await page.route('**/api/agenda/settings',async route=>{
-      if(route.request().method()==='PUT') return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"forced schedule refusal"}'});
-      return route.continue();
-    });
-    const monday=page.getByLabel('Lundi ouvert');
-    if(await monday.count()){
-      await monday.click();
-      const save=page.getByRole('button',{name:'Enregistrer les horaires',exact:true});
-      await save.click();
-      await page.getByText(/Impossible d'enregistrer ces horaires/i).waitFor({state:'visible',timeout:5000});
-      await page.getByText('Modifications non enregistrées',{exact:true}).waitFor({state:'visible',timeout:5000});
-      prove(viewport,'settings-agenda-refusal-preserves-dirty');
+    await page.getByRole('heading',{name:'Horaires & Agenda',exact:true}).waitFor({state:'visible',timeout:10000});
+
+    // Successful persisted change.
+    await page.getByLabel('Lundi ouvert').click();
+    await page.getByText('Modifications non enregistrées',{exact:true}).waitFor({state:'visible',timeout:5000});
+    await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
+    await page.getByText('Horaires sauvegardés',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(agendaPutAttempts!==1 || agendaPutAcks!==1 || agendaSettings.weekly_schedule.monday.is_open!==false){
+      throw new Error('agenda success persistence mismatch');
     }
-    await page.unroute('**/api/agenda/settings');
+    prove(viewport,'settings-agenda-save-success',{agendaPutAttempts,agendaPutAcks});
+
+    // Local overlap validation must block the API completely.
+    await page.getByLabel('Lundi ouvert').click();
+    await page.getByLabel('Lundi fermeture matin').fill('15:00');
+    await page.getByLabel('Lundi ouverture après-midi').fill('14:00');
+    await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
+    await page.getByText(/plages matin et après-midi se chevauchent/i).waitFor({state:'visible',timeout:5000});
+    if(agendaPutAttempts!==1) throw new Error('agenda overlap validation leaked a backend mutation');
+    prove(viewport,'settings-agenda-overlap-local-refusal');
+
+    // Restore valid hours, then force backend refusal and prove dirty/non-mutation.
+    await page.getByLabel('Lundi fermeture matin').fill('13:00');
+    await page.getByLabel('Lundi ouverture après-midi').fill('14:00');
+    await page.getByLabel('Mardi ouvert').click();
+    failNextAgendaSave=true;
+    await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
+    await page.getByText(/Impossible d'enregistrer ces horaires/i).waitFor({state:'visible',timeout:5000});
+    await page.getByText('Modifications non enregistrées',{exact:true}).waitFor({state:'visible',timeout:5000});
+    if(agendaPutAttempts!==2 || agendaPutAcks!==1 || agendaSettings.weekly_schedule.tuesday.is_open!==true){
+      throw new Error('agenda backend refusal mutated persisted state');
+    }
+    prove(viewport,'settings-agenda-backend-refusal-non-mutation',{agendaPutAttempts,agendaPutAcks});
+
+    // Return UI to original schedule and persist it.
+    await page.getByLabel('Mardi ouvert').click();
+    await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
+    await page.getByText('Horaires sauvegardés',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(agendaSettings.weekly_schedule.monday.is_open!==true || agendaSettings.weekly_schedule.tuesday.is_open!==true){
+      throw new Error('agenda fixture was not restored');
+    }
+    prove(viewport,'settings-agenda-fixture-restored');
+
+    // Closure create.
+    await page.getByRole('button',{name:/Ajouter une fermeture/i}).click();
+    const closureDialog=page.getByRole('dialog',{name:'Ajouter une fermeture'});
+    await closureDialog.getByLabel(/Début/).fill('2026-10-01');
+    await closureDialog.getByLabel(/Fin/).fill('2026-10-02');
+    await closureDialog.getByPlaceholder('Ex. Congés annuels').fill('Formation');
+    await closureDialog.getByRole('button',{name:'Ajouter',exact:true}).click();
+    await page.getByText('Formation',{exact:true}).waitFor({state:'visible',timeout:10000});
+    if(agendaPostCalls!==1 || !agendaExceptions.some(x=>x.reason==='Formation')) throw new Error('agenda closure create ACK mismatch');
+    prove(viewport,'settings-agenda-closure-create',{agendaPostCalls});
+
+    // Explicit two-step delete.
+    const formation=page.getByText('Formation',{exact:true}).locator('xpath=ancestor::article[1]');
+    await formation.getByRole('button',{name:'Retirer',exact:true}).click();
+    if(agendaDeleteCalls!==0) throw new Error('agenda closure deleted before confirmation');
+    await formation.getByRole('button',{name:'Confirmer',exact:true}).click();
+    await page.getByText('Formation',{exact:true}).waitFor({state:'detached',timeout:10000});
+    if(agendaDeleteCalls!==1 || agendaExceptions.some(x=>x.reason==='Formation')) throw new Error('agenda closure delete ACK mismatch');
+    prove(viewport,'settings-agenda-closure-delete',{agendaDeleteCalls});
   }
+  await page.unroute('**/api/agenda/settings');
+  await page.unroute('**/api/agenda/exceptions');
+  await page.unroute('**/api/agenda/exceptions/*');
 
   // Catalog: invalid tariff must be blocked before mutation.
   const catalog=page.getByRole('button',{name:'Catalogue Actes',exact:true});
