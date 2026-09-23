@@ -310,10 +310,20 @@ for(const viewport of viewports){
  await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({available:true})
  }));
- await page.route('**/api/patients/check-duplicate',route=>route.fulfill({
-   status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
- }));
+ let duplicateRefusalCalls=0;
+ await page.route('**/api/patients/check-duplicate',route=>{
+   duplicateRefusalCalls+=1;
+   return route.fulfill({
+     status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
+   });
+ });
+ const duplicateRefusalResponse=page.waitForResponse(
+   response=>response.url().includes('/api/patients/check-duplicate') && response.status()===503,
+   {timeout:10000},
+ );
  await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
+ await duplicateRefusalResponse;
+ if(duplicateRefusalCalls!==1) throw new Error('duplicate-check refusal request count mismatch');
  await page.getByText(/Vérification anti-doublon indisponible/i).waitFor({state:'visible',timeout:10000});
  if(!page.url().includes('/patients/new')) throw new Error('create form navigated after duplicate-check refusal');
  pass(viewport,'patient-create-duplicate-check-refusal-non-mutation');
