@@ -25,6 +25,7 @@ from backend.services.patient_companion_teleconsultation import (
     PC09_SIGNAL_SYNC_LIMIT,
     build_ice_servers,
     add_signal,
+    handle_teleconsult_failed,
     handle_teleconsult_join,
     handle_teleconsult_list,
     handle_teleconsult_reject,
@@ -140,6 +141,52 @@ def test_pc09_patient_reject_is_terminal_and_purges_signaling(db, dentiste):
     assert db.query(PatientCompanionTeleconsultSignal).filter(
         PatientCompanionTeleconsultSignal.session_id == row.id
     ).count() == 0
+
+
+def test_pc09_peer_failure_is_terminal_and_purges_signaling(db, dentiste):
+    patient = _patient(db, dentiste, "FAILED")
+    _identity, access = _access(db, dentiste, patient)
+    row = _session(db, dentiste, patient, access)
+    mark_joined(row, "PATIENT")
+    add_signal(
+        db, row,
+        sender_kind="STAFF",
+        sender_user_id=dentiste.id,
+        client_signal_id=str(uuid.uuid4()),
+        signal_type="offer",
+        payload={"type": "offer", "sdp": "v=0"},
+    )
+
+    result = handle_teleconsult_failed(
+        db,
+        access,
+        {"session_id": row.public_id, "failure_code": "PEER_CONNECTION_FAILED"},
+    )
+    assert result.status == "ACCEPTED"
+    assert result.response["code"] == "SESSION_FAILED"
+    assert row.state == "FAILED"
+    assert row.failure_code == "PEER_CONNECTION_FAILED"
+    assert row.ended_by == "PATIENT"
+    assert row.ended_at is not None
+    assert db.query(PatientCompanionTeleconsultSignal).filter(
+        PatientCompanionTeleconsultSignal.session_id == row.id
+    ).count() == 0
+
+
+def test_pc09_unknown_failure_code_is_rejected(db, dentiste):
+    patient = _patient(db, dentiste, "BADFAIL")
+    _identity, access = _access(db, dentiste, patient)
+    row = _session(db, dentiste, patient, access)
+
+    result = handle_teleconsult_failed(
+        db,
+        access,
+        {"session_id": row.public_id, "failure_code": "ARBITRARY_CLIENT_TEXT"},
+    )
+    assert result.status == "REJECTED"
+    assert result.response["code"] == "INVALID_FAILURE_CODE"
+    assert row.state == "WAITING_PATIENT"
+    assert row.failure_code is None
 
 
 def test_pc09_connected_requires_both_real_peer_reports(db, dentiste):
