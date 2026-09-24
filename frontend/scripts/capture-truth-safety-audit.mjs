@@ -178,8 +178,17 @@ try {
       }
 
       const path=`${out}/${scenario}-${width}x${height}.png`;
-      await page.screenshot({path,fullPage:true,animations:'disabled'});
-      evidence.push({scenario,viewport:{width,height},phase,deletes:deletes.length,horizontalOverflow,path});
+      let screenshotBytes=0;
+      for(let attempt=0;attempt<3;attempt+=1){
+        const png=await page.screenshot({path,fullPage:true,animations:'disabled'});
+        screenshotBytes=png.length;
+        if(screenshotBytes>=10000) break;
+        await page.waitForTimeout(250);
+      }
+      if(screenshotBytes<10000) {
+        throw new Error(`${scenario} screenshot appears blank (${screenshotBytes} bytes) at ${width}x${height} phase=${phase}`);
+      }
+      evidence.push({scenario,viewport:{width,height},phase,deletes:deletes.length,horizontalOverflow,path,screenshotBytes});
       await context.close();
     }
   }
