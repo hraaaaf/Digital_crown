@@ -317,19 +317,19 @@ for(const viewport of viewports){
   }
 
   // Pending actions: ACK then refetched UI consequence.
-  const requestCard=page.locator('div.border-2').filter({hasText:'Pending Browser'}).first();
+  const requestCard=page.getByRole('heading',{name:'Pending Browser',exact:true}).locator('xpath=ancestor::div[contains(@class,"border-2")][1]');
   await requestCard.getByRole('button',{name:'Demander confirmation',exact:true}).click();
   await page.getByText(/Message template copié/i).waitFor({state:'visible',timeout:10000});
   if(requestConfirmCalls!==1 || pendingRequests.find(r=>r.id===7001)?.status!=='EN_ATTENTE_CONFIRM') throw new Error('pending request-confirmation mismatch');
   prove(viewport,'agenda-pending-request-confirmation',{requestConfirmCalls});
 
-  const confirmCard=page.locator('div.border-2').filter({hasText:'Pending Confirm'}).first();
+  const confirmCard=page.getByRole('heading',{name:'Pending Confirm',exact:true}).locator('xpath=ancestor::div[contains(@class,"border-2")][1]');
   await confirmCard.getByRole('button',{name:'Confirmer',exact:true}).click();
   await page.getByText('Pending Confirm',{exact:true}).waitFor({state:'detached',timeout:10000});
   if(confirmPendingCalls!==1 || pendingRequests.some(r=>r.id===7002)) throw new Error('pending confirm mismatch');
   prove(viewport,'agenda-pending-confirm',{confirmPendingCalls});
 
-  const rejectCard=page.locator('div.border-2').filter({hasText:'Pending Reject'}).first();
+  const rejectCard=page.getByRole('heading',{name:'Pending Reject',exact:true}).locator('xpath=ancestor::div[contains(@class,"border-2")][1]');
   page.once('dialog',d=>d.accept());
   await rejectCard.getByRole('button',{name:'Refuser',exact:true}).click();
   await page.getByText('Pending Reject',{exact:true}).waitFor({state:'detached',timeout:10000});
