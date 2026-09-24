@@ -424,7 +424,7 @@ for(const viewport of viewports){
       created_at:'2030-01-15T09:05:00Z'
     }
   ];
-  await page.route('**/api/mobile/notifications',route=>route.fulfill({
+  await page.route(/\/api\/mobile\/notifications\/?(?:\?.*)?$/,route=>route.fulfill({
     status:200,
     contentType:'application/json',
     body:JSON.stringify({total:notificationFixture.length,alerts:notificationFixture})
