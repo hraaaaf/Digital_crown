@@ -799,7 +799,9 @@ for(const viewport of viewports){
 
   await sciSearch.fill('Ultrasonic');
   await page.getByText('Ultrasonic vs Sonic Activation of Sodium Hypochlorite',{exact:true}).waitFor({state:'visible',timeout:5000});
-  if(await page.getByText('Root Resorption in Clear Aligner Therapy vs Fixed Appliances',{exact:true}).count()) throw new Error('science title search leaked unrelated article');
+  const unrelatedScienceArticle=page.getByText('Root Resorption in Clear Aligner Therapy vs Fixed Appliances',{exact:true});
+  await unrelatedScienceArticle.waitFor({state:'detached',timeout:5000});
+  if(await unrelatedScienceArticle.count()) throw new Error('science title search leaked unrelated article after exit animation');
   prove(viewport,'science-hub-title-search');
 
   await sciSearch.fill('Zanza');
