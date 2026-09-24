@@ -303,13 +303,12 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
- await dossierInput.fill('G2-BROWSER-NEW');
- await birthInput.fill('1990-01-01');
- await sexInput.selectOption('F');
-
  await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
  }));
+ await dossierInput.fill('G2-BROWSER-NEW');
+ await birthInput.fill('1990-01-01');
+ await sexInput.selectOption('F');
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
  }));

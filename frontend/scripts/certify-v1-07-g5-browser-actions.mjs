@@ -435,7 +435,7 @@ for(const viewport of viewports){
 
   await page.getByRole('button',{name:'Site Web',exact:true}).click();
   await page.getByPlaceholder('https://cabinet.ma').fill('https://g5-browser.example');
-  await page.getByPlaceholder('Ex: Prenez RDV').fill('G5 Browser');
+  await page.getByPlaceholder('Ex: Prenez RDV').filter({visible:true}).first().fill('G5 Browser');
   const positionSlider=page.getByRole('slider',{name:'Position verticale du contenu'});
   await positionSlider.evaluate(el=>{
     const input=el;
