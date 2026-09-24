@@ -396,7 +396,7 @@ for(const viewport of viewports){
   let sharedBrandingSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await sharedBrandingSave.waitFor({state:'visible',timeout:5000});
   await sharedBrandingSave.click();
-  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
   let brandingCheck=await api.get('/api/clinics/me',{headers});
   let brandingBody=await brandingCheck.json();
   if(brandingBody.selected_theme!=='graphite' || brandingBody.selected_template!=='swiss' || brandingBody.font_fr!=='inter'){

@@ -329,7 +329,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       const payload = {
         patient_id: selectedPatient?.id || null,
         patient_name: selectedPatient ? `${selectedPatient.nom} ${selectedPatient.prenom}` : patientSearch,
-        motif: selectedAct ? selectedAct.name : (motif || actSearch),
+        motif: selectedAct ? selectedAct.name : (actSearch || motif),
         datetime_start: startDateTime.toISOString(),
         duration_minutes: duration,
         status: status,

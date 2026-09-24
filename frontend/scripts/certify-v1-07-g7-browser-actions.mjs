@@ -437,7 +437,7 @@ for(const viewport of viewports){
 
   await adminPage.goto('http://127.0.0.1:5173/approvisionnement/admin',{waitUntil:'networkidle',timeout:90000});
   if(!adminPage.url().includes('/approvisionnement/admin')) throw new Error('partner admin redirected despite superadmin fixture');
-  await adminPage.getByText('Atlas Dental',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  await adminPage.locator('body').getByText('Atlas Dental',{exact:true}).filter({visible:true}).first().waitFor({state:'visible',timeout:10000});
   await adminPage.getByText('CMD-055',{exact:true}).waitFor({state:'visible',timeout:10000});
   prove(viewport,'partner-admin-canonical-load');
 

@@ -224,11 +224,12 @@ for(const viewport of viewports){
     if(row.internal_notes!=='G6 browser certification note') throw new Error('notes ACK not persisted');
     prove(viewport,'superadmin-notes-persistence');
 
-    const restore=await api.patch('/api/superadmin/clients/'+target.id+'/notes',{headers,data:{internal_notes:originalNotes}});
+    const restoreValue=originalNotes??'';
+    const restore=await api.patch('/api/superadmin/clients/'+target.id+'/notes',{headers,data:{internal_notes:restoreValue}});
     if(!restore.ok()) throw new Error('notes fixture restore failed');
     verify=await api.get('/api/superadmin/clients',{headers});
     row=(await verify.json()).find(x=>x.id===target.id);
-    if((row.internal_notes??null)!==originalNotes) throw new Error('notes fixture restore mismatch');
+    if((row.internal_notes||null)!==(originalNotes||null)) throw new Error('notes fixture restore mismatch');
     prove(viewport,'superadmin-notes-fixture-restored');
     await page.reload({waitUntil:'networkidle',timeout:90000});
     await page.getByText('Dr T2 Browser',{exact:true}).waitFor({state:'visible',timeout:10000});
