@@ -318,9 +318,16 @@ for(const viewport of viewports){
  if(browserDossierProbe.status!==200 || browserDossierProbe.body?.exists!==false){
    throw new Error('browser dossier availability probe mismatch '+JSON.stringify(browserDossierProbe));
  }
+ await page.waitForFunction(
+   ()=>((document.querySelector('input[name="numero_dossier"]')?.value||'').trim().length>=2),
+   null,
+   {timeout:10000}
+ );
+ const initialDossierValue=await dossierInput.inputValue();
+ if(!initialDossierValue) throw new Error('initial auto dossier number missing before replacement');
  await dossierInput.fill('');
  await dossierInput.pressSequentially('G2-BROWSER-NEW',{delay:20});
- if((await dossierInput.inputValue())!=='G2-BROWSER-NEW') throw new Error('dossier sequential input mismatch');
+ if((await dossierInput.inputValue())!=='G2-BROWSER-NEW') throw new Error('dossier sequential input mismatch after initial auto-number settled');
  await page.getByText(/Numéro disponible/i).waitFor({state:'visible',timeout:10000});
  await page.waitForFunction(
    ()=>document.querySelector('input[name="numero_dossier"]')?.classList.contains('border-emerald-400')===true,
