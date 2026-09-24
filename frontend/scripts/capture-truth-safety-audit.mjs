@@ -63,7 +63,7 @@ try {
 
         if (url.pathname.endsWith('/stock/items/1') && req.method()==='DELETE') {
           deletes.push(url.pathname);
-          return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"delete refused"}'});
+          return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Suppression refusée"}'});
         }
 
         return route.fulfill({status:200,contentType:'application/json',body:'{}'});

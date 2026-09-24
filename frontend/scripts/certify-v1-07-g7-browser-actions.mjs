@@ -757,8 +757,11 @@ for(const viewport of viewports){
   prove(viewport,'library-soin-mode-open-close');
 
   // Close detail then command palette via button and keyboard.
-  await page.getByTitle('Fermer (Esc)').click();
-  await page.waitForURL('**/bibliotheque',{timeout:5000});
+  const closeProtocolButton=page.getByTitle('Fermer (Esc)');
+  await closeProtocolButton.click();
+  await closeProtocolButton.waitFor({state:'detached',timeout:5000});
+  await page.waitForFunction(()=>location.pathname==='/bibliotheque',null,{timeout:5000});
+  if(new URL(page.url()).pathname!=='/bibliotheque') throw new Error('library close did not return to root');
   await page.getByRole('button',{name:/Rechercher/i}).first().click();
   let cmd=page.getByPlaceholder('Rechercher un protocole ou une spécialité...');
   await cmd.waitFor({state:'visible',timeout:5000});

@@ -303,7 +303,16 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
+ const dossierAvailabilityPromise=page.waitForResponse(
+   r=>r.request().method()==='GET' && r.url().includes('/api/patients/check-dossier/G2-BROWSER-NEW'),
+   {timeout:10000},
+ );
  await dossierInput.fill('G2-BROWSER-NEW');
+ const dossierAvailabilityResponse=await dossierAvailabilityPromise;
+ if(!dossierAvailabilityResponse.ok()) throw new Error('dossier availability HTTP '+dossierAvailabilityResponse.status());
+ const dossierAvailabilityBody=await dossierAvailabilityResponse.json();
+ if(dossierAvailabilityBody.exists!==false) throw new Error('dossier availability backend truth mismatch');
+ if((await dossierInput.inputValue())!=='G2-BROWSER-NEW') throw new Error('dossier input value drifted after backend availability check');
  await birthInput.fill('1990-01-01');
  await sexInput.selectOption('F');
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({

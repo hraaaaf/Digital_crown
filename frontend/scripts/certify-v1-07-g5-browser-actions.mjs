@@ -703,7 +703,7 @@ for(const viewport of viewports){
   const practitionerExceptions=new Map([[7,[]],[8,[]]]);
   let practitionerPutCalls=0,practitionerResetCalls=0,practitionerAbsencePostCalls=0,practitionerAbsenceDeleteCalls=0;
   let failPractitionerSettingsId=null;
-  await page.route('**/api/agenda/practitioners*',async route=>{
+  await page.route(/\/api\/agenda\/practitioners(?:\/.*)?(?:\?.*)?$/,async route=>{
     const req=route.request();
     const method=req.method();
     const path=new URL(req.url()).pathname;
