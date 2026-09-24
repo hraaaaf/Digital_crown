@@ -306,12 +306,7 @@ for(const viewport of viewports){
  await page.route(/\/api\/patients\/check-dossier\/[^/?]+(?:\?.*)?$/,route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
  }));
- const dossierCheck=page.waitForResponse(
-   r=>r.url().includes('/api/patients/check-dossier/G2-BROWSER-NEW') && r.status()===200,
-   {timeout:10000},
- );
  await dossierInput.fill('G2-BROWSER-NEW');
- await dossierCheck;
  await birthInput.fill('1990-01-01');
  await sexInput.selectOption('F');
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({

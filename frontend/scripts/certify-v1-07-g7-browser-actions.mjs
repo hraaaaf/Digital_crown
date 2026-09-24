@@ -511,7 +511,7 @@ for(const viewport of viewports){
   const orderSelect=orderCard.locator('select').first();
   const orderNumber=orderCard.locator('input[type="number"]').first();
   const orderTexts=orderCard.locator('input[type="text"]');
-  const orderNote=orderCard.locator('textarea').first();
+  const orderNote=orderTexts.nth(1);
   await orderSelect.selectOption('CONFIRMED');
   await orderNumber.fill('750');
   await orderTexts.nth(0).fill('REF-77');

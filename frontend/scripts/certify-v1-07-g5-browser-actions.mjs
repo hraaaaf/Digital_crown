@@ -450,7 +450,7 @@ for(const viewport of viewports){
   let studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await studioSave.waitFor({state:'visible',timeout:5000});
   await studioSave.click();
-  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
   let studioCheck=await api.get('/api/clinics/me',{headers});
   let studioBody=await studioCheck.json();
   if(studioBody.qr_code_enabled!==true || studioBody.qr_code_type!=='WEBSITE' || studioBody.qr_code_value!=='https://g5-browser.example' || studioBody.qr_code_label!=='G5 Browser'){
