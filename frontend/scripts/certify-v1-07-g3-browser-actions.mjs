@@ -436,7 +436,7 @@ for(const viewport of viewports){
     status:503,contentType:'application/json',body:'{"detail":"Report refusé"}'
   }));
 
-  await page.goto('http://127.0.0.1:5173/mobile/g3-cert?tab=notifications',{waitUntil:'networkidle',timeout:90000});
+  await page.goto('http://127.0.0.1:5173/mobile/g3-cert?demo=1&tab=notifications',{waitUntil:'networkidle',timeout:90000});
   await page.getByText('Paiement en retard',{exact:true}).waitFor({state:'visible',timeout:10000});
   await page.getByText('Contrôle patient',{exact:true}).waitFor({state:'visible',timeout:10000});
 
@@ -479,7 +479,7 @@ for(const viewport of viewports){
     status:503,contentType:'application/json',body:'{"detail":"Transition refusée"}'
   }));
 
-  await page.goto('http://127.0.0.1:5173/mobile/g3-cert?tab=waiting-room',{waitUntil:'networkidle',timeout:90000});
+  await page.goto('http://127.0.0.1:5173/mobile/g3-cert?demo=1&tab=waiting-room',{waitUntil:'networkidle',timeout:90000});
   await page.getByLabel('2 patients en salle d’attente',{exact:true}).waitFor({state:'visible',timeout:5000});
 
   const sara=page.locator('[data-mob5i-waiting-patient="9101"]');
