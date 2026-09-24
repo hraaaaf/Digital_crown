@@ -1205,7 +1205,7 @@ for(const viewport of viewports){
     await page.getByRole('button',{name:'Performance & Assistance',exact:true}).click();
     await page.getByRole('button',{name:'Sécurité & Backup',exact:true}).click();
     await page.getByText('Options mobiles indisponibles',{exact:true}).waitFor({state:'visible',timeout:10000});
-    if(!(await targetSelect.isDisabled())) throw new Error('mobile target selector enabled during options read failure');
+    if(await targetSelect.count()) throw new Error('mobile target selector remained rendered during options read failure');
     failBridgeOptions=false;
     await page.getByText('Options mobiles indisponibles',{exact:true}).locator('xpath=ancestor::div[1]').getByRole('button',{name:'Réessayer',exact:true}).click();
     await targetSelect.waitFor({state:'visible',timeout:10000});

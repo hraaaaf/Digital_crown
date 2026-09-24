@@ -303,6 +303,9 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
+ await page.route('**/api/patients/check-dossier/G2-BROWSER-NEW',route=>route.fulfill({
+   status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
+ }));
  let dossierAvailabilityResponse=null;
  const dossierAvailabilityListener=r=>{
    if(r.request().method()==='GET' && r.url().includes('/api/patients/check-dossier/G2-BROWSER-NEW')) {
