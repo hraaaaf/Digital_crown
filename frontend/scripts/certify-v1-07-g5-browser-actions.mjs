@@ -761,7 +761,7 @@ for(const viewport of viewports){
     await page.getByRole('heading',{name:'Horaires & Agenda',exact:true}).waitFor({state:'visible',timeout:10000});
 
     // Successful persisted change.
-    await page.getByLabel('Lundi ouvert').click();
+    await page.getByRole('checkbox',{name:'Lundi ouvert',exact:true}).click();
     await page.getByText('Modifications non enregistrées',{exact:true}).waitFor({state:'visible',timeout:5000});
     await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
     await page.getByText('Horaires sauvegardés',{exact:true}).waitFor({state:'visible',timeout:10000});
@@ -771,7 +771,7 @@ for(const viewport of viewports){
     prove(viewport,'settings-agenda-save-success',{agendaPutAttempts,agendaPutAcks});
 
     // Local overlap validation must block the API completely.
-    await page.getByLabel('Lundi ouvert').click();
+    await page.getByRole('checkbox',{name:'Lundi ouvert',exact:true}).click();
     await page.getByLabel('Lundi fermeture matin').fill('15:00');
     await page.getByLabel('Lundi ouverture après-midi').fill('14:00');
     await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
@@ -782,7 +782,7 @@ for(const viewport of viewports){
     // Restore valid hours, then force backend refusal and prove dirty/non-mutation.
     await page.getByLabel('Lundi fermeture matin').fill('13:00');
     await page.getByLabel('Lundi ouverture après-midi').fill('14:00');
-    await page.getByLabel('Mardi ouvert').click();
+    await page.getByRole('checkbox',{name:'Mardi ouvert',exact:true}).click();
     failNextAgendaSave=true;
     await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
     await page.getByText(/Impossible d'enregistrer ces horaires/i).waitFor({state:'visible',timeout:5000});
@@ -793,7 +793,7 @@ for(const viewport of viewports){
     prove(viewport,'settings-agenda-backend-refusal-non-mutation',{agendaPutAttempts,agendaPutAcks});
 
     // Return UI to original schedule and persist it.
-    await page.getByLabel('Mardi ouvert').click();
+    await page.getByRole('checkbox',{name:'Mardi ouvert',exact:true}).click();
     await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
     await page.getByText('Horaires sauvegardés',{exact:true}).waitFor({state:'visible',timeout:10000});
     if(agendaSettings.weekly_schedule.monday.is_open!==true || agendaSettings.weekly_schedule.tuesday.is_open!==true){

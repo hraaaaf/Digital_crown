@@ -303,7 +303,7 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
- await page.route(/\/api\/patients\/check-dossier\/[^/?]+(?:\?.*)?$/,route=>route.fulfill({
+ await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
  }));
  await dossierInput.fill('G2-BROWSER-NEW');
@@ -353,7 +353,7 @@ for(const viewport of viewports){
 
  // Duplicate detection: opening existing dossier must not create a patient.
  await page.goto('http://127.0.0.1:5173/patients/new?nom=DUPLICATE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
- await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({available:true})}));
+ await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})}));
  let duplicateCreateCalls=0;
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({
@@ -386,7 +386,7 @@ for(const viewport of viewports){
 
  // Explicit force-create is the only duplicate path allowed to mutate.
  await page.goto('http://127.0.0.1:5173/patients/new?nom=FORCE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
- await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({available:true})}));
+ await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})}));
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({
      has_duplicate:true,

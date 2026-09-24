@@ -29,13 +29,9 @@ export const PartnerProductPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const [product, setProduct] = useState<PartnerProduct | null>(null);
   const [supplier, setSupplier] = useState<PartnerCatalogSupplier | null>(null);
-  const [cart, setCart] = useState<CartState>({});
+  const [cart, setCart] = useState<CartState>(() => readStoredCart());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-
-  useEffect(() => {
-    setCart(readStoredCart());
-  }, []);
 
   useEffect(() => {
     writeStoredCart(cart);
