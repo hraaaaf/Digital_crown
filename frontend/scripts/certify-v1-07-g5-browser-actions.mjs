@@ -1456,7 +1456,9 @@ for(const viewport of viewports){
     });
 
     await team.click();
-    await page.getByText('Active User',{exact:true}).waitFor({state:'visible',timeout:10000});
+    const activeMemberHeading=page.getByRole('heading',{name:/^Active User\b/i});
+    await activeMemberHeading.waitFor({state:'visible',timeout:10000});
+    await page.getByText('active@example.com',{exact:true}).waitFor({state:'visible',timeout:5000});
 
     // Create form auxiliary controls + role/permission semantics.
     await page.getByRole('button',{name:/Ajouter un membre/i}).click();
