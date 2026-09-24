@@ -1396,6 +1396,8 @@ for(const viewport of viewports){
       const path=url.pathname;
       const json=(status,body)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
 
+      if(method==='OPTIONS') return route.continue();
+
       if(method==='GET' && path==='/api/team/quota'){
         const pending=teamMembers.filter(m=>m.approval_status==='pending').length;
         return json(200,{plan:'ELITE',dentistes_used:1,dentistes_max:null,secretaires_used:teamMembers.length,secretaires_max:null,pending_count:pending,can_add_dentiste:true,can_add_secretaire:true});
