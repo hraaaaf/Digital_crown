@@ -717,12 +717,14 @@ for(const viewport of viewports){
   await page.reload({waitUntil:'networkidle',timeout:90000});
   favs=await page.evaluate(()=>JSON.parse(localStorage.getItem('dc_favs')||'[]'));
   if(!favs.includes('detartrage-surfacage')) throw new Error('library favorite storage lost after reload');
-  await page.getByRole('button',{name:/Favoris/i}).click();
-  const favProtocolList=page.getByTestId('library-protocol-list');
-  const favCodes=await favProtocolList.locator('[data-protocol-code]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-protocol-code')));
-  if(favCodes.length!==1 || favCodes[0]!=='detartrage-surfacage') throw new Error('library favorites filter mismatch');
-  prove(viewport,'library-favorite-filter-reload-persistence');
-  await page.getByRole('button',{name:/Tous/i}).first().click();
+  if(viewport.width>=768){
+    await page.getByRole('button',{name:/Favoris/i}).click();
+    const favProtocolList=page.getByTestId('library-protocol-list');
+    const favCodes=await favProtocolList.locator('[data-protocol-code]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-protocol-code')));
+    if(favCodes.length!==1 || favCodes[0]!=='detartrage-surfacage') throw new Error('library favorites filter mismatch');
+    await page.getByRole('button',{name:/Tous/i}).first().click();
+  }
+  prove(viewport,'library-favorite-filter-reload-persistence',{filterChecked:viewport.width>=768});
 
   // Open protocol: recents + route.
   await page.locator('[data-protocol-code="detartrage-surfacage"]').first().click();

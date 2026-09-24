@@ -303,9 +303,6 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
- await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
-   status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
- }));
  await dossierInput.fill('G2-BROWSER-NEW');
  await birthInput.fill('1990-01-01');
  await sexInput.selectOption('F');
@@ -346,14 +343,12 @@ for(const viewport of viewports){
  await page.waitForURL(new RegExp('/patients/'+createdId+'(?:\\?|$)'),{timeout:10000});
  if(createCalls!==1) throw new Error('patient create ACK count mismatch');
  pass(viewport,'patient-create-success-ack-navigation',{createdId,createCalls});
- await page.unroute('**/api/patients/check-dossier/*');
  await page.unroute('**/api/patients/check-duplicate*');
  await page.unroute('**/api/patients/');
  await page.unroute('**/api/patients/'+createdId);
 
  // Duplicate detection: opening existing dossier must not create a patient.
  await page.goto('http://127.0.0.1:5173/patients/new?nom=DUPLICATE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
- await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})}));
  let duplicateCreateCalls=0;
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({
@@ -382,11 +377,9 @@ for(const viewport of viewports){
  pass(viewport,'patient-duplicate-open-existing-non-mutation');
  await page.unroute('**/api/patients/**');
  await page.unroute('**/api/patients/check-duplicate*');
- await page.unroute('**/api/patients/check-dossier/*');
 
  // Explicit force-create is the only duplicate path allowed to mutate.
  await page.goto('http://127.0.0.1:5173/patients/new?nom=FORCE&prenom=Case',{waitUntil:'networkidle',timeout:90000});
- await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})}));
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({
      has_duplicate:true,
@@ -425,7 +418,6 @@ for(const viewport of viewports){
  await page.unroute('**/api/patients/'+forceCreatedId);
  await page.unroute('**/api/patients/?force_create=true');
  await page.unroute('**/api/patients/check-duplicate*');
- await page.unroute('**/api/patients/check-dossier/*');
 
  // Cancel from create form is navigation-only and must not call create.
  await page.goto('http://127.0.0.1:5173/patients/new',{waitUntil:'networkidle',timeout:90000});
