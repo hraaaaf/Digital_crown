@@ -308,7 +308,7 @@ for(const viewport of viewports){
  await sexInput.selectOption('F');
 
  await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
-   status:200,contentType:'application/json',body:JSON.stringify({available:true})
+   status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
  }));
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})

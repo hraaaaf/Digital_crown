@@ -117,7 +117,7 @@ jobs:
             for(const label of ['Vue d’ensemble','Clinique','Imagerie','Documents','Finances']){
               const tab=patientTabs.getByText(label,{exact:true});
               if(await tab.count()===0) throw new Error(`main tab missing: ${label} @ ${viewport.width}`);
-              await tab.first().scrollIntoViewIfNeeded();
+              await tab.first().evaluate(el=>el.scrollIntoView({block:'nearest',inline:'nearest'}));
               if(!await tab.first().isVisible()) throw new Error(`main tab not reachable: ${label} @ ${viewport.width}`);
             }
             for(const bad of ['Radiologie (IA)','Documents A5','Archives & Historique']){

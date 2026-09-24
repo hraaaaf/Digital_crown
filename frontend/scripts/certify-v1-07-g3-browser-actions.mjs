@@ -261,7 +261,7 @@ for(const viewport of viewports){
   if(!persisted || persisted.motif!==updatedMotif) throw new Error('edited appointment not persisted');
   prove(viewport,'agenda-edit-success-persistence',{appointmentId:persisted.id});
 
-  const updatedItem=page.locator('.appointment-item').filter({hasText:uniquePatient}).first();
+  const updatedItem=page.locator('.appointment-item').filter({hasText:uniquePatient}).filter({visible:true}).first();
   await updatedItem.waitFor({state:'visible',timeout:10000});
   await updatedItem.click();
   const deleteSuccessDialog=page.getByRole('dialog',{name:'Modifier le Rendez-vous'});

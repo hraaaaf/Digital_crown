@@ -406,11 +406,11 @@ for(const viewport of viewports){
 
   // Reset requires explicit confirmation and persists Royal preset.
   page.once('dialog',dialog=>dialog.accept());
-  await page.getByRole('button',{name:/Réinitialiser/i}).click();
+  await page.getByRole('button',{name:'↺ Réinitialiser',exact:true}).click();
   sharedBrandingSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await sharedBrandingSave.waitFor({state:'visible',timeout:5000});
   await sharedBrandingSave.click();
-  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
   brandingCheck=await api.get('/api/clinics/me',{headers});
   brandingBody=await brandingCheck.json();
   if(brandingBody.selected_theme!=='elite' || brandingBody.selected_template!=='royal' || brandingBody.font_fr!=='playfair'){
