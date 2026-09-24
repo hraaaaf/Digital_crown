@@ -1497,7 +1497,7 @@ for(const viewport of viewports){
     }
     const activeEmail=teamPage.getByText('active@example.com',{exact:true});
     await activeEmail.waitFor({state:'visible',timeout:10000});
-    await teamPage.locator('h4').filter({hasText:'Active User'}).waitFor({state:'visible',timeout:5000});
+    await teamPage.locator('h4').filter({hasText:/^\s*Active User(?:\s|$)/}).waitFor({state:'visible',timeout:5000});
 
     // Create form auxiliary controls + role/permission semantics.
     await teamPage.getByRole('button',{name:/Ajouter un membre/i}).click();
@@ -1540,8 +1540,9 @@ for(const viewport of viewports){
     }
     prove(viewport,'settings-team-create',{teamCreateCalls,role:createdMember.role});
 
-    const pendingCard=name=>teamPage.locator('h4').filter({hasText:name}).locator('xpath=ancestor::div[.//button[normalize-space()="Valider"]][1]');
-    const memberCard=name=>teamPage.locator('h4').filter({hasText:name}).locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " group ")][1]');
+    const headingFor=name=>teamPage.locator('h4').filter({hasText:new RegExp('^\\s*'+name+'(?:\\s|$)')});
+    const pendingCard=name=>headingFor(name).locator('xpath=ancestor::div[.//button[normalize-space()="Valider"]][1]');
+    const memberCard=name=>headingFor(name).locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " group ")][1]');
 
     // Approve pending identity
     await pendingCard('Pending Approve').getByRole('button',{name:'Valider',exact:true}).click();

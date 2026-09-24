@@ -393,6 +393,8 @@ for(const viewport of viewports){
    })
  }));
  await page.route('**/api/patients/**',async route=>{
+   const path=new URL(route.request().url()).pathname;
+   if(path.endsWith('/patients/check-duplicate')) return route.fallback();
    if(route.request().method()==='POST'){
      duplicateCreateCalls+=1;
      return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({detail:'unexpected create'})});
