@@ -470,12 +470,22 @@ for(const viewport of viewports){
 
   qrToggle=page.getByRole('button',{name:'Désactiver le code QR',exact:true});
   await qrToggle.click();
+  await page.getByRole('button',{name:'Activer le code QR',exact:true}).waitFor({state:'visible',timeout:5000});
   studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
+  await studioSave.waitFor({state:'visible',timeout:5000});
+  const qrDisableAck=page.waitForResponse(response=>{
+    const req=response.request();
+    return req.method()==='PUT' && new URL(response.url()).pathname==='/api/clinics/me';
+  },{timeout:10000});
   await studioSave.click();
-  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  const qrDisableResponse=await qrDisableAck;
+  if(!qrDisableResponse.ok()) throw new Error('branding QR disable save was not ACKed');
+  const qrDisablePayload=qrDisableResponse.request().postDataJSON();
+  if(qrDisablePayload.qr_code_enabled!==false) throw new Error('branding QR disable payload did not carry false');
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
   studioCheck=await api.get('/api/clinics/me',{headers});
   studioBody=await studioCheck.json();
-  if(studioBody.qr_code_enabled!==false) throw new Error('branding QR disable did not persist');
+  if(studioBody.qr_code_enabled!==false) throw new Error('branding QR disable did not persist after ACK');
   prove(viewport,'settings-branding-qr-disable');
 
   // Restore original backend branding fixture.
