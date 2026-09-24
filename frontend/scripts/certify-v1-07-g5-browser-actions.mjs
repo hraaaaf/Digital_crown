@@ -1217,12 +1217,16 @@ for(const viewport of viewports){
     const actionFilter=page.getByRole('combobox',{name:'Filtrer le journal par action'});
     const severityFilter=page.getByRole('combobox',{name:'Filtrer le journal par sévérité'});
     await actionFilter.selectOption('DELETE');
-    await page.getByText('Suppression',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+    let filteredAuditEntry=page.locator('article').filter({hasText:'DELETE'}).first();
+    await filteredAuditEntry.waitFor({state:'visible',timeout:10000});
+    await filteredAuditEntry.getByText('Suppression',{exact:true}).waitFor({state:'visible',timeout:5000});
     if(!auditCalls.some(x=>x.action==='DELETE')) throw new Error('audit action filter did not reach backend query');
     prove(viewport,'settings-audit-action-filter');
 
     await severityFilter.selectOption('WARNING');
-    await page.getByText('Attention',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+    filteredAuditEntry=page.locator('article').filter({hasText:'DELETE'}).first();
+    await filteredAuditEntry.waitFor({state:'visible',timeout:10000});
+    await filteredAuditEntry.getByText('Attention',{exact:true}).waitFor({state:'visible',timeout:5000});
     if(!auditCalls.some(x=>x.action==='DELETE'&&x.severity==='WARNING')) throw new Error('audit severity filter did not compose with action filter');
     prove(viewport,'settings-audit-severity-filter');
 

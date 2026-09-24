@@ -67,7 +67,7 @@ async function seedInsight() {
       }],
     });
   });
-  await screen.findByRole('button', { name: /Marquer comme lu/i });
+  await screen.findByRole('button', { name: /^Marquer comme lu$/i });
 }
 
 describe('CrownBot G9 reachable interaction truth', () => {
@@ -94,13 +94,13 @@ describe('CrownBot G9 reachable interaction truth', () => {
     await waitFor(() => expect(onUnreadChange).toHaveBeenLastCalledWith(1));
 
     postMock.mockRejectedValueOnce(new Error('read refused'));
-    fireEvent.click(screen.getByRole('button', { name: /Marquer comme lu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/501/read');
     });
 
-    expect(screen.getByRole('button', { name: /Marquer comme lu/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
     expect(onUnreadChange).toHaveBeenLastCalledWith(1);
   });
 
@@ -108,10 +108,10 @@ describe('CrownBot G9 reachable interaction truth', () => {
     const onUnreadChange = renderCrownBot();
     await seedInsight();
 
-    fireEvent.click(screen.getByRole('button', { name: /Marquer comme lu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /Marquer comme lu/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
     });
     expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/501/read');
     expect(onUnreadChange).toHaveBeenLastCalledWith(0);
