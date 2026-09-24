@@ -236,7 +236,7 @@ for(const viewport of viewports){
   if(!persisted) throw new Error('created appointment not persisted in backend');
   prove(viewport,'agenda-create-success-persistence',{appointmentId:persisted.id});
 
-  const createdItem=page.getByText(uniquePatient,{exact:true}).first();
+  const createdItem=page.getByText(uniquePatient,{exact:true}).filter({visible:true}).first();
   await createdItem.waitFor({state:'visible',timeout:10000});
   await createdItem.click();
   const persistedEditDialog=page.getByRole('dialog',{name:'Modifier le Rendez-vous'});
