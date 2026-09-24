@@ -1401,7 +1401,14 @@ for(const viewport of viewports){
     let teamReadCalls=0,quotaReadCalls=0;
     let failNextStatus=false,failTeamRead=false;
 
-    await teamPage.route('**/api/team**',async route=>{
+    const teamRoutePattern=/\/api\/team(?:\/[^?]*)?(?:\?.*)?$/;
+    const observedTeamRequests=[];
+    teamPage.on('request',req=>{
+      try{
+        if(new URL(req.url()).pathname.startsWith('/api/team')) observedTeamRequests.push(req.method()+' '+req.url());
+      }catch{}
+    });
+    await ctx.route(teamRoutePattern,async route=>{
       const req=route.request();
       const method=req.method();
       const url=new URL(req.url());
@@ -1481,11 +1488,12 @@ for(const viewport of viewports){
     const team=teamPage.getByRole('button',{name:'Mon Équipe',exact:true});
     await team.waitFor({state:'visible',timeout:10000});
     await team.click();
+    await teamPage.locator('.settings-team-surface').waitFor({state:'visible',timeout:5000});
     for(let i=0;i<100 && (teamReadCalls<2 || quotaReadCalls<2);i+=1){
       await teamPage.waitForTimeout(50);
     }
     if(teamReadCalls<2 || quotaReadCalls<2){
-      throw new Error(`team read contract incomplete: members=${teamReadCalls}, quota=${quotaReadCalls}`);
+      throw new Error(`team read contract incomplete: members=${teamReadCalls}, quota=${quotaReadCalls}, observed=${JSON.stringify(observedTeamRequests)}`);
     }
     const activeEmail=teamPage.getByText('active@example.com',{exact:true});
     await activeEmail.waitFor({state:'visible',timeout:10000});
@@ -1633,7 +1641,7 @@ for(const viewport of viewports){
     await teamPage.getByText('Active User',{exact:true}).waitFor({state:'visible',timeout:10000});
     prove(viewport,'settings-team-read-retry');
 
-    await teamPage.unroute('**/api/team**');
+    await ctx.unroute(teamRoutePattern);
   }
   await teamPage.close();
 

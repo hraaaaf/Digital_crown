@@ -307,8 +307,21 @@ for(const viewport of viewports){
  if(!dossierPrecheck.ok()) throw new Error('dossier availability precheck HTTP '+dossierPrecheck.status());
  const dossierPrecheckBody=await dossierPrecheck.json();
  if(dossierPrecheckBody.exists!==false) throw new Error('dossier availability precheck expected exists=false');
- await dossierInput.fill('G2-BROWSER-NEW');
- await page.getByText('Numéro disponible',{exact:true}).waitFor({state:'visible',timeout:10000});
+ const browserDossierProbe=await page.evaluate(async()=>{
+   const token=localStorage.getItem('token');
+   const response=await fetch('http://127.0.0.1:8005/api/patients/check-dossier/G2-BROWSER-NEW',{
+     headers:{Authorization:'Bearer '+token}
+   });
+   const body=await response.json().catch(()=>null);
+   return {status:response.status,body};
+ });
+ if(browserDossierProbe.status!==200 || browserDossierProbe.body?.exists!==false){
+   throw new Error('browser dossier availability probe mismatch '+JSON.stringify(browserDossierProbe));
+ }
+ await dossierInput.fill('');
+ await dossierInput.pressSequentially('G2-BROWSER-NEW',{delay:20});
+ if((await dossierInput.inputValue())!=='G2-BROWSER-NEW') throw new Error('dossier sequential input mismatch');
+ await page.getByText(/Numéro disponible/i).waitFor({state:'visible',timeout:10000});
  await page.waitForFunction(
    ()=>document.querySelector('input[name="numero_dossier"]')?.classList.contains('border-emerald-400')===true,
    null,
