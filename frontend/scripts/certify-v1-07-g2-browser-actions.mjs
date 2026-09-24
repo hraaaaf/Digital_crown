@@ -303,24 +303,34 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
- await page.route('**/api/patients/check-dossier/G2-BROWSER-NEW',route=>route.fulfill({
-   status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
- }));
- let dossierAvailabilityResponse=null;
- const dossierAvailabilityListener=r=>{
-   if(r.request().method()==='GET' && r.url().includes('/api/patients/check-dossier/G2-BROWSER-NEW')) {
-     dossierAvailabilityResponse=r;
+ await page.route('**/api/patients/check-dossier/*',async route=>{
+   const req=route.request();
+   const pathname=decodeURIComponent(new URL(req.url()).pathname);
+   if(req.method()==='GET' && pathname.endsWith('/api/patients/check-dossier/G2-BROWSER-NEW')) {
+     return route.fulfill({
+       status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
+     });
    }
- };
- page.on('response',dossierAvailabilityListener);
+   return route.continue();
+ });
+ const dossierAvailabilityResponsePromise=page.waitForResponse(r=>{
+   const pathname=decodeURIComponent(new URL(r.url()).pathname);
+   return r.request().method()==='GET' && pathname.endsWith('/api/patients/check-dossier/G2-BROWSER-NEW');
+ });
  await dossierInput.fill('G2-BROWSER-NEW');
- await page.getByText('Numéro disponible',{exact:true}).waitFor({state:'visible',timeout:10000});
- page.off('response',dossierAvailabilityListener);
- if(!dossierAvailabilityResponse) throw new Error('dossier availability browser GET not observed');
+ const dossierAvailabilityResponse=await dossierAvailabilityResponsePromise;
  if(!dossierAvailabilityResponse.ok()) throw new Error('dossier availability HTTP '+dossierAvailabilityResponse.status());
  const dossierAvailabilityBody=await dossierAvailabilityResponse.json();
  if(dossierAvailabilityBody.exists!==false) throw new Error('dossier availability backend truth mismatch');
+ await page.waitForFunction(
+   ()=>document.querySelector('input[name="numero_dossier"]')?.classList.contains('border-emerald-400')===true,
+   null,
+   {timeout:10000}
+ );
+ const availabilityTruth=page.locator('p.text-emerald-600').filter({hasText:'Numéro disponible'});
+ if(await availabilityTruth.count()!==1) throw new Error('dossier availability visible truth missing after backend ACK');
  if((await dossierInput.inputValue())!=='G2-BROWSER-NEW') throw new Error('dossier input value drifted after backend availability check');
+ await page.unroute('**/api/patients/check-dossier/*');
  await birthInput.fill('1990-01-01');
  await sexInput.selectOption('F');
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
