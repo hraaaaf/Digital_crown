@@ -1470,6 +1470,9 @@ for(const viewport of viewports){
       return json(500,{detail:'unexpected G5 team request '+method+' '+path});
     });
 
+    const performanceTab=page.getByRole('button',{name:'Performance & Assistance',exact:true});
+    await performanceTab.click();
+    await page.locator('.settings-team-surface').waitFor({state:'detached',timeout:5000});
     await team.click();
     for(let i=0;i<100 && (teamReadCalls<2 || quotaReadCalls<2);i+=1){
       await page.waitForTimeout(50);
