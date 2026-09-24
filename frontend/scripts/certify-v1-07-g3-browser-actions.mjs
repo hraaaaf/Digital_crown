@@ -386,7 +386,7 @@ for(const viewport of viewports){
     const importedList=await (await api.get('/api/appointments/',{headers})).json();
     const imported=importedList.find(x=>x.patient_name===importName);
     if(!imported) throw new Error('agenda ICS import not persisted');
-    await page.locator('.appointment-item').filter({hasText:importName}).first().waitFor({state:'visible',timeout:10000});
+    await page.getByText(importName,{exact:true}).filter({visible:true}).first().waitFor({state:'visible',timeout:10000});
     prove(viewport,'agenda-import-success-persistence-visible',{appointmentId:imported.id});
 
     const cleanup=await api.delete('/api/appointments/'+imported.id,{headers});
