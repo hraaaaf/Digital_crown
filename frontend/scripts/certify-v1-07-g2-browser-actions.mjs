@@ -303,25 +303,33 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
+ let dossierAvailabilityCalls=0;
  await page.route('**/api/patients/check-dossier/*',async route=>{
    const req=route.request();
    const pathname=decodeURIComponent(new URL(req.url()).pathname);
+   const corsHeaders={
+     'access-control-allow-origin':'http://127.0.0.1:5173',
+     'access-control-allow-credentials':'true',
+     'access-control-allow-headers':'authorization,content-type',
+     'access-control-allow-methods':'GET,OPTIONS'
+   };
+   if(req.method()==='OPTIONS') {
+     return route.fulfill({status:204,headers:corsHeaders,body:''});
+   }
    if(req.method()==='GET' && pathname.endsWith('/api/patients/check-dossier/G2-BROWSER-NEW')) {
+     dossierAvailabilityCalls+=1;
      return route.fulfill({
-       status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
+       status:200,
+       contentType:'application/json',
+       headers:corsHeaders,
+       body:JSON.stringify({exists:false,patient_name:null})
      });
    }
    return route.continue();
  });
- const dossierAvailabilityResponsePromise=page.waitForResponse(r=>{
-   const pathname=decodeURIComponent(new URL(r.url()).pathname);
-   return r.request().method()==='GET' && pathname.endsWith('/api/patients/check-dossier/G2-BROWSER-NEW');
- });
  await dossierInput.fill('G2-BROWSER-NEW');
- const dossierAvailabilityResponse=await dossierAvailabilityResponsePromise;
- if(!dossierAvailabilityResponse.ok()) throw new Error('dossier availability HTTP '+dossierAvailabilityResponse.status());
- const dossierAvailabilityBody=await dossierAvailabilityResponse.json();
- if(dossierAvailabilityBody.exists!==false) throw new Error('dossier availability backend truth mismatch');
+ for(let i=0;i<60 && dossierAvailabilityCalls<1;i+=1) await page.waitForTimeout(50);
+ if(dossierAvailabilityCalls<1) throw new Error('dossier availability GET was not observed');
  await page.waitForFunction(
    ()=>document.querySelector('input[name="numero_dossier"]')?.classList.contains('border-emerald-400')===true,
    null,
