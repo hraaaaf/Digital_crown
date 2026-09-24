@@ -99,7 +99,7 @@ try {
         await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:15000});
         await page.getByTitle('Supprimer').click();
         if (phase==='before') {
-          await page.waitForTimeout(150);
+          for(let i=0;i<30 && deletes.length<1;i+=1) await page.waitForTimeout(50);
           if (await page.getByRole('dialog',{name:'Supprimer cet article ?'}).count()) throw new Error('Unexpected delete dialog in BEFORE');
           if (deletes.length!==1) throw new Error(`BEFORE expected immediate DELETE dispatch, got ${deletes.length}`);
         } else {
@@ -138,7 +138,7 @@ try {
         await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:15000});
         await page.getByTitle('Supprimer').click();
         if (phase==='before') {
-          await page.waitForTimeout(150);
+          for(let i=0;i<30 && deletes.length<1;i+=1) await page.waitForTimeout(50);
           if (await page.getByRole('dialog',{name:'Supprimer cet article ?'}).count()) throw new Error('Unexpected refusal dialog in BEFORE');
           if (deletes.length!==1) throw new Error(`BEFORE expected immediate refused DELETE, got ${deletes.length}`);
         } else {
