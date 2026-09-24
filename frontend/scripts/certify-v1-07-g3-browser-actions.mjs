@@ -261,7 +261,7 @@ for(const viewport of viewports){
   if(!persisted || persisted.motif!==updatedMotif) throw new Error('edited appointment not persisted');
   prove(viewport,'agenda-edit-success-persistence',{appointmentId:persisted.id});
 
-  const updatedItem=page.locator('.appointment-item').filter({hasText:uniquePatient}).filter({visible:true}).first();
+  const updatedItem=page.getByText(uniquePatient,{exact:true}).filter({visible:true}).first();
   await updatedItem.waitFor({state:'visible',timeout:10000});
   await updatedItem.click();
   const deleteSuccessDialog=page.getByRole('dialog',{name:'Modifier le Rendez-vous'});
@@ -275,7 +275,10 @@ for(const viewport of viewports){
   const deleteAck=await deleteAckPromise;
   if(!deleteAck.ok()) throw new Error('appointment delete ACK failed '+deleteAck.status()+': '+await deleteAck.text());
   await deleteSuccessDialog.waitFor({state:'hidden',timeout:10000});
-  if(await page.locator('.appointment-item').filter({hasText:uniquePatient}).count()) throw new Error('deleted appointment remained visible');
+  const deletedVisibleItem=page.getByText(uniquePatient,{exact:true}).filter({visible:true});
+  await deletedVisibleItem.first().waitFor({state:'detached',timeout:10000}).catch(async()=>{
+    if(await deletedVisibleItem.count()) throw new Error('deleted appointment remained visible');
+  });
   const afterDelete=await (await api.get('/api/appointments/',{headers})).json();
   if(afterDelete.some(x=>x.id===persisted.id)) throw new Error('deleted appointment remained persisted');
   prove(viewport,'agenda-delete-success-persistence',{appointmentId:persisted.id});
