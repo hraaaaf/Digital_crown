@@ -811,11 +811,15 @@ for(const viewport of viewports){
 
   const endoCategory=page.getByRole('button',{name:'ENDODONTIE',exact:true});
   await endoCategory.click();
+  await page.waitForFunction(()=>{
+    const cards=[...document.querySelectorAll('[data-testid="science-article-card"]')];
+    return cards.length>0 && cards.every(card=>card.getAttribute('data-category')==='ENDODONTIE');
+  },null,{timeout:5000});
   const cards=page.getByTestId('science-article-card');
   const cardCount=await cards.count();
   if(cardCount<1) throw new Error('science ENDODONTIE filter returned no cards');
   for(let i=0;i<cardCount;i++){
-    if((await cards.nth(i).getAttribute('data-category'))!=='ENDODONTIE') throw new Error('science category filter leaked another category');
+    if((await cards.nth(i).getAttribute('data-category'))!=='ENDODONTIE') throw new Error('science category filter leaked another category after exit animation');
   }
   prove(viewport,'science-hub-category-filter',{category:'ENDODONTIE',count:cardCount});
 
