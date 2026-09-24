@@ -1387,6 +1387,7 @@ for(const viewport of viewports){
     ];
     let nextTeamId=20;
     let teamCreateCalls=0,approveCalls=0,rejectCalls=0,permissionCalls=0,statusCalls=0,deleteCalls=0;
+    let teamReadCalls=0,quotaReadCalls=0;
     let failNextStatus=false,failTeamRead=false;
 
     await page.route('**/api/team**',async route=>{
@@ -1399,10 +1400,12 @@ for(const viewport of viewports){
       if(method==='OPTIONS') return route.continue();
 
       if(method==='GET' && path==='/api/team/quota'){
+        quotaReadCalls+=1;
         const pending=teamMembers.filter(m=>m.approval_status==='pending').length;
         return json(200,{plan:'ELITE',dentistes_used:1,dentistes_max:null,secretaires_used:teamMembers.length,secretaires_max:null,pending_count:pending,can_add_dentiste:true,can_add_secretaire:true});
       }
-      if(method==='GET' && path==='/api/team/') {
+      if(method==='GET' && (path==='/api/team/' || path==='/api/team')) {
+        teamReadCalls+=1;
         if(failTeamRead) return json(503,{detail:'forced team read failure'});
         return json(200,teamMembers);
       }
@@ -1458,9 +1461,16 @@ for(const viewport of viewports){
     });
 
     await team.click();
-    const activeMemberHeading=page.getByRole('heading',{name:/^Active User\b/i});
-    await activeMemberHeading.waitFor({state:'visible',timeout:10000});
-    await page.getByText('active@example.com',{exact:true}).waitFor({state:'visible',timeout:5000});
+    for(let i=0;i<100 && (teamReadCalls<2 || quotaReadCalls<2);i+=1){
+      await page.waitForTimeout(50);
+    }
+    if(teamReadCalls<2 || quotaReadCalls<2){
+      throw new Error(`team read contract incomplete: members=${teamReadCalls}, quota=${quotaReadCalls}`);
+    }
+    const activeEmail=page.getByText('active@example.com',{exact:true});
+    await activeEmail.waitFor({state:'visible',timeout:10000});
+    const initialActiveCard=activeEmail.locator('xpath=ancestor::div[.//button[@title="Gérer les permissions"]][1]');
+    await initialActiveCard.getByText('Active User',{exact:true}).waitFor({state:'visible',timeout:5000});
 
     // Create form auxiliary controls + role/permission semantics.
     await page.getByRole('button',{name:/Ajouter un membre/i}).click();
