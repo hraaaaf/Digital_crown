@@ -1405,9 +1405,15 @@ for(const viewport of viewports){
       const method=req.method();
       const url=new URL(req.url());
       const path=url.pathname;
-      const json=(status,body)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
+      const corsHeaders={
+        'access-control-allow-origin':'http://127.0.0.1:5173',
+        'access-control-allow-credentials':'true',
+        'access-control-allow-headers':'authorization,content-type',
+        'access-control-allow-methods':'GET,POST,PUT,DELETE,OPTIONS'
+      };
+      const json=(status,body)=>route.fulfill({status,contentType:'application/json',headers:corsHeaders,body:JSON.stringify(body)});
 
-      if(method==='OPTIONS') return route.continue();
+      if(method==='OPTIONS') return route.fulfill({status:204,headers:corsHeaders,body:''});
 
       if(method==='GET' && path==='/api/team/quota'){
         quotaReadCalls+=1;
