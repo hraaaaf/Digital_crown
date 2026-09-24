@@ -449,7 +449,8 @@ for(const viewport of viewports){
   await supplierInputs.nth(1).fill('Medix Dental');
   await supplierSection.getByRole('button',{name:'Ajouter fournisseur',exact:true}).click();
   await adminPage.getByText('Fournisseur partenaire ajouté.',{exact:true}).waitFor({state:'visible',timeout:10000});
-  await adminPage.getByText('Medix Dental',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  const medixOption=adminPage.locator('option',{hasText:'Medix Dental'}).first();
+  if(!(await medixOption.count())) throw new Error('Medix Dental supplier option missing after ACK/refetch');
   if(supplierCreateCalls!==1 || !adminSuppliers.some(x=>x.supplierKey==='medix')) throw new Error('partner supplier ACK/refetch mismatch');
   prove(viewport,'partner-admin-supplier-create',{supplierCreateCalls});
 

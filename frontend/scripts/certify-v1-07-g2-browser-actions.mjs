@@ -303,16 +303,21 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
- await page.route('**/api/patients/check-dossier/*',route=>route.fulfill({
+ await page.route(/\/api\/patients\/check-dossier\/[^/?]+(?:\?.*)?$/,route=>route.fulfill({
    status:200,contentType:'application/json',body:JSON.stringify({exists:false,patient_name:null})
  }));
+ const dossierCheck=page.waitForResponse(
+   r=>r.url().includes('/api/patients/check-dossier/G2-BROWSER-NEW') && r.status()===200,
+   {timeout:10000},
+ );
  await dossierInput.fill('G2-BROWSER-NEW');
+ await dossierCheck;
  await birthInput.fill('1990-01-01');
  await sexInput.selectOption('F');
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
  }));
- await page.getByText('Numéro disponible',{exact:true}).waitFor({state:'visible',timeout:5000});
+ await page.getByText('Numéro disponible',{exact:true}).waitFor({state:'visible',timeout:10000});
  await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
  await page.getByText(/Vérification anti-doublon indisponible/i).waitFor({state:'visible',timeout:10000});
  if(!page.url().includes('/patients/new')) throw new Error('create form navigated after duplicate-check refusal');

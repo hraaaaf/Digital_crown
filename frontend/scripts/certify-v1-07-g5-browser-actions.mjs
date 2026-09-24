@@ -439,7 +439,9 @@ for(const viewport of viewports){
   const positionSlider=page.getByRole('slider',{name:'Position verticale du contenu'});
   await positionSlider.evaluate(el=>{
     const input=el;
-    input.value='0.6';
+    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;
+    if(!setter) throw new Error('native input value setter unavailable');
+    setter.call(input,'0.6');
     input.dispatchEvent(new Event('input',{bubbles:true}));
     input.dispatchEvent(new Event('change',{bubbles:true}));
   });
