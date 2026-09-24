@@ -1000,7 +1000,7 @@ for(const viewport of viewports){
     const specialtyName=catalogDialog.getByPlaceholder('Ex. Orthodontie');
     await specialtyName.fill('Soins restaurateurs');
     await catalogDialog.getByRole('button',{name:'Enregistrer',exact:true}).click();
-    await page.getByText('Soins restaurateurs',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByRole('button',{name:/Soins restaurateurs/i}).first().waitFor({state:'visible',timeout:10000});
     if(catalogUpdateSpecialty!==1) throw new Error('catalog specialty update ACK mismatch');
     prove(viewport,'settings-catalog-specialty-edit',{catalogUpdateSpecialty});
 

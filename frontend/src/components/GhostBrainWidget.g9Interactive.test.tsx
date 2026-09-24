@@ -62,7 +62,7 @@ async function renderSeededWidget() {
   });
 
   fireEvent.click(screen.getByTitle('Synthèse contextuelle'));
-  await screen.findByRole('button', { name: /Marquer comme lu/i });
+  await screen.findByRole('button', { name: /^Marquer comme lu$/i });
 }
 
 describe('GhostBrainWidget G9 read-ack truth', () => {
@@ -83,22 +83,22 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     await renderSeededWidget();
 
     postMock.mockRejectedValueOnce(new Error('read refused'));
-    fireEvent.click(screen.getByRole('button', { name: /Marquer comme lu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read');
     });
 
-    expect(screen.getByRole('button', { name: /Marquer comme lu/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
   });
 
   it('removes the insight only after backend ACK', async () => {
     await renderSeededWidget();
 
-    fireEvent.click(screen.getByRole('button', { name: /Marquer comme lu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /Marquer comme lu/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
     });
     expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read');
     expect(screen.getByText('Aucune nouvelle déduction.')).toBeInTheDocument();

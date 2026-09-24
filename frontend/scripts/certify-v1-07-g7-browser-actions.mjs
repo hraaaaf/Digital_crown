@@ -772,7 +772,8 @@ for(const viewport of viewports){
   prove(viewport,'library-command-palette-open-result');
 
   await page.keyboard.press('Escape');
-  await page.waitForURL('**/bibliotheque',{timeout:5000});
+  await page.waitForFunction(()=>location.pathname==='/bibliotheque',null,{timeout:5000});
+  if(new URL(page.url()).pathname!=='/bibliotheque') throw new Error('library Escape did not return to root');
   await page.keyboard.press('Control+K');
   cmd=page.getByPlaceholder('Rechercher un protocole ou une spécialité...');
   await cmd.waitFor({state:'visible',timeout:5000});

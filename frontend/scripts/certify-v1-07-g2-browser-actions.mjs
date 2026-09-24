@@ -303,12 +303,17 @@ for(const viewport of viewports){
  const dossierInput=page.locator('input[name="numero_dossier"]');
  const birthInput=page.locator('input[name="date_naissance"]');
  const sexInput=page.locator('select[name="sexe"]');
- const dossierAvailabilityPromise=page.waitForResponse(
-   r=>r.request().method()==='GET' && r.url().includes('/api/patients/check-dossier/G2-BROWSER-NEW'),
-   {timeout:10000},
- );
+ let dossierAvailabilityResponse=null;
+ const dossierAvailabilityListener=r=>{
+   if(r.request().method()==='GET' && r.url().includes('/api/patients/check-dossier/G2-BROWSER-NEW')) {
+     dossierAvailabilityResponse=r;
+   }
+ };
+ page.on('response',dossierAvailabilityListener);
  await dossierInput.fill('G2-BROWSER-NEW');
- const dossierAvailabilityResponse=await dossierAvailabilityPromise;
+ await page.getByText('Numéro disponible',{exact:true}).waitFor({state:'visible',timeout:10000});
+ page.off('response',dossierAvailabilityListener);
+ if(!dossierAvailabilityResponse) throw new Error('dossier availability browser GET not observed');
  if(!dossierAvailabilityResponse.ok()) throw new Error('dossier availability HTTP '+dossierAvailabilityResponse.status());
  const dossierAvailabilityBody=await dossierAvailabilityResponse.json();
  if(dossierAvailabilityBody.exists!==false) throw new Error('dossier availability backend truth mismatch');
@@ -318,7 +323,6 @@ for(const viewport of viewports){
  await page.route('**/api/patients/check-duplicate*',route=>route.fulfill({
    status:503,contentType:'application/json',body:JSON.stringify({detail:'forced duplicate-check outage'})
  }));
- await page.getByText('Numéro disponible',{exact:true}).waitFor({state:'visible',timeout:10000});
  await page.getByRole('button',{name:'Créer le dossier',exact:true}).click();
  await page.getByText(/Vérification anti-doublon indisponible/i).waitFor({state:'visible',timeout:10000});
  if(!page.url().includes('/patients/new')) throw new Error('create form navigated after duplicate-check refusal');

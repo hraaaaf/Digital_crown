@@ -145,7 +145,7 @@ try {
           const dialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
           await dialog.waitFor({state:'visible',timeout:5000});
           await page.getByRole('button',{name:'Supprimer définitivement'}).click();
-          await dialog.getByText('delete refused',{exact:true}).waitFor({state:'visible',timeout:5000});
+          await dialog.getByText('Suppression refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
           await dialog.waitFor({state:'visible',timeout:5000});
           if (deletes.length!==1) throw new Error(`AFTER expected exactly one confirmed DELETE, got ${deletes.length}`);
         }
