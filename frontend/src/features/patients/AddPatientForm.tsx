@@ -100,10 +100,10 @@ export const AddPatientForm = () => {
       finalValue = value.toUpperCase();
     }
     
-    setFormData({ 
-      ...formData, 
+    setFormData((prev: any) => ({ 
+      ...prev, 
       [name]: finalValue 
-    });
+    }));
     if (errors[name]) setErrors({ ...errors, [name]: '' });
     // Réinitialiser le modal doublon si modif
     if (showDuplicateModal) {
@@ -114,7 +114,7 @@ export const AddPatientForm = () => {
 
   const handleNumeroDossierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toUpperCase().trim();
-    setFormData({ ...formData, numero_dossier: value });
+    setFormData((prev: any) => ({ ...prev, numero_dossier: value }));
     if (errors.numero_dossier) setErrors({ ...errors, numero_dossier: '' });
   };
 

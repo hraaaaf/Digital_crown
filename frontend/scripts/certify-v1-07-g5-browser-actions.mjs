@@ -462,7 +462,7 @@ for(const viewport of viewports){
   await page.getByRole('button',{name:'Réinitialiser la position verticale du contenu',exact:true}).click();
   studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await studioSave.click();
-  await page.getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
   studioCheck=await api.get('/api/clinics/me',{headers});
   studioBody=await studioCheck.json();
   if(Math.abs(Number(studioBody.content_offset_y))>0.001) throw new Error('branding content offset reset did not persist');

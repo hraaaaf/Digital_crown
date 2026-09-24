@@ -189,8 +189,16 @@ for(const viewport of viewports){
     if(!row.is_archived) throw new Error('archive ACK not persisted');
     prove(viewport,'superadmin-archive-immutable-controls');
 
+    const unarchiveAckPromise=page.waitForResponse(
+      r=>r.request().method()==='PATCH' && r.url().includes('/api/superadmin/clients/'+target.id+'/archive'),
+      {timeout:10000},
+    );
     page.once('dialog',d=>d.accept());
     await archivedCard.getByTitle('Désarchiver').click();
+    const unarchiveAck=await unarchiveAckPromise;
+    if(!unarchiveAck.ok()) throw new Error('unarchive ACK refused '+unarchiveAck.status());
+    const unarchiveBody=await unarchiveAck.json();
+    if(unarchiveBody.is_archived!==false) throw new Error('unarchive ACK state mismatch');
     liveCard=page.getByText('Dr T2 Browser',{exact:true}).locator('xpath=ancestor::*[contains(@class,"group")][1]');
     await liveCard.getByTitle('Archiver').waitFor({state:'visible',timeout:10000});
     verify=await api.get('/api/superadmin/clients',{headers});

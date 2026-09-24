@@ -404,7 +404,7 @@ for(const viewport of viewports){
     return json(500,{detail:'unexpected partner-admin catalog request '+req.method()+' '+path});
   });
 
-  await adminPage.route('**/api/partner-orders**',async route=>{
+  await adminPage.route(/\/api\/partner-orders(?:\/meta|\/\d+)?(?:\?.*)?$/,async route=>{
     const req=route.request();
     const url=new URL(req.url());
     const path=url.pathname;
