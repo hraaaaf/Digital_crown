@@ -62,6 +62,33 @@ describe('OdontogramSVG G4 accessible interaction contract', () => {
     onSurfaceClick.mockClear();
     fireEvent.keyDown(tooth11, { key: 'Enter' });
     expect(onSurfaceClick).toHaveBeenCalledWith(11, 'O', expect.anything());
+
+    onSurfaceClick.mockClear();
+    fireEvent.keyDown(tooth11, { key: ' ' });
+    expect(onSurfaceClick).toHaveBeenCalledWith(11, 'O', expect.anything());
+  });
+
+  it('preserves direct tooth selection without leaking a surface mutation', async () => {
+    const onSurfaceClick = vi.fn();
+    const onToothDirectClick = vi.fn();
+
+    render(
+      <OdontogramSVG
+        type="ADULT"
+        teethSurfaces={{}}
+        selectedTooth={null}
+        selectedSurface={null}
+        onSurfaceClick={onSurfaceClick}
+        onToothDirectClick={onToothDirectClick}
+      />,
+    );
+
+    const tooth21 = await screen.findByRole('button', { name: /^Dent 21,/ });
+    fireEvent.click(tooth21);
+
+    expect(onToothDirectClick).toHaveBeenCalledTimes(1);
+    expect(onToothDirectClick).toHaveBeenCalledWith(21);
+    expect(onSurfaceClick).not.toHaveBeenCalled();
   });
 
   it('renders the compact adult FDI renderer with numbers by default', () => {
