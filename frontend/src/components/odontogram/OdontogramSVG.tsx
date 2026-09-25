@@ -123,10 +123,10 @@ const PEDIATRIC_BOTTOM = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75] as const;
 type ToothGlyphKind = 'INCISOR' | 'CANINE' | 'PREMOLAR' | 'MOLAR';
 
 const TOOTH_GLYPH_PATHS: Record<ToothGlyphKind, string> = {
-  INCISOR: 'M -0.56,-0.98 C -0.30,-1.07 0.30,-1.07 0.56,-0.98 C 0.64,-0.56 0.48,-0.18 0.28,0.10 C 0.16,0.30 0.11,0.78 0,1 C -0.11,0.78 -0.16,0.30 -0.28,0.10 C -0.48,-0.18 -0.64,-0.56 -0.56,-0.98 Z',
-  CANINE: 'M -0.48,-0.82 C -0.24,-1.02 0.24,-1.02 0.48,-0.82 C 0.60,-0.46 0.42,-0.12 0.22,0.14 C 0.12,0.32 0.08,0.76 0,1.08 C -0.08,0.76 -0.12,0.32 -0.22,0.14 C -0.42,-0.12 -0.60,-0.46 -0.48,-0.82 Z',
-  PREMOLAR: 'M -0.66,-0.76 C -0.48,-1.02 -0.16,-0.96 0,-0.78 C 0.16,-0.96 0.48,-1.02 0.66,-0.76 C 0.72,-0.38 0.54,-0.06 0.30,0.16 C 0.16,0.34 0.10,0.78 0,1 C -0.10,0.78 -0.16,0.34 -0.30,0.16 C -0.54,-0.06 -0.72,-0.38 -0.66,-0.76 Z',
-  MOLAR: 'M -0.90,-0.62 C -0.84,-0.90 -0.60,-1.00 -0.34,-0.86 C -0.16,-1.00 0.08,-1.02 0.26,-0.88 C 0.52,-1.00 0.82,-0.90 0.90,-0.60 C 0.86,-0.20 0.68,0.06 0.46,0.22 C 0.36,0.38 0.34,0.76 0.24,1 C 0.10,0.84 0.04,0.62 0,0.46 C -0.04,0.62 -0.10,0.84 -0.24,1 C -0.34,0.76 -0.36,0.38 -0.46,0.22 C -0.68,0.06 -0.86,-0.20 -0.90,-0.62 Z',
+  INCISOR: 'M -0.58,-0.98 C -0.34,-1.10 0.34,-1.10 0.58,-0.98 C 0.63,-0.68 0.56,-0.38 0.40,-0.10 C 0.24,0.16 0.17,0.48 0.12,0.72 C 0.08,0.90 0.04,1.04 0,1.16 C -0.04,1.04 -0.08,0.90 -0.12,0.72 C -0.17,0.48 -0.24,0.16 -0.40,-0.10 C -0.56,-0.38 -0.63,-0.68 -0.58,-0.98 Z',
+  CANINE: 'M -0.54,-0.72 C -0.36,-0.94 -0.16,-1.02 0,-1.18 C 0.16,-1.02 0.36,-0.94 0.54,-0.72 C 0.60,-0.42 0.50,-0.14 0.32,0.10 C 0.18,0.32 0.13,0.62 0.09,0.86 C 0.05,1.08 0.02,1.24 0,1.34 C -0.02,1.24 -0.05,1.08 -0.09,0.86 C -0.13,0.62 -0.18,0.32 -0.32,0.10 C -0.50,-0.14 -0.60,-0.42 -0.54,-0.72 Z',
+  PREMOLAR: 'M -0.68,-0.72 C -0.56,-0.96 -0.30,-1.04 -0.08,-0.86 C 0,-0.78 0,-0.78 0.08,-0.86 C 0.30,-1.04 0.56,-0.96 0.68,-0.72 C 0.74,-0.40 0.60,-0.12 0.38,0.10 C 0.22,0.28 0.18,0.58 0.14,0.84 C 0.08,1.04 0.03,1.16 0,1.22 C -0.03,1.16 -0.08,1.04 -0.14,0.84 C -0.18,0.58 -0.22,0.28 -0.38,0.10 C -0.60,-0.12 -0.74,-0.40 -0.68,-0.72 Z',
+  MOLAR: 'M -0.92,-0.60 C -0.88,-0.88 -0.66,-1.04 -0.42,-0.92 C -0.24,-1.08 -0.04,-1.04 0.10,-0.92 C 0.30,-1.08 0.54,-1.02 0.70,-0.88 C 0.88,-0.88 0.96,-0.72 0.92,-0.54 C 0.88,-0.20 0.70,0.06 0.48,0.20 C 0.38,0.40 0.36,0.70 0.30,0.98 C 0.24,1.16 0.16,1.24 0.10,1.08 C 0.04,0.88 0.02,0.70 0,0.54 C -0.02,0.70 -0.04,0.88 -0.10,1.08 C -0.16,1.24 -0.24,1.16 -0.30,0.98 C -0.36,0.70 -0.38,0.40 -0.48,0.20 C -0.70,0.06 -0.88,-0.20 -0.92,-0.60 Z',
 };
 
 const toothGlyphKind = (toothNumber: number): ToothGlyphKind => {
@@ -139,10 +139,10 @@ const toothGlyphKind = (toothNumber: number): ToothGlyphKind => {
 
 const toothGlyphScale = (toothNumber: number) => {
   const kind = toothGlyphKind(toothNumber);
-  if (kind === 'MOLAR') return { x: 1.08, y: 0.98 };
-  if (kind === 'PREMOLAR') return { x: 0.92, y: 1.02 };
-  if (kind === 'CANINE') return { x: 0.78, y: 1.18 };
-  return { x: 0.70, y: 1.10 };
+  if (kind === 'MOLAR') return { x: 1.12, y: 1.04 };
+  if (kind === 'PREMOLAR') return { x: 0.94, y: 1.08 };
+  if (kind === 'CANINE') return { x: 0.80, y: 1.22 };
+  return { x: 0.74, y: 1.16 };
 };
 
 const toothGlyph = (toothNumber: number) => {
@@ -292,7 +292,10 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
       if (index < 0) return null;
       const compactViewport = W < 520;
       const edge = type === 'ADULT' ? (compactViewport ? 5 : 7) : (compactViewport ? 10 : 13);
-      const xPct = row.length === 1 ? 50 : edge + (index * (100 - edge * 2)) / (row.length - 1);
+      const linearX = row.length === 1 ? 50 : edge + (index * (100 - edge * 2)) / (row.length - 1);
+      const normalized = row.length === 1 ? 0 : (index / (row.length - 1)) * 2 - 1;
+      const archPull = compactViewport ? 1.4 : 2.2;
+      const xPct = linearX + Math.sign(normalized) * archPull * (1 - Math.abs(normalized));
       const yPct = isUpper ? (compactViewport ? 32 : 34) : (compactViewport ? 72 : 70);
       const radiusPct = type === 'ADULT' ? (compactViewport ? 5.75 : 5.25) : (compactViewport ? 6.15 : 5.8);
       return { cx: pctX(xPct, W), cy: pctY(yPct, H), r: pctR(radiusPct, W, H), isUpper };
