@@ -444,6 +444,16 @@ Additional mandatory gate approved 2026-09-19:
 
 Canonical audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`.
 
+Product Owner approved pre-G9 UI/UX integration — 25 September 2026:
+- the V1-07 pre-G9 master is intentionally held before G9 so the final semantic reconciliation can include the Document Studio polish below;
+- authorized bounded scope: shared odontogram renderer + Patient Clinical odontogram presentation + Devis + Note d'honoraires UX/UI, including the existing read-only PDF preview surface;
+- this is a presentation/interaction integration only: FDI contracts, patient odontogram persistence/revision, accounting price/phase/payment policies, archive/rehydration, PDF generation semantics and tenant/data boundaries remain authoritative and must not be weakened;
+- existing useful capabilities must be preserved: adult/pediatric dentitions, per-tooth and grouped selection, treatment selector, quick/catalog acts, phase organization, editable accounting rows, total, Preview, Save/Archive, Print, honoraires payment status/modes/installments;
+- required sequence before G9: fresh pre-G9 baseline → shared renderer → Clinical → Devis → Honoraires → targeted/transversal regression + BEFORE/AFTER visual evidence → severe scoring/human visual review;
+- G9 semantic reconciliation MUST run on the exact resulting product HEAD, not on the prior pre-polish HEAD;
+- G10 closeout and V1-08 freeze remain blocked until this bounded scope and all other V1-07 gates are reconciled and certified;
+- no Vercel deployment and no real-cabinet mutation are authorized by this amendment.
+
 ### LOT V1-08 — Freeze exact V1 candidate
 
 Status: **BLOCKED BY V1-07**
