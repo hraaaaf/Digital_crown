@@ -144,11 +144,12 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     };
     const { onSaved, onClose } = renderCreate({ editingAppointment });
 
+    fireEvent.change(await screen.findByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue..."), { target: { value: 'Contrôle modifié' } });
     fireEvent.click(await screen.findByRole('button', { name: 'Modifier le RDV' }));
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith(
       '/appointments/55',
-      expect.objectContaining({ patient_id: 7, motif: 'Contrôle', status: 'PRÉVU' }),
+      expect.objectContaining({ patient_id: 7, motif: 'Contrôle modifié', status: 'PRÉVU' }),
     ));
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);

@@ -233,6 +233,23 @@ class TestAppointmentCRUD:
         assert r.status_code == 200
         assert r.json()["status"] == "EN_FAUTEUIL"
 
+    def test_update_appointment_motif_persists_in_list(self, client, auth_headers):
+        dt = datetime.now() + timedelta(days=16)
+        appt = _create_appt(client, auth_headers, dt)
+        updated_motif = "Contrôle G3 modifié"
+        r = client.put(
+            f"/api/appointments/{appt['id']}",
+            json={"motif": updated_motif},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["motif"] == updated_motif
+
+        listed = client.get("/api/appointments/", headers=auth_headers)
+        assert listed.status_code == 200
+        persisted = next(row for row in listed.json() if row["id"] == appt["id"])
+        assert persisted["motif"] == updated_motif
+
     def test_delete_appointment(self, client, auth_headers):
         dt = datetime.now() + timedelta(days=20)
         appt = _create_appt(client, auth_headers, dt)
