@@ -446,7 +446,7 @@ Canonical audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`.
 
 #### PRE-G9 subproject — Odontogramme Premium → Devis & Honoraires
 
-Status: **LOT00B CLOSED — LOT01 CLOSED — LOT02 UNLOCKED — G9 NOT STARTED**.
+Status: **LOT00B CLOSED — LOT01 IN PROGRESS — LOT02 LOCKED — G9 NOT STARTED**.
 
 Baseline anchor:
 - `master@95a1562127d05ba7ef5914602cc8cdf7666ac774`;
@@ -477,16 +477,15 @@ LOT01 scope:
 - allowed: `frontend/src/components/odontogram/OdontogramSVG.tsx`, optional purely visual odontogram subcomponents, renderer/a11y/visual tests;
 - forbidden in LOT01: backend/migrations, `ClinicalHubCore` persistence, `AccountingStudioLegacy` business logic, PriceBrain, accounting policies, PDF engine, payment/installments, Patient Companion, ortho/cephalo, release/Vercel.
 
-LOT01 closeout — renderer canonique:
-- target verified from Drive: `DigitalCrown_TARGET_Odontogramme_FDI_Compact_Clinical_2026-09-22.png`;
-- canonical renderer keeps the public callbacks/data contracts intact while replacing the former flat presentation with a compact two-arch FDI map;
-- adult **32** / pediatric **20** contracts are explicitly tested;
-- FDI numbering is visible by default at renderer level; Devis/Honoraires still deliberately override it in `AccountingStudioLegacy` and that integration belongs to LOT03;
-- four tooth morphologies are rendered (incisor/canine/premolar/molar), with upper/lower anatomical orientation, silhouette-clipped surfaces, token-driven enamel/shadow, crown/root-canal overlays and selected/focus states;
-- browser AFTER proof: **390 / 430 / 768 / 1280 + dark 1280**, zero page horizontal overflow, 32 accessible adult teeth;
-- visual renderer score against the approved central-map target: **9.8/10**;
-- lint PASS; targeted contracts **17/17 PASS**; build rehearsal PASS (**4705 modules**, **18.56 s**); `git diff --check` clean; **0 new hardcoded palette lines**;
-- LOT01 files are limited to `OdontogramSVG.tsx` + renderer interactive test; no controller/backend/accounting policy touched.
+LOT01 current evidence — renderer canonique (**not closed**):
+- target verified directly from Drive: `DigitalCrown_TARGET_Odontogramme_FDI_Compact_Clinical_2026-09-22.png`;
+- the adult renderer now uses **16 mockup-derived anatomical tooth sprites** (8 maxillary + 8 mandibular) while retaining vector interaction/surface/clinical-overlay geometry and the existing public callbacks/data contracts;
+- adult **32** / pediatric **20** accessibility/interaction contracts remain explicit; pediatric rendering keeps the vector fallback;
+- FDI numbering remains visible by default at renderer level; Devis/Honoraires integration still belongs to LOT03;
+- local AFTER inspection completed at **390 / 430 / 768 / 1280 + dark 1280**; GitHub exact-head visual evidence is still required before closeout;
+- current local targeted proof: **10/10 PASS** (9 renderer interaction/a11y + 1 semantic-theme contract), `git diff --check` clean, 16/16 sprite assets present;
+- previous visual scores **9.4/10** and **9.8/10** are withdrawn; **no current visual score** is valid until exact-head evidence is inspected against the canonical mockup;
+- LOT01 changes remain renderer/visual-test/evidence scope only; no controller, backend, database or accounting policy change.
 
 Mandatory theme doctrine for LOT01→05:
 - **no new product styling hardcoded to a specific palette**;
