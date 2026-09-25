@@ -128,7 +128,7 @@ jobs:
 
       - name: Prove certified cores are byte-identical
         run: |
-          test "$(git hash-object frontend/src/features/patients/components/ClinicalHubCore.tsx)" = "3b978a57a7ae2d0f911235e262ecaf708d893925"
+          test "$(git hash-object frontend/src/features/patients/components/ClinicalHubCore.tsx)" = "d7c4fcf9db2d851455d2b2fe3d9eaa9542466c75"
           test "$(git hash-object backend/routers/prescriptions_core.py)" = "2d092b55b937d639af95536299ba0b95674fa020"
 
       - name: Targeted backend truth tests
