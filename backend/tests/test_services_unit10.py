@@ -85,33 +85,38 @@ class TestBuildSynthesis:
         from backend.services.panoramic_report_engine import PanoramicReportEngine
         return PanoramicReportEngine()
 
-    def test_empty_is_explicitly_not_a_normality_conclusion(self):
-        result = self._eng()._build_synthesis({}, [], [])
-        assert isinstance(result, str)
-        assert "aucune anomalie" in result.lower()
-        assert "ne constitue pas une conclusion de normalité" in result.lower()
+    def test_empty_returns_no_synthetic_finding(self):
+        result = self._eng()._build_synthesis({}, [])
+        assert result == []
 
-    def test_documented_tooth_observations_are_counted_without_diagnosis(self):
-        anomaly_map = {"carie_email": [16, 26]}
-        result = self._eng()._build_synthesis(anomaly_map, [], [])
-        assert "2 observation(s) dentaire(s)" in result
-        assert "documentée(s) par le praticien" in result
-        assert "prioritaire" not in result.lower()
+    def test_documented_tooth_observations_are_preserved_without_diagnosis(self):
+        section_items = {
+            "LÉSIONS CARIEUSES": {"carie_email": [16, 26]},
+        }
+        result = self._eng()._build_synthesis(section_items, [])
+        assert result == ["Carie de l'émail — les dents 16 et 26."]
+        assert "prioritaire" not in " ".join(result).lower()
 
-    def test_absent_teeth_are_counted_as_observations(self):
-        result = self._eng()._build_synthesis({}, [16, 26], [])
-        assert "2 observation(s) dentaire(s)" in result
-        assert "réhabil" not in result.lower()
+    def test_absent_teeth_are_preserved_as_observations(self):
+        section_items = {
+            "DENTITION ET ANOMALIES DENTAIRES": {"dent_absente": [16, 26]},
+        }
+        result = self._eng()._build_synthesis(section_items, [])
+        assert result == ["Dent absente — les dents 16 et 26."]
+        assert "réhabil" not in " ".join(result).lower()
 
-    def test_general_findings_are_counted_as_practitioner_findings(self):
-        result = self._eng()._build_synthesis({}, [], ["alveolyse_gen_legere"])
-        assert "1 constat(s) général(aux)" in result
-        assert "documenté(s) par le praticien" in result
+    def test_general_findings_are_restated_without_upgrading_them(self):
+        result = self._eng()._build_synthesis(
+            {},
+            ["Alvéolyse horizontale généralisée légère"],
+        )
+        assert result == ["Alvéolyse horizontale généralisée légère."]
 
-    def test_denture_mixte_is_not_counted_as_general_pathology(self):
-        result = self._eng()._build_synthesis({}, [], ["denture_mixte"])
-        assert "aucune anomalie" in result.lower()
-        assert "constat(s) général(aux)" not in result
+    def test_denture_mixte_is_context_not_general_pathology(self):
+        report = self._eng().generate_markdown(global_findings=["denture_mixte"])
+        assert "### CONTEXTE DENTAIRE DOCUMENTÉ" in report
+        assert "Denture mixte documentée par le praticien." in report
+        assert "### CONSTATATIONS GÉNÉRALES" not in report
 
 
 class TestGenerateMarkdown:
@@ -124,18 +129,19 @@ class TestGenerateMarkdown:
         assert isinstance(result, str)
         assert len(result) > 50
 
-    def test_contains_radiographic_synthesis_section(self):
+    def test_contains_synthesis_section(self):
         result = self._eng().generate_markdown()
-        assert "SYNTHÈSE RADIOGRAPHIQUE" in result
+        assert "### SYNTHÈSE" in result
 
-    def test_contains_resultats_section(self):
+    def test_contains_structured_technique_section(self):
         result = self._eng().generate_markdown()
-        assert "RÉSULTATS" in result or "RESULTATS" in result
+        assert "### TECHNIQUE" in result
 
     def test_empty_report_is_fail_closed(self):
         result = self._eng().generate_markdown()
-        assert "non documentés / non évalués" in result
-        assert "conclusion de normalité" in result
+        assert "Aucune constatation n'a été documentée" in result
+        assert "ne constitue pas une conclusion de normalité radiographique" in result
+        assert "Les territoires sans annotation explicite restent non documentés" in result
         assert "CONDUITE À TENIR" not in result
         assert "HBMD" not in result
         assert "HBFD" not in result
@@ -146,7 +152,7 @@ class TestGenerateMarkdown:
         result = self._eng().generate_markdown(
             manual_anomalies={16: ["carie_email"]}
         )
-        assert "Observation praticien" in result
+        assert "Carie de l'émail — la dent 16." in result
         assert "16" in result
         assert "CONDUITE À TENIR" not in result
 
@@ -160,7 +166,8 @@ class TestGenerateMarkdown:
         result = self._eng().generate_markdown(
             global_findings=["denture_mixte"]
         )
-        assert "Observation praticien : denture mixte" in result
+        assert "### CONTEXTE DENTAIRE DOCUMENTÉ" in result
+        assert "Denture mixte documentée par le praticien." in result
 
     def test_singleton_importable(self):
         from backend.services.panoramic_report_engine import panoramic_report_engine
