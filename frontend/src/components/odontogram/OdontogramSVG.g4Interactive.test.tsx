@@ -141,7 +141,10 @@ describe('OdontogramSVG G4 accessible interaction contract', () => {
 
     const tooth16 = screen.getByRole('button', { name: /^Dent 16,/ });
     expect(tooth16).toHaveAttribute('aria-pressed', 'true');
-    expect(tooth16.querySelector('path[data-selected-halo="true"][stroke="var(--primary)"]')).toBeTruthy();
+    const halo = tooth16.querySelector('[data-selected-halo="true"]');
+    expect(halo).toBeTruthy();
+    expect(halo?.tagName.toLowerCase()).toBe('image');
+    expect((halo as SVGImageElement).style.filter).toContain('drop-shadow');
   });
 
   it('keeps crown overlays aligned with upper and lower tooth orientation', () => {

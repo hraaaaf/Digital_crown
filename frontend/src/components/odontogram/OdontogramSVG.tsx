@@ -122,11 +122,15 @@ const PEDIATRIC_BOTTOM = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75] as const;
 
 type ToothGlyphKind = 'INCISOR' | 'CANINE' | 'PREMOLAR' | 'MOLAR';
 
-const TOOTH_GLYPH_PATHS: Record<ToothGlyphKind, string> = {
-  INCISOR: 'M -0.58,-0.98 C -0.34,-1.10 0.34,-1.10 0.58,-0.98 C 0.63,-0.68 0.56,-0.38 0.40,-0.10 C 0.24,0.16 0.17,0.48 0.12,0.72 C 0.08,0.90 0.04,1.04 0,1.16 C -0.04,1.04 -0.08,0.90 -0.12,0.72 C -0.17,0.48 -0.24,0.16 -0.40,-0.10 C -0.56,-0.38 -0.63,-0.68 -0.58,-0.98 Z',
-  CANINE: 'M -0.54,-0.72 C -0.36,-0.94 -0.16,-1.02 0,-1.18 C 0.16,-1.02 0.36,-0.94 0.54,-0.72 C 0.60,-0.42 0.50,-0.14 0.32,0.10 C 0.18,0.32 0.13,0.62 0.09,0.86 C 0.05,1.08 0.02,1.24 0,1.34 C -0.02,1.24 -0.05,1.08 -0.09,0.86 C -0.13,0.62 -0.18,0.32 -0.32,0.10 C -0.50,-0.14 -0.60,-0.42 -0.54,-0.72 Z',
-  PREMOLAR: 'M -0.68,-0.72 C -0.56,-0.96 -0.30,-1.04 -0.08,-0.86 C 0,-0.78 0,-0.78 0.08,-0.86 C 0.30,-1.04 0.56,-0.96 0.68,-0.72 C 0.74,-0.40 0.60,-0.12 0.38,0.10 C 0.22,0.28 0.18,0.58 0.14,0.84 C 0.08,1.04 0.03,1.16 0,1.22 C -0.03,1.16 -0.08,1.04 -0.14,0.84 C -0.18,0.58 -0.22,0.28 -0.38,0.10 C -0.60,-0.12 -0.74,-0.40 -0.68,-0.72 Z',
-  MOLAR: 'M -0.92,-0.60 C -0.88,-0.88 -0.66,-1.04 -0.42,-0.92 C -0.24,-1.08 -0.04,-1.04 0.10,-0.92 C 0.30,-1.08 0.54,-1.02 0.70,-0.88 C 0.88,-0.88 0.96,-0.72 0.92,-0.54 C 0.88,-0.20 0.70,0.06 0.48,0.20 C 0.38,0.40 0.36,0.70 0.30,0.98 C 0.24,1.16 0.16,1.24 0.10,1.08 C 0.04,0.88 0.02,0.70 0,0.54 C -0.02,0.70 -0.04,0.88 -0.10,1.08 C -0.16,1.24 -0.24,1.16 -0.30,0.98 C -0.36,0.70 -0.38,0.40 -0.48,0.20 C -0.70,0.06 -0.88,-0.20 -0.92,-0.60 Z',
+const TOOTH_POSITION_PATHS: Record<number, string> = {
+  1: 'M -0.58,-0.86 C -0.48,-1.02 -0.26,-1.08 0,-1.08 C 0.26,-1.08 0.48,-1.02 0.58,-0.86 C 0.62,-0.54 0.54,-0.30 0.37,-0.14 C 0.24,0.00 0.20,0.30 0.16,0.58 C 0.12,0.84 0.07,1.07 0,1.22 C -0.07,1.07 -0.12,0.84 -0.16,0.58 C -0.20,0.30 -0.24,0.00 -0.37,-0.14 C -0.54,-0.30 -0.62,-0.54 -0.58,-0.86 Z',
+  2: 'M -0.50,-0.84 C -0.40,-1.00 -0.20,-1.06 0,-1.06 C 0.20,-1.06 0.40,-1.00 0.50,-0.84 C 0.54,-0.56 0.47,-0.30 0.32,-0.12 C 0.22,0.04 0.18,0.33 0.14,0.60 C 0.10,0.84 0.06,1.04 0,1.18 C -0.06,1.04 -0.10,0.84 -0.14,0.60 C -0.18,0.33 -0.22,0.04 -0.32,-0.12 C -0.47,-0.30 -0.54,-0.56 -0.50,-0.84 Z',
+  3: 'M -0.55,-0.68 C -0.40,-0.82 -0.18,-0.94 0,-1.10 C 0.18,-0.94 0.40,-0.82 0.55,-0.68 C 0.58,-0.40 0.49,-0.18 0.34,-0.02 C 0.22,0.14 0.17,0.42 0.13,0.70 C 0.09,0.95 0.05,1.17 0,1.33 C -0.05,1.17 -0.09,0.95 -0.13,0.70 C -0.17,0.42 -0.22,0.14 -0.34,-0.02 C -0.49,-0.18 -0.58,-0.40 -0.55,-0.68 Z',
+  4: 'M -0.66,-0.70 C -0.58,-0.90 -0.38,-1.00 -0.16,-0.94 C -0.04,-0.88 0.04,-0.88 0.16,-0.94 C 0.38,-1.00 0.58,-0.90 0.66,-0.70 C 0.68,-0.42 0.58,-0.18 0.40,-0.02 C 0.26,0.12 0.20,0.39 0.15,0.64 C 0.10,0.88 0.05,1.05 0,1.17 C -0.05,1.05 -0.10,0.88 -0.15,0.64 C -0.20,0.39 -0.26,0.12 -0.40,-0.02 C -0.58,-0.18 -0.68,-0.42 -0.66,-0.70 Z',
+  5: 'M -0.70,-0.68 C -0.60,-0.90 -0.38,-1.00 -0.15,-0.92 C -0.04,-0.86 0.04,-0.86 0.15,-0.92 C 0.38,-1.00 0.60,-0.90 0.70,-0.68 C 0.72,-0.40 0.60,-0.16 0.42,0.00 C 0.28,0.14 0.22,0.38 0.17,0.62 C 0.12,0.84 0.06,1.02 0,1.12 C -0.06,1.02 -0.12,0.84 -0.17,0.62 C -0.22,0.38 -0.28,0.14 -0.42,0.00 C -0.60,-0.16 -0.72,-0.40 -0.70,-0.68 Z',
+  6: 'M -0.86,-0.60 C -0.83,-0.84 -0.68,-0.98 -0.48,-0.96 C -0.30,-1.03 -0.12,-0.98 0,-0.88 C 0.14,-0.99 0.34,-1.02 0.51,-0.94 C 0.72,-0.96 0.86,-0.82 0.86,-0.58 C 0.84,-0.28 0.70,-0.08 0.48,0.07 C 0.38,0.19 0.34,0.42 0.30,0.68 C 0.26,0.90 0.20,1.08 0.13,1.16 C 0.05,1.04 0.02,0.83 0,0.64 C -0.02,0.83 -0.05,1.04 -0.13,1.16 C -0.20,1.08 -0.26,0.90 -0.30,0.68 C -0.34,0.42 -0.38,0.19 -0.48,0.07 C -0.70,-0.08 -0.84,-0.28 -0.86,-0.60 Z',
+  7: 'M -0.88,-0.58 C -0.84,-0.82 -0.66,-0.98 -0.44,-0.94 C -0.28,-1.02 -0.10,-0.98 0.02,-0.88 C 0.18,-1.00 0.38,-1.00 0.54,-0.91 C 0.76,-0.92 0.90,-0.76 0.88,-0.54 C 0.84,-0.26 0.68,-0.06 0.46,0.08 C 0.36,0.22 0.31,0.45 0.27,0.68 C 0.23,0.88 0.18,1.04 0.11,1.12 C 0.04,1.00 0.02,0.82 0,0.66 C -0.02,0.82 -0.04,1.00 -0.11,1.12 C -0.18,1.04 -0.23,0.88 -0.27,0.68 C -0.31,0.45 -0.36,0.22 -0.46,0.08 C -0.68,-0.06 -0.84,-0.26 -0.88,-0.58 Z',
+  8: 'M -0.82,-0.56 C -0.78,-0.78 -0.62,-0.92 -0.42,-0.90 C -0.26,-0.98 -0.10,-0.94 0.02,-0.85 C 0.16,-0.94 0.34,-0.95 0.49,-0.87 C 0.69,-0.88 0.82,-0.73 0.81,-0.52 C 0.78,-0.25 0.64,-0.05 0.44,0.09 C 0.34,0.23 0.30,0.44 0.26,0.64 C 0.22,0.82 0.17,0.98 0.10,1.05 C 0.04,0.94 0.02,0.78 0,0.64 C -0.02,0.78 -0.04,0.94 -0.10,1.05 C -0.17,0.98 -0.22,0.82 -0.26,0.64 C -0.30,0.44 -0.34,0.23 -0.44,0.09 C -0.64,-0.05 -0.78,-0.25 -0.82,-0.56 Z',
 };
 
 const toothGlyphKind = (toothNumber: number): ToothGlyphKind => {
@@ -138,16 +142,24 @@ const toothGlyphKind = (toothNumber: number): ToothGlyphKind => {
 };
 
 const toothGlyphScale = (toothNumber: number) => {
-  const kind = toothGlyphKind(toothNumber);
-  if (kind === 'MOLAR') return { x: 1.12, y: 1.04 };
-  if (kind === 'PREMOLAR') return { x: 0.94, y: 1.08 };
-  if (kind === 'CANINE') return { x: 0.80, y: 1.22 };
-  return { x: 0.74, y: 1.16 };
+  const position = Math.min(8, Math.max(1, toothNumber % 10));
+  const scales: Record<number, { x: number; y: number }> = {
+    1: { x: 0.90, y: 1.10 },
+    2: { x: 0.82, y: 1.06 },
+    3: { x: 0.86, y: 1.15 },
+    4: { x: 0.85, y: 0.99 },
+    5: { x: 0.89, y: 0.97 },
+    6: { x: 1.00, y: 0.92 },
+    7: { x: 1.03, y: 0.90 },
+    8: { x: 0.96, y: 0.87 },
+  };
+  return scales[position];
 };
 
 const toothGlyph = (toothNumber: number) => {
   const kind = toothGlyphKind(toothNumber);
-  return { kind, path: TOOTH_GLYPH_PATHS[kind], ...toothGlyphScale(toothNumber) };
+  const position = Math.min(8, Math.max(1, toothNumber % 10));
+  return { kind, path: TOOTH_POSITION_PATHS[position], ...toothGlyphScale(toothNumber) };
 };
 
 // ============================================================================
@@ -227,19 +239,19 @@ const AnatomicFace: React.FC<AnatomicFaceProps> = ({
       d={path}
       fill={fill}
       fillOpacity={opacity}
-      stroke={isHighlight
+      stroke={isHighlight && state !== 'HEALTHY'
         ? 'var(--primary)'
         : hideSurfaces || state === 'HEALTHY'
           ? 'transparent'
           : SURFACE_COLORS[state]?.stroke || 'var(--border-hover)'}
-      strokeWidth={isHighlight ? 1.6 : hideSurfaces || state === 'HEALTHY' ? 0 : 0.8}
+      strokeWidth={isHighlight && state !== 'HEALTHY' ? 1.4 : hideSurfaces || state === 'HEALTHY' ? 0 : 0.8}
       className={`transition-colors duration-200 ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
       style={{ transform: `translate(${cx}px, ${cy}px)` }}
       onClick={onClick}
       onMouseEnter={() => onHover(face)}
       onMouseLeave={() => onHover(null)}
-      whileHover={!readOnly ? { fillOpacity: Math.max(opacity, 0.4), fill: fill !== 'transparent' ? fill : 'color-mix(in srgb, var(--primary) 18%, transparent)' } : {}}
-      animate={{ fillOpacity: isSelected ? Math.max(opacity, 0.6) : opacity, fill: isSelected && fill === 'transparent' ? 'color-mix(in srgb, var(--primary) 24%, transparent)' : fill }}
+      whileHover={!readOnly ? { fillOpacity: Math.max(opacity, 0.12), fill: fill !== 'transparent' ? fill : 'color-mix(in srgb, var(--primary) 7%, transparent)' } : {}}
+      animate={{ fillOpacity: isSelected ? Math.max(opacity, 0.10) : opacity, fill: isSelected && fill === 'transparent' ? 'color-mix(in srgb, var(--primary) 6%, transparent)' : fill }}
     />
   );
 };
@@ -295,7 +307,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
       const edge = type === 'ADULT' ? (compactViewport ? 5.5 : 5.2) : (compactViewport ? 9 : 10);
       const xPct = row.length === 1 ? 50 : edge + (index * (100 - edge * 2)) / (row.length - 1);
       const yPct = isUpper ? (compactViewport ? 31 : 32) : (compactViewport ? 70 : 69);
-      const radiusPct = type === 'ADULT' ? (compactViewport ? 6.0 : 5.65) : (compactViewport ? 6.35 : 6.0);
+      const radiusPct = type === 'ADULT' ? (compactViewport ? 4.65 : 4.70) : (compactViewport ? 5.10 : 5.00);
       return { cx: pctX(xPct, W), cy: pctY(yPct, H), r: pctR(radiusPct, W, H), isUpper };
     },
     [canvasSize, rows, type]
@@ -353,7 +365,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
     <div
       ref={containerRef}
       data-odontogram-renderer="compact-fdi"
-      className={`relative w-full mx-auto aspect-[1.78/1] min-h-[310px] sm:min-h-[360px] ${className || 'max-w-[1120px]'}`}
+      className={`relative w-full mx-auto aspect-[1.78/1] min-h-[310px] sm:min-h-[360px] ${className || 'max-w-[920px]'}`}
     >
       {canvasSize.width > 0 && canvasSize.height > 0 && (
         <svg
@@ -421,16 +433,6 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             strokeDasharray="5 6"
             className="pointer-events-none"
           />
-          <line
-            x1={pctX(3.5, canvasSize.width)}
-            y1={pctY(50, canvasSize.height)}
-            x2={pctX(96.5, canvasSize.width)}
-            y2={pctY(50, canvasSize.height)}
-            stroke="var(--border-color)"
-            strokeWidth={1}
-            className="pointer-events-none"
-          />
-
           {/* Rendu compact FDI des dents */}
           {teethList.map((toothNumber) => {
             const px = toothPx(toothNumber);
@@ -447,6 +449,11 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             const isToothSelected = selectedTooth === toothNumber;
             const isKeyboardFocused = focusedTooth === toothNumber;
             const glyph = toothGlyph(toothNumber);
+            const position = Math.min(8, Math.max(1, toothNumber % 10));
+            const useMockupSprite = type === 'ADULT';
+            const spriteHeight = px.r * 2.55;
+            const spriteWidth = px.r * (glyph.kind === 'MOLAR' ? 1.74 : 1.58);
+            const spriteHref = `/assets/odontogram/mockup/${px.isUpper ? 'upper' : 'lower'}-${position}.png`;
             const verticalDirection = px.isUpper ? -1 : 1;
 
             return (
@@ -491,16 +498,48 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                   </text>
                 )}
 
-                {isToothSelected && (
+                {useMockupSprite && isToothSelected && (
+                  <rect
+                    x={px.cx - spriteWidth * 0.58}
+                    y={px.cy - spriteHeight * 0.54}
+                    width={spriteWidth * 1.16}
+                    height={spriteHeight * 1.08}
+                    rx={px.r * 0.34}
+                    fill="color-mix(in srgb, var(--primary) 6%, transparent)"
+                    stroke="var(--primary)"
+                    strokeWidth={1.4}
+                    className="pointer-events-none"
+                  />
+                )}
+
+                {useMockupSprite && (
+                  <image
+                    data-selected-halo={isToothSelected ? 'true' : undefined}
+                    href={spriteHref}
+                    x={px.cx - spriteWidth / 2}
+                    y={px.cy - spriteHeight / 2}
+                    width={spriteWidth}
+                    height={spriteHeight}
+                    preserveAspectRatio="xMidYMid meet"
+                    className="pointer-events-none"
+                    style={{
+                      filter: isToothSelected
+                        ? 'drop-shadow(0 0 1px var(--primary)) drop-shadow(0 0 4px color-mix(in srgb, var(--primary) 45%, transparent))'
+                        : undefined,
+                    }}
+                  />
+                )}
+
+                {isToothSelected && !useMockupSprite && (
                   <path
                     data-selected-halo="true"
                     d={glyph.path}
                     transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x * 1.13} ${px.r * glyph.y * 1.13 * (px.isUpper ? -1 : 1)})`}
-                    fill="color-mix(in srgb, var(--primary) 10%, transparent)"
+                    fill="color-mix(in srgb, var(--primary) 5%, transparent)"
                     stroke="var(--primary)"
-                    strokeWidth={1.8}
+                    strokeWidth={2.35}
                     vectorEffect="non-scaling-stroke"
-                    opacity={0.86}
+                    opacity={0.92}
                     className="pointer-events-none"
                   />
                 )}
@@ -515,18 +554,17 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                   strokeWidth={isToothSelected || isMultiSelected ? 2.35 : 1.5}
                   vectorEffect="non-scaling-stroke"
                   filter="url(#tooth-soft-shadow)"
-                  className="pointer-events-none transition-colors duration-200"
+                  className={`pointer-events-none transition-colors duration-200 ${useMockupSprite ? 'hidden' : ''}`}
                 />
 
                 <path
                   d={glyph.path}
                   transform={`translate(${px.cx - px.r * 0.10} ${px.cy - (px.isUpper ? -1 : 1) * px.r * 0.08}) scale(${px.r * glyph.x * 0.72} ${px.r * glyph.y * 0.72 * (px.isUpper ? -1 : 1)})`}
                   fill="url(#tooth-gloss)"
-                  stroke="color-mix(in srgb, var(--card-bg) 72%, var(--text-main) 28%)"
-                  strokeWidth={0.72}
+                  stroke="none"
                   vectorEffect="non-scaling-stroke"
-                  opacity={0.48}
-                  className="pointer-events-none"
+                  opacity={0.30}
+                  className={`pointer-events-none ${useMockupSprite ? 'hidden' : ''}`}
                 />
 
                 {(glyph.kind === 'INCISOR' || glyph.kind === 'CANINE') && (
@@ -537,7 +575,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                     stroke="color-mix(in srgb, var(--border-hover) 64%, var(--text-main) 36%)"
                     strokeWidth={0.82}
                     vectorEffect="non-scaling-stroke"
-                    className="pointer-events-none"
+                    className={`pointer-events-none ${useMockupSprite ? 'hidden' : ''}`}
                   />
                 )}
 
@@ -549,9 +587,10 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                     transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y * (px.isUpper ? -1 : 1)})`}
                     fill="none"
                     stroke="color-mix(in srgb, var(--border-hover) 64%, var(--text-main) 36%)"
-                    strokeWidth={0.92}
+                    strokeWidth={0.68}
                     vectorEffect="non-scaling-stroke"
-                    className="pointer-events-none"
+                    opacity={0.46}
+                    className={`pointer-events-none ${useMockupSprite ? 'hidden' : ''}`}
                   />
                 )}
 
