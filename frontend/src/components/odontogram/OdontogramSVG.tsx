@@ -381,6 +381,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
               const px = toothPx(toothNumber);
               if (!px) return null;
               const glyph = toothGlyph(toothNumber);
+            const verticalDirection = px.isUpper ? -1 : 1;
               return (
                 <clipPath id={`clip-tooth-${toothNumber}`} key={`clip-${toothNumber}`}>
                   <path
@@ -631,7 +632,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
 
                     {isRootCanal && (
                       <path
-                        d={`M ${px.cx} ${px.cy - px.r * 0.08} Q ${px.cx - px.r * 0.10} ${px.cy + px.r * 0.34} ${px.cx} ${px.cy + px.r * 0.78}`}
+                        d={`M ${px.cx} ${px.cy - px.r * 0.08 * verticalDirection} Q ${px.cx - px.r * 0.10} ${px.cy + px.r * 0.34 * verticalDirection} ${px.cx} ${px.cy + px.r * 0.78 * verticalDirection}`}
                         fill="none"
                         stroke={SURFACE_COLORS.ROOT_CANAL.stroke}
                         strokeWidth={2.4}
