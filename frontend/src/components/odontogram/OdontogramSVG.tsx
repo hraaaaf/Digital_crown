@@ -291,13 +291,11 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
       const row = isUpper ? rows.top : rows.bottom;
       if (index < 0) return null;
       const compactViewport = W < 520;
-      const edge = type === 'ADULT' ? (compactViewport ? 5 : 7) : (compactViewport ? 10 : 13);
-      const linearX = row.length === 1 ? 50 : edge + (index * (100 - edge * 2)) / (row.length - 1);
-      const normalized = row.length === 1 ? 0 : (index / (row.length - 1)) * 2 - 1;
-      const archPull = compactViewport ? 1.4 : 2.2;
-      const xPct = linearX + Math.sign(normalized) * archPull * (1 - Math.abs(normalized));
-      const yPct = isUpper ? (compactViewport ? 32 : 34) : (compactViewport ? 72 : 70);
-      const radiusPct = type === 'ADULT' ? (compactViewport ? 5.75 : 5.25) : (compactViewport ? 6.15 : 5.8);
+      // Canonical mockup: broad, almost linear rows with a clean central FDI split.
+      const edge = type === 'ADULT' ? (compactViewport ? 5.5 : 5.2) : (compactViewport ? 9 : 10);
+      const xPct = row.length === 1 ? 50 : edge + (index * (100 - edge * 2)) / (row.length - 1);
+      const yPct = isUpper ? (compactViewport ? 31 : 32) : (compactViewport ? 70 : 69);
+      const radiusPct = type === 'ADULT' ? (compactViewport ? 6.0 : 5.65) : (compactViewport ? 6.35 : 6.0);
       return { cx: pctX(xPct, W), cy: pctY(yPct, H), r: pctR(radiusPct, W, H), isUpper };
     },
     [canvasSize, rows, type]
@@ -355,7 +353,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
     <div
       ref={containerRef}
       data-odontogram-renderer="compact-fdi"
-      className={`relative w-full mx-auto aspect-[16/9] min-h-[290px] sm:min-h-[320px] ${className || 'max-w-[1040px]'}`}
+      className={`relative w-full mx-auto aspect-[1.78/1] min-h-[310px] sm:min-h-[360px] ${className || 'max-w-[1120px]'}`}
     >
       {canvasSize.width > 0 && canvasSize.height > 0 && (
         <svg
@@ -407,17 +405,17 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             className="pointer-events-none"
           />
 
-          <text x={pctX(3.5, canvasSize.width)} y={pctY(12, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(12, Math.min(17, canvasSize.width * 0.016))} fontWeight={800}>
+          <text x={pctX(3.5, canvasSize.width)} y={pctY(9, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(12, Math.min(17, canvasSize.width * 0.016))} fontWeight={800}>
             Maxillaire
           </text>
-          <text x={pctX(3.5, canvasSize.width)} y={pctY(55, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(12, Math.min(17, canvasSize.width * 0.016))} fontWeight={800}>
+          <text x={pctX(3.5, canvasSize.width)} y={pctY(54, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(12, Math.min(17, canvasSize.width * 0.016))} fontWeight={800}>
             Mandibulaire
           </text>
           <line
             x1={pctX(50, canvasSize.width)}
-            y1={pctY(17, canvasSize.height)}
+            y1={pctY(15, canvasSize.height)}
             x2={pctX(50, canvasSize.width)}
-            y2={pctY(84, canvasSize.height)}
+            y2={pctY(88, canvasSize.height)}
             stroke="var(--border-color)"
             strokeWidth={1.25}
             strokeDasharray="5 6"
@@ -425,9 +423,9 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
           />
           <line
             x1={pctX(3.5, canvasSize.width)}
-            y1={pctY(51, canvasSize.height)}
+            y1={pctY(50, canvasSize.height)}
             x2={pctX(96.5, canvasSize.width)}
-            y2={pctY(51, canvasSize.height)}
+            y2={pctY(50, canvasSize.height)}
             stroke="var(--border-color)"
             strokeWidth={1}
             className="pointer-events-none"
@@ -482,7 +480,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                 {showNumbers && (
                   <text
                     x={px.cx}
-                    y={px.cy - px.r * 1.65}
+                    y={px.cy - px.r * 1.52}
                     textAnchor="middle"
                     fill="var(--text-main)"
                     fontSize={Math.max(10.5, Math.min(14, canvasSize.width * 0.014))}
@@ -522,12 +520,12 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
 
                 <path
                   d={glyph.path}
-                  transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x * 0.84} ${px.r * glyph.y * 0.84 * (px.isUpper ? -1 : 1)})`}
+                  transform={`translate(${px.cx - px.r * 0.10} ${px.cy - (px.isUpper ? -1 : 1) * px.r * 0.08}) scale(${px.r * glyph.x * 0.72} ${px.r * glyph.y * 0.72 * (px.isUpper ? -1 : 1)})`}
                   fill="url(#tooth-gloss)"
                   stroke="color-mix(in srgb, var(--card-bg) 72%, var(--text-main) 28%)"
                   strokeWidth={0.72}
                   vectorEffect="non-scaling-stroke"
-                  opacity={0.62}
+                  opacity={0.48}
                   className="pointer-events-none"
                 />
 
