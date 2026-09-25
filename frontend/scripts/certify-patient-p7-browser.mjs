@@ -173,7 +173,7 @@ for (const viewport of viewports) {
 
   await page.getByRole('button', { name: 'Clinique', exact: true }).click();
   results.push({ surface: 'clinical', ...(await capture(page, viewport, 'clinical', async () => {
-    for (const label of ['Espace Clinique', 'Sécurité médicale', 'Dossier clinique', 'Master Plan']) {
+    for (const label of ['Espace Clinique', 'Sécurité médicale', 'Dossier clinique', 'Plan de traitement']) {
       await page.getByText(label, { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
     }
     if (await page.getByText(/Radar de Vigilance/i).count()) throw new Error('P7 legacy VigilanceRadar visible');
