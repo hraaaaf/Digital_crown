@@ -6,14 +6,15 @@ import { chromium, request } from 'playwright';
 const password=process.env.T2_PASSWORD;
 if(!password) throw new Error('T2_PASSWORD required');
 
-// Last genuine product state before the R8 Performance & Assistance UI rewrite.
-const baselineSha='5c2593d4a3d063c439faa8746403c793fb2241f4';
+const baselineSha='915ac3f048803cb7aa82687130233622a1de0fb7';
 const currentHead=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',cwd:path.resolve('..')}).trim();
 const sourcePath=path.resolve('src/features/admin/Settings/tabs/IATab.tsx');
 const artifactDir=path.resolve('artifacts/g5-runtime-preferences-visual');
 fs.mkdirSync(artifactDir,{recursive:true});
 
 const currentSource=fs.readFileSync(sourcePath,'utf8');
+// actions/checkout is shallow here; fetch the exact historical BEFORE object before git show.
+execFileSync('git',['fetch','--no-tags','--depth=1','origin',baselineSha],{cwd:path.resolve('..'),stdio:'pipe'});
 const baselineSource=execFileSync(
   'git',
   ['show',baselineSha+':frontend/src/features/admin/Settings/tabs/IATab.tsx'],
