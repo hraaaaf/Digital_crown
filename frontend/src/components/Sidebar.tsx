@@ -11,6 +11,7 @@ import {
   BookOpen,
   Shield,
   Store,
+  Crown,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
@@ -31,6 +32,13 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const { activeCabinetId, cabinets, switchCabinet } = useSettingsStore();
   const { user } = useAuthStore();
   const location = useLocation();
+  const [desktopPinned, setDesktopPinned] = useState(() => localStorage.getItem('sidebar_desktop_pinned') === 'true');
+  const [desktopHovered, setDesktopHovered] = useState(false);
+  const desktopExpanded = desktopPinned || desktopHovered;
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_desktop_pinned', String(desktopPinned));
+  }, [desktopPinned]);
 
   const hasAccess = (permission: string) => userHasAccess(user, permission);
 
@@ -50,13 +58,13 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   }, [user]);
 
   const [isAiActive, setIsAiActive] = useState(false);
-  const [tipsEnabled, setTipsEnabled] = useState(localStorage.getItem('clinical_tips_enabled') !== 'false');
+  const [aiActivityAnimationEnabled, setAiActivityAnimationEnabled] = useState(localStorage.getItem('clinical_tips_enabled') !== 'false');
   
   // CTO Rigor: Global event listener for AI animation & Settings changes
   useEffect(() => {
     const handleAiStart = () => setIsAiActive(true);
     const handleAiEnd = () => setIsAiActive(false);
-    const handlePrefChange = () => setTipsEnabled(localStorage.getItem('clinical_tips_enabled') !== 'false');
+    const handlePrefChange = () => setAiActivityAnimationEnabled(localStorage.getItem('clinical_tips_enabled') !== 'false');
     
     window.addEventListener('ai-generation-start', handleAiStart);
     window.addEventListener('ai-generation-end', handleAiEnd);
@@ -93,33 +101,86 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           50% { transform: scale(1.02); filter: drop-shadow(0 0 15px var(--primary)); }
         }
         .animate-logo-pulse-light { animation: logo-pulse-light 2s ease-in-out infinite; }
+        .sidebar-cabinet-compact { display: none; }
+        @media (min-width: 1024px) {
+          .sidebar-shell[data-expanded="false"] .sidebar-label,
+          .sidebar-shell[data-expanded="false"] .sidebar-section-label,
+          .sidebar-shell[data-expanded="false"] .sidebar-expanded-only,
+          .sidebar-shell[data-expanded="false"] .sidebar-cabinet-full { display: none; }
+          .sidebar-shell[data-expanded="false"] .sidebar-cabinet-compact { display: flex; }
+          .sidebar-shell[data-expanded="false"] .sidebar-logo-wrap { height: 4.5rem; padding: 0.875rem; }
+          .sidebar-shell[data-expanded="false"] .sidebar-nav { padding-left: 0.5rem; padding-right: 0.5rem; }
+          .sidebar-shell[data-expanded="false"] .sidebar-nav-item { justify-content: center; min-height: 2.875rem; padding-left: 0.75rem; padding-right: 0.75rem; }
+          .sidebar-shell[data-expanded="false"] .sidebar-logo { display: none; }
+          .sidebar-brand-compact { display: none; }
+          .sidebar-shell[data-expanded="false"] .sidebar-brand-compact { display: flex; }
+          .sidebar-shell[data-expanded="false"] .sidebar-badge { position: absolute; top: 0.35rem; right: 0.35rem; width: 0.5rem; height: 0.5rem; padding: 0; font-size: 0; border-radius: 999px; }
+        }
       `}</style>
       {/* SIDEBAR : Clinical Premium Elite */}
-      <aside className={cn(
-        "w-72 bg-sidebar backdrop-blur-2xl border-r border-border-main shadow-elite flex flex-col h-screen fixed lg:relative z-[10000] shrink-0 transition-all duration-300",
-        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )}>
+      <aside
+        className={cn(
+          "sidebar-shell w-72 lg:w-[68px] h-screen fixed lg:relative z-[10000] shrink-0",
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+        data-expanded={desktopExpanded ? "true" : "false"}
+        onMouseEnter={() => setDesktopHovered(true)}
+        onMouseLeave={() => setDesktopHovered(false)}
+        onFocusCapture={() => setDesktopHovered(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDesktopHovered(false);
+        }}
+      >
+        <div className={cn(
+          "h-full w-72 lg:absolute lg:inset-y-0 lg:left-0 lg:w-[68px] bg-sidebar border-r border-border-main shadow-elite flex flex-col transition-[width,background-color,box-shadow] duration-200 ease-out overflow-hidden",
+          desktopExpanded && "lg:w-72 lg:shadow-2xl"
+        )}
+        style={{
+          background: desktopExpanded ? 'color-mix(in srgb, var(--sidebar-bg) 92%, transparent)' : 'var(--sidebar-bg)',
+          borderColor: desktopExpanded ? 'var(--glass-border)' : 'var(--border-color)',
+          backdropFilter: desktopExpanded ? 'blur(24px) saturate(160%)' : undefined,
+          WebkitBackdropFilter: desktopExpanded ? 'blur(24px) saturate(160%)' : undefined,
+        }}>
         
         {/* PRODUCT IDENTITY: DIGITAL CROWN LOGO (Centered) */}
-        <div className="p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo">
+        <div className="sidebar-logo-wrap p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo transition-all duration-200">
           <Link 
             to="/dashboard" 
             className="transition-elite block w-full hover:opacity-80 flex items-center justify-center"
           >
+            <span className="sidebar-brand-compact h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/75 text-primary shadow-sm" aria-hidden="true">
+              <Crown size={20} strokeWidth={1.8} />
+            </span>
             <img 
               src={Logo} 
               alt="Digital Crown" 
               className={cn(
-                "h-auto w-full max-w-[190px] object-contain transition-all duration-700", 
-                (isAiActive && tipsEnabled) && "animate-logo-pulse-light"
+                "sidebar-logo h-auto w-full max-w-[190px] object-contain transition-all duration-700",
+                (isAiActive && aiActivityAnimationEnabled) && "animate-logo-pulse-light"
               )} 
               style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
             />
           </Link>
+          <button
+            type="button"
+            onClick={() => setDesktopPinned(value => !value)}
+            className="sidebar-expanded-only hidden lg:flex absolute right-3 bottom-2 h-7 px-2 items-center justify-center rounded-lg border border-border-main bg-card-bg/70 text-[10px] font-black uppercase tracking-wider text-text-muted hover:text-primary"
+            aria-pressed={desktopPinned}
+            aria-label={desktopPinned ? 'Libérer la barre latérale' : 'Épingler la barre latérale'}
+            title={desktopPinned ? 'Libérer' : 'Épingler'}
+          >
+            {desktopPinned ? 'Fixée' : 'Épingler'}
+          </button>
         </div>
 
         {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}
-        <div className="px-6 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
+        <div className="px-3 lg:px-2 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
+          <div
+            className="sidebar-cabinet-compact h-10 w-10 mx-auto items-center justify-center rounded-xl border border-border-main bg-card-bg/60 text-base"
+            aria-hidden="true"
+            title={cabinets.find(cab => String(cab.id) === String(activeCabinetId))?.nom || 'Cabinet actif'}
+          ><Store size={18} strokeWidth={1.8} /></div>
+          <div className="sidebar-cabinet-full">
           <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-1">Cabinet Actif</div>
           <div className="relative group">
             <select
@@ -141,11 +202,12 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
               ))}
             </select>
           </div>
+          </div>
         </div>
 
         {/* STACKED NAVIGATION */}
-        <nav className="flex-1 p-5 space-y-1.5 overflow-y-auto custom-scrollbar">
-          <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Cabinet</div>
+        <nav className="sidebar-nav flex-1 p-5 space-y-1.5 overflow-y-auto custom-scrollbar">
+          <div className="sidebar-section-label text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Cabinet</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" badge={alertCount > 0 ? String(alertCount) : undefined} />
           <NavItem to="/analytics" icon={<Activity size={20} />} label="Indicateurs" />
@@ -167,7 +229,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('patients') && currentPatientId && (
             <div className="mt-8 animate-in fade-in slide-in-from-left-4 duration-500">
               <div 
-                className="text-[10px] font-black uppercase tracking-widest mx-2 mb-3 shadow-sm flex items-center gap-2 py-2.5 px-4 rounded-elite-sm border transition-elite"
+                className="sidebar-expanded-only text-[10px] font-black uppercase tracking-widest mx-2 mb-3 shadow-sm flex items-center gap-2 py-2.5 px-4 rounded-elite-sm border transition-elite"
                 style={{ 
                   backgroundColor: 'var(--primary-bg, rgba(99, 102, 241, 0.1))', 
                   color: 'var(--primary)',
@@ -204,6 +266,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           )}
 
         </nav>
+        </div>
       </aside>
     </>
   );
@@ -213,10 +276,12 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
 const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: React.ReactNode, label: string, forceActive?: boolean, badge?: string }) => (
   <NavLink
     to={to}
+    aria-label={label}
+    title={label}
     className={({ isActive }) => {
       const isActuallyActive = forceActive !== undefined ? forceActive : isActive;
       return cn(
-        "flex items-center gap-3 px-4 py-3 rounded-elite-sm transition-elite group relative overflow-hidden cursor-pointer mb-1",
+        "sidebar-nav-item flex items-center gap-3 px-4 py-3 rounded-elite-sm transition-elite group relative overflow-hidden cursor-pointer mb-1",
           isActuallyActive 
           ? "shadow-elite border border-border-main" 
           : "text-text-muted hover:bg-primary/5 hover:text-primary"
@@ -244,13 +309,13 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
             {icon}
           </span>
           <span
-            className={cn("text-sm relative z-10 tracking-tight transition-elite", isActuallyActive ? "font-black" : "font-bold")}
+            className={cn("sidebar-label text-sm relative z-10 tracking-tight transition-elite", isActuallyActive ? "font-black" : "font-bold")}
             style={isActuallyActive ? { color: 'var(--primary)' } : {}}
           >
             {label}
           </span>
           {badge && (
-            <span className="relative z-10 ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <span className="sidebar-badge relative z-10 ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
               {badge}
             </span>
           )}

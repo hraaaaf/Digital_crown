@@ -118,7 +118,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div data-testid="agenda-week-view" className="w-full space-y-6">
       
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">

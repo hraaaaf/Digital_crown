@@ -52,7 +52,7 @@ export const AssistantEndo: React.FC<AssistantEndoProps> = ({ onComplete, onCanc
     setAnswers(newAnswers);
 
     if (currentStep < QUESTIONS.length - 1) {
-      setTimeout(() => setCurrentStep(prev => prev + 1), 300);
+      setTimeout(() => setCurrentStep(prev => Math.min(prev + 1, QUESTIONS.length - 1)), 300);
     } else {
       generateDiagnosis(newAnswers);
     }

@@ -1,0 +1,37 @@
+name: V1-07 G4 Suite Auto Dispatch
+
+on:
+  push:
+    branches:
+      - audit/g0-global-interactive-inventory
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: v1-07-g4-suite-auto-dispatch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    name: Dispatch G4 T2-only gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch G4 certification suite on current branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref_name }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$COMMIT_MSG" == *"[g4-tail]"* ]]; then
+            echo "Dispatching T2 resume-from-27 on $REF"
+            gh workflow run t2-runtime-cert.yml --repo "$REPO" --ref "$REF" -f resume_from_27=true
+          else
+            echo "Dispatching T2 resume-from-after on $REF"
+            gh workflow run t2-runtime-cert.yml --repo "$REPO" --ref "$REF" -f resume_from_after=true
+          fi

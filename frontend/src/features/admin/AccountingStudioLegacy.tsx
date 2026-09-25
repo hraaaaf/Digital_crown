@@ -74,6 +74,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     installments, setInstallments,
     isAccounted, setIsAccounted,
     paymentStatus, setPaymentStatus,
+    paymentStatusGuardMessage, clearPaymentStatusGuard,
     isGlobalNote, setIsGlobalNote,
     groupTreatmentName, setGroupTreatmentName,
     groupTreatmentPrice, setGroupTreatmentPrice
@@ -865,7 +866,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
       <AnimatePresence>
         {!isDevis && isTreasuryModalOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -912,6 +913,25 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   </div>
                 </div>
               </div>
+
+              {paymentStatusGuardMessage && (
+                <div
+                  role="alert"
+                  className="relative z-20 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"
+                >
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider">Paiement partiel</div>
+                    <div className="mt-1 text-xs font-semibold">{paymentStatusGuardMessage}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearPaymentStatusGuard}
+                    className="shrink-0 rounded-xl border border-amber-300 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider"
+                  >
+                    Compris
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-4 relative z-10">
                 <div className="space-y-4">
@@ -1043,7 +1063,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 )}
               </AnimatePresence>
 
-              <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-4 relative z-10">
+              <div className="pt-6 border-t border-slate-100 relative z-10">
+                <p className="mb-4 text-xs font-semibold text-slate-500">
+                  Ces réglages seront enregistrés avec la note lors de son enregistrement.
+                </p>
+                <div className="flex flex-col sm:flex-row justify-end gap-4">
                 <button 
                   type="button"
                   onClick={() => setIsTreasuryModalOpen(false)}
@@ -1053,7 +1077,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   type="button"
                   onClick={() => setIsTreasuryModalOpen(false)}
                   className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
-                >Confirmer l'Encaissement</button>
+                >Appliquer à la note</button>
+                </div>
               </div>
             </motion.div>
           </div>

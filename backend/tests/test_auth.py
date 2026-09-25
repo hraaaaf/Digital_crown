@@ -220,3 +220,23 @@ def test_signup_is_rate_limited_and_google_callback_checks_team_approval():
     callback_start = source.index("async def google_callback")
     callback_block = source[callback_start:]
     assert 'getattr(user, "employer_id", None) is not None and approval != "approved"' in callback_block
+
+
+def test_signup_pending_clients_cloud_payload_is_minimized():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "routers" / "auth.py").read_text(encoding="utf-8")
+    start = source.index("firebase_db.collection('pending_clients')")
+    block = source[start:start + 520]
+
+    for required in ['"email": req.email', '"nom_complet": req.nom_complet', '"status": "pending"', '"created_at":']:
+        assert required in block
+
+    for forbidden in [
+        "telephone_mobile",
+        "adresse_complete",
+        '"user_id"',
+        '"id": new_user.id',
+        "hashed_password",
+    ]:
+        assert forbidden not in block

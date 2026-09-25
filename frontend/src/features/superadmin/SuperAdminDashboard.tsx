@@ -143,7 +143,7 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const handleSetPlan = async (userId: number, plan: string) => {
     try {
-      await api.patch(`/superadmin/clients/${userId}/plan`, null, { params: { plan } });
+      await api.patch(`/superadmin/clients/${userId}/plan`, {}, { params: { plan } });
       toast.success(`Pack ${plan} attribué.`);
       fetchClients();
     } catch (err: any) {
@@ -523,7 +523,7 @@ export const SuperAdminDashboard: React.FC = () => {
       {/* NOTES MODAL */}
       {notesModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Notes internes SuperAdmin" className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
             <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2"><MessageSquare size={20} className="text-blue-600"/> Notes Internes (SuperAdmin)</h3>
             <textarea 
               className="w-full h-32 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
@@ -542,10 +542,10 @@ export const SuperAdminDashboard: React.FC = () => {
       {/* HISTORY MODAL */}
       {historyModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
+          <div role="dialog" aria-modal="true" aria-label="Historique Licences" className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><History size={20} className="text-blue-600"/> Historique Licences</h3>
-              <button onClick={() => setHistoryModal({isOpen: false, clientId: null, history: []})} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full"><XCircle size={20} className="text-slate-500"/></button>
+              <button onClick={() => setHistoryModal({isOpen: false, clientId: null, history: []})} aria-label="Fermer l’historique licences" className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full"><XCircle size={20} className="text-slate-500"/></button>
             </div>
             <div className="overflow-y-auto flex-1 pr-2 space-y-3">
               {historyModal.history.length === 0 ? (

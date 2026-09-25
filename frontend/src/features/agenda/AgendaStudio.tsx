@@ -305,9 +305,11 @@ export const AgendaStudio: React.FC = () => {
       )}
 
       {/* RENDER ACTIVE VIEW */}
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {renderView()}
-      </div>
+      {!showPendingOnly && (
+        <div data-testid="agenda-active-view" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {renderView()}
+        </div>
+      )}
 
       <FrontdeskModal
         open={isFrontdeskModalOpen}

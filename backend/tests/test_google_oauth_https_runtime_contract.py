@@ -55,3 +55,62 @@ def test_google_oauth_callback_rejects_state_mismatch_before_token_exchange(clie
     )
     assert response.status_code in {302, 307}
     assert "google_state_invalid" in response.headers["location"]
+
+
+def test_google_oauth_callback_rejects_missing_state_before_token_exchange(client, monkeypatch) -> None:
+    from backend.routers import auth
+
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_ID", "synthetic-client")
+    response = client.get(
+        "/api/auth/google/callback?code=synthetic-code",
+        follow_redirects=False,
+    )
+
+    assert response.status_code in {302, 307}
+    assert "google_state_invalid" in response.headers["location"]
+
+
+def test_google_oauth_success_consumes_state_cookie_once(client, monkeypatch, dentiste) -> None:
+    from urllib.parse import parse_qs, urlparse
+    from backend.routers import auth
+
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_ID", "synthetic-client")
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_SECRET", "synthetic-secret")
+
+    class FakeResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, data):
+            return FakeResponse(200, {"access_token": "google-access"})
+
+        async def get(self, url, headers):
+            return FakeResponse(200, {"email": dentiste.email, "name": dentiste.nom_complet})
+
+    monkeypatch.setattr(auth.httpx, "AsyncClient", FakeAsyncClient)
+
+    authorize = client.get("/api/auth/google/authorize", follow_redirects=False)
+    assert authorize.status_code in {302, 307}
+    state = parse_qs(urlparse(authorize.headers["location"]).query)["state"][0]
+    assert client.cookies.get("google_oauth_state") == state
+
+    callback = client.get(
+        f"/api/auth/google/callback?code=synthetic-code&state={state}",
+        follow_redirects=False,
+    )
+
+    assert callback.status_code in {302, 307}
+    assert "google=success" in callback.headers["location"]
+    assert client.cookies.get("google_oauth_state") is None
+    assert "google_oauth_state=" in callback.headers.get("set-cookie", "")

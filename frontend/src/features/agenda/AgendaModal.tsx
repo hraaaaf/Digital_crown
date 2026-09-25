@@ -101,7 +101,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setActSearch(editingAppointment.motif || '');
         setStatus(editingAppointment.status);
         if (editingAppointment.patient_id) {
-           setSelectedPatient({ id: editingAppointment.patient_id, nom: editingAppointment.patient_name?.split(' ')[0] || '', prenom: editingAppointment.patient_name?.split(' ')[1] || '' });
+          setSelectedPatient({ id: editingAppointment.patient_id, nom: editingAppointment.patient_name?.split(' ')[0] || '', prenom: editingAppointment.patient_name?.split(' ')[1] || '' });
+          setPatientSearch('');
+        } else {
+          setSelectedPatient(null);
+          setPatientSearch(editingAppointment.patient_name || '');
         }
       } else {
         setDateValue(selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
@@ -314,7 +318,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate) return;
+    if (!dateValue) return;
     
     setLoading(true);
     try {
@@ -325,7 +329,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       const payload = {
         patient_id: selectedPatient?.id || null,
         patient_name: selectedPatient ? `${selectedPatient.nom} ${selectedPatient.prenom}` : patientSearch,
-        motif: selectedAct ? selectedAct.name : (motif || actSearch),
+        motif: selectedAct ? selectedAct.name : (actSearch || motif),
         datetime_start: startDateTime.toISOString(),
         duration_minutes: duration,
         status: status,
@@ -618,8 +622,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       <div className="text-sm font-black text-slate-700">Ajouter « {actSearch.trim()} »</div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Tarif (DHS)</label>
+                          <label htmlFor="agenda-quick-act-price" className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Tarif (DHS)</label>
                           <input
+                            id="agenda-quick-act-price"
                             type="number" min={0} value={newActPrice}
                             onChange={e => setNewActPrice(e.target.value)}
                             placeholder="0"
@@ -627,8 +632,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                           />
                         </div>
                         <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Catégorie</label>
+                          <label htmlFor="agenda-quick-act-category" className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Catégorie</label>
                           <select
+                            id="agenda-quick-act-category"
                             value={newActCategory}
                             onChange={e => setNewActCategory(e.target.value)}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"

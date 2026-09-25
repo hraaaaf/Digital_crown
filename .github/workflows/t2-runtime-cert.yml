@@ -3,6 +3,37 @@ name: T2 Runtime Browser Certification
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      resume_from_23:
+        description: 'Skip already-certified browser steps 14-22 and resume at G4 Devis/History'
+        required: false
+        default: false
+        type: boolean
+      resume_from_24:
+        description: 'Skip already-certified browser steps 14-23 and resume at G4 dynamic inventory'
+        required: false
+        default: false
+        type: boolean
+      resume_from_27:
+        description: 'Skip already-certified browser steps 14-26 and resume at G4 Panoramic'
+        required: false
+        default: false
+        type: boolean
+      resume_from_29:
+        description: 'Skip already-certified browser steps 14-28 and resume at G4 truth-label BEFORE'
+        required: false
+        default: false
+        type: boolean
+      resume_from_31:
+        description: 'Skip already-certified browser steps 14-30 and resume at G4 Cephalo'
+        required: false
+        default: false
+        type: boolean
+      resume_from_after:
+        description: 'Skip already-certified browser steps 14-32 and run only G4 UI truth AFTER'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: t2-runtime-${{ github.ref }}
@@ -69,6 +100,11 @@ jobs:
           pip install -r /tmp/requirements-t2-runtime.txt
           python -m pip check
 
+      - name: Certify G4 Panoramic backend contracts
+        run: |
+          pytest -q backend/tests/test_panoramic_report_fail_closed.py backend/tests/test_panoramic_pdf_fail_closed.py
+          pytest -q backend/tests/test_ia_router.py -k panoramic
+
       - name: Install frontend and Chromium
         working-directory: frontend
         run: |
@@ -109,6 +145,7 @@ jobs:
           exit 1
 
       - name: Execute authenticated browser matrix
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -117,6 +154,7 @@ jobs:
           node scripts/certify-document-studio-browser.mjs 2>&1 | tee ../artifacts/t2-browser/runner.log
 
       - name: Certify T1 transversal runtime boundaries
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -124,6 +162,7 @@ jobs:
           node scripts/certify-t1-transversal.mjs 2>&1 | tee ../artifacts/t2-browser/t1-transversal-runner.log
 
       - name: Certify P6 Document Libre editor
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -131,6 +170,7 @@ jobs:
           node scripts/certify-p6-editor.mjs 2>&1 | tee ../artifacts/t2-browser/p6-editor-runner.log
 
       - name: Certify browser print and PDF freshness
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
         shell: bash
         run: |
@@ -146,6 +186,126 @@ jobs:
           set -o pipefail
           mkdir -p ../artifacts/honoraires-reconciliation
           node scripts/certify-honoraires-reconciliation-browser.mjs 2>&1 | tee ../artifacts/honoraires-reconciliation/runner.log
+
+      - name: Certify G4 Ordonnance browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-ordonnance-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-ordonnance-actions-runner.log
+
+      - name: Certify G4 Finances browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-finances-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-finances-actions-runner.log
+
+      - name: Capture G4 Treasury partial guard BEFORE
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        env:
+          G4_TREASURY_GUARD_BEFORE_ONLY: "1"
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-treasury-guard-before-runner.log
+
+      - name: Certify G4 Honoraires browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-honoraires-actions-runner.log
+
+      - name: Certify G4 remaining document actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-remaining-documents.mjs 2>&1 | tee ../artifacts/t2-browser/g4-remaining-documents-runner.log
+
+      - name: Certify G4 Devis and History actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-devis-history.mjs 2>&1 | tee ../artifacts/t2-browser/g4-devis-history-runner.log
+
+      - name: Inventory G4 dynamic controls
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/inventory-v1-07-g4-dynamic-controls.mjs 2>&1 | tee ../artifacts/t2-browser/g4-dynamic-inventory-runner.log
+
+      - name: Certify G4 Clinical browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-clinical-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-clinical-actions-runner.log
+
+      - name: Certify G4 Imaging media/tab browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-media-c4-browser.mjs 2>&1 | tee ../artifacts/t2-browser/g4-imaging-media-runner.log
+
+      - name: Certify G4 Panoramic browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-panoramic-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-panoramic-actions-runner.log
+
+      - name: Certify G4 RVG browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-rvg-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-rvg-actions-runner.log
+
+      - name: Capture G4 truth-label BEFORE
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        run: node scripts/capture-v1-07-g4-truth-labels-before.mjs
+
+      - name: Capture G4 Panoramic trash BEFORE
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        run: node scripts/capture-v1-07-g4-panoramic-trash-before.mjs
+
+      - name: Certify G4 Cephalo browser actions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_after != true }}
+        working-directory: frontend
+        run: node scripts/certify-v1-07-g4-cephalo-actions.mjs
+
+      - name: Reproduce Dashboard to patient Finances path
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-dashboard-finance-path.mjs 2>&1 | tee ../artifacts/t2-browser/dashboard-finance-path-runner.log
+
+      - name: Certify G4 UI truth AFTER
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-v1-07-g4-ui-truth-after.mjs 2>&1 | tee ../artifacts/t2-browser/g4-ui-truth-after-runner.log
 
       - name: Dump runtime logs on failure
         if: failure()

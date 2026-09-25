@@ -287,7 +287,7 @@ export const PatientList = () => {
               className="mt-4 bg-gradient-to-br from-primary to-secondary text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1 transition-all duration-300"
             >
               <UserPlus size={22} strokeWidth={2.5} />
-              Créer "{searchTerm}"
+              Ajouter ce patient
               <ArrowRight size={18} />
             </button>
           </div>

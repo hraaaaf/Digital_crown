@@ -28,7 +28,7 @@ import { cn } from '../../../../utils/cn';
 import { API_BASE } from '../../../../services/api';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 
-const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus, type = "text", disabled = false }: any) => {
+const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus, onBlur, type = "text", disabled = false }: any) => {
   const [localVal, setLocalVal] = React.useState(value);
   React.useEffect(() => { setLocalVal(value); }, [value]);
   return (
@@ -39,6 +39,7 @@ const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus
       onChange={e => setLocalVal(e.target.value)}
       onBlur={() => {
         if (localVal !== value) onChange({ target: { name, value: localVal } } as any);
+        onBlur?.();
       }}
       className={className}
       placeholder={placeholder}
@@ -263,11 +264,11 @@ export const ProfileTab: React.FC = () => {
                 className={cn(inputClass, "text-right font-amiri text-lg", !canEditPractitionerIdentity && 'opacity-60 cursor-not-allowed')}
                 placeholder="مثال: بنموسى أشرف"
                 onFocus={() => setShowArKeyboard({type: 'name'})}
+                onBlur={() => setShowArKeyboard(null)}
                 disabled={!canEditPractitionerIdentity}
               />
               {showArKeyboard?.type === 'name' && canEditPractitionerIdentity && (
                 <div className="absolute top-full right-0 mt-2 z-50">
-                  <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                   <ArabicKeyboard onInput={(char) => {
                     const newVal = (profile.nom_praticien_ar || '') + char;
                     if (!profile.header_customized) {
@@ -314,7 +315,9 @@ export const ProfileTab: React.FC = () => {
                 const isSelected = profile.specialty_ids?.includes(spec.id);
                 return (
                   <button
+                    type="button"
                     key={spec.id}
+                    aria-pressed={isSelected}
                     onClick={() => toggleSpecialty(spec.id)}
                     className={cn(
                       "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all group relative overflow-hidden",
@@ -363,11 +366,11 @@ export const ProfileTab: React.FC = () => {
                     className={inputClass + " text-right font-amiri text-lg"}
                     placeholder="مثال: زراعة الأسنان"
                     onFocus={() => setShowArKeyboard({type: 'custom_spec'})}
+                    onBlur={() => setShowArKeyboard(null)}
                   />
                   {showArKeyboard?.type === 'custom_spec' && (
                     <div className="absolute top-full right-0 mt-2 z-50">
-                      <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
-                      <ArabicKeyboard onInput={(char) => {
+                          <ArabicKeyboard onInput={(char) => {
                         const currentVal = useSettingsStore.getState().profile.custom_specialty_ar || '';
                         const newVal = currentVal + char;
                         handleProfileChange({ target: { name: 'custom_specialty_ar', value: newVal } } as any);
@@ -392,7 +395,9 @@ export const ProfileTab: React.FC = () => {
               <h4 className="font-black text-amber-900">Logo du Cabinet</h4>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-8">
-              <div
+              <button
+                type="button"
+                aria-label="Choisir le logo du cabinet"
                 className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center cursor-pointer hover:bg-amber-100/50 transition-all relative group overflow-hidden"
                 onClick={() => document.getElementById('logo-input')?.click()}
               >
@@ -413,7 +418,7 @@ export const ProfileTab: React.FC = () => {
                     <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Choisir Logo</span>
                   </div>
                 )}
-              </div>
+              </button>
               <div className="flex-1 space-y-2">
                 <p className="text-xs font-bold text-amber-800">Traitement du fichier</p>
                 <h5 className="text-sm font-bold text-amber-900 mb-2">Logo optimisé pour les documents</h5>
@@ -536,6 +541,7 @@ export const ProfileTab: React.FC = () => {
                           dir="rtl"
                           value={line}
                           onFocus={() => setShowArKeyboard({type: 'header', idx})}
+                          onBlur={() => setShowArKeyboard(null)}
                           onChange={(e) => {
                             const newLines = [...(profile.header_lines_ar || [])];
                             newLines[idx] = e.target.value;
@@ -544,7 +550,6 @@ export const ProfileTab: React.FC = () => {
                         />
                         {showArKeyboard?.type === 'header' && showArKeyboard.idx === idx && (
                           <div className="absolute top-full right-0 mt-2 z-50">
-                            <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                             <ArabicKeyboard onInput={(char) => {
                               const newLines = [...(profile.header_lines_ar || [])];
                               newLines[idx] = (newLines[idx] || '') + char;
@@ -585,6 +590,7 @@ export const ProfileTab: React.FC = () => {
                     onClick={() => toggleContact(type)}
                     className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-emerald-500" : "bg-slate-200")}
                     aria-label={`${c.enabled ? 'Désactiver' : 'Activer'} ${label}`}
+                    aria-pressed={c.enabled}
                   >
                     <div className={cn("w-3 h-3 bg-white rounded-full transition-all", c.enabled ? "translate-x-5" : "translate-x-0")} />
                   </button>

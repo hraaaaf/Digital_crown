@@ -188,7 +188,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     const desiredTab: CertifiableDocumentStudioTab =
       type === 'ordonnance' ? 'ordonnance' :
       type === 'certificat' ? 'certificat' :
-      type === 'libre' || type === 'lettre' ? 'libre' :
+      type === 'libre' || type === 'lettre' || type === 'document_libre' || type === 'lettre_medicale' ? 'libre' :
       type === 'devis' ? 'devis' : 'honoraires';
 
     if (!allowedTabs.includes(desiredTab)) return;

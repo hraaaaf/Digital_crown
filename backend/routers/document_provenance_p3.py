@@ -24,6 +24,7 @@ from backend.services.document_provenance_context import (
     set_document_author_practitioner_id,
 )
 from backend.services.document_signature_p3 import (
+    resolve_document_storage_path,
     sign_document,
     verification_state_for_document,
 )
@@ -47,6 +48,14 @@ class DocumentRequestP3(schemas.DocumentRequest):
 
 class CephaloPDFRequestP3(schemas.CephaloPDFRequest):
     author_practitioner_id: Optional[int] = None
+
+
+def _document_archive_out_payload(doc: models.DocumentArchive) -> dict:
+    payload = {column.key: getattr(doc, column.key) for column in doc.__table__.columns}
+    payload["tags"] = list(payload.get("tags") or [])
+    payload["file_exists"] = resolve_document_storage_path(doc).is_file()
+    payload["download_url"] = f"/api/documents/{doc.id}/download"
+    return payload
 
 
 def require_signature_document_permission(
@@ -127,7 +136,7 @@ def sign_document_with_provenance(
         severity="INFO",
         details=f"SHA256: {doc.file_hash}",
     )
-    return signed
+    return _document_archive_out_payload(signed)
 
 
 @patients_router.get("/{patient_id}/documents")

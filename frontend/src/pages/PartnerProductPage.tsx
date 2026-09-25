@@ -29,13 +29,9 @@ export const PartnerProductPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const [product, setProduct] = useState<PartnerProduct | null>(null);
   const [supplier, setSupplier] = useState<PartnerCatalogSupplier | null>(null);
-  const [cart, setCart] = useState<CartState>({});
+  const [cart, setCart] = useState<CartState>(() => readStoredCart());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-
-  useEffect(() => {
-    setCart(readStoredCart());
-  }, []);
 
   useEffect(() => {
     writeStoredCart(cart);
@@ -222,11 +218,11 @@ export const PartnerProductPage: React.FC = () => {
               ) : (
                 <>
                   <div className="mt-4 flex items-center gap-3">
-                    <button type="button" onClick={() => adjustQty(-1)} className="w-11 h-11 rounded-elite border border-border-main text-text-main flex items-center justify-center hover:bg-input-field">
+                    <button type="button" onClick={() => adjustQty(-1)} aria-label={`Retirer une unité de ${product.name}`} className="w-11 h-11 rounded-elite border border-border-main text-text-main flex items-center justify-center hover:bg-input-field">
                       <Minus size={16} />
                     </button>
                     <div className="w-14 text-center text-2xl font-black text-text-main">{quantity}</div>
-                    <button type="button" onClick={() => adjustQty(1)} className="w-11 h-11 rounded-elite text-white flex items-center justify-center hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
+                    <button type="button" onClick={() => adjustQty(1)} aria-label={`Ajouter une unité de ${product.name}`} className="w-11 h-11 rounded-elite text-white flex items-center justify-center hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
                       <Plus size={16} />
                     </button>
                   </div>

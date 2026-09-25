@@ -152,6 +152,7 @@ export const AuditLogViewer = () => {
           <Filter size={14} /> Filtres
         </div>
         <select
+          aria-label="Filtrer le journal par action"
           value={actionFilter}
           onChange={e => { setActionFilter(e.target.value); setPage(0); }}
           disabled={Boolean(readError)}
@@ -167,6 +168,7 @@ export const AuditLogViewer = () => {
           <option value="ACCESS_DENIED">Accès refusé</option>
         </select>
         <select
+          aria-label="Filtrer le journal par sévérité"
           value={severityFilter}
           onChange={e => { setSeverityFilter(e.target.value); setPage(0); }}
           disabled={Boolean(readError)}

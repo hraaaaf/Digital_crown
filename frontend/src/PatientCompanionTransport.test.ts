@@ -72,7 +72,8 @@ describe('Patient Companion D1 transport isolation', () => {
   it('boots Patient Companion before the staff App and excludes patient pages from staff telemetry/offline bootstrap', () => {
     const source = read('./main.tsx');
     expect(source).toContain("previewPath.startsWith('/patient-companion')");
-    expect(source).toContain('!isPatientCompanionRequest && import.meta.env.VITE_SENTRY_DSN');
+    expect(source).toContain('!isPreviewRequest && !isPatientCompanionRequest && frontendTelemetryEnabled');
+    expect(source).toContain('isFrontendCloudTelemetryEnabled');
     expect(source).toContain("!isPatientCompanionRequest && 'serviceWorker' in navigator");
     expect(source.indexOf('if (isPatientCompanionRequest)')).toBeLessThan(source.indexOf("const { default: App } = await import('./App.tsx')"));
   });

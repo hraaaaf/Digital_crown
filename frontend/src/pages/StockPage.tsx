@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Package, AlertTriangle, Plus, Minus, Edit2, Trash2, X, Search, CheckCircle2
@@ -6,6 +6,7 @@ import {
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
+import { CrownDialog } from '../components/CrownDialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,11 @@ const CATEGORIE_LABELS: Record<string, string> = {
   EQUIPEMENT:  'Équipement',
 };
 
+const mutationErrorMessage = (error: any, fallback: string) => {
+  const detail = error?.response?.data?.detail;
+  return typeof detail === 'string' && detail.trim() ? detail : fallback;
+};
+
 const CATEGORIE_COLORS: Record<string, string> = {
   CONSOMMABLE: 'bg-blue-50 text-blue-700 border-blue-200',
   MATERIAU:    'bg-purple-50 text-purple-700 border-purple-200',
@@ -65,10 +71,15 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
     notes:         item?.notes         ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
+    setError(null);
     try {
       const payload = {
         ...form,
@@ -84,7 +95,10 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
         await api.post('/stock/items', payload);
       }
       onSaved();
+    } catch (err: any) {
+      setError(mutationErrorMessage(err, isEdit ? "La modification n'a pas été enregistrée." : "L'article n'a pas été ajouté."));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -104,12 +118,12 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? "Modifier l’article" : "Nouvel article"} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100">
           <h2 className="text-sm font-black uppercase tracking-widest" style={{ color: 'var(--primary)' }}>
             {isEdit ? 'Modifier l\'article' : 'Nouvel article'}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} aria-label="Fermer la fiche article" className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
             <X size={18} className="text-slate-400" />
           </button>
         </div>
@@ -153,6 +167,12 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
             />
           </div>
 
+          {error && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -184,8 +204,10 @@ export const StockPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [modalItem, setModalItem] = useState<Partial<StockItem> | null | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StockItem | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const { data: items = [], isLoading } = useQuery<StockItem[]>({
+  const { data: items = [], isLoading, isError, refetch } = useQuery<StockItem[]>({
     queryKey: ['stock-items'],
     queryFn: () => api.get('/stock/items').then(r => r.data),
   });
@@ -202,15 +224,24 @@ export const StockPage = () => {
 
   const adjustQuantite = async (item: StockItem, delta: number) => {
     const next = Math.max(0, item.quantite + delta);
-    await api.patch(`/stock/items/${item.id}`, { quantite: next });
-    invalidate();
+    setMutationError(null);
+    try {
+      await api.patch(`/stock/items/${item.id}`, { quantite: next });
+      invalidate();
+    } catch (err: any) {
+      setMutationError(mutationErrorMessage(err, "La quantité n'a pas été enregistrée."));
+    }
   };
 
   const handleDelete = async (id: number) => {
     setDeletingId(id);
+    setMutationError(null);
     try {
       await api.delete(`/stock/items/${id}`);
       invalidate();
+      setDeleteTarget(null);
+    } catch (err: any) {
+      setMutationError(mutationErrorMessage(err, "L'article n'a pas été supprimé."));
     } finally {
       setDeletingId(null);
     }
@@ -227,12 +258,30 @@ export const StockPage = () => {
     return <EliteGhostLoader text="Chargement du stock…" size="medium" />;
   }
 
+  if (isError) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-xl font-black tracking-tight text-slate-800">Gestion du Stock</h1>
+        </div>
+        <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-amber-200 bg-amber-50/70 px-6 text-center">
+          <AlertTriangle size={40} className="text-amber-500" />
+          <div>
+            <h2 className="font-black text-slate-800">Stock indisponible</h2>
+            <p className="mt-1 max-w-xl text-sm text-slate-600">Impossible de confirmer le contenu du stock. Aucun état vide n’est affiché tant que la lecture n’a pas réussi.</p>
+          </div>
+          <button type="button" onClick={() => void refetch()} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-wider text-white">Réessayer</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <div className="space-y-3">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary)/10', backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
               <Package size={20} style={{ color: 'var(--primary)' }} />
@@ -246,7 +295,7 @@ export const StockPage = () => {
           </div>
           <button
             onClick={() => setModalItem({})}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
+            className="flex w-full sm:w-auto items-center justify-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
             style={{ background: 'var(--primary)' }}
           >
             <Plus size={14} /> Ajouter un article
@@ -269,9 +318,19 @@ export const StockPage = () => {
         </div>
       )}
 
+      {mutationError && (
+        <div role="alert" className="flex items-start gap-3 rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-red-700">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-black">Action stock non enregistrée</p>
+            <p className="mt-0.5 text-xs font-semibold">{mutationError}</p>
+          </div>
+        </div>
+      )}
+
       {/* Filtres */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl">
+        <div className="flex max-w-full gap-1.5 overflow-x-auto p-1 bg-slate-100 rounded-xl">
           {CATEGORIES.map(cat => (
             <button
               key={cat.value}
@@ -299,7 +358,7 @@ export const StockPage = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-x-auto">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center py-20 text-slate-400">
             <CheckCircle2 size={40} className="text-emerald-300 mb-3" />
@@ -308,7 +367,7 @@ export const StockPage = () => {
             </p>
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[760px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
                 <th className="text-left px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">Article</th>
@@ -351,6 +410,7 @@ export const StockPage = () => {
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => adjustQuantite(item, -1)}
+                        aria-label={`Diminuer la quantité de ${item.nom}`}
                         disabled={item.quantite <= 0}
                         className="w-6 h-6 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-100 disabled:opacity-30 transition-colors"
                       >
@@ -364,6 +424,7 @@ export const StockPage = () => {
                       </span>
                       <button
                         onClick={() => adjustQuantite(item, 1)}
+                        aria-label={`Augmenter la quantité de ${item.nom}`}
                         className="w-6 h-6 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition-colors"
                       >
                         <Plus size={10} />
@@ -388,7 +449,7 @@ export const StockPage = () => {
                         <Edit2 size={13} className="text-slate-500" />
                       </button>
                       <button
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => { setMutationError(null); setDeleteTarget(item); }}
                         disabled={deletingId === item.id}
                         className="p-2 rounded-xl border border-red-100 hover:bg-red-50 transition-colors disabled:opacity-50"
                         title="Supprimer"
@@ -403,6 +464,30 @@ export const StockPage = () => {
           </table>
         )}
       </div>
+
+      <CrownDialog
+        open={deleteTarget !== null}
+        ariaLabel="Supprimer cet article ?"
+        onClose={() => {
+          if (deletingId === null) {
+            setDeleteTarget(null);
+            setMutationError(null);
+          }
+        }}
+        className="max-w-md"
+      >
+        {deleteTarget && (
+          <section className="w-full rounded-[2rem] bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-black text-slate-800">Supprimer cet article ?</h2>
+            <p className="mt-2 text-sm font-semibold text-slate-600">{deleteTarget.nom} sera supprimé définitivement du stock.</p>
+            {mutationError && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{mutationError}</div>}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button type="button" data-dialog-autofocus onClick={() => { if (deletingId === null) { setDeleteTarget(null); setMutationError(null); } }} disabled={deletingId !== null} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-50">Annuler</button>
+              <button type="button" onClick={() => void handleDelete(deleteTarget.id)} disabled={deletingId === deleteTarget.id} className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50">{deletingId === deleteTarget.id ? 'Suppression…' : 'Supprimer définitivement'}</button>
+            </div>
+          </section>
+        )}
+      </CrownDialog>
 
       {/* Modal */}
       {modalItem !== undefined && (

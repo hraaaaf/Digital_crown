@@ -48,9 +48,11 @@ export const AddPatientForm = () => {
   const fetchNextDossierNumber = async () => {
     try {
       const response = await api.get('/patients/next-dossier-number');
-      if (!formData.numero_dossier) {
-        setFormData((prev: any) => ({ ...prev, numero_dossier: response.data.next_number }));
-      }
+      setFormData((prev: any) => (
+        prev.numero_dossier
+          ? prev
+          : { ...prev, numero_dossier: response.data.next_number }
+      ));
     } catch (err) {
       console.error("Erreur lors de la récupération du prochain numéro:", err);
     }
@@ -98,10 +100,10 @@ export const AddPatientForm = () => {
       finalValue = value.toUpperCase();
     }
     
-    setFormData({ 
-      ...formData, 
+    setFormData((prev: any) => ({ 
+      ...prev, 
       [name]: finalValue 
-    });
+    }));
     if (errors[name]) setErrors({ ...errors, [name]: '' });
     // Réinitialiser le modal doublon si modif
     if (showDuplicateModal) {
@@ -112,7 +114,7 @@ export const AddPatientForm = () => {
 
   const handleNumeroDossierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toUpperCase().trim();
-    setFormData({ ...formData, numero_dossier: value });
+    setFormData((prev: any) => ({ ...prev, numero_dossier: value }));
     if (errors.numero_dossier) setErrors({ ...errors, numero_dossier: '' });
   };
 

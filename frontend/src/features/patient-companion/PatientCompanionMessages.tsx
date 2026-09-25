@@ -268,9 +268,20 @@ export function PatientCompanionMessages({
 
   useEffect(() => {
     let cancelled = false;
-    void refreshFromStorage().then(() => {
-      if (!cancelled && enabled) void syncLatest();
-    });
+    const hydrate = async () => {
+      try {
+        if (enabled) {
+          await syncLatest();
+        } else {
+          await refreshFromStorage();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMessage(error instanceof Error ? error.message : 'Chargement local des messages indisponible.');
+        }
+      }
+    };
+    void hydrate();
     return () => { cancelled = true; };
   }, [accessId, enabled, refreshFromStorage, syncLatest]);
 

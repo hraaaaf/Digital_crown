@@ -9,6 +9,7 @@ import shutil
 import logging
 
 from backend import models, schemas, database
+from backend.models_imaging_p4 import ImagingTrashRecord
 from backend.routers.auth import get_current_user, require_permission, require_elite_license
 from backend.utils.access_control import assert_patient_access
 from backend.services.cephalo_service import CephaloService
@@ -198,10 +199,16 @@ async def upload_panoramic(patient_id: int, background_tasks: BackgroundTasks, f
 def get_patient_panoramic_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
     """Récupère l'historique des analyses panoramiques d'un patient."""
     assert_patient_access(patient_id, current_user, db)
-    analyses = db.query(models.PanoramicAnalysis).filter(
-        models.PanoramicAnalysis.patient_id == patient_id
-    ).order_by(models.PanoramicAnalysis.created_at.desc()).all()
-    return analyses
+    trashed_ids = [
+        row[0] for row in db.query(ImagingTrashRecord.analysis_id).filter(
+            ImagingTrashRecord.modality == "panoramic",
+            ImagingTrashRecord.patient_id == patient_id,
+        ).all()
+    ]
+    query = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.patient_id == patient_id)
+    if trashed_ids:
+        query = query.filter(~models.PanoramicAnalysis.id.in_(trashed_ids))
+    return query.order_by(models.PanoramicAnalysis.created_at.desc()).all()
 
 
 @router.get("/patients/{patient_id}/panoramic-comparison")
@@ -212,13 +219,16 @@ def get_panoramic_comparison(
 ):
     """Compare the 2 most recent panoramic analyses to detect evolution."""
     assert_patient_access(patient_id, current_user, db)
-    analyses = (
-        db.query(models.PanoramicAnalysis)
-        .filter(models.PanoramicAnalysis.patient_id == patient_id)
-        .order_by(desc(models.PanoramicAnalysis.created_at))
-        .limit(2)
-        .all()
-    )
+    trashed_ids = [
+        row[0] for row in db.query(ImagingTrashRecord.analysis_id).filter(
+            ImagingTrashRecord.modality == "panoramic",
+            ImagingTrashRecord.patient_id == patient_id,
+        ).all()
+    ]
+    query = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.patient_id == patient_id)
+    if trashed_ids:
+        query = query.filter(~models.PanoramicAnalysis.id.in_(trashed_ids))
+    analyses = query.order_by(desc(models.PanoramicAnalysis.created_at)).limit(2).all()
     if len(analyses) < 2:
         return {"available": False, "reason": "Moins de 2 bilans panoramiques disponibles."}
     from backend.services.temporal_comparator import compare_panoramic_analyses
@@ -287,12 +297,23 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
         active_detections = [d for d in all_detections if not d.get("rejected")]
 
         # Génération du bilan déterministe (annotations manuelles + constats généraux)
+        report_context = req.report_context.model_dump() if req.report_context else None
         report_markdown = panoramic_report_engine.generate_markdown(
             detections=active_detections,
             manual_anomalies=req.manual_anomalies,
             global_findings=req.global_findings,
+            report_context=report_context,
         )
-        report_markdown += _format_panoramic_visual_annotations(req.visual_annotations)
+        annotation_block = _format_panoramic_visual_annotations(req.visual_annotations)
+        synthesis_marker = "\n### SYNTHÈSE\n"
+        if annotation_block and synthesis_marker in report_markdown:
+            report_markdown = report_markdown.replace(
+                synthesis_marker,
+                f"{annotation_block}{synthesis_marker}",
+                1,
+            )
+        else:
+            report_markdown += annotation_block
 
         # Mise à jour persistante
         analysis.report_narrative = report_markdown
@@ -303,6 +324,7 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
             "manual_anomalies": req.manual_anomalies,
             "global_findings": req.global_findings,
             "visual_annotations": [ann.model_dump() for ann in (req.visual_annotations or [])],
+            "report_context": report_context,
         }
 
         db.commit()
@@ -341,41 +363,75 @@ def edit_panoramic_report(analysis_id: int, req: schemas.PanoramicReportEdit, db
 def get_patient_cephalo_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     """Récupère l'historique des analyses céphalométriques d'un patient."""
     assert_patient_access(patient_id, current_user, db)
-    analyses = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.created_at.desc()).all()
-    return analyses
+    trashed_ids = [
+        row[0] for row in db.query(ImagingTrashRecord.analysis_id).filter(
+            ImagingTrashRecord.modality == "cephalo",
+            ImagingTrashRecord.patient_id == patient_id,
+        ).all()
+    ]
+    query = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id)
+    if trashed_ids:
+        query = query.filter(~models.CephaloAnalysis.id.in_(trashed_ids))
+    return query.order_by(models.CephaloAnalysis.created_at.desc()).all()
 
-@router.delete("/cephalo/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.get("/patients/{patient_id}/cephalo-trash", response_model=List[schemas.CephaloAnalysisOut])
+def get_patient_cephalo_trash(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    assert_patient_access(patient_id, current_user, db)
+    trashed_ids = [
+        row[0] for row in db.query(ImagingTrashRecord.analysis_id).filter(
+            ImagingTrashRecord.modality == "cephalo",
+            ImagingTrashRecord.patient_id == patient_id,
+        ).order_by(ImagingTrashRecord.deleted_at.desc()).all()
+    ]
+    if not trashed_ids:
+        return []
+    analyses = db.query(models.CephaloAnalysis).filter(
+        models.CephaloAnalysis.patient_id == patient_id,
+        models.CephaloAnalysis.id.in_(trashed_ids),
+    ).all()
+    by_id = {analysis.id: analysis for analysis in analyses}
+    return [by_id[analysis_id] for analysis_id in trashed_ids if analysis_id in by_id]
+
+
+@router.delete("/cephalo/{analysis_id}")
 def delete_cephalo_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
-    """Supprime une analyse céphalométrique et son fichier image associé."""
+    """Place une analyse céphalométrique dans la corbeille récupérable."""
     analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     assert_patient_access(analysis.patient_id, current_user, db)
-    try:
-        from backend.services.audit_service import audit_service
-        audit_service.log(
-            db=db,
-            user_id=current_user.id,
-            employer_id=current_user.get_employer_id(),
-            action="DELETE",
-            resource_type="CephaloAnalysis",
-            resource_id=str(analysis_id),
-            details=f"Suppression de l'analyse cephalo {analysis_id} pour le patient {analysis.patient_id}"
+    marker = db.query(ImagingTrashRecord).filter(
+        ImagingTrashRecord.modality == "cephalo",
+        ImagingTrashRecord.analysis_id == analysis_id,
+    ).first()
+    if marker is None:
+        marker = ImagingTrashRecord(
+            modality="cephalo",
+            analysis_id=analysis_id,
+            patient_id=analysis.patient_id,
+            deleted_by=current_user.id,
         )
-        if analysis.image_original_path:
-            rel_path = analysis.image_original_path.replace("api/", "", 1) if analysis.image_original_path.startswith("api/") else analysis.image_original_path
-            file_abs_path = os.path.join(BASE_DIR, rel_path)
-            if os.path.exists(file_abs_path) and os.path.isfile(file_abs_path):
-                try:
-                    os.remove(file_abs_path)
-                except Exception as _e:
-                    logger.warning(f"Impossible de supprimer le fichier image cephalo {file_abs_path}: {_e}")
-        db.delete(analysis)
+        db.add(marker)
         db.commit()
-    except Exception as e:
-        db.rollback()
-        logger.exception(f"Erreur lors de la suppression de l'analyse cephalo: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "trashed", "recoverable": True, "id": analysis_id}
+
+
+@router.post("/cephalo/{analysis_id}/restore")
+def restore_cephalo_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    marker = db.query(ImagingTrashRecord).filter(
+        ImagingTrashRecord.modality == "cephalo",
+        ImagingTrashRecord.analysis_id == analysis_id,
+        ImagingTrashRecord.patient_id == analysis.patient_id,
+    ).first()
+    if marker is None:
+        raise HTTPException(status_code=404, detail="Analyse absente de la corbeille")
+    db.delete(marker)
+    db.commit()
+    return {"status": "restored", "id": analysis_id}
 
 
 @router.get("/panoramic/{analysis_id}/pdf")
@@ -400,48 +456,69 @@ def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_
         logger.exception(f"Erreur lors de la génération du PDF panoramique Élite: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/panoramic/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.get("/patients/{patient_id}/panoramic-trash", response_model=List[schemas.PanoramicAnalysisOut])
+def get_patient_panoramic_trash(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
+    assert_patient_access(patient_id, current_user, db)
+    trashed_ids = [
+        row[0] for row in db.query(ImagingTrashRecord.analysis_id).filter(
+            ImagingTrashRecord.modality == "panoramic",
+            ImagingTrashRecord.patient_id == patient_id,
+        ).order_by(ImagingTrashRecord.deleted_at.desc()).all()
+    ]
+    if not trashed_ids:
+        return []
+    analyses = db.query(models.PanoramicAnalysis).filter(
+        models.PanoramicAnalysis.patient_id == patient_id,
+        models.PanoramicAnalysis.id.in_(trashed_ids),
+    ).all()
+    by_id = {analysis.id: analysis for analysis in analyses}
+    return [by_id[analysis_id] for analysis_id in trashed_ids if analysis_id in by_id]
+
+
+@router.delete("/panoramic/{analysis_id}")
 def delete_panoramic_analysis(
-    analysis_id: int, 
-    db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(require_permission("panoramic"))
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("panoramic")),
 ):
-    """Supprime un bilan/radio panoramique (et son fichier physique)."""
+    """Place un examen panoramique dans la corbeille récupérable."""
     analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Bilan panoramique introuvable")
-    
     assert_patient_access(analysis.patient_id, current_user, db)
-    
-    try:
-        # Audit log before deletion
-        from backend.services.audit_service import audit_service
-        audit_service.log(
-            db=db,
-            user_id=current_user.id,
-            employer_id=current_user.get_employer_id(),
-            action="DELETE",
-            resource_type="PanoramicAnalysis",
-            resource_id=str(analysis_id),
-            details=f"Suppression du bilan panoramique {analysis_id} pour le patient {analysis.patient_id}"
+    marker = db.query(ImagingTrashRecord).filter(
+        ImagingTrashRecord.modality == "panoramic",
+        ImagingTrashRecord.analysis_id == analysis_id,
+    ).first()
+    if marker is None:
+        marker = ImagingTrashRecord(
+            modality="panoramic",
+            analysis_id=analysis_id,
+            patient_id=analysis.patient_id,
+            deleted_by=current_user.id,
         )
-        
-        # Suppression du fichier physique de la radio si présent
-        if analysis.image_path:
-            rel_path = analysis.image_path.replace("api/", "", 1) if analysis.image_path.startswith("api/") else analysis.image_path
-            file_abs_path = os.path.join(BASE_DIR, rel_path)
-            if os.path.exists(file_abs_path) and os.path.isfile(file_abs_path):
-                try:
-                    os.remove(file_abs_path)
-                except Exception as _e:
-                    logger.warning(f"Impossible de supprimer le fichier radio physique {file_abs_path}: {_e}")
-        
-        # Suppression de l'enregistrement de la base de données
-        db.delete(analysis)
+        db.add(marker)
         db.commit()
-    except Exception as e:
-        db.rollback()
-        logger.exception(f"Erreur lors de la suppression du bilan panoramique: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-        
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return {"status": "trashed", "recoverable": True, "id": analysis_id}
+
+
+@router.post("/panoramic/{analysis_id}/restore")
+def restore_panoramic_analysis(
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("panoramic")),
+):
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Bilan panoramique introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    marker = db.query(ImagingTrashRecord).filter(
+        ImagingTrashRecord.modality == "panoramic",
+        ImagingTrashRecord.analysis_id == analysis_id,
+        ImagingTrashRecord.patient_id == analysis.patient_id,
+    ).first()
+    if marker is None:
+        raise HTTPException(status_code=404, detail="Examen absent de la corbeille")
+    db.delete(marker)
+    db.commit()
+    return {"status": "restored", "id": analysis_id}

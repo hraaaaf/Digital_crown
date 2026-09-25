@@ -216,6 +216,10 @@ class PanoramicEliteGenerator(BaseTemplate):
             "Analyse IA Multi-Quadrant": "Repérage dentaire assisté",
             "Analyse Clinique & Diagnostics": "Observations radiographiques documentées",
             "Spécialiste en Orthodontie": "Praticien",
+            "Sceau d'Authenticité": "Vérification documentaire",
+            "Rapport validé numériquement par": "Praticien associé au dossier",
+            "Ce document est cryptographiquement signé. Scannez pour consulter l'original sur le portail Digital Crown.": "Scannez pour accéder à la référence de vérification du document Digital Crown.",
+            "Digital Crown Elite Compliance v4.0.": "Digital Crown.",
         }
         for source, target in replacements.items():
             html_content = html_content.replace(source, target)

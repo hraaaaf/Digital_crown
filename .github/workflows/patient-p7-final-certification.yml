@@ -207,3 +207,5 @@ jobs:
           path: artifacts/p7-final
           if-no-files-found: error
           retention-days: 14
+
+# certification-trigger: g4-exact-head-2026-09-21

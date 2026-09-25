@@ -1,5 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
+import type { DrugItem } from './prescriptionTypes';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../../../services/api', () => ({
@@ -45,4 +47,37 @@ describe('PrescriptionAgenticStudio practitioner copy', () => {
     expect(studio).toHaveAttribute('data-clinical-rule-status', 'blocked');
     expect(studio).toHaveAttribute('data-safety-status', 'blocked');
   });
+
+  it('ouvre réellement le sélecteur manuel de forme et applique le choix explicite', () => {
+    const Harness = () => {
+      const [drugs, setDrugs] = useState<DrugItem[]>([
+        { id: 1, name: 'MEDICAMENT TEST', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' as const },
+      ]);
+      return (
+        <PrescriptionAgenticStudio
+          patientId=""
+          drugs={drugs}
+          setDrugs={setDrugs}
+          prescriptionIndication=""
+          onPrescriptionIndicationChange={vi.fn()}
+          onUpdateDrug={(id, field, value) => setDrugs(current => current.map(drug => (
+            drug.id === id ? { ...drug, [field]: value } : drug
+          )))}
+          onRemoveDrug={vi.fn()}
+          onAddDrug={vi.fn()}
+          validationErrors={[]}
+        />
+      );
+    };
+
+    render(<Harness />);
+    const trigger = screen.getByTitle('Choisir la forme manuellement');
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole('menu', { name: 'Choisir la forme' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'COMPRIMÉS' }));
+    expect(screen.queryByRole('menu', { name: 'Choisir la forme' })).not.toBeInTheDocument();
+    expect(screen.getByTitle('Choisir la forme manuellement')).toHaveTextContent('COMPRIMÉS');
+  });
+
 });

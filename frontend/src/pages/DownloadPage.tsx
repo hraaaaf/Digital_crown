@@ -22,9 +22,9 @@ export const DownloadPage: React.FC = () => {
           </Link>
         </div>
 
-        <section className="rounded-[2.5rem] border border-slate-200 bg-white/90 p-10 shadow-sm">
+        <section className="rounded-[2.5rem] border border-slate-200 bg-white/90 p-6 sm:p-10 shadow-sm">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[#003380]">Distribution Produit</p>
-          <h1 className="mt-4 max-w-3xl text-5xl font-black tracking-tight text-slate-950">
+          <h1 className="mt-4 max-w-3xl text-[2rem] font-black leading-[1.08] tracking-tight text-slate-950 sm:text-5xl sm:leading-none">
             Téléchargement de l'application principale et du compagnon mobile
           </h1>
           <p className="mt-5 max-w-3xl text-lg font-medium leading-8 text-slate-500">

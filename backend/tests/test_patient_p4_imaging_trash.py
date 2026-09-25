@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend import models
 from backend.models_imaging_p4 import ImagingTrashRecord
@@ -193,3 +193,50 @@ def test_imaging_lifecycle_requires_modality_permissions(client, db, dentiste):
     assert client.get(f"/api/ia/patients/{patient.id}/cephalo-trash", headers=headers).status_code == 403
     assert client.delete(f"/api/ia/panoramic/{pano.id}", headers=headers).status_code == 403
     assert client.delete(f"/api/ia/cephalo/{ceph.id}", headers=headers).status_code == 403
+
+
+def test_panoramic_active_history_and_comparison_exclude_trash(client, db, dentiste, auth_headers):
+    patient = _make_patient(db, dentiste, "P4-PANO-ACTIVE-FILTER")
+    base = datetime(2026, 9, 1, 10, 0, 0)
+    older = models.PanoramicAnalysis(
+        patient_id=patient.id,
+        image_path="older.jpg",
+        detections_data={"detections": [{"label": "Tooth 11", "tooth_fdi": 11, "confidence": 0.9}]},
+        created_at=base,
+    )
+    active_newer = models.PanoramicAnalysis(
+        patient_id=patient.id,
+        image_path="active-newer.jpg",
+        detections_data={"detections": [{"label": "Tooth 11", "tooth_fdi": 11, "confidence": 0.9}]},
+        created_at=base + timedelta(days=1),
+    )
+    trashed_newest = models.PanoramicAnalysis(
+        patient_id=patient.id,
+        image_path="trashed-newest.jpg",
+        detections_data={"detections": [{"label": "Tooth 48", "tooth_fdi": 48, "confidence": 0.95}]},
+        created_at=base + timedelta(days=2),
+    )
+    db.add_all([older, active_newer, trashed_newest])
+    db.commit()
+    db.refresh(older)
+    db.refresh(active_newer)
+    db.refresh(trashed_newest)
+    db.add(ImagingTrashRecord(
+        modality="panoramic",
+        analysis_id=trashed_newest.id,
+        patient_id=patient.id,
+        deleted_by=dentiste.id,
+    ))
+    db.commit()
+
+    active = client.get(f"/api/ia/patients/{patient.id}/panoramic-analyses", headers=auth_headers)
+    assert active.status_code == 200, active.text
+    active_ids = {row["id"] for row in active.json()}
+    assert active_ids == {older.id, active_newer.id}
+
+    comparison = client.get(f"/api/ia/patients/{patient.id}/panoramic-comparison", headers=auth_headers)
+    assert comparison.status_code == 200, comparison.text
+    payload = comparison.json()
+    assert payload["available"] is True
+    assert payload["newer_date"] == "2026-09-02"
+    assert payload["summary_text"] == "Situation radiologique stable entre les deux bilans."

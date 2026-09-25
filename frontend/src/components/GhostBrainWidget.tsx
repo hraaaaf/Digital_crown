@@ -100,15 +100,12 @@ export const GhostBrainWidget = () => {
   }, [employerId]);
 
   const markAsRead = async (logId: number) => {
-    // Optimistic Update
-    setInsights(prev => prev.filter(i => i.id !== logId));
-    setUnreadCount(prev => Math.max(0, prev - 1));
-
     try {
       await api.post(`/ai/ghost-insights/${logId}/read`);
+      setInsights(prev => prev.filter(i => i.id !== logId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error("Failed to mark as read:", err);
-      // Fallback WS refresh sera envoyé si échec car count != last_count en BDD
     }
   };
 

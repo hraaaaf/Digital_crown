@@ -487,10 +487,10 @@ export function CrownBotChat({
 
   // Mémoire contextuelle actions
   const markAsRead = async (logId: number) => {
-    setInsights(prev => prev.filter(i => i.id !== logId));
-    setUnreadCount(prev => Math.max(0, prev - 1));
     try {
       await api.post(`/ai/ghost-insights/${logId}/read`);
+      setInsights(prev => prev.filter(i => i.id !== logId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error('markAsRead error:', err);
     }
