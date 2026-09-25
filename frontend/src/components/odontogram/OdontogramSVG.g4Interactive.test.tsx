@@ -175,6 +175,41 @@ describe('OdontogramSVG G4 accessible interaction contract', () => {
     expect(lowerTransform).not.toMatch(/scale\([^ ]+ -/);
   });
 
+  it('mirrors root-canal overlays toward the anatomical root by arch', () => {
+    render(
+      <OdontogramSVG
+        type="ADULT"
+        teethSurfaces={{
+          12: { M: 'ROOT_CANAL', D: 'HEALTHY', O: 'HEALTHY', V: 'HEALTHY', P: 'HEALTHY' },
+          42: { M: 'ROOT_CANAL', D: 'HEALTHY', O: 'HEALTHY', V: 'HEALTHY', P: 'HEALTHY' },
+        }}
+        selectedTooth={null}
+        selectedSurface={null}
+        onSurfaceClick={vi.fn()}
+      />,
+    );
+
+    const upperPath = screen
+      .getByRole('button', { name: /^Dent 12,/ })
+      .querySelector('path[stroke-linecap="round"]')
+      ?.getAttribute('d') ?? '';
+    const lowerPath = screen
+      .getByRole('button', { name: /^Dent 42,/ })
+      .querySelector('path[stroke-linecap="round"]')
+      ?.getAttribute('d') ?? '';
+
+    const numbers = (value: string) =>
+      (value.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+
+    const upper = numbers(upperPath);
+    const lower = numbers(lowerPath);
+
+    expect(upper).toHaveLength(6);
+    expect(lower).toHaveLength(6);
+    expect(upper[5]).toBeLessThan(upper[1]);
+    expect(lower[5]).toBeGreaterThan(lower[1]);
+  });
+
   it('does not expose tooth buttons in read-only mode', () => {
     render(
       <OdontogramSVG
