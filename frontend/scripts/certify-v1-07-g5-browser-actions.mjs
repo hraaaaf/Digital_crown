@@ -337,7 +337,9 @@ for(const viewport of viewports){
   const profileAfterPreviewBody=await profileAfterPreview.json();
   if(JSON.stringify(profileAfterPreviewBody)!==JSON.stringify(profileBeforePreviewBody)) throw new Error('branding preview mutated backend profile');
   await page.getByRole('button',{name:'Application',exact:true}).click();
-  await page.getByText('Tableau de bord',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  await page.getByText('Aperçu application',{exact:true}).waitFor({state:'visible',timeout:10000});
+  const scopeApp=await page.evaluate(()=>localStorage.getItem('branding_preview_scope'));
+  if(scopeApp!=='app') throw new Error('branding application preview scope not persisted');
   prove(viewport,'settings-branding-preview-consumer');
 
   // Real document preview controls: generate -> stale -> refresh -> open.
