@@ -290,10 +290,11 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
       const index = isUpper ? topIndex : bottomIndex;
       const row = isUpper ? rows.top : rows.bottom;
       if (index < 0) return null;
-      const edge = type === 'ADULT' ? 7 : 13;
+      const compactViewport = W < 520;
+      const edge = type === 'ADULT' ? (compactViewport ? 5 : 7) : (compactViewport ? 10 : 13);
       const xPct = row.length === 1 ? 50 : edge + (index * (100 - edge * 2)) / (row.length - 1);
-      const yPct = isUpper ? 34 : 70;
-      const radiusPct = type === 'ADULT' ? 4.9 : 5.55;
+      const yPct = isUpper ? (compactViewport ? 32 : 34) : (compactViewport ? 72 : 70);
+      const radiusPct = type === 'ADULT' ? (compactViewport ? 5.75 : 5.25) : (compactViewport ? 6.15 : 5.8);
       return { cx: pctX(xPct, W), cy: pctY(yPct, H), r: pctR(radiusPct, W, H), isUpper };
     },
     [canvasSize, rows, type]
@@ -351,7 +352,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
     <div
       ref={containerRef}
       data-odontogram-renderer="compact-fdi"
-      className={`relative w-full mx-auto aspect-[16/9] min-h-[250px] ${className || 'max-w-[860px]'}`}
+      className={`relative w-full mx-auto aspect-[16/9] min-h-[290px] sm:min-h-[320px] ${className || 'max-w-[1040px]'}`}
     >
       {canvasSize.width > 0 && canvasSize.height > 0 && (
         <svg
@@ -374,7 +375,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
               <stop offset="100%" stopColor="color-mix(in srgb, var(--card-bg) 78%, var(--text-main) 22%)" stopOpacity="0.06" />
             </linearGradient>
             <filter id="tooth-soft-shadow" x="-35%" y="-35%" width="170%" height="180%">
-              <feDropShadow dx="0" dy="1.8" stdDeviation="1.5" floodColor="var(--text-main)" floodOpacity="0.22" />
+              <feDropShadow dx="0" dy="1.8" stdDeviation="1.8" floodColor="var(--text-main)" floodOpacity="0.26" />
             </filter>
             {/* Clips anatomiques pour les cinq surfaces interactives de chaque dent */}
             {teethList.map((toothNumber) => {
@@ -403,10 +404,10 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             className="pointer-events-none"
           />
 
-          <text x={pctX(3.5, canvasSize.width)} y={pctY(12, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(11, canvasSize.width * 0.017)} fontWeight={800}>
+          <text x={pctX(3.5, canvasSize.width)} y={pctY(12, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(12, Math.min(17, canvasSize.width * 0.016))} fontWeight={800}>
             Maxillaire
           </text>
-          <text x={pctX(3.5, canvasSize.width)} y={pctY(55, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(11, canvasSize.width * 0.017)} fontWeight={800}>
+          <text x={pctX(3.5, canvasSize.width)} y={pctY(55, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(12, Math.min(17, canvasSize.width * 0.016))} fontWeight={800}>
             Mandibulaire
           </text>
           <line
@@ -481,7 +482,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                     y={px.cy - px.r * 1.65}
                     textAnchor="middle"
                     fill="var(--text-main)"
-                    fontSize={Math.max(9, Math.min(13, canvasSize.width * 0.014))}
+                    fontSize={Math.max(10.5, Math.min(14, canvasSize.width * 0.014))}
                     fontWeight={800}
                     className="pointer-events-none select-none"
                   >
@@ -510,7 +511,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                     ? 'color-mix(in srgb, var(--primary) 10%, var(--card-bg))'
                     : 'url(#tooth-enamel)'}
                   stroke={isToothSelected || isMultiSelected ? 'var(--primary)' : 'color-mix(in srgb, var(--border-hover) 75%, var(--text-main) 25%)'}
-                  strokeWidth={isToothSelected || isMultiSelected ? 2.2 : 1.35}
+                  strokeWidth={isToothSelected || isMultiSelected ? 2.35 : 1.5}
                   vectorEffect="non-scaling-stroke"
                   filter="url(#tooth-soft-shadow)"
                   className="pointer-events-none transition-colors duration-200"
