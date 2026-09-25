@@ -108,7 +108,7 @@ describe('SecurityTab G5 backup/restore matrix', () => {
     expect(body).toBeInstanceOf(FormData);
     expect((body as FormData).get('backup')).toBe(file);
     expect(config).toEqual({ timeout: 120_000 });
-    expect(screen.getByText('Préflight validé')).toBeTruthy();
+    expect(await screen.findByText('Préflight validé')).toBeTruthy();
     expect(api.post).not.toHaveBeenCalledWith('/admin/restore/restore-1/prepare', expect.anything(), expect.anything());
     expect(api.post).not.toHaveBeenCalledWith('/admin/restore/restore-1/apply', expect.anything());
   });

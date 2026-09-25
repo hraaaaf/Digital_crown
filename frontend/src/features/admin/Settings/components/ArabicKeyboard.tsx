@@ -13,7 +13,7 @@ export const ArabicKeyboard: React.FC<ArabicKeyboardProps> = ({ onInput }) => {
 
   return (
     <div 
-      className="relative z-[60] grid grid-cols-11 gap-1 p-2 bg-slate-900 rounded-xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200"
+      className="relative z-[60] grid w-[264px] grid-cols-7 gap-1 p-2 bg-slate-900 rounded-xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200 sm:w-[408px] sm:grid-cols-11 max-w-[calc(100vw-2rem)]"
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => e.stopPropagation()}
     >
@@ -22,7 +22,7 @@ export const ArabicKeyboard: React.FC<ArabicKeyboardProps> = ({ onInput }) => {
           key={l}
           type="button"
           onClick={() => onInput(l)}
-          className="w-8 h-8 flex items-center justify-center bg-slate-800 text-white rounded-md hover:bg-primary hover:scale-110 active:scale-95 transition-all text-sm font-arabic"
+          className="w-8 h-8 flex items-center justify-center bg-slate-800 text-white rounded-md hover:bg-primary active:scale-95 transition-colors text-sm font-arabic"
         >
           {l}
         </button>

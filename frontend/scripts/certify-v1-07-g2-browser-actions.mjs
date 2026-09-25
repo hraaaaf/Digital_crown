@@ -469,10 +469,11 @@ for(const viewport of viewports){
  await page.unroute('**/api/patients/**');
 
  let editReadCalls=0;
+ let allowEditReadSuccess=false;
  await page.route('**/api/patients/'+patient.id,async route=>{
    if(route.request().method()==='GET'){
      editReadCalls+=1;
-     if(editReadCalls===1) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced edit read failure'})});
+     if(!allowEditReadSuccess) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced edit read failure'})});
      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(patient)});
    }
    return route.continue();
@@ -480,14 +481,16 @@ for(const viewport of viewports){
  await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'/edit',{waitUntil:'networkidle',timeout:90000});
  await page.getByText('Impossible de charger le patient',{exact:true}).waitFor({state:'visible',timeout:10000});
  if(await page.locator('form').count()) throw new Error('edit form exposed defaults after read failure');
+ const readsBeforeRetry=editReadCalls;
+ allowEditReadSuccess=true;
  await page.getByRole('button',{name:/Réessayer/i}).click();
- await page.getByDisplayValue(patient.nom,{exact:true}).waitFor({state:'visible',timeout:10000});
- if(editReadCalls!==2) throw new Error('edit read retry count mismatch');
- pass(viewport,'patient-edit-read-failure-retry',{editReadCalls});
- await page.unroute('**/api/patients/'+patient.id);
- const editNameLabel=page.locator('label').filter({hasText:/^Nom$/}).first();
+ const editNameLabel=page.locator('label').filter({hasText:/\bNom\b/}).first();
  const editNameInput=editNameLabel.locator('..').locator('input').first();
  await editNameInput.waitFor({state:'visible',timeout:10000});
+ if((await editNameInput.inputValue())!==patient.nom) throw new Error('edit retry did not restore patient name');
+ if(editReadCalls<=readsBeforeRetry) throw new Error('edit retry did not trigger a new patient read');
+ pass(viewport,'patient-edit-read-failure-retry',{readsBeforeRetry,editReadCalls});
+ await page.unroute('**/api/patients/'+patient.id);
  const originalName=await editNameInput.inputValue();
 
  let conflictEditCalls=0;
@@ -546,20 +549,23 @@ for(const viewport of viewports){
  await page.unroute('**/api/patients/'+patient.id);
 
  let dossierReadCalls=0;
+ let allowDossierReadSuccess=false;
  await page.route('**/api/patients/'+patient.id,async route=>{
    if(route.request().method()==='GET'){
      dossierReadCalls+=1;
-     if(dossierReadCalls===1) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced dossier read failure'})});
+     if(!allowDossierReadSuccess) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'forced dossier read failure'})});
      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(patient)});
    }
    return route.continue();
  });
  await page.goto('http://127.0.0.1:5173/patients/'+patient.id,{waitUntil:'networkidle',timeout:90000});
  await page.getByText('Impossible de charger le dossier',{exact:true}).waitFor({state:'visible',timeout:10000});
+ const dossierReadsBeforeRetry=dossierReadCalls;
+ allowDossierReadSuccess=true;
  await page.getByRole('button',{name:/Réessayer/i}).click();
  await page.locator('main[data-flow-patient-surface]').waitFor({state:'visible',timeout:10000});
- if(dossierReadCalls!==2) throw new Error('patient dossier retry count mismatch');
- pass(viewport,'patient-dossier-read-failure-retry',{dossierReadCalls});
+ if(dossierReadCalls<=dossierReadsBeforeRetry) throw new Error('patient dossier retry did not trigger a new read');
+ pass(viewport,'patient-dossier-read-failure-retry',{dossierReadsBeforeRetry,dossierReadCalls});
  await page.unroute('**/api/patients/'+patient.id);
 
  await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
@@ -674,10 +680,10 @@ for(const viewport of viewports){
  await page.reload({waitUntil:'networkidle',timeout:90000});
  const sortSelect=page.locator('select').filter({hasText:'Plus Récents'}).first();
  await sortSelect.selectOption('az');
- let firstName=await page.locator('tbody tr').first().locator('td').nth(1).innerText();
+ let firstName=await page.locator('tbody tr').first().locator('td').nth(0).innerText();
  if(!firstName.toUpperCase().includes('ALPHA')) throw new Error('patient A-Z sort consumer mismatch: '+firstName);
  await sortSelect.selectOption('za');
- firstName=await page.locator('tbody tr').first().locator('td').nth(1).innerText();
+ firstName=await page.locator('tbody tr').first().locator('td').nth(0).innerText();
  if(!firstName.toUpperCase().includes('ZETA')) throw new Error('patient Z-A sort consumer mismatch: '+firstName);
  pass(viewport,'patient-list-sort-consumer');
 
@@ -707,7 +713,7 @@ for(const viewport of viewports){
  await csvImport.click();
  await csvDialog.getByText('1',{exact:true}).first().waitFor({state:'visible',timeout:10000});
  if(csvCalls!==1) throw new Error('CSV import ACK count mismatch');
- await csvDialog.getByText('ligne invalide',{exact:true}).waitFor({state:'visible',timeout:5000});
+ await csvDialog.getByText(/ligne invalide/i).waitFor({state:'visible',timeout:5000});
  pass(viewport,'patient-csv-import-result',{csvCalls});
  await csvDialog.getByRole('button',{name:'Fermer',exact:true}).click();
  await page.unroute('**/api/patients/import-csv');
@@ -728,6 +734,7 @@ for(const viewport of viewports){
  await csvDialogRefusal.getByRole('button',{name:'Annuler',exact:true}).click();
  await page.unroute('**/api/patients/import-csv');
 
+ const deleteSearch=page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
  await deleteSearch.fill('T2-0001');
  let deleteRow=page.locator('tbody tr').filter({hasText:/CERTIFICATION\s+T2/i}).first();
  await deleteRow.waitFor({state:'visible',timeout:10000});
@@ -757,7 +764,10 @@ for(const viewport of viewports){
  await confirm.click();
  await page.waitForTimeout(300);
  if(!(await page.getByText(/CERTIFICATION\s+T2/i).count())) throw new Error('patient disappeared after refused delete');
+ if(!(await page.getByRole('dialog',{name:'Supprimer le dossier'}).isVisible())) throw new Error('patient delete refusal closed confirmation modal');
  pass(viewport,'patient-delete-refusal-non-mutation');
+ await page.getByRole('button',{name:'Annuler',exact:true}).click();
+ await page.getByRole('dialog',{name:'Supprimer le dossier'}).waitFor({state:'detached',timeout:5000});
  await page.unroute('**/api/patients/'+patient.id);
 
  // ACK removes from client/cache; hard reload proves real backend fixture was never mutated.

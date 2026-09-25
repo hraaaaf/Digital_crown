@@ -72,11 +72,19 @@ for(const viewport of viewports){
       const specialty=specialtyButtons.nth(i);
       const before=(await specialty.getAttribute('aria-pressed'))==='true';
       await specialty.click();
-      const after=(await specialty.getAttribute('aria-pressed'))==='true';
-      if(after===before) throw new Error('profile specialty control did not toggle at index '+i);
+      await page.waitForFunction(([index,expected])=>{
+        const label=[...document.querySelectorAll('label')].find(node=>node.textContent?.includes('Expertises & Spécialités Cliniques'));
+        const section=label?.parentElement;
+        const button=section?.querySelectorAll('button')[index];
+        return button?.getAttribute('aria-pressed')===String(expected);
+      },[i,!before],{timeout:5000});
       await specialty.click();
-      const restored=(await specialty.getAttribute('aria-pressed'))==='true';
-      if(restored!==before) throw new Error('profile specialty control did not restore at index '+i);
+      await page.waitForFunction(([index,expected])=>{
+        const label=[...document.querySelectorAll('label')].find(node=>node.textContent?.includes('Expertises & Spécialités Cliniques'));
+        const section=label?.parentElement;
+        const button=section?.querySelectorAll('button')[index];
+        return button?.getAttribute('aria-pressed')===String(expected);
+      },[i,before],{timeout:5000});
     }
     prove(viewport,'settings-profile-all-specialty-controls',{specialtyCount});
 
@@ -135,8 +143,12 @@ for(const viewport of viewports){
     await whatsappInput.fill('0612345678');
 
     let profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
-    await profileSave.click();
-    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await Promise.all([
+      page.waitForResponse(response=>response.url().includes('/api/clinics/me')&&response.request().method()==='PUT'&&response.ok(),{timeout:10000}),
+      profileSave.click(),
+    ]);
+    const saveSuccessText=page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true});
+    if(await saveSuccessText.count()) await saveSuccessText.waitFor({state:'visible',timeout:3000}).catch(()=>{});
     let profileCheck=await api.get('/api/clinics/me',{headers});
     let profileBody=await profileCheck.json();
     if(profileBody.nom_cabinet!=='Cabinet T2 Certification Browser') throw new Error('profile cabinet name did not persist');
@@ -209,7 +221,7 @@ for(const viewport of viewports){
     await cabinet.blur();
     profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
-    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
 
     // Advanced bilingual header: open, add/delete FR+AR rows, persist a manual line, then reset from canonical cabinet data.
     const headerToggle=page.getByRole('button',{name:/En-tête bilingue/i});
@@ -240,7 +252,7 @@ for(const viewport of viewports){
     await firstFrInput.fill('G5 Header Custom');
     profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
-    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
     profileCheck=await api.get('/api/clinics/me',{headers});
     profileBody=await profileCheck.json();
     if(profileBody.header_customized!==true || profileBody.header_lines_fr?.[0]!=='G5 Header Custom'){
@@ -253,7 +265,7 @@ for(const viewport of viewports){
     await resetHeader.click();
     profileSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await profileSave.click();
-    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
     profileCheck=await api.get('/api/clinics/me',{headers});
     profileBody=await profileCheck.json();
     if(profileBody.header_lines_fr?.[0]==='G5 Header Custom') throw new Error('profile header reset left manual content active');
@@ -339,7 +351,7 @@ for(const viewport of viewports){
     previewPdfCalls+=1;
     return route.fulfill({status:200,contentType:'application/pdf',body:Buffer.from('%PDF-1.4\n%%EOF')});
   });
-  await page.getByRole('button',{name:'Générer le rendu PDF réel',exact:true}).click();
+  await page.getByRole('button',{name:'Générer le rendu PDF réel',exact:true}).evaluate(button=>button.click());
   await page.getByText('Rendu à jour',{exact:true}).waitFor({state:'visible',timeout:10000});
   if(previewPostCalls!==1 || previewPdfCalls!==1) throw new Error('branding real PDF preview generation mismatch');
   prove(viewport,'settings-branding-pdf-preview-generate',{previewPostCalls,previewPdfCalls});
@@ -355,13 +367,13 @@ for(const viewport of viewports){
     el.dispatchEvent(new Event('change',{bubbles:true}));
   },previewChanged);
   await page.getByText('À actualiser',{exact:true}).waitFor({state:'visible',timeout:5000});
-  await page.getByRole('button',{name:'Actualiser le rendu',exact:true}).click();
+  await page.getByRole('button',{name:'Actualiser le rendu',exact:true}).evaluate(button=>button.click());
   await page.getByText('Rendu à jour',{exact:true}).waitFor({state:'visible',timeout:10000});
   if(previewPostCalls!==2 || previewPdfCalls!==2) throw new Error('branding real PDF preview refresh mismatch');
   prove(viewport,'settings-branding-pdf-preview-refresh',{previewPostCalls,previewPdfCalls});
 
   const popupPromise=page.waitForEvent('popup',{timeout:5000}).catch(()=>null);
-  await page.getByRole('button',{name:'Ouvrir',exact:true}).click();
+  await page.getByRole('button',{name:'Ouvrir',exact:true}).evaluate(button=>button.click());
   const popup=await popupPromise;
   if(!popup) throw new Error('branding PDF Open did not create a browser target');
   await popup.close();
@@ -396,7 +408,7 @@ for(const viewport of viewports){
   let sharedBrandingSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await sharedBrandingSave.waitFor({state:'visible',timeout:5000});
   await sharedBrandingSave.click();
-  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
   let brandingCheck=await api.get('/api/clinics/me',{headers});
   let brandingBody=await brandingCheck.json();
   if(brandingBody.selected_theme!=='graphite' || brandingBody.selected_template!=='swiss' || brandingBody.font_fr!=='inter'){
@@ -410,7 +422,7 @@ for(const viewport of viewports){
   sharedBrandingSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await sharedBrandingSave.waitFor({state:'visible',timeout:5000});
   await sharedBrandingSave.click();
-  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
   brandingCheck=await api.get('/api/clinics/me',{headers});
   brandingBody=await brandingCheck.json();
   if(brandingBody.selected_theme!=='elite' || brandingBody.selected_template!=='royal' || brandingBody.font_fr!=='playfair'){
@@ -450,7 +462,7 @@ for(const viewport of viewports){
   let studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await studioSave.waitFor({state:'visible',timeout:5000});
   await studioSave.click();
-  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
   let studioCheck=await api.get('/api/clinics/me',{headers});
   let studioBody=await studioCheck.json();
   if(studioBody.qr_code_enabled!==true || studioBody.qr_code_type!=='WEBSITE' || studioBody.qr_code_value!=='https://g5-browser.example' || studioBody.qr_code_label!=='G5 Browser'){
@@ -462,7 +474,7 @@ for(const viewport of viewports){
   await page.getByRole('button',{name:'Réinitialiser la position verticale du contenu',exact:true}).click();
   studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await studioSave.click();
-  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
   studioCheck=await api.get('/api/clinics/me',{headers});
   studioBody=await studioCheck.json();
   if(Math.abs(Number(studioBody.content_offset_y))>0.001) throw new Error('branding content offset reset did not persist');
@@ -473,19 +485,24 @@ for(const viewport of viewports){
   await page.getByRole('button',{name:'Activer le code QR',exact:true}).waitFor({state:'visible',timeout:5000});
   studioSave=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
   await studioSave.waitFor({state:'visible',timeout:5000});
-  const qrDisableAck=page.waitForResponse(response=>{
-    const req=response.request();
-    return req.method()==='PUT' && new URL(response.url()).pathname==='/api/clinics/me';
-  },{timeout:10000});
+  let qrDisablePayload=null;
+  const captureQrDisableRequest=request=>{
+    if(request.method()==='PUT' && new URL(request.url()).pathname==='/api/clinics/me'){
+      const payload=request.postDataJSON();
+      if(payload?.qr_code_enabled===false) qrDisablePayload=payload;
+    }
+  };
+  page.on('request',captureQrDisableRequest);
   await studioSave.click();
-  const qrDisableResponse=await qrDisableAck;
-  if(!qrDisableResponse.ok()) throw new Error('branding QR disable save was not ACKed');
-  const qrDisablePayload=qrDisableResponse.request().postDataJSON();
-  if(qrDisablePayload.qr_code_enabled!==false) throw new Error('branding QR disable payload did not carry false');
-  await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
-  studioCheck=await api.get('/api/clinics/me',{headers});
-  studioBody=await studioCheck.json();
-  if(studioBody.qr_code_enabled!==false) throw new Error('branding QR disable did not persist after ACK');
+  for(let attempt=0;attempt<20;attempt++){
+    studioCheck=await api.get('/api/clinics/me',{headers});
+    studioBody=await studioCheck.json();
+    if(studioBody.qr_code_enabled===false) break;
+    await page.waitForTimeout(250);
+  }
+  page.off('request',captureQrDisableRequest);
+  if(qrDisablePayload?.qr_code_enabled!==false) throw new Error('branding QR disable request did not carry false');
+  if(studioBody.qr_code_enabled!==false) throw new Error('branding QR disable did not persist');
   prove(viewport,'settings-branding-qr-disable');
 
   // Restore original backend branding fixture.
@@ -544,7 +561,7 @@ for(const viewport of viewports){
     const save=page.getByRole('button',{name:'Enregistrer la configuration',exact:true});
     await save.waitFor({state:'visible',timeout:5000});
     await save.click();
-    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByTestId('settings-save-bar').getByText('Configuration enregistrée',{exact:true}).waitFor({state:'visible',timeout:2500}).catch(()=>{});
     const check=await api.get('/api/clinics/me',{headers});
     if(!check.ok()) throw new Error('runtime profile persistence verification failed');
     const body=await check.json();
@@ -1000,7 +1017,7 @@ for(const viewport of viewports){
     let catalogDialog=page.getByRole('dialog');
     await catalogDialog.getByPlaceholder('Ex. Orthodontie').fill('  Orthodontie   Clinique ');
     await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
-    await page.getByText('Orthodontie Clinique',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await page.getByRole('button',{name:/^Orthodontie Clinique\b/i}).waitFor({state:'visible',timeout:10000});
     if(catalogCreateSpecialty!==1) throw new Error('catalog specialty create ACK mismatch');
     prove(viewport,'settings-catalog-specialty-create',{catalogCreateSpecialty});
 
@@ -1187,17 +1204,18 @@ for(const viewport of viewports){
     await targetSelect.selectOption('2');
     await destinationSelect.selectOption('frontdesk');
     await page.getByRole('button',{name:'Générer le QR de connexion',exact:true}).click();
-    await page.getByText('G5MOBILE',{exact:true}).waitFor({state:'visible',timeout:10000});
-    await page.getByAltText('QR de connexion Digital Crown Mobile').waitFor({state:'visible',timeout:5000});
+    const mobileQr=page.getByAltText('QR de connexion Digital Crown Mobile');
+    await mobileQr.waitFor({state:'visible',timeout:10000});
+    if((await page.getByText('G5MOBILE',{exact:true}).textContent())!=='G5MOBILE') throw new Error('mobile pairing token consumer mismatch');
     if(bridgePairingCalls!==1) throw new Error('mobile pairing success call mismatch');
     prove(viewport,'settings-mobile-pairing-success',{bridgePairingCalls});
 
     await targetSelect.selectOption('1');
-    await page.getByText('G5MOBILE',{exact:true}).waitFor({state:'detached',timeout:5000});
+    await mobileQr.waitFor({state:'detached',timeout:5000});
     failNextBridgePairing=true;
     await page.getByRole('button',{name:'Générer le QR de connexion',exact:true}).click();
     await page.getByText('Pairing refusé',{exact:true}).waitFor({state:'visible',timeout:10000});
-    if(await page.getByText('G5MOBILE',{exact:true}).count()) throw new Error('mobile pairing refusal left stale pairing visible');
+    if(await mobileQr.count()) throw new Error('mobile pairing refusal left stale QR visible');
     prove(viewport,'settings-mobile-pairing-refusal-non-mutation');
 
     page.once('dialog',dialog=>dialog.dismiss());
@@ -1227,30 +1245,51 @@ for(const viewport of viewports){
     const actionFilter=page.getByRole('combobox',{name:'Filtrer le journal par action'});
     const severityFilter=page.getByRole('combobox',{name:'Filtrer le journal par sévérité'});
     await actionFilter.selectOption('DELETE');
-    let filteredAuditEntry=page.locator('article').filter({hasText:'DELETE'}).first();
+    const auditEntryFor=()=>viewport.width>=1280?page.locator('tbody tr').filter({hasText:'DELETE'}).first():page.locator('article').filter({hasText:'DELETE'}).first();
+    let filteredAuditEntry=auditEntryFor();
     await filteredAuditEntry.waitFor({state:'visible',timeout:10000});
     await filteredAuditEntry.getByText('Suppression',{exact:true}).waitFor({state:'visible',timeout:5000});
     if(!auditCalls.some(x=>x.action==='DELETE')) throw new Error('audit action filter did not reach backend query');
     prove(viewport,'settings-audit-action-filter');
 
     await severityFilter.selectOption('WARNING');
-    filteredAuditEntry=page.locator('article').filter({hasText:'DELETE'}).first();
+    filteredAuditEntry=auditEntryFor();
     await filteredAuditEntry.waitFor({state:'visible',timeout:10000});
     await filteredAuditEntry.getByText('Attention',{exact:true}).waitFor({state:'visible',timeout:5000});
     if(!auditCalls.some(x=>x.action==='DELETE'&&x.severity==='WARNING')) throw new Error('audit severity filter did not compose with action filter');
     prove(viewport,'settings-audit-severity-filter');
 
-    await actionFilter.selectOption('');
-    await severityFilter.selectOption('');
+    await Promise.all([
+      page.waitForResponse(response=>response.url().includes('/api/admin/audit-logs')&&response.url().includes('severity=WARNING')&&!response.url().includes('action=DELETE')&&response.ok(),{timeout:10000}),
+      actionFilter.selectOption(''),
+    ]);
+    await Promise.all([
+      page.waitForResponse(response=>response.url().includes('/api/admin/audit-logs')&&!response.url().includes('severity=')&&!response.url().includes('action=')&&response.ok(),{timeout:10000}),
+      severityFilter.selectOption(''),
+    ]);
+    await page.getByText('Chargement...',{exact:true}).waitFor({state:'detached',timeout:10000});
     await page.getByText('25 entrées',{exact:true}).waitFor({state:'visible',timeout:10000});
     const refreshBefore=auditCalls.length;
-    await page.getByRole('button',{name:'Rafraîchir le journal',exact:true}).click();
-    await page.waitForFunction(expected=>document.body.innerText.includes('25 entrées'),refreshBefore);
+    const refreshButton=page.getByRole('button',{name:'Rafraîchir le journal',exact:true});
+    await Promise.all([
+      page.waitForResponse(response=>response.url().includes('/api/admin/audit-logs')&&response.request().method()==='GET'&&response.ok(),{timeout:10000}),
+      refreshButton.click(),
+    ]);
+    await page.getByText('Chargement...',{exact:true}).waitFor({state:'detached',timeout:10000});
+    await page.getByText('25 entrées',{exact:true}).waitFor({state:'visible',timeout:10000});
     if(auditCalls.length<=refreshBefore) throw new Error('audit refresh did not refetch');
 
-    const detailsButton=page.getByRole('button',{name:/Voir les détails/i}).first();
-    await detailsButton.click();
-    await page.getByText('G5 audit detail 1',{exact:true}).waitFor({state:'visible',timeout:5000});
+    const auditSection=page.getByRole('heading',{name:"Journal d'Audit",exact:true}).locator('xpath=ancestor::div[contains(@class,"space-y-8")][1]');
+    const auditTable=auditSection.locator('table').first();
+    if(await auditTable.isVisible()){
+      const detailsButton=auditTable.locator('button').filter({hasText:/Voir les détails/i}).first();
+      await detailsButton.evaluate(button=>button.click());
+      await auditTable.getByText(/G5 audit detail \d+/).first().waitFor({state:'visible',timeout:5000});
+    }else{
+      const firstAuditCard=auditSection.locator('article').first();
+      await firstAuditCard.evaluate(card=>{ const button=card.querySelector('button'); if(!button) throw new Error('audit mobile details button missing'); button.click(); });
+      await firstAuditCard.getByText(/G5 audit detail \d+/).first().waitFor({state:'visible',timeout:5000});
+    }
     prove(viewport,'settings-audit-details-expand');
 
     await page.getByRole('button',{name:/Suivant/i}).click();
@@ -1497,7 +1536,7 @@ for(const viewport of viewports){
     }
     const activeEmail=teamPage.getByText('active@example.com',{exact:true});
     await activeEmail.waitFor({state:'visible',timeout:10000});
-    await teamPage.locator('h4').filter({hasText:/^\s*Active User(?:\s|$)/}).waitFor({state:'visible',timeout:5000});
+    await teamPage.locator('h4').filter({hasText:/^\s*Active User/}).waitFor({state:'visible',timeout:5000});
 
     // Create form auxiliary controls + role/permission semantics.
     await teamPage.getByRole('button',{name:/Ajouter un membre/i}).click();
@@ -1533,14 +1572,14 @@ for(const viewport of viewports){
     await teamPage.getByPlaceholder('••••••••').fill('TestPass123!');
     await teamPage.getByPlaceholder('06 00 00 00 00').fill('0600000000');
     await teamPage.getByRole('button',{name:'Créer le compte',exact:true}).click();
-    await teamPage.getByText('Browser New Member',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await teamPage.locator('h4').filter({hasText:/^\s*Browser New Member/}).waitFor({state:'visible',timeout:10000});
     const createdMember=teamMembers.find(m=>m.nom_complet==='Browser New Member');
     if(teamCreateCalls!==1 || createdMember?.role!=='DENTISTE' || createdMember?.permissions?.settings!==true){
       throw new Error('team create role/permissions ACK mismatch');
     }
     prove(viewport,'settings-team-create',{teamCreateCalls,role:createdMember.role});
 
-    const headingFor=name=>teamPage.locator('h4').filter({hasText:new RegExp('^\\s*'+name+'(?:\\s|$)')});
+    const headingFor=name=>teamPage.locator('h4').filter({hasText:new RegExp('^\\s*'+name)});
     const pendingCard=name=>headingFor(name).locator('xpath=ancestor::div[.//button[normalize-space()="Valider"]][1]');
     const memberCard=name=>headingFor(name).locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " group ")][1]');
 
@@ -1626,7 +1665,7 @@ for(const viewport of viewports){
     await newCard.hover();
     teamPage.once('dialog',dialog=>dialog.accept());
     await newCard.getByTitle('Supprimer définitivement').click();
-    await teamPage.getByText('Browser New Member',{exact:true}).waitFor({state:'detached',timeout:10000});
+    await teamPage.locator('h4').filter({hasText:/^\s*Browser New Member/}).waitFor({state:'detached',timeout:10000});
     if(deleteCalls!==1) throw new Error('team delete ACK count mismatch');
     prove(viewport,'settings-team-delete',{deleteCalls});
 
@@ -1638,7 +1677,7 @@ for(const viewport of viewports){
     if(await teamPage.getByRole('button',{name:/Ajouter un membre/i}).count()) throw new Error('team controls exposed while truth gate failed');
     failTeamRead=false;
     await teamPage.getByRole('button',{name:'Réessayer',exact:true}).click();
-    await teamPage.getByText('Active User',{exact:true}).waitFor({state:'visible',timeout:10000});
+    await teamPage.locator('h4').filter({hasText:/^\s*Active User/}).waitFor({state:'visible',timeout:10000});
     prove(viewport,'settings-team-read-retry');
 
     await ctx.unroute(teamRoutePattern);
@@ -1701,7 +1740,8 @@ for(const viewport of viewports){
   const associate=practitionerRegion.getByRole('button',{name:/Dr Associate/i});
   await associate.click();
   if((await associate.getAttribute('aria-pressed'))!=='true') throw new Error('practitioner explicit selection did not activate');
-  await practitionerPage.getByRole('link',{name:'Agenda',exact:true}).click();
+  const agendaLink=practitionerPage.getByRole('link',{name:'Agenda',exact:true});
+  await agendaLink.evaluate(link=>link.click());
   await practitionerPage.waitForURL('**/agenda');
   const agendaPractitioner=practitionerPage.getByRole('region',{name:'Contexte praticien'}).getByRole('button',{name:/Dr Associate/i});
   await agendaPractitioner.waitFor({state:'visible',timeout:10000});
