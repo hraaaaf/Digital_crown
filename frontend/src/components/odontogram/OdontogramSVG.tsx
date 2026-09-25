@@ -381,7 +381,6 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
               const px = toothPx(toothNumber);
               if (!px) return null;
               const glyph = toothGlyph(toothNumber);
-            const verticalDirection = px.isUpper ? -1 : 1;
               return (
                 <clipPath id={`clip-tooth-${toothNumber}`} key={`clip-${toothNumber}`}>
                   <path
@@ -490,15 +489,15 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                 )}
 
                 {isToothSelected && (
-                  <rect
-                    x={px.cx - px.r * glyph.x * 1.28}
-                    y={px.cy - px.r * glyph.y * 1.28}
-                    width={px.r * glyph.x * 2.56}
-                    height={px.r * glyph.y * 2.56}
-                    rx={px.r * 0.42}
-                    fill="color-mix(in srgb, var(--primary) 8%, transparent)"
+                  <path
+                    data-selected-halo="true"
+                    d={glyph.path}
+                    transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x * 1.13} ${px.r * glyph.y * 1.13 * (px.isUpper ? -1 : 1)})`}
+                    fill="color-mix(in srgb, var(--primary) 10%, transparent)"
                     stroke="var(--primary)"
-                    strokeWidth={1.5}
+                    strokeWidth={1.8}
+                    vectorEffect="non-scaling-stroke"
+                    opacity={0.86}
                     className="pointer-events-none"
                   />
                 )}
