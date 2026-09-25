@@ -444,6 +444,48 @@ Additional mandatory gate approved 2026-09-19:
 
 Canonical audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`.
 
+#### PRE-G9 subproject — Odontogramme Premium → Devis & Honoraires
+
+Status: **LOT00B CLOSED — LOT01 UNLOCKED — G9 NOT STARTED**.
+
+Baseline anchor:
+- `master@95a1562127d05ba7ef5914602cc8cdf7666ac774`;
+- no product code changed during LOT00B;
+- disposable SQLite runtime only; cabinet database untouched.
+
+Architecture frozen:
+- `OdontogramSVG.tsx` = canonical renderer;
+- `Odontogram.tsx` = clinical interaction/controller;
+- `ClinicalHubCore.tsx` = authoritative clinical persistence/revision/dirty-state controller;
+- `AccountingStudioLegacy.tsx` = Devis/Honoraires controller;
+- `AccountingOdontogramPolicy.ts` + `AccountingOdontogramSourcePolicy.ts` = structured tooth/source contracts.
+
+LOT00B visual baseline:
+- BEFORE captured for **Clinique + Devis + Honoraires** at **390×844 / 430×932 / 768×1024 / 1280×900 + dark 1280×900**;
+- dark proof uses the real theme tokens (`--bg-medical-pearl=#020617`, `--card-bg=#0f172a`, `--text-main=#f8fafc`);
+- current visual baseline scores: Clinique **6.4/10**, Devis **6.9/10**, Honoraires **6.8/10**;
+- target remains the approved compact/contextual odontogram direction; final visual gate **≥9.8/10**.
+
+LOT00B non-regression proof:
+- frontend targeted matrix: **42/42 PASS** across renderer, Clinique, Devis and accounting source/price/total/phase/payment policies;
+- financial persisted probe: **PASS** (rejected invalid notes are non-mutating; pending/paid/installments persisted as expected);
+- PDF runtime probe: **PASS** (HTTP 200, `application/pdf`, `%PDF` signature);
+- Honoraires reconciliation browser: **PASS** (2 derived rows / 1000 MAD before → 0 rows / 0 MAD after delete);
+- existing test warnings (`act(...)`, jsdom `scrollTo`) are test-noise only; no red gate.
+
+LOT01 scope:
+- allowed: `frontend/src/components/odontogram/OdontogramSVG.tsx`, optional purely visual odontogram subcomponents, renderer/a11y/visual tests;
+- forbidden in LOT01: backend/migrations, `ClinicalHubCore` persistence, `AccountingStudioLegacy` business logic, PriceBrain, accounting policies, PDF engine, payment/installments, Patient Companion, ortho/cephalo, release/Vercel.
+
+Mandatory theme doctrine for LOT01→05:
+- **no new product styling hardcoded to a specific palette**;
+- new UI must inherit Digital Crown semantic tokens (`--primary`, `--secondary`, `--accent`, `--text-on-primary`, `--glass-bg`, `--glass-border`, `--card-bg`, `--sidebar-bg`, `--text-main`, `--text-muted`, `--border-color`, `--border-hover`, `--input-bg`) and canonical radius/shadow tokens;
+- the same component must adapt without business-logic forks to default/dark/prestige/emerald/rose/ocean/graphite/high-contrast;
+- BEFORE/AFTER must include light + dark and verify token-driven rendering.
+
+Sequence locked:
+`LOT01 renderer → LOT02 Clinique → LOT03 Devis → LOT04 Honoraires → LOT05 certification → G9 reconciliation → G10 closeout`.
+
 ### LOT V1-08 — Freeze exact V1 candidate
 
 Status: **BLOCKED BY V1-07**
