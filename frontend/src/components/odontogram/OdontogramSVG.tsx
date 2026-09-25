@@ -1,12 +1,11 @@
 /**
  * OdontogramSVG.tsx
- * Schéma dentaire anatomique basé sur des images de référence
- * Architecture: Image de fond + Hotzones SVG cliquables + Pastilles de traitement
- * Supporte: Adulte (32 dents) et Pédiatrique (20 dents)
+ * Renderer FDI compact, vectoriel et interactif.
+ * Supporte les arcades adulte (32 dents) et pédiatrique (20 dents),
+ * les cinq surfaces M/D/O/V/P, les états cliniques et la sélection clavier/souris.
  *
- * FIX ALIGNEMENT: Le SVG utilise les dimensions réelles de l'image (ResizeObserver)
- * et convertit toutes les coordonnées % → px absolus, garantissant un alignement 1:1
- * quelle que soit la résolution ou le ratio d'aspect de l'image affichée.
+ * Le SVG est responsive : ResizeObserver mesure le conteneur puis les coordonnées
+ * normalisées sont converties en pixels pour conserver la géométrie à tout viewport.
  */
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -620,7 +619,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                     {isCrown && (
                       <path
                         d={glyph.path}
-                        transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y})`}
+                        transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y * (px.isUpper ? -1 : 1)})`}
                         fill={SURFACE_COLORS.CROWN.fill}
                         fillOpacity={0.34}
                         stroke={SURFACE_COLORS.CROWN.stroke}
