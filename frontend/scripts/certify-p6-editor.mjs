@@ -43,10 +43,13 @@ for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:12
   const justified = page.getByRole('button', {name:'Justifié',exact:true});
   await title.fill(`P6 ${viewport.width}`);
   await content.fill('Texte P6');
-  await table.click();
-  await a5.click();
-  await a4.click();
-  await justified.click();
+  // On narrow viewports the editor toolbar is horizontally scrollable; make each
+  // control actionable before clicking instead of relying on Playwright's click
+  // auto-scroll, which cannot scroll nested toolbar overflow reliably.
+  for (const control of [table, a5, a4, justified]) {
+    await control.scrollIntoViewIfNeeded();
+    await control.click();
+  }
   await content.scrollIntoViewIfNeeded();
   const metrics = await page.evaluate(() => {
     const d = document.documentElement;
