@@ -210,6 +210,29 @@ describe('OdontogramSVG G4 accessible interaction contract', () => {
     expect(lower[5]).toBeGreaterThan(lower[1]);
   });
 
+  it('keeps premium anatomical family silhouettes distinct', () => {
+    render(
+      <OdontogramSVG
+        type="ADULT"
+        teethSurfaces={{}}
+        selectedTooth={null}
+        selectedSurface={null}
+        onSurfaceClick={vi.fn()}
+      />,
+    );
+
+    const silhouette = (tooth: number) =>
+      screen.getByRole('button', { name: new RegExp(`^Dent ${tooth},`) })
+        .querySelector('path[filter="url(#tooth-soft-shadow)"]')
+        ?.getAttribute('d');
+
+    expect(silhouette(11)).toBeTruthy();
+    expect(silhouette(13)).toBeTruthy();
+    expect(silhouette(14)).toBeTruthy();
+    expect(silhouette(16)).toBeTruthy();
+    expect(new Set([silhouette(11), silhouette(13), silhouette(14), silhouette(16)]).size).toBe(4);
+  });
+
   it('does not expose tooth buttons in read-only mode', () => {
     render(
       <OdontogramSVG
