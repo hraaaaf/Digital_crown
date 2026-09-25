@@ -79,7 +79,7 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     fireEvent.click(screen.getByRole('button',{name:'Enfant'}));
     expect(screen.getByText('Odontogram PEDIATRIC')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Prothèses/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Ponts & proth/i}));
     expect(useAccountingStore.getState().odontogramMode).toBe('group');
 
     fireEvent.click(screen.getByRole('button',{name:/Soins Généraux/i}));
@@ -109,7 +109,7 @@ describe('Devis/Odontogram G4 interactive controls', () => {
 
   it('uses quick tooth groups then applies a custom grouped treatment only with positive price', () => {
     renderDevis();
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Prothèses/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Ponts & proth/i}));
     fireEvent.click(screen.getByRole('button',{name:'Q1'}));
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([11,12,13,14,15,16,17,18]);
 
@@ -130,9 +130,9 @@ describe('Devis/Odontogram G4 interactive controls', () => {
 
   it('adds a catalog-priced predefined grouped act and resets selected group', () => {
     renderDevis();
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Prothèses/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Ponts & proth/i}));
     fireEvent.click(screen.getByRole('button',{name:'Q1'}));
-    fireEvent.click(screen.getByRole('button',{name:'Bridge'}));
+    fireEvent.click(screen.getByRole('button',{name:'Pont dentaire'}));
 
     expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
       description:'Bridge',
@@ -144,7 +144,7 @@ describe('Devis/Odontogram G4 interactive controls', () => {
 
   it('resets a quick tooth selection without creating a line', () => {
     renderDevis();
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Prothèses/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Ponts & proth/i}));
     fireEvent.click(screen.getByRole('button',{name:'Q1'}));
     fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
 

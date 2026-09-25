@@ -408,7 +408,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Odontogramme & catalogue</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 {groupSelectedTeeth.length > 0 && !isOdontoOpen && (
                   <span className="px-4 py-1.5 bg-primary text-white rounded-full text-[9px] font-black uppercase tracking-widest" style={{ backgroundColor: 'var(--primary)' }}>
                     {groupSelectedTeeth.length} Sélectionnée(s)
@@ -417,6 +417,20 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 {isOdontoOpen ? <ChevronUp size={20} className="text-slate-300" /> : <ChevronDown size={20} className="text-slate-300" />}
               </div>
             </button>
+            {isOdontoOpen && (
+              <div className="flex justify-end border-t border-slate-100 bg-slate-50/40 px-4 py-2 sm:px-8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOdontoOpen(false);
+                    requestAnimationFrame(() => document.getElementById('document-prestations')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }));
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition hover:opacity-90"
+                >
+                  Continuer vers les prestations <ChevronDown size={14} />
+                </button>
+              </div>
+            )}
 
             <AnimatePresence>
               {isOdontoOpen && (
@@ -426,7 +440,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   exit={{ height: 0, opacity: 0 }}
                   className="px-4 pb-4"
                 >
-                  <div className="bg-white/60 backdrop-blur-xl rounded-[2.5rem] border border-white/80 shadow-2xl overflow-hidden relative min-h-[450px] flex flex-col">
+                  <div className="bg-white/60 backdrop-blur-xl rounded-[2.5rem] border border-white/80 shadow-2xl overflow-hidden relative min-h-[360px] flex flex-col">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white/20">
                       <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-100">
                         {(['ADULT', 'PEDIATRIC'] as const).map(type => (
@@ -456,7 +470,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
                               odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                             )}
-                          >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}</button>
+                          >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Ponts & prothèses' : 'Soins Généraux'}</button>
                         ))}
                       </div>
 
@@ -465,7 +479,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       </div>
                     </div>
 
-                    <div className="relative flex-1 flex flex-col p-8 bg-slate-50/20 overflow-hidden">
+                    <div className="relative flex-1 flex flex-col p-4 bg-slate-50/20 overflow-hidden">
                       {odontogramMode !== 'ortho' && (
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
                           <div className="px-5 py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-primary/20 shadow-sm animate-in slide-in-from-top-4">
@@ -556,7 +570,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             }}
                             showNumbers={false}
                             hideSurfaces={true}
-                            className="w-full max-w-[480px] drop-shadow-xl"
+                            className="w-full max-w-[400px] drop-shadow-lg"
                           />
                         </div>
 
@@ -631,7 +645,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                           toast.success(`Ajouté : ${act}`);
                                         }}
                                         className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
-                                      >{act}</button>
+                                      >{act === 'Bridge' ? 'Pont dentaire' : act}</button>
                                     ))}
                                   </div>
 
@@ -693,7 +707,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
           </div>
         )}
 
-        <div className="w-full space-y-6">
+        <div id="document-prestations" className="w-full space-y-6 scroll-mt-4">
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 overflow-hidden">
             <div className="px-10 py-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">

@@ -445,6 +445,8 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                   mode="EDIT_STATUS"
                   defaultType={odontogramType}
                   initialData={odontogramDraft}
+                  showLegend={false}
+                  diagramClassName="mx-auto w-full max-w-[640px]"
                   onStatusChange={(state) => {
                     setOdontogramDraft(state);
                     setOdontogramType(inferDentitionType(state));
