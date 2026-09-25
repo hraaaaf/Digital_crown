@@ -19,8 +19,6 @@ import type {
 } from './types';
 import {
   SURFACE_COLORS,
-  ANATOMICAL_MAPPING,
-  ODONTOGRAM_IMAGES,
   TOOTH_NAMES,
   PEDIATRIC_TOOTH_NAMES,
 } from './types';
@@ -118,6 +116,41 @@ const pctY = (pct: number, height: number) => (pct / 100) * height;
 const pctR = (pct: number, width: number, height: number) =>
   (pct / 100) * Math.sqrt((width * width + height * height) / 2);
 
+const ADULT_TOP = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28] as const;
+const ADULT_BOTTOM = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38] as const;
+const PEDIATRIC_TOP = [55, 54, 53, 52, 51, 61, 62, 63, 64, 65] as const;
+const PEDIATRIC_BOTTOM = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75] as const;
+
+type ToothGlyphKind = 'INCISOR' | 'CANINE' | 'PREMOLAR' | 'MOLAR';
+
+const TOOTH_GLYPH_PATHS: Record<ToothGlyphKind, string> = {
+  INCISOR: 'M -0.56,-0.98 C -0.30,-1.07 0.30,-1.07 0.56,-0.98 C 0.64,-0.56 0.48,-0.18 0.28,0.10 C 0.16,0.30 0.11,0.78 0,1 C -0.11,0.78 -0.16,0.30 -0.28,0.10 C -0.48,-0.18 -0.64,-0.56 -0.56,-0.98 Z',
+  CANINE: 'M -0.48,-0.82 C -0.24,-1.02 0.24,-1.02 0.48,-0.82 C 0.60,-0.46 0.42,-0.12 0.22,0.14 C 0.12,0.32 0.08,0.76 0,1.08 C -0.08,0.76 -0.12,0.32 -0.22,0.14 C -0.42,-0.12 -0.60,-0.46 -0.48,-0.82 Z',
+  PREMOLAR: 'M -0.66,-0.76 C -0.48,-1.02 -0.16,-0.96 0,-0.78 C 0.16,-0.96 0.48,-1.02 0.66,-0.76 C 0.72,-0.38 0.54,-0.06 0.30,0.16 C 0.16,0.34 0.10,0.78 0,1 C -0.10,0.78 -0.16,0.34 -0.30,0.16 C -0.54,-0.06 -0.72,-0.38 -0.66,-0.76 Z',
+  MOLAR: 'M -0.90,-0.62 C -0.84,-0.90 -0.60,-1.00 -0.34,-0.86 C -0.16,-1.00 0.08,-1.02 0.26,-0.88 C 0.52,-1.00 0.82,-0.90 0.90,-0.60 C 0.86,-0.20 0.68,0.06 0.46,0.22 C 0.36,0.38 0.34,0.76 0.24,1 C 0.10,0.84 0.04,0.62 0,0.46 C -0.04,0.62 -0.10,0.84 -0.24,1 C -0.34,0.76 -0.36,0.38 -0.46,0.22 C -0.68,0.06 -0.86,-0.20 -0.90,-0.62 Z',
+};
+
+const toothGlyphKind = (toothNumber: number): ToothGlyphKind => {
+  const position = toothNumber % 10;
+  if (position >= 6) return 'MOLAR';
+  if (position >= 4) return 'PREMOLAR';
+  if (position === 3) return 'CANINE';
+  return 'INCISOR';
+};
+
+const toothGlyphScale = (toothNumber: number) => {
+  const kind = toothGlyphKind(toothNumber);
+  if (kind === 'MOLAR') return { x: 1.08, y: 0.98 };
+  if (kind === 'PREMOLAR') return { x: 0.92, y: 1.02 };
+  if (kind === 'CANINE') return { x: 0.78, y: 1.18 };
+  return { x: 0.70, y: 1.10 };
+};
+
+const toothGlyph = (toothNumber: number) => {
+  const kind = toothGlyphKind(toothNumber);
+  return { kind, path: TOOTH_GLYPH_PATHS[kind], ...toothGlyphScale(toothNumber) };
+};
+
 // ============================================================================
 // HELPERS GÉOMÉTRIQUES ANATOMIQUES
 // ============================================================================
@@ -195,15 +228,19 @@ const AnatomicFace: React.FC<AnatomicFaceProps> = ({
       d={path}
       fill={fill}
       fillOpacity={opacity}
-      stroke={isHighlight ? 'rgba(59, 130, 246, 0.5)' : (hideSurfaces ? 'transparent' : 'rgba(200, 200, 200, 0.3)')}
-      strokeWidth={isHighlight ? 2 : (hideSurfaces ? 0 : 1)}
+      stroke={isHighlight
+        ? 'var(--primary)'
+        : hideSurfaces || state === 'HEALTHY'
+          ? 'transparent'
+          : SURFACE_COLORS[state]?.stroke || 'var(--border-hover)'}
+      strokeWidth={isHighlight ? 1.6 : hideSurfaces || state === 'HEALTHY' ? 0 : 0.8}
       className={`transition-colors duration-200 ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
       style={{ transform: `translate(${cx}px, ${cy}px)` }}
       onClick={onClick}
       onMouseEnter={() => onHover(face)}
       onMouseLeave={() => onHover(null)}
-      whileHover={!readOnly ? { fillOpacity: Math.max(opacity, 0.4), fill: fill !== 'transparent' ? fill : 'rgba(59, 130, 246, 0.2)' } : {}}
-      animate={{ fillOpacity: isSelected ? Math.max(opacity, 0.6) : opacity, fill: isSelected && fill === 'transparent' ? 'rgba(59, 130, 246, 0.3)' : fill }}
+      whileHover={!readOnly ? { fillOpacity: Math.max(opacity, 0.4), fill: fill !== 'transparent' ? fill : 'color-mix(in srgb, var(--primary) 18%, transparent)' } : {}}
+      animate={{ fillOpacity: isSelected ? Math.max(opacity, 0.6) : opacity, fill: isSelected && fill === 'transparent' ? 'color-mix(in srgb, var(--primary) 24%, transparent)' : fill }}
     />
   );
 };
@@ -220,7 +257,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
   selectedSurface,
   onSurfaceClick,
   onSurfaceHover,
-  showNumbers = false,
+  showNumbers = true,
   readOnly = false,
   className = '',
   multiSelectedTeeth = [],
@@ -234,34 +271,33 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasSize = useElementSize(containerRef as React.RefObject<HTMLElement>);
 
-  const backgroundImage = useMemo(
-    () => (type === 'ADULT' ? ODONTOGRAM_IMAGES.ADULT : ODONTOGRAM_IMAGES.PEDIATRIC),
+  const rows = useMemo(
+    () => type === 'ADULT'
+      ? { top: [...ADULT_TOP], bottom: [...ADULT_BOTTOM] }
+      : { top: [...PEDIATRIC_TOP], bottom: [...PEDIATRIC_BOTTOM] },
     [type]
   );
 
-  const teethList = useMemo(
-    () => type === 'ADULT' ? Object.keys(ANATOMICAL_MAPPING.ADULT).map(Number) : Object.keys(ANATOMICAL_MAPPING.PEDIATRIC).map(Number),
-    [type]
-  );
-
+  const teethList = useMemo(() => [...rows.top, ...rows.bottom], [rows]);
   const surfaces: ('M' | 'D' | 'O' | 'V' | 'P')[] = ['M', 'D', 'O', 'V', 'P'];
-
-  const getToothPosition = useCallback(
-    (toothNum: number) =>
-      type === 'ADULT'
-        ? ANATOMICAL_MAPPING.ADULT[toothNum as ToothNumberFDI]
-        : ANATOMICAL_MAPPING.PEDIATRIC[toothNum as PediatricToothNumber],
-    [type]
-  );
 
   const toothPx = useCallback(
     (toothNum: number) => {
-      const pos = getToothPosition(toothNum);
-      if (!pos || canvasSize.width === 0 || canvasSize.height === 0) return null;
+      if (canvasSize.width === 0 || canvasSize.height === 0) return null;
       const { width: W, height: H } = canvasSize;
-      return { cx: pctX(pos.x, W), cy: pctY(pos.y, H), r: pctR(pos.r ?? 3, W, H) };
+      const topIndex = rows.top.indexOf(toothNum as never);
+      const bottomIndex = rows.bottom.indexOf(toothNum as never);
+      const isUpper = topIndex >= 0;
+      const index = isUpper ? topIndex : bottomIndex;
+      const row = isUpper ? rows.top : rows.bottom;
+      if (index < 0) return null;
+      const edge = type === 'ADULT' ? 7 : 13;
+      const xPct = row.length === 1 ? 50 : edge + (index * (100 - edge * 2)) / (row.length - 1);
+      const yPct = isUpper ? 34 : 70;
+      const radiusPct = type === 'ADULT' ? 4.9 : 5.55;
+      return { cx: pctX(xPct, W), cy: pctY(yPct, H), r: pctR(radiusPct, W, H), isUpper };
     },
-    [canvasSize, getToothPosition]
+    [canvasSize, rows, type]
   );
 
   const handleSurfaceClick = useCallback(
@@ -313,13 +349,11 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
   }, [readOnly, handleToothActivate]);
 
   return (
-    <div ref={containerRef} className={`relative w-full max-w-[480px] mx-auto ${className}`}>
-      <img
-        src={backgroundImage}
-        alt={`Schéma dentaire ${type === 'ADULT' ? 'adulte' : 'pédiatrique'}`}
-        className="w-full h-auto block select-none pointer-events-none opacity-0"
-      />
-
+    <div
+      ref={containerRef}
+      data-odontogram-renderer="compact-fdi"
+      className={`relative w-full mx-auto aspect-[16/9] min-h-[250px] ${className || 'max-w-[860px]'}`}
+    >
       {canvasSize.width > 0 && canvasSize.height > 0 && (
         <svg
           className="absolute inset-0 z-10"
@@ -329,42 +363,74 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
           style={{ overflow: 'hidden', display: 'block' }}
         >
           <defs>
-            <filter id="extractLines">
-              <feColorMatrix type="matrix" values="
-                0.33 0.33 0.33 0 0
-                0.33 0.33 0.33 0 0
-                0.33 0.33 0.33 0 0
-                0 0 0 1 0" />
-              <feComponentTransfer>
-                <feFuncR type="linear" slope="-3" intercept="2.8" />
-                <feFuncG type="linear" slope="-3" intercept="2.8" />
-                <feFuncB type="linear" slope="-3" intercept="2.8" />
-              </feComponentTransfer>
+            <radialGradient id="tooth-enamel" cx="42%" cy="34%" r="78%">
+              <stop offset="0%" stopColor="color-mix(in srgb, var(--card-bg) 99%, var(--text-main) 1%)" />
+              <stop offset="48%" stopColor="color-mix(in srgb, var(--card-bg) 96%, var(--text-main) 4%)" />
+              <stop offset="72%" stopColor="color-mix(in srgb, var(--card-bg) 84%, var(--text-main) 16%)" />
+              <stop offset="100%" stopColor="color-mix(in srgb, var(--card-bg) 48%, var(--text-main) 52%)" />
+            </radialGradient>
+            <linearGradient id="tooth-gloss" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="color-mix(in srgb, var(--card-bg) 100%, var(--text-main) 0%)" stopOpacity="0.9" />
+              <stop offset="62%" stopColor="color-mix(in srgb, var(--card-bg) 92%, var(--text-main) 8%)" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="color-mix(in srgb, var(--card-bg) 78%, var(--text-main) 22%)" stopOpacity="0.06" />
+            </linearGradient>
+            <filter id="tooth-soft-shadow" x="-35%" y="-35%" width="170%" height="180%">
+              <feDropShadow dx="0" dy="1.8" stdDeviation="1.5" floodColor="var(--text-main)" floodOpacity="0.22" />
             </filter>
-            <mask id="blueprint-mask">
-              <image href={backgroundImage} width="100%" height="100%" filter="url(#extractLines)" preserveAspectRatio="none" />
-            </mask>
-
-            {/* Clips circulaires pour chaque dent */}
+            {/* Clips anatomiques pour les cinq surfaces interactives de chaque dent */}
             {teethList.map((toothNumber) => {
               const px = toothPx(toothNumber);
               if (!px) return null;
+              const glyph = toothGlyph(toothNumber);
               return (
                 <clipPath id={`clip-tooth-${toothNumber}`} key={`clip-${toothNumber}`}>
-                  <circle cx={px.cx} cy={px.cy} r={px.r} />
+                  <path
+                    d={glyph.path}
+                    transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y * (px.isUpper ? -1 : 1)})`}
+                  />
                 </clipPath>
               );
             })}
           </defs>
 
-          <rect 
-            width="100%" 
-            height="100%" 
-            className="fill-primary opacity-90 transition-colors duration-500 pointer-events-none"
-            mask="url(#blueprint-mask)" 
+          <rect
+            x={1}
+            y={1}
+            width={Math.max(0, canvasSize.width - 2)}
+            height={Math.max(0, canvasSize.height - 2)}
+            rx={Math.min(28, canvasSize.width * 0.035)}
+            fill="var(--card-bg)"
+            stroke="var(--border-color)"
+            className="pointer-events-none"
           />
 
-          {/* Rendu des Dents */}
+          <text x={pctX(3.5, canvasSize.width)} y={pctY(12, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(11, canvasSize.width * 0.017)} fontWeight={800}>
+            Maxillaire
+          </text>
+          <text x={pctX(3.5, canvasSize.width)} y={pctY(55, canvasSize.height)} fill="var(--text-muted)" fontSize={Math.max(11, canvasSize.width * 0.017)} fontWeight={800}>
+            Mandibulaire
+          </text>
+          <line
+            x1={pctX(50, canvasSize.width)}
+            y1={pctY(17, canvasSize.height)}
+            x2={pctX(50, canvasSize.width)}
+            y2={pctY(84, canvasSize.height)}
+            stroke="var(--border-color)"
+            strokeWidth={1.25}
+            strokeDasharray="5 6"
+            className="pointer-events-none"
+          />
+          <line
+            x1={pctX(3.5, canvasSize.width)}
+            y1={pctY(51, canvasSize.height)}
+            x2={pctX(96.5, canvasSize.width)}
+            y2={pctY(51, canvasSize.height)}
+            stroke="var(--border-color)"
+            strokeWidth={1}
+            className="pointer-events-none"
+          />
+
+          {/* Rendu compact FDI des dents */}
           {teethList.map((toothNumber) => {
             const px = toothPx(toothNumber);
             if (!px) return null;
@@ -379,6 +445,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             const isMultiSelected = multiSelectedTeeth.includes(toothNumber);
             const isToothSelected = selectedTooth === toothNumber;
             const isKeyboardFocused = focusedTooth === toothNumber;
+            const glyph = toothGlyph(toothNumber);
 
             return (
               <g
@@ -400,6 +467,92 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                 }}
                 onKeyDown={handleToothKeyDown(toothNumber)}
               >
+                <circle
+                  cx={px.cx}
+                  cy={px.cy}
+                  r={px.r * 1.45}
+                  fill="transparent"
+                  className="cursor-pointer"
+                />
+
+                {showNumbers && (
+                  <text
+                    x={px.cx}
+                    y={px.cy - px.r * 1.65}
+                    textAnchor="middle"
+                    fill="var(--text-main)"
+                    fontSize={Math.max(9, Math.min(13, canvasSize.width * 0.014))}
+                    fontWeight={800}
+                    className="pointer-events-none select-none"
+                  >
+                    {toothNumber}
+                  </text>
+                )}
+
+                {isToothSelected && (
+                  <rect
+                    x={px.cx - px.r * glyph.x * 1.28}
+                    y={px.cy - px.r * glyph.y * 1.28}
+                    width={px.r * glyph.x * 2.56}
+                    height={px.r * glyph.y * 2.56}
+                    rx={px.r * 0.42}
+                    fill="color-mix(in srgb, var(--primary) 8%, transparent)"
+                    stroke="var(--primary)"
+                    strokeWidth={1.5}
+                    className="pointer-events-none"
+                  />
+                )}
+
+                <path
+                  d={glyph.path}
+                  transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y * (px.isUpper ? -1 : 1)})`}
+                  fill={isToothSelected
+                    ? 'color-mix(in srgb, var(--primary) 10%, var(--card-bg))'
+                    : 'url(#tooth-enamel)'}
+                  stroke={isToothSelected || isMultiSelected ? 'var(--primary)' : 'color-mix(in srgb, var(--border-hover) 75%, var(--text-main) 25%)'}
+                  strokeWidth={isToothSelected || isMultiSelected ? 2.2 : 1.35}
+                  vectorEffect="non-scaling-stroke"
+                  filter="url(#tooth-soft-shadow)"
+                  className="pointer-events-none transition-colors duration-200"
+                />
+
+                <path
+                  d={glyph.path}
+                  transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x * 0.84} ${px.r * glyph.y * 0.84 * (px.isUpper ? -1 : 1)})`}
+                  fill="url(#tooth-gloss)"
+                  stroke="color-mix(in srgb, var(--card-bg) 72%, var(--text-main) 28%)"
+                  strokeWidth={0.72}
+                  vectorEffect="non-scaling-stroke"
+                  opacity={0.62}
+                  className="pointer-events-none"
+                />
+
+                {(glyph.kind === 'INCISOR' || glyph.kind === 'CANINE') && (
+                  <path
+                    d="M -0.42,-0.28 Q 0,-0.06 0.42,-0.28"
+                    transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y * (px.isUpper ? -1 : 1)})`}
+                    fill="none"
+                    stroke="color-mix(in srgb, var(--border-hover) 64%, var(--text-main) 36%)"
+                    strokeWidth={0.82}
+                    vectorEffect="non-scaling-stroke"
+                    className="pointer-events-none"
+                  />
+                )}
+
+                {(glyph.kind === 'MOLAR' || glyph.kind === 'PREMOLAR') && (
+                  <path
+                    d={glyph.kind === 'MOLAR'
+                      ? 'M -0.48,-0.34 C -0.20,-0.10 0.20,-0.10 0.48,-0.34 M 0,-0.42 L 0,0.18'
+                      : 'M -0.38,-0.34 Q 0,-0.08 0.38,-0.34'}
+                    transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y * (px.isUpper ? -1 : 1)})`}
+                    fill="none"
+                    stroke="color-mix(in srgb, var(--border-hover) 64%, var(--text-main) 36%)"
+                    strokeWidth={0.92}
+                    vectorEffect="non-scaling-stroke"
+                    className="pointer-events-none"
+                  />
+                )}
+
                 {isKeyboardFocused && (
                   <circle
                     cx={px.cx}
@@ -417,8 +570,9 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                 {isMultiSelected && (
                   <circle
                     cx={px.cx} cy={px.cy} r={px.r * 1.2}
-                    fill="rgba(34, 197, 94, 0.18)"
-                    stroke="#22c55e" strokeWidth={2}
+                    fill="color-mix(in srgb, var(--accent) 18%, transparent)"
+                    stroke="var(--accent)" strokeWidth={2}
+                    className="pointer-events-none"
                   />
                 )}
 
@@ -431,12 +585,12 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                     className={readOnly ? 'cursor-default' : 'cursor-pointer'}
                   >
                     <circle cx={px.cx} cy={px.cy} r={px.r} fill="transparent" />
-                    <line x1={px.cx - px.r} y1={px.cy - px.r} x2={px.cx + px.r} y2={px.cy + px.r} stroke="#ef4444" strokeWidth={3} strokeLinecap="round" />
-                    <line x1={px.cx - px.r} y1={px.cy + px.r} x2={px.cx + px.r} y2={px.cy - px.r} stroke="#ef4444" strokeWidth={3} strokeLinecap="round" />
+                    <line x1={px.cx - px.r} y1={px.cy - px.r} x2={px.cx + px.r} y2={px.cy + px.r} stroke={SURFACE_COLORS.CARIES.stroke} strokeWidth={3} strokeLinecap="round" />
+                    <line x1={px.cx - px.r} y1={px.cy + px.r} x2={px.cx + px.r} y2={px.cy - px.r} stroke={SURFACE_COLORS.CARIES.stroke} strokeWidth={3} strokeLinecap="round" />
                   </g>
                 ) : (
                   <>
-                    {/* Conteneur clippé en cercle pour les faces */}
+                    {/* Conteneur clippé sur la silhouette anatomique pour les faces */}
                     <g clipPath={`url(#clip-tooth-${toothNumber})`}>
                       {surfaces.map((surface) => {
                         const state = toothStates[surface];
@@ -464,18 +618,25 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
 
                     {/* Statuts Globaux Superposés (ex: Couronne, Endo) */}
                     {isCrown && (
-                      <circle
-                        cx={px.cx} cy={px.cy} r={px.r}
-                        fill="rgba(253, 230, 138, 0.4)" // fde68a transparent
-                        stroke="#d97706" strokeWidth={2}
+                      <path
+                        d={glyph.path}
+                        transform={`translate(${px.cx} ${px.cy}) scale(${px.r * glyph.x} ${px.r * glyph.y})`}
+                        fill={SURFACE_COLORS.CROWN.fill}
+                        fillOpacity={0.34}
+                        stroke={SURFACE_COLORS.CROWN.stroke}
+                        strokeWidth={1.8}
+                        vectorEffect="non-scaling-stroke"
                         className="pointer-events-none"
                       />
                     )}
 
                     {isRootCanal && (
-                      <circle
-                        cx={px.cx} cy={px.cy} r={px.r * 0.25}
-                        fill="#64748b"
+                      <path
+                        d={`M ${px.cx} ${px.cy - px.r * 0.08} Q ${px.cx - px.r * 0.10} ${px.cy + px.r * 0.34} ${px.cx} ${px.cy + px.r * 0.78}`}
+                        fill="none"
+                        stroke={SURFACE_COLORS.ROOT_CANAL.stroke}
+                        strokeWidth={2.4}
+                        strokeLinecap="round"
                         className="pointer-events-none"
                       />
                     )}
@@ -494,7 +655,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-gray-200 z-20 pointer-events-none"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-card/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-border-main z-20 pointer-events-none"
           >
             <p className="text-sm font-black text-primary whitespace-nowrap">
               {type === 'ADULT' ? TOOTH_NAMES[hoveredTooth as ToothNumberFDI] : PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber]}
