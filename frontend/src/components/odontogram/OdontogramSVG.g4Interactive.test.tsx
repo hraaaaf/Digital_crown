@@ -144,6 +144,37 @@ describe('OdontogramSVG G4 accessible interaction contract', () => {
     expect(tooth16.querySelector('rect[stroke="var(--primary)"]')).toBeTruthy();
   });
 
+  it('keeps crown overlays aligned with upper and lower tooth orientation', () => {
+    render(
+      <OdontogramSVG
+        type="ADULT"
+        teethSurfaces={{
+          11: { M: 'CROWN', D: 'HEALTHY', O: 'HEALTHY', V: 'HEALTHY', P: 'HEALTHY' },
+          41: { M: 'CROWN', D: 'HEALTHY', O: 'HEALTHY', V: 'HEALTHY', P: 'HEALTHY' },
+        }}
+        selectedTooth={null}
+        selectedSurface={null}
+        onSurfaceClick={vi.fn()}
+      />,
+    );
+
+    const upperCrown = screen
+      .getByRole('button', { name: /^Dent 11,/ })
+      .querySelector('path[fill-opacity="0.34"]');
+    const lowerCrown = screen
+      .getByRole('button', { name: /^Dent 41,/ })
+      .querySelector('path[fill-opacity="0.34"]');
+
+    expect(upperCrown).toBeTruthy();
+    expect(lowerCrown).toBeTruthy();
+
+    const upperTransform = upperCrown?.getAttribute('transform') ?? '';
+    const lowerTransform = lowerCrown?.getAttribute('transform') ?? '';
+
+    expect(upperTransform).toMatch(/scale\([^ ]+ -/);
+    expect(lowerTransform).not.toMatch(/scale\([^ ]+ -/);
+  });
+
   it('does not expose tooth buttons in read-only mode', () => {
     render(
       <OdontogramSVG
