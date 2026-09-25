@@ -38,3 +38,5 @@ def test_runtime_schema_gate_matches_unique_alembic_head():
 
 if __name__ == "__main__":
     test_runtime_schema_gate_matches_unique_alembic_head()
+
+# V1-07 G9 exact-head certification trigger: no runtime behavior change.
