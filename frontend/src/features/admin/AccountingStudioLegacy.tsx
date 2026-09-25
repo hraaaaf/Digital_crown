@@ -334,6 +334,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
       <div className="flex flex-col gap-10 max-w-5xl mx-auto items-center">
         <div className="w-full space-y-6">
+          <div className="flex items-center justify-center gap-1.5 px-1 text-[9px] font-black uppercase tracking-normal text-slate-400 sm:gap-3 sm:px-2 sm:text-[10px] sm:tracking-[0.14em]" aria-label="Parcours du document">
+            <span className="text-primary"><span className="sm:hidden">1 · Clinique</span><span className="hidden sm:inline">1 · Sélection clinique</span></span>
+            <ChevronDown size={11} className="-rotate-90 text-slate-300 sm:size-3" aria-hidden="true" />
+            <span>2 · Prestations</span>
+            <ChevronDown size={11} className="-rotate-90 text-slate-300 sm:size-3" aria-hidden="true" />
+            <span><span className="sm:hidden">3 · Récap.</span><span className="hidden sm:inline">3 · Récapitulatif</span></span>
+          </div>
+
           <AccountingQuickActions
             acts={quickActs}
             onSelect={(act) => {
@@ -470,7 +478,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
                               odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                             )}
-                          >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Ponts & prothèses' : 'Soins Généraux'}</button>
+                          >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}</button>
                         ))}
                       </div>
 
@@ -645,7 +653,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                           toast.success(`Ajouté : ${act}`);
                                         }}
                                         className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
-                                      >{act === 'Bridge' ? 'Pont dentaire' : act}</button>
+                                      >{act}</button>
                                     ))}
                                   </div>
 
