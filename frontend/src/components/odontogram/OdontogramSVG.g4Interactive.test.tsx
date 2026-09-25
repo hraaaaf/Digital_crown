@@ -141,7 +141,7 @@ describe('OdontogramSVG G4 accessible interaction contract', () => {
 
     const tooth16 = screen.getByRole('button', { name: /^Dent 16,/ });
     expect(tooth16).toHaveAttribute('aria-pressed', 'true');
-    expect(tooth16.querySelector('rect[stroke="var(--primary)"]')).toBeTruthy();
+    expect(tooth16.querySelector('path[data-selected-halo="true"][stroke="var(--primary)"]')).toBeTruthy();
   });
 
   it('keeps crown overlays aligned with upper and lower tooth orientation', () => {
