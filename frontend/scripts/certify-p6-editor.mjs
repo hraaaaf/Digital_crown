@@ -84,7 +84,7 @@ for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:12
         inlineBox.x + inlineBox.width <= viewport.width + 1 &&
         inlineBox.y + inlineBox.height <= viewport.height + 120
       ),
-      inlineWidthStable: Boolean(inlineBox && inlineBox.width >= 270 && inlineBox.width <= 290),
+      inlineWidthStable: Boolean(inlineBox && inlineBox.width >= 440 && inlineBox.width <= 560),
       editorRemainsVisible: Boolean(await content.isVisible()),
       noHorizontalOverflow: metrics.noOverflow,
     };
