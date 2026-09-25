@@ -37,7 +37,7 @@ for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:12
   }
   const title = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
   const content = page.getByPlaceholder("Rédigez votre document ici... Utilisez la barre d'outils pour mettre en forme le texte.");
-  const table = page.getByTitle('Tableau').first();
+  const table = page.getByRole('button', { name: 'Tableau', exact: true }).first();
   const a5 = page.getByRole('button', {name:'A5',exact:true});
   const a4 = page.getByRole('button', {name:'A4',exact:true});
   const justified = page.getByRole('button', {name:'Justifié',exact:true});
