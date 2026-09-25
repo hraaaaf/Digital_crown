@@ -7,7 +7,7 @@ const password=process.env.T2_PASSWORD;
 if(!password) throw new Error('T2_PASSWORD required');
 
 // Last genuine product state before the R8 Performance & Assistance UI rewrite.
-const baselineSha='1ac1dd54a9f29c29c06107cd2a1395e8bf6639ce^';
+const baselineSha='5c2593d4a3d063c439faa8746403c793fb2241f4';
 const currentHead=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',cwd:path.resolve('..')}).trim();
 const sourcePath=path.resolve('src/features/admin/Settings/tabs/IATab.tsx');
 const artifactDir=path.resolve('artifacts/g5-runtime-preferences-visual');
