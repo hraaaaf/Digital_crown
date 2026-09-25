@@ -445,6 +445,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             const isToothSelected = selectedTooth === toothNumber;
             const isKeyboardFocused = focusedTooth === toothNumber;
             const glyph = toothGlyph(toothNumber);
+            const verticalDirection = px.isUpper ? -1 : 1;
 
             return (
               <g
