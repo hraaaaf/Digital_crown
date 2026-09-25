@@ -7,6 +7,7 @@ on:
       - "frontend/src/features/dashboard/**"
       - "frontend/src/features/agenda/**"
       - "frontend/src/features/clinic/**"
+      - "frontend/src/components/odontogram/**"
       - "frontend/src/pages/AgendaPage.tsx"
       - "frontend/src/features/admin/TeamManager.tsx"
       - "frontend/src/features/admin/Settings.tsx"
@@ -52,6 +53,7 @@ jobs:
           import { AgendaPage } from './pages/AgendaPage';
           import Settings from './pages/Settings';
           import { ClinicPractitionerBar } from './features/clinic/ClinicPractitionerBar';
+          import { OdontogramSVG } from './components/odontogram/OdontogramSVG';
           import { useAuthStore } from './stores/useAuthStore';
 
           const screen = new URLSearchParams(window.location.search).get('screen') || 'dashboard';
@@ -60,7 +62,10 @@ jobs:
             isAuthenticated:true, isLoading:false, error:null,
           });
           const path = screen === 'agenda' ? '/agenda' : screen === 'team' ? '/settings' : '/dashboard';
-          const node = screen === 'agenda'
+          const odontogram = screen === 'odontogram';
+          const node = odontogram
+            ? <div data-testid="odontogram-evidence" className="mx-auto max-w-6xl rounded-2xl border border-border-color bg-card-bg p-4"><OdontogramSVG type="ADULT" teethSurfaces={{}} selectedTooth={16} selectedSurface="O" onSurfaceClick={() => {}} /></div>
+            : screen === 'agenda'
             ? <AgendaPage />
             : screen === 'team'
               ? <Settings />
@@ -119,8 +124,13 @@ jobs:
           await server.listen();
           const browser=await chromium.launch();
           try {
+            const cases=[];
             for(const [width,height] of [[390,844],[768,1024],[1280,900]]){
-              for(const screen of ['dashboard','agenda','team']){
+              for(const screen of ['dashboard','agenda','team','odontogram']) cases.push({width,height,screen,theme:null});
+            }
+            cases.push({width:430,height:932,screen:'odontogram',theme:null});
+            cases.push({width:1280,height:900,screen:'odontogram',theme:'dark'});
+            for(const {width,height,screen,theme} of cases){
                 const context=await browser.newContext({viewport:{width,height}});
                 const page=await context.newPage();
                 const errors=[];
@@ -136,8 +146,14 @@ jobs:
                   return route.fulfill(json(fixtures[url.pathname] ?? {}));
                 });
                 await page.goto(`http://127.0.0.1:4197/clinic-p1-visual.html?screen=${screen}`,{waitUntil:'networkidle'});
-                await page.getByText('Contexte clinique',{exact:true}).waitFor({state:'visible',timeout:15000});
-                await page.getByText('Dr Lina Alaoui',{exact:true}).first().waitFor({state:'visible',timeout:15000});
+                if(theme) await page.evaluate(value=>document.documentElement.setAttribute('data-theme',value),theme);
+                if(screen!=='odontogram') {
+                  await page.getByText('Contexte clinique',{exact:true}).waitFor({state:'visible',timeout:15000});
+                  await page.getByText('Dr Lina Alaoui',{exact:true}).first().waitFor({state:'visible',timeout:15000});
+                } else {
+                  await page.getByTestId('odontogram-evidence').waitFor({state:'visible',timeout:15000});
+                  await page.getByRole('button',{name:/^Dent 16,/}).waitFor({state:'visible',timeout:15000});
+                }
                 if(screen==='dashboard') await page.getByText(/Bonjour,/).first().waitFor({state:'visible',timeout:15000});
                 if(screen==='agenda') await page.getByRole('heading',{name:'Agenda'}).waitFor({state:'visible',timeout:15000});
                 if(screen==='team'){
@@ -146,12 +162,12 @@ jobs:
                   await page.getByRole('heading',{name:'Mon Équipe',exact:true}).waitFor({state:'visible'});
                 }
                 const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
-                await page.screenshot({path:`${out}/${screen}-${width}x${height}.png`,fullPage:true,animations:'disabled'});
-                await fs.writeFile(`${out}/${screen}-${width}.layout.json`,JSON.stringify({...layout,overflowPx:Math.max(0,layout.scrollWidth-layout.clientWidth),errors},null,2));
+                const suffix=theme?`-${theme}`:'';
+                await page.screenshot({path:`${out}/${screen}-${width}x${height}${suffix}.png`,fullPage:true,animations:'disabled'});
+                await fs.writeFile(`${out}/${screen}-${width}${suffix}.layout.json`,JSON.stringify({...layout,theme:theme||'default',overflowPx:Math.max(0,layout.scrollWidth-layout.clientWidth),errors},null,2));
                 if(layout.scrollWidth>layout.clientWidth) throw new Error(`${screen} overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
                 if(errors.length) throw new Error(`${screen} runtime errors at ${width}: ${errors.join(' | ')}`);
                 await context.close();
-              }
             }
           } finally { await browser.close(); await server.close(); }
           EOF
@@ -161,15 +177,15 @@ jobs:
       - name: Verify evidence
         working-directory: frontend
         run: |
-          test "$(find clinic-p1-visual -name '*.png' | wc -l)" -eq 9
-          test "$(find clinic-p1-visual -name '*.layout.json' | wc -l)" -eq 9
+          test "$(find clinic-p1-visual -name '*.png' | wc -l)" -eq 14
+          test "$(find clinic-p1-visual -name '*.layout.json' | wc -l)" -eq 14
           cat > clinic-p1-visual/metadata.txt <<EOF
           head_sha=${{ github.event.pull_request.head.sha || github.sha }}
           base_sha=${{ github.event.pull_request.base.sha || github.sha }}
-          viewports=390x844,768x1024,1280x900
-          screens=dashboard,agenda,team
+          viewports=390x844,430x932(odontogram),768x1024,1280x900,1280x900-dark(odontogram)
+          screens=dashboard,agenda,team,odontogram
           phase=AFTER
-          goal=Contexte praticien global lisible, attribution Agenda cohérente, aucun overflow horizontal ni erreur runtime.
+          goal=Contexte praticien global lisible, attribution Agenda cohérente, odontogramme compact FDI inspectable, aucun overflow horizontal ni erreur runtime.
           EOF
       - uses: actions/upload-artifact@v4
         if: always()
