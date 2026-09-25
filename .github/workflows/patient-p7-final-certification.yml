@@ -104,7 +104,7 @@ jobs:
               assert forbidden not in details, forbidden
           for required in ['Prochaine action', 'Solde indéterminé', 'Source :', "setSearchParams({ tab: 'clinical' })"]:
               assert required in journey, required
-          for required in ['Sécurité médicale', 'patientClinicalPersistence.saveOdontogram', 'patientClinicalPersistence.createConclusion', 'Proposition à valider', 'Master Plan']:
+          for required in ['Sécurité médicale', 'patientClinicalPersistence.saveOdontogram', 'patientClinicalPersistence.createConclusion', 'Proposition à valider', 'Plan de traitement']:
               assert required in clinical, required
           for forbidden in ['VigilanceRadar', 'odontogram_state_']:
               assert forbidden not in clinical, forbidden
