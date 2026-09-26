@@ -83,7 +83,7 @@ jobs:
               if(url.includes('/notifications')) return route.fulfill({json:[]});
               return route.fulfill({json:{}});
             });
-            await page.goto(`http://127.0.0.1:${ports[kind]}/dashboard`,{waitUntil:'networkidle'});
+            await page.goto(`http://127.0.0.1:${ports[kind]}/patients`,{waitUntil:'networkidle'});
             try {
               await page.locator('.sidebar-shell').waitFor({state:'visible',timeout:15000});
             } catch (error) {
