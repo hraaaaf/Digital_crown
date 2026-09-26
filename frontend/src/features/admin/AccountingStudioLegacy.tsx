@@ -537,9 +537,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         ))}
                       </div>
 
-                      <div className="hidden sm:flex flex-1 justify-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Sélectionnez une ou plusieurs dents
-                      </div>
+                      <div className="hidden sm:flex flex-1" aria-hidden="true" />
 
                       <div className="hidden sm:flex w-24 justify-end">
                         <Zap size={14} className="text-primary" />
