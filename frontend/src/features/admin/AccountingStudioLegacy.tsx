@@ -36,7 +36,7 @@ import { resolveAccountingBundles, type ResolvedAccountingBundle } from './Docum
 import { moveAccountingLine } from './DocumentStudio/AccountingLineOrderPolicy';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { resolveNamedDevisActPrice } from './DocumentStudio/AccountingNamedActPricePolicy';
-import { suggestedCatalogActs } from './DocumentStudio/AccountingActApplicabilityPolicy';
+import { searchableCatalogActs, suggestedCatalogActs } from './DocumentStudio/AccountingActApplicabilityPolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -97,6 +97,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   }, [specialties]);
 
   const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
+  const [selectedActQuery, setSelectedActQuery] = useState('');
 
   const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
 
@@ -112,6 +113,42 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     ),
     [groupSelectedTeeth, specialties],
   );
+
+  const selectedSearchResults = React.useMemo(() => {
+    const query = selectedActQuery.trim().toLocaleLowerCase('fr');
+    if (!query || groupSelectedTeeth.length === 0) return [];
+    return searchableCatalogActs(
+      specialties,
+      { selectedTeeth: groupSelectedTeeth, selectionMode: groupSelectedTeeth.length > 1 ? 'GROUP' : 'INDIVIDUAL' },
+    )
+      .filter(({ act, specialty }) =>
+        act.name.toLocaleLowerCase('fr').includes(query)
+        || specialty.toLocaleLowerCase('fr').includes(query)
+      )
+      .slice(0, 6);
+  }, [groupSelectedTeeth, selectedActQuery, specialties]);
+
+  const addActForSelectedTeeth = React.useCallback((act: any, specialty: string) => {
+    if (groupSelectedTeeth.length === 0) return;
+    const price = Number(act.base_price) || 0;
+    if (price <= 0) {
+      toast.error(`Tarif catalogue absent pour ${act.name} : prix à renseigner.`);
+      return;
+    }
+    const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
+    setItems((prev: PriceItem[]) => [...prev, {
+      id: Date.now() + Math.random(),
+      description: act.name,
+      dent: sorted.join('-'),
+      price,
+      toothNumbers: sorted,
+      category: specialty,
+      catalogActId: act.id,
+    }]);
+    setGroupSelectedTeeth([]);
+    setSelectedActQuery('');
+    toast.success(`Ajouté : ${act.name}`);
+  }, [groupSelectedTeeth, setGroupSelectedTeeth, setItems]);
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
@@ -521,6 +558,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             onClick={() => {
                               setOdontogramType(type);
                               setGroupSelectedTeeth([]);
+                              setSelectedActQuery('');
                               setActiveTooth(null);
                             }}
                             className={cn(
@@ -557,13 +595,36 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           />
                         </div>
 
+                        <details className="mt-2 w-full max-w-2xl rounded-xl border border-slate-100 bg-white/80 px-3 py-2 text-left shadow-sm">
+                          <summary className="cursor-pointer select-none text-[9px] font-black uppercase tracking-widest text-slate-400">
+                            Sélection rapide
+                          </summary>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {odontogramQuickGroupKeys(odontogramType).map(group => (
+                              <button
+                                key={group}
+                                type="button"
+                                onClick={() => selectTeethGroup(group)}
+                                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[9px] font-black text-slate-600 hover:bg-slate-200"
+                              >
+                                {group === 'maxillaire' ? 'Maxillaire' : group === 'mandibule' ? 'Mandibule' : group === 'all' ? 'Toutes' : group}
+                              </button>
+                            ))}
+                            {groupSelectedTeeth.length > 0 && (
+                              <button type="button" onClick={() => selectTeethGroup('none')} className="ml-auto rounded-lg px-2.5 py-1.5 text-[9px] font-black text-rose-500 hover:bg-rose-50">
+                                Effacer
+                              </button>
+                            )}
+                          </div>
+                        </details>
+
                         {groupSelectedTeeth.length > 0 && (
                           <motion.div 
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="relative sm:absolute sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 mt-2 sm:mt-0 w-full max-w-2xl px-1 sm:px-6 z-20 pointer-events-auto"
+                            className="relative mt-2 w-full max-w-2xl px-1 sm:px-0"
                           >
-                            <div className="bg-slate-900/95 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] p-3 sm:p-5 border border-white/10 shadow-xl sm:shadow-2xl flex flex-col gap-3 sm:gap-4">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-900 p-3 shadow-lg sm:p-4 flex flex-col gap-3">
                               <>
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -586,25 +647,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                         <button
                                           key={act.id}
                                           type="button"
-                                          onClick={() => {
-                                            const price = Number(act.base_price) || 0;
-                                            if (price <= 0) {
-                                              toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte.');
-                                              return;
-                                            }
-                                            const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                                            setItems([...items, {
-                                              id: Date.now() + Math.random(),
-                                              description: act.name,
-                                              dent: sorted.join('-'),
-                                              price,
-                                              toothNumbers: sorted,
-                                              category: specialty,
-                                              catalogActId: act.id,
-                                            }]);
-                                            selectTeethGroup('none');
-                                            toast.success(`Ajouté : ${act.name}`);
-                                          }}
+                                          onClick={() => addActForSelectedTeeth(act, specialty)}
                                           className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
                                         >
                                           {act.name}
@@ -617,13 +660,31 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                     </p>
                                   )}
 
-                                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Sélection rapide</span>
-                                    {odontogramQuickGroupKeys(odontogramType).slice(0, 4).map(group => (
-                                      <button key={group} type="button" onClick={() => selectTeethGroup(group)} className="px-2.5 py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-lg text-[9px] font-black tracking-widest">{group}</button>
-                                    ))}
-                                    <button type="button" onClick={() => selectTeethGroup('none')} className="ml-auto px-2.5 py-1.5 text-[9px] font-black text-rose-400 hover:text-rose-300">Effacer</button>
+                                  <div className="space-y-2 border-t border-white/10 pt-3">
+                                    <input
+                                      type="search"
+                                      value={selectedActQuery}
+                                      onChange={(event) => setSelectedActQuery(event.target.value)}
+                                      placeholder="Rechercher un acte pour cette sélection…"
+                                      className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-xs font-bold text-white outline-none placeholder:text-slate-500 focus:border-primary/50"
+                                    />
+                                    {selectedSearchResults.length > 0 && (
+                                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                                        {selectedSearchResults.map(({ act, specialty }) => (
+                                          <button
+                                            key={act.id}
+                                            type="button"
+                                            onClick={() => addActForSelectedTeeth(act, specialty)}
+                                            className="flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-left text-[10px] font-bold text-slate-200 hover:bg-white/20"
+                                          >
+                                            <span className="truncate">{act.name}</span>
+                                            <span className="shrink-0 text-slate-500">{Number(act.base_price) > 0 ? `${act.base_price} MAD` : 'Tarif à définir'}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
+
                                 </>
                             </div>
                           </motion.div>
