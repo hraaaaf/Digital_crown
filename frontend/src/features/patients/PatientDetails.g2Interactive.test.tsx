@@ -82,10 +82,12 @@ beforeEach(() => {
   state.user.employer_id = null;
   state.user.permissions = {};
   state.patient.dossier = { is_ortho_active: false };
+  state.patient.motif_consultation = '';
 
   vi.mocked(api.get).mockImplementation(async (url: string) => {
     if (url === '/patients/7') return { data: state.patient } as never;
     if (url === '/intelligence/patient/7/nba') return { data: { nba: null } } as never;
+    if (url === '/motifs') return { data: [] } as never;
     throw new Error(`unexpected GET ${url}`);
   });
   vi.mocked(api.patch).mockResolvedValue({ data: {} } as never);
@@ -200,6 +202,35 @@ describe('PatientDetails G2 interactive permission matrix', () => {
     expect(await screen.findByText('Document hub')).toBeTruthy();
     expect(api.patch).not.toHaveBeenCalled();
   });
+  it('renders a persisted custom cabinet motif after patient reload', async () => {
+    state.patient.motif_consultation = JSON.stringify(['cm_e2e_implant_followup']);
+
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/patients/7') return { data: state.patient } as never;
+      if (url === '/motifs') {
+        return {
+          data: [{
+            id: 'cm_e2e_implant_followup',
+            label: 'Contrôle implant personnalisé',
+            category_id: 'IMPLANTOLOGIE',
+            urgency: 'normal',
+            is_active: true,
+            source: 'cabinet',
+          }],
+        } as never;
+      }
+      if (url === '/intelligence/patient/7/nba') return { data: { nba: null } } as never;
+      throw new Error(`unexpected GET ${url}`);
+    });
+
+    renderDetails();
+
+    expect(await screen.findByText('Contrôle implant personnalisé')).toBeTruthy();
+    expect(screen.getByText('Cabinet')).toBeTruthy();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/motifs', { params: { include_inactive: true } }));
+
+  });
+
   it('shows a truthful patient-load error and retries successfully', async () => {
     vi.mocked(api.get)
       .mockRejectedValueOnce(new Error('patient load failed'))
