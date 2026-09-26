@@ -1386,7 +1386,7 @@ for(const viewport of viewports){
     prove(viewport,'settings-restore-preflight-compatible',{preflightCalls});
 
     await page.getByRole('button',{name:/Fermer ce préflight/i}).click();
-    await page.waitForFunction(()=>!document.body.innerText.includes('Préflight validé'));
+    await page.getByText('Préflight validé',{exact:true}).waitFor({state:'detached',timeout:10000});
     if(cancelCalls!==1 || applyCalls!==0) throw new Error('restore cancel contract mismatch');
     prove(viewport,'settings-restore-cancel',{cancelCalls});
 
