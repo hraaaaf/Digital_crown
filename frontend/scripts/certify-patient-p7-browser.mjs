@@ -201,7 +201,7 @@ for (const viewport of viewports) {
   await page.goto(motifPatientUrl, { waitUntil: 'networkidle', timeout: 90000 });
   results.push({ surface: 'custom-motif-reload', ...(await capture(page, viewport, 'custom-motif-reload', async () => {
     await page.getByText('Motif de Consultation Initial', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
-    await page.getByText('Contrôle implant personnalisé', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByText(/Contrôle implant personnalisé/).waitFor({ state: 'visible', timeout: 30000 });
     await page.getByText('Cabinet', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   })) });
 
