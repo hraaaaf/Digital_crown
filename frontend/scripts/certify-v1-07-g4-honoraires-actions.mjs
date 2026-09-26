@@ -206,7 +206,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await catalogDialog.getByPlaceholder("Nom de l'acte").fill('G4 Honoraires manuel');
   await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
   const createActResponse = page.waitForResponse(
-    r => r.url().includes('/api/catalog/specialties/') && r.url().endsWith('/acts') && r.request().method() === 'POST',
+    r => /\/api\/catalog\/specialties\/\d+\/acts\/?$/.test(new URL(r.url()).pathname) && r.request().method() === 'POST',
     { timeout: 15000 },
   );
   await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
