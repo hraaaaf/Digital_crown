@@ -207,7 +207,7 @@ describe('PatientDetails G2 interactive permission matrix', () => {
 
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === '/patients/7') return { data: state.patient } as never;
-      if (url === '/motifs') {
+      if (url === '/motifs/') {
         return {
           data: [{
             id: 'cm_e2e_implant_followup',
