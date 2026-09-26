@@ -317,7 +317,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           prix_unitaire: parseFloat(i.price.toString()),
           montant: parseFloat(i.price.toString()),
           category: i.category,
-          catalog_act_id: i.catalogActId,
           date: docDate,
           ...(activeTab === 'honoraires' && paymentStatus === 'PAYE'
             ? { mode_reglement: paymentMode }
