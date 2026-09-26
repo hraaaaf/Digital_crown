@@ -122,7 +122,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
       {/* SIDEBAR : Clinical Premium Elite */}
       <aside
         className={cn(
-          "sidebar-shell w-72 lg:w-[68px] h-screen fixed lg:relative z-[10000] shrink-0",
+          "sidebar-shell w-72 h-screen fixed lg:relative z-[10000] shrink-0 transition-[width] duration-200 ease-out",
+          desktopPinned ? "lg:w-72" : "lg:w-[68px]",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         data-expanded={desktopExpanded ? "true" : "false"}
@@ -134,22 +135,19 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         }}
       >
         <div className={cn(
-          "h-full w-72 lg:absolute lg:inset-y-0 lg:left-0 lg:w-[68px] bg-sidebar border-r border-border-main shadow-elite flex flex-col transition-[width,background-color,box-shadow] duration-200 ease-out overflow-hidden",
-          desktopExpanded && "lg:w-72 lg:shadow-2xl"
-        )}
-        style={{
-          background: desktopExpanded ? 'color-mix(in srgb, var(--sidebar-bg) 92%, transparent)' : 'var(--sidebar-bg)',
-          borderColor: desktopExpanded ? 'var(--glass-border)' : 'var(--border-color)',
-          backdropFilter: desktopExpanded ? 'blur(24px) saturate(160%)' : undefined,
-          WebkitBackdropFilter: desktopExpanded ? 'blur(24px) saturate(160%)' : undefined,
-        }}>
+          "h-full w-72 lg:absolute lg:inset-y-0 lg:left-0 lg:w-[68px] bg-sidebar border-r border-border-main shadow-elite flex flex-col transition-[width,box-shadow] duration-200 ease-out overflow-hidden",
+          desktopExpanded && "lg:w-72"
+        )}>
         <button
           type="button"
           onClick={() => {
             setDesktopPinned(value => !value);
             setDesktopHovered(false);
           }}
-          className="hidden lg:flex absolute -right-3 top-5 z-20 h-7 w-7 items-center justify-center rounded-full border border-border-main bg-card-bg text-text-muted shadow-md transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className={cn(
+            "hidden lg:flex absolute top-5 z-20 h-7 w-7 items-center justify-center rounded-full border border-border-main bg-card-bg text-text-muted shadow-sm transition-[right,color,box-shadow] duration-200 hover:text-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30",
+            desktopExpanded ? "right-3" : "-right-3"
+          )}
           aria-pressed={desktopPinned}
           aria-label={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
           title={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
@@ -163,7 +161,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             to="/dashboard" 
             className="transition-elite block w-full hover:opacity-80 flex items-center justify-center"
           >
-            <span className="sidebar-brand-compact h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/75 text-primary shadow-sm" aria-hidden="true">
+            <span className="sidebar-brand-compact h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg text-primary shadow-sm" aria-hidden="true">
               <Crown size={20} strokeWidth={1.8} />
             </span>
             <img 
@@ -178,10 +176,10 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           </Link>
         </div>
 
-        {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}
-        <div className="px-3 lg:px-2 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
+        {/* CABINET SWITCHER SECTION */}
+        <div className="px-3 lg:px-2 py-4 border-b border-border-main shrink-0 bg-sidebar">
           <div
-            className="sidebar-cabinet-compact h-10 w-10 mx-auto items-center justify-center rounded-xl border border-border-main bg-card-bg/60 text-base"
+            className="sidebar-cabinet-compact h-10 w-10 mx-auto items-center justify-center rounded-xl border border-border-main bg-card-bg text-base"
             aria-hidden="true"
             title={cabinets.find(cab => String(cab.id) === String(activeCabinetId))?.nom || 'Cabinet actif'}
           ><Store size={18} strokeWidth={1.8} /></div>
@@ -191,7 +189,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             <select
               value={activeCabinetId}
               onChange={(e) => switchCabinet(e.target.value)}
-              className="w-full bg-card-bg/60 border border-border-main rounded-elite px-3 py-2.5 text-xs font-black tracking-tight text-text-main cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/40 transition-elite appearance-none"
+              className="w-full bg-card-bg border border-border-main rounded-elite px-3 py-2.5 text-xs font-black tracking-tight text-text-main cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/40 transition-elite appearance-none"
               style={{ 
                 backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")',
                 backgroundPosition: 'right 0.75rem center',
@@ -238,7 +236,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
                 style={{ 
                   backgroundColor: 'var(--primary-bg, rgba(99, 102, 241, 0.1))', 
                   color: 'var(--primary)',
-                  borderColor: 'var(--glass-border)'
+                  borderColor: 'var(--border-color)'
                 }}
               >
                 <div className="w-2 h-2 rounded-full animate-pulse bg-primary" />

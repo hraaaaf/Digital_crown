@@ -1,0 +1,116 @@
+name: Sidebar Premium Visual Evidence
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/components/Sidebar.tsx"
+      - "frontend/src/components/Layout/MainLayout.tsx"
+      - ".github/workflows/sidebar-premium-visual.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: after
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: before
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: after/frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: after/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          ln -s "$(realpath node_modules)" ../../before/frontend/node_modules
+      - name: Capture shell BEFORE and AFTER
+        working-directory: after/frontend
+        run: |
+          cat > sidebar-visual.mjs <<'EOF'
+          import path from 'node:path';
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          
+          const output=path.resolve('../artifacts/sidebar-premium');
+          await fs.mkdir(output,{recursive:true});
+          const roots={before:path.resolve('../../before/frontend'),after:process.cwd()};
+          const ports={before:4191,after:4192};
+          const servers={};
+          for (const kind of ['before','after']) {
+            servers[kind]=await createServer({root:roots[kind],server:{host:'127.0.0.1',port:ports[kind],strictPort:true,hmr:{overlay:false}},clearScreen:false});
+            await servers[kind].listen();
+          }
+          const browser=await chromium.launch({headless:true});
+          const viewports=[{width:1280,height:900},{width:1440,height:1000}];
+          const rows=[];
+          const token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjo0MDkxMjg5NjAwfQ==.visual';
+          const user={id:1,email:'visual@digitalcrown.local',nom_complet:'Dr Digital Crown',role:'ADMIN',is_active:true,employer_id:1,subscription_plan:'PREMIUM',permissions:['patients','agenda','accounting','cephalo','settings']};
+          for (const kind of ['before','after']) for (const viewport of viewports) {
+            const context=await browser.newContext({viewport,colorScheme:'light'});
+            const page=await context.newPage();
+            await page.addInitScript(({token,user})=>{
+              localStorage.setItem('token',token);
+              localStorage.setItem('dc_user',JSON.stringify(user));
+              localStorage.setItem('auth-storage',JSON.stringify({state:{user,isAuthenticated:true},version:0}));
+              localStorage.setItem('sidebar_desktop_pinned','true');
+            },{token,user});
+            const errors=[];
+            page.on('pageerror',e=>errors.push(String(e)));
+            page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+            await page.route('**/*',route=>{
+              const url=route.request().url();
+              if(!url.includes(':8005')) return route.continue();
+              if(url.includes('/auth/me')) return route.fulfill({json:user});
+              if(url.includes('/clinics/init-status')) return route.fulfill({json:{is_initialized:true}});
+              if(url.includes('/cabinet/config')) return route.fulfill({json:{id:1,nom_cabinet:'Cabinet Digital Crown',nom_praticien:'Dr Digital Crown'}});
+              if(url.includes('/clinics')) return route.fulfill({json:{id:1,nom:'Cabinet Digital Crown'}});
+              if(url.includes('/intelligence/alerts/today')) return route.fulfill({json:{total:0,alerts:[]}});
+              if(url.includes('/patients')) return route.fulfill({json:[]});
+              if(url.includes('/appointments')) return route.fulfill({json:[]});
+              if(url.includes('/accounting')) return route.fulfill({json:[]});
+              if(url.includes('/notifications')) return route.fulfill({json:[]});
+              return route.fulfill({json:{}});
+            });
+            await page.goto(`http://127.0.0.1:${ports[kind]}/patients`,{waitUntil:'networkidle'});
+            try {
+              await page.locator('.sidebar-shell').waitFor({state:'visible',timeout:15000});
+            } catch (error) {
+              const debug=`debug-${kind}-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({path:path.join(output,debug),fullPage:true,animations:'disabled'});
+              await fs.writeFile(path.join(output,`debug-${kind}-${viewport.width}x${viewport.height}.html`),await page.content());
+              await fs.writeFile(path.join(output,`debug-${kind}-${viewport.width}x${viewport.height}.json`),JSON.stringify({url:page.url(),errors},null,2));
+              throw error;
+            }
+            const expanded=await page.locator('.sidebar-shell').getAttribute('data-expanded');
+            const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const shot=`${kind}-${viewport.width}x${viewport.height}.png`;
+            await page.screenshot({path:path.join(output,shot),fullPage:true,animations:'disabled'});
+            rows.push({kind,viewport,expanded,overflow,errors,shot});
+            await context.close();
+          }
+          await browser.close();
+          for (const s of Object.values(servers)) await s.close();
+          await fs.writeFile(path.join(output,'evidence.json'),JSON.stringify(rows,null,2));
+          const failures=rows.filter(x=>x.expanded!=='true'||x.overflow||x.errors.length);
+          if(failures.length) { console.error(JSON.stringify(failures,null,2)); process.exit(1); }
+          EOF
+          node sidebar-visual.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sidebar-premium-before-after
+          path: after/artifacts/sidebar-premium
+          if-no-files-found: error
+          retention-days: 14
