@@ -10,7 +10,7 @@ describe('catalog applicability normalization', () => {
   });
 
   it('clones array fields so editor mutations cannot leak between acts', () => {
-    const source = { dentitions: ['PRIMARY'] as const };
+    const source = { dentitions: ['PRIMARY'] as Array<'PRIMARY' | 'PERMANENT'> };
     const first = normalizeCatalogActApplicability(source);
     const second = normalizeCatalogActApplicability(source);
     first.dentitions.push('PERMANENT');

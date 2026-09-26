@@ -27,12 +27,14 @@ describe('AccountingStudio P2-D wiring', () => {
     expect(memoIndex).toBeGreaterThan(stateIndex);
   });
 
-  it('fail-close les prix nommés absents du catalogue et exige un prix groupé positif', () => {
+  it('fail-close les prix nommés absents et persiste les nouveaux actes groupés dans le catalogue central', () => {
     expect(source).not.toContain('const price = PriceBrain.suggestPrice(act) || 0;');
     expect(source).toContain('resolveNamedDevisActPrice');
     expect(source).toContain("resolved.source === 'UNRESOLVED'");
     expect(source).toContain('Tarif catalogue absent : renseignez le prix avant archivage.');
-    expect(source).toContain('Renseignez un prix positif avant d’ajouter cet acte groupé.');
+    expect(source).toContain("Choisissez la spécialité de ce nouvel acte groupé.");
+    expect(source).toContain('ensureCatalogAct');
+    expect(source).toContain("selection_modes: ['GROUP']");
 
     expect(resolveNamedDevisActPrice('Acte connu', [
       { name: 'Acte connu', base_price: 450, category: 'CONSERVATRICE' },

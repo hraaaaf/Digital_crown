@@ -27,21 +27,17 @@ const state = vi.hoisted(() => ({
 vi.mock('../hooks/useCatalogStore', () => ({
   useCatalogStore: () => state,
   normalizeCatalogActApplicability: (value:any = {}) => ({
-    dentitions: [],
-    tooth_types: [],
-    treatment_areas: [],
-    selection_modes: [],
-    requires_present_tooth: false,
-    requires_missing_tooth: false,
-    min_selected_teeth: 0,
-    max_selected_teeth: null,
-    suggestion_priority: 0,
-    searchable_when_not_suggested: true,
     ...value,
     dentitions: [...(value.dentitions || [])],
     tooth_types: [...(value.tooth_types || [])],
     treatment_areas: [...(value.treatment_areas || [])],
     selection_modes: [...(value.selection_modes || [])],
+    requires_present_tooth: value.requires_present_tooth ?? false,
+    requires_missing_tooth: value.requires_missing_tooth ?? false,
+    min_selected_teeth: value.min_selected_teeth ?? 0,
+    max_selected_teeth: value.max_selected_teeth ?? null,
+    suggestion_priority: value.suggestion_priority ?? 0,
+    searchable_when_not_suggested: value.searchable_when_not_suggested ?? true,
   }),
 }));
 
