@@ -75,9 +75,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     isAccounted, setIsAccounted,
     paymentStatus, setPaymentStatus,
     paymentStatusGuardMessage, clearPaymentStatusGuard,
-    isGlobalNote, setIsGlobalNote,
-    groupTreatmentName, setGroupTreatmentName,
-    groupTreatmentPrice, setGroupTreatmentPrice
+    isGlobalNote, setIsGlobalNote
   } = useAccountingStore();
 
   const { specialties, fetchCatalog, createAct, updateAct } = useCatalogStore();
@@ -113,15 +111,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       6,
     ),
     [groupSelectedTeeth, specialties],
-  );
-
-  const generalSuggestedActs = React.useMemo(
-    () => suggestedCatalogActs(
-      specialties,
-      { selectedTeeth: [], selectionMode: 'GENERAL' },
-      10,
-    ),
-    [specialties],
   );
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
