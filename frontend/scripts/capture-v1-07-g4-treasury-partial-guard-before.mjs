@@ -43,16 +43,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const accountedLabel = page.getByText('Comptabiliser CA', { exact: true });
   await accountedLabel.locator('..').getByRole('button').click();
-  await page.getByTestId('document-studio-accounting-footer').getByRole('button', { name: 'Partiel', exact: true }).click();
+  const treasuryModal = page.getByText('Encaissement', { exact: true }).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+  await treasuryModal.getByRole('button', { name: 'Partiel', exact: true }).click();
 
-  const guard = page.getByRole('alert');
+  const guard = treasuryModal.getByRole('alert');
   await guard.waitFor({ state: 'visible', timeout: 5000 });
-  const understood = page.getByRole('button', { name: 'Compris', exact: true });
+  const understood = treasuryModal.getByRole('button', { name: 'Compris', exact: true });
   await understood.waitFor({ state: 'visible', timeout: 5000 });
 
-  const hit = await page.evaluate(() => {
-    const button = [...document.querySelectorAll('button')].find(el => el.textContent?.trim() === 'Compris');
-    if (!(button instanceof HTMLElement)) return null;
+  const hit = await understood.evaluate((button) => {
     const rect = button.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
