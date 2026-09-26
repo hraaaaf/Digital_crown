@@ -20,6 +20,30 @@ export interface CatalogActApplicability {
   searchable_when_not_suggested: boolean;
 }
 
+export const DEFAULT_CATALOG_ACT_APPLICABILITY: CatalogActApplicability = {
+  dentitions: [],
+  tooth_types: [],
+  treatment_areas: [],
+  selection_modes: [],
+  requires_present_tooth: false,
+  requires_missing_tooth: false,
+  min_selected_teeth: 0,
+  max_selected_teeth: null,
+  suggestion_priority: 0,
+  searchable_when_not_suggested: true,
+};
+
+export const normalizeCatalogActApplicability = (
+  value?: Partial<CatalogActApplicability>,
+): CatalogActApplicability => ({
+  ...DEFAULT_CATALOG_ACT_APPLICABILITY,
+  ...(value || {}),
+  dentitions: [...(value?.dentitions || [])],
+  tooth_types: [...(value?.tooth_types || [])],
+  treatment_areas: [...(value?.treatment_areas || [])],
+  selection_modes: [...(value?.selection_modes || [])],
+});
+
 export interface CatalogAct {
   id: number;
   specialty_id: number;

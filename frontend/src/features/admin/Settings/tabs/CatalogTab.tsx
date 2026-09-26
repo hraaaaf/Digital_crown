@@ -10,7 +10,9 @@ import {
   X,
 } from 'lucide-react';
 import { useCatalogStore } from '../hooks/useCatalogStore';
-import type { CatalogAct, Pathology, Specialty } from '../hooks/useCatalogStore';
+import type { CatalogAct, CatalogActApplicability, Pathology, Specialty } from '../hooks/useCatalogStore';
+import { normalizeCatalogActApplicability } from '../hooks/useCatalogStore';
+import { CatalogActApplicabilityEditor } from '../components/CatalogActApplicabilityEditor';
 import { cn } from '../../../../utils/cn';
 import { SettingsReadError } from '../components/SharedUI';
 
@@ -66,6 +68,7 @@ const CatalogFormModal: React.FC<{
   const [price, setPrice] = useState(editingAct ? String(editingAct.base_price) : '');
   const [description, setDescription] = useState(editingPathology?.description || '');
   const [isActive, setIsActive] = useState(editingAct?.is_active ?? editingPathology?.is_active ?? true);
+  const [applicability, setApplicability] = useState<CatalogActApplicability>(() => normalizeCatalogActApplicability(editingAct?.applicability));
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -110,12 +113,27 @@ const CatalogFormModal: React.FC<{
         setSaving(false);
         return;
       }
+      if (applicability.requires_present_tooth && applicability.requires_missing_tooth) {
+        setFormError('Un acte ne peut pas exiger simultanément une dent présente et une dent absente.');
+        setSaving(false);
+        return;
+      }
+      if (
+        applicability.max_selected_teeth !== null
+        && applicability.max_selected_teeth !== undefined
+        && applicability.max_selected_teeth < applicability.min_selected_teeth
+      ) {
+        setFormError('Le maximum de dents doit être supérieur ou égal au minimum.');
+        setSaving(false);
+        return;
+      }
       const payload = {
         name: cleanName,
         code: code.trim() || undefined,
         base_price: parsedPrice,
         color: color || DEFAULT_ACT_COLOR,
         is_active: isActive,
+        applicability,
       };
       ok = modal.mode === 'create'
         ? await createAct(modal.specialtyId, payload)
@@ -232,6 +250,7 @@ const CatalogFormModal: React.FC<{
                   <span className="text-sm font-bold uppercase text-slate-500">{color}</span>
                 </div>
               </label>
+              <CatalogActApplicabilityEditor value={applicability} onChange={setApplicability} />
             </>
           )}
 
