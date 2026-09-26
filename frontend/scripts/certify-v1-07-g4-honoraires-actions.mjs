@@ -199,7 +199,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('accounting-action-dock-no-scroll');
 
   await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
-  const descriptions = page.getByPlaceholder('Rechercher ou saisir un acte...');
+  const descriptions = page.getByPlaceholder('Rechercher un acte du catalogue...');
   const prices = page.getByPlaceholder('0.00');
   await descriptions.last().fill('G4 Honoraires manuel');
   await prices.last().fill('321');
