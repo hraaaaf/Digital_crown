@@ -15,11 +15,11 @@ const catalogState = vi.hoisted(() => ({
 vi.mock('../Settings/hooks/useCatalogStore', () => ({
   useCatalogStore: (selector?: any) => selector ? selector(catalogState) : catalogState,
 }));
-vi.mock('../../../components/odontogram/OdontogramSVG', () => ({
-  OdontogramSVG: ({onToothDirectClick,type}:any) => (
+vi.mock('../../../components/odontogram/PremiumOdontogramSVG', () => ({
+  PremiumOdontogramSVG: ({onToothClick,type}:any) => (
     <div>
       <span>Odontogram {type}</span>
-      <button onClick={()=>onToothDirectClick(11)}>Tooth 11</button>
+      <button onClick={()=>onToothClick(11)}>Tooth 11</button>
     </div>
   ),
 }));
