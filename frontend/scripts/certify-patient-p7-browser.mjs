@@ -30,6 +30,10 @@ const ortho = await api.patch(`/api/patients/${patient.id}/ortho`, {
   data: { is_ortho_active: true },
 });
 if (!ortho.ok()) throw new Error(`P7 ortho activation failed: ${ortho.status()} ${await ortho.text()}`);
+const patientAfterOrthoResponse = await api.get(`/api/patients/${patient.id}`, { headers });
+if (!patientAfterOrthoResponse.ok()) throw new Error(`P7 patient reread after ortho failed: ${patientAfterOrthoResponse.status()} ${await patientAfterOrthoResponse.text()}`);
+const patientAfterOrtho = await patientAfterOrthoResponse.json();
+if (patientAfterOrtho?.dossier?.is_ortho_active !== true) throw new Error(`P7 ortho activation did not persist: ${JSON.stringify(patientAfterOrtho?.dossier ?? null)}`);
 
 const odontoUrl = `/api/patients/${patient.id}/odontogram`;
 const odontoBefore = await api.get(odontoUrl, { headers });
