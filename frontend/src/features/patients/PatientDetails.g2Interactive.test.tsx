@@ -82,6 +82,7 @@ beforeEach(() => {
   state.user.employer_id = null;
   state.user.permissions = {};
   state.patient.dossier = { is_ortho_active: false };
+  state.patient.motif_consultation = '';
 
   vi.mocked(api.get).mockImplementation(async (url: string) => {
     if (url === '/patients/7') return { data: state.patient } as never;
@@ -228,7 +229,6 @@ describe('PatientDetails G2 interactive permission matrix', () => {
     expect(screen.getByText('Cabinet')).toBeTruthy();
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/motifs', { params: { include_inactive: true } }));
 
-    state.patient.motif_consultation = '';
   });
 
   it('shows a truthful patient-load error and retries successfully', async () => {
