@@ -128,6 +128,7 @@ export const CatalogActApplicabilityEditor: React.FC<Props> = ({ value, onChange
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">Priorité suggestion</span>
           <input
             type="number"
+            aria-label="Priorité suggestion"
             min={0}
             max={100}
             value={current.suggestion_priority}
@@ -140,6 +141,7 @@ export const CatalogActApplicabilityEditor: React.FC<Props> = ({ value, onChange
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">Min. dents</span>
           <input
             type="number"
+            aria-label="Minimum de dents"
             min={0}
             value={current.min_selected_teeth}
             onChange={event => patch({ min_selected_teeth: Math.max(0, Number(event.target.value) || 0) })}
@@ -150,6 +152,7 @@ export const CatalogActApplicabilityEditor: React.FC<Props> = ({ value, onChange
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">Max. dents</span>
           <input
             type="number"
+            aria-label="Maximum de dents"
             min={1}
             value={current.max_selected_teeth ?? ''}
             placeholder="∞"
