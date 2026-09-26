@@ -1,9 +1,22 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountingStudio } from '../AccountingStudio';
 import { useAccountingStore } from '../store/useAccountingStore';
 
-const catalogState = { specialties: [], fetchCatalog: vi.fn() };
+const catalogState = vi.hoisted(() => ({
+  specialties: [
+    {
+      id: 1,
+      name: 'OMNIPRATIQUE',
+      pathologies: [],
+      acts: [],
+    },
+  ],
+  fetchCatalog: vi.fn(),
+  createAct: vi.fn(),
+  updateAct: vi.fn(),
+}));
+
 vi.mock('../Settings/hooks/useCatalogStore', () => ({
   useCatalogStore: (selector?: any) => selector ? selector(catalogState) : catalogState,
 }));
@@ -23,7 +36,13 @@ vi.mock('../../../services/api', () => ({
   api: { get:vi.fn().mockResolvedValue({data:[]}), post:vi.fn(), put:vi.fn() },
 }));
 
-beforeEach(() => useAccountingStore.getState().reset());
+beforeEach(() => {
+  useAccountingStore.getState().reset();
+  vi.clearAllMocks();
+  catalogState.fetchCatalog.mockResolvedValue(undefined);
+  catalogState.createAct.mockResolvedValue(true);
+  catalogState.updateAct.mockResolvedValue(true);
+});
 afterEach(() => { cleanup(); useAccountingStore.getState().reset(); });
 
 function renderHonoraires() {
@@ -38,22 +57,24 @@ function renderHonoraires() {
   );
 }
 
+async function addCatalogBackedLine(name: string, price: number) {
+  fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
+  const dialog=screen.getByRole('dialog',{name:'Ajouter un acte au catalogue'});
+  fireEvent.change(within(dialog).getByRole('combobox',{name:'Spécialité'}),{target:{value:'1'}});
+  fireEvent.change(within(dialog).getByPlaceholderText("Nom de l'acte"),{target:{value:name}});
+  fireEvent.change(within(dialog).getByPlaceholderText('Tarif à définir'),{target:{value:String(price)}});
+  fireEvent.click(within(dialog).getByRole('button',{name:'Créer et ajouter'}));
+  await waitFor(() => expect(useAccountingStore.getState().items.some(item => item.description === name)).toBe(true));
+}
+
 describe('Honoraires G4 interactive controls', () => {
-  it('adds, edits, reorders and removes manual honorarium lines while keeping total truth', () => {
+  it('adds, edits, reorders and removes catalog-backed honorarium lines while keeping total truth', async () => {
     renderHonoraires();
 
-    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
-    let descriptions=screen.getAllByPlaceholderText('Rechercher un acte du catalogue...');
-    fireEvent.change(descriptions[0],{target:{value:'Détartrage'}});
-    let priceInputs=screen.getAllByPlaceholderText('0.00');
-    fireEvent.change(priceInputs[0],{target:{value:'500'}});
+    await addCatalogBackedLine('Détartrage',500);
     expect(screen.getByText('500 MAD')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
-    descriptions=screen.getAllByPlaceholderText('Rechercher un acte du catalogue...');
-    fireEvent.change(descriptions[1],{target:{value:'Contrôle'}});
-    priceInputs=screen.getAllByPlaceholderText('0.00');
-    fireEvent.change(priceInputs[1],{target:{value:'200'}});
+    await addCatalogBackedLine('Contrôle',200);
     expect(screen.getByText('700 MAD')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button',{name:'Monter Contrôle'}));
@@ -64,11 +85,9 @@ describe('Honoraires G4 interactive controls', () => {
     expect(screen.getByText('500 MAD')).toBeTruthy();
   });
 
-  it('opens treasury and records explicit status/payment/accounting choices in canonical store', () => {
+  it('opens treasury and records explicit status/payment/accounting choices in canonical store', async () => {
     renderHonoraires();
-    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
-    fireEvent.change(screen.getByPlaceholderText('Rechercher un acte du catalogue...'),{target:{value:'Consultation'}});
-    fireEvent.change(screen.getByPlaceholderText('0.00'),{target:{value:'300'}});
+    await addCatalogBackedLine('Consultation',300);
 
     fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
     expect(screen.getByText('Encaissement')).toBeTruthy();
@@ -87,9 +106,9 @@ describe('Honoraires G4 interactive controls', () => {
     expect(useAccountingStore.getState().isAccounted).toBe(!before);
   });
 
-  it('refuses partial-payment status and exposes the guard instead of silently changing state', () => {
+  it('refuses partial-payment status and exposes the guard instead of silently changing state', async () => {
     renderHonoraires();
-    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
+    await addCatalogBackedLine('Consultation',300);
     fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
     fireEvent.click(screen.getByRole('button',{name:'Partiel'}));
 
@@ -101,9 +120,9 @@ describe('Honoraires G4 interactive controls', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('switches unique/global billing and adds/removes planned installments without persistence side effects', () => {
+  it('switches unique/global billing and adds/removes planned installments without persistence side effects', async () => {
     renderHonoraires();
-    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
+    await addCatalogBackedLine('Consultation',300);
     fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
 
     fireEvent.click(screen.getByRole('button',{name:/Global \/ Planifié/i}));
@@ -125,7 +144,7 @@ describe('Honoraires G4 interactive controls', () => {
 
   it('closes the treasury modal without changing the configured payment state', async () => {
     renderHonoraires();
-    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
+    await addCatalogBackedLine('Consultation',300);
     fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
     fireEvent.click(screen.getByRole('button',{name:'Cash'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer à la note'}));
