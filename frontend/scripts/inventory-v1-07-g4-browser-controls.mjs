@@ -251,6 +251,34 @@ for (const viewport of viewports) {
         path: path.join(outDir, `g4-plan-${slug}-tooth-11-selected-${viewport.width}x${viewport.height}.png`),
         animations: 'disabled',
       });
+
+      const childTab = page.getByRole('button', { name: 'Enfant', exact: true });
+      await childTab.click();
+      await individualMode.click();
+      const tooth51 = page.getByRole('button', { name: /^Dent 51(?:,|$)/ }).first();
+      await tooth51.waitFor({ state: 'visible', timeout: 30000 });
+      await page.waitForTimeout(200);
+
+      await plan.screenshot({
+        path: path.join(outDir, `g4-plan-${slug}-child-schema-open-${viewport.width}x${viewport.height}.png`),
+        animations: 'disabled',
+      });
+
+      await groupMode.click();
+      await tooth51.focus();
+      await tooth51.press('Enter');
+      await page.waitForFunction(
+        () => [...document.querySelectorAll('[role="button"][aria-label^="Dent 51"]')]
+          .some((el) => el.getAttribute('aria-pressed') === 'true'),
+        null,
+        { timeout: 10000 },
+      );
+      await page.waitForTimeout(200);
+
+      await plan.screenshot({
+        path: path.join(outDir, `g4-plan-${slug}-child-tooth-51-selected-${viewport.width}x${viewport.height}.png`),
+        animations: 'disabled',
+      });
     }
   }
 
