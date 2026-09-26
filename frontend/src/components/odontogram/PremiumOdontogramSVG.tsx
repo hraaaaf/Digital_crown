@@ -116,8 +116,8 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
               <ellipse
                 cx={cx}
                 cy={cy}
-                rx={rx + 6}
-                ry={ry + 7}
+                rx={rx + 3}
+                ry={ry + 4}
                 fill="transparent"
                 tabIndex={readOnly ? undefined : 0}
                 role={readOnly ? undefined : 'button'}
