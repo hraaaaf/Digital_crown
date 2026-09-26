@@ -588,9 +588,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                           type="button"
                                           onClick={() => {
                                             const price = Number(act.base_price) || 0;
-                                            setGroupTreatmentName(act.name);
                                             if (price <= 0) {
-                                              setGroupTreatmentPrice('');
                                               toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte.');
                                               return;
                                             }
@@ -605,8 +603,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                               catalogActId: act.id,
                                             }]);
                                             selectTeethGroup('none');
-                                            setGroupTreatmentName('');
-                                            setGroupTreatmentPrice('');
                                             toast.success(`Ajouté : ${act.name}`);
                                           }}
                                           className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
