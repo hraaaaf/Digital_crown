@@ -43,7 +43,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const accountedLabel = page.getByText('Comptabiliser CA', { exact: true });
   await accountedLabel.locator('..').getByRole('button').click();
-  await page.getByRole('button', { name: 'Partiel', exact: true }).click();
+  await page.getByTestId('document-studio-accounting-footer').getByRole('button', { name: 'Partiel', exact: true }).click();
 
   const guard = page.getByRole('alert');
   await guard.waitFor({ state: 'visible', timeout: 5000 });
