@@ -140,25 +140,20 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await inventory(page, viewport, 'installment-generated-draft');
 
   await page.goto(base + 'honoraires', { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-  await page.getByRole('button', { name: 'Q1', exact: true }).waitFor({ state: 'visible' });
-  await inventory(page, viewport, 'honoraires-group-mode');
-  await page.getByRole('button', { name: 'Q1', exact: true }).click();
-  await page.getByRole('button', { name: 'Bridge', exact: true }).waitFor({ state: 'visible' });
+  await page.getByText('Sélectionnez une ou plusieurs dents', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByText('Sélection rapide', { exact: true }).click();
+  await page.getByRole('button', { name: 'Maxillaire', exact: true }).click();
+  await page.getByRole('button', { name: 'Réinitialiser', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await inventory(page, viewport, 'honoraires-group-selected');
 
-  await page.getByRole('button', { name: /Soins Ciblés/i }).click();
+  await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
   const dent11 = page.getByRole('button', { name: /Dent 11,/i });
-  // The odontogram is SVG-backed; Chromium pointer hit-testing can land on an
-  // inner shape instead of the accessible tooth control. Exercise the same
-  // real browser action through the keyboard contract used by the deep probe.
+  // The odontogram is SVG-backed; use the keyboard contract to exercise the
+  // actual accessible tooth control without depending on SVG hit-testing.
   await dent11.focus();
   await page.keyboard.press('Enter');
-  await page.getByText('Dent 11', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  await inventory(page, viewport, 'honoraires-treatment-selector');
-  const toothTitle = page.getByText('Dent 11', { exact: true });
-  const selector = toothTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-  await selector.locator('button').first().click();
+  await page.getByPlaceholder('Rechercher un acte pour cette sélection…').waitFor({ state: 'visible', timeout: 10000 });
+  await inventory(page, viewport, 'honoraires-tooth-selected');
 
   await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'visible' });
