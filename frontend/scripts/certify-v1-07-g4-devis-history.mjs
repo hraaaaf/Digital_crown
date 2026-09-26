@@ -103,7 +103,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await priceInput.fill(String(price));
     await page.getByRole('button', { name: 'Créer et ajouter', exact: true }).last().click();
     await nameInput.waitFor({ state: 'hidden', timeout: 10000 });
-    await page.getByDisplayValue(name).last().waitFor({ state: 'visible', timeout: 10000 });
+    await page.waitForFunction(expected => [...document.querySelectorAll('input')].some(input => input.value === expected), name, { timeout: 10000 });
   };
   await createManualCatalogLine('Détartrage G4 ' + viewport.width, 500);
   await createManualCatalogLine('Bridge G4 ' + viewport.width, 1800);
