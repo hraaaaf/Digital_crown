@@ -147,7 +147,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await inventory(page, viewport, 'honoraires-group-selected');
 
   await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
-  const dent11 = page.getByRole('button', { name: /Dent 11,/i });
+  const dent11 = page.getByRole('button', { name: 'Dent 11', exact: true });
   // The odontogram is SVG-backed; use the keyboard contract to exercise the
   // actual accessible tooth control without depending on SVG hit-testing.
   await dent11.focus();
