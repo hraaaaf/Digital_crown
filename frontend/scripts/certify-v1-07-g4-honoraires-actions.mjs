@@ -313,6 +313,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const treasuryTitle = page.getByText('Encaissement', { exact: true });
   const treasuryOverlay = treasuryTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
   const treasuryTopClose = treasuryOverlay.locator('button').first();
+  await treasuryTopClose.waitFor({ state: 'visible', timeout: 5000 });
+  // The treasury dialog enters with a Framer Motion transform. Wait for its
+  // geometry to settle before sampling elementFromPoint, otherwise the hit-test
+  // can race the animation even though the control is fully usable.
+  await page.waitForTimeout(400);
   const topCloseOwnsHit = await treasuryTopClose.evaluate((button) => {
     const rect = button.getBoundingClientRect();
     const target = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
