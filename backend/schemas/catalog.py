@@ -30,7 +30,7 @@ class CatalogActApplicability(BaseModel):
     selection_modes: List[Literal["INDIVIDUAL", "GROUP", "GENERAL"]] = Field(default_factory=list)
     requires_present_tooth: bool = False
     requires_missing_tooth: bool = False
-    min_selected_teeth: int = Field(default=1, ge=0)
+    min_selected_teeth: int = Field(default=0, ge=0)
     max_selected_teeth: Optional[int] = Field(default=None, ge=1)
     suggestion_priority: int = Field(default=0, ge=0, le=100)
     searchable_when_not_suggested: bool = True
