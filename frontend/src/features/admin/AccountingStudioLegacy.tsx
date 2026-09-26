@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
-import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
+import { PremiumOdontogramSVG } from '../../components/odontogram/PremiumOdontogramSVG';
 import { TreatmentSelector } from '../../components/odontogram/TreatmentSelector';
 import { createPortal } from 'react-dom';
 import type { SelectedSurfaceData, ToothSurface, ToothTreatment } from '../../components/odontogram/types';
@@ -36,6 +36,7 @@ import { resolveAccountingBundles, type ResolvedAccountingBundle } from './Docum
 import { moveAccountingLine } from './DocumentStudio/AccountingLineOrderPolicy';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { resolveNamedDevisActPrice } from './DocumentStudio/AccountingNamedActPricePolicy';
+import { searchableCatalogActs, suggestedCatalogActs } from './DocumentStudio/AccountingActApplicabilityPolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -67,7 +68,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     items, setItems,
     paymentMode, setPaymentMode,
     showOdontoPanoramique, setShowOdontoPanoramique,
-    odontogramMode, setOdontogramMode,
     groupSelectedTeeth, setGroupSelectedTeeth,
     actSuggestions, setActSuggestions,
     activeActSearchId, setActiveActSearchId,
@@ -75,12 +75,10 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     isAccounted, setIsAccounted,
     paymentStatus, setPaymentStatus,
     paymentStatusGuardMessage, clearPaymentStatusGuard,
-    isGlobalNote, setIsGlobalNote,
-    groupTreatmentName, setGroupTreatmentName,
-    groupTreatmentPrice, setGroupTreatmentPrice
+    isGlobalNote, setIsGlobalNote
   } = useAccountingStore();
 
-  const { specialties, fetchCatalog } = useCatalogStore();
+  const { specialties, fetchCatalog, createAct, updateAct } = useCatalogStore();
   
   React.useEffect(() => {
     if (specialties.length === 0) {
@@ -94,36 +92,73 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       name: act.name,
       category: s.name,
       base_price: act.base_price,
+      catalogActId: act.id,
     })));
   }, [specialties]);
 
+  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
+  const [selectedActQuery, setSelectedActQuery] = useState('');
+
   const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
+
+  const selectTeethGroup = React.useCallback((group: string) => {
+    setGroupSelectedTeeth(odontogramGroupSelection(odontogramType, group));
+  }, [odontogramType, setGroupSelectedTeeth]);
+
+  const groupSuggestedActs = React.useMemo(
+    () => suggestedCatalogActs(
+      specialties,
+      { selectedTeeth: groupSelectedTeeth, selectionMode: groupSelectedTeeth.length > 1 ? 'GROUP' : 'INDIVIDUAL' },
+      6,
+    ),
+    [groupSelectedTeeth, specialties],
+  );
+
+  const selectedSearchResults = React.useMemo(() => {
+    const query = selectedActQuery.trim().toLocaleLowerCase('fr');
+    if (!query || groupSelectedTeeth.length === 0) return [];
+    return searchableCatalogActs(
+      specialties,
+      { selectedTeeth: groupSelectedTeeth, selectionMode: groupSelectedTeeth.length > 1 ? 'GROUP' : 'INDIVIDUAL' },
+    )
+      .filter(({ act, specialty }) =>
+        act.name.toLocaleLowerCase('fr').includes(query)
+        || specialty.toLocaleLowerCase('fr').includes(query)
+      )
+      .slice(0, 6);
+  }, [groupSelectedTeeth, selectedActQuery, specialties]);
+
+  const addActForSelectedTeeth = React.useCallback((act: any, specialty: string) => {
+    if (groupSelectedTeeth.length === 0) return;
+    const price = Number(act.base_price) || 0;
+    if (price <= 0) {
+      toast.error(`Tarif catalogue absent pour ${act.name} : prix à renseigner.`);
+      return;
+    }
+    const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
+    setItems((prev: PriceItem[]) => [...prev, {
+      id: Date.now() + Math.random(),
+      description: act.name,
+      dent: sorted.join('-'),
+      price,
+      toothNumbers: sorted,
+      category: specialty,
+      catalogActId: act.id,
+    }]);
+    setGroupSelectedTeeth([]);
+    setSelectedActQuery('');
+    toast.success(`Ajouté : ${act.name}`);
+  }, [groupSelectedTeeth, setGroupSelectedTeeth, setItems]);
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
   const [suggestedBundles, setSuggestedBundles] = useState<ResolvedAccountingBundle[]>([]);
-  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
-
-  const selectTeethGroup = (g: string) => {
-    setGroupSelectedTeeth(odontogramGroupSelection(odontogramType, g));
-  };
-
-  const applyGroupTreatment = () => {
-    if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
-    const normalizedPrice = Number(groupTreatmentPrice);
-    if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
-      toast.error('Renseignez un prix positif avant d’ajouter cet acte groupé.');
-      return;
-    }
-    const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-    setItems((prev: any) => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: normalizedPrice, toothNumbers: sorted }]);
-    setGroupSelectedTeeth([]);
-    setGroupTreatmentName('');
-    setGroupTreatmentPrice('');
-  };
-
+  const [isNewCatalogActOpen, setIsNewCatalogActOpen] = useState(false);
+  const [newCatalogActName, setNewCatalogActName] = useState('');
+  const [newCatalogActPrice, setNewCatalogActPrice] = useState('');
+  const [newCatalogActSpecialtyId, setNewCatalogActSpecialtyId] = useState<number | ''>('');
   const replaceToothTreatmentsFromSelector = React.useCallback((
     toothNumber: number,
     treatments: ToothTreatment[],
@@ -139,6 +174,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         name: treatment.name,
         price: treatment.price,
         category: treatment.category,
+        catalogActId: treatment.catalogActId,
         dent: dentLabel,
       })),
     ));
@@ -156,12 +192,74 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         name: item.description,
         price: Number(item.price) || 0,
         category: item.category as ToothTreatment['category'],
+        catalogActId: item.catalogActId,
         scope: 'UNITAIRE' as const,
       }];
     });
   }, [activeTooth, items]);
 
-  const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
+  const normalizeCatalogName = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('fr');
+
+  const findCatalogAct = React.useCallback((specialtyId: number, name: string) => {
+    const specialty = specialties.find(s => s.id === specialtyId);
+    if (!specialty) return null;
+    const normalized = normalizeCatalogName(name);
+    return specialty.acts.find(act => normalizeCatalogName(act.name) === normalized) || null;
+  }, [specialties]);
+
+  const ensureCatalogAct = React.useCallback(async (
+    specialtyId: number,
+    name: string,
+    price: number,
+    applicability?: any,
+  ) => {
+    const cleanName = name.trim().replace(/\s+/g, ' ');
+    if (!cleanName) return false;
+    const existing = findCatalogAct(specialtyId, cleanName);
+    if (existing) {
+      if (Number(existing.base_price) <= 0 && price > 0) {
+        await updateAct(existing.id, { base_price: price });
+      }
+      return true;
+    }
+    return createAct(specialtyId, {
+      name: cleanName,
+      base_price: price > 0 ? price : 0,
+      applicability,
+    });
+  }, [createAct, findCatalogAct, updateAct]);
+
+  const openNewCatalogAct = () => {
+    setNewCatalogActName('');
+    setNewCatalogActPrice('');
+    setNewCatalogActSpecialtyId(specialties[0]?.id || '');
+    setIsNewCatalogActOpen(true);
+  };
+
+  const addCatalogActLine = async () => {
+    if (!newCatalogActName.trim() || !newCatalogActSpecialtyId) {
+      toast.error('Choisissez une spécialité et renseignez le nom de l’acte.');
+      return;
+    }
+    const specialtyId = Number(newCatalogActSpecialtyId);
+    const specialty = specialties.find(s => s.id === specialtyId);
+    const existing = findCatalogAct(specialtyId, newCatalogActName);
+    const enteredPrice = Number(newCatalogActPrice) || 0;
+    const effectivePrice = enteredPrice > 0 ? enteredPrice : Number(existing?.base_price) || 0;
+    const ok = await ensureCatalogAct(specialtyId, newCatalogActName, enteredPrice);
+    if (!ok) return;
+    setItems((prev: any) => [...prev, {
+      id: Date.now(),
+      description: existing?.name || newCatalogActName.trim().replace(/\s+/g, ' '),
+      dent: '0',
+      price: effectivePrice,
+      category: specialty?.name,
+    }]);
+    setIsNewCatalogActOpen(false);
+    setNewCatalogActName('');
+    setNewCatalogActPrice('');
+    setNewCatalogActSpecialtyId('');
+  };
   const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
   const moveItem = (id: number, direction: 'UP' | 'DOWN') => setItems((prev: PriceItem[]) => moveAccountingLine(prev, id, direction));
   
@@ -187,6 +285,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       name: t.name,
       base_price: t.base_price,
       category: t.category,
+      catalogActId: t.catalogActId,
       isLocal: true,
       is_habit: false
     }));
@@ -213,7 +312,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       ...i,
       description: act.name,
       price: resolved.price,
-      category: resolved.category || act.category
+      category: resolved.category || act.category,
+      catalogActId: act.catalogActId
     } : i));
     setActSuggestions([]);
     setActiveActSearchId(null);
@@ -351,7 +451,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               ]);
               rememberActPrice(act.name, act.price, act.category);
             }}
-            onAddManual={addEmptyRow}
+            onAddManual={openNewCatalogAct}
           />
 
           <AnimatePresence>
@@ -458,6 +558,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             onClick={() => {
                               setOdontogramType(type);
                               setGroupSelectedTeeth([]);
+                              setSelectedActQuery('');
                               setActiveTooth(null);
                             }}
                             className={cn(
@@ -468,23 +569,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         ))}
                       </div>
 
-                      <div className="grid grid-cols-3 w-full sm:w-auto bg-slate-100/50 p-1 rounded-xl border border-slate-100">
-                        {(['individual', 'group', 'ortho'] as const).map(mode => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => setOdontogramMode(mode)}
-                            aria-label={mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}
-                            className={cn(
-                              "min-w-0 w-full sm:w-auto px-2 sm:px-4 py-2 rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-normal sm:tracking-widest transition-all",
-                              odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                            )}
-                          >
-                            <span className="sm:hidden">{mode === 'individual' ? 'Ciblés' : mode === 'group' ? 'Bridge' : 'Généraux'}</span>
-                            <span className="hidden sm:inline">{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}</span>
-                          </button>
-                        ))}
-                      </div>
+                      <div className="hidden sm:flex flex-1" aria-hidden="true" />
 
                       <div className="hidden sm:flex w-24 justify-end">
                         <Zap size={14} className="text-primary" />
@@ -492,129 +577,57 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     </div>
 
                     <div className="relative flex-1 flex flex-col p-2.5 sm:p-4 bg-slate-50/20 overflow-hidden">
-                      {odontogramMode !== 'ortho' && (
-                        <div className="relative sm:absolute sm:top-4 sm:left-1/2 sm:-translate-x-1/2 z-30 mb-2 sm:mb-0 px-1 sm:px-0">
-                          <div className="w-full sm:w-auto px-3 sm:px-5 py-2 sm:py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest flex items-center justify-center gap-2 sm:gap-3 border border-primary/20 shadow-sm animate-in slide-in-from-top-4 text-center">
-                            <Brain size={16} className="animate-pulse" />
-                            {odontogramMode === 'individual' && "Sélectionnez une dent pour lui associer un soin"}
-                            {odontogramMode === 'group' && "Cliquez sur les piliers et inters pour créer un bridge ou un stellite"}
-                          </div>
+                      <div className="relative sm:absolute sm:top-4 sm:left-1/2 sm:-translate-x-1/2 z-30 mb-2 sm:mb-0 px-1 sm:px-0">
+                        <div className="w-full sm:w-auto px-3 sm:px-5 py-2 sm:py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest flex items-center justify-center gap-2 sm:gap-3 border border-primary/20 shadow-sm text-center">
+                          Sélectionnez une ou plusieurs dents
                         </div>
-                      )}
+                      </div>
 
-                      {odontogramMode === 'ortho' && (
-                        <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
-                          <div className="bg-white/95 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/50 p-8 w-full max-w-2xl animate-in zoom-in-95 duration-500">
-                            <div className="flex items-center justify-between mb-6">
-                              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                                <Sparkles className="text-primary"/> Soins Généraux
-                              </h3>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Actes Globaux</span>
-                            </div>
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                              {[
-                                {name: 'Détartrage & Polissage', category: 'PREVENTION'},
-                                {name: 'Surfaçage Radiculaire (par secteur)', category: 'PARO'},
-                                {name: 'Bilan Parodontal Complet', category: 'PARO'},
-                                {name: 'Blanchiment Dentaire', category: 'ESTHETIQUE'},
-                                {name: 'Fluorisation', category: 'PREVENTION'},
-                                {name: 'Gouttière de Bruxisme', category: 'PROTHESE'},
-                                {name: 'Semestre ODF', category: 'ORTHO'},
-                                {name: 'Consultation Standard', category: 'CONSERVATRICE'},
-                                {name: 'Aéropolissage', category: 'PREVENTION'},
-                                {name: 'Traitement Parodontal (Séance)', category: 'PARO'},
-                              ].map(act => {
-                                const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
-                                return (
-                                  <button
-                                    key={act.name}
-                                    type="button"
-                                    onClick={() => {
-                                      setItems([...items, {
-                                        id: Date.now() + Math.random(),
-                                        description: act.name,
-                                        dent: 'Global',
-                                        price: resolved.price,
-                                        category: resolved.category || act.category,
-                                      }]);
-                                      if (resolved.source === 'UNRESOLVED') {
-                                        toast.error(`Tarif catalogue absent pour ${act.name} : prix à renseigner.`);
-                                      } else {
-                                        toast.success(`Ajouté : ${act.name}`);
-                                      }
-                                    }}
-                                    className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
-                                  >
-                                    <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
-                                    <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">
-                                      {resolved.source === 'CATALOG' ? `${resolved.price} MAD` : 'Prix catalogue requis'}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={addEmptyRow}
-                              className="mt-4 w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl flex items-center justify-center gap-2 hover:border-primary hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest"
-                            >
-                              <Plus size={14} /> Acte personnalisé
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className={cn(
-                        "flex-1 flex flex-col items-center justify-center relative transition-all duration-700",
-                        odontogramMode === 'ortho' ? "opacity-10 pointer-events-none scale-95 blur-sm" : "opacity-100 scale-100 blur-none"
-                      )}>
+                      <div className="flex-1 flex flex-col items-center justify-center relative">
                         <div className="w-full flex justify-center items-center">
-                          <OdontogramSVG
+                          <PremiumOdontogramSVG
                             type={odontogramType}
-                            teethSurfaces={{}}
                             selectedTooth={activeTooth}
-                            selectedSurface={null}
-                            onSurfaceClick={() => {}}
                             multiSelectedTeeth={groupSelectedTeeth}
-                            onToothDirectClick={(n) => {
-                              handleToothDirectClick(n);
-                              if (odontogramMode === 'individual') setActiveTooth(n);
-                            }}
-                            showNumbers={false}
-                            hideSurfaces={true}
-                            className="w-full max-w-[340px] sm:max-w-[400px] drop-shadow-md sm:drop-shadow-lg"
+                            onToothClick={handleToothDirectClick}
+                            showNumbers
+                            className="w-full max-w-[760px]"
                           />
                         </div>
 
-                        {odontogramMode === 'group' && (
+                        <details className="mt-2 w-full max-w-2xl rounded-xl border border-slate-100 bg-white/80 px-3 py-2 text-left shadow-sm">
+                          <summary className="cursor-pointer select-none text-[9px] font-black uppercase tracking-widest text-slate-400">
+                            Sélection rapide
+                          </summary>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {odontogramQuickGroupKeys(odontogramType).map(group => (
+                              <button
+                                key={group}
+                                type="button"
+                                onClick={() => selectTeethGroup(group)}
+                                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[9px] font-black text-slate-600 hover:bg-slate-200"
+                              >
+                                {group === 'maxillaire' ? 'Maxillaire' : group === 'mandibule' ? 'Mandibule' : group === 'all' ? 'Toutes' : group}
+                              </button>
+                            ))}
+                            {groupSelectedTeeth.length > 0 && (
+                              <button type="button" onClick={() => selectTeethGroup('none')} className="ml-auto rounded-lg px-2.5 py-1.5 text-[9px] font-black text-rose-500 hover:bg-rose-50">
+                                Effacer
+                              </button>
+                            )}
+                          </div>
+                        </details>
+
+                        {groupSelectedTeeth.length > 0 && (
                           <motion.div 
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="relative sm:absolute sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 mt-2 sm:mt-0 w-full max-w-2xl px-1 sm:px-6 z-20 pointer-events-auto"
+                            className="relative mt-2 w-full max-w-2xl px-1 sm:px-0"
                           >
-                            <div className="bg-slate-900/95 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] p-3 sm:p-5 border border-white/10 shadow-xl sm:shadow-2xl flex flex-col gap-3 sm:gap-4">
-                              {groupSelectedTeeth.length === 0 ? (
-                                <div className="flex flex-col gap-3">
-                                  <div className="flex items-center gap-3 text-white">
-                                    <Sparkles className="w-4 h-4 text-primary" /> <span className="text-xs font-black uppercase tracking-widest">Sélection Rapide</span>
-                                  </div>
-                                  <div className="grid grid-cols-4 gap-2">
-                                    {odontogramQuickGroupKeys(odontogramType).slice(0, 4).map(group => (
-                                      <button key={group} type="button" onClick={() => selectTeethGroup(group)} className="py-2 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[10px] font-black tracking-widest">{group}</button>
-                                    ))}
-                                  </div>
-                                  {odontogramType === 'ADULT' && (
-                                    <div className="grid grid-cols-6 gap-2">
-                                      {odontogramQuickGroupKeys(odontogramType).slice(4).map(group => (
-                                        <button key={group} type="button" onClick={() => selectTeethGroup(group)} className="py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[9px] font-black tracking-widest">{group}</button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-900 p-3 shadow-lg sm:p-4 flex flex-col gap-3">
+                              <>
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                                       <div className="flex -space-x-2">
                                         {groupSelectedTeeth.slice(0, 4).map(n => (
                                           <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
@@ -623,69 +636,56 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                           <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 4}</div>
                                         )}
                                       </div>
-                                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{groupSelectedTeeth.length} dents sélectionnées</span>
+                                      <span className="truncate text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-wide sm:tracking-widest">{groupSelectedTeeth.length} dent(s) sélectionnée(s)</span>
                                     </div>
                                     <button type="button" onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-2">
-                                    {['Bridge', 'Stellite', 'Prothèse Adjointe (PAP)', `Curetage (${detectRegion(groupSelectedTeeth)})`, `Surfaçage (${detectRegion(groupSelectedTeeth)})`, 'Attelle de contention'].map(act => (
-                                      <button
-                                        key={act}
-                                        type="button"
-                                        onClick={() => {
-                                          const resolved = resolveNamedDevisActPrice(act, TREATMENT_TEMPLATES);
-                                          setGroupTreatmentName(act);
-                                          if (resolved.source === 'UNRESOLVED') {
-                                            setGroupTreatmentPrice('');
-                                            toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte groupé.');
-                                            return;
-                                          }
-                                          setGroupTreatmentPrice(resolved.price);
-                                          const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                                          setItems([...items, {
-                                            id: Date.now() + Math.random(),
-                                            description: act,
-                                            dent: sorted.join('-'),
-                                            price: resolved.price,
-                                            toothNumbers: sorted,
-                                            category: resolved.category,
-                                          }]);
-                                          selectTeethGroup('none');
-                                          setGroupTreatmentName('');
-                                          setGroupTreatmentPrice('');
-                                          toast.success(`Ajouté : ${act}`);
-                                        }}
-                                        className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
-                                      >{act}</button>
-                                    ))}
+                                  {groupSuggestedActs.length > 0 ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                      {groupSuggestedActs.map(({ act, specialty }) => (
+                                        <button
+                                          key={act.id}
+                                          type="button"
+                                          onClick={() => addActForSelectedTeeth(act, specialty)}
+                                          className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
+                                        >
+                                          {act.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold text-slate-400">
+                                      Aucun acte suggéré pour cette sélection. Retrouvez l’acte dans le catalogue.
+                                    </p>
+                                  )}
+
+                                  <div className="space-y-2 border-t border-white/10 pt-3">
+                                    <input
+                                      type="search"
+                                      value={selectedActQuery}
+                                      onChange={(event) => setSelectedActQuery(event.target.value)}
+                                      placeholder="Rechercher un acte pour cette sélection…"
+                                      className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-xs font-bold text-white outline-none placeholder:text-slate-500 focus:border-primary/50"
+                                    />
+                                    {selectedSearchResults.length > 0 && (
+                                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                                        {selectedSearchResults.map(({ act, specialty }) => (
+                                          <button
+                                            key={act.id}
+                                            type="button"
+                                            onClick={() => addActForSelectedTeeth(act, specialty)}
+                                            className="flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-left text-[10px] font-bold text-slate-200 hover:bg-white/20"
+                                          >
+                                            <span className="truncate">{act.name}</span>
+                                            <span className="shrink-0 text-slate-500">{Number(act.base_price) > 0 ? `${act.base_price} MAD` : 'Tarif à définir'}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
 
-                                  <div className="flex gap-2 pt-2 border-t border-white/10">
-                                    <input 
-                                      type="text"
-                                      placeholder="Ou saisir un autre acte..."
-                                      className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
-                                      value={groupTreatmentName}
-                                      onChange={(e) => setGroupTreatmentName(e.target.value)}
-                                    />
-                                    <input 
-                                      type="number"
-                                      placeholder="Prix"
-                                      className="bg-white/10 border border-white/10 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 w-24 text-center"
-                                      value={groupTreatmentPrice}
-                                      onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                                    />
-                                    <button 
-                                      type="button"
-                                      onClick={applyGroupTreatment}
-                                      className="px-6 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20 text-[10px] font-black uppercase tracking-widest"
-                                    >
-                                      Appliquer
-                                    </button>
-                                  </div>
                                 </>
-                              )}
                             </div>
                           </motion.div>
                         )}
@@ -738,7 +738,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={addEmptyRow}
+                  onClick={openNewCatalogAct}
                   className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
                 >+ Ligne Manuelle</button>
               </div>
@@ -785,8 +785,20 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 )}
                                 value={item.description}
                                 onChange={(e) => handleActSearch(e.target.value, item.id)}
-                                onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
-                                placeholder="Rechercher ou saisir un acte..."
+                                onBlur={() => {
+                                  setTimeout(() => setActiveActSearchId(null), 200);
+                                  const exact = TREATMENT_TEMPLATES.find(t => normalizeCatalogName(t.name) === normalizeCatalogName(item.description));
+                                  if (!exact && item.description.trim()) {
+                                    setNewCatalogActName(item.description.trim());
+                                    setNewCatalogActPrice(item.price > 0 ? String(item.price) : '');
+                                    setNewCatalogActSpecialtyId(
+                                      specialties.find(s => s.name === item.category)?.id || specialties[0]?.id || '',
+                                    );
+                                    setIsNewCatalogActOpen(true);
+                                    setItems(prev => prev.filter(row => row.id !== item.id));
+                                  }
+                                }}
+                                placeholder="Rechercher un acte du catalogue..."
                               />
                               {!isPhaseSeparator && activeActSearchId === item.id && actSuggestions.length > 0 && (
                                 <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -882,7 +894,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   onClick={() => setIsTreasuryModalOpen(true)}
                   className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex justify-center items-center gap-2"
                 >
-                  <Banknote size={20} /> Procéder à l'Encaissement
+                  <History size={18} /> Échéances & options
                 </button>
               )}
             </div>
@@ -996,7 +1008,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           paymentMode === m ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                         )}
                       >
-                        {m === 'Espèces' ? 'Cash' : m}
+                        {m}
                       </button>
                     ))}
                   </div>
@@ -1110,6 +1122,56 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
           </div>
         )}
       </AnimatePresence>
+      {isNewCatalogActOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-label="Ajouter un acte au catalogue" className="w-full max-w-lg rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="mb-5">
+              <h3 className="text-lg font-black text-slate-900">Ajouter un acte au catalogue</h3>
+              <p className="mt-1 text-sm text-slate-500">L’acte sera enregistré dans le catalogue central puis ajouté à ce document.</p>
+            </div>
+            <div className="space-y-4">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Spécialité</span>
+                <select
+                  value={newCatalogActSpecialtyId}
+                  onChange={(e) => setNewCatalogActSpecialtyId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-800"
+                >
+                  <option value="">Choisir une spécialité</option>
+                  {specialties.map(specialty => (
+                    <option key={specialty.id} value={specialty.id}>{specialty.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Acte</span>
+                <input
+                  value={newCatalogActName}
+                  onChange={(e) => setNewCatalogActName(e.target.value)}
+                  placeholder="Nom de l'acte"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-800"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Tarif catalogue (facultatif)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={newCatalogActPrice}
+                  onChange={(e) => setNewCatalogActPrice(e.target.value)}
+                  placeholder="Tarif à définir"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-800"
+                />
+              </label>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setIsNewCatalogActOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">Annuler</button>
+              <button type="button" onClick={addCatalogActLine} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white">Créer et ajouter</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

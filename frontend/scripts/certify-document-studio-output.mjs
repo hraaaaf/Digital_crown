@@ -21,7 +21,7 @@ function fail(message, evidence = {}) {
 
 const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
 const login = await api.post('/api/auth/login', {
-  form: { username: 't2-browser@cabinet.ma', password: 'T2BrowserPass123!' },
+  form: { username: process.env.T2_USER || 't2-browser@cabinet.ma', password: process.env.T2_PASSWORD },
 });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
@@ -167,8 +167,17 @@ try {
   await waitForStudio('Devis');
   await page.getByRole('button', { name: 'Actes rapides', exact: true }).click();
   await page.getByRole('button', { name: /Nouvel acte/i }).click();
-  await page.getByPlaceholder('Rechercher ou saisir un acte...').last().fill('Certification impression T2');
-  await page.getByPlaceholder('0.00').last().fill('321');
+
+  const catalogDialog = page.getByRole('dialog', { name: 'Ajouter un acte au catalogue' });
+  await catalogDialog.waitFor({ state: 'visible', timeout: 10000 });
+  const specialtySelect = catalogDialog.getByRole('combobox', { name: 'Spécialité' });
+  await specialtySelect.locator('option').nth(1).waitFor({ state: 'attached', timeout: 10000 });
+  await specialtySelect.selectOption({ index: 1 });
+  await catalogDialog.getByPlaceholder("Nom de l'acte").fill('Certification impression T2');
+  await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
+  await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
+  await catalogDialog.waitFor({ state: 'hidden', timeout: 10000 });
+  await page.locator('input[value="Certification impression T2"]').waitFor({ state: 'visible', timeout: 10000 });
 
   const generatedForPrint = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().includes('/api/documents/generate?'),

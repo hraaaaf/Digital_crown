@@ -27,12 +27,17 @@ describe('AccountingStudio P2-D wiring', () => {
     expect(memoIndex).toBeGreaterThan(stateIndex);
   });
 
-  it('fail-close les prix nommés absents du catalogue et exige un prix groupé positif', () => {
+  it('fail-close les prix absents et branche la sélection universelle sur l’applicabilité catalogue', () => {
     expect(source).not.toContain('const price = PriceBrain.suggestPrice(act) || 0;');
     expect(source).toContain('resolveNamedDevisActPrice');
     expect(source).toContain("resolved.source === 'UNRESOLVED'");
     expect(source).toContain('Tarif catalogue absent : renseignez le prix avant archivage.');
-    expect(source).toContain('Renseignez un prix positif avant d’ajouter cet acte groupé.');
+    expect(source).toContain('searchableCatalogActs');
+    expect(source).toContain("selectionMode: groupSelectedTeeth.length > 1 ? 'GROUP' : 'INDIVIDUAL'");
+    expect(source).toContain('addActForSelectedTeeth');
+    expect(source).toContain('Rechercher un acte pour cette sélection…');
+    expect(source).not.toContain('Bridge & Prothèses');
+    expect(source).not.toContain('Soins groupés');
 
     expect(resolveNamedDevisActPrice('Acte connu', [
       { name: 'Acte connu', base_price: 450, category: 'CONSERVATRICE' },

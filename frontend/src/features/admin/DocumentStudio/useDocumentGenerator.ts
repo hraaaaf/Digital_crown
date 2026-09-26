@@ -316,6 +316,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           dents: canonicalToothNumbers(i),
           prix_unitaire: parseFloat(i.price.toString()),
           montant: parseFloat(i.price.toString()),
+          category: i.category,
           date: docDate,
           ...(activeTab === 'honoraires' && paymentStatus === 'PAYE'
             ? { mode_reglement: paymentMode }

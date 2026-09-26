@@ -241,9 +241,9 @@ const SettingsContainer: React.FC = () => {
           }
         `}</style>
       )}
-      <div className="flex flex-col lg:flex-row gap-12 items-start min-w-0">
-        <div className="w-full lg:w-80 space-y-8 min-w-0 lg:sticky lg:top-24">
-          <div className="flex items-center gap-4 mb-10 min-w-0">
+      <div className="flex flex-col gap-6 lg:flex-row lg:gap-12 items-start min-w-0">
+        <div className="w-full lg:w-80 space-y-4 lg:space-y-8 min-w-0 lg:sticky lg:top-24">
+          <div className="flex items-center gap-4 mb-2 lg:mb-10 min-w-0">
             <div className="w-14 h-14 shrink-0 bg-primary text-white rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-primary/30">
               <SettingsIcon size={28} />
             </div>
@@ -253,7 +253,7 @@ const SettingsContainer: React.FC = () => {
             </div>
           </div>
 
-          <nav data-tour="settings-navigation" className="space-y-2 bg-white/50 backdrop-blur-md p-3 rounded-[2rem] border border-slate-100 shadow-sm">
+          <nav data-tour="settings-navigation" aria-label="Navigation des paramètres" className="flex w-full gap-2 overflow-x-auto bg-white/70 backdrop-blur-md p-2 rounded-2xl border border-slate-100 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:block lg:space-y-2 lg:p-3 lg:rounded-[2rem]">
             {tabs.map((tab) => (
               <TabButton
                 key={tab.id}

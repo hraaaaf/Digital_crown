@@ -90,204 +90,113 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Adulte', exact: true }).waitFor({ state: 'hidden' });
   await plan.click();
   await page.getByRole('button', { name: 'Adulte', exact: true }).waitFor({ state: 'visible' });
+
   await page.getByRole('button', { name: 'Enfant', exact: true }).click();
   const pediatricTeeth = [51,52,53,54,55,61,62,63,64,65,71,72,73,74,75,81,82,83,84,85];
   for (const tooth of pediatricTeeth) {
-    const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
-    // SVG hit-testing is geometry-dependent in headless Chromium. Exercise the
-    // same accessible product action through the keyboard contract instead.
+    const toothButton = page.getByRole('button', { name: 'Dent ' + tooth, exact: true });
     await toothButton.focus();
     await page.keyboard.press('Enter');
-    const title = page.getByText('Dent ' + tooth, { exact: true });
-    await title.waitFor({ state: 'visible', timeout: 10000 });
-    const selector = title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-    await selector.locator('button').first().click();
-    await title.waitFor({ state: 'hidden', timeout: 10000 });
-  }
-  actions.push('all-20-pediatric-teeth-open-close');
-
-  await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-  const quickGroups = page.getByRole('button').filter({ hasText: /^Q[1-8]$/ });
-  const quickGroupNames = (await quickGroups.allTextContents()).map(x => x.trim()).filter(Boolean);
-  for (const group of quickGroupNames) {
-    const groupButton = page.getByRole('button', { name: group, exact: true });
-    await groupButton.focus();
+    if ((await toothButton.getAttribute('aria-pressed')) !== 'true') throw new Error('Pediatric tooth selection failed: ' + tooth);
     await page.keyboard.press('Enter');
-    await page.getByText(/dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
+    if ((await toothButton.getAttribute('aria-pressed')) !== 'false') throw new Error('Pediatric tooth deselection failed: ' + tooth);
+  }
+  actions.push('all-20-pediatric-teeth-toggle');
+
+  await page.getByText('Sélection rapide', { exact: true }).click();
+  for (const group of ['Maxillaire','Mandibule','Toutes']) {
+    await page.getByRole('button', { name: group, exact: true }).click();
+    await page.getByText(/dent\(s\) sélectionnée\(s\)/i).waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
   }
-  actions.push(quickGroupNames.length
-    ? 'bridge-quick-groups-runtime-all-reset:' + quickGroupNames.join(',')
-    : 'bridge-mode-opened-no-quick-groups-exposed');
+  actions.push('pediatric-quick-selection-neutral');
 
-  await page.getByRole('button', { name: /Soins Ciblés/i }).click();
-  const adultButton = page.getByRole('button', { name: 'Adulte', exact: true });
-  if (await adultButton.first().isVisible().catch(() => false)) {
-    await adultButton.first().focus();
-    await page.keyboard.press('Enter');
-  }
-
+  await page.getByRole('button', { name: 'Adulte', exact: true }).click();
   await page.getByRole('button', { name: 'Réduire Schéma', exact: true }).click();
   await page.getByRole('button', { name: 'Afficher Schéma', exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('button', { name: 'Afficher Schéma', exact: true }).click();
   await page.getByRole('button', { name: 'Réduire Schéma', exact: true }).waitFor({ state: 'visible' });
   actions.push('odontogram-open-collapse-adult-pediatric');
 
-  await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-  for (const group of ['Q1','Q2','Q3','Q4','S1','S2','S3','S4','S5','S6']) {
+  await page.getByText('Sélection rapide', { exact: true }).click();
+  for (const group of ['Maxillaire','Mandibule','Toutes']) {
     await page.getByRole('button', { name: group, exact: true }).click();
-    await page.getByText(/dents sélectionnées/i).waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByText(/dent\(s\) sélectionnée\(s\)/i).waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
-    await page.getByRole('button', { name: group, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   }
-  actions.push('adult-quick-groups-reset');
+  actions.push('adult-quick-selection-neutral');
 
-  const resetGroupedActScene = async () => {
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
-    await page.getByRole('button', { name: 'Note Honoraires', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
-    await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-    const adultButton = page.getByRole('button', { name: 'Adulte', exact: true });
-    if (await adultButton.first().isVisible().catch(() => false)) {
-      await adultButton.first().focus();
-      await page.keyboard.press('Enter');
-    }
-    const q1 = page.getByRole('button', { name: 'Q1', exact: true });
-    await q1.waitFor({ state: 'visible', timeout: 5000 });
-    await q1.focus();
+  for (const tooth of [11,12,13]) {
+    const button = page.getByRole('button', { name: 'Dent ' + tooth, exact: true });
+    await button.focus();
     await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: 'Bridge', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-  };
-
-  for (const act of [
-    { button: 'Bridge', result: 'Bridge' },
-    { button: 'Stellite', result: 'Stellite' },
-    { button: 'Prothèse Adjointe (PAP)', result: 'Prothèse Adjointe (PAP)' },
-    { button: /^Curetage /, result: /^Curetage / },
-    { button: /^Surfaçage /, result: /^Surfaçage / },
-    { button: 'Attelle de contention', result: 'Attelle de contention' },
-  ]) {
-    await resetGroupedActScene();
-    await page.getByRole('button', { name: act.button, exact: typeof act.button === 'string' }).click();
-    await page.getByText(act.result, { exact: typeof act.result === 'string' }).last().waitFor({ state: 'visible', timeout: 5000 });
   }
-
-  await resetGroupedActScene();
-  await page.getByPlaceholder('Ou saisir un autre acte...').fill('Acte groupé G4');
-  await page.getByPlaceholder('Prix').fill('1200');
-  await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
-  await page.waitForFunction(
-    () => Array.from(document.querySelectorAll('input')).some(input => input.value === 'Acte groupé G4'),
-    null,
-    { timeout: 5000 }
-  );
-  actions.push('grouped-acts-custom');
+  await page.getByText(/3 dent\(s\) sélectionnée\(s\)/i).waitFor({ state: 'visible', timeout: 5000 });
+  const selectedSearch = page.getByPlaceholder('Rechercher un acte pour cette sélection…');
+  await selectedSearch.fill('Bridge');
+  const bridgeButton = page.getByRole('button', { name: /Bridge/ }).last();
+  await bridgeButton.waitFor({ state: 'visible', timeout: 5000 });
+  await bridgeButton.click();
+  await page.getByText('Bridge 3 éléments', { exact: true }).last().waitFor({ state: 'visible', timeout: 5000 });
+  actions.push('multi-tooth-search-add');
 
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('button', { name: 'Note Honoraires', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
-  await page.getByRole('button', { name: /Soins Ciblés/i }).click();
-  const adultButtonForTargeted = page.getByRole('button', { name: 'Adulte', exact: true });
-  if (await adultButtonForTargeted.first().isVisible().catch(() => false)) {
-    await adultButtonForTargeted.first().focus();
-    await page.keyboard.press('Enter');
-  }
   const adultTeeth = [11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48];
   for (const tooth of adultTeeth) {
-    const toothButton = page.getByRole('button', { name: new RegExp('^Dent ' + tooth + ',') });
+    const toothButton = page.getByRole('button', { name: 'Dent ' + tooth, exact: true });
     await toothButton.focus();
     await page.keyboard.press('Enter');
-    const title = page.getByText('Dent ' + tooth, { exact: true });
-    await title.waitFor({ state: 'visible', timeout: 10000 });
-    const selector = title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-    await selector.locator('button').first().click();
-    await title.waitFor({ state: 'hidden', timeout: 10000 });
+    if ((await toothButton.getAttribute('aria-pressed')) !== 'true') throw new Error('Adult tooth selection failed: ' + tooth);
+    await page.keyboard.press('Enter');
+    if ((await toothButton.getAttribute('aria-pressed')) !== 'false') throw new Error('Adult tooth deselection failed: ' + tooth);
   }
-  actions.push('all-32-adult-teeth-open-close');
+  actions.push('all-32-adult-teeth-toggle');
 
-  const dent11Button = page.getByRole('button', { name: /Dent 11,/i });
+  const dent11Button = page.getByRole('button', { name: 'Dent 11', exact: true });
   await dent11Button.focus();
   await page.keyboard.press('Enter');
-  await page.getByText('Dent 11', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  const search = page.getByPlaceholder('Rechercher un acte (Composite, Extraction, Couronne...)');
-  const categoryBar = search.locator('xpath=../following-sibling::div[1]');
-  const categoryButtons = categoryBar.getByRole('button');
-  const categoryLabels = (await categoryButtons.allInnerTexts()).map(label => label.trim()).filter(Boolean);
-  if (categoryLabels.length < 3) throw new Error('TreatmentSelector categories missing');
-  for (let i = 0; i < categoryLabels.length; i++) {
-    const categoryButton = categoryBar.getByRole('button').nth(i);
-    await categoryButton.waitFor({ state: 'visible', timeout: 5000 });
-    await categoryButton.focus();
-    await page.keyboard.press('Enter');
-  }
-
-  const specialty = categoryLabels.find(label => {
-    const normalized = label.toLocaleLowerCase('fr-FR');
-    return !['favoris', 'tous les actes'].includes(normalized);
-  });
-  if (!specialty) throw new Error('No specialty category available');
-  const specialtyButton = page.getByRole('button', { name: specialty, exact: true }).last();
-  await specialtyButton.waitFor({ state: 'visible', timeout: 10000 });
-  await specialtyButton.focus();
-  await page.keyboard.press('Enter');
-  const addCatalogAct = page.getByRole('button', { name: /^Ajouter un acte à / }).last();
-  await addCatalogAct.waitFor({ state: 'visible', timeout: 10000 });
-  await addCatalogAct.focus();
-  await page.keyboard.press('Enter');
-  await page.getByPlaceholder("Nom de l'acte...").fill('G4 annulé ' + viewport.width);
-  await page.getByPlaceholder('Prix MAD').fill('123');
-  await page.getByRole('button', { name: '✕', exact: true }).click();
-  if (await page.getByPlaceholder("Nom de l'acte...").count()) throw new Error('Custom catalog act cancel failed');
-
-  await addCatalogAct.waitFor({ state: 'visible', timeout: 5000 });
-  await addCatalogAct.focus();
-  await page.keyboard.press('Enter');
-  const catalogActName = 'G4 Catalogue ' + viewport.width;
-  await page.getByPlaceholder("Nom de l'acte...").fill(catalogActName);
-  await page.getByPlaceholder('Prix MAD').fill('456');
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
-  await page.getByText(catalogActName, { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  actions.push('treatment-selector-categories-custom-catalog-act');
-
-  await search.fill('Composite 1 face');
-  const treatmentRow = page.locator('tr').filter({ hasText: 'Composite 1 face' }).first();
-  await treatmentRow.click();
-  await treatmentRow.locator('input[type="number"]').fill('450');
-  await page.locator('textarea').last().fill('Note G4 navigateur');
-  await page.getByRole('button', { name: /Valider la Sélection/i }).click();
+  const singleSearch = page.getByPlaceholder('Rechercher un acte pour cette sélection…');
+  await singleSearch.fill('Composite 1 face');
+  const compositeButton = page.getByRole('button', { name: /Composite 1 face/ }).last();
+  await compositeButton.waitFor({ state: 'visible', timeout: 5000 });
+  await compositeButton.click();
   await page.getByText('Composite 1 face', { exact: true }).last().waitFor({ state: 'visible', timeout: 5000 });
-  actions.push('targeted-tooth-treatment');
+  actions.push('single-tooth-search-add');
 
-  const dent11Title = page.getByText('Dent 11', { exact: true });
-  await dent11Title.waitFor({ state: 'hidden', timeout: 5000 }).catch(async () => {
-    const targetedSelector = dent11Title.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
-    const closeButton = targetedSelector.locator('button').first();
-    await closeButton.waitFor({ state: 'visible', timeout: 5000 });
-    await closeButton.click({ force: true });
-    await dent11Title.waitFor({ state: 'hidden', timeout: 10000 });
-  });
+  const dent12Button = page.getByRole('button', { name: 'Dent 12', exact: true });
+  await dent12Button.focus();
+  await page.keyboard.press('Enter');
+  if ((await dent12Button.getAttribute('aria-pressed')) !== 'true') throw new Error('Single selection state missing');
+  await page.keyboard.press('Enter');
+  if ((await dent12Button.getAttribute('aria-pressed')) !== 'false') throw new Error('Single deselection state missing');
+  actions.push('single-tooth-natural-deselect');
 
-  await page.getByRole('button', { name: /Soins Généraux/i }).click();
-  const generalHeading = page.getByRole('heading', { name: 'Soins Généraux', exact: true });
-  await generalHeading.waitFor({ state: 'visible', timeout: 10000 });
-  const generalPanel = generalHeading.locator('xpath=ancestor::div[contains(@class,"max-w-2xl")][1]');
-  for (const act of [
-    'Détartrage & Polissage',
-    'Surfaçage Radiculaire (par secteur)',
-    'Bilan Parodontal Complet',
-    'Blanchiment Dentaire',
-    'Fluorisation',
-    'Gouttière de Bruxisme',
-    'Semestre ODF',
-    'Consultation Standard',
-    'Aéropolissage',
-    'Traitement Parodontal (Séance)',
-  ]) {
-    const actButton = generalPanel.locator('button').filter({ hasText: act }).first();
-    await actButton.waitFor({ state: 'visible', timeout: 10000 });
-    await actButton.click();
+  const responsiveScene = await snapshot(page, viewport, 'odontogram-selection-flow');
+  if (responsiveScene.overflow) throw new Error('Odontogram selection flow overflow detected');
+  actions.push('odontogram-selection-responsive');
+
+  const actionDock = page.locator('[data-accounting-action-dock]');
+  await actionDock.waitFor({ state: 'visible', timeout: 5000 });
+  const dockBox = await actionDock.boundingBox();
+  if (!dockBox || dockBox.y < 0 || dockBox.y + dockBox.height > viewport.height + 2) {
+    throw new Error('Accounting action dock is not fully viewport-accessible');
   }
-  await generalPanel.getByRole('button', { name: /Acte personnalisé/i }).click();
-  if (!(await page.getByPlaceholder('Rechercher ou saisir un acte...').count())) throw new Error('General-care custom act did not create a line');
-  actions.push('global-care-actions-and-custom');
+  for (const label of ['Aperçu','Enregistrer','Imprimer','À régler','Partiel','Payé','Espèces','TPE','Chèque','Virement']) {
+    await actionDock.getByRole('button', { name: label, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  }
+  await actionDock.getByRole('button', { name: 'Payé', exact: true }).click();
+  await actionDock.getByRole('button', { name: 'TPE', exact: true }).click();
+  await actionDock.getByRole('button', { name: 'Partiel', exact: true }).click();
+  await actionDock.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
+  await actionDock.getByRole('button', { name: 'Compris', exact: true }).click();
+  await actionDock.getByRole('button', { name: 'À régler', exact: true }).click();
+  await page.screenshot({
+    path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-accounting-action-dock.png'),
+    fullPage: false,
+    animations: 'disabled',
+  });
+  actions.push('accounting-action-dock-no-scroll');
 
   await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
   const descriptions = page.getByPlaceholder('Rechercher ou saisir un acte...');
@@ -300,18 +209,20 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await page.getByText('G4 Honoraires manuel', { exact: true }).count()) throw new Error('Manual honorarium line removal failed');
   actions.push('manual-line-order-delete');
 
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
-  await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
+  const advancedTitle = page.getByText('Encaissement', { exact: true });
+  await advancedTitle.waitFor({ state: 'visible' });
+  const advancedOverlay = advancedTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
 
-  const accountedLabel = page.getByText('Comptabiliser CA', { exact: true });
+  const accountedLabel = advancedOverlay.getByText('Comptabiliser CA', { exact: true });
   await accountedLabel.locator('..').getByRole('button').click();
   // A prior successful catalog action may still have a transient toast over the
   // treasury status row. Do not force the click: wait until the real pointer
   // path is available, then exercise the visible control normally.
   await waitForPointerBlockingToasts(page);
-  await page.getByRole('button', { name: 'Attente', exact: true }).click();
-  await page.getByRole('button', { name: 'Partiel', exact: true }).click();
-  await page.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
+  await advancedOverlay.getByRole('button', { name: 'Attente', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Partiel', exact: true }).click();
+  await advancedOverlay.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
   await page.screenshot({
     path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-treasury-partial-guard-before.png'),
     fullPage: false,
@@ -328,16 +239,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await context.close();
     continue;
   }
-  await page.getByRole('button', { name: 'Compris', exact: true }).click();
-  await page.getByRole('button', { name: 'Réglé', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Compris', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Réglé', exact: true }).click();
 
-  for (const mode of ['Cash','Chèque','TPE','Virement']) {
-    await page.getByRole('button', { name: mode, exact: true }).click();
+  for (const mode of ['Espèces','Chèque','TPE','Virement']) {
+    await advancedOverlay.getByRole('button', { name: mode, exact: true }).click();
   }
 
-  await page.getByRole('button', { name: 'Unique', exact: true }).click();
-  await page.getByRole('button', { name: /Global \/ Planifié/i }).click();
-  await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
+  await advancedOverlay.getByRole('button', { name: 'Unique', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: /Global \/ Planifié/i }).click();
+  await advancedOverlay.getByRole('button', { name: /Nouvelle Échéance/i }).click();
   let installment = await inputByValue(page, 'Versement 1');
   await installment.fill('Échéance G4 supprimée');
   let row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
@@ -351,7 +262,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     if (String(error).includes('Treasury installment delete failed')) throw error;
   }
 
-  await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
+  await advancedOverlay.getByRole('button', { name: /Nouvelle Échéance/i }).click();
   installment = await inputByValue(page, 'Versement 1');
   await installment.fill('Échéance G4');
   row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
@@ -364,7 +275,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     const urlValue = req.url();
     if (/payments|documents\/generate|installments/.test(urlValue)) persistenceRequests.push(urlValue);
   };
-  const truthCopy = page.getByText('Ces réglages seront enregistrés avec la note lors de son enregistrement.', { exact: true });
+  const truthCopy = advancedOverlay.getByText('Ces réglages seront enregistrés avec la note lors de son enregistrement.', { exact: true });
   await truthCopy.waitFor({ state: 'visible', timeout: 5000 });
   await page.screenshot({
     path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-treasury-truth-after.png'),
@@ -372,13 +283,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     animations: 'disabled',
   });
   page.on('request', requestListener);
-  await page.getByRole('button', { name: 'Appliquer à la note', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Appliquer à la note', exact: true }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   page.off('request', requestListener);
   if (persistenceRequests.length) throw new Error('Treasury apply unexpectedly persisted');
   actions.push('treasury-apply-local-only-truthful');
 
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
   const treasuryTitle = page.getByText('Encaissement', { exact: true });
   const treasuryOverlay = treasuryTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
   const treasuryTopClose = treasuryOverlay.locator('button').first();
@@ -396,7 +307,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await treasuryTopClose.click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
 
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
   await page.getByRole('button', { name: 'Fermer', exact: true }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   actions.push('treasury-close-controls');
@@ -413,7 +324,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 await browser.close();
 await api.dispose();
 
-const expectedActionGroups = 13;
+const expectedActionGroups = 14;
 if (!captureTreasuryGuardBeforeOnly) {
   for (const row of evidence) {
     if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');

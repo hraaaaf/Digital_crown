@@ -33,8 +33,8 @@ const PEDIATRIC_GROUPS: Record<string, number[]> = {
 
 export function odontogramQuickGroupKeys(type: AccountingOdontogramType): string[] {
   return type === 'PEDIATRIC'
-    ? ['Q5', 'Q6', 'Q7', 'Q8']
-    : ['Q1', 'Q2', 'Q3', 'Q4', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'];
+    ? ['maxillaire', 'mandibule', 'all']
+    : ['maxillaire', 'mandibule', 'all'];
 }
 
 export function odontogramGroupSelection(type: AccountingOdontogramType, group: string): number[] {
