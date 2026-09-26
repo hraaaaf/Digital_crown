@@ -45,11 +45,18 @@ acts = Table(
     Column("base_price", Float, nullable=False, default=0.0),
     Column("color", String(20), nullable=True),
     Column("is_active", Boolean, nullable=False, default=True),
+    Column("applicability_json", Text, nullable=True),
+    UniqueConstraint("employer_id", "code", name="uq_cabinet_act_code"),
+)
+
+catalog_act_preferences = Table(
+    "cabinet_catalog_act_preferences", metadata,
+    Column("employer_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, primary_key=True),
+    Column("act_id", Integer, ForeignKey("cabinet_catalog_acts.id", ondelete="CASCADE"), nullable=False, primary_key=True),
     Column("is_favorite", Boolean, nullable=False, default=False),
     Column("usage_count", Integer, nullable=False, default=0),
     Column("last_used_at", DateTime(timezone=True), nullable=True),
-    Column("applicability_json", Text, nullable=True),
-    UniqueConstraint("employer_id", "code", name="uq_cabinet_act_code"),
 )
 
 catalog_reference_state = Table(
@@ -73,7 +80,7 @@ _REFERENCE_SPECIALTY_TARGETS = {
 
 def ensure_schema(db: Session) -> None:
     connection = db.connection()
-    required = {specialties.name, pathologies.name, acts.name, catalog_reference_state.name}
+    required = {specialties.name, pathologies.name, acts.name, catalog_act_preferences.name, catalog_reference_state.name}
     existing = set(inspect(connection).get_table_names())
     missing = sorted(required - existing)
     if missing:
@@ -252,11 +259,21 @@ def apply_reference_catalog(db: Session, employer_id: int) -> dict:
     }
 
 
-def list_catalog(db: Session, employer_id: int) -> list[dict]:
+def list_catalog(db: Session, employer_id: int, user_id: int | None = None) -> list[dict]:
     claim_legacy_if_unambiguous(db)
     specs = db.execute(
         select(specialties).where(specialties.c.employer_id == employer_id).order_by(specialties.c.id)
     ).mappings().all()
+    preference_by_act: dict[int, dict] = {}
+    if user_id is not None:
+        pref_rows = db.execute(
+            select(catalog_act_preferences).where(
+                catalog_act_preferences.c.employer_id == employer_id,
+                catalog_act_preferences.c.user_id == user_id,
+            )
+        ).mappings().all()
+        preference_by_act = {int(row["act_id"]): dict(row) for row in pref_rows}
+
     result = []
     for spec in specs:
         sid = int(spec["id"])
@@ -273,6 +290,10 @@ def list_catalog(db: Session, employer_id: int) -> list[dict]:
             payload = dict(item)
             raw_applicability = payload.pop("applicability_json", None)
             payload["applicability"] = _decode_applicability(raw_applicability) or default_applicability_for_code(payload.get("code"))
+            pref = preference_by_act.get(int(payload["id"]), {})
+            payload["is_favorite"] = bool(pref.get("is_favorite", False))
+            payload["usage_count"] = int(pref.get("usage_count", 0) or 0)
+            payload["last_used_at"] = pref.get("last_used_at")
             normalized_acts.append(payload)
         result.append({
             "id": sid,
@@ -284,29 +305,19 @@ def list_catalog(db: Session, employer_id: int) -> list[dict]:
     return result
 
 
-def record_catalog_act_usage(
+def _catalog_act_candidate(
     db: Session,
     employer_id: int,
     *,
     act_name: str,
     specialty_name: str | None = None,
     catalog_act_id: int | None = None,
-) -> bool:
-    """Mark a central catalog act as recently used after real document archive.
-
-    Prefer the stable catalog id. Name/category fallback is intentionally strict:
-    ambiguous matches are ignored rather than learning the wrong act.
-    """
-    ensure_schema(db)
+):
     clean_name = _normalize_label(str(act_name or ""))
-    if not clean_name:
-        return False
-
     rows = db.execute(
         select(
             acts.c.id,
             acts.c.name,
-            acts.c.usage_count,
             specialties.c.name.label("specialty_name"),
         )
         .select_from(acts.join(specialties, acts.c.specialty_id == specialties.c.id))
@@ -322,13 +333,12 @@ def record_catalog_act_usage(
         try:
             stable_id = int(catalog_act_id)
         except (TypeError, ValueError):
-            stable_id = -1
+            return None
         candidates = [row for row in candidates if int(row["id"]) == stable_id]
     else:
-        candidates = [
-            row for row in candidates
-            if _normalize_label(str(row["name"])) == clean_name
-        ]
+        if not clean_name:
+            return None
+        candidates = [row for row in candidates if _normalize_label(str(row["name"])) == clean_name]
         clean_specialty = _normalize_label(str(specialty_name or ""))
         if clean_specialty:
             candidates = [
@@ -336,21 +346,100 @@ def record_catalog_act_usage(
                 if _normalize_label(str(row["specialty_name"])) == clean_specialty
             ]
 
-    if len(candidates) != 1:
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def set_catalog_act_favorite(
+    db: Session,
+    employer_id: int,
+    user_id: int,
+    act_id: int,
+    is_favorite: bool,
+) -> dict | None:
+    if not get_owned(db, acts, act_id, employer_id):
+        return None
+    existing = db.execute(
+        select(catalog_act_preferences).where(
+            catalog_act_preferences.c.employer_id == employer_id,
+            catalog_act_preferences.c.user_id == user_id,
+            catalog_act_preferences.c.act_id == act_id,
+        )
+    ).mappings().first()
+    if existing:
+        db.execute(
+            update(catalog_act_preferences).where(
+                catalog_act_preferences.c.employer_id == employer_id,
+                catalog_act_preferences.c.user_id == user_id,
+                catalog_act_preferences.c.act_id == act_id,
+            ).values(is_favorite=bool(is_favorite))
+        )
+    else:
+        db.execute(insert(catalog_act_preferences).values(
+            employer_id=employer_id,
+            user_id=user_id,
+            act_id=act_id,
+            is_favorite=bool(is_favorite),
+            usage_count=0,
+            last_used_at=None,
+        ))
+    db.commit()
+    return {
+        "act_id": act_id,
+        "is_favorite": bool(is_favorite),
+    }
+
+
+def record_catalog_act_usage(
+    db: Session,
+    employer_id: int,
+    user_id: int,
+    *,
+    act_name: str,
+    specialty_name: str | None = None,
+    catalog_act_id: int | None = None,
+) -> bool:
+    """Update personal recent/frequency metadata only after real archive."""
+    ensure_schema(db)
+    candidate = _catalog_act_candidate(
+        db,
+        employer_id,
+        act_name=act_name,
+        specialty_name=specialty_name,
+        catalog_act_id=catalog_act_id,
+    )
+    if candidate is None:
         return False
 
-    row = candidates[0]
-    db.execute(
-        update(acts)
-        .where(
-            acts.c.id == int(row["id"]),
-            acts.c.employer_id == employer_id,
+    act_id = int(candidate["id"])
+    existing = db.execute(
+        select(catalog_act_preferences).where(
+            catalog_act_preferences.c.employer_id == employer_id,
+            catalog_act_preferences.c.user_id == user_id,
+            catalog_act_preferences.c.act_id == act_id,
         )
-        .values(
-            usage_count=int(row["usage_count"] or 0) + 1,
-            last_used_at=datetime.now(timezone.utc),
+    ).mappings().first()
+
+    now = datetime.now(timezone.utc)
+    if existing:
+        db.execute(
+            update(catalog_act_preferences).where(
+                catalog_act_preferences.c.employer_id == employer_id,
+                catalog_act_preferences.c.user_id == user_id,
+                catalog_act_preferences.c.act_id == act_id,
+            ).values(
+                usage_count=int(existing["usage_count"] or 0) + 1,
+                last_used_at=now,
+            )
         )
-    )
+    else:
+        db.execute(insert(catalog_act_preferences).values(
+            employer_id=employer_id,
+            user_id=user_id,
+            act_id=act_id,
+            is_favorite=False,
+            usage_count=1,
+            last_used_at=now,
+        ))
     db.commit()
     return True
 

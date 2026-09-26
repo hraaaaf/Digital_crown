@@ -44,7 +44,6 @@ class CatalogActBase(BaseModel):
     base_price: float = 0.0
     color: Optional[str] = None
     is_active: bool = True
-    is_favorite: bool = False
     applicability: CatalogActApplicability = Field(default_factory=CatalogActApplicability)
 
 class CatalogActCreate(CatalogActBase):
@@ -56,17 +55,21 @@ class CatalogActUpdate(BaseModel):
     base_price: Optional[float] = None
     color: Optional[str] = None
     is_active: Optional[bool] = None
-    is_favorite: Optional[bool] = None
     applicability: Optional[CatalogActApplicability] = None
 
 class CatalogActOut(CatalogActBase):
     id: int
     specialty_id: int
+    is_favorite: bool = False
     usage_count: int = 0
     last_used_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True
+
+class CatalogActPreferenceUpdate(BaseModel):
+    is_favorite: bool
+
 
 # --- Specialties ---
 class SpecialtyBase(BaseModel):

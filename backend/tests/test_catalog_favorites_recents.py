@@ -19,8 +19,25 @@ def _owner(db, email: str):
     return user
 
 
-def test_catalog_favorite_is_persistent_and_recent_usage_is_archive_driven(db):
+def _employee(db, owner, email: str):
+    user = models.User(
+        email=email,
+        hashed_password="x",
+        role=models.UserRole.DENTISTE,
+        is_active=True,
+        is_licensed=True,
+        nom_complet=email,
+        employer_id=owner.id,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def test_catalog_favorite_and_recent_are_personal_practitioner_preferences(db):
     owner = _owner(db, "favorite-recent@cabinet.test")
+    colleague = _employee(db, owner, "colleague@cabinet.test")
     specialty = store.create_specialty(db, owner.id, {"name": "CONSERVATRICE", "color": "#123456"})
     act = store.create_act(db, owner.id, specialty["id"], {
         "name": "Composite test",
@@ -28,30 +45,32 @@ def test_catalog_favorite_is_persistent_and_recent_usage_is_archive_driven(db):
         "base_price": 0.0,
         "color": None,
         "is_active": True,
-        "is_favorite": True,
     })
 
-    catalog = store.list_catalog(db, owner.id)
-    saved = next(item for spec in catalog for item in spec["acts"] if item["id"] == act["id"])
-    assert saved["is_favorite"] is True
-    assert saved["usage_count"] == 0
-    assert saved["last_used_at"] is None
-
+    assert store.set_catalog_act_favorite(db, owner.id, owner.id, act["id"], True)
     assert store.record_catalog_act_usage(
         db,
+        owner.id,
         owner.id,
         act_name="Composite test",
         specialty_name="CONSERVATRICE",
     ) is True
 
-    refreshed = next(
-        item
-        for spec in store.list_catalog(db, owner.id)
-        for item in spec["acts"]
-        if item["id"] == act["id"]
+    owner_act = next(
+        item for spec in store.list_catalog(db, owner.id, owner.id)
+        for item in spec["acts"] if item["id"] == act["id"]
     )
-    assert refreshed["usage_count"] == 1
-    assert isinstance(refreshed["last_used_at"], datetime)
+    colleague_act = next(
+        item for spec in store.list_catalog(db, owner.id, colleague.id)
+        for item in spec["acts"] if item["id"] == act["id"]
+    )
+
+    assert owner_act["is_favorite"] is True
+    assert owner_act["usage_count"] == 1
+    assert isinstance(owner_act["last_used_at"], datetime)
+    assert colleague_act["is_favorite"] is False
+    assert colleague_act["usage_count"] == 0
+    assert colleague_act["last_used_at"] is None
 
 
 def test_recent_usage_refuses_ambiguous_same_name_without_specialty(db):
@@ -69,6 +88,7 @@ def test_recent_usage_refuses_ambiguous_same_name_without_specialty(db):
 
     assert store.record_catalog_act_usage(
         db,
+        owner.id,
         owner.id,
         act_name="Acte partagé",
     ) is False

@@ -8,7 +8,7 @@ from backend.database import get_db
 from backend.schemas.catalog import (
     SpecialtyCreate, SpecialtyUpdate, SpecialtyOut,
     PathologyCreate, PathologyUpdate, PathologyOut,
-    CatalogActCreate, CatalogActUpdate, CatalogActOut,
+    CatalogActCreate, CatalogActUpdate, CatalogActOut, CatalogActPreferenceUpdate,
 )
 from backend.routers.auth import get_current_user, require_permission
 from backend.services import cabinet_catalog_store as store
@@ -30,7 +30,7 @@ def get_specialties(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return store.list_catalog(db, _tenant_id(current_user))
+    return store.list_catalog(db, _tenant_id(current_user), current_user.id)
 
 
 @router.post("/reference/apply")
@@ -68,7 +68,7 @@ def update_specialty(
         _conflict(db, "Specialty", exc)
     if not row:
         raise HTTPException(status_code=404, detail="Specialty not found")
-    current = next((item for item in store.list_catalog(db, tenant) if item["id"] == specialty_id), None)
+    current = next((item for item in store.list_catalog(db, tenant, current_user.id) if item["id"] == specialty_id), None)
     return current or {**row, "pathologies": [], "acts": []}
 
 
@@ -136,3 +136,22 @@ def update_act(
     if not row:
         raise HTTPException(status_code=404, detail="Act not found")
     return row
+
+
+@router.put("/acts/{act_id}/preference")
+def update_act_preference(
+    act_id: int,
+    payload: CatalogActPreferenceUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    result = store.set_catalog_act_favorite(
+        db,
+        _tenant_id(current_user),
+        current_user.id,
+        act_id,
+        payload.is_favorite,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Act not found")
+    return result
