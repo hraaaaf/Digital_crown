@@ -599,7 +599,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                             setGroupTreatmentName(act.name);
                                             if (price <= 0) {
                                               setGroupTreatmentPrice('');
-                                              toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte groupé.');
+                                              toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte.');
                                               return;
                                             }
                                             const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
