@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 # --- Pathologies ---
 class PathologyBase(BaseModel):
@@ -23,12 +23,25 @@ class PathologyOut(PathologyBase):
         from_attributes = True
 
 # --- Catalog Acts ---
+class CatalogActApplicability(BaseModel):
+    dentitions: List[Literal["PRIMARY", "PERMANENT"]] = []
+    tooth_types: List[Literal["INCISOR", "CANINE", "PREMOLAR", "MOLAR"]] = []
+    treatment_areas: List[Literal["SURFACE", "TOOTH", "TOOTH_RANGE", "QUADRANT", "ARCH", "MOUTH"]] = []
+    selection_modes: List[Literal["INDIVIDUAL", "GROUP", "GENERAL"]] = []
+    requires_present_tooth: bool = False
+    requires_missing_tooth: bool = False
+    min_selected_teeth: int = Field(default=1, ge=0)
+    max_selected_teeth: Optional[int] = Field(default=None, ge=1)
+    suggestion_priority: int = Field(default=0, ge=0, le=100)
+    searchable_when_not_suggested: bool = True
+
 class CatalogActBase(BaseModel):
     name: str
     code: Optional[str] = None
     base_price: float = 0.0
     color: Optional[str] = None
     is_active: bool = True
+    applicability: CatalogActApplicability = Field(default_factory=CatalogActApplicability)
 
 class CatalogActCreate(CatalogActBase):
     pass
@@ -39,6 +52,7 @@ class CatalogActUpdate(BaseModel):
     base_price: Optional[float] = None
     color: Optional[str] = None
     is_active: Optional[bool] = None
+    applicability: Optional[CatalogActApplicability] = None
 
 class CatalogActOut(CatalogActBase):
     id: int

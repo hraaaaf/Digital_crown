@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from sqlalchemy import (
     Table, Column, Integer, String, Float, Boolean, Text,
     ForeignKey, UniqueConstraint, inspect, select, insert, update
@@ -40,6 +42,7 @@ acts = Table(
     Column("base_price", Float, nullable=False, default=0.0),
     Column("color", String(20), nullable=True),
     Column("is_active", Boolean, nullable=False, default=True),
+    Column("applicability_json", Text, nullable=True),
     UniqueConstraint("employer_id", "code", name="uq_cabinet_act_code"),
 )
 
@@ -112,6 +115,22 @@ def claim_legacy_if_unambiguous(db: Session) -> None:
     db.commit()
 
 
+def _encode_applicability(value: dict | None) -> str | None:
+    if not value:
+        return None
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _decode_applicability(value: str | None) -> dict:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def list_catalog(db: Session, employer_id: int) -> list[dict]:
     claim_legacy_if_unambiguous(db)
     specs = db.execute(
@@ -128,12 +147,18 @@ def list_catalog(db: Session, employer_id: int) -> list[dict]:
             acts.c.employer_id == employer_id,
             acts.c.specialty_id == sid,
         )).mappings().all()
+        normalized_acts = []
+        for item in catalog_acts:
+            payload = dict(item)
+            raw_applicability = payload.pop("applicability_json", None)
+            payload["applicability"] = _decode_applicability(raw_applicability)
+            normalized_acts.append(payload)
         result.append({
             "id": sid,
             "name": spec["name"],
             "color": spec["color"],
             "pathologies": [dict(x) for x in paths],
-            "acts": [dict(x) for x in catalog_acts],
+            "acts": normalized_acts,
         })
     return result
 
@@ -163,7 +188,9 @@ def create_pathology(db: Session, employer_id: int, specialty_id: int, payload: 
 def create_act(db: Session, employer_id: int, specialty_id: int, payload: dict) -> dict | None:
     if not get_owned(db, specialties, specialty_id, employer_id):
         return None
-    res = db.execute(insert(acts).values(employer_id=employer_id, specialty_id=specialty_id, **payload))
+    values = dict(payload)
+    values["applicability_json"] = _encode_applicability(values.pop("applicability", None))
+    res = db.execute(insert(acts).values(employer_id=employer_id, specialty_id=specialty_id, **values))
     db.commit()
     return dict(get_owned(db, acts, int(res.inserted_primary_key[0]), employer_id))
 
@@ -172,9 +199,17 @@ def update_owned(db: Session, table: Table, row_id: int, employer_id: int, paylo
     if not get_owned(db, table, row_id, employer_id):
         return None
     if payload:
+        values = dict(payload)
+        if table is acts and "applicability" in values:
+            values["applicability_json"] = _encode_applicability(values.pop("applicability"))
         db.execute(update(table).where(
             table.c.id == row_id, table.c.employer_id == employer_id
-        ).values(**payload))
+        ).values(**values))
         db.commit()
     row = get_owned(db, table, row_id, employer_id)
-    return dict(row) if row else None
+    if not row:
+        return None
+    result = dict(row)
+    if table is acts:
+        result["applicability"] = _decode_applicability(result.pop("applicability_json", None))
+    return result

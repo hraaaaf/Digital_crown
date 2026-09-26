@@ -2,6 +2,24 @@ import { create } from 'zustand';
 import { api } from '../../../../services/api';
 import toast from 'react-hot-toast';
 
+export type CatalogDentition = 'PRIMARY' | 'PERMANENT';
+export type CatalogToothType = 'INCISOR' | 'CANINE' | 'PREMOLAR' | 'MOLAR';
+export type CatalogTreatmentArea = 'SURFACE' | 'TOOTH' | 'TOOTH_RANGE' | 'QUADRANT' | 'ARCH' | 'MOUTH';
+export type CatalogSelectionMode = 'INDIVIDUAL' | 'GROUP' | 'GENERAL';
+
+export interface CatalogActApplicability {
+  dentitions: CatalogDentition[];
+  tooth_types: CatalogToothType[];
+  treatment_areas: CatalogTreatmentArea[];
+  selection_modes: CatalogSelectionMode[];
+  requires_present_tooth: boolean;
+  requires_missing_tooth: boolean;
+  min_selected_teeth: number;
+  max_selected_teeth?: number | null;
+  suggestion_priority: number;
+  searchable_when_not_suggested: boolean;
+}
+
 export interface CatalogAct {
   id: number;
   specialty_id: number;
@@ -10,6 +28,7 @@ export interface CatalogAct {
   base_price: number;
   color?: string;
   is_active: boolean;
+  applicability?: Partial<CatalogActApplicability>;
 }
 
 export interface Pathology {
@@ -30,7 +49,7 @@ export interface Specialty {
 
 type SpecialtyMutation = { name: string; color?: string };
 type PathologyMutation = { name: string; description?: string; is_active?: boolean };
-type ActMutation = { name: string; base_price: number; code?: string; color?: string; is_active?: boolean };
+type ActMutation = { name: string; base_price: number; code?: string; color?: string; is_active?: boolean; applicability?: Partial<CatalogActApplicability> };
 
 type PathologyUpdate = Partial<PathologyMutation>;
 type ActUpdate = Partial<ActMutation>;
