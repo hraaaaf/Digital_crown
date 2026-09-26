@@ -96,7 +96,8 @@ for (const viewport of viewports) {
     // Select one real FDI tooth without opening the treatment selector:
     // grouped mode preserves the whole odontogram so the selected state remains visually inspectable.
     await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
-    await tooth11.click();
+    await tooth11.focus();
+    await tooth11.press('Enter');
     await page.waitForFunction(
       () => [...document.querySelectorAll('[role="button"][aria-label^="Dent 11"]')]
         .some((el) => el.getAttribute('aria-pressed') === 'true'),
