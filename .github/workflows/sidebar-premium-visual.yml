@@ -50,7 +50,7 @@ jobs:
           const ports={before:4191,after:4192};
           const servers={};
           for (const kind of ['before','after']) {
-            servers[kind]=await createServer({configFile:false,root:roots[kind],plugins:[react()],server:{host:'127.0.0.1',port:ports[kind],strictPort:true},clearScreen:false});
+            servers[kind]=await createServer({configFile:false,root:roots[kind],plugins:[react(),{name:'sidebar-pwa-stub',resolveId(id){return id==='virtual:pwa-register'?'\0virtual:pwa-register':null},load(id){return id==='\0virtual:pwa-register'?'export const registerSW = () => () => {};':null}}],server:{host:'127.0.0.1',port:ports[kind],strictPort:true},clearScreen:false});
             await servers[kind].listen();
           }
           const browser=await chromium.launch({headless:true});
