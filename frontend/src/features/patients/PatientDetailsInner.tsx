@@ -24,6 +24,13 @@ import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import { parseMotifs, findMotifById } from '../../data/motifsDictionary';
 
+type CabinetMotifSummary = {
+  id: string;
+  label: string;
+  urgency: 'urgence' | 'normal' | 'planifié';
+  is_active: boolean;
+};
+
 import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { OrthoCockpitPanel } from '../ortho/OrthoCockpitPanel';
@@ -121,6 +128,7 @@ export const PatientDetails = () => {
   const [loading, setLoading] = useState(!cachedPatient);
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
   const lastEditingDoc = useRef(null);
   const flowContentRef = useRef<HTMLElement>(null);
   const flowHandoff = useFlowHandoff();
@@ -182,6 +190,22 @@ export const PatientDetails = () => {
   useEffect(() => {
     fetchPatient();
   }, [fetchPatient]);
+
+  useEffect(() => {
+    if (!patient?.motif_consultation) {
+      setCabinetMotifs([]);
+      return;
+    }
+    let cancelled = false;
+    api.get('/motifs', { params: { include_inactive: true } })
+      .then(response => {
+        if (!cancelled && Array.isArray(response.data)) setCabinetMotifs(response.data);
+      })
+      .catch(() => {
+        if (!cancelled) setCabinetMotifs([]);
+      });
+    return () => { cancelled = true; };
+  }, [patient?.motif_consultation]);
 
   useEffect(() => {
     // The contextual next-best-action belongs to clinical navigation, not the Companion admin flow.
@@ -320,10 +344,14 @@ export const PatientDetails = () => {
                   <h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-1' : 'text-sm mb-2')}>Motif de Consultation Initial</h4>
                   <div className={cn('flex flex-wrap', isRadiology ? 'gap-1' : 'gap-2')}>
                     {parseMotifs(patient.motif_consultation).map(motifId => {
-                      const motif = findMotifById(motifId);
-                      if (!motif) return null;
+                      const systemMotif = findMotifById(motifId);
+                      const cabinetMotif = cabinetMotifs.find(item => item.id === motifId);
+                      const motif = systemMotif || cabinetMotif;
+                      if (!motif) {
+                        return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider bg-slate-100 text-slate-600 border border-slate-200', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs')}>{motifId}<span className="text-[9px] uppercase tracking-wider text-slate-400">Historique</span></div>;
+                      }
                       const isUrgent = motif.urgency === 'urgence';
-                      return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs', isUrgent ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200')}>{motif.label}{isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}</div>;
+                      return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs', isUrgent ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200')}>{motif.label}{cabinetMotif && <span className="text-[9px] uppercase tracking-wider opacity-60">{cabinetMotif.is_active ? 'Cabinet' : 'Historique'}</span>}{isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}</div>;
                     })}
                   </div>
                 </div>
