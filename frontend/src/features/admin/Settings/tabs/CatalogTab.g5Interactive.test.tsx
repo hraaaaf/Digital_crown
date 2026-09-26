@@ -124,7 +124,7 @@ describe('CatalogTab G5 interactive matrix', () => {
     fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '420' } });
     fireEvent.click(screen.getByRole('button', { name: 'Temporaire' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ciblé' }));
-    fireEvent.change(screen.getByDisplayValue('0'), { target: { value: '70' } });
+    fireEvent.change(screen.getByLabelText('Priorité suggestion'), { target: { value: '70' } });
     fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
     await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
