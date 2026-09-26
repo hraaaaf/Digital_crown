@@ -209,14 +209,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await specialtySelect.selectOption({ index: 1 });
     await catalogDialog.getByPlaceholder("Nom de l'acte").fill('G4 Honoraires manuel');
     await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
-    const createActResponse = page.waitForResponse(
-      r => /\/api\/catalog\/specialties\/\d+\/acts\/?$/.test(new URL(r.url()).pathname) && r.request().method() === 'POST',
-      { timeout: 15000 },
-    );
     await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
-    const createdAct = await createActResponse;
-    if (createdAct.status() !== 201) throw new Error(`Manual honorarium catalog act creation failed: ${createdAct.status()}`);
     await catalogDialog.waitFor({ state: 'hidden', timeout: 10000 });
+    // Validate the catalog mutation from the authoritative API instead of
+    // racing Playwright's response event. The UI close alone is not enough.
+    const catalogCheck = await api.get('/api/catalog/specialties', { headers });
+    if (!catalogCheck.ok()) throw new Error(`Manual honorarium catalog verification failed: ${catalogCheck.status()}`);
+    const catalogRows = await catalogCheck.json();
+    const catalogActExists = catalogRows.some(specialty =>
+      Array.isArray(specialty.acts) && specialty.acts.some(act => act.name === 'G4 Honoraires manuel')
+    );
+    if (!catalogActExists) throw new Error('Manual honorarium catalog act was not persisted');
     const manualLine = page.getByText('G4 Honoraires manuel', { exact: true });
     if (await manualLine.count()) {
       await page.getByRole('button', { name: 'Monter G4 Honoraires manuel' }).click();
