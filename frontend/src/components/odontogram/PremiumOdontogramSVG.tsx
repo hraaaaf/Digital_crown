@@ -155,14 +155,72 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
     );
   };
 
+  const renderAdultSlice = (
+    id:string,
+    x:number,
+    y:number,
+    width:number,
+    height:number,
+    sourceY:number,
+    sourceHeight:number,
+  ) => (
+    <svg
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      viewBox={`0 ${sourceY} 1672 ${sourceHeight}`}
+      preserveAspectRatio="none"
+      overflow="hidden"
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${id}-extract-lines`}>
+          <feColorMatrix type="matrix" values="
+            0.33 0.33 0.33 0 0
+            0.33 0.33 0.33 0 0
+            0.33 0.33 0.33 0 0
+            0 0 0 1 0" />
+          <feComponentTransfer>
+            <feFuncR type="linear" slope="-3" intercept="2.8" />
+            <feFuncG type="linear" slope="-3" intercept="2.8" />
+            <feFuncB type="linear" slope="-3" intercept="2.8" />
+          </feComponentTransfer>
+        </filter>
+        <mask
+          id={`${id}-mask`}
+          maskUnits="userSpaceOnUse"
+          x="0"
+          y={sourceY}
+          width="1672"
+          height={sourceHeight}
+        >
+          <image
+            href={adultReference}
+            x="0"
+            y="0"
+            width="1672"
+            height="941"
+            preserveAspectRatio="none"
+            filter={`url(#${id}-extract-lines)`}
+          />
+        </mask>
+      </defs>
+      <rect
+        x="0"
+        y={sourceY}
+        width="1672"
+        height={sourceHeight}
+        className="fill-text-main pointer-events-none"
+        mask={`url(#${id}-mask)`}
+      />
+    </svg>
+  );
+
   const renderAdultBase = () => (
     <>
-      <svg x="24" y="42" width="952" height="128" viewBox="0 285 1672 205" preserveAspectRatio="none" overflow="hidden" aria-hidden="true">
-        <image href={adultReference} x="0" y="0" width="1672" height="941" preserveAspectRatio="none" />
-      </svg>
-      <svg x="24" y="188" width="952" height="137" viewBox="0 485 1672 215" preserveAspectRatio="none" overflow="hidden" aria-hidden="true">
-        <image href={adultReference} x="0" y="0" width="1672" height="941" preserveAspectRatio="none" />
-      </svg>
+      {renderAdultSlice('premium-adult-upper',24,42,952,128,285,205)}
+      {renderAdultSlice('premium-adult-lower',24,188,952,137,485,215)}
     </>
   );
 

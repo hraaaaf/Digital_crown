@@ -264,7 +264,8 @@ for (const viewport of viewports) {
         animations: 'disabled',
       });
 
-      await groupMode.click();
+      const childGroupMode = page.getByRole('button', { name: 'Soins groupés', exact: true });
+      await childGroupMode.click();
       await tooth51.focus();
       await tooth51.press('Enter');
       await page.waitForFunction(

@@ -130,7 +130,7 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     fireEvent.click(screen.getByRole('button',{name:'Enfant'}));
     expect(screen.getByText('Odontogram PEDIATRIC')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Proth/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Soins groupés/i}));
     expect(useAccountingStore.getState().odontogramMode).toBe('group');
 
     fireEvent.click(screen.getByRole('button',{name:/Soins Généraux/i}));
@@ -196,7 +196,7 @@ describe('Devis/Odontogram G4 interactive controls', () => {
   it('does not suggest adult prosthetic shortcuts for primary teeth', () => {
     renderDevis();
     fireEvent.click(screen.getByRole('button',{name:'Enfant'}));
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Proth/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Soins groupés/i}));
     fireEvent.click(screen.getByRole('button',{name:'Q5'}));
 
     expect(screen.queryByRole('button',{name:'Bridge'})).toBeNull();

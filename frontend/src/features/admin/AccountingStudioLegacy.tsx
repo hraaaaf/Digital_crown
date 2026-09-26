@@ -113,6 +113,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
   const [suggestedBundles, setSuggestedBundles] = useState<ResolvedAccountingBundle[]>([]);
   const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
+  const groupModeLabel = odontogramType === 'PEDIATRIC' ? 'Soins groupés' : 'Bridge & Prothèses';
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
 
@@ -484,14 +485,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             key={mode}
                             type="button"
                             onClick={() => setOdontogramMode(mode)}
-                            aria-label={mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}
+                            aria-label={mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? groupModeLabel : 'Soins Généraux'}
                             className={cn(
                               "min-w-0 w-full sm:w-auto px-2 sm:px-4 py-2 rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-normal sm:tracking-widest transition-all",
                               odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                             )}
                           >
                             <span className="sm:hidden">{mode === 'individual' ? 'Ciblés' : mode === 'group' ? 'Bridge' : 'Généraux'}</span>
-                            <span className="hidden sm:inline">{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}</span>
+                            <span className="hidden sm:inline">{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? groupModeLabel : 'Soins Généraux'}</span>
                           </button>
                         ))}
                       </div>
