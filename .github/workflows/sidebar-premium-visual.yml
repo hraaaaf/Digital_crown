@@ -43,7 +43,7 @@ jobs:
           import { chromium } from 'playwright';
           import { createServer } from 'vite';
 
-          const output=path.resolve('../../artifacts/sidebar-premium');
+          const output=path.resolve('../artifacts/sidebar-premium');
           await fs.mkdir(output,{recursive:true});
           const roots={before:path.resolve('../../before/frontend'),after:process.cwd()};
           const ports={before:4191,after:4192};
