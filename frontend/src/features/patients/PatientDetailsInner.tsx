@@ -197,7 +197,7 @@ export const PatientDetails = () => {
       return;
     }
     let cancelled = false;
-    api.get('/motifs', { params: { include_inactive: true } })
+    api.get('/motifs/', { params: { include_inactive: true } })
       .then(response => {
         if (!cancelled && Array.isArray(response.data)) setCabinetMotifs(response.data);
       })
