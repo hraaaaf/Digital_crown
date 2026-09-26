@@ -401,11 +401,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         </div>
 
         {showOdontoPanoramique && (
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden group">
+          <div data-testid="document-plan-of-care" className="bg-white rounded-2xl sm:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden group">
             <button 
               type="button"
               onClick={() => setIsOdontoOpen(!isOdontoOpen)}
-              className="w-full px-8 py-5 flex items-center justify-between hover:bg-slate-50 transition-all"
+              className="w-full px-4 py-4 sm:px-8 sm:py-5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-all"
             >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary/10 group-hover:text-primary transition-all">
@@ -426,14 +426,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               </div>
             </button>
             {isOdontoOpen && (
-              <div className="flex justify-end border-t border-slate-100 bg-slate-50/40 px-4 py-2 sm:px-8">
+              <div className="flex justify-stretch sm:justify-end border-t border-slate-100 bg-slate-50/40 px-4 py-2 sm:px-8">
                 <button
                   type="button"
                   onClick={() => {
                     setIsOdontoOpen(false);
                     requestAnimationFrame(() => document.getElementById('document-prestations')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }));
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition hover:opacity-90"
+                  className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 sm:py-2 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition hover:opacity-90"
                 >
                   Continuer vers les prestations <ChevronDown size={14} />
                 </button>
@@ -446,11 +446,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="px-4 pb-4"
+                  className="px-3 pb-3 sm:px-4 sm:pb-4"
                 >
-                  <div className="bg-white/60 backdrop-blur-xl rounded-[2.5rem] border border-white/80 shadow-2xl overflow-hidden relative min-h-[360px] flex flex-col">
-                    <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white/20">
-                      <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-100">
+                  <div className="bg-white/60 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] border border-white/80 shadow-xl sm:shadow-2xl overflow-hidden relative min-h-[330px] sm:min-h-[360px] flex flex-col">
+                    <div className="p-3 sm:p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 bg-white/20">
+                      <div className="grid grid-cols-2 w-full sm:w-auto bg-slate-100/50 p-1 rounded-xl border border-slate-100">
                         {(['ADULT', 'PEDIATRIC'] as const).map(type => (
                           <button
                             key={type}
@@ -461,36 +461,40 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               setActiveTooth(null);
                             }}
                             className={cn(
-                              "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                              "w-full sm:w-auto px-3 sm:px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider sm:tracking-widest transition-all",
                               odontogramType === type ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                             )}
                           >{type === 'ADULT' ? 'Adulte' : 'Enfant'}</button>
                         ))}
                       </div>
 
-                      <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-100">
+                      <div className="grid grid-cols-3 w-full sm:w-auto bg-slate-100/50 p-1 rounded-xl border border-slate-100">
                         {(['individual', 'group', 'ortho'] as const).map(mode => (
                           <button
                             key={mode}
                             type="button"
                             onClick={() => setOdontogramMode(mode)}
+                            aria-label={mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}
                             className={cn(
-                              "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                              "min-w-0 w-full sm:w-auto px-2 sm:px-4 py-2 rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-normal sm:tracking-widest transition-all",
                               odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                             )}
-                          >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}</button>
+                          >
+                            <span className="sm:hidden">{mode === 'individual' ? 'Ciblés' : mode === 'group' ? 'Bridge' : 'Généraux'}</span>
+                            <span className="hidden sm:inline">{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}</span>
+                          </button>
                         ))}
                       </div>
 
-                      <div className="w-24 flex justify-end">
+                      <div className="hidden sm:flex w-24 justify-end">
                         <Zap size={14} className="text-primary" />
                       </div>
                     </div>
 
-                    <div className="relative flex-1 flex flex-col p-4 bg-slate-50/20 overflow-hidden">
+                    <div className="relative flex-1 flex flex-col p-2.5 sm:p-4 bg-slate-50/20 overflow-hidden">
                       {odontogramMode !== 'ortho' && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
-                          <div className="px-5 py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-primary/20 shadow-sm animate-in slide-in-from-top-4">
+                        <div className="relative sm:absolute sm:top-4 sm:left-1/2 sm:-translate-x-1/2 z-30 mb-2 sm:mb-0 px-1 sm:px-0">
+                          <div className="w-full sm:w-auto px-3 sm:px-5 py-2 sm:py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest flex items-center justify-center gap-2 sm:gap-3 border border-primary/20 shadow-sm animate-in slide-in-from-top-4 text-center">
                             <Brain size={16} className="animate-pulse" />
                             {odontogramMode === 'individual' && "Sélectionnez une dent pour lui associer un soin"}
                             {odontogramMode === 'group' && "Cliquez sur les piliers et inters pour créer un bridge ou un stellite"}
@@ -578,7 +582,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             }}
                             showNumbers={false}
                             hideSurfaces={true}
-                            className="w-full max-w-[400px] drop-shadow-lg"
+                            className="w-full max-w-[340px] sm:max-w-[400px] drop-shadow-md sm:drop-shadow-lg"
                           />
                         </div>
 
@@ -586,9 +590,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <motion.div 
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-20 pointer-events-auto"
+                            className="relative sm:absolute sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 mt-2 sm:mt-0 w-full max-w-2xl px-1 sm:px-6 z-20 pointer-events-auto"
                           >
-                            <div className="bg-slate-900/95 backdrop-blur-2xl rounded-[2rem] p-5 border border-white/10 shadow-2xl flex flex-col gap-4">
+                            <div className="bg-slate-900/95 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] p-3 sm:p-5 border border-white/10 shadow-xl sm:shadow-2xl flex flex-col gap-3 sm:gap-4">
                               {groupSelectedTeeth.length === 0 ? (
                                 <div className="flex flex-col gap-3">
                                   <div className="flex items-center gap-3 text-white">
