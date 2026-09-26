@@ -227,7 +227,7 @@ describe('PatientDetails G2 interactive permission matrix', () => {
 
     expect(await screen.findByText('Contrôle implant personnalisé')).toBeTruthy();
     expect(screen.getByText('Cabinet')).toBeTruthy();
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/motifs', { params: { include_inactive: true } }));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/motifs/', { params: { include_inactive: true } }));
 
   });
 
