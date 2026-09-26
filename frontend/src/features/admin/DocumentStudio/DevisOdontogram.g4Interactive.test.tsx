@@ -131,101 +131,78 @@ function renderHonoraires(){
 }
 
 describe('Devis/Odontogram G4 interactive controls', () => {
-  it('switches adult/pediatric and individual/group/general-care odontogram modes', () => {
+  it('switches adult/pediatric and uses the same 1→N tooth selection gesture without modes', () => {
     renderDevis();
 
     expect(screen.getByText('Odontogram ADULT')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Tooth 11'}));
+    expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([11]);
+    fireEvent.click(screen.getByRole('button',{name:'Tooth 11'}));
+    expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
+
     fireEvent.click(screen.getByRole('button',{name:'Enfant'}));
     expect(screen.getByText('Odontogram PEDIATRIC')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Tooth 51'}));
+    expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([51]);
 
-    fireEvent.click(screen.getByRole('button',{name:/Soins groupés/i}));
-    expect(useAccountingStore.getState().odontogramMode).toBe('group');
-
-    fireEvent.click(screen.getByRole('button',{name:/Soins Généraux/i}));
-    expect(useAccountingStore.getState().odontogramMode).toBe('ortho');
-
-    fireEvent.click(screen.getByRole('button',{name:/Soins Ciblés/i}));
-    expect(useAccountingStore.getState().odontogramMode).toBe('individual');
+    expect(screen.queryByRole('button',{name:/Bridge & Prothèses/i})).toBeNull();
+    expect(screen.queryByRole('button',{name:/Soins groupés/i})).toBeNull();
+    expect(screen.queryByRole('button',{name:/Soins Ciblés/i})).toBeNull();
+    expect(screen.queryByRole('button',{name:/Soins Généraux/i})).toBeNull();
   });
 
-  it('turns an individual tooth treatment confirmation into a structured priced devis line', () => {
+  it('adds a single-tooth catalog act directly from the contextual search', () => {
     renderDevis();
     fireEvent.click(screen.getByRole('button',{name:'Tooth 11'}));
-    expect(screen.getByText('Treatment selector')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button',{name:'Confirm treatment'}));
+    const search=screen.getByPlaceholderText('Rechercher un acte pour cette sélection…');
+    fireEvent.change(search,{target:{value:'Détartrage'}});
+    fireEvent.click(screen.getByRole('button',{name:/Détartrage/}));
 
-    const items=useAccountingStore.getState().items;
-    expect(items).toHaveLength(1);
-    expect(items[0]).toEqual(expect.objectContaining({
+    expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
       description:'Détartrage',
       price:500,
       category:'CONSERVATRICE',
+      toothNumbers:[11],
     }));
-    expect(items[0].dent).toContain('11');
-    expect(screen.queryByText('Treatment selector')).toBeNull();
+    expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
   });
 
-  it('persists a custom grouped treatment to the central catalog before adding it to the devis', async () => {
+  it('uses neutral quick selection and adds a compatible multi-tooth act', () => {
     renderDevis();
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Proth/i}));
+    fireEvent.click(screen.getByText('Sélection rapide',{exact:true}));
     fireEvent.click(screen.getByRole('button',{name:'Q1'}));
+
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([11,12,13,14,15,16,17,18]);
-
-    fireEvent.change(screen.getByRole('combobox',{name:"Spécialité de l'acte groupé"}),{target:{value:'1'}});
-    fireEvent.change(screen.getByPlaceholderText('Ou saisir un autre acte...'),{target:{value:'Acte groupé test'}});
-    fireEvent.change(screen.getByPlaceholderText('Prix'),{target:{value:'1200'}});
-    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
-
-    await waitFor(() => expect(catalogState.createAct).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({
-        name:'Acte groupé test',
-        base_price:1200,
-        applicability:expect.objectContaining({
-          selection_modes:['GROUP'],
-          treatment_areas:['TOOTH_RANGE'],
-        }),
-      }),
-    ));
-
-    const items=useAccountingStore.getState().items;
-    expect(items).toHaveLength(1);
-    expect(items[0]).toEqual(expect.objectContaining({
-      description:'Acte groupé test',
-      price:1200,
-      category:'PROTHESE',
-      toothNumbers:[11,12,13,14,15,16,17,18],
-    }));
-  });
-
-  it('adds a catalog-priced predefined grouped act and resets selected group', () => {
-    renderDevis();
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Proth/i}));
-    fireEvent.click(screen.getByRole('button',{name:'Q1'}));
     fireEvent.click(screen.getByRole('button',{name:'Bridge'}));
 
     expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
       description:'Bridge',
       price:1800,
       category:'PROTHESE',
+      toothNumbers:[11,12,13,14,15,16,17,18],
     }));
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
   });
 
-  it('does not suggest adult prosthetic shortcuts for primary teeth', () => {
+  it('keeps pediatric applicability contextual without a pediatric group mode', () => {
     renderDevis();
     fireEvent.click(screen.getByRole('button',{name:'Enfant'}));
-    fireEvent.click(screen.getByRole('button',{name:/Soins groupés/i}));
+    fireEvent.click(screen.getByText('Sélection rapide',{exact:true}));
     fireEvent.click(screen.getByRole('button',{name:'Q5'}));
 
     expect(screen.queryByRole('button',{name:'Bridge'})).toBeNull();
     expect(screen.getByRole('button',{name:"Mainteneur d'espace"})).toBeTruthy();
   });
 
-  it('resets a quick tooth selection without creating a line', () => {
+  it('offers only secondary neutral shortcuts and resets without creating a line', () => {
     renderDevis();
-    fireEvent.click(screen.getByRole('button',{name:/Bridge & Proth/i}));
+    fireEvent.click(screen.getByText('Sélection rapide',{exact:true}));
+
+    for (const label of ['Maxillaire','Mandibule','Q1','Q2','Q3','Q4','Toutes']) {
+      expect(screen.getByRole('button',{name:label})).toBeTruthy();
+    }
+
     fireEvent.click(screen.getByRole('button',{name:'Q1'}));
     fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
 
