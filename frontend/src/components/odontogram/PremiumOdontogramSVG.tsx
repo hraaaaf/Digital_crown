@@ -13,8 +13,8 @@ interface PremiumOdontogramSVGProps {
   showNumbers?: boolean;
 }
 
-const ADULT_REFERENCE = '/assets/odontogram/digital-crown-adult-reference-v2.png';
-const CHILD_REFERENCE = '/assets/odontogram/digital-crown-child-reference-v2.png';
+const ADULT_REFERENCE = '/assets/odontogram/digital-crown-adult-reference-v3.svg';
+const CHILD_REFERENCE = '/assets/odontogram/digital-crown-child-reference-v3.svg';
 
 const ADULT_UPPER = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const ADULT_LOWER = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
@@ -44,7 +44,7 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
 
   const reference = type === 'ADULT' ? ADULT_REFERENCE : CHILD_REFERENCE;
   const mapping = (type === 'ADULT' ? ANATOMICAL_MAPPING.ADULT : ANATOMICAL_MAPPING.PEDIATRIC) as Record<number, { x:number; y:number; r?:number }>;
-  const asset = type === 'ADULT' ? 'user-reference-adult-v2' : 'user-reference-child-v2';
+  const asset = type === 'ADULT' ? 'user-reference-adult-v3' : 'user-reference-child-v3';
 
   return (
     <div

@@ -396,6 +396,6 @@ export const ANATOMICAL_MAPPING = {
 
 // Chemins des images de référence
 export const ODONTOGRAM_IMAGES = {
-  ADULT: '/assets/odontogram/digital-crown-adult-reference-v2.png',
-  PEDIATRIC: '/assets/odontogram/digital-crown-child-reference-v2.png',
+  ADULT: '/assets/odontogram/digital-crown-adult-reference-v3.svg',
+  PEDIATRIC: '/assets/odontogram/digital-crown-child-reference-v3.svg',
 };
