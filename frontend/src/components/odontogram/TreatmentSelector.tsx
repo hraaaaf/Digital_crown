@@ -314,7 +314,9 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                     {(() => {
                       let items: Array<TreatmentTemplate | ActHistory> = [];
                       if (activeCategory === 'SEARCH') items = TREATMENT_TEMPLATES.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
-                      else if (activeCategory === 'FREQUENTS') items = frequentActs;
+                      else if (activeCategory === 'FAVORITES') items = favoriteActs;
+                      else if (activeCategory === 'RECENT') items = recentActs;
+                      else if (activeCategory === 'SUGGESTED') items = suggestedTemplates;
                       else if (activeCategory === 'ALL') items = TREATMENT_TEMPLATES;
                       else items = TREATMENTS_BY_CATEGORY[activeCategory] || [];
 
