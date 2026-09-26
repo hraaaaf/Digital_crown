@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { cn } from '../../utils/cn';
-import type { OdontogramType, PediatricToothNumber } from './types';
+import type { OdontogramType } from './types';
 import { ANATOMICAL_MAPPING } from './types';
-import adultReference from '../../assets/odontogram/DigitalCrown_odontogram_adult_reference_v1.png';
 
 interface PremiumOdontogramSVGProps {
   type?: OdontogramType;
@@ -14,41 +13,16 @@ interface PremiumOdontogramSVGProps {
   showNumbers?: boolean;
 }
 
-type Row = 'upper' | 'lower';
-
-interface ToothVisual {
-  tooth: number;
-  x: number;
-  sourceX?: number;
-  sourceWidth?: number;
-}
+const ADULT_REFERENCE = '/assets/odontogram/digital-crown-adult-reference-v2.png';
+const CHILD_REFERENCE = '/assets/odontogram/digital-crown-child-reference-v2.png';
 
 const ADULT_UPPER = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const ADULT_LOWER = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+const CHILD_UPPER = [55,54,53,52,51,61,62,63,64,65];
+const CHILD_LOWER = [85,84,83,82,81,71,72,73,74,75];
 
-const ADULT_UPPER_SOURCE_X = [100,229,326,423,516,610,699,788,881,974,1066,1158,1250,1340,1435,1530];
-const ADULT_LOWER_SOURCE_X = [101,208,319,430,527,621,707,795,886,980,1071,1162,1254,1348,1440,1532];
-
-const CHILD_REFERENCE = '/assets/odontogram/pediatric-anatomical.jpg';
-const CHILD_UPPER = [55,54,53,52,51,61,62,63,64,65] as PediatricToothNumber[];
-const CHILD_LOWER = [85,84,83,82,81,71,72,73,74,75] as PediatricToothNumber[];
-const CHILD_ROW_X = [92,183,274,365,456,544,635,726,817,908];
-
-
-const OUTER_WIDTH = 1000;
-const OUTER_HEIGHT = 365;
-const ADULT_LEFT = 24;
-const ADULT_RENDER_WIDTH = 952;
-const SOURCE_WIDTH = 1672;
-
-const adultRow = (teeth:number[], sourceXs:number[]): ToothVisual[] =>
-  teeth.map((tooth,index)=>({
-    tooth,
-    sourceX:sourceXs[index],
-    x:ADULT_LEFT + (sourceXs[index] / SOURCE_WIDTH) * ADULT_RENDER_WIDTH,
-  }));
-
-
+const VIEWBOX_WIDTH = 1000;
+const VIEWBOX_HEIGHT = 750;
 
 export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
   type='ADULT',
@@ -57,284 +31,20 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
   onToothClick,
   readOnly=false,
   className,
-  showNumbers=true,
 }) => {
   const [focusedTooth,setFocusedTooth]=useState<number|null>(null);
   const [hoveredTooth,setHoveredTooth]=useState<number|null>(null);
 
-  const rows=useMemo(()=>({
-    upper:adultRow(ADULT_UPPER,ADULT_UPPER_SOURCE_X),
-    lower:adultRow(ADULT_LOWER,ADULT_LOWER_SOURCE_X),
-  }),[]);
-
-  const renderInteraction = (visual:ToothVisual,row:Row) => {
-    const selected=visual.tooth===selectedTooth || multiSelectedTeeth.includes(visual.tooth);
-    const focused=focusedTooth===visual.tooth;
-    const hovered=hoveredTooth===visual.tooth;
-    const cy=row==='upper' ? 126 : 258;
-    const rx=type==='PEDIATRIC' ? 40 : 27;
-    const ry=type==='PEDIATRIC' ? 62 : 58;
-    const labelY=row==='upper' ? 24 : 354;
-
-    return (
-      <g key={visual.tooth}>
-        {showNumbers && (
-          <text
-            x={visual.x}
-            y={labelY}
-            textAnchor="middle"
-            className={cn(
-              'select-none fill-text-muted text-[17px] font-black transition-colors',
-              selected && 'fill-primary',
-            )}
-            aria-hidden="true"
-          >
-            {visual.tooth}
-          </text>
-        )}
-
-        {(selected || hovered) && (
-          <ellipse
-            cx={visual.x}
-            cy={cy}
-            rx={rx}
-            ry={ry}
-            className="fill-primary stroke-primary pointer-events-none"
-            fillOpacity={selected ? 0.16 : 0.07}
-            strokeOpacity={selected ? 0.95 : 0.35}
-            strokeWidth={selected ? 3 : 1.5}
-          />
-        )}
-
-        {selected && (
-          <circle
-            cx={visual.x}
-            cy={row==='upper' ? 60 : 322}
-            r={7}
-            className="fill-primary stroke-card pointer-events-none"
-            strokeWidth={3}
-          />
-        )}
-
-        {focused && (
-          <ellipse
-            cx={visual.x}
-            cy={cy}
-            rx={rx+5}
-            ry={ry+5}
-            fill="none"
-            className="stroke-primary pointer-events-none"
-            strokeWidth={2.5}
-            strokeDasharray="7 5"
-          />
-        )}
-
-        <ellipse
-          cx={visual.x}
-          cy={cy}
-          rx={rx+5}
-          ry={ry+7}
-          fill="transparent"
-          tabIndex={readOnly ? undefined : 0}
-          role={readOnly ? undefined : 'button'}
-          aria-label={readOnly ? undefined : `Dent ${visual.tooth}`}
-          aria-pressed={readOnly ? undefined : selected}
-          onMouseEnter={()=>setHoveredTooth(visual.tooth)}
-          onMouseLeave={()=>setHoveredTooth(null)}
-          onFocus={()=>setFocusedTooth(visual.tooth)}
-          onBlur={()=>setFocusedTooth(null)}
-          onClick={()=>!readOnly && onToothClick?.(visual.tooth)}
-          onKeyDown={(event)=>{
-            if(readOnly) return;
-            if(event.key==='Enter' || event.key===' '){
-              event.preventDefault();
-              onToothClick?.(visual.tooth);
-            }
-          }}
-          className={cn('outline-none',!readOnly && 'cursor-pointer')}
-        />
-      </g>
-    );
-  };
-
-  const renderAdultSlice = (
-    id:string,
-    x:number,
-    y:number,
-    width:number,
-    height:number,
-    sourceY:number,
-    sourceHeight:number,
-  ) => (
-    <svg
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      viewBox={`0 ${sourceY} 1672 ${sourceHeight}`}
-      preserveAspectRatio="none"
-      overflow="hidden"
-      aria-hidden="true"
-    >
-      <defs>
-        <filter id={`${id}-extract-lines`}>
-          <feColorMatrix type="matrix" values="
-            0.33 0.33 0.33 0 0
-            0.33 0.33 0.33 0 0
-            0.33 0.33 0.33 0 0
-            0 0 0 1 0" />
-          <feComponentTransfer>
-            <feFuncR type="linear" slope="-3" intercept="2.8" />
-            <feFuncG type="linear" slope="-3" intercept="2.8" />
-            <feFuncB type="linear" slope="-3" intercept="2.8" />
-          </feComponentTransfer>
-        </filter>
-        <mask
-          id={`${id}-mask`}
-          maskUnits="userSpaceOnUse"
-          x="0"
-          y={sourceY}
-          width="1672"
-          height={sourceHeight}
-        >
-          <image
-            href={adultReference}
-            x="0"
-            y="0"
-            width="1672"
-            height="941"
-            preserveAspectRatio="none"
-            filter={`url(#${id}-extract-lines)`}
-          />
-        </mask>
-      </defs>
-      <rect
-        x="0"
-        y={sourceY}
-        width="1672"
-        height={sourceHeight}
-        className="fill-text-main pointer-events-none"
-        mask={`url(#${id}-mask)`}
-      />
-    </svg>
+  const teeth = useMemo(
+    () => type === 'ADULT'
+      ? [...ADULT_UPPER, ...ADULT_LOWER]
+      : [...CHILD_UPPER, ...CHILD_LOWER],
+    [type],
   );
 
-  const renderAdultBase = () => (
-    <>
-      {renderAdultSlice('premium-adult-upper',24,42,952,128,285,205)}
-      {renderAdultSlice('premium-adult-lower',24,188,952,137,485,215)}
-    </>
-  );
-
-  const renderChildSlice = (tooth:PediatricToothNumber,x:number,row:Row) => {
-    const point=ANATOMICAL_MAPPING.PEDIATRIC[tooth];
-    const radius=point.r || 3;
-    const cropWidth=Math.max(10.5,radius*3.45);
-    const cropHeight=Math.max(14.5,radius*4.45);
-    const sourceX=point.x-cropWidth/2;
-    const sourceY=point.y-cropHeight/2;
-    const y=row==='upper' ? 48 : 192;
-    const width=72;
-    const height=118;
-    const id=`premium-child-${tooth}`;
-
-    return (
-      <svg
-        key={`slice-${tooth}`}
-        x={x-width/2}
-        y={y}
-        width={width}
-        height={height}
-        viewBox={`${sourceX} ${sourceY} ${cropWidth} ${cropHeight}`}
-        preserveAspectRatio="xMidYMid meet"
-        overflow="hidden"
-        aria-hidden="true"
-      >
-        <defs>
-          <filter id={`${id}-extract-lines`}>
-            <feColorMatrix type="matrix" values="
-              0.33 0.33 0.33 0 0
-              0.33 0.33 0.33 0 0
-              0.33 0.33 0.33 0 0
-              0 0 0 1 0" />
-            <feComponentTransfer>
-              <feFuncR type="linear" slope="-3" intercept="2.8" />
-              <feFuncG type="linear" slope="-3" intercept="2.8" />
-              <feFuncB type="linear" slope="-3" intercept="2.8" />
-            </feComponentTransfer>
-          </filter>
-          <mask
-            id={`${id}-mask`}
-            maskUnits="userSpaceOnUse"
-            x="0"
-            y="0"
-            width="100"
-            height="100"
-          >
-            <image
-              href={CHILD_REFERENCE}
-              x="0"
-              y="0"
-              width="100"
-              height="100"
-              preserveAspectRatio="none"
-              filter={`url(#${id}-extract-lines)`}
-            />
-          </mask>
-        </defs>
-        <rect
-          x="0"
-          y="0"
-          width="100"
-          height="100"
-          className="fill-text-main pointer-events-none"
-          mask={`url(#${id}-mask)`}
-        />
-      </svg>
-    );
-  };
-
-  const renderChild = () => {
-    const upper=CHILD_UPPER.map((tooth,index)=>({tooth,x:CHILD_ROW_X[index]}));
-    const lower=CHILD_LOWER.map((tooth,index)=>({tooth,x:CHILD_ROW_X[index]}));
-
-    return (
-      <div
-        className={cn(
-          'w-full rounded-2xl border border-border-main bg-card/80 p-1.5 shadow-sm backdrop-blur-xl sm:p-3',
-          className,
-        )}
-        data-premium-odontogram="pediatric"
-        data-odontogram-asset="legacy-pediatric-teeth-extracted-v2"
-      >
-        <svg
-          viewBox={`0 0 ${OUTER_WIDTH} ${OUTER_HEIGHT}`}
-          className="block h-auto w-full overflow-visible"
-          role="group"
-          aria-label="Odontogramme enfant"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {upper.map(item=>renderChildSlice(item.tooth,item.x,'upper'))}
-          {lower.map(item=>renderChildSlice(item.tooth,item.x,'lower'))}
-
-          <line
-            x1="36"
-            x2="964"
-            y1="181"
-            y2="181"
-            className="stroke-border-main pointer-events-none"
-            strokeWidth="1.5"
-          />
-
-          {upper.map(item=>renderInteraction(item,'upper'))}
-          {lower.map(item=>renderInteraction(item,'lower'))}
-        </svg>
-      </div>
-    );
-  };
-
-
-  if(type==='PEDIATRIC') return renderChild();
+  const reference = type === 'ADULT' ? ADULT_REFERENCE : CHILD_REFERENCE;
+  const mapping = type === 'ADULT' ? ANATOMICAL_MAPPING.ADULT : ANATOMICAL_MAPPING.PEDIATRIC;
+  const asset = type === 'ADULT' ? 'user-reference-adult-v2' : 'user-reference-child-v2';
 
   return (
     <div
@@ -342,29 +52,95 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
         'w-full rounded-2xl border border-border-main bg-card/80 p-1.5 shadow-sm backdrop-blur-xl sm:p-3',
         className,
       )}
-      data-premium-odontogram="adult"
-      data-odontogram-asset="approved-raster-reference-v1"
+      data-premium-odontogram={type === 'ADULT' ? 'adult' : 'pediatric'}
+      data-odontogram-asset={asset}
     >
       <svg
-        viewBox={`0 0 ${OUTER_WIDTH} ${OUTER_HEIGHT}`}
+        viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
         className="block h-auto w-full overflow-visible"
         role="group"
-        aria-label="Odontogramme adulte"
+        aria-label={type === 'ADULT' ? 'Odontogramme adulte' : 'Odontogramme enfant'}
         preserveAspectRatio="xMidYMid meet"
       >
-        {renderAdultBase()}
-
-        <line
-          x1="36"
-          x2="964"
-          y1="181"
-          y2="181"
-          className="stroke-border-main pointer-events-none"
-          strokeWidth="1.5"
+        <image
+          href={reference}
+          x="0"
+          y="0"
+          width={VIEWBOX_WIDTH}
+          height={VIEWBOX_HEIGHT}
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+          className="pointer-events-none"
         />
 
-        {rows.upper.map(item=>renderInteraction(item,'upper'))}
-        {rows.lower.map(item=>renderInteraction(item,'lower'))}
+        {teeth.map((tooth) => {
+          const point = mapping[tooth as keyof typeof mapping] as { x:number; y:number; r?:number } | undefined;
+          if (!point) return null;
+
+          const cx = point.x * 10;
+          const cy = point.y * 7.5;
+          const baseRadius = point.r ?? (type === 'ADULT' ? 3.4 : 4.2);
+          const rx = baseRadius * 10;
+          const ry = type === 'ADULT' ? 66 : 72;
+          const selected = selectedTooth === tooth || multiSelectedTeeth.includes(tooth);
+          const focused = focusedTooth === tooth;
+          const hovered = hoveredTooth === tooth;
+
+          return (
+            <g key={tooth}>
+              {(selected || hovered) && (
+                <ellipse
+                  cx={cx}
+                  cy={cy}
+                  rx={rx}
+                  ry={ry}
+                  className="fill-primary stroke-primary pointer-events-none"
+                  fillOpacity={selected ? 0.13 : 0.05}
+                  strokeOpacity={selected ? 0.95 : 0.35}
+                  strokeWidth={selected ? 3 : 1.5}
+                />
+              )}
+
+              {focused && (
+                <ellipse
+                  cx={cx}
+                  cy={cy}
+                  rx={rx + 6}
+                  ry={ry + 6}
+                  fill="none"
+                  className="stroke-primary pointer-events-none"
+                  strokeWidth={2.5}
+                  strokeDasharray="7 5"
+                />
+              )}
+
+              <ellipse
+                cx={cx}
+                cy={cy}
+                rx={rx + 6}
+                ry={ry + 7}
+                fill="transparent"
+                tabIndex={readOnly ? undefined : 0}
+                role={readOnly ? undefined : 'button'}
+                aria-label={readOnly ? undefined : `Dent ${tooth}`}
+                aria-pressed={readOnly ? undefined : selected}
+                onMouseEnter={() => setHoveredTooth(tooth)}
+                onMouseLeave={() => setHoveredTooth(null)}
+                onFocus={() => setFocusedTooth(tooth)}
+                onBlur={() => setFocusedTooth(null)}
+                onClick={() => !readOnly && onToothClick?.(tooth)}
+                onKeyDown={(event) => {
+                  if (readOnly) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onToothClick?.(tooth);
+                  }
+                }}
+                className={cn('outline-none', !readOnly && 'cursor-pointer')}
+              />
+            </g>
+          );
+        })}
       </svg>
     </div>
   );

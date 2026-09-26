@@ -2,51 +2,39 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { PremiumOdontogramSVG } from './PremiumOdontogramSVG';
 
+const ADULT = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28,48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+const CHILD = [55,54,53,52,51,61,62,63,64,65,85,84,83,82,81,71,72,73,74,75];
+
 describe('PremiumOdontogramSVG', () => {
-  it('renders correct adult FDI teeth and exposes direct tooth controls', () => {
+  it('uses the exact user adult reference and maps all 32 FDI buttons', () => {
     const onToothClick = vi.fn();
-    render(<PremiumOdontogramSVG type="ADULT" onToothClick={onToothClick} />);
+    const { container } = render(<PremiumOdontogramSVG type="ADULT" onToothClick={onToothClick} />);
 
     expect(screen.getByRole('group', { name: 'Odontogramme adulte' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dent 18' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dent 21' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dent 48' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dent 31' })).toBeTruthy();
+    expect(screen.getAllByRole('button')).toHaveLength(32);
+    expect(container.innerHTML).toContain('digital-crown-adult-reference-v2.png');
+    expect(container.innerHTML).toContain('data-odontogram-asset="user-reference-adult-v2"');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dent 11' }));
-    expect(onToothClick).toHaveBeenCalledWith(11);
+    ADULT.forEach((tooth) => fireEvent.click(screen.getByRole('button', { name: `Dent ${tooth}` })));
+    expect(onToothClick.mock.calls.map(([tooth]) => tooth)).toEqual(ADULT);
   });
 
-  it('renders 20 pediatric FDI teeth from isolated anatomical slices without adult quadrants', () => {
+  it('uses the exact user child reference and maps all 20 primary FDI buttons', () => {
     const onToothClick = vi.fn();
     const { container } = render(<PremiumOdontogramSVG type="PEDIATRIC" onToothClick={onToothClick} />);
 
     expect(screen.getByRole('group', { name: 'Odontogramme enfant' })).toBeTruthy();
     expect(screen.getAllByRole('button')).toHaveLength(20);
-    expect(screen.getByRole('button', { name: 'Dent 55' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dent 61' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dent 85' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dent 71' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Dent 18' })).toBeNull();
-    expect(container.innerHTML).toContain('data-odontogram-asset="legacy-pediatric-teeth-extracted-v2"');
-    expect(container.innerHTML).toContain('/assets/odontogram/pediatric-anatomical.jpg');
-    expect(container.innerHTML).toContain('fill-text-main');
-    expect(container.textContent).not.toContain('Upper teeth');
+    expect(container.innerHTML).toContain('digital-crown-child-reference-v2.png');
+    expect(container.innerHTML).toContain('data-odontogram-asset="user-reference-child-v2"');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dent 51' }));
-    expect(onToothClick).toHaveBeenCalledWith(51);
+    CHILD.forEach((tooth) => fireEvent.click(screen.getByRole('button', { name: `Dent ${tooth}` })));
+    expect(onToothClick.mock.calls.map(([tooth]) => tooth)).toEqual(CHILD);
   });
 
   it('keeps selected state accessible and keyboard-activatable', () => {
     const onToothClick = vi.fn();
-    render(
-      <PremiumOdontogramSVG
-        type="ADULT"
-        selectedTooth={11}
-        multiSelectedTeeth={[12]}
-        onToothClick={onToothClick}
-      />,
-    );
+    render(<PremiumOdontogramSVG type="ADULT" selectedTooth={11} multiSelectedTeeth={[12]} onToothClick={onToothClick} />);
 
     expect(screen.getByRole('button', { name: 'Dent 11' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Dent 12' }).getAttribute('aria-pressed')).toBe('true');
@@ -58,12 +46,8 @@ describe('PremiumOdontogramSVG', () => {
   it('uses semantic theme classes instead of hardcoded primary selection colors', () => {
     const { container } = render(<PremiumOdontogramSVG type="ADULT" selectedTooth={11} />);
     const markup = container.innerHTML;
-
     expect(markup).toContain('fill-primary');
     expect(markup).toContain('stroke-primary');
-    expect(markup).toContain('stroke-card');
-    expect(markup).toContain('fill-text-muted');
-    expect(markup).toContain('data-odontogram-asset="approved-raster-reference-v1"');
     expect(markup).not.toMatch(/#003380|#059669|#db2777|#0284c7|#475569|#4f46e5|rgb\(|hsl\(/i);
   });
 });
