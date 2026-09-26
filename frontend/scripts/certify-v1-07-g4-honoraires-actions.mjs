@@ -137,7 +137,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const bridgeButton = page.getByRole('button', { name: /Bridge/ }).last();
   await bridgeButton.waitFor({ state: 'visible', timeout: 5000 });
   await bridgeButton.click();
-  await page.getByText('Bridge', { exact: true }).last().waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText('Bridge 3 éléments', { exact: true }).last().waitFor({ state: 'visible', timeout: 5000 });
   actions.push('multi-tooth-search-add');
 
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
