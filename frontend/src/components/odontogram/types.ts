@@ -138,8 +138,8 @@ export interface ToothTreatment {
   code?: string;
   name: string;
   description?: string;
-  category: 'PREVENTION' | 'CONSERVATRICE' | 'ENDODONTIE' | 'PARODONTOLOGIE' | 
-            'CHIRURGIE' | 'PROTHESE' | 'ORTHODONTIE' | 'ESTHETIQUE';
+  category: string;
+  catalogActId?: number;
   price: number;
   surfaces?: ToothSurface[];
   suggestedSurfaces?: ToothSurface[];

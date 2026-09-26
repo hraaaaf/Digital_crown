@@ -11,6 +11,7 @@ export interface PriceItem {
   toothNumbers?: number[];
   _odontogramKey?: string;
   category?: string;
+  catalogActId?: number;
   odontogramSurfaces?: string[];
   odontogramNotes?: string;
   odontogramTreatmentCode?: string;

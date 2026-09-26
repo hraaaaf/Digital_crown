@@ -56,6 +56,9 @@ export interface CatalogAct {
   base_price: number;
   color?: string;
   is_active: boolean;
+  is_favorite: boolean;
+  usage_count: number;
+  last_used_at?: string | null;
   applicability?: Partial<CatalogActApplicability>;
 }
 
@@ -94,6 +97,7 @@ interface CatalogState {
   updatePathology: (pathologyId: number, data: PathologyUpdate) => Promise<boolean>;
   createAct: (specialtyId: number, data: ActMutation) => Promise<boolean>;
   updateAct: (actId: number, data: ActUpdate) => Promise<boolean>;
+  setActFavorite: (actId: number, isFavorite: boolean) => Promise<boolean>;
 }
 
 const mutationError = (error: unknown, fallback: string) => {
@@ -206,6 +210,18 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       return true;
     } catch (error) {
       mutationError(error, "Impossible de modifier l'acte");
+      return false;
+    }
+  },
+
+  setActFavorite: async (actId, isFavorite) => {
+    if (get().readError) return false;
+    try {
+      await api.put(`/catalog/acts/${actId}/preference`, { is_favorite: isFavorite });
+      await get().fetchCatalog();
+      return true;
+    } catch (error) {
+      mutationError(error, "Impossible de modifier le favori");
       return false;
     }
   },

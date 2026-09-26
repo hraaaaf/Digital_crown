@@ -4,6 +4,7 @@ export interface OdontogramTreatmentSelection {
   name: string;
   price: number;
   category?: string;
+  catalogActId?: number;
   dent?: string;
   surfaces?: string[];
   notes?: string;
@@ -16,6 +17,7 @@ export interface OdontogramAccountingItem {
   dent: string;
   price: number;
   category?: string;
+  catalogActId?: number;
   toothNumbers?: number[];
   _odontogramKey?: string;
   odontogramSurfaces?: string[];
@@ -37,6 +39,7 @@ function itemFromSelection(
     dent: selection.dent ?? String(selection.toothNumber),
     price: Number(selection.price) || 0,
     category: selection.category,
+    catalogActId: selection.catalogActId,
     toothNumbers: [selection.toothNumber],
     _odontogramKey: odontogramTreatmentKey(selection.toothNumber, selection.treatmentId),
     odontogramSurfaces: [...new Set(selection.surfaces || [])],
@@ -92,6 +95,7 @@ export function replaceOdontogramToothSelections(
         dent: normalizedSelection.dent ?? existing.dent ?? String(toothNumber),
         price: Number(normalizedSelection.price) || 0,
         category: normalizedSelection.category,
+        catalogActId: normalizedSelection.catalogActId ?? existing.catalogActId,
         toothNumbers: [toothNumber],
         odontogramSurfaces: normalizedSelection.surfaces === undefined
           ? existing.odontogramSurfaces
