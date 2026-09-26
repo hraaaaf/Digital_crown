@@ -825,6 +825,7 @@ for(const viewport of viewports){
     await page.getByRole('checkbox',{name:'Mardi ouvert',exact:true}).click();
     await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
     await page.getByText('Horaires sauvegardés',{exact:true}).last().waitFor({state:'visible',timeout:10000});
+    await page.getByText('Horaires sauvegardés',{exact:true}).last().waitFor({state:'hidden',timeout:15000});
     if(agendaSettings.weekly_schedule.monday.is_open!==true || agendaSettings.weekly_schedule.tuesday.is_open!==true){
       throw new Error('agenda fixture was not restored');
     }
