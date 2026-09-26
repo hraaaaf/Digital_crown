@@ -202,7 +202,7 @@ for (const viewport of viewports) {
 
   await cephTab.click();
   results.push({ surface: 'imaging-cephalo', ...(await capture(page, viewport, 'imaging-cephalo', async () => {
-    await page.getByText('Studio Céphalométrique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('heading', { name: 'Céphalométrie', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   })) });
 
   await page.goto(`${patientUrl}?tab=admin&documentTab=plan`, { waitUntil: 'networkidle', timeout: 90000 });
