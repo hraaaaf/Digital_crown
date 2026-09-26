@@ -43,7 +43,7 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
   );
 
   const reference = type === 'ADULT' ? ADULT_REFERENCE : CHILD_REFERENCE;
-  const mapping = type === 'ADULT' ? ANATOMICAL_MAPPING.ADULT : ANATOMICAL_MAPPING.PEDIATRIC;
+  const mapping = (type === 'ADULT' ? ANATOMICAL_MAPPING.ADULT : ANATOMICAL_MAPPING.PEDIATRIC) as Record<number, { x:number; y:number; r?:number }>;
   const asset = type === 'ADULT' ? 'user-reference-adult-v2' : 'user-reference-child-v2';
 
   return (
@@ -74,7 +74,7 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
         />
 
         {teeth.map((tooth) => {
-          const point = mapping[tooth as keyof typeof mapping] as { x:number; y:number; r?:number } | undefined;
+          const point = mapping[tooth];
           if (!point) return null;
 
           const cx = point.x * 10;
