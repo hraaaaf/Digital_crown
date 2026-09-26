@@ -43,7 +43,7 @@ DEFAULT_APPLICABILITY_BY_CODE: dict[str, dict] = {
     "HBMD067": {"dentitions": ["PERMANENT"], "selection_modes": ["INDIVIDUAL"], "treatment_areas": ["TOOTH"], "suggestion_priority": 35},
 
     # Implantology — permanent dentition only, searchable unless context matches.
-    "HBMD080": {"dentitions": ["PERMANENT"], "selection_modes": ["INDIVIDUAL"], "treatment_areas": ["TOOTH"], "requires_missing_tooth": True, "suggestion_priority": 30},
+    "HBMD080": {"dentitions": ["PERMANENT"], "selection_modes": ["INDIVIDUAL"], "treatment_areas": ["TOOTH"], "suggestion_priority": 0},
     "HBMD081": {"dentitions": ["PERMANENT"], "selection_modes": ["INDIVIDUAL"], "treatment_areas": ["TOOTH"], "suggestion_priority": 20},
     "HBMD082": {"dentitions": ["PERMANENT"], "selection_modes": ["GROUP", "GENERAL"], "treatment_areas": ["TOOTH_RANGE", "QUADRANT"], "suggestion_priority": 0},
     "HBMD083": {"dentitions": ["PERMANENT"], "selection_modes": ["GROUP"], "treatment_areas": ["QUADRANT", "TOOTH_RANGE"], "suggestion_priority": 0},

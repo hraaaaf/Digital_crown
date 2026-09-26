@@ -32,6 +32,8 @@ class CatalogActApplicability(BaseModel):
     requires_missing_tooth: bool = False
     min_selected_teeth: int = Field(default=0, ge=0)
     max_selected_teeth: Optional[int] = Field(default=None, ge=1)
+    age_min: Optional[int] = Field(default=None, ge=0, le=120)
+    age_max: Optional[int] = Field(default=None, ge=0, le=120)
     suggestion_priority: int = Field(default=0, ge=0, le=100)
     searchable_when_not_suggested: bool = True
 

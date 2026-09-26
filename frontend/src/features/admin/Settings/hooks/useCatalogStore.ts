@@ -16,6 +16,8 @@ export interface CatalogActApplicability {
   requires_missing_tooth: boolean;
   min_selected_teeth: number;
   max_selected_teeth?: number | null;
+  age_min?: number | null;
+  age_max?: number | null;
   suggestion_priority: number;
   searchable_when_not_suggested: boolean;
 }
@@ -29,6 +31,8 @@ export const DEFAULT_CATALOG_ACT_APPLICABILITY: CatalogActApplicability = {
   requires_missing_tooth: false,
   min_selected_teeth: 0,
   max_selected_teeth: null,
+  age_min: null,
+  age_max: null,
   suggestion_priority: 0,
   searchable_when_not_suggested: true,
 };

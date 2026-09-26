@@ -162,6 +162,36 @@ export const CatalogActApplicabilityEditor: React.FC<Props> = ({ value, onChange
         </label>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label className="space-y-2">
+          <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">Âge min. optionnel</span>
+          <input
+            type="number"
+            aria-label="Âge minimum"
+            min={0}
+            max={120}
+            value={current.age_min ?? ''}
+            placeholder="—"
+            onChange={event => patch({ age_min: event.target.value ? Number(event.target.value) : null })}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold"
+          />
+        </label>
+        <label className="space-y-2">
+          <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">Âge max. optionnel</span>
+          <input
+            type="number"
+            aria-label="Âge maximum"
+            min={0}
+            max={120}
+            value={current.age_max ?? ''}
+            placeholder="—"
+            onChange={event => patch({ age_max: event.target.value ? Number(event.target.value) : null })}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold"
+          />
+          <span className="block text-[10px] text-slate-400">Secondaire : la dentition reste prioritaire.</span>
+        </label>
+      </div>
+
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
           <span className="text-xs font-bold text-slate-600">Dent présente requise</span>

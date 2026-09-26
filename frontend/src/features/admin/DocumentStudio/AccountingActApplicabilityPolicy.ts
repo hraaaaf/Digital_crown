@@ -13,6 +13,7 @@ export interface CatalogActContext {
   selectedTeeth: number[];
   selectionMode: CatalogSelectionMode;
   missingTeeth?: number[];
+  patientAgeYears?: number | null;
 }
 
 export interface EvaluatedCatalogAct {
@@ -79,6 +80,15 @@ export const evaluateCatalogAct = (
   const max = applicability.max_selected_teeth ?? null;
   if (selected.length < min) reasons.push('min_teeth');
   if (max !== null && selected.length > max) reasons.push('max_teeth');
+
+  if (context.patientAgeYears !== null && context.patientAgeYears !== undefined) {
+    if (applicability.age_min !== null && applicability.age_min !== undefined && context.patientAgeYears < applicability.age_min) {
+      reasons.push('age_min');
+    }
+    if (applicability.age_max !== null && applicability.age_max !== undefined && context.patientAgeYears > applicability.age_max) {
+      reasons.push('age_max');
+    }
+  }
 
   const missing = new Set(context.missingTeeth || []);
   if (applicability.requires_missing_tooth && !selected.some(t => missing.has(t))) {
