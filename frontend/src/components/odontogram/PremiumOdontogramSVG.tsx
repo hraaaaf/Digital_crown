@@ -229,29 +229,10 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
             const selected=tooth===selectedTooth || multiSelectedTeeth.includes(tooth);
             const focused=focusedTooth===tooth;
             const hovered=hoveredTooth===tooth;
-            const upper=tooth>=51 && tooth<=65;
             const radius=point.r || 3;
-            const labelY=upper
-              ? Math.max(4,point.y-radius-4.5)
-              : Math.min(97,point.y+radius+6);
 
             return (
               <g key={tooth}>
-                {showNumbers && (
-                  <text
-                    x={point.x}
-                    y={labelY}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className={cn(
-                      'select-none fill-text-main text-[2.8px] font-black pointer-events-none',
-                      selected && 'fill-primary',
-                    )}
-                  >
-                    {tooth}
-                  </text>
-                )}
-
                 {(selected || hovered) && (
                   <circle
                     cx={point.x}
