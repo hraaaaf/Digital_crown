@@ -95,6 +95,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       name: act.name,
       category: s.name,
       base_price: act.base_price,
+      catalogActId: act.id,
     })));
   }, [specialties]);
 
@@ -107,6 +108,15 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       6,
     ),
     [groupSelectedTeeth, specialties],
+  );
+
+  const generalSuggestedActs = React.useMemo(
+    () => suggestedCatalogActs(
+      specialties,
+      { selectedTeeth: [], selectionMode: 'GENERAL' },
+      10,
+    ),
+    [specialties],
   );
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
@@ -159,6 +169,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       price: effectivePrice,
       toothNumbers: sorted,
       category: specialty?.name,
+      catalogActId: existing?.id,
     }]);
     setGroupSelectedTeeth([]);
     setGroupTreatmentName('');
@@ -181,6 +192,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         name: treatment.name,
         price: treatment.price,
         category: treatment.category,
+        catalogActId: treatment.catalogActId,
         dent: dentLabel,
       })),
     ));
@@ -198,6 +210,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         name: item.description,
         price: Number(item.price) || 0,
         category: item.category as ToothTreatment['category'],
+        catalogActId: item.catalogActId,
         scope: 'UNITAIRE' as const,
       }];
     });
@@ -290,6 +303,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       name: t.name,
       base_price: t.base_price,
       category: t.category,
+      catalogActId: t.catalogActId,
       isLocal: true,
       is_habit: false
     }));
@@ -316,7 +330,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       ...i,
       description: act.name,
       price: resolved.price,
-      category: resolved.category || act.category
+      category: resolved.category || act.category,
+      catalogActId: act.catalogActId
     } : i));
     setActSuggestions([]);
     setActiveActSearchId(null);
@@ -615,46 +630,38 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Actes Globaux</span>
                             </div>
                             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                              {[
-                                {name: 'Détartrage & Polissage', category: 'PREVENTION'},
-                                {name: 'Surfaçage Radiculaire (par secteur)', category: 'PARO'},
-                                {name: 'Bilan Parodontal Complet', category: 'PARO'},
-                                {name: 'Blanchiment Dentaire', category: 'ESTHETIQUE'},
-                                {name: 'Fluorisation', category: 'PREVENTION'},
-                                {name: 'Gouttière de Bruxisme', category: 'PROTHESE'},
-                                {name: 'Semestre ODF', category: 'ORTHO'},
-                                {name: 'Consultation Standard', category: 'CONSERVATRICE'},
-                                {name: 'Aéropolissage', category: 'PREVENTION'},
-                                {name: 'Traitement Parodontal (Séance)', category: 'PARO'},
-                              ].map(act => {
-                                const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
-                                return (
-                                  <button
-                                    key={act.name}
-                                    type="button"
-                                    onClick={() => {
-                                      setItems([...items, {
-                                        id: Date.now() + Math.random(),
-                                        description: act.name,
-                                        dent: 'Global',
-                                        price: resolved.price,
-                                        category: resolved.category || act.category,
-                                      }]);
-                                      if (resolved.source === 'UNRESOLVED') {
-                                        toast.error(`Tarif catalogue absent pour ${act.name} : prix à renseigner.`);
-                                      } else {
-                                        toast.success(`Ajouté : ${act.name}`);
-                                      }
-                                    }}
-                                    className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
-                                  >
-                                    <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
-                                    <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">
-                                      {resolved.source === 'CATALOG' ? `${resolved.price} MAD` : 'Prix catalogue requis'}
-                                    </span>
-                                  </button>
-                                );
-                              })}
+                              {generalSuggestedActs.length > 0 ? generalSuggestedActs.map(({ act, specialty }) => (
+                                <button
+                                  key={act.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const price = Number(act.base_price) || 0;
+                                    setItems([...items, {
+                                      id: Date.now() + Math.random(),
+                                      description: act.name,
+                                      dent: 'Global',
+                                      price,
+                                      category: specialty,
+                                      catalogActId: act.id,
+                                    }]);
+                                    if (price <= 0) {
+                                      toast.error(`Tarif catalogue absent pour ${act.name} : prix à renseigner.`);
+                                    } else {
+                                      toast.success(`Ajouté : ${act.name}`);
+                                    }
+                                  }}
+                                  className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
+                                >
+                                  <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
+                                  <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">
+                                    {Number(act.base_price) > 0 ? `${act.base_price} MAD` : 'Tarif à définir'}
+                                  </span>
+                                </button>
+                              )) : (
+                                <p className="col-span-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-400">
+                                  Aucun acte général suggéré. Ajoutez ou configurez un acte dans le catalogue.
+                                </p>
+                              )}
                             </div>
                             <button
                               type="button"
@@ -749,6 +756,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                               price,
                                               toothNumbers: sorted,
                                               category: specialty,
+                                              catalogActId: act.id,
                                             }]);
                                             selectTeethGroup('none');
                                             setGroupTreatmentName('');
