@@ -98,6 +98,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     })));
   }, [specialties]);
 
+  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
+
   const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
 
   const selectTeethGroup = React.useCallback((group: string) => {
@@ -125,7 +127,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
   const [suggestedBundles, setSuggestedBundles] = useState<ResolvedAccountingBundle[]>([]);
-  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
   const [isNewCatalogActOpen, setIsNewCatalogActOpen] = useState(false);
