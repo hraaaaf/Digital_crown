@@ -42,7 +42,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     'http://127.0.0.1:5173/patients/' + patient.id + '?tab=admin&documentTab=honoraires',
     { waitUntil: 'networkidle', timeout: 90000 }
   );
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
 
   const accountedLabel = page.getByText('Comptabiliser CA', { exact: true });

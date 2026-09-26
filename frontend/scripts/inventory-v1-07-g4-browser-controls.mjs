@@ -218,29 +218,18 @@ for (const viewport of viewports) {
         await continueButton.waitFor({ state: 'visible', timeout: 10000 });
       }
 
-      const groupMode = page.getByRole('button', { name: 'Bridge & Prothèses', exact: true });
-      const individualMode = page.getByRole('button', { name: 'Soins Ciblés (1 Dent)', exact: true });
-      const tooth11 = page.getByRole('button', { name: /^Dent 11(?:,|$)/ }).first();
-
-      await groupMode.click();
+      const tooth11 = page.getByRole('button', { name: 'Dent 11', exact: true }).first();
       await tooth11.waitFor({ state: 'visible', timeout: 30000 });
-      if (await tooth11.getAttribute('aria-pressed') === 'true') {
-        await tooth11.focus();
-        await tooth11.press('Enter');
-      }
-      await individualMode.click();
-      await page.waitForTimeout(200);
 
       await plan.screenshot({
         path: path.join(outDir, `g4-plan-${slug}-schema-open-${viewport.width}x${viewport.height}.png`),
         animations: 'disabled',
       });
 
-      await groupMode.click();
       await tooth11.focus();
       await tooth11.press('Enter');
       await page.waitForFunction(
-        () => [...document.querySelectorAll('[role="button"][aria-label^="Dent 11"]')]
+        () => [...document.querySelectorAll('[role="button"][aria-label="Dent 11"]')]
           .some((el) => el.getAttribute('aria-pressed') === 'true'),
         null,
         { timeout: 10000 },
@@ -254,8 +243,7 @@ for (const viewport of viewports) {
 
       const childTab = page.getByRole('button', { name: 'Enfant', exact: true });
       await childTab.click();
-      await individualMode.click();
-      const tooth51 = page.getByRole('button', { name: /^Dent 51(?:,|$)/ }).first();
+      const tooth51 = page.getByRole('button', { name: 'Dent 51', exact: true }).first();
       await tooth51.waitFor({ state: 'visible', timeout: 30000 });
       await page.waitForTimeout(200);
 
@@ -264,12 +252,10 @@ for (const viewport of viewports) {
         animations: 'disabled',
       });
 
-      const childGroupMode = page.getByRole('button', { name: 'Soins groupés', exact: true });
-      await childGroupMode.click();
       await tooth51.focus();
       await tooth51.press('Enter');
       await page.waitForFunction(
-        () => [...document.querySelectorAll('[role="button"][aria-label^="Dent 51"]')]
+        () => [...document.querySelectorAll('[role="button"][aria-label="Dent 51"]')]
           .some((el) => el.getAttribute('aria-pressed') === 'true'),
         null,
         { timeout: 10000 },
