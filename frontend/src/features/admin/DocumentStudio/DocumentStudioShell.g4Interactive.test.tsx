@@ -2,8 +2,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StudioTabs } from './StudioTabs';
 import { StudioFooter } from './StudioFooter';
+import { useAccountingStore } from '../store/useAccountingStore';
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  useAccountingStore.getState().reset();
+});
 
 describe('Document Studio G4 shell controls', () => {
   it('routes every allowed document tab through the canonical tab-change boundary', () => {
@@ -66,6 +70,19 @@ describe('Document Studio G4 shell controls', () => {
 
     fireEvent.click(screen.getByRole('button',{name:/Imprimer/i}));
     expect(onGenerate).toHaveBeenCalledWith(false,true,false,false);
+
+    fireEvent.click(screen.getByRole('button',{name:'Payé'}));
+    fireEvent.click(screen.getByRole('button',{name:'TPE'}));
+    expect(useAccountingStore.getState().paymentStatus).toBe('PAYE');
+    expect(useAccountingStore.getState().paymentMode).toBe('TPE');
+
+    fireEvent.click(screen.getByRole('button',{name:'Partiel'}));
+    expect(useAccountingStore.getState().paymentStatus).toBe('PAYE');
+    expect(screen.getByRole('alert').textContent).toMatch(/montant encaissé explicite/i);
+
+    fireEvent.click(screen.getByRole('button',{name:'Compris'}));
+    fireEvent.click(screen.getByRole('button',{name:'À régler'}));
+    expect(useAccountingStore.getState().paymentStatus).toBe('EN_ATTENTE');
   });
 
   it('uses fresh-PDF generation for certificate/libre print preparation', () => {

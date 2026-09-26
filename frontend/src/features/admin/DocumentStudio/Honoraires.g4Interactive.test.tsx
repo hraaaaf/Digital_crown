@@ -89,7 +89,7 @@ describe('Honoraires G4 interactive controls', () => {
     renderHonoraires();
     await addCatalogBackedLine('Consultation',300);
 
-    fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Échéances & options/i}));
     expect(screen.getByText('Encaissement')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button',{name:'Réglé'}));
@@ -109,7 +109,7 @@ describe('Honoraires G4 interactive controls', () => {
   it('refuses partial-payment status and exposes the guard instead of silently changing state', async () => {
     renderHonoraires();
     await addCatalogBackedLine('Consultation',300);
-    fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Échéances & options/i}));
     fireEvent.click(screen.getByRole('button',{name:'Partiel'}));
 
     expect(useAccountingStore.getState().paymentStatus).toBe('EN_ATTENTE');
@@ -123,7 +123,7 @@ describe('Honoraires G4 interactive controls', () => {
   it('switches unique/global billing and adds/removes planned installments without persistence side effects', async () => {
     renderHonoraires();
     await addCatalogBackedLine('Consultation',300);
-    fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
+    fireEvent.click(screen.getByRole('button',{name:/Échéances & options/i}));
 
     fireEvent.click(screen.getByRole('button',{name:/Global \/ Planifié/i}));
     expect(useAccountingStore.getState().isGlobalNote).toBe(true);
@@ -145,8 +145,8 @@ describe('Honoraires G4 interactive controls', () => {
   it('closes the treasury modal without changing the configured payment state', async () => {
     renderHonoraires();
     await addCatalogBackedLine('Consultation',300);
-    fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
-    fireEvent.click(screen.getByRole('button',{name:'Cash'}));
+    fireEvent.click(screen.getByRole('button',{name:/Échéances & options/i}));
+    fireEvent.click(screen.getByRole('button',{name:'Espèces'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer à la note'}));
 
     await waitFor(() => expect(screen.queryByText('Encaissement')).toBeNull());

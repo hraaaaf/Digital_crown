@@ -894,7 +894,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   onClick={() => setIsTreasuryModalOpen(true)}
                   className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex justify-center items-center gap-2"
                 >
-                  <Banknote size={20} /> Procéder à l'Encaissement
+                  <History size={18} /> Échéances & options
                 </button>
               )}
             </div>
@@ -1008,7 +1008,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           paymentMode === m ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                         )}
                       >
-                        {m === 'Espèces' ? 'Cash' : m}
+                        {m}
                       </button>
                     ))}
                   </div>

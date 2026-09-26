@@ -168,19 +168,19 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
   });
 
-  it('uses neutral quick selection and adds a compatible multi-tooth act', () => {
+  it('uses neutral whole-arch quick selection and adds a compatible multi-tooth act', () => {
     renderDevis();
     fireEvent.click(screen.getByText('Sélection rapide',{exact:true}));
-    fireEvent.click(screen.getByRole('button',{name:'Q1'}));
+    fireEvent.click(screen.getByRole('button',{name:'Maxillaire'}));
 
-    expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([11,12,13,14,15,16,17,18]);
+    expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28]);
     fireEvent.click(screen.getByRole('button',{name:'Bridge'}));
 
     expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
       description:'Bridge',
       price:1800,
       category:'PROTHESE',
-      toothNumbers:[11,12,13,14,15,16,17,18],
+      toothNumbers:[11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28],
     }));
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
   });
@@ -189,7 +189,7 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     renderDevis();
     fireEvent.click(screen.getByRole('button',{name:'Enfant'}));
     fireEvent.click(screen.getByText('Sélection rapide',{exact:true}));
-    fireEvent.click(screen.getByRole('button',{name:'Q5'}));
+    fireEvent.click(screen.getByRole('button',{name:'Maxillaire'}));
 
     expect(screen.queryByRole('button',{name:'Bridge'})).toBeNull();
     expect(screen.getByRole('button',{name:"Mainteneur d'espace"})).toBeTruthy();
@@ -199,11 +199,11 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     renderDevis();
     fireEvent.click(screen.getByText('Sélection rapide',{exact:true}));
 
-    for (const label of ['Maxillaire','Mandibule','Q1','Q2','Q3','Q4','Toutes']) {
+    for (const label of ['Maxillaire','Mandibule','Toutes']) {
       expect(screen.getByRole('button',{name:label})).toBeTruthy();
     }
 
-    fireEvent.click(screen.getByRole('button',{name:'Q1'}));
+    fireEvent.click(screen.getByRole('button',{name:'Maxillaire'}));
     fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
 
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);

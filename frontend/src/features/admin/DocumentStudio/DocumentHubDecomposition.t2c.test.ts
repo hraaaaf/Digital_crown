@@ -47,6 +47,12 @@ describe('Document Studio T2-C shell decomposition', () => {
     expect(content).toContain("activeTab === 'devis' || activeTab === 'honoraires'");
   });
 
+  it('anchors accounting actions outside the scrollable document content', () => {
+    expect(hub).toContain('data-accounting-action-dock');
+    expect(hub).toContain('"absolute bottom-3 left-4 right-4 z-[80]');
+    expect(hub).toContain("activeTab === 'honoraires' ? \"pb-60 sm:pb-48\"");
+  });
+
   it('keeps preview freshness and dialogs outside the root shell', () => {
     expect(preview).toContain('useDocumentPreviewController');
     expect(preview).toContain('pdfUrl={stale ? null : pdfUrl}');

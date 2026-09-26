@@ -104,7 +104,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('all-20-pediatric-teeth-toggle');
 
   await page.getByText('Sélection rapide', { exact: true }).click();
-  for (const group of ['Maxillaire','Mandibule','Q5','Q6','Q7','Q8','Toutes']) {
+  for (const group of ['Maxillaire','Mandibule','Toutes']) {
     await page.getByRole('button', { name: group, exact: true }).click();
     await page.getByText(/dent\(s\) sélectionnée\(s\)/i).waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
@@ -119,7 +119,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('odontogram-open-collapse-adult-pediatric');
 
   await page.getByText('Sélection rapide', { exact: true }).click();
-  for (const group of ['Maxillaire','Mandibule','Q1','Q2','Q3','Q4','Toutes']) {
+  for (const group of ['Maxillaire','Mandibule','Toutes']) {
     await page.getByRole('button', { name: group, exact: true }).click();
     await page.getByText(/dent\(s\) sélectionnée\(s\)/i).waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
@@ -176,6 +176,28 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (responsiveScene.overflow) throw new Error('Odontogram selection flow overflow detected');
   actions.push('odontogram-selection-responsive');
 
+  const actionDock = page.locator('[data-accounting-action-dock]');
+  await actionDock.waitFor({ state: 'visible', timeout: 5000 });
+  const dockBox = await actionDock.boundingBox();
+  if (!dockBox || dockBox.y < 0 || dockBox.y + dockBox.height > viewport.height + 2) {
+    throw new Error('Accounting action dock is not fully viewport-accessible');
+  }
+  for (const label of ['Aperçu','Enregistrer','Imprimer','À régler','Partiel','Payé','Espèces','TPE','Chèque','Virement']) {
+    await actionDock.getByRole('button', { name: label, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  }
+  await actionDock.getByRole('button', { name: 'Payé', exact: true }).click();
+  await actionDock.getByRole('button', { name: 'TPE', exact: true }).click();
+  await actionDock.getByRole('button', { name: 'Partiel', exact: true }).click();
+  await actionDock.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
+  await actionDock.getByRole('button', { name: 'Compris', exact: true }).click();
+  await actionDock.getByRole('button', { name: 'À régler', exact: true }).click();
+  await page.screenshot({
+    path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-accounting-action-dock.png'),
+    fullPage: false,
+    animations: 'disabled',
+  });
+  actions.push('accounting-action-dock-no-scroll');
+
   await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
   const descriptions = page.getByPlaceholder('Rechercher ou saisir un acte...');
   const prices = page.getByPlaceholder('0.00');
@@ -187,18 +209,20 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await page.getByText('G4 Honoraires manuel', { exact: true }).count()) throw new Error('Manual honorarium line removal failed');
   actions.push('manual-line-order-delete');
 
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
-  await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
+  const advancedTitle = page.getByText('Encaissement', { exact: true });
+  await advancedTitle.waitFor({ state: 'visible' });
+  const advancedOverlay = advancedTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
 
-  const accountedLabel = page.getByText('Comptabiliser CA', { exact: true });
+  const accountedLabel = advancedOverlay.getByText('Comptabiliser CA', { exact: true });
   await accountedLabel.locator('..').getByRole('button').click();
   // A prior successful catalog action may still have a transient toast over the
   // treasury status row. Do not force the click: wait until the real pointer
   // path is available, then exercise the visible control normally.
   await waitForPointerBlockingToasts(page);
-  await page.getByRole('button', { name: 'Attente', exact: true }).click();
-  await page.getByRole('button', { name: 'Partiel', exact: true }).click();
-  await page.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
+  await advancedOverlay.getByRole('button', { name: 'Attente', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Partiel', exact: true }).click();
+  await advancedOverlay.getByRole('alert').waitFor({ state: 'visible', timeout: 5000 });
   await page.screenshot({
     path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-treasury-partial-guard-before.png'),
     fullPage: false,
@@ -215,16 +239,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await context.close();
     continue;
   }
-  await page.getByRole('button', { name: 'Compris', exact: true }).click();
-  await page.getByRole('button', { name: 'Réglé', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Compris', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Réglé', exact: true }).click();
 
-  for (const mode of ['Cash','Chèque','TPE','Virement']) {
-    await page.getByRole('button', { name: mode, exact: true }).click();
+  for (const mode of ['Espèces','Chèque','TPE','Virement']) {
+    await advancedOverlay.getByRole('button', { name: mode, exact: true }).click();
   }
 
-  await page.getByRole('button', { name: 'Unique', exact: true }).click();
-  await page.getByRole('button', { name: /Global \/ Planifié/i }).click();
-  await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
+  await advancedOverlay.getByRole('button', { name: 'Unique', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: /Global \/ Planifié/i }).click();
+  await advancedOverlay.getByRole('button', { name: /Nouvelle Échéance/i }).click();
   let installment = await inputByValue(page, 'Versement 1');
   await installment.fill('Échéance G4 supprimée');
   let row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
@@ -238,7 +262,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     if (String(error).includes('Treasury installment delete failed')) throw error;
   }
 
-  await page.getByRole('button', { name: /Nouvelle Échéance/i }).click();
+  await advancedOverlay.getByRole('button', { name: /Nouvelle Échéance/i }).click();
   installment = await inputByValue(page, 'Versement 1');
   await installment.fill('Échéance G4');
   row = installment.locator('xpath=ancestor::div[contains(@class,"grid")][1]');
@@ -251,7 +275,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     const urlValue = req.url();
     if (/payments|documents\/generate|installments/.test(urlValue)) persistenceRequests.push(urlValue);
   };
-  const truthCopy = page.getByText('Ces réglages seront enregistrés avec la note lors de son enregistrement.', { exact: true });
+  const truthCopy = advancedOverlay.getByText('Ces réglages seront enregistrés avec la note lors de son enregistrement.', { exact: true });
   await truthCopy.waitFor({ state: 'visible', timeout: 5000 });
   await page.screenshot({
     path: path.join(outDir, 'g4-honoraires-' + viewport.width + 'x' + viewport.height + '-treasury-truth-after.png'),
@@ -259,13 +283,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     animations: 'disabled',
   });
   page.on('request', requestListener);
-  await page.getByRole('button', { name: 'Appliquer à la note', exact: true }).click();
+  await advancedOverlay.getByRole('button', { name: 'Appliquer à la note', exact: true }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   page.off('request', requestListener);
   if (persistenceRequests.length) throw new Error('Treasury apply unexpectedly persisted');
   actions.push('treasury-apply-local-only-truthful');
 
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
   const treasuryTitle = page.getByText('Encaissement', { exact: true });
   const treasuryOverlay = treasuryTitle.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
   const treasuryTopClose = treasuryOverlay.locator('button').first();
@@ -283,7 +307,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await treasuryTopClose.click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
 
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
   await page.getByRole('button', { name: 'Fermer', exact: true }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   actions.push('treasury-close-controls');
@@ -300,7 +324,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 await browser.close();
 await api.dispose();
 
-const expectedActionGroups = 13;
+const expectedActionGroups = 14;
 if (!captureTreasuryGuardBeforeOnly) {
   for (const row of evidence) {
     if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
