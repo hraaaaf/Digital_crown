@@ -42,15 +42,14 @@ jobs:
           import fs from 'node:fs/promises';
           import { chromium } from 'playwright';
           import { createServer } from 'vite';
-          import react from '@vitejs/plugin-react';
-
+          
           const output=path.resolve('../artifacts/sidebar-premium');
           await fs.mkdir(output,{recursive:true});
           const roots={before:path.resolve('../../before/frontend'),after:process.cwd()};
           const ports={before:4191,after:4192};
           const servers={};
           for (const kind of ['before','after']) {
-            servers[kind]=await createServer({configFile:false,root:roots[kind],plugins:[react(),{name:'sidebar-pwa-stub',resolveId(id){return id==='virtual:pwa-register'?'\0virtual:pwa-register':null},load(id){return id==='\0virtual:pwa-register'?'export const registerSW = () => () => {};':null}}],server:{host:'127.0.0.1',port:ports[kind],strictPort:true},clearScreen:false});
+            servers[kind]=await createServer({root:roots[kind],server:{host:'127.0.0.1',port:ports[kind],strictPort:true,hmr:{overlay:false}},clearScreen:false});
             await servers[kind].listen();
           }
           const browser=await chromium.launch({headless:true});
