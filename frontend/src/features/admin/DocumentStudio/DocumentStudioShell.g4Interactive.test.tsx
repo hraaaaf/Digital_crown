@@ -60,7 +60,7 @@ describe('Document Studio G4 shell controls', () => {
       />,
     );
 
-    const totalLabel=screen.getByText('Total document');
+    const totalLabel=screen.getByText('Total', { exact: true });
     expect(totalLabel.parentElement?.textContent?.replace(/\s/g,'')).toContain('1250MAD');
     fireEvent.click(screen.getByRole('button',{name:/Aperçu/i}));
     expect(onTogglePreview).toHaveBeenCalledTimes(1);
