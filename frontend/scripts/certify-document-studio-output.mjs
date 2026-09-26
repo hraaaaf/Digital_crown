@@ -167,7 +167,7 @@ try {
   await waitForStudio('Devis');
   await page.getByRole('button', { name: 'Actes rapides', exact: true }).click();
   await page.getByRole('button', { name: /Nouvel acte/i }).click();
-  await page.getByPlaceholder('Rechercher ou saisir un acte...').last().fill('Certification impression T2');
+  await page.getByPlaceholder('Rechercher un acte du catalogue...').last().fill('Certification impression T2');
   await page.getByPlaceholder('0.00').last().fill('321');
 
   const generatedForPrint = page.waitForResponse((response) =>
