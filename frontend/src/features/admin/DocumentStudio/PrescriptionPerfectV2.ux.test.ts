@@ -22,7 +22,7 @@ describe('Ordonnance Perfect V2 UX contract', () => {
   });
 
   it('keeps the ordonnance header in normal flow so it cannot cover prescription content', () => {
-    expect(header).toContain('compactOrdonnance ? "relative z-20" : "sticky top-0 z-[60]"');
+    expect(header).toContain('compactOrdonnance || compactAccounting ? "relative z-20" : "sticky top-0 z-[60]"');
   });
 
   it('keeps legacy quick-entry hidden from the active V1 clinical path', () => {
