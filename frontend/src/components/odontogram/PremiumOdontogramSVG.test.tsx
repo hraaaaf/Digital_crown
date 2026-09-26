@@ -17,18 +17,24 @@ describe('PremiumOdontogramSVG', () => {
     expect(onToothClick).toHaveBeenCalledWith(11);
   });
 
-  it('renders pediatric FDI teeth from legacy pediatric anatomy without adult quadrants', () => {
-    const { container } = render(<PremiumOdontogramSVG type="PEDIATRIC" />);
+  it('renders 20 pediatric FDI teeth from isolated anatomical slices without adult quadrants', () => {
+    const onToothClick = vi.fn();
+    const { container } = render(<PremiumOdontogramSVG type="PEDIATRIC" onToothClick={onToothClick} />);
 
     expect(screen.getByRole('group', { name: 'Odontogramme enfant' })).toBeTruthy();
+    expect(screen.getAllByRole('button')).toHaveLength(20);
     expect(screen.getByRole('button', { name: 'Dent 55' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Dent 61' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Dent 85' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Dent 71' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Dent 18' })).toBeNull();
-    expect(container.innerHTML).toContain('data-odontogram-asset="legacy-pediatric-anatomy"');
+    expect(container.innerHTML).toContain('data-odontogram-asset="legacy-pediatric-teeth-extracted-v2"');
     expect(container.innerHTML).toContain('/assets/odontogram/pediatric-anatomical.jpg');
     expect(container.innerHTML).toContain('fill-text-main');
+    expect(container.textContent).not.toContain('Upper teeth');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dent 51' }));
+    expect(onToothClick).toHaveBeenCalledWith(51);
   });
 
   it('keeps selected state accessible and keyboard-activatable', () => {
