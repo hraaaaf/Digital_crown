@@ -609,8 +609,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 </div>
                               ) : (
                                 <>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                                       <div className="flex -space-x-2">
                                         {groupSelectedTeeth.slice(0, 4).map(n => (
                                           <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
@@ -619,12 +619,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                           <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 4}</div>
                                         )}
                                       </div>
-                                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{groupSelectedTeeth.length} dents sélectionnées</span>
+                                      <span className="truncate text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-wide sm:tracking-widest">{groupSelectedTeeth.length} dent(s) sélectionnée(s)</span>
                                     </div>
                                     <button type="button" onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-2">
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                     {['Bridge', 'Stellite', 'Prothèse Adjointe (PAP)', `Curetage (${detectRegion(groupSelectedTeeth)})`, `Surfaçage (${detectRegion(groupSelectedTeeth)})`, 'Attelle de contention'].map(act => (
                                       <button
                                         key={act}
@@ -652,30 +652,30 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                           setGroupTreatmentPrice('');
                                           toast.success(`Ajouté : ${act}`);
                                         }}
-                                        className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
+                                        className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
                                       >{act}</button>
                                     ))}
                                   </div>
 
-                                  <div className="flex gap-2 pt-2 border-t border-white/10">
+                                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_6rem_auto] gap-2 pt-2 border-t border-white/10">
                                     <input 
                                       type="text"
                                       placeholder="Ou saisir un autre acte..."
-                                      className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
+                                      className="w-full min-w-0 bg-white/10 border border-white/10 rounded-xl px-3 sm:px-4 py-3 text-xs font-bold text-white outline-none focus:border-primary/50"
                                       value={groupTreatmentName}
                                       onChange={(e) => setGroupTreatmentName(e.target.value)}
                                     />
                                     <input 
                                       type="number"
                                       placeholder="Prix"
-                                      className="bg-white/10 border border-white/10 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 w-24 text-center"
+                                      className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 text-center"
                                       value={groupTreatmentPrice}
                                       onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
                                     />
                                     <button 
                                       type="button"
                                       onClick={applyGroupTreatment}
-                                      className="px-6 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20 text-[10px] font-black uppercase tracking-widest"
+                                      className="w-full sm:w-auto px-5 sm:px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20 text-[10px] font-black uppercase tracking-widest"
                                     >
                                       Appliquer
                                     </button>
