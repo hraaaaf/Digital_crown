@@ -68,7 +68,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     items, setItems,
     paymentMode, setPaymentMode,
     showOdontoPanoramique, setShowOdontoPanoramique,
-    odontogramMode, setOdontogramMode,
     groupSelectedTeeth, setGroupSelectedTeeth,
     actSuggestions, setActSuggestions,
     activeActSearchId, setActiveActSearchId,
@@ -129,53 +128,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   const [newCatalogActName, setNewCatalogActName] = useState('');
   const [newCatalogActPrice, setNewCatalogActPrice] = useState('');
   const [newCatalogActSpecialtyId, setNewCatalogActSpecialtyId] = useState<number | ''>('');
-  const [groupTreatmentSpecialtyId, setGroupTreatmentSpecialtyId] = useState<number | ''>('');
-
-  const selectTeethGroup = (g: string) => {
-    setGroupSelectedTeeth(odontogramGroupSelection(odontogramType, g));
-  };
-
-  const applyGroupTreatment = async () => {
-    if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
-    if (!groupTreatmentSpecialtyId) {
-      toast.error('Choisissez la spécialité de ce nouvel acte groupé.');
-      return;
-    }
-    const specialtyId = Number(groupTreatmentSpecialtyId);
-    const specialty = specialties.find(s => s.id === specialtyId);
-    const existing = findCatalogAct(specialtyId, groupTreatmentName);
-    const enteredPrice = Number(groupTreatmentPrice) || 0;
-    const effectivePrice = enteredPrice > 0 ? enteredPrice : Number(existing?.base_price) || 0;
-    const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-    const ok = await ensureCatalogAct(
-      specialtyId,
-      groupTreatmentName,
-      enteredPrice,
-      {
-        dentitions: odontogramType === 'PEDIATRIC' ? ['PRIMARY'] : ['PERMANENT'],
-        treatment_areas: ['TOOTH_RANGE'],
-        selection_modes: ['GROUP'],
-        min_selected_teeth: Math.max(2, sorted.length),
-        suggestion_priority: 50,
-        searchable_when_not_suggested: true,
-      },
-    );
-    if (!ok) return;
-    setItems((prev: any) => [...prev, {
-      id: Date.now(),
-      description: groupTreatmentName.trim().replace(/\s+/g, ' '),
-      dent: sorted.join('-'),
-      price: effectivePrice,
-      toothNumbers: sorted,
-      category: specialty?.name,
-      catalogActId: existing?.id,
-    }]);
-    setGroupSelectedTeeth([]);
-    setGroupTreatmentName('');
-    setGroupTreatmentPrice('');
-    setGroupTreatmentSpecialtyId('');
-  };
-
   const replaceToothTreatmentsFromSelector = React.useCallback((
     toothNumber: number,
     treatments: ToothTreatment[],
