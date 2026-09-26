@@ -149,6 +149,28 @@ jobs:
           const browser = await chromium.launch();
 
           try {
+            // Warm Vite's dependency optimizer once before evidence collection.
+            // The cert remains strict on real page/runtime errors; this prevents
+            // transient "504 Outdated Optimize Dep" reloads from contaminating
+            // a later viewport after Vite discovers a new dependency.
+            const warmContext = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
+            const warmPage = await warmContext.newPage();
+            await warmPage.route('**/*', async route => {
+              const request = route.request();
+              const url = new URL(request.url());
+              if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
+              if (request.method() !== 'GET') return route.fulfill(json({}));
+              if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
+              if (url.pathname.endsWith('/catalog/specialties')) return route.fulfill(json(catalog));
+              return route.fulfill(json({}));
+            });
+            await warmPage.goto('http://127.0.0.1:4181/settings-catalog-r6.html', { waitUntil: 'networkidle' });
+            await warmPage.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
+            await warmPage.getByRole('button', { name: /Catalogue Actes/i }).click();
+            await warmPage.getByRole('heading', { name: /Catalogue des actes/i }).waitFor({ state: 'visible' });
+            await warmPage.waitForTimeout(500);
+            await warmContext.close();
+
             for (const width of [1440, 1024, 768, 430, 390]) {
               const context = await browser.newContext({ viewport: { width, height: 1200 } });
               const page = await context.newPage();
