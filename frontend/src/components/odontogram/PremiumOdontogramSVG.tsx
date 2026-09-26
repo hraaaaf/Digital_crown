@@ -19,8 +19,13 @@ const ADULT_LOWER = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 const CHILD_UPPER = [55,54,53,52,51,61,62,63,64,65];
 const CHILD_LOWER = [85,84,83,82,81,71,72,73,74,75];
 
-const kindFor = (tooth: number): ToothKind => {
+const kindFor = (tooth: number, type: OdontogramType): ToothKind => {
   const n = tooth % 10;
+  if (type === 'PEDIATRIC') {
+    if (n >= 4) return 'molar';
+    if (n === 3) return 'canine';
+    return 'incisor';
+  }
   if (n >= 6) return 'molar';
   if (n >= 4) return 'premolar';
   if (n === 3) return 'canine';
@@ -95,7 +100,7 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
   };
 
   const renderTooth = (tooth: number, index: number, count: number, row: 'upper'|'lower') => {
-    const kind = kindFor(tooth);
+    const kind = kindFor(tooth, type);
     const { w, h } = metrics[kind];
     const x = rowX(index, count);
     const y = row === 'upper' ? upperY : lowerY;
