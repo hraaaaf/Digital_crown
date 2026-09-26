@@ -14,6 +14,8 @@ const act = (overrides: Partial<CatalogAct> = {}): CatalogAct => ({
   name: 'Acte test',
   base_price: 100,
   is_active: true,
+  is_favorite: false,
+  usage_count: 0,
   applicability: {},
   ...overrides,
 });
