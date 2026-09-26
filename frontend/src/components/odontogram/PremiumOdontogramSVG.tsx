@@ -49,7 +49,7 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
   return (
     <div
       className={cn(
-        'w-full rounded-2xl border border-border-main bg-card/80 p-1.5 shadow-sm backdrop-blur-xl sm:p-3',
+        'w-full min-w-0 overflow-hidden rounded-2xl border border-border-main bg-card/80 p-1 shadow-sm backdrop-blur-xl sm:p-2',
         className,
       )}
       data-premium-odontogram={type === 'ADULT' ? 'adult' : 'pediatric'}
@@ -57,7 +57,7 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
     >
       <svg
         viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
-        className="block h-auto w-full overflow-visible"
+        className="block h-auto w-full max-w-full overflow-hidden"
         role="group"
         aria-label={type === 'ADULT' ? 'Odontogramme adulte' : 'Odontogramme enfant'}
         preserveAspectRatio="xMidYMid meet"
