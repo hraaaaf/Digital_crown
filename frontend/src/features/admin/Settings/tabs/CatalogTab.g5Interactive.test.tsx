@@ -25,6 +25,23 @@ const state = vi.hoisted(() => ({
 
 vi.mock('../hooks/useCatalogStore', () => ({
   useCatalogStore: () => state,
+  normalizeCatalogActApplicability: (value:any = {}) => ({
+    dentitions: [],
+    tooth_types: [],
+    treatment_areas: [],
+    selection_modes: [],
+    requires_present_tooth: false,
+    requires_missing_tooth: false,
+    min_selected_teeth: 0,
+    max_selected_teeth: null,
+    suggestion_priority: 0,
+    searchable_when_not_suggested: true,
+    ...value,
+    dentitions: [...(value.dentitions || [])],
+    tooth_types: [...(value.tooth_types || [])],
+    treatment_areas: [...(value.treatment_areas || [])],
+    selection_modes: [...(value.selection_modes || [])],
+  }),
 }));
 
 beforeEach(() => {
@@ -96,6 +113,31 @@ describe('CatalogTab G5 interactive matrix', () => {
     await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ name: 'Consultation', code: 'CONS', base_price: 350, is_active: true }),
+    ));
+  });
+
+  it('creates a modular primary-tooth act with editable applicability', async () => {
+    render(<CatalogTab />);
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter un acte/i }));
+
+    fireEvent.change(screen.getByPlaceholderText('Ex. Détartrage'), { target: { value: 'Acte pédiatrique custom' } });
+    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '420' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Temporaire' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ciblé' }));
+    fireEvent.change(screen.getByDisplayValue('0'), { target: { value: '70' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        name: 'Acte pédiatrique custom',
+        base_price: 420,
+        applicability: expect.objectContaining({
+          dentitions: ['PRIMARY'],
+          selection_modes: ['INDIVIDUAL'],
+          suggestion_priority: 70,
+        }),
+      }),
     ));
   });
 
