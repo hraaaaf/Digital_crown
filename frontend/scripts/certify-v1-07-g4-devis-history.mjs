@@ -94,16 +94,19 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).count()) throw new Error('Devis exposes treasury collection');
 
   const manual = page.getByRole('button', { name: /Ligne Manuelle/i }).last();
-  await manual.click();
-  let descriptions = page.getByPlaceholder('Rechercher ou saisir un acte...');
-  let prices = page.getByPlaceholder('0.00');
-  await descriptions.last().fill('Détartrage G4 ' + viewport.width);
-  await prices.last().fill('500');
-  await manual.click();
-  descriptions = page.getByPlaceholder('Rechercher ou saisir un acte...');
-  prices = page.getByPlaceholder('0.00');
-  await descriptions.last().fill('Bridge G4 ' + viewport.width);
-  await prices.last().fill('1800');
+  const createManualCatalogLine = async (name, price) => {
+    await manual.click();
+    const nameInput = page.getByPlaceholder("Nom de l'acte").last();
+    const priceInput = page.getByPlaceholder('Tarif à définir').last();
+    await nameInput.waitFor({ state: 'visible', timeout: 5000 });
+    await nameInput.fill(name);
+    await priceInput.fill(String(price));
+    await page.getByRole('button', { name: 'Créer et ajouter', exact: true }).last().click();
+    await nameInput.waitFor({ state: 'hidden', timeout: 10000 });
+    await page.getByDisplayValue(name).last().waitFor({ state: 'visible', timeout: 10000 });
+  };
+  await createManualCatalogLine('Détartrage G4 ' + viewport.width, 500);
+  await createManualCatalogLine('Bridge G4 ' + viewport.width, 1800);
   await page.getByRole('button', { name: /Organiser par phases/i }).click();
   await page.waitForFunction(() => [...document.querySelectorAll('input, textarea')].some(element => /PHASE 1 : ASSAINISSEMENT/i.test(element.value)), null, { timeout: 5000 });
   await page.waitForFunction(() => [...document.querySelectorAll('input, textarea')].some(element => /PHASE 3 : PROTHÉTIQUE/i.test(element.value)), null, { timeout: 5000 });
