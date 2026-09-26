@@ -87,6 +87,7 @@ interface CatalogState {
   loading: boolean;
   readError: string | null;
   fetchCatalog: () => Promise<void>;
+  applyReferenceCatalog: () => Promise<boolean>;
   createSpecialty: (data: SpecialtyMutation) => Promise<boolean>;
   updateSpecialty: (id: number, data: Partial<SpecialtyMutation>) => Promise<boolean>;
   createPathology: (specialtyId: number, data: PathologyMutation) => Promise<boolean>;
@@ -116,6 +117,18 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       toast.error('Erreur lors du chargement du catalogue');
     } finally {
       set({ loading: false });
+    }
+  },
+
+  applyReferenceCatalog: async () => {
+    if (get().readError) return false;
+    try {
+      await api.post('/catalog/reference/apply');
+      return true;
+    } catch (error) {
+      console.error(error);
+      mutationError(error, "Impossible d'installer la bibliothèque clinique de référence");
+      return false;
     }
   },
 

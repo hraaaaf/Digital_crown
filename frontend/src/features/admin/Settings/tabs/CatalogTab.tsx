@@ -312,13 +312,16 @@ const CatalogFormModal: React.FC<{
 };
 
 export const CatalogTab: React.FC = () => {
-  const { specialties, loading, readError, fetchCatalog } = useCatalogStore();
+  const { specialties, loading, readError, fetchCatalog, applyReferenceCatalog } = useCatalogStore();
   const [activeSpecialtyId, setActiveSpecialtyId] = useState<number | null>(null);
   const [modal, setModal] = useState<CatalogModal | null>(null);
 
   useEffect(() => {
-    void fetchCatalog();
-  }, [fetchCatalog]);
+    void (async () => {
+      await applyReferenceCatalog();
+      await fetchCatalog();
+    })();
+  }, [applyReferenceCatalog, fetchCatalog]);
 
   const activeSpecialty = specialties.find((specialty) => specialty.id === activeSpecialtyId) || specialties[0];
 

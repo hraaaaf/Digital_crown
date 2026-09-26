@@ -155,7 +155,7 @@ def _normalize_label(value: str) -> str:
     return " ".join(value.strip().casefold().split())
 
 
-def ensure_reference_catalog(db: Session, employer_id: int) -> dict:
+def apply_reference_catalog(db: Session, employer_id: int) -> dict:
     """Install/upgrade the reference library once per version without overwrites.
 
     Existing specialties, acts and prices are preserved. Missing reference acts
@@ -250,7 +250,6 @@ def ensure_reference_catalog(db: Session, employer_id: int) -> dict:
 
 def list_catalog(db: Session, employer_id: int) -> list[dict]:
     claim_legacy_if_unambiguous(db)
-    ensure_reference_catalog(db, employer_id)
     specs = db.execute(
         select(specialties).where(specialties.c.employer_id == employer_id).order_by(specialties.c.id)
     ).mappings().all()

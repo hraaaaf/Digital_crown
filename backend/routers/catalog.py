@@ -33,6 +33,14 @@ def get_specialties(
     return store.list_catalog(db, _tenant_id(current_user))
 
 
+@router.post("/reference/apply")
+def apply_reference_catalog(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("settings")),
+):
+    return store.apply_reference_catalog(db, _tenant_id(current_user))
+
+
 @router.post("/specialties", response_model=SpecialtyOut, status_code=status.HTTP_201_CREATED)
 def create_specialty(
     payload: SpecialtyCreate,
