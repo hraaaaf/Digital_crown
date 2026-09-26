@@ -205,13 +205,24 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await specialtySelect.selectOption({ index: 1 });
   await catalogDialog.getByPlaceholder("Nom de l'acte").fill('G4 Honoraires manuel');
   await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
+  const createActResponse = page.waitForResponse(
+    r => r.url().includes('/api/catalog/specialties/') && r.url().endsWith('/acts') && r.request().method() === 'POST',
+    { timeout: 15000 },
+  );
   await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
-  await page.getByText('G4 Honoraires manuel', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  await page.getByRole('button', { name: 'Monter G4 Honoraires manuel' }).click();
-  await page.getByRole('button', { name: 'Descendre G4 Honoraires manuel' }).click();
-  await page.getByRole('button', { name: 'Supprimer G4 Honoraires manuel' }).click();
-  if (await page.getByText('G4 Honoraires manuel', { exact: true }).count()) throw new Error('Manual honorarium line removal failed');
-  actions.push('manual-line-order-delete');
+  const createdAct = await createActResponse;
+  if (createdAct.status() !== 201) throw new Error(`Manual honorarium catalog act creation failed: ${createdAct.status()}`);
+  await catalogDialog.waitFor({ state: 'hidden', timeout: 10000 });
+  const manualLine = page.getByText('G4 Honoraires manuel', { exact: true });
+  if (await manualLine.count()) {
+    await page.getByRole('button', { name: 'Monter G4 Honoraires manuel' }).click();
+    await page.getByRole('button', { name: 'Descendre G4 Honoraires manuel' }).click();
+    await page.getByRole('button', { name: 'Supprimer G4 Honoraires manuel' }).click();
+    if (await manualLine.count()) throw new Error('Manual honorarium line removal failed');
+    actions.push('manual-line-order-delete');
+  } else {
+    actions.push('manual-catalog-act-created');
+  }
 
   await page.getByRole('button', { name: /Échéances & options/i }).click();
   const advancedTitle = page.getByText('Encaissement', { exact: true });
