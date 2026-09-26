@@ -43,14 +43,14 @@ describe('Honoraires G4 interactive controls', () => {
     renderHonoraires();
 
     fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
-    let descriptions=screen.getAllByPlaceholderText('Rechercher ou saisir un acte...');
+    let descriptions=screen.getAllByPlaceholderText('Rechercher un acte du catalogue...');
     fireEvent.change(descriptions[0],{target:{value:'Détartrage'}});
     let priceInputs=screen.getAllByPlaceholderText('0.00');
     fireEvent.change(priceInputs[0],{target:{value:'500'}});
     expect(screen.getByText('500 MAD')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
-    descriptions=screen.getAllByPlaceholderText('Rechercher ou saisir un acte...');
+    descriptions=screen.getAllByPlaceholderText('Rechercher un acte du catalogue...');
     fireEvent.change(descriptions[1],{target:{value:'Contrôle'}});
     priceInputs=screen.getAllByPlaceholderText('0.00');
     fireEvent.change(priceInputs[1],{target:{value:'200'}});
@@ -67,7 +67,7 @@ describe('Honoraires G4 interactive controls', () => {
   it('opens treasury and records explicit status/payment/accounting choices in canonical store', () => {
     renderHonoraires();
     fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
-    fireEvent.change(screen.getByPlaceholderText('Rechercher ou saisir un acte...'),{target:{value:'Consultation'}});
+    fireEvent.change(screen.getByPlaceholderText('Rechercher un acte du catalogue...'),{target:{value:'Consultation'}});
     fireEvent.change(screen.getByPlaceholderText('0.00'),{target:{value:'300'}});
 
     fireEvent.click(screen.getByRole('button',{name:/Procéder à l'Encaissement/i}));
