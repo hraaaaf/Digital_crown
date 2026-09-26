@@ -79,9 +79,8 @@ export const PremiumOdontogramSVG: React.FC<PremiumOdontogramSVGProps> = ({
 
           const cx = point.x * 10;
           const cy = point.y * 7.5;
-          const baseRadius = point.r ?? (type === 'ADULT' ? 3.4 : 4.2);
-          const rx = baseRadius * 10;
-          const ry = type === 'ADULT' ? 66 : 72;
+          const rx = type === 'ADULT' ? 25 : 36;
+          const ry = type === 'ADULT' ? 62 : 68;
           const selected = selectedTooth === tooth || multiSelectedTeeth.includes(tooth);
           const focused = focusedTooth === tooth;
           const hovered = hoveredTooth === tooth;
