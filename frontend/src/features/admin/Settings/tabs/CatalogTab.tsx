@@ -7,6 +7,7 @@ import {
   Pencil,
   Plus,
   Stethoscope,
+  Star,
   X,
 } from 'lucide-react';
 import { useCatalogStore } from '../hooks/useCatalogStore';
@@ -50,6 +51,7 @@ const CatalogFormModal: React.FC<{
   onClose: () => void;
 }> = ({ modal, onClose }) => {
   const {
+    specialties,
     createSpecialty,
     updateSpecialty,
     createAct,
@@ -61,6 +63,7 @@ const CatalogFormModal: React.FC<{
   const editingSpecialty = modal.kind === 'specialty' && modal.mode === 'edit' ? modal.specialty : undefined;
   const editingAct = modal.kind === 'act' && modal.mode === 'edit' ? modal.act : undefined;
   const editingPathology = modal.kind === 'pathology' && modal.mode === 'edit' ? modal.pathology : undefined;
+  const actSpecialty = modal.kind === 'act' ? specialties.find(item => item.id === modal.specialtyId) : undefined;
 
   const [name, setName] = useState(editingSpecialty?.name || editingAct?.name || editingPathology?.name || '');
   const [color, setColor] = useState(editingSpecialty?.color || editingAct?.color || (modal.kind === 'specialty' ? DEFAULT_SPECIALTY_COLOR : DEFAULT_ACT_COLOR));
@@ -215,6 +218,10 @@ const CatalogFormModal: React.FC<{
 
           {modal.kind === 'act' && (
             <>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <FieldLabel>Spécialité</FieldLabel>
+                <p className="mt-1 text-sm font-black text-slate-800">{actSpecialty?.name || 'Spécialité inconnue'}</p>
+              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="block space-y-2">
                   <FieldLabel>Code</FieldLabel>
@@ -227,13 +234,13 @@ const CatalogFormModal: React.FC<{
                   />
                 </label>
                 <label className="block space-y-2">
-                  <FieldLabel>Tarif de base (DHS) *</FieldLabel>
+                  <FieldLabel>Tarif de base (DHS) — facultatif</FieldLabel>
                   <input
                     inputMode="decimal"
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
                     className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
-                    placeholder="0"
+                    placeholder="Tarif à définir"
                   />
                 </label>
               </div>
@@ -312,7 +319,7 @@ const CatalogFormModal: React.FC<{
 };
 
 export const CatalogTab: React.FC = () => {
-  const { specialties, loading, readError, fetchCatalog, applyReferenceCatalog } = useCatalogStore();
+  const { specialties, loading, readError, fetchCatalog, applyReferenceCatalog, setActFavorite } = useCatalogStore();
   const [activeSpecialtyId, setActiveSpecialtyId] = useState<number | null>(null);
   const [modal, setModal] = useState<CatalogModal | null>(null);
 
@@ -448,17 +455,42 @@ export const CatalogTab: React.FC = () => {
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {act.code && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-400">{act.code}</span>}
                         <span className="text-sm font-black text-sky-700">{Number(act.base_price) > 0 ? `${act.base_price} DHS` : 'Tarif à définir'}</span>
+                        {act.last_used_at && (
+                          <span className="text-[10px] font-bold text-slate-400">
+                            Récent · {new Date(act.last_used_at).toLocaleDateString('fr-FR')}
+                          </span>
+                        )}
+                        {act.usage_count > 0 && (
+                          <span className="text-[10px] font-bold text-slate-400">{act.usage_count} utilisation(s)</span>
+                        )}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setModal({ kind: 'act', mode: 'edit', specialtyId: activeSpecialty.id, act })}
-                      aria-label={`Modifier l'acte ${act.name}`}
-                      title="Modifier l'acte"
-                      className="shrink-0 rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
-                    >
-                      <Pencil size={15} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void setActFavorite(act.id, !act.is_favorite)}
+                        aria-label={act.is_favorite ? `Retirer ${act.name} des favoris` : `Ajouter ${act.name} aux favoris`}
+                        title={act.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                        className="rounded-xl border border-slate-200 p-2.5 transition hover:border-primary/30 hover:bg-primary/5"
+                      >
+                        <Star
+                          size={15}
+                          className={cn(
+                            'transition-colors',
+                            act.is_favorite ? 'fill-primary text-primary' : 'text-slate-400',
+                          )}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModal({ kind: 'act', mode: 'edit', specialtyId: activeSpecialty.id, act })}
+                        aria-label={`Modifier l'acte ${act.name}`}
+                        title="Modifier l'acte"
+                        className="rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    </div>
                   </article>
                 ))}
                 {activeSpecialty.acts.length === 0 && (
