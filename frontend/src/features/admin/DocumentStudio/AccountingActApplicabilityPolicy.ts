@@ -32,6 +32,7 @@ export const toothTypeForTooth = (tooth: number): CatalogToothType => {
   const unit = tooth % 10;
   if (unit <= 2) return 'INCISOR';
   if (unit === 3) return 'CANINE';
+  if (dentitionForTooth(tooth) === 'PRIMARY') return 'MOLAR';
   if (unit <= 5) return 'PREMOLAR';
   return 'MOLAR';
 };

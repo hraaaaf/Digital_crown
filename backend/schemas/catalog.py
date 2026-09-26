@@ -24,10 +24,10 @@ class PathologyOut(PathologyBase):
 
 # --- Catalog Acts ---
 class CatalogActApplicability(BaseModel):
-    dentitions: List[Literal["PRIMARY", "PERMANENT"]] = []
-    tooth_types: List[Literal["INCISOR", "CANINE", "PREMOLAR", "MOLAR"]] = []
-    treatment_areas: List[Literal["SURFACE", "TOOTH", "TOOTH_RANGE", "QUADRANT", "ARCH", "MOUTH"]] = []
-    selection_modes: List[Literal["INDIVIDUAL", "GROUP", "GENERAL"]] = []
+    dentitions: List[Literal["PRIMARY", "PERMANENT"]] = Field(default_factory=list)
+    tooth_types: List[Literal["INCISOR", "CANINE", "PREMOLAR", "MOLAR"]] = Field(default_factory=list)
+    treatment_areas: List[Literal["SURFACE", "TOOTH", "TOOTH_RANGE", "QUADRANT", "ARCH", "MOUTH"]] = Field(default_factory=list)
+    selection_modes: List[Literal["INDIVIDUAL", "GROUP", "GENERAL"]] = Field(default_factory=list)
     requires_present_tooth: bool = False
     requires_missing_tooth: bool = False
     min_selected_teeth: int = Field(default=1, ge=0)

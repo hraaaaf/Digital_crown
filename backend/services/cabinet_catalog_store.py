@@ -9,6 +9,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.services.catalog_act_applicability_defaults import default_applicability_for_code
 
 metadata = models.Base.metadata
 
@@ -151,7 +152,7 @@ def list_catalog(db: Session, employer_id: int) -> list[dict]:
         for item in catalog_acts:
             payload = dict(item)
             raw_applicability = payload.pop("applicability_json", None)
-            payload["applicability"] = _decode_applicability(raw_applicability)
+            payload["applicability"] = _decode_applicability(raw_applicability) or default_applicability_for_code(payload.get("code"))
             normalized_acts.append(payload)
         result.append({
             "id": sid,
@@ -192,7 +193,13 @@ def create_act(db: Session, employer_id: int, specialty_id: int, payload: dict) 
     values["applicability_json"] = _encode_applicability(values.pop("applicability", None))
     res = db.execute(insert(acts).values(employer_id=employer_id, specialty_id=specialty_id, **values))
     db.commit()
-    return dict(get_owned(db, acts, int(res.inserted_primary_key[0]), employer_id))
+    row = get_owned(db, acts, int(res.inserted_primary_key[0]), employer_id)
+    if not row:
+        return None
+    result = dict(row)
+    raw_applicability = result.pop("applicability_json", None)
+    result["applicability"] = _decode_applicability(raw_applicability) or default_applicability_for_code(result.get("code"))
+    return result
 
 
 def update_owned(db: Session, table: Table, row_id: int, employer_id: int, payload: dict) -> dict | None:
@@ -211,5 +218,5 @@ def update_owned(db: Session, table: Table, row_id: int, employer_id: int, paylo
         return None
     result = dict(row)
     if table is acts:
-        result["applicability"] = _decode_applicability(result.pop("applicability_json", None))
+        result["applicability"] = _decode_applicability(result.pop("applicability_json", None)) or default_applicability_for_code(result.get("code"))
     return result

@@ -23,7 +23,7 @@ describe('AccountingActApplicabilityPolicy', () => {
     expect(dentitionForTooth(51)).toBe('PRIMARY');
     expect(dentitionForTooth(11)).toBe('PERMANENT');
     expect(toothTypeForTooth(51)).toBe('INCISOR');
-    expect(toothTypeForTooth(55)).toBe('PREMOLAR');
+    expect(toothTypeForTooth(55)).toBe('MOLAR');
     expect(toothTypeForTooth(16)).toBe('MOLAR');
   });
 
