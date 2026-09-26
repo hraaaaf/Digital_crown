@@ -44,6 +44,7 @@ beforeEach(() => {
   mockUser = { is_superadmin: false, permissions: { agenda: true, accounting: true, patients: true, cephalo: true } };
   vi.mocked(api.get).mockResolvedValue({ data: { total: 3 } } as never);
   localStorage.setItem('clinical_tips_enabled', 'true');
+  localStorage.setItem('sidebar_desktop_pinned', 'false');
 });
 
 afterEach(() => cleanup());
@@ -107,6 +108,22 @@ describe('Sidebar G1 navigation matrix', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'R?duire la barre lat?rale' }));
     expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('false');
+  });
+
+  it('reserves desktop layout width while the sidebar is pinned', () => {
+    localStorage.setItem('sidebar_desktop_pinned', 'true');
+    const { container } = renderSidebar();
+    const shell = container.querySelector('.sidebar-shell');
+    const toggle = screen.getByRole('button', { name: 'R?duire la barre lat?rale' });
+
+    expect(shell?.className).toContain('lg:w-72');
+    expect(toggle.className).toContain('right-3');
+    expect(toggle.className).not.toContain('-right-3');
+
+    fireEvent.click(toggle);
+
+    expect(shell?.className).toContain('lg:w-[68px]');
+    expect(screen.getByRole('button', { name: 'D?ployer la barre lat?rale' }).className).toContain('-right-3');
   });
 
   it('closes the mobile drawer through the backdrop', () => {
