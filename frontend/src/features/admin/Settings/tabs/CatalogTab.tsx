@@ -65,7 +65,7 @@ const CatalogFormModal: React.FC<{
   const [name, setName] = useState(editingSpecialty?.name || editingAct?.name || editingPathology?.name || '');
   const [color, setColor] = useState(editingSpecialty?.color || editingAct?.color || (modal.kind === 'specialty' ? DEFAULT_SPECIALTY_COLOR : DEFAULT_ACT_COLOR));
   const [code, setCode] = useState(editingAct?.code || '');
-  const [price, setPrice] = useState(editingAct ? String(editingAct.base_price) : '');
+  const [price, setPrice] = useState(editingAct && Number(editingAct.base_price) > 0 ? String(editingAct.base_price) : '');
   const [description, setDescription] = useState(editingPathology?.description || '');
   const [isActive, setIsActive] = useState(editingAct?.is_active ?? editingPathology?.is_active ?? true);
   const [applicability, setApplicability] = useState<CatalogActApplicability>(() => normalizeCatalogActApplicability(editingAct?.applicability));
@@ -339,7 +339,7 @@ export const CatalogTab: React.FC = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-3xl font-black tracking-tight text-slate-900">Catalogue des actes</h2>
-          <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">Gérez les spécialités, tarifs et pathologies utilisés dans le cabinet.</p>
+          <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">Bibliothèque clinique de référence pré-remplie, entièrement modifiable. Ajoutez librement vos spécialités et vos actes ; les tarifs de référence restent volontairement à définir par le praticien.</p>
         </div>
         <button
           type="button"
@@ -444,7 +444,7 @@ export const CatalogTab: React.FC = () => {
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {act.code && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-400">{act.code}</span>}
-                        <span className="text-sm font-black text-sky-700">{act.base_price} DHS</span>
+                        <span className="text-sm font-black text-sky-700">{Number(act.base_price) > 0 ? `${act.base_price} DHS` : 'Tarif à définir'}</span>
                       </div>
                     </div>
                     <button

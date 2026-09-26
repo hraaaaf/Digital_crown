@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.services.catalog_act_applicability_defaults import default_applicability_for_code
+from backend.services.catalog_reference_library import REFERENCE_CATALOG, REFERENCE_CATALOG_VERSION
 
 metadata = models.Base.metadata
 
@@ -47,10 +48,28 @@ acts = Table(
     UniqueConstraint("employer_id", "code", name="uq_cabinet_act_code"),
 )
 
+catalog_reference_state = Table(
+    "cabinet_catalog_reference_state", metadata,
+    Column("employer_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("version", String(40), nullable=False),
+)
+
+_REFERENCE_SPECIALTY_TARGETS = {
+    "CONSULTATION & DIAGNOSTIC": "DIAGNOSTIC & URGENCE",
+    "PRÉVENTION & HYGIÈNE": "PREVENTION",
+    "DENTISTERIE RESTAURATRICE": "CONSERVATRICE",
+    "CHIRURGIE ORALE": "CHIRURGIE",
+    "PROTHÈSE FIXÉE": "PROTHESE",
+    "PROTHÈSE AMOVIBLE": "PROTHESE",
+    "PÉDODONTIE": "PEDODONTIE",
+    "DENTISTERIE ESTHÉTIQUE": "ESTHETIQUE",
+    "URGENCES & SUIVI POST-OP": "DIAGNOSTIC & URGENCE",
+}
+
 
 def ensure_schema(db: Session) -> None:
     connection = db.connection()
-    required = {specialties.name, pathologies.name, acts.name}
+    required = {specialties.name, pathologies.name, acts.name, catalog_reference_state.name}
     existing = set(inspect(connection).get_table_names())
     missing = sorted(required - existing)
     if missing:
@@ -132,8 +151,106 @@ def _decode_applicability(value: str | None) -> dict:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _normalize_label(value: str) -> str:
+    return " ".join(value.strip().casefold().split())
+
+
+def ensure_reference_catalog(db: Session, employer_id: int) -> dict:
+    """Install/upgrade the reference library once per version without overwrites.
+
+    Existing specialties, acts and prices are preserved. Missing reference acts
+    are inserted with a zero tariff, which the UI renders as "Tarif à définir".
+    """
+    ensure_schema(db)
+    state = db.execute(
+        select(catalog_reference_state.c.version).where(
+            catalog_reference_state.c.employer_id == employer_id
+        )
+    ).scalar_one_or_none()
+    if state == REFERENCE_CATALOG_VERSION:
+        return {"applied": False, "specialties_added": 0, "acts_added": 0}
+
+    current_specialties = db.execute(
+        select(specialties).where(specialties.c.employer_id == employer_id)
+    ).mappings().all()
+    by_name = {_normalize_label(str(row["name"])): row for row in current_specialties}
+
+    existing_acts = db.execute(
+        select(acts).where(acts.c.employer_id == employer_id)
+    ).mappings().all()
+    codes = {str(row["code"]).strip() for row in existing_acts if row.get("code")}
+    names_by_specialty: dict[int, set[str]] = {}
+    for row in existing_acts:
+        sid = int(row["specialty_id"])
+        names_by_specialty.setdefault(sid, set()).add(_normalize_label(str(row["name"])))
+
+    specialties_added = 0
+    acts_added = 0
+
+    for reference_specialty in REFERENCE_CATALOG:
+        source_name = reference_specialty["name"]
+        target_name = _REFERENCE_SPECIALTY_TARGETS.get(source_name, source_name)
+        key = _normalize_label(target_name)
+        specialty = by_name.get(key)
+        if specialty is None:
+            result = db.execute(insert(specialties).values(
+                employer_id=employer_id,
+                name=target_name,
+                color=reference_specialty.get("color"),
+            ))
+            specialty_id = int(result.inserted_primary_key[0])
+            specialty = {
+                "id": specialty_id,
+                "name": target_name,
+                "color": reference_specialty.get("color"),
+            }
+            by_name[key] = specialty
+            names_by_specialty.setdefault(specialty_id, set())
+            specialties_added += 1
+        else:
+            specialty_id = int(specialty["id"])
+
+        existing_names = names_by_specialty.setdefault(specialty_id, set())
+        for reference_act in reference_specialty["acts"]:
+            code = str(reference_act["code"])
+            normalized_name = _normalize_label(reference_act["name"])
+            if code in codes or normalized_name in existing_names:
+                continue
+            db.execute(insert(acts).values(
+                employer_id=employer_id,
+                specialty_id=specialty_id,
+                name=reference_act["name"],
+                code=code,
+                base_price=0.0,
+                color=None,
+                is_active=True,
+                applicability_json=_encode_applicability(reference_act.get("applicability")),
+            ))
+            codes.add(code)
+            existing_names.add(normalized_name)
+            acts_added += 1
+
+    if state is None:
+        db.execute(insert(catalog_reference_state).values(
+            employer_id=employer_id,
+            version=REFERENCE_CATALOG_VERSION,
+        ))
+    else:
+        db.execute(update(catalog_reference_state).where(
+            catalog_reference_state.c.employer_id == employer_id
+        ).values(version=REFERENCE_CATALOG_VERSION))
+    db.commit()
+
+    return {
+        "applied": True,
+        "specialties_added": specialties_added,
+        "acts_added": acts_added,
+    }
+
+
 def list_catalog(db: Session, employer_id: int) -> list[dict]:
     claim_legacy_if_unambiguous(db)
+    ensure_reference_catalog(db, employer_id)
     specs = db.execute(
         select(specialties).where(specialties.c.employer_id == employer_id).order_by(specialties.c.id)
     ).mappings().all()
