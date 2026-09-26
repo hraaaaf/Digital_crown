@@ -81,7 +81,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     groupTreatmentPrice, setGroupTreatmentPrice
   } = useAccountingStore();
 
-  const { specialties, fetchCatalog } = useCatalogStore();
+  const { specialties, fetchCatalog, createAct, updateAct } = useCatalogStore();
   
   React.useEffect(() => {
     if (specialties.length === 0) {
@@ -116,23 +116,51 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   const groupModeLabel = odontogramType === 'PEDIATRIC' ? 'Soins groupés' : 'Bridge & Prothèses';
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
+  const [isNewCatalogActOpen, setIsNewCatalogActOpen] = useState(false);
+  const [newCatalogActName, setNewCatalogActName] = useState('');
+  const [newCatalogActPrice, setNewCatalogActPrice] = useState('');
+  const [newCatalogActSpecialtyId, setNewCatalogActSpecialtyId] = useState<number | ''>('');
+  const [groupTreatmentSpecialtyId, setGroupTreatmentSpecialtyId] = useState<number | ''>('');
 
   const selectTeethGroup = (g: string) => {
     setGroupSelectedTeeth(odontogramGroupSelection(odontogramType, g));
   };
 
-  const applyGroupTreatment = () => {
+  const applyGroupTreatment = async () => {
     if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
-    const normalizedPrice = Number(groupTreatmentPrice);
-    if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
-      toast.error('Renseignez un prix positif avant d’ajouter cet acte groupé.');
+    if (!groupTreatmentSpecialtyId) {
+      toast.error('Choisissez la spécialité de ce nouvel acte groupé.');
       return;
     }
+    const normalizedPrice = Number(groupTreatmentPrice) || 0;
     const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-    setItems((prev: any) => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: normalizedPrice, toothNumbers: sorted }]);
+    const specialty = specialties.find(s => s.id === Number(groupTreatmentSpecialtyId));
+    const ok = await ensureCatalogAct(
+      Number(groupTreatmentSpecialtyId),
+      groupTreatmentName,
+      normalizedPrice,
+      {
+        dentitions: odontogramType === 'PEDIATRIC' ? ['PRIMARY'] : ['PERMANENT'],
+        treatment_areas: ['TOOTH_RANGE'],
+        selection_modes: ['GROUP'],
+        min_selected_teeth: Math.max(2, sorted.length),
+        suggestion_priority: 50,
+        searchable_when_not_suggested: true,
+      },
+    );
+    if (!ok) return;
+    setItems((prev: any) => [...prev, {
+      id: Date.now(),
+      description: groupTreatmentName.trim().replace(/\s+/g, ' '),
+      dent: sorted.join('-'),
+      price: normalizedPrice,
+      toothNumbers: sorted,
+      category: specialty?.name,
+    }]);
     setGroupSelectedTeeth([]);
     setGroupTreatmentName('');
     setGroupTreatmentPrice('');
+    setGroupTreatmentSpecialtyId('');
   };
 
   const replaceToothTreatmentsFromSelector = React.useCallback((
@@ -172,7 +200,65 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     });
   }, [activeTooth, items]);
 
-  const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
+  const normalizeCatalogName = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('fr');
+
+  const findCatalogAct = React.useCallback((specialtyId: number, name: string) => {
+    const specialty = specialties.find(s => s.id === specialtyId);
+    if (!specialty) return null;
+    const normalized = normalizeCatalogName(name);
+    return specialty.acts.find(act => normalizeCatalogName(act.name) === normalized) || null;
+  }, [specialties]);
+
+  const ensureCatalogAct = React.useCallback(async (
+    specialtyId: number,
+    name: string,
+    price: number,
+    applicability?: any,
+  ) => {
+    const cleanName = name.trim().replace(/\s+/g, ' ');
+    if (!cleanName) return false;
+    const existing = findCatalogAct(specialtyId, cleanName);
+    if (existing) {
+      if (Number(existing.base_price) <= 0 && price > 0) {
+        await updateAct(existing.id, { base_price: price });
+      }
+      return true;
+    }
+    return createAct(specialtyId, {
+      name: cleanName,
+      base_price: price > 0 ? price : 0,
+      applicability,
+    });
+  }, [createAct, findCatalogAct, updateAct]);
+
+  const openNewCatalogAct = () => {
+    setNewCatalogActName('');
+    setNewCatalogActPrice('');
+    setNewCatalogActSpecialtyId(specialties[0]?.id || '');
+    setIsNewCatalogActOpen(true);
+  };
+
+  const addCatalogActLine = async () => {
+    if (!newCatalogActName.trim() || !newCatalogActSpecialtyId) {
+      toast.error('Choisissez une spécialité et renseignez le nom de l’acte.');
+      return;
+    }
+    const price = Number(newCatalogActPrice) || 0;
+    const ok = await ensureCatalogAct(Number(newCatalogActSpecialtyId), newCatalogActName, price);
+    if (!ok) return;
+    const specialty = specialties.find(s => s.id === Number(newCatalogActSpecialtyId));
+    setItems((prev: any) => [...prev, {
+      id: Date.now(),
+      description: newCatalogActName.trim().replace(/\s+/g, ' '),
+      dent: '0',
+      price,
+      category: specialty?.name,
+    }]);
+    setIsNewCatalogActOpen(false);
+    setNewCatalogActName('');
+    setNewCatalogActPrice('');
+    setNewCatalogActSpecialtyId('');
+  };
   const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
   const moveItem = (id: number, direction: 'UP' | 'DOWN') => setItems((prev: PriceItem[]) => moveAccountingLine(prev, id, direction));
   
@@ -362,7 +448,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               ]);
               rememberActPrice(act.name, act.price, act.category);
             }}
-            onAddManual={addEmptyRow}
+            onAddManual={openNewCatalogAct}
           />
 
           <AnimatePresence>
@@ -566,7 +652,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             </div>
                             <button
                               type="button"
-                              onClick={addEmptyRow}
+                              onClick={openNewCatalogAct}
                               className="mt-4 w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl flex items-center justify-center gap-2 hover:border-primary hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest"
                             >
                               <Plus size={14} /> Acte personnalisé
@@ -675,7 +761,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                     </p>
                                   )}
 
-                                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_6rem_auto] gap-2 pt-2 border-t border-white/10">
+                                  <div className="grid grid-cols-1 sm:grid-cols-[10rem_1fr_6rem_auto] gap-2 pt-2 border-t border-white/10">
+                                    <select
+                                      value={groupTreatmentSpecialtyId}
+                                      onChange={(e) => setGroupTreatmentSpecialtyId(e.target.value ? Number(e.target.value) : '')}
+                                      className="w-full min-w-0 bg-white/10 border border-white/10 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-primary/50"
+                                      aria-label="Spécialité de l'acte groupé"
+                                    >
+                                      <option value="" className="text-slate-900">Spécialité…</option>
+                                      {specialties.map(specialty => (
+                                        <option key={specialty.id} value={specialty.id} className="text-slate-900">{specialty.name}</option>
+                                      ))}
+                                    </select>
                                     <input 
                                       type="text"
                                       placeholder="Ou saisir un autre acte..."
@@ -752,7 +849,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={addEmptyRow}
+                  onClick={openNewCatalogAct}
                   className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
                 >+ Ligne Manuelle</button>
               </div>
@@ -799,8 +896,20 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 )}
                                 value={item.description}
                                 onChange={(e) => handleActSearch(e.target.value, item.id)}
-                                onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
-                                placeholder="Rechercher ou saisir un acte..."
+                                onBlur={() => {
+                                  setTimeout(() => setActiveActSearchId(null), 200);
+                                  const exact = TREATMENT_TEMPLATES.find(t => normalizeCatalogName(t.name) === normalizeCatalogName(item.description));
+                                  if (!exact && item.description.trim()) {
+                                    setNewCatalogActName(item.description.trim());
+                                    setNewCatalogActPrice(item.price > 0 ? String(item.price) : '');
+                                    setNewCatalogActSpecialtyId(
+                                      specialties.find(s => s.name === item.category)?.id || specialties[0]?.id || '',
+                                    );
+                                    setIsNewCatalogActOpen(true);
+                                    setItems(prev => prev.filter(row => row.id !== item.id));
+                                  }
+                                }}
+                                placeholder="Rechercher un acte du catalogue..."
                               />
                               {!isPhaseSeparator && activeActSearchId === item.id && actSuggestions.length > 0 && (
                                 <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -1124,6 +1233,56 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
           </div>
         )}
       </AnimatePresence>
+      {isNewCatalogActOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-label="Ajouter un acte au catalogue" className="w-full max-w-lg rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="mb-5">
+              <h3 className="text-lg font-black text-slate-900">Ajouter un acte au catalogue</h3>
+              <p className="mt-1 text-sm text-slate-500">L’acte sera enregistré dans le catalogue central puis ajouté à ce document.</p>
+            </div>
+            <div className="space-y-4">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Spécialité</span>
+                <select
+                  value={newCatalogActSpecialtyId}
+                  onChange={(e) => setNewCatalogActSpecialtyId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-800"
+                >
+                  <option value="">Choisir une spécialité</option>
+                  {specialties.map(specialty => (
+                    <option key={specialty.id} value={specialty.id}>{specialty.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Acte</span>
+                <input
+                  value={newCatalogActName}
+                  onChange={(e) => setNewCatalogActName(e.target.value)}
+                  placeholder="Nom de l'acte"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-800"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Tarif catalogue (facultatif)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={newCatalogActPrice}
+                  onChange={(e) => setNewCatalogActPrice(e.target.value)}
+                  placeholder="Tarif à définir"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-800"
+                />
+              </label>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setIsNewCatalogActOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">Annuler</button>
+              <button type="button" onClick={addCatalogActLine} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white">Créer et ajouter</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
