@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
-import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
+import { PremiumOdontogramSVG } from '../../components/odontogram/PremiumOdontogramSVG';
 import { TreatmentSelector } from '../../components/odontogram/TreatmentSelector';
 import { createPortal } from 'react-dom';
 import type { SelectedSurfaceData, ToothSurface, ToothTreatment } from '../../components/odontogram/types';
@@ -569,20 +569,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         odontogramMode === 'ortho' ? "opacity-10 pointer-events-none scale-95 blur-sm" : "opacity-100 scale-100 blur-none"
                       )}>
                         <div className="w-full flex justify-center items-center">
-                          <OdontogramSVG
+                          <PremiumOdontogramSVG
                             type={odontogramType}
-                            teethSurfaces={{}}
                             selectedTooth={activeTooth}
-                            selectedSurface={null}
-                            onSurfaceClick={() => {}}
                             multiSelectedTeeth={groupSelectedTeeth}
-                            onToothDirectClick={(n) => {
+                            onToothClick={(n) => {
                               handleToothDirectClick(n);
                               if (odontogramMode === 'individual') setActiveTooth(n);
                             }}
-                            showNumbers={false}
-                            hideSurfaces={true}
-                            className="w-full max-w-[340px] sm:max-w-[400px] drop-shadow-md sm:drop-shadow-lg"
+                            showNumbers
+                            className="w-full max-w-[760px]"
                           />
                         </div>
 
