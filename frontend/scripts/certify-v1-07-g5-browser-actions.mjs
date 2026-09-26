@@ -1041,7 +1041,7 @@ for(const viewport of viewports){
     await page.getByRole('button',{name:/Ajouter un acte/i}).click();
     catalogDialog=page.getByRole('dialog');
     await catalogDialog.getByPlaceholder('Ex. Détartrage').fill('Consultation invalide');
-    await catalogDialog.getByPlaceholder('0').fill('-20');
+    await catalogDialog.getByPlaceholder('Tarif à définir').fill('-20');
     await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
     await catalogDialog.getByText(/tarif doit être un nombre positif ou nul/i).waitFor({state:'visible',timeout:5000});
     if(catalogCreateAct!==0) throw new Error('catalog invalid tariff leaked an API mutation');
@@ -1053,7 +1053,7 @@ for(const viewport of viewports){
     catalogDialog=page.getByRole('dialog');
     await catalogDialog.getByPlaceholder('Ex. Détartrage').fill('Consultation');
     await catalogDialog.getByPlaceholder('Ex. DET').fill('CONS');
-    await catalogDialog.getByPlaceholder('0').fill('350');
+    await catalogDialog.getByPlaceholder('Tarif à définir').fill('350');
     await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
     await page.getByText('Consultation',{exact:true}).waitFor({state:'visible',timeout:10000});
     if(catalogCreateAct!==1 || !catalogSpecialties[0].acts.some(a=>a.code==='CONS')) throw new Error('catalog act create ACK mismatch');
