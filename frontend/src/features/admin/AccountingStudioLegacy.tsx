@@ -100,6 +100,10 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
   const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
 
+  const selectTeethGroup = React.useCallback((group: string) => {
+    setGroupSelectedTeeth(odontogramGroupSelection(odontogramType, group));
+  }, [odontogramType, setGroupSelectedTeeth]);
+
   const groupSuggestedActs = React.useMemo(
     () => suggestedCatalogActs(
       specialties,
