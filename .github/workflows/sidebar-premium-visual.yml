@@ -84,7 +84,15 @@ jobs:
               return route.fulfill({json:{}});
             });
             await page.goto(`http://127.0.0.1:${ports[kind]}/dashboard`,{waitUntil:'networkidle'});
-            try {\n              await page.locator('.sidebar-shell').waitFor({state:'visible',timeout:15000});\n            } catch (error) {\n              const debug=`debug-${kind}-${viewport.width}x${viewport.height}.png`;\n              await page.screenshot({path:path.join(output,debug),fullPage:true,animations:'disabled'});\n              await fs.writeFile(path.join(output,`debug-${kind}-${viewport.width}x${viewport.height}.html`),await page.content());\n              await fs.writeFile(path.join(output,`debug-${kind}-${viewport.width}x${viewport.height}.json`),JSON.stringify({url:page.url(),errors},null,2));\n              throw error;\n            }
+            try {
+              await page.locator('.sidebar-shell').waitFor({state:'visible',timeout:15000});
+            } catch (error) {
+              const debug=`debug-${kind}-${viewport.width}x${viewport.height}.png`;
+              await page.screenshot({path:path.join(output,debug),fullPage:true,animations:'disabled'});
+              await fs.writeFile(path.join(output,`debug-${kind}-${viewport.width}x${viewport.height}.html`),await page.content());
+              await fs.writeFile(path.join(output,`debug-${kind}-${viewport.width}x${viewport.height}.json`),JSON.stringify({url:page.url(),errors},null,2));
+              throw error;
+            }
             const expanded=await page.locator('.sidebar-shell').getAttribute('data-expanded');
             const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
             const shot=`${kind}-${viewport.width}x${viewport.height}.png`;
