@@ -69,8 +69,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       await menuButton.click();
     }
     await patientsLink.waitFor({ state: 'visible', timeout: 15000 });
-    await patientsLink.click();
-    await page.waitForURL(url => url.pathname === '/patients', { timeout: 15000 });
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/patients', { timeout: 30000, waitUntil: 'domcontentloaded' }),
+      patientsLink.click(),
+    ]);
 
     const patientSearch = page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
     await patientSearch.fill('T2-0001');
