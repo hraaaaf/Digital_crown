@@ -201,6 +201,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
   const catalogDialog = page.getByRole('dialog', { name: 'Ajouter un acte au catalogue' });
   await catalogDialog.waitFor({ state: 'visible', timeout: 10000 });
+  const specialtySelect = catalogDialog.getByRole('combobox').first();
+  await specialtySelect.selectOption({ index: 1 });
   await catalogDialog.getByPlaceholder("Nom de l'acte").fill('G4 Honoraires manuel');
   await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
   await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
