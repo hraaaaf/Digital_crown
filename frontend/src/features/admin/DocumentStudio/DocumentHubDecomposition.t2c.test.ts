@@ -49,7 +49,8 @@ describe('Document Studio T2-C shell decomposition', () => {
 
   it('anchors accounting actions outside the scrollable document content', () => {
     expect(hub).toContain('data-accounting-action-dock');
-    expect(hub).toContain('"absolute bottom-3 left-4 right-4 z-[80]');
+    expect(hub).toContain('"absolute bottom-2 left-2 right-2 z-[80]');
+    expect(hub).toContain('sm:bottom-3 sm:left-6 sm:right-6');
     expect(hub).toContain("activeTab === 'honoraires' ? \"pb-60 sm:pb-48\"");
   });
 
