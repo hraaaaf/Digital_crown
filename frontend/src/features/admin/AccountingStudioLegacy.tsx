@@ -36,6 +36,7 @@ import { resolveAccountingBundles, type ResolvedAccountingBundle } from './Docum
 import { moveAccountingLine } from './DocumentStudio/AccountingLineOrderPolicy';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { resolveNamedDevisActPrice } from './DocumentStudio/AccountingNamedActPricePolicy';
+import { suggestedCatalogActs } from './DocumentStudio/AccountingActApplicabilityPolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -98,6 +99,15 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   }, [specialties]);
 
   const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
+
+  const groupSuggestedActs = React.useMemo(
+    () => suggestedCatalogActs(
+      specialties,
+      { selectedTeeth: groupSelectedTeeth, selectionMode: 'GROUP' },
+      6,
+    ),
+    [groupSelectedTeeth, specialties],
+  );
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
@@ -624,38 +634,45 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                     <button type="button" onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
                                   </div>
 
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                    {['Bridge', 'Stellite', 'Prothèse Adjointe (PAP)', `Curetage (${detectRegion(groupSelectedTeeth)})`, `Surfaçage (${detectRegion(groupSelectedTeeth)})`, 'Attelle de contention'].map(act => (
-                                      <button
-                                        key={act}
-                                        type="button"
-                                        onClick={() => {
-                                          const resolved = resolveNamedDevisActPrice(act, TREATMENT_TEMPLATES);
-                                          setGroupTreatmentName(act);
-                                          if (resolved.source === 'UNRESOLVED') {
+                                  {groupSuggestedActs.length > 0 ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                      {groupSuggestedActs.map(({ act, specialty }) => (
+                                        <button
+                                          key={act.id}
+                                          type="button"
+                                          onClick={() => {
+                                            const price = Number(act.base_price) || 0;
+                                            setGroupTreatmentName(act.name);
+                                            if (price <= 0) {
+                                              setGroupTreatmentPrice('');
+                                              toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte groupé.');
+                                              return;
+                                            }
+                                            const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
+                                            setItems([...items, {
+                                              id: Date.now() + Math.random(),
+                                              description: act.name,
+                                              dent: sorted.join('-'),
+                                              price,
+                                              toothNumbers: sorted,
+                                              category: specialty,
+                                            }]);
+                                            selectTeethGroup('none');
+                                            setGroupTreatmentName('');
                                             setGroupTreatmentPrice('');
-                                            toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte groupé.');
-                                            return;
-                                          }
-                                          setGroupTreatmentPrice(resolved.price);
-                                          const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                                          setItems([...items, {
-                                            id: Date.now() + Math.random(),
-                                            description: act,
-                                            dent: sorted.join('-'),
-                                            price: resolved.price,
-                                            toothNumbers: sorted,
-                                            category: resolved.category,
-                                          }]);
-                                          selectTeethGroup('none');
-                                          setGroupTreatmentName('');
-                                          setGroupTreatmentPrice('');
-                                          toast.success(`Ajouté : ${act}`);
-                                        }}
-                                        className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
-                                      >{act}</button>
-                                    ))}
-                                  </div>
+                                            toast.success(`Ajouté : ${act.name}`);
+                                          }}
+                                          className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
+                                        >
+                                          {act.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold text-slate-400">
+                                      Aucun raccourci contextuel configuré pour cette sélection. Utilisez la recherche ou ajoutez un acte au catalogue.
+                                    </p>
+                                  )}
 
                                   <div className="grid grid-cols-1 sm:grid-cols-[1fr_6rem_auto] gap-2 pt-2 border-t border-white/10">
                                     <input 

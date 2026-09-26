@@ -13,6 +13,7 @@ import { PriceBrain, type ActHistory } from './PriceBrain';
 import { cn } from '../../utils/cn';
 import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogStore';
 import { resolveDevisTreatmentPrice } from '../../features/admin/DocumentStudio/AccountingTreatmentPricePolicy';
+import { dentitionForTooth, searchableCatalogActs, suggestedCatalogActs, toothTypeForTooth } from '../../features/admin/DocumentStudio/AccountingActApplicabilityPolicy';
 
 interface TreatmentSelectorProps {
   toothNumber: number;
@@ -37,17 +38,8 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
   PARODONTOLOGIE: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-700', dot: 'bg-teal-500' },
   ESTHETIQUE: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', dot: 'bg-purple-500' },
   ORTHODONTIE: { bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-700', dot: 'bg-sky-500' },
+  PEDODONTIE: { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', dot: 'bg-pink-500' },
 };
-
-const getFallbackSuggestions = (): TreatmentTemplate[] => [
-  { id: 'prev-det', name: 'Détartrage complet', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
-  { id: 'chir-ext-s', name: 'Extraction simple', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 20 },
-  { id: 'comp-1', name: 'Composite 1 face', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 20 },
-  { id: 'comp-2', name: 'Composite 2 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 30 },
-  { id: 'endo-mono', name: 'Traitement canalaire mono', category: 'ENDODONTIE', scope: 'UNITAIRE', duration: 45 },
-  { id: 'prost-cm', name: 'Couronne Céramo-métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'prost-zirc', name: 'Couronne Zircone Premium', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-];
 
 export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   toothNumber,
@@ -78,21 +70,37 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
     return labels;
   }, [specialties]);
 
+  const catalogContext = useMemo(
+    () => ({ selectedTeeth: [toothNumber], selectionMode: 'INDIVIDUAL' as const }),
+    [toothNumber],
+  );
+
+  const applicableCatalogActs = useMemo(
+    () => searchableCatalogActs(specialties, catalogContext),
+    [catalogContext, specialties],
+  );
+
+  const suggestedActs = useMemo(
+    () => suggestedCatalogActs(specialties, catalogContext, 7),
+    [catalogContext, specialties],
+  );
+
   const TREATMENTS_BY_CATEGORY = useMemo(() => {
     const treatments: Record<string, TreatmentTemplate[]> = {};
-    specialties.forEach(s => {
-      treatments[s.name] = s.acts.map(act => ({
+    applicableCatalogActs.forEach(({ act, specialty }) => {
+      if (!treatments[specialty]) treatments[specialty] = [];
+      treatments[specialty].push({
         id: `act_${act.id}`,
         name: act.name,
-        category: s.name as ToothTreatment['category'],
+        category: specialty as ToothTreatment['category'],
         scope: 'UNITAIRE',
         code: act.code,
         catalogPrice: Number(act.base_price) || 0,
         isCatalogAct: true,
-      }));
+      });
     });
     return treatments;
-  }, [specialties]);
+  }, [applicableCatalogActs]);
 
   const TREATMENT_TEMPLATES = useMemo(() => {
     return Object.values(TREATMENTS_BY_CATEGORY).flat();
@@ -118,10 +126,18 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
     ? PEDIATRIC_TOOTH_NAMES[toothNumber as PediatricToothNumber]
     : TOOTH_NAMES[toothNumber as ToothNumberFDI];
 
-  const frequentActs = useMemo(() => {
-    const top = PriceBrain.getTopFrequent(7);
-    return top.length > 0 ? top : getFallbackSuggestions();
-  }, []);
+  const frequentActs = useMemo<TreatmentTemplate[]>(() => {
+    const source = suggestedActs.length > 0 ? suggestedActs : applicableCatalogActs.slice(0, 7);
+    return source.map(({ act, specialty }) => ({
+      id: `act_${act.id}`,
+      name: act.name,
+      category: specialty as ToothTreatment['category'],
+      scope: 'UNITAIRE',
+      code: act.code,
+      catalogPrice: Number(act.base_price) || 0,
+      isCatalogAct: true,
+    }));
+  }, [applicableCatalogActs, suggestedActs]);
 
   const resolveInitialPrice = (template: TreatmentTemplate | ActHistory, id: string): number => {
     const isCatalogAct = 'isCatalogAct' in template && template.isCatalogAct === true;
@@ -375,7 +391,22 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                             onClick={async () => {
                               if (!newActName.trim()) return;
                               setAddingAct(true);
-                              await createAct(spec.id, { name: newActName.trim(), base_price: Number(newActPrice) || 0 });
+                              await createAct(spec.id, {
+                                name: newActName.trim(),
+                                base_price: Number(newActPrice) || 0,
+                                applicability: {
+                                  dentitions: [dentitionForTooth(toothNumber)],
+                                  tooth_types: [toothTypeForTooth(toothNumber)],
+                                  treatment_areas: ['TOOTH', 'SURFACE'],
+                                  selection_modes: ['INDIVIDUAL'],
+                                  requires_present_tooth: false,
+                                  requires_missing_tooth: false,
+                                  min_selected_teeth: 1,
+                                  max_selected_teeth: 1,
+                                  suggestion_priority: 50,
+                                  searchable_when_not_suggested: true,
+                                },
+                              });
                               await fetchCatalog();
                               setShowAddAct(false);
                               setNewActName('');
