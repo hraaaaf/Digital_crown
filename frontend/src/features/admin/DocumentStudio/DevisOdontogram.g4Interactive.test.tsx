@@ -6,8 +6,57 @@ import { api } from '../../../services/api';
 
 const catalogState = vi.hoisted(() => ({
   specialties:[
-    {name:'PROTHESE',acts:[{id:1,name:'Bridge',base_price:1800}]},
-    {name:'CONSERVATRICE',acts:[{id:2,name:'Détartrage',base_price:500}]},
+    {
+      id:1,
+      name:'PROTHESE',
+      pathologies:[],
+      acts:[{
+        id:1,
+        specialty_id:1,
+        name:'Bridge',
+        base_price:1800,
+        is_active:true,
+        applicability:{
+          dentitions:['PERMANENT'],
+          treatment_areas:['TOOTH_RANGE'],
+          selection_modes:['GROUP'],
+          min_selected_teeth:3,
+          suggestion_priority:95,
+        },
+      }],
+    },
+    {
+      id:2,
+      name:'CONSERVATRICE',
+      pathologies:[],
+      acts:[{
+        id:2,
+        specialty_id:2,
+        name:'Détartrage',
+        base_price:500,
+        is_active:true,
+        applicability:{ searchable_when_not_suggested:true },
+      }],
+    },
+    {
+      id:3,
+      name:'PEDODONTIE',
+      pathologies:[],
+      acts:[{
+        id:3,
+        specialty_id:3,
+        name:"Mainteneur d'espace",
+        base_price:1200,
+        is_active:true,
+        applicability:{
+          dentitions:['PRIMARY'],
+          treatment_areas:['TOOTH_RANGE','ARCH'],
+          selection_modes:['GROUP'],
+          min_selected_teeth:2,
+          suggestion_priority:85,
+        },
+      }],
+    },
   ],
   fetchCatalog:vi.fn(),
 }));
@@ -19,7 +68,9 @@ vi.mock('../../../components/odontogram/PremiumOdontogramSVG', () => ({
   PremiumOdontogramSVG: ({onToothClick,type}:any) => (
     <div>
       <span>Odontogram {type}</span>
-      <button onClick={()=>onToothClick(11)}>Tooth 11</button>
+      {type==='PEDIATRIC'
+        ? <button onClick={()=>onToothClick(51)}>Tooth 51</button>
+        : <button onClick={()=>onToothClick(11)}>Tooth 11</button>}
     </div>
   ),
 }));
@@ -140,6 +191,16 @@ describe('Devis/Odontogram G4 interactive controls', () => {
       category:'PROTHESE',
     }));
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
+  });
+
+  it('does not suggest adult prosthetic shortcuts for primary teeth', () => {
+    renderDevis();
+    fireEvent.click(screen.getByRole('button',{name:'Enfant'}));
+    fireEvent.click(screen.getByRole('button',{name:/Bridge & Proth/i}));
+    fireEvent.click(screen.getByRole('button',{name:'Q5'}));
+
+    expect(screen.queryByRole('button',{name:'Bridge'})).toBeNull();
+    expect(screen.getByRole('button',{name:"Mainteneur d'espace"})).toBeTruthy();
   });
 
   it('resets a quick tooth selection without creating a line', () => {

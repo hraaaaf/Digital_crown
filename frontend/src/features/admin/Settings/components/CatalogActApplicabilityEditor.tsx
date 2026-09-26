@@ -24,7 +24,7 @@ const Section: React.FC<React.PropsWithChildren<{ title: string; hint?: string }
   </div>
 );
 
-const ChoiceRow = <T extends string>({
+const ChoiceRow = <T extends string,>({
   values,
   selected,
   onToggle,
@@ -56,7 +56,7 @@ const ChoiceRow = <T extends string>({
   </div>
 );
 
-const toggle = <T extends string>(values: T[], value: T): T[] =>
+const toggle = <T extends string,>(values: T[], value: T): T[] =>
   values.includes(value) ? values.filter(item => item !== value) : [...values, value];
 
 export const CatalogActApplicabilityEditor: React.FC<Props> = ({ value, onChange }) => {
