@@ -254,11 +254,23 @@ for(const viewport of viewports){
   );
   await persistedEditDialog.getByRole('button',{name:'Modifier le RDV',exact:true}).click();
   const editAck=await editAckPromise;
-  if(!editAck.ok()) throw new Error('appointment edit ACK failed '+editAck.status()+': '+await editAck.text());
+  const editAckText=await editAck.text();
+  if(!editAck.ok()) throw new Error('appointment edit ACK failed '+editAck.status()+': '+editAckText);
+  let editAckBody=null;
+  try { editAckBody=JSON.parse(editAckText); } catch {}
+  if(editAckBody?.motif!==updatedMotif) throw new Error('appointment edit ACK motif mismatch: '+JSON.stringify(editAckBody));
   await persistedEditDialog.waitFor({state:'hidden',timeout:10000});
 
-  persisted=(await (await api.get('/api/appointments/',{headers})).json()).find(x=>x.id===persisted.id);
-  if(!persisted || persisted.motif!==updatedMotif) throw new Error('edited appointment not persisted');
+  const persistedId=persisted.id;
+  let persistedAfterEdit=null;
+  for(let attempt=0;attempt<5;attempt+=1){
+    const rows=await (await api.get('/api/appointments/',{headers})).json();
+    persistedAfterEdit=rows.find(x=>x.id===persistedId) || null;
+    if(persistedAfterEdit?.motif===updatedMotif) break;
+    await page.waitForTimeout(100);
+  }
+  persisted=persistedAfterEdit;
+  if(!persisted || persisted.motif!==updatedMotif) throw new Error('edited appointment not persisted: '+JSON.stringify(persisted));
   prove(viewport,'agenda-edit-success-persistence',{appointmentId:persisted.id});
 
   const updatedItem=page.getByText(uniquePatient,{exact:true}).filter({visible:true}).first();

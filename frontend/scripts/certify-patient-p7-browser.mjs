@@ -30,6 +30,10 @@ const ortho = await api.patch(`/api/patients/${patient.id}/ortho`, {
   data: { is_ortho_active: true },
 });
 if (!ortho.ok()) throw new Error(`P7 ortho activation failed: ${ortho.status()} ${await ortho.text()}`);
+const patientAfterOrthoResponse = await api.get(`/api/patients/${patient.id}`, { headers });
+if (!patientAfterOrthoResponse.ok()) throw new Error(`P7 patient reread after ortho failed: ${patientAfterOrthoResponse.status()} ${await patientAfterOrthoResponse.text()}`);
+const patientAfterOrtho = await patientAfterOrthoResponse.json();
+if (patientAfterOrtho?.dossier?.is_ortho_active !== true) throw new Error(`P7 ortho activation did not persist: ${JSON.stringify(patientAfterOrtho?.dossier ?? null)}`);
 
 const odontoUrl = `/api/patients/${patient.id}/odontogram`;
 const odontoBefore = await api.get(odontoUrl, { headers });
@@ -173,7 +177,7 @@ for (const viewport of viewports) {
 
   await page.getByRole('button', { name: 'Clinique', exact: true }).click();
   results.push({ surface: 'clinical', ...(await capture(page, viewport, 'clinical', async () => {
-    for (const label of ['Espace Clinique', 'Sécurité médicale', 'Dossier clinique', 'Master Plan']) {
+    for (const label of ['Espace Clinique', 'Sécurité médicale', 'Dossier clinique', 'Plan de traitement']) {
       await page.getByText(label, { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
     }
     if (await page.getByText(/Radar de Vigilance/i).count()) throw new Error('P7 legacy VigilanceRadar visible');
@@ -198,7 +202,7 @@ for (const viewport of viewports) {
 
   await cephTab.click();
   results.push({ surface: 'imaging-cephalo', ...(await capture(page, viewport, 'imaging-cephalo', async () => {
-    await page.getByText('Studio Céphalométrique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('heading', { name: 'Céphalométrie', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   })) });
 
   await page.goto(`${patientUrl}?tab=admin&documentTab=plan`, { waitUntil: 'networkidle', timeout: 90000 });

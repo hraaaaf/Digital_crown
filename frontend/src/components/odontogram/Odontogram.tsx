@@ -43,6 +43,7 @@ interface OdontogramProps {
   readOnly?: boolean;
   showLegend?: boolean;
   compact?: boolean;
+  diagramClassName?: string;
   className?: string;
   naked?: boolean;
   embeddedSelector?: boolean;
@@ -94,6 +95,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   readOnly = false,
   showLegend = true,
   compact = false,
+  diagramClassName = '',
   className = '',
   naked = false,
   embeddedSelector = false,
@@ -346,6 +348,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
           onSurfaceClick={handleSurfaceClick}
           showNumbers={!compact}
           readOnly={readOnly}
+          className={diagramClassName}
         />
 
         {/* Récapitulatif des sélections */}

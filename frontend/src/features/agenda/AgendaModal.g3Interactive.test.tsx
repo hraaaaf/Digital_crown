@@ -39,7 +39,7 @@ vi.mock('./AppointmentMobileBridge', () => ({ AppointmentMobileBridge: () => <di
 function renderCreate(overrides: Record<string, unknown> = {}) {
   const onClose = vi.fn();
   const onSaved = vi.fn();
-  render(
+  const view = render(
     <MemoryRouter>
       <AgendaModal
         isOpen
@@ -54,7 +54,7 @@ function renderCreate(overrides: Record<string, unknown> = {}) {
       />
     </MemoryRouter>,
   );
-  return { onClose, onSaved };
+  return { onClose, onSaved, ...view };
 }
 
 beforeEach(() => {
@@ -144,14 +144,49 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     };
     const { onSaved, onClose } = renderCreate({ editingAppointment });
 
+    fireEvent.change(await screen.findByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue..."), { target: { value: 'Contrôle modifié' } });
     fireEvent.click(await screen.findByRole('button', { name: 'Modifier le RDV' }));
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith(
       '/appointments/55',
-      expect.objectContaining({ patient_id: 7, motif: 'Contrôle', status: 'PRÉVU' }),
+      expect.objectContaining({ patient_id: 7, motif: 'Contrôle modifié', status: 'PRÉVU' }),
     ));
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+
+  it('does not reset a typed edit when the same appointment rerenders with a new object identity', async () => {
+    const editingAppointment = {
+      id: 57,
+      patient_id: 7,
+      patient_name: 'BENALI Sara',
+      motif: 'Contrôle',
+      datetime_start: '2026-09-21T10:00:00',
+      duration_minutes: 30,
+      status: 'PRÉVU',
+    };
+    const { rerender, onClose, onSaved } = renderCreate({ editingAppointment });
+    const field = await screen.findByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue...");
+    fireEvent.change(field, { target: { value: 'Contrôle modifié' } });
+
+    rerender(
+      <MemoryRouter>
+        <AgendaModal
+          isOpen
+          onClose={onClose}
+          onSaved={onSaved}
+          selectedDate={new Date('2026-09-21T00:00:00')}
+          initialTime="10:00"
+          initialPatientId={7}
+          initialPatientNom="BENALI"
+          initialPatientPrenom="Sara"
+          editingAppointment={{ ...editingAppointment }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect((await screen.findByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue..." ) as HTMLInputElement).value).toBe('Contrôle modifié');
   });
 
   it('restores a free-text patient name when editing a walk-in appointment', async () => {

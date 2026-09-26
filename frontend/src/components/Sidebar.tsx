@@ -12,6 +12,8 @@ import {
   Shield,
   Store,
   Crown,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
@@ -141,6 +143,19 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           backdropFilter: desktopExpanded ? 'blur(24px) saturate(160%)' : undefined,
           WebkitBackdropFilter: desktopExpanded ? 'blur(24px) saturate(160%)' : undefined,
         }}>
+        <button
+          type="button"
+          onClick={() => {
+            setDesktopPinned(value => !value);
+            setDesktopHovered(false);
+          }}
+          className="hidden lg:flex absolute -right-3 top-5 z-20 h-7 w-7 items-center justify-center rounded-full border border-border-main bg-card-bg text-text-muted shadow-md transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          aria-pressed={desktopPinned}
+          aria-label={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
+          title={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
+        >
+          {desktopPinned ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+        </button>
         
         {/* PRODUCT IDENTITY: DIGITAL CROWN LOGO (Centered) */}
         <div className="sidebar-logo-wrap p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo transition-all duration-200">
@@ -161,16 +176,6 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
               style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
             />
           </Link>
-          <button
-            type="button"
-            onClick={() => setDesktopPinned(value => !value)}
-            className="sidebar-expanded-only hidden lg:flex absolute right-3 bottom-2 h-7 px-2 items-center justify-center rounded-lg border border-border-main bg-card-bg/70 text-[10px] font-black uppercase tracking-wider text-text-muted hover:text-primary"
-            aria-pressed={desktopPinned}
-            aria-label={desktopPinned ? 'Libérer la barre latérale' : 'Épingler la barre latérale'}
-            title={desktopPinned ? 'Libérer' : 'Épingler'}
-          >
-            {desktopPinned ? 'Fixée' : 'Épingler'}
-          </button>
         </div>
 
         {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}

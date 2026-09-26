@@ -286,7 +286,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await page.waitForTimeout(30);
     if (!(await content.inputValue()).includes(token)) throw new Error('libre format failed: ' + titleName);
   }
-  await page.getByTitle('Tableau').click();
+  await page.getByRole('button',{name:'Tableau',exact:true}).click();
   if (!(await content.inputValue()).includes('| Colonne 1 |')) throw new Error('libre table insertion failed');
   actions.push('libre-residual-controls');
   await exercisePreview(page);

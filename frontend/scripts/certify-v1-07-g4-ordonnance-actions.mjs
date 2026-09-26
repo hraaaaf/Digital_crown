@@ -92,6 +92,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 
   const actions = [];
 
+  // Keep the desktop hover-expanding sidebar from covering document controls in the harness.
+  await page.mouse.move(viewport.width - 2, viewport.height - 2);
+  await page.waitForTimeout(120);
   const typeExam = page.getByRole('button', { name: 'Type radio ou examen' }).first();
   await typeExam.click();
   await page.getByPlaceholder("DÉTAILS DE L'EXAMEN RADIOLOGIQUE...").first().waitFor({ state: 'visible' });

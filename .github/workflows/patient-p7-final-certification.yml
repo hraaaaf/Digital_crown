@@ -76,7 +76,6 @@ jobs:
           text = path.read_text(encoding='utf-8')
           replacements = {
               "password: 'T2BrowserPass123!'": 'password: process.env.T2_PASSWORD',
-              "getByText('Studio Céphalométrique', { exact: true })": "getByText('Céphalométrie', { exact: true }).first()",
           }
           for legacy, replacement in replacements.items():
               if legacy not in text:
@@ -104,7 +103,7 @@ jobs:
               assert forbidden not in details, forbidden
           for required in ['Prochaine action', 'Solde indéterminé', 'Source :', "setSearchParams({ tab: 'clinical' })"]:
               assert required in journey, required
-          for required in ['Sécurité médicale', 'patientClinicalPersistence.saveOdontogram', 'patientClinicalPersistence.createConclusion', 'Proposition à valider', 'Master Plan']:
+          for required in ['Sécurité médicale', 'patientClinicalPersistence.saveOdontogram', 'patientClinicalPersistence.createConclusion', 'Proposition à valider', 'Plan de traitement']:
               assert required in clinical, required
           for forbidden in ['VigilanceRadar', 'odontogram_state_']:
               assert forbidden not in clinical, forbidden

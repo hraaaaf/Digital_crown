@@ -13,6 +13,8 @@ const artifactDir=path.resolve('artifacts/g5-runtime-preferences-visual');
 fs.mkdirSync(artifactDir,{recursive:true});
 
 const currentSource=fs.readFileSync(sourcePath,'utf8');
+// actions/checkout is shallow here; fetch the exact historical BEFORE object before git show.
+execFileSync('git',['fetch','--no-tags','--depth=1','origin',baselineSha],{cwd:path.resolve('..'),stdio:'pipe'});
 const baselineSource=execFileSync(
   'git',
   ['show',baselineSha+':frontend/src/features/admin/Settings/tabs/IATab.tsx'],

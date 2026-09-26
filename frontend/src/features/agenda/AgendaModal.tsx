@@ -71,6 +71,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [smartIntel, setSmartIntel] = useState<any>(null);
   const [loadingIntel, setLoadingIntel] = useState(false);
   const [showGhostPanel, setShowGhostPanel] = useState(false);
+  const initializedFormKeyRef = useRef<string | null>(null);
   
   const protocol = useClinicalRef(selectedAct?.name || actSearch);
   const [showClinicalRef, setShowClinicalRef] = useState(false);
@@ -91,14 +92,23 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
 
   useEffect(() => {
-    if (isOpen) {
-      if (editingAppointment) {
+    if (!isOpen) {
+      initializedFormKeyRef.current = null;
+      return;
+    }
+
+    const formKey = editingAppointment ? `edit:${editingAppointment.id}` : 'create';
+    if (initializedFormKeyRef.current === formKey) return;
+    initializedFormKeyRef.current = formKey;
+
+    if (editingAppointment) {
         const d = new Date(editingAppointment.datetime_start);
         setDateValue(d.toISOString().split('T')[0]);
         setTime(`${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`);
         setDuration(editingAppointment.duration_minutes);
         setMotif(editingAppointment.motif || '');
         setActSearch(editingAppointment.motif || '');
+        setSelectedAct(null);
         setStatus(editingAppointment.status);
         if (editingAppointment.patient_id) {
           setSelectedPatient({ id: editingAppointment.patient_id, nom: editingAppointment.patient_name?.split(' ')[0] || '', prenom: editingAppointment.patient_name?.split(' ')[1] || '' });
@@ -113,6 +123,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setDuration(30);
         setMotif('');
         setActSearch('');
+        setSelectedAct(null);
         setStatus('PRÉVU');
         setSchedulingType('EXACT_TIME');
         if (initialPatientId) {
@@ -123,7 +134,6 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
           setPatientSearch('');
         }
       }
-    }
   }, [isOpen, editingAppointment, initialTime, selectedDate, initialPatientId, initialPatientNom, initialPatientPrenom]);
 
 
