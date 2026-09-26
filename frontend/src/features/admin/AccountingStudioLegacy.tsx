@@ -132,13 +132,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       toast.error('Choisissez la spécialité de ce nouvel acte groupé.');
       return;
     }
-    const normalizedPrice = Number(groupTreatmentPrice) || 0;
+    const specialtyId = Number(groupTreatmentSpecialtyId);
+    const specialty = specialties.find(s => s.id === specialtyId);
+    const existing = findCatalogAct(specialtyId, groupTreatmentName);
+    const enteredPrice = Number(groupTreatmentPrice) || 0;
+    const effectivePrice = enteredPrice > 0 ? enteredPrice : Number(existing?.base_price) || 0;
     const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-    const specialty = specialties.find(s => s.id === Number(groupTreatmentSpecialtyId));
     const ok = await ensureCatalogAct(
-      Number(groupTreatmentSpecialtyId),
+      specialtyId,
       groupTreatmentName,
-      normalizedPrice,
+      enteredPrice,
       {
         dentitions: odontogramType === 'PEDIATRIC' ? ['PRIMARY'] : ['PERMANENT'],
         treatment_areas: ['TOOTH_RANGE'],
@@ -153,7 +156,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       id: Date.now(),
       description: groupTreatmentName.trim().replace(/\s+/g, ' '),
       dent: sorted.join('-'),
-      price: normalizedPrice,
+      price: effectivePrice,
       toothNumbers: sorted,
       category: specialty?.name,
     }]);
@@ -243,15 +246,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       toast.error('Choisissez une spécialité et renseignez le nom de l’acte.');
       return;
     }
-    const price = Number(newCatalogActPrice) || 0;
-    const ok = await ensureCatalogAct(Number(newCatalogActSpecialtyId), newCatalogActName, price);
+    const specialtyId = Number(newCatalogActSpecialtyId);
+    const specialty = specialties.find(s => s.id === specialtyId);
+    const existing = findCatalogAct(specialtyId, newCatalogActName);
+    const enteredPrice = Number(newCatalogActPrice) || 0;
+    const effectivePrice = enteredPrice > 0 ? enteredPrice : Number(existing?.base_price) || 0;
+    const ok = await ensureCatalogAct(specialtyId, newCatalogActName, enteredPrice);
     if (!ok) return;
-    const specialty = specialties.find(s => s.id === Number(newCatalogActSpecialtyId));
     setItems((prev: any) => [...prev, {
       id: Date.now(),
-      description: newCatalogActName.trim().replace(/\s+/g, ' '),
+      description: existing?.name || newCatalogActName.trim().replace(/\s+/g, ' '),
       dent: '0',
-      price,
+      price: effectivePrice,
       category: specialty?.name,
     }]);
     setIsNewCatalogActOpen(false);
