@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
     },
   ] as any[],
   fetchCatalog: vi.fn(),
+  applyReferenceCatalog: vi.fn(),
   createSpecialty: vi.fn(),
   updateSpecialty: vi.fn(),
   createAct: vi.fn(),
@@ -56,6 +57,7 @@ beforeEach(() => {
     pathologies: [{ id: 20, name: 'Gingivite', description: 'Inflammation', is_active: true }],
   }];
   state.fetchCatalog.mockResolvedValue(undefined);
+  state.applyReferenceCatalog.mockResolvedValue(true);
   state.createSpecialty.mockResolvedValue(true);
   state.updateSpecialty.mockResolvedValue(true);
   state.createAct.mockResolvedValue(true);
@@ -69,6 +71,7 @@ afterEach(() => cleanup());
 describe('CatalogTab G5 interactive matrix', () => {
   it('loads catalogue truth before exposing specialty contents', async () => {
     render(<CatalogTab />);
+    await waitFor(() => expect(state.applyReferenceCatalog).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(state.fetchCatalog).toHaveBeenCalledTimes(1));
     expect(screen.getAllByText('Soins').length).toBeGreaterThan(0);
     expect(screen.getByText('Détartrage')).toBeTruthy();
@@ -113,6 +116,19 @@ describe('CatalogTab G5 interactive matrix', () => {
     await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ name: 'Consultation', code: 'CONS', base_price: 350, is_active: true }),
+    ));
+  });
+
+  it('allows a new act to keep its tariff blank for the dentist to fill later', async () => {
+    render(<CatalogTab />);
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter un acte/i }));
+
+    fireEvent.change(screen.getByPlaceholderText('Ex. Détartrage'), { target: { value: 'Acte sans tarif' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ name: 'Acte sans tarif', base_price: 0 }),
     ));
   });
 
