@@ -13,7 +13,7 @@ describe('PremiumOdontogramSVG', () => {
     expect(screen.getByRole('group', { name: 'Odontogramme adulte' })).toBeTruthy();
     expect(screen.getAllByRole('button')).toHaveLength(32);
     expect(container.innerHTML).toContain('digital-crown-adult-reference-v3.svg');
-    expect(container.innerHTML).toContain('data-odontogram-asset="user-reference-adult-v2"');
+    expect(container.innerHTML).toContain('data-odontogram-asset="user-reference-adult-v3"');
 
     ADULT.forEach((tooth) => fireEvent.click(screen.getByRole('button', { name: `Dent ${tooth}` })));
     expect(onToothClick.mock.calls.map(([tooth]) => tooth)).toEqual(ADULT);
@@ -26,7 +26,7 @@ describe('PremiumOdontogramSVG', () => {
     expect(screen.getByRole('group', { name: 'Odontogramme enfant' })).toBeTruthy();
     expect(screen.getAllByRole('button')).toHaveLength(20);
     expect(container.innerHTML).toContain('digital-crown-child-reference-v3.svg');
-    expect(container.innerHTML).toContain('data-odontogram-asset="user-reference-child-v2"');
+    expect(container.innerHTML).toContain('data-odontogram-asset="user-reference-child-v3"');
 
     CHILD.forEach((tooth) => fireEvent.click(screen.getByRole('button', { name: `Dent ${tooth}` })));
     expect(onToothClick.mock.calls.map(([tooth]) => tooth)).toEqual(CHILD);
