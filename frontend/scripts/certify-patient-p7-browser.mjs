@@ -20,7 +20,7 @@ if (!login.ok()) throw new Error(`P7 login failed: ${login.status()} ${await log
 const tokens = await login.json();
 const headers = { Authorization: `Bearer ${tokens.access_token}` };
 
-const motifCreate = await api.post('/api/motifs', {
+const motifCreate = await api.post('/api/motifs/', {
   headers,
   data: {
     label: 'Contrôle implant personnalisé',
