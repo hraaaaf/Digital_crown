@@ -42,6 +42,7 @@ jobs:
           import fs from 'node:fs/promises';
           import { chromium } from 'playwright';
           import { createServer } from 'vite';
+          import react from '@vitejs/plugin-react';
 
           const output=path.resolve('../artifacts/sidebar-premium');
           await fs.mkdir(output,{recursive:true});
@@ -49,7 +50,7 @@ jobs:
           const ports={before:4191,after:4192};
           const servers={};
           for (const kind of ['before','after']) {
-            servers[kind]=await createServer({root:roots[kind],server:{host:'127.0.0.1',port:ports[kind],strictPort:true},clearScreen:false});
+            servers[kind]=await createServer({configFile:false,root:roots[kind],plugins:[react()],server:{host:'127.0.0.1',port:ports[kind],strictPort:true},clearScreen:false});
             await servers[kind].listen();
           }
           const browser=await chromium.launch({headless:true});
