@@ -1,6 +1,6 @@
 # Digital Crown V1-07 — Global Interactive Audit — G9
 
-Status: IN PROGRESS — FREEZE BLOCKED
+Status: READY FOR MERGE — EXACT-HEAD CERTIFIED / POST-MERGE PENDING
 
 ## Goal
 Reconcile G0 static inventory with G1→G8 behavioral evidence, isolate every unresolved gap, and freeze a truthful semantic denominator only when no known critical control remains untested or defective.
@@ -118,3 +118,21 @@ Before G9 freeze:
 
 Canonical doctrine: `docs/clinic/audits/V1_07_BROWSER_CERTIFICATION_DOCTRINE.md`.
 Factory: `frontend/scripts/inventory-v1-07-g1-g7-browser-controls.mjs` + `.github/workflows/v1-07-g1-g7-browser-inventory.yml`.
+
+
+## Final exact-head certification — 2026-09-26
+
+Exact-head certification on `0354bf6828e98ec50ec7afdef95941f621eb335b`:
+- GitHub Actions matrix: **28 SUCCESS / 2 SKIPPED / 0 FAILURE / 0 active**.
+- Patient P7 Final Certification `36205720352` — **SUCCESS**.
+- V1-07 G3 Browser Action Certification `36205720410` — **SUCCESS**.
+- V1-07 G1 Browser Action Certification `36205720287` — **SUCCESS**.
+- CI `36205720407` — **SUCCESS**.
+- T2 Runtime Browser Certification `36205720468` — **SUCCESS**.
+- Catalog Connected Truth Certification `36205720217` — **SUCCESS**.
+- PostgreSQL Alembic Schema Certification `36205720590` — **SUCCESS**.
+- Windows Build Dependency Contract `36205720419` — **SUCCESS**.
+- Exact UI proof retained at 390×844 / 768×1024 / 1280×900 with zero horizontal overflow; no new 390 regression versus retained baseline.
+- Real cabinet port 8005 was not mutated.
+
+G9 pre-merge gate is satisfied on the exact PR head. V1-08 remains blocked only until PR #692 is merged and the resulting master is post-merge certified.
