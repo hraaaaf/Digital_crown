@@ -76,6 +76,7 @@ jobs:
           text = path.read_text(encoding='utf-8')
           replacements = {
               "password: 'T2BrowserPass123!'": 'password: process.env.T2_PASSWORD',
+              "api.post('/api/patients', {": "api.post('/api/patients/', {",
           }
           for legacy, replacement in replacements.items():
               if legacy not in text:
