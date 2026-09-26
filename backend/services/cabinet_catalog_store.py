@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Table, Column, Integer, String, Float, Boolean, Text,
+    Table, Column, Integer, String, Float, Boolean, Text, DateTime,
     ForeignKey, UniqueConstraint, inspect, select, insert, update
 )
 from sqlalchemy.orm import Session
@@ -44,6 +45,9 @@ acts = Table(
     Column("base_price", Float, nullable=False, default=0.0),
     Column("color", String(20), nullable=True),
     Column("is_active", Boolean, nullable=False, default=True),
+    Column("is_favorite", Boolean, nullable=False, default=False),
+    Column("usage_count", Integer, nullable=False, default=0),
+    Column("last_used_at", DateTime(timezone=True), nullable=True),
     Column("applicability_json", Text, nullable=True),
     UniqueConstraint("employer_id", "code", name="uq_cabinet_act_code"),
 )
@@ -278,6 +282,77 @@ def list_catalog(db: Session, employer_id: int) -> list[dict]:
             "acts": normalized_acts,
         })
     return result
+
+
+def record_catalog_act_usage(
+    db: Session,
+    employer_id: int,
+    *,
+    act_name: str,
+    specialty_name: str | None = None,
+    catalog_act_id: int | None = None,
+) -> bool:
+    """Mark a central catalog act as recently used after real document archive.
+
+    Prefer the stable catalog id. Name/category fallback is intentionally strict:
+    ambiguous matches are ignored rather than learning the wrong act.
+    """
+    ensure_schema(db)
+    clean_name = _normalize_label(str(act_name or ""))
+    if not clean_name:
+        return False
+
+    rows = db.execute(
+        select(
+            acts.c.id,
+            acts.c.name,
+            acts.c.usage_count,
+            specialties.c.name.label("specialty_name"),
+        )
+        .select_from(acts.join(specialties, acts.c.specialty_id == specialties.c.id))
+        .where(
+            acts.c.employer_id == employer_id,
+            specialties.c.employer_id == employer_id,
+            acts.c.is_active.is_(True),
+        )
+    ).mappings().all()
+
+    candidates = list(rows)
+    if catalog_act_id is not None:
+        try:
+            stable_id = int(catalog_act_id)
+        except (TypeError, ValueError):
+            stable_id = -1
+        candidates = [row for row in candidates if int(row["id"]) == stable_id]
+    else:
+        candidates = [
+            row for row in candidates
+            if _normalize_label(str(row["name"])) == clean_name
+        ]
+        clean_specialty = _normalize_label(str(specialty_name or ""))
+        if clean_specialty:
+            candidates = [
+                row for row in candidates
+                if _normalize_label(str(row["specialty_name"])) == clean_specialty
+            ]
+
+    if len(candidates) != 1:
+        return False
+
+    row = candidates[0]
+    db.execute(
+        update(acts)
+        .where(
+            acts.c.id == int(row["id"]),
+            acts.c.employer_id == employer_id,
+        )
+        .values(
+            usage_count=int(row["usage_count"] or 0) + 1,
+            last_used_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+    return True
 
 
 def get_owned(db: Session, table: Table, row_id: int, employer_id: int):
