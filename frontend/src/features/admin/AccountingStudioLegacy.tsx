@@ -546,9 +546,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="px-3 pb-3 sm:px-4 sm:pb-4"
+                  className="min-w-0 px-2 pb-3 sm:px-4 sm:pb-4"
                 >
-                  <div className="bg-white/60 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] border border-white/80 shadow-xl sm:shadow-2xl overflow-hidden relative min-h-[330px] sm:min-h-[360px] flex flex-col">
+                  <div className="relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/60 shadow-xl backdrop-blur-xl sm:rounded-[2.5rem] sm:shadow-2xl">
                     <div className="p-3 sm:p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 bg-white/20">
                       <div className="grid grid-cols-2 w-full sm:w-auto bg-slate-100/50 p-1 rounded-xl border border-slate-100">
                         {(['ADULT', 'PEDIATRIC'] as const).map(type => (
@@ -576,22 +576,22 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       </div>
                     </div>
 
-                    <div className="relative flex-1 flex flex-col p-2.5 sm:p-4 bg-slate-50/20 overflow-hidden">
+                    <div className="relative flex min-w-0 flex-col overflow-hidden bg-slate-50/20 p-2 sm:p-4">
                       <div className="relative sm:absolute sm:top-4 sm:left-1/2 sm:-translate-x-1/2 z-30 mb-2 sm:mb-0 px-1 sm:px-0">
                         <div className="w-full sm:w-auto px-3 sm:px-5 py-2 sm:py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest flex items-center justify-center gap-2 sm:gap-3 border border-primary/20 shadow-sm text-center">
                           Sélectionnez une ou plusieurs dents
                         </div>
                       </div>
 
-                      <div className="flex-1 flex flex-col items-center justify-center relative">
-                        <div className="w-full flex justify-center items-center">
+                      <div className="relative flex min-w-0 flex-col items-center justify-start pt-1 sm:pt-10">
+                        <div className="flex w-full min-w-0 items-center justify-center">
                           <PremiumOdontogramSVG
                             type={odontogramType}
                             selectedTooth={activeTooth}
                             multiSelectedTeeth={groupSelectedTeeth}
                             onToothClick={handleToothDirectClick}
                             showNumbers
-                            className="w-full max-w-[760px]"
+                            className="w-full max-w-[720px] sm:max-w-[680px]"
                           />
                         </div>
 
