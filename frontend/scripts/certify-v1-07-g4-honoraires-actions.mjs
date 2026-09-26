@@ -199,10 +199,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actions.push('accounting-action-dock-no-scroll');
 
   await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
-  const descriptions = page.getByPlaceholder('Rechercher un acte du catalogue...');
-  const prices = page.getByPlaceholder('0.00');
-  await descriptions.last().fill('G4 Honoraires manuel');
-  await prices.last().fill('321');
+  const catalogDialog = page.getByRole('dialog', { name: 'Ajouter un acte au catalogue' });
+  await catalogDialog.waitFor({ state: 'visible', timeout: 10000 });
+  await catalogDialog.getByPlaceholder("Nom de l'acte").fill('G4 Honoraires manuel');
+  await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
+  await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
+  await page.getByText('G4 Honoraires manuel', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await page.getByRole('button', { name: 'Monter G4 Honoraires manuel' }).click();
   await page.getByRole('button', { name: 'Descendre G4 Honoraires manuel' }).click();
   await page.getByRole('button', { name: 'Supprimer G4 Honoraires manuel' }).click();
