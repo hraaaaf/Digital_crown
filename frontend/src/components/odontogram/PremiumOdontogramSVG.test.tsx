@@ -52,8 +52,9 @@ describe('PremiumOdontogramSVG', () => {
 
     expect(markup).toContain('fill-primary');
     expect(markup).toContain('stroke-primary');
-    expect(markup).toContain('fill-card');
-    expect(markup).toContain('stroke-text-main');
-    expect(markup).not.toMatch(/#003380|#059669|#db2777|#0284c7|#475569|#4f46e5/i);
+    expect(markup).toContain('stroke-card');
+    expect(markup).toContain('fill-text-muted');
+    expect(markup).toContain('data-odontogram-asset="approved-raster-reference-v1"');
+    expect(markup).not.toMatch(/#003380|#059669|#db2777|#0284c7|#475569|#4f46e5|rgb\(|hsl\(/i);
   });
 });
