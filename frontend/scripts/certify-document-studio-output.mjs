@@ -177,7 +177,7 @@ try {
   await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
   await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
   await catalogDialog.waitFor({ state: 'hidden', timeout: 10000 });
-  await page.getByDisplayValue('Certification impression T2').waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('input').filter({ has: page.locator('[value="Certification impression T2"]') }).waitFor({ state: 'visible', timeout: 10000 });
 
   const generatedForPrint = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().includes('/api/documents/generate?'),
