@@ -59,6 +59,8 @@ const catalogState = vi.hoisted(() => ({
     },
   ],
   fetchCatalog:vi.fn(),
+  createAct:vi.fn(),
+  updateAct:vi.fn(),
 }));
 
 vi.mock('../Settings/hooks/useCatalogStore', () => ({
@@ -106,6 +108,9 @@ vi.mock('../../../services/api', () => ({
 beforeEach(() => {
   useAccountingStore.getState().reset();
   vi.clearAllMocks();
+  catalogState.fetchCatalog.mockResolvedValue(undefined);
+  catalogState.createAct.mockResolvedValue(true);
+  catalogState.updateAct.mockResolvedValue(true);
   vi.mocked(api.get).mockImplementation(async (url:string) => {
     if(url.startsWith('/actes/search')) return {data:[{id:99,name:'Détartrage',base_price:999,category:'HABIT'}]} as never;
     if(url==='/accounting/frequent-acts') return {data:[]} as never;
@@ -120,6 +125,9 @@ afterEach(() => {
 
 function renderDevis(){
   return render(<AccountingStudio isDevis patientId="7" setSelectedTeethFromOdontogram={vi.fn()} coherenceWarnings={[]} validationErrors={[]}/>);
+}
+function renderHonoraires(){
+  return render(<AccountingStudio isDevis={false} patientId="7" setSelectedTeethFromOdontogram={vi.fn()} coherenceWarnings={[]} validationErrors={[]}/>);
 }
 
 describe('Devis/Odontogram G4 interactive controls', () => {
@@ -158,25 +166,37 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     expect(screen.queryByText('Treatment selector')).toBeNull();
   });
 
-  it('uses quick tooth groups then applies a custom grouped treatment only with positive price', () => {
+  it('persists a custom grouped treatment to the central catalog before adding it to the devis', async () => {
     renderDevis();
     fireEvent.click(screen.getByRole('button',{name:/Bridge & Proth/i}));
     fireEvent.click(screen.getByRole('button',{name:'Q1'}));
     expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([11,12,13,14,15,16,17,18]);
 
+    fireEvent.change(screen.getByRole('combobox',{name:"Spécialité de l'acte groupé"}),{target:{value:'1'}});
     fireEvent.change(screen.getByPlaceholderText('Ou saisir un autre acte...'),{target:{value:'Acte groupé test'}});
     fireEvent.change(screen.getByPlaceholderText('Prix'),{target:{value:'1200'}});
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+
+    await waitFor(() => expect(catalogState.createAct).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        name:'Acte groupé test',
+        base_price:1200,
+        applicability:expect.objectContaining({
+          selection_modes:['GROUP'],
+          treatment_areas:['TOOTH_RANGE'],
+        }),
+      }),
+    ));
 
     const items=useAccountingStore.getState().items;
     expect(items).toHaveLength(1);
     expect(items[0]).toEqual(expect.objectContaining({
       description:'Acte groupé test',
       price:1200,
-      dent:'11, 12, 13, 14, 15, 16, 17, 18',
+      category:'PROTHESE',
       toothNumbers:[11,12,13,14,15,16,17,18],
     }));
-    expect(useAccountingStore.getState().groupSelectedTeeth).toEqual([]);
   });
 
   it('adds a catalog-priced predefined grouped act and resets selected group', () => {
@@ -213,21 +233,58 @@ describe('Devis/Odontogram G4 interactive controls', () => {
     expect(useAccountingStore.getState().items).toHaveLength(0);
   });
 
-  it('applies catalog truth to an act search suggestion instead of trusting habit price', async () => {
+  it('creates a new catalog act from the devis manual action, then inserts the same act into the document', async () => {
     renderDevis();
     fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
-    const input=screen.getByPlaceholderText('Rechercher ou saisir un acte...');
-    fireEvent.change(input,{target:{value:'Détartrage'}});
+    expect(screen.getByRole('dialog',{name:'Ajouter un acte au catalogue'})).toBeTruthy();
 
-    const suggestionLabel=await screen.findByText('Détartrage');
-    const suggestion=suggestionLabel.closest('button');
-    expect(suggestion).toBeTruthy();
-    fireEvent.click(suggestion!);
+    fireEvent.change(screen.getByRole('combobox',{name:'Spécialité'}),{target:{value:'2'}});
+    fireEvent.change(screen.getByPlaceholderText("Nom de l'acte"),{target:{value:'Acte devis custom'}});
+    fireEvent.change(screen.getByPlaceholderText('Tarif à définir'),{target:{value:'650'}});
+    fireEvent.click(screen.getByRole('button',{name:'Créer et ajouter'}));
 
+    await waitFor(() => expect(catalogState.createAct).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({name:'Acte devis custom',base_price:650}),
+    ));
+    expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
+      description:'Acte devis custom',
+      price:650,
+      category:'CONSERVATRICE',
+    }));
+  });
+
+  it('reuses an existing catalog act without creating a duplicate and uses its catalog tariff', async () => {
+    renderDevis();
+    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
+    fireEvent.change(screen.getByRole('combobox',{name:'Spécialité'}),{target:{value:'2'}});
+    fireEvent.change(screen.getByPlaceholderText("Nom de l'acte"),{target:{value:'Détartrage'}});
+    fireEvent.click(screen.getByRole('button',{name:'Créer et ajouter'}));
+
+    await waitFor(() => expect(useAccountingStore.getState().items).toHaveLength(1));
+    expect(catalogState.createAct).not.toHaveBeenCalled();
     expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
       description:'Détartrage',
       price:500,
       category:'CONSERVATRICE',
+    }));
+  });
+
+  it('uses the same central-catalog creation path from Note d’honoraires', async () => {
+    renderHonoraires();
+    fireEvent.click(screen.getByRole('button',{name:/Ligne Manuelle/i}));
+    fireEvent.change(screen.getByRole('combobox',{name:'Spécialité'}),{target:{value:'3'}});
+    fireEvent.change(screen.getByPlaceholderText("Nom de l'acte"),{target:{value:'Acte honoraires custom'}});
+    fireEvent.click(screen.getByRole('button',{name:'Créer et ajouter'}));
+
+    await waitFor(() => expect(catalogState.createAct).toHaveBeenCalledWith(
+      3,
+      expect.objectContaining({name:'Acte honoraires custom',base_price:0}),
+    ));
+    expect(useAccountingStore.getState().items[0]).toEqual(expect.objectContaining({
+      description:'Acte honoraires custom',
+      price:0,
+      category:'PEDODONTIE',
     }));
   });
 
