@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarPlus, Camera, ScanLine, UserPlus, X, Plus } from 'lucide-react';
 import type { MobileQuickActionCapabilities } from '../hooks/useMobileQuickActionCapabilities';
 
@@ -28,6 +28,8 @@ export function MobileQuickActionHub({
   onPatientAction: (action: MobileQuickPatientAction) => void;
 }) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const open = controlledOpen ?? internalOpen;
   const hasAnyAction = capabilities.can_create_appointment
     || capabilities.can_create_patient
@@ -40,11 +42,56 @@ export function MobileQuickActionHub({
 
   useEffect(() => {
     if (!open) return;
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const dialog = dialogRef.current;
+    const focusable = Array.from(dialog?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? []);
+    (focusable[0] ?? dialog)?.focus();
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+
+      const currentFocusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (currentFocusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      const active = document.activeElement;
+      if (
+        previousFocusRef.current
+        && (active === document.body || (active instanceof Node && dialog?.contains(active)))
+      ) {
+        previousFocusRef.current.focus();
+      }
+    };
   }, [open]);
 
   useEffect(() => {
@@ -71,6 +118,8 @@ export function MobileQuickActionHub({
           />
 
           <section
+            ref={dialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-quick-action-title"
