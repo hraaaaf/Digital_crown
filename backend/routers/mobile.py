@@ -33,7 +33,7 @@ _BRIDGE_DESTINATION_CODES = {
 }
 _BRIDGE_CODE_DESTINATIONS = {code: destination for destination, code in _BRIDGE_DESTINATION_CODES.items()}
 _BRIDGE_LABELS = {
-    "agenda": "Agenda",
+    "agenda": "Digital Crown Pocket",
     "finance": "Finance",
     "lab": "Labo",
     "assistant": "Assistant",
