@@ -15,6 +15,7 @@ import {
   ScanLine,
   Search,
   ShieldCheck,
+  Stethoscope,
   UserRound,
 } from 'lucide-react';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
@@ -50,6 +51,16 @@ export interface PatientCockpit {
     duration_minutes: number;
     motif: string;
     status: string;
+  } | null;
+  clinical_context?: {
+    motif_consultation?: string | null;
+    latest_acte?: {
+      id: number;
+      label: string;
+      type?: string | null;
+      date?: string | null;
+      note?: string | null;
+    } | null;
   } | null;
   finance?: {
     has_billing_data: boolean;
@@ -390,6 +401,51 @@ export function MobilePatientsView({
               <div className="rounded-[22px] border border-emerald-500/20 bg-emerald-500/5 p-4 flex items-center gap-3">
                 <ShieldCheck size={18} className="text-emerald-600" />
                 <p className="text-xs font-bold text-text-main">Aucune alerte médicale renseignée.</p>
+              </div>
+            )}
+
+            {cockpit.clinical_context && (
+              <div
+                data-mobile-clinical-context
+                className="rounded-[24px] border border-glass-border bg-card p-4 shadow-elite"
+                style={{ backgroundColor: 'var(--glass-bg)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <Stethoscope size={17} className="text-primary" />
+                  <h3 className="text-sm font-black text-text-main">Contexte clinique</h3>
+                </div>
+                {cockpit.clinical_context.motif_consultation && (
+                  <div className="mt-3">
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-text-muted">Motif de consultation</p>
+                    <p className="mt-1 text-xs font-bold leading-relaxed text-text-main">
+                      {cockpit.clinical_context.motif_consultation}
+                    </p>
+                  </div>
+                )}
+                {cockpit.clinical_context.latest_acte ? (
+                  <div className="mt-3 rounded-[17px] border border-primary/10 bg-primary/5 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Dernier acte</p>
+                        <p className="mt-1 truncate text-sm font-black text-text-main">
+                          {cockpit.clinical_context.latest_acte.label}
+                        </p>
+                      </div>
+                      {cockpit.clinical_context.latest_acte.date && (
+                        <span className="shrink-0 text-[9px] font-bold text-text-muted">
+                          {formatAppointment(cockpit.clinical_context.latest_acte.date)}
+                        </span>
+                      )}
+                    </div>
+                    {cockpit.clinical_context.latest_acte.note && (
+                      <p className="mt-2 line-clamp-4 text-[11px] font-semibold leading-relaxed text-text-muted">
+                        {cockpit.clinical_context.latest_acte.note}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs font-bold text-text-muted">Aucun acte clinique enregistré.</p>
+                )}
               </div>
             )}
 
