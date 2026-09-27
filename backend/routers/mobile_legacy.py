@@ -178,6 +178,7 @@ _MOBILE_TO_BACKEND_STATUS = {
 }
 _BACKEND_TO_MOBILE_STATUS = {
     models.AppointmentStatus.PREVU: "PLANIFIE",
+    models.AppointmentStatus.CONFIRME: "PLANIFIE",
     models.AppointmentStatus.EN_SALLE_ATTENTE: "EN_ATTENTE",
     models.AppointmentStatus.EN_FAUTEUIL: "EN_COURS",
     models.AppointmentStatus.TERMINE: "TERMINE",
@@ -186,10 +187,10 @@ _BACKEND_TO_MOBILE_STATUS = {
 
 
 def _to_mobile_status(status) -> Optional[str]:
-    """Convertit un statut métier en vocabulaire mobile (défaut: PLANIFIE)."""
+    """Convertit uniquement les statuts explicitement opérationnels pour Pocket."""
     if status is None:
         return None
-    return _BACKEND_TO_MOBILE_STATUS.get(status, "PLANIFIE")
+    return _BACKEND_TO_MOBILE_STATUS.get(status)
 
 
 # â”€â”€ PING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -454,7 +455,13 @@ def get_mobile_snapshot(
             models.Appointment.employer_id == employer_id,
             models.Appointment.datetime_start >= day_start,
             models.Appointment.datetime_start <= day_end,
-            models.Appointment.status != models.AppointmentStatus.ANNULE,
+            models.Appointment.status.in_([
+                models.AppointmentStatus.PREVU,
+                models.AppointmentStatus.CONFIRME,
+                models.AppointmentStatus.EN_SALLE_ATTENTE,
+                models.AppointmentStatus.EN_FAUTEUIL,
+                models.AppointmentStatus.TERMINE,
+            ]),
         )
         .order_by(models.Appointment.datetime_start)
         .all()
@@ -685,7 +692,7 @@ def get_mobile_appointments(
         'motif': a.motif,
         'status': _to_mobile_status(a.status),
         'duration_minutes': a.duration_minutes
-    } for a in apts]
+    } for a in apts if _to_mobile_status(a.status) is not None]
     return encrypt_payload({"data": data})
 
 @router.post('/appointments')
