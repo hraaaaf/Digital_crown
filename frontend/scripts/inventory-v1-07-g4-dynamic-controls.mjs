@@ -155,7 +155,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByPlaceholder('Rechercher un acte pour cette sélection…').waitFor({ state: 'visible', timeout: 10000 });
   await inventory(page, viewport, 'honoraires-tooth-selected');
 
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  await page.getByRole('button', { name: 'Échéances & options', exact: true }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'visible' });
   await inventory(page, viewport, 'honoraires-treasury');
   await page.getByRole('button', { name: /Global \/ Planifié/i }).click();
