@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CalendarPlus, Camera, ScanLine, UserPlus, X, Plus } from 'lucide-react';
 import type { MobileQuickActionCapabilities } from '../hooks/useMobileQuickActionCapabilities';
 
-export type MobileQuickPatientAction = 'photo' | 'scan' | 'payment';
+export type MobileQuickPatientAction = 'photo' | 'scan';
 
 export function MobileQuickActionHub({
   capabilities,
