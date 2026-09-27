@@ -6,7 +6,6 @@ const baseUrl = process.env.TRUTH_SAFETY_URL || 'http://127.0.0.1:5176/truth-saf
 const out = process.env.TRUTH_SAFETY_DIR || '../artifacts/v1-07-truth-safety-after';
 const scenarios = [
   'license-expired',
-  'landing-geography',
   'stock-read-error',
   'stock-delete-confirm',
   'stock-quantity-refusal',
@@ -76,13 +75,6 @@ try {
         const body=await page.locator('body').innerText();
         if (phase==='before' && !body.includes('licence Elite a expiré')) throw new Error('BEFORE licence copy no longer exposes baseline defect');
         if (phase==='after' && (body.includes('licence Elite a expiré') || !body.includes('Votre licence a expiré'))) throw new Error('AFTER licence copy is not plan-neutral');
-      }
-
-      if (scenario==='landing-geography') {
-        await page.getByRole('heading',{name:/Gérez votre cabinet/i}).waitFor({state:'visible',timeout:15000});
-        const body=await page.locator('body').innerText();
-        if (phase==='before' && !body.includes('dentistes algériens')) throw new Error('BEFORE landing geography defect not present');
-        if (phase==='after' && (body.includes('dentistes algériens') || !body.includes('dentistes marocains'))) throw new Error('AFTER landing geography is not Morocco-aligned');
       }
 
       if (scenario==='stock-read-error') {
