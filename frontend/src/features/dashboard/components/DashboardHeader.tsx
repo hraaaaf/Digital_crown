@@ -230,12 +230,12 @@ export const DashboardHeader = ({
             ref={mobileButtonRef}
             type="button"
             onClick={onOpenMobile}
-            aria-label="Appairer le téléphone mobile"
+            aria-label="Ouvrir Digital Crown Pocket"
             className="min-h-11 flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-sm rounded-elite-lg transition-all border border-indigo-100 shadow-sm"
             title="Appairer le téléphone"
           >
             <Smartphone size={20} aria-hidden="true" />
-            <span className="hidden md:inline">Mobile</span>
+            <span className="hidden md:inline">Pocket</span>
           </button>
         )}
 
