@@ -137,6 +137,28 @@ describe('PocketTodayOverview', () => {
     expect(nextOperationalAppointment(withChairside, '2026-09-27', now)?.id).toBe(4);
   });
 
+  it('covers empty, cancelled, stale, tie and future-day ranking deterministically', () => {
+    const base = snapshot('DENTISTE').appointments[0];
+    const now = new Date('2026-09-27T10:00:00');
+
+    expect(nextOperationalAppointment([], '2026-09-27', now)).toBeNull();
+
+    const today = [
+      { ...base, id: 40, patient_id: 140, time: '09:00', status: 'PLANIFIE' as const },
+      { ...base, id: 41, patient_id: 141, time: '10:15', status: 'ANNULE' as const },
+      { ...base, id: 43, patient_id: 143, time: '10:30', status: 'PLANIFIE' as const },
+      { ...base, id: 42, patient_id: 142, time: '10:30', status: 'PLANIFIE' as const },
+    ];
+    expect(nextOperationalAppointment(today, '2026-09-27', now)?.id).toBe(42);
+
+    const future = [
+      { ...base, id: 52, patient_id: 152, time: '11:00', status: 'PLANIFIE' as const },
+      { ...base, id: 51, patient_id: 151, time: '08:00', status: 'PLANIFIE' as const },
+      { ...base, id: 50, patient_id: 150, time: '07:30', status: 'ANNULE' as const },
+    ];
+    expect(nextOperationalAppointment(future, '2026-09-28', now)?.id).toBe(51);
+  });
+
   it('skips appointments without a patient id and does not invent a next patient for a past day', () => {
     const appointments = [
       { ...snapshot('DENTISTE').appointments[0], id: 10, patient_id: null, time: '10:30', status: 'PLANIFIE' as const },
