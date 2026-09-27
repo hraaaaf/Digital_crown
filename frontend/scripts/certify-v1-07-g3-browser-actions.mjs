@@ -247,7 +247,11 @@ for(const viewport of viewports){
   const editDateHandle=await editDate.elementHandle();
   await page.waitForFunction(el=>Boolean(el?.value),editDateHandle,{timeout:5000});
   const editAct=persistedEditDialog.getByPlaceholder("Saisir l'acte ou rechercher dans le catalogue...");
+  await editAct.waitFor({state:'visible',timeout:5000});
+  await page.waitForFunction(([el,expected])=>el?.value===expected,[await editAct.elementHandle(),uniqueMotif],{timeout:5000});
+  await editAct.clear();
   await editAct.fill(updatedMotif);
+  if(await editAct.inputValue()!==updatedMotif) throw new Error('appointment edit input did not replace motif exactly');
   const editAckPromise=page.waitForResponse(
     r=>r.request().method()==='PUT' && r.url().includes('/api/appointments/'+persisted.id),
     {timeout:10000},
