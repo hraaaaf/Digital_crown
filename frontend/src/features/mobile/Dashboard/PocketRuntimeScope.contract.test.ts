@@ -10,6 +10,11 @@ const addApptSource = readSource('src/features/mobile/Dashboard/components/AddAp
 const patientsSource = readSource('src/features/mobile/Dashboard/views/MobilePatientsView.tsx');
 
 describe('Digital Crown Pocket production runtime scope', () => {
+  it('keeps the Today surface out of the legacy full agenda manager', () => {
+    expect(dashboardSource).not.toContain("import { AgendaView }");
+    expect(dashboardSource).not.toContain('<AgendaView');
+  });
+
   it('does not preload retired Lab or Finance workflows', () => {
     expect(hookSource).not.toContain('fetchLabJobs');
     expect(hookSource).not.toContain('labJobService');
