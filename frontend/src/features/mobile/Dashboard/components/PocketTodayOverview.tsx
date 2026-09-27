@@ -226,7 +226,7 @@ export function PocketTodayOverview({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] font-black text-text-main">{appointment.patient_name}</p>
                     <p className="mt-0.5 truncate text-[9px] font-bold uppercase tracking-wider text-text-muted">
-                      {appointment.motif || 'Rendez-vous'} · {appointment.status.replace('_', ' ')}
+                      {appointment.motif || 'Rendez-vous'} · {(appointment.status || 'PLANIFIE').replace('_', ' ')}
                     </p>
                   </div>
                   {!isAssistant && appointment.patient_id && <ChevronRight size={15} className="shrink-0 text-text-muted" />}
