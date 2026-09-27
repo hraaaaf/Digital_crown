@@ -79,6 +79,10 @@ export function PocketTodayOverview({
     if (Number.isNaN(parsed.getTime())) return 'Journée sélectionnée';
     return `Journée du ${parsed.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`;
   })();
+  const compactAgenda = appointments
+    .filter((appointment) => appointment.status !== 'ANNULE')
+    .slice()
+    .sort((a, b) => timeMinutes(a.time) - timeMinutes(b.time) || a.id - b.id);
 
   return (
     <section
@@ -188,6 +192,65 @@ export function PocketTodayOverview({
         >
           <Bell size={13} /> Alertes
         </button>
+      </div>
+
+      <div
+        data-dc-pocket-compact-agenda
+        className="overflow-hidden rounded-[24px] border border-glass-border bg-card shadow-elite"
+        style={{ backgroundColor: 'var(--glass-bg)' }}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-border-main px-4 py-3">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+              {isToday ? 'Agenda du jour' : 'Agenda sélectionné'}
+            </p>
+            <p className="mt-0.5 text-[10px] font-bold text-text-muted">
+              {isAssistant ? 'Vue opérationnelle' : 'Lecture rapide avant le fauteuil'}
+            </p>
+          </div>
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">
+            {compactAgenda.length} RDV
+          </span>
+        </div>
+
+        {compactAgenda.length === 0 ? (
+          <p className="px-4 py-6 text-center text-[11px] font-bold text-text-muted">
+            Aucun rendez-vous pour cette journée.
+          </p>
+        ) : (
+          <div className="divide-y divide-border-main">
+            {compactAgenda.map((appointment) => {
+              const content = (
+                <>
+                  <div className="w-12 shrink-0 text-[11px] font-black text-primary">{appointment.time}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12px] font-black text-text-main">{appointment.patient_name}</p>
+                    <p className="mt-0.5 truncate text-[9px] font-bold uppercase tracking-wider text-text-muted">
+                      {appointment.motif || 'Rendez-vous'} · {appointment.status.replace('_', ' ')}
+                    </p>
+                  </div>
+                  {!isAssistant && appointment.patient_id && <ChevronRight size={15} className="shrink-0 text-text-muted" />}
+                </>
+              );
+
+              return !isAssistant && appointment.patient_id ? (
+                <button
+                  key={appointment.id}
+                  type="button"
+                  aria-label={`Ouvrir ${appointment.patient_name}`}
+                  onClick={() => onOpenPatient(appointment.patient_id as number)}
+                  className="flex min-h-[58px] w-full items-center gap-3 px-4 py-2.5 text-left active:bg-primary/5"
+                >
+                  {content}
+                </button>
+              ) : (
+                <div key={appointment.id} className="flex min-h-[58px] items-center gap-3 px-4 py-2.5">
+                  {content}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
