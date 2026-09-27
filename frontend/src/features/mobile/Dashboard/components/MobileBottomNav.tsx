@@ -98,7 +98,7 @@ export function MobileBottomNav({
             </div>
 
             <div className="grid gap-2.5 max-h-[min(60dvh,520px)] overflow-y-auto pr-0.5">
-              {secondaryTabs.map(({ id, icon: Icon, label, dot, badge }) => (
+              {secondaryTabs.map(({ id, icon: Icon, label, badge }) => (
                 <button
                   key={id}
                   type="button"
@@ -108,7 +108,6 @@ export function MobileBottomNav({
                 >
                   <span className="relative grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
                     <Icon size={18} />
-                    {dot && <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-primary ring-2 ring-white/80" />}
                   </span>
                   <span className="flex-1 text-[11px] font-black">{label}</span>
                   {badge != null && (
