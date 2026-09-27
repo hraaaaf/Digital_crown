@@ -371,12 +371,11 @@ export const PatientDocuments = () => {
                 )}
               </div>
 
-              <div className="relative z-10 mt-3">
-                {canonicalId !== null && doc.file_exists !== false ? (
-                ) : isLegacy ? (
+              {isLegacy && (
+                <div className="relative z-10 mt-3">
                   <div data-m4c-legacy-only className="min-h-[52px] rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 inline-flex w-full items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest"><Monitor size={15} /> Non portable sur mobile</div>
-                ) : null}
-              </div>
+                </div>
+              )}
             </div>
           );
         })}
