@@ -24,10 +24,11 @@ describe('MOB-3 quick patient flow contracts', () => {
     expect(patientFlow).not.toContain('/mobile/context?patient_id=');
   });
 
-  it('reuses the canonical accounting payment endpoint and explicit payment method', () => {
-    expect(patientFlow).toContain('/api/accounting/payments');
-    expect(patientFlow).toContain('payment_method: paymentMethod');
-    expect(patientFlow).toContain('patient_id: selectedPatient.id');
+  it('does not expose mobile payment writes from the Pocket quick patient flow', () => {
+    expect(patientFlow).not.toContain('/api/accounting/payments');
+    expect(patientFlow).not.toContain('payment_method');
+    expect(patientFlow).not.toContain('Encaisser');
+    expect(patientFlow).not.toContain("action === 'payment'");
   });
 
   it('reuses canonical patient creation fields and endpoint', () => {
