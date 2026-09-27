@@ -167,7 +167,7 @@ Pendant une phase de correction ou de stabilisation :
 - si un commit déclenche automatiquement d'autres workflows GitHub, **ne pas attendre ni réinterpréter toute la matrice** : suivre uniquement le gate corrigé et ses dépendances directes ;
 - un gate déjà prouvé vert reste acquis tant que ni son code, ni son harness, ni une dépendance pertinente n'ont changé ;
 - après correction d'un rouge, passer au **prochain rouge réel terminé**, sans recommencer les preuves déjà acquises ;
-- la **matrice complète exact-HEAD** n'est requise qu'une seule fois, au closeout final du lot, après élimination de tous les rouges ciblés ;
+- au closeout final, **ne pas rejouer aveuglément toute la matrice** : vérifier la cohérence `HEAD ↔ preuves acquises` et ne rejouer que les tests/jobs/gates dont le code, le harness ou une dépendance pertinente a changé ; un changement transverse ou un invariant sécurité/données/release invalide et élargit automatiquement les preuves concernées ;
 - une CI encore queued/in_progress n'autorise pas l'attente passive : traiter le travail indépendant disponible ; sinon déclarer le blocage asynchrone exact ;
 - ne jamais masquer un changement produit derrière une validation ciblée : si le diff touche une dépendance transverse ou un invariant de sécurité/données/release, élargir les tests proportionnellement au risque.
 
