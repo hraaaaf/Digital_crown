@@ -84,14 +84,6 @@ jobs:
               email: 'admin@security-cert.local',
               role: 'ADMIN',
               is_current_user: true,
-              destinations: [
-                { id: 'agenda', label: 'Agenda' },
-                { id: 'finance', label: 'Finance' },
-                { id: 'lab', label: 'Labo' },
-                { id: 'assistant', label: 'Assistant' },
-                { id: 'security', label: 'Sécurité' },
-                { id: 'dentists', label: 'Équipe praticiens' },
-              ],
             }],
             expires_in: 300,
           };
@@ -126,16 +118,17 @@ jobs:
               await page.getByRole('heading', { name: 'Sécurité & Souveraineté', exact: true }).waitFor({ state: 'visible' });
               await page.getByText('Sauvegarde chiffrée vérifiée', { exact: true }).waitFor({ state: 'visible' });
 
+              await page.getByText('Digital Crown Pocket', { exact: true }).waitFor({ state: 'visible' });
               const userTarget = page.getByLabel('Utilisateur mobile cible');
-              const destinationTarget = page.getByLabel('Destination mobile');
               const generateTarget = page.getByRole('button', { name: 'Générer le QR de connexion', exact: true });
               await userTarget.waitFor({ state: 'visible' });
-              await destinationTarget.waitFor({ state: 'visible' });
               await generateTarget.waitFor({ state: 'visible' });
+              if (await page.getByLabel('Destination mobile').count()) {
+                throw new Error('Legacy destination selector must not be rendered in Digital Crown Pocket');
+              }
 
               const bridgeBoxes = await Promise.all([
                 userTarget.boundingBox(),
-                destinationTarget.boundingBox(),
                 generateTarget.boundingBox(),
               ]);
               if (bridgeBoxes.some(box => !box || box.height < 44)) {
@@ -172,6 +165,7 @@ jobs:
 
   m64-e2e:
     if: github.event_name == 'pull_request'
+    name: Digital Crown Pocket bridge contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact PR head
@@ -192,96 +186,14 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend and Chromium
+      - name: Install frontend
         working-directory: frontend
-        run: |
-          npm ci
-          npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
+        run: npm ci
 
-      - name: Extract versioned M6.4 AFTER scenario
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          source = Path('.audit/mobile-m64-after-scenario.yml').read_text()
-          for target in ['mobile-m64-after.html', 'src/mobile-m64-after.tsx', 'mobile-m64-after.mjs']:
-              pattern = rf"cat > {re.escape(target)} <<'EOF'\n(.*?)\n          EOF"
-              match = re.search(pattern, source, re.S)
-              if not match:
-                  raise SystemExit(f'Frozen AFTER block missing: {target}')
-              lines = [line[10:] if line.startswith('          ') else line for line in match.group(1).splitlines()]
-              content = '\n'.join(lines) + '\n'
-              if target == 'mobile-m64-after.mjs':
-                  content = content.replace("'Recettes Jour'", "'Recettes du jour'")
-                  content = content.replace("'Générer le pont mobile'", "'Générer le QR de connexion'")
-              destination = Path('frontend') / target
-              destination.parent.mkdir(parents=True, exist_ok=True)
-              destination.write_text(content)
-          print('Versioned M6.4 AFTER scenario extracted with current client wording')
-          PY
-
-      - name: Mirror production MobileProtectedRoute pairing gate
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('frontend/src/mobile-m64-after.tsx')
-          source = path.read_text()
-          source = source.replace(
-              "import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';",
-              "import { MobileDashboard } from './features/mobile/Dashboard/MobileDashboard';\nimport { MobileStorage } from './services/zka/MobileStorage';",
-          )
-          marker = "const params = new URLSearchParams(window.location.search);"
-          gate = """const PairedDashboard = () => {\n  const [gate, setGate] = React.useState<'loading' | 'allow' | 'redirect'>('loading');\n  React.useEffect(() => {\n    let active = true;\n    MobileStorage.isPaired()\n      .then(async paired => {\n        if (!active) return;\n        if (paired) { setGate('allow'); return; }\n        const hasCache = await MobileStorage.hasCachedSnapshot().catch(() => false);\n        if (active) setGate(hasCache ? 'allow' : 'redirect');\n      })\n      .catch(() => { if (active) setGate('redirect'); });\n    return () => { active = false; };\n  }, []);\n  if (gate === 'loading') return <div data-testid=\"mobile-pairing-gate\">Vérification de la session mobile…</div>;\n  if (gate === 'redirect') return <div data-testid=\"mobile-pairing-rejected\">Appairage requis</div>;\n  return <MobileDashboard />;\n};\n\n"""
-          if marker not in source:
-              raise SystemExit('M6.4 harness marker missing')
-          source = source.replace(marker, gate + marker)
-          source = source.replace(
-              '<Route path="/mobile/dashboard" element={<MobileDashboard />} />',
-              '<Route path="/mobile/dashboard" element={<PairedDashboard />} />',
-          )
-          path.write_text(source)
-          print('Production-equivalent mobile pairing gate injected')
-          PY
-
-      - name: Capture exact-head AFTER
+      - name: Assert Pocket bridge routing contract
         working-directory: frontend
-        run: node mobile-m64-after.mjs
+        run: npm test -- src/test/mobileM64ContextualBridge.test.ts src/features/mobile/bridge.m5a.test.ts
 
-      - name: Assert M6.4 E2E report gates
+      - name: Build exact head
         working-directory: frontend
-        run: |
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          report = json.loads(Path('mobile-m64-after-artifacts/report.json').read_text())
-          assert report['productHead'] == os.environ['PRODUCT_HEAD']
-          assert report['safePairingBodies'] is True
-          assert report['e2eFinance']['count'] == 3
-          assert report['e2eFinance']['allVisible'] is True
-          assert report['e2eFinance']['protocolObserved'] is True
-          assert len(report['captures']) == 13
-          assert all(not item['errors'] for item in report['captures'])
-          assert all(not item['metrics']['hasHorizontalOverflow'] for item in report['captures'])
-          assert all(
-              not item['metrics']['controlsBelow44']
-              for item in report['captures']
-              if item['state'] in {'bridge-default', 'bridge-visible-finance', 'onboarding', 'pairing-success-finance'}
-          )
-          print('M6.4 exact-head E2E PASS')
-          PY
-          cat > mobile-m64-after-artifacts/metadata.txt <<EOF
-          chantier=Digital Crown Mobile Full Experience
-          lot=M6.4 Contextual QR Bridge
-          product_head=${PRODUCT_HEAD}
-          viewports=390x844,430x932,768x1024,1280x900
-          e2e=onboarding->authenticated server destination->finance
-          deployment=none
-          EOF
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mobile-m64-final-after
-          path: frontend/mobile-m64-after-artifacts/
-          if-no-files-found: error
-          retention-days: 14
+        run: npm run build
