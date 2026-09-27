@@ -129,13 +129,16 @@ async function decryptMobileResponse<T>(response: Response, masterKey: string): 
 export function MobilePatientsView({
   onClose,
   previewData,
+  initialSelectedId,
 }: {
   onClose: () => void;
   previewData?: MobilePatientsPreviewData;
+  initialSelectedId?: number | null;
 }) {
+  const initialPatientId = previewData?.initialSelectedId ?? initialSelectedId ?? null;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PatientSearchResult[]>(previewData?.results ?? []);
-  const [selectedId, setSelectedId] = useState<number | null>(previewData?.initialSelectedId ?? null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialPatientId);
   const [cockpit, setCockpit] = useState<PatientCockpit | null>(
     previewData?.initialSelectedId ? previewData.cockpit : null,
   );
@@ -148,6 +151,11 @@ export function MobilePatientsView({
   const [openingContext, setOpeningContext] = useState<string | null>(null);
   const [quickDocumentOpen, setQuickDocumentOpen] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (previewData || initialSelectedId == null) return;
+    setSelectedId(initialSelectedId);
+  }, [initialSelectedId, previewData]);
 
   useEffect(() => {
     if (selectedId !== null) return;
