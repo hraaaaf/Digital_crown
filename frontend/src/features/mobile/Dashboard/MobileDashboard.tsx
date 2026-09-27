@@ -13,6 +13,7 @@ import { AddApptModal } from './components/AddApptModal';
 import { MobileQuickActionHub, type MobileQuickPatientAction } from './components/MobileQuickActionHub';
 import { MobileQuickPatientFlow } from './components/MobileQuickPatientFlow';
 import { MobileQuickNewPatientModal } from './components/MobileQuickNewPatientModal';
+import { PocketTodayOverview } from './components/PocketTodayOverview';
 import './components/mobileQuickActionHub.css';
 import { AgendaView } from './views/AgendaView';
 import { WaitingRoomView } from './views/WaitingRoomView';
@@ -31,6 +32,7 @@ export const MobileDashboard = () => {
   const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
   const [quickPatientAction, setQuickPatientAction] = useState<MobileQuickPatientAction | null>(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [initialPatientId, setInitialPatientId] = useState<number | null>(null);
   useMobileRuntimeTheme(state.snapshot?.generated_at);
 
   useEffect(() => {
@@ -55,7 +57,14 @@ export const MobileDashboard = () => {
 
   const selectNavTab = (tab: typeof state.activeTab) => {
     setQuickActionsOpen(false);
+    if (tab !== 'patients') setInitialPatientId(null);
     actions.setActiveTab(tab);
+  };
+
+  const openPatientCockpit = (patientId: number) => {
+    setInitialPatientId(patientId);
+    setQuickActionsOpen(false);
+    actions.setActiveTab('patients');
   };
 
   return (
@@ -105,20 +114,29 @@ export const MobileDashboard = () => {
             className="h-full"
           >
             {state.activeTab === 'agenda' && (
-              <AgendaView
-                snapshot={state.snapshot}
-                syncStatus={state.syncStatus}
-                selectedDate={state.selectedDate}
-                setSelectedDate={actions.setSelectedDate}
-                patients={state.patients}
-                onStatusChange={actions.handleStatusChange}
-                onRescheduleAppt={actions.handleRescheduleAppt}
-                openApptWhatsApp={actions.openApptWhatsApp}
-                handleDeleteAppt={actions.handleDeleteAppt}
-                handleOpenSignature={actions.handleOpenSignature}
-                onRefresh={actions.fetchSnapshot}
-                onPatientCreated={() => actions.fetchPatients()}
-              />
+              <>
+                <PocketTodayOverview
+                  snapshot={state.snapshot}
+                  onOpenPatient={openPatientCockpit}
+                  onOpenWaitingRoom={() => selectNavTab('waiting-room')}
+                  onOpenFrontdesk={() => selectNavTab('frontdesk')}
+                  onOpenAlerts={() => selectNavTab('notifications')}
+                />
+                <AgendaView
+                  snapshot={state.snapshot}
+                  syncStatus={state.syncStatus}
+                  selectedDate={state.selectedDate}
+                  setSelectedDate={actions.setSelectedDate}
+                  patients={state.patients}
+                  onStatusChange={actions.handleStatusChange}
+                  onRescheduleAppt={actions.handleRescheduleAppt}
+                  openApptWhatsApp={actions.openApptWhatsApp}
+                  handleDeleteAppt={actions.handleDeleteAppt}
+                  handleOpenSignature={actions.handleOpenSignature}
+                  onRefresh={actions.fetchSnapshot}
+                  onPatientCreated={() => actions.fetchPatients()}
+                />
+              </>
             )}
             {state.activeTab === 'waiting-room' && (
               <WaitingRoomView
@@ -129,7 +147,11 @@ export const MobileDashboard = () => {
             {state.activeTab === 'patients' && (
               <MobilePatientsGate
                 isOnline={state.isOnline}
-                onClose={() => selectNavTab('agenda')}
+                initialSelectedId={initialPatientId}
+                onClose={() => {
+                  setInitialPatientId(null);
+                  selectNavTab('agenda');
+                }}
               />
             )}
             {state.activeTab === 'securite' && <SecuriteView snapshot={state.snapshot} syncStatus={state.syncStatus} isOnline={state.isOnline} handleLogout={actions.handleLogout} />}
