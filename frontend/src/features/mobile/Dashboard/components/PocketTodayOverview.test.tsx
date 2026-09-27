@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PocketTodayOverview } from './PocketTodayOverview';
+import { PocketTodayOverview, nextOperationalAppointment } from './PocketTodayOverview';
 import type { Snapshot } from '../types';
 
 afterEach(() => cleanup());
@@ -55,6 +55,30 @@ const snapshot = (role: string): Snapshot => ({
     total_debt: 0,
   },
   debtors: [],
+
+  it('ranks in-chair, waiting and upcoming patients instead of stale planned appointments', () => {
+    const appointments = snapshot('DENTISTE').appointments;
+    const now = new Date('2026-09-27T10:05:00');
+    const selected = nextOperationalAppointment(appointments, '2026-09-27', now);
+    expect(selected?.id).toBe(2);
+
+    const withChairside = [
+      ...appointments,
+      { ...appointments[0], id: 4, patient_id: 104, time: '10:15', patient_name: 'Chairside', status: 'EN_COURS' as const },
+    ];
+    expect(nextOperationalAppointment(withChairside, '2026-09-27', now)?.id).toBe(4);
+  });
+
+  it('skips appointments without a patient id and does not invent a next patient for a past day', () => {
+    const appointments = [
+      { ...snapshot('DENTISTE').appointments[0], id: 10, patient_id: null, time: '10:30', status: 'PLANIFIE' as const },
+      { ...snapshot('DENTISTE').appointments[0], id: 11, patient_id: 111, time: '10:45', status: 'PLANIFIE' as const },
+    ];
+    const now = new Date('2026-09-27T10:00:00');
+    expect(nextOperationalAppointment(appointments, '2026-09-27', now)?.id).toBe(11);
+    expect(nextOperationalAppointment(appointments, '2026-09-26', now)).toBeNull();
+  });
+
 });
 
 describe('PocketTodayOverview', () => {
@@ -72,12 +96,12 @@ describe('PocketTodayOverview', () => {
     );
 
     expect(screen.getByText('Vue praticien · priorité clinique')).toBeTruthy();
-    expect(screen.getByText('Sara Benali')).toBeTruthy();
+    expect(screen.getByText('Omar Alami')).toBeTruthy();
     expect(container.querySelector('[data-dc-pocket-waiting-count="1"]')).toBeTruthy();
     expect(container.querySelector('[data-dc-pocket-progress-count="1"]')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Ouvrir le dossier/i }));
-    expect(onOpenPatient).toHaveBeenCalledWith(101);
+    expect(onOpenPatient).toHaveBeenCalledWith(102);
     expect(screen.queryByText('Accueil')).toBeNull();
   });
 
