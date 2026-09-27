@@ -2,6 +2,52 @@ import { create } from 'zustand';
 import { api } from '../../../../services/api';
 import toast from 'react-hot-toast';
 
+export type CatalogDentition = 'PRIMARY' | 'PERMANENT';
+export type CatalogToothType = 'INCISOR' | 'CANINE' | 'PREMOLAR' | 'MOLAR';
+export type CatalogTreatmentArea = 'SURFACE' | 'TOOTH' | 'TOOTH_RANGE' | 'QUADRANT' | 'ARCH' | 'MOUTH';
+export type CatalogSelectionMode = 'INDIVIDUAL' | 'GROUP' | 'GENERAL';
+
+export interface CatalogActApplicability {
+  dentitions: CatalogDentition[];
+  tooth_types: CatalogToothType[];
+  treatment_areas: CatalogTreatmentArea[];
+  selection_modes: CatalogSelectionMode[];
+  requires_present_tooth: boolean;
+  requires_missing_tooth: boolean;
+  min_selected_teeth: number;
+  max_selected_teeth?: number | null;
+  age_min?: number | null;
+  age_max?: number | null;
+  suggestion_priority: number;
+  searchable_when_not_suggested: boolean;
+}
+
+export const DEFAULT_CATALOG_ACT_APPLICABILITY: CatalogActApplicability = {
+  dentitions: [],
+  tooth_types: [],
+  treatment_areas: [],
+  selection_modes: [],
+  requires_present_tooth: false,
+  requires_missing_tooth: false,
+  min_selected_teeth: 0,
+  max_selected_teeth: null,
+  age_min: null,
+  age_max: null,
+  suggestion_priority: 0,
+  searchable_when_not_suggested: true,
+};
+
+export const normalizeCatalogActApplicability = (
+  value?: Partial<CatalogActApplicability>,
+): CatalogActApplicability => ({
+  ...DEFAULT_CATALOG_ACT_APPLICABILITY,
+  ...(value || {}),
+  dentitions: [...(value?.dentitions || [])],
+  tooth_types: [...(value?.tooth_types || [])],
+  treatment_areas: [...(value?.treatment_areas || [])],
+  selection_modes: [...(value?.selection_modes || [])],
+});
+
 export interface CatalogAct {
   id: number;
   specialty_id: number;
@@ -10,6 +56,10 @@ export interface CatalogAct {
   base_price: number;
   color?: string;
   is_active: boolean;
+  is_favorite: boolean;
+  usage_count: number;
+  last_used_at?: string | null;
+  applicability?: Partial<CatalogActApplicability>;
 }
 
 export interface Pathology {
@@ -30,7 +80,7 @@ export interface Specialty {
 
 type SpecialtyMutation = { name: string; color?: string };
 type PathologyMutation = { name: string; description?: string; is_active?: boolean };
-type ActMutation = { name: string; base_price: number; code?: string; color?: string; is_active?: boolean };
+type ActMutation = { name: string; base_price: number; code?: string; color?: string; is_active?: boolean; applicability?: Partial<CatalogActApplicability> };
 
 type PathologyUpdate = Partial<PathologyMutation>;
 type ActUpdate = Partial<ActMutation>;
@@ -40,12 +90,14 @@ interface CatalogState {
   loading: boolean;
   readError: string | null;
   fetchCatalog: () => Promise<void>;
+  applyReferenceCatalog: () => Promise<boolean>;
   createSpecialty: (data: SpecialtyMutation) => Promise<boolean>;
   updateSpecialty: (id: number, data: Partial<SpecialtyMutation>) => Promise<boolean>;
   createPathology: (specialtyId: number, data: PathologyMutation) => Promise<boolean>;
   updatePathology: (pathologyId: number, data: PathologyUpdate) => Promise<boolean>;
   createAct: (specialtyId: number, data: ActMutation) => Promise<boolean>;
   updateAct: (actId: number, data: ActUpdate) => Promise<boolean>;
+  setActFavorite: (actId: number, isFavorite: boolean) => Promise<boolean>;
 }
 
 const mutationError = (error: unknown, fallback: string) => {
@@ -69,6 +121,18 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       toast.error('Erreur lors du chargement du catalogue');
     } finally {
       set({ loading: false });
+    }
+  },
+
+  applyReferenceCatalog: async () => {
+    if (get().readError) return false;
+    try {
+      await api.post('/catalog/reference/apply');
+      return true;
+    } catch (error) {
+      console.error(error);
+      mutationError(error, "Impossible d'installer la bibliothèque clinique de référence");
+      return false;
     }
   },
 
@@ -146,6 +210,18 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       return true;
     } catch (error) {
       mutationError(error, "Impossible de modifier l'acte");
+      return false;
+    }
+  },
+
+  setActFavorite: async (actId, isFavorite) => {
+    if (get().readError) return false;
+    try {
+      await api.put(`/catalog/acts/${actId}/preference`, { is_favorite: isFavorite });
+      await get().fetchCatalog();
+      return true;
+    } catch (error) {
+      mutationError(error, "Impossible de modifier le favori");
       return false;
     }
   },

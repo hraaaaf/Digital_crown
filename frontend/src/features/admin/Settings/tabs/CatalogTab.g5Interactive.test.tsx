@@ -15,16 +15,31 @@ const state = vi.hoisted(() => ({
     },
   ] as any[],
   fetchCatalog: vi.fn(),
+  applyReferenceCatalog: vi.fn(),
   createSpecialty: vi.fn(),
   updateSpecialty: vi.fn(),
   createAct: vi.fn(),
   updateAct: vi.fn(),
+  setActFavorite: vi.fn(),
   createPathology: vi.fn(),
   updatePathology: vi.fn(),
 }));
 
 vi.mock('../hooks/useCatalogStore', () => ({
   useCatalogStore: () => state,
+  normalizeCatalogActApplicability: (value:any = {}) => ({
+    ...value,
+    dentitions: [...(value.dentitions || [])],
+    tooth_types: [...(value.tooth_types || [])],
+    treatment_areas: [...(value.treatment_areas || [])],
+    selection_modes: [...(value.selection_modes || [])],
+    requires_present_tooth: value.requires_present_tooth ?? false,
+    requires_missing_tooth: value.requires_missing_tooth ?? false,
+    min_selected_teeth: value.min_selected_teeth ?? 0,
+    max_selected_teeth: value.max_selected_teeth ?? null,
+    suggestion_priority: value.suggestion_priority ?? 0,
+    searchable_when_not_suggested: value.searchable_when_not_suggested ?? true,
+  }),
 }));
 
 beforeEach(() => {
@@ -39,10 +54,12 @@ beforeEach(() => {
     pathologies: [{ id: 20, name: 'Gingivite', description: 'Inflammation', is_active: true }],
   }];
   state.fetchCatalog.mockResolvedValue(undefined);
+  state.applyReferenceCatalog.mockResolvedValue(true);
   state.createSpecialty.mockResolvedValue(true);
   state.updateSpecialty.mockResolvedValue(true);
   state.createAct.mockResolvedValue(true);
   state.updateAct.mockResolvedValue(true);
+  state.setActFavorite.mockResolvedValue(true);
   state.createPathology.mockResolvedValue(true);
   state.updatePathology.mockResolvedValue(true);
 });
@@ -52,6 +69,7 @@ afterEach(() => cleanup());
 describe('CatalogTab G5 interactive matrix', () => {
   it('loads catalogue truth before exposing specialty contents', async () => {
     render(<CatalogTab />);
+    await waitFor(() => expect(state.applyReferenceCatalog).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(state.fetchCatalog).toHaveBeenCalledTimes(1));
     expect(screen.getAllByText('Soins').length).toBeGreaterThan(0);
     expect(screen.getByText('Détartrage')).toBeTruthy();
@@ -76,7 +94,7 @@ describe('CatalogTab G5 interactive matrix', () => {
     fireEvent.click(screen.getByRole('button', { name: /Ajouter un acte/i }));
 
     fireEvent.change(screen.getByPlaceholderText('Ex. Détartrage'), { target: { value: 'Consultation' } });
-    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '-20' } });
+    fireEvent.change(screen.getByPlaceholderText('Tarif à définir'), { target: { value: '-20' } });
     fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
     expect(await screen.findByRole('alert')).toBeTruthy();
@@ -90,13 +108,62 @@ describe('CatalogTab G5 interactive matrix', () => {
 
     fireEvent.change(screen.getByPlaceholderText('Ex. Détartrage'), { target: { value: 'Consultation' } });
     fireEvent.change(screen.getByPlaceholderText('Ex. DET'), { target: { value: 'CONS' } });
-    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '350' } });
+    fireEvent.change(screen.getByPlaceholderText('Tarif à définir'), { target: { value: '350' } });
     fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
     await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ name: 'Consultation', code: 'CONS', base_price: 350, is_active: true }),
     ));
+  });
+
+  it('allows a new act to keep its tariff blank for the dentist to fill later', async () => {
+    render(<CatalogTab />);
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter un acte/i }));
+
+    fireEvent.change(screen.getByPlaceholderText('Ex. Détartrage'), { target: { value: 'Acte sans tarif' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ name: 'Acte sans tarif', base_price: 0 }),
+    ));
+  });
+
+  it('creates a modular primary-tooth act with editable applicability', async () => {
+    render(<CatalogTab />);
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter un acte/i }));
+
+    fireEvent.change(screen.getByPlaceholderText('Ex. Détartrage'), { target: { value: 'Acte pédiatrique custom' } });
+    fireEvent.change(screen.getByPlaceholderText('Tarif à définir'), { target: { value: '420' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Temporaire' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ciblé' }));
+    fireEvent.change(screen.getByLabelText('Priorité suggestion'), { target: { value: '70' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    await waitFor(() => expect(state.createAct).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        name: 'Acte pédiatrique custom',
+        base_price: 420,
+        applicability: expect.objectContaining({
+          dentitions: ['PRIMARY'],
+          selection_modes: ['INDIVIDUAL'],
+          suggestion_priority: 70,
+        }),
+      }),
+    ));
+  });
+
+  it('persists favorite state on the central catalog act', async () => {
+    state.specialties[0].acts[0].is_favorite = false;
+    state.specialties[0].acts[0].usage_count = 2;
+    state.specialties[0].acts[0].last_used_at = '2026-09-26T10:00:00Z';
+    render(<CatalogTab />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter Détartrage aux favoris' }));
+    await waitFor(() => expect(state.setActFavorite).toHaveBeenCalledWith(10, true));
+    expect(screen.getByText(/2 utilisation/)).toBeTruthy();
   });
 
   it('edits and deactivates an existing act without deleting history', async () => {

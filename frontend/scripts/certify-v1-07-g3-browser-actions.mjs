@@ -247,7 +247,11 @@ for(const viewport of viewports){
   const editDateHandle=await editDate.elementHandle();
   await page.waitForFunction(el=>Boolean(el?.value),editDateHandle,{timeout:5000});
   const editAct=persistedEditDialog.getByPlaceholder("Saisir l'acte ou rechercher dans le catalogue...");
-  await editAct.fill(updatedMotif);
+  await editAct.focus();
+  await editAct.press(process.platform==='darwin'?'Meta+A':'Control+A');
+  await editAct.pressSequentially(updatedMotif,{delay:5});
+  const editedMotifValue=await editAct.inputValue();
+  if(editedMotifValue!==updatedMotif) throw new Error('appointment edit field replacement mismatch: '+JSON.stringify({expected:updatedMotif,actual:editedMotifValue}));
   const editAckPromise=page.waitForResponse(
     r=>r.request().method()==='PUT' && r.url().includes('/api/appointments/'+persisted.id),
     {timeout:10000},

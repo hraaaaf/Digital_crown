@@ -264,7 +264,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
       <div className={cn(
-        "flex-1 h-full flex flex-col px-4 sm:px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
+        "flex-1 h-full flex flex-col px-4 sm:px-8 pt-6 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
+        activeTab === 'honoraires' ? "pb-44 sm:pb-36" : activeTab === 'devis' ? "pb-28 sm:pb-28" : "pb-32",
         sideStudioType === 'PREVIEW' ? "xl:pr-[570px]" : ""
       )}>
         <StudioHeader
@@ -319,18 +320,42 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           generator={generator}
         />
 
-        <StudioFooter
-          loading={generator.loading}
-          activeTab={activeTab}
-          onGenerate={generator.handleGenerate}
-          showPrintWarning={generator.showPrintWarning}
-          onCloseWarning={generator.closeWarning}
-          hasChanges={generator.hasChanges}
-          total={accountingDocumentTotal(items)}
-          sideStudioType={sideStudioType}
-          onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
-        />
+        {activeTab !== 'devis' && activeTab !== 'honoraires' && (
+          <StudioFooter
+            loading={generator.loading}
+            activeTab={activeTab}
+            onGenerate={generator.handleGenerate}
+            showPrintWarning={generator.showPrintWarning}
+            onCloseWarning={generator.closeWarning}
+            hasChanges={generator.hasChanges}
+            total={accountingDocumentTotal(items)}
+            sideStudioType={sideStudioType}
+            onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
+          />
+        )}
       </div>
+
+      {(activeTab === 'devis' || activeTab === 'honoraires') && (
+        <div
+          data-accounting-action-dock
+          className={cn(
+            "absolute bottom-2 left-2 right-2 z-[80] mx-auto max-w-[980px] transition-[right] duration-500 sm:bottom-3 sm:left-6 sm:right-6",
+            sideStudioType === 'PREVIEW' ? "xl:right-[570px]" : ""
+          )}
+        >
+          <StudioFooter
+            loading={generator.loading}
+            activeTab={activeTab}
+            onGenerate={generator.handleGenerate}
+            showPrintWarning={generator.showPrintWarning}
+            onCloseWarning={generator.closeWarning}
+            hasChanges={generator.hasChanges}
+            total={accountingDocumentTotal(items)}
+            sideStudioType={sideStudioType}
+            onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
+          />
+        </div>
+      )}
 
       <DocumentHubDialogs
         showDiscardDraft={pendingTab !== null}

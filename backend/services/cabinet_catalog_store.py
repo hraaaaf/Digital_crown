@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+
 from sqlalchemy import (
-    Table, Column, Integer, String, Float, Boolean, Text,
+    Table, Column, Integer, String, Float, Boolean, Text, DateTime,
     ForeignKey, UniqueConstraint, inspect, select, insert, update
 )
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.services.catalog_act_applicability_defaults import default_applicability_for_code
+from backend.services.catalog_reference_library import REFERENCE_CATALOG, REFERENCE_CATALOG_VERSION
 
 metadata = models.Base.metadata
 
@@ -40,13 +45,42 @@ acts = Table(
     Column("base_price", Float, nullable=False, default=0.0),
     Column("color", String(20), nullable=True),
     Column("is_active", Boolean, nullable=False, default=True),
+    Column("applicability_json", Text, nullable=True),
     UniqueConstraint("employer_id", "code", name="uq_cabinet_act_code"),
 )
+
+catalog_act_preferences = Table(
+    "cabinet_catalog_act_preferences", metadata,
+    Column("employer_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, primary_key=True),
+    Column("act_id", Integer, ForeignKey("cabinet_catalog_acts.id", ondelete="CASCADE"), nullable=False, primary_key=True),
+    Column("is_favorite", Boolean, nullable=False, default=False),
+    Column("usage_count", Integer, nullable=False, default=0),
+    Column("last_used_at", DateTime(timezone=True), nullable=True),
+)
+
+catalog_reference_state = Table(
+    "cabinet_catalog_reference_state", metadata,
+    Column("employer_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("version", String(40), nullable=False),
+)
+
+_REFERENCE_SPECIALTY_TARGETS = {
+    "CONSULTATION & DIAGNOSTIC": "DIAGNOSTIC & URGENCE",
+    "PRÉVENTION & HYGIÈNE": "PREVENTION",
+    "DENTISTERIE RESTAURATRICE": "CONSERVATRICE",
+    "CHIRURGIE ORALE": "CHIRURGIE",
+    "PROTHÈSE FIXÉE": "PROTHESE",
+    "PROTHÈSE AMOVIBLE": "PROTHESE",
+    "PÉDODONTIE": "PEDODONTIE",
+    "DENTISTERIE ESTHÉTIQUE": "ESTHETIQUE",
+    "URGENCES & SUIVI POST-OP": "DIAGNOSTIC & URGENCE",
+}
 
 
 def ensure_schema(db: Session) -> None:
     connection = db.connection()
-    required = {specialties.name, pathologies.name, acts.name}
+    required = {specialties.name, pathologies.name, acts.name, catalog_act_preferences.name, catalog_reference_state.name}
     existing = set(inspect(connection).get_table_names())
     missing = sorted(required - existing)
     if missing:
@@ -112,11 +146,134 @@ def claim_legacy_if_unambiguous(db: Session) -> None:
     db.commit()
 
 
-def list_catalog(db: Session, employer_id: int) -> list[dict]:
+def _encode_applicability(value: dict | None) -> str | None:
+    if not value:
+        return None
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _decode_applicability(value: str | None) -> dict:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _normalize_label(value: str) -> str:
+    return " ".join(value.strip().casefold().split())
+
+
+def apply_reference_catalog(db: Session, employer_id: int) -> dict:
+    """Install/upgrade the reference library once per version without overwrites.
+
+    Existing specialties, acts and prices are preserved. Missing reference acts
+    are inserted with a zero tariff, which the UI renders as "Tarif à définir".
+    """
+    ensure_schema(db)
+    state = db.execute(
+        select(catalog_reference_state.c.version).where(
+            catalog_reference_state.c.employer_id == employer_id
+        )
+    ).scalar_one_or_none()
+    if state == REFERENCE_CATALOG_VERSION:
+        return {"applied": False, "specialties_added": 0, "acts_added": 0}
+
+    current_specialties = db.execute(
+        select(specialties).where(specialties.c.employer_id == employer_id)
+    ).mappings().all()
+    by_name = {_normalize_label(str(row["name"])): row for row in current_specialties}
+
+    existing_acts = db.execute(
+        select(acts).where(acts.c.employer_id == employer_id)
+    ).mappings().all()
+    codes = {str(row["code"]).strip() for row in existing_acts if row.get("code")}
+    names_by_specialty: dict[int, set[str]] = {}
+    for row in existing_acts:
+        sid = int(row["specialty_id"])
+        names_by_specialty.setdefault(sid, set()).add(_normalize_label(str(row["name"])))
+
+    specialties_added = 0
+    acts_added = 0
+
+    for reference_specialty in REFERENCE_CATALOG:
+        source_name = reference_specialty["name"]
+        target_name = _REFERENCE_SPECIALTY_TARGETS.get(source_name, source_name)
+        key = _normalize_label(target_name)
+        specialty = by_name.get(key)
+        if specialty is None:
+            result = db.execute(insert(specialties).values(
+                employer_id=employer_id,
+                name=target_name,
+                color=reference_specialty.get("color"),
+            ))
+            specialty_id = int(result.inserted_primary_key[0])
+            specialty = {
+                "id": specialty_id,
+                "name": target_name,
+                "color": reference_specialty.get("color"),
+            }
+            by_name[key] = specialty
+            names_by_specialty.setdefault(specialty_id, set())
+            specialties_added += 1
+        else:
+            specialty_id = int(specialty["id"])
+
+        existing_names = names_by_specialty.setdefault(specialty_id, set())
+        for reference_act in reference_specialty["acts"]:
+            code = str(reference_act["code"])
+            normalized_name = _normalize_label(reference_act["name"])
+            if code in codes or normalized_name in existing_names:
+                continue
+            db.execute(insert(acts).values(
+                employer_id=employer_id,
+                specialty_id=specialty_id,
+                name=reference_act["name"],
+                code=code,
+                base_price=0.0,
+                color=None,
+                is_active=True,
+                applicability_json=_encode_applicability(reference_act.get("applicability")),
+            ))
+            codes.add(code)
+            existing_names.add(normalized_name)
+            acts_added += 1
+
+    if state is None:
+        db.execute(insert(catalog_reference_state).values(
+            employer_id=employer_id,
+            version=REFERENCE_CATALOG_VERSION,
+        ))
+    else:
+        db.execute(update(catalog_reference_state).where(
+            catalog_reference_state.c.employer_id == employer_id
+        ).values(version=REFERENCE_CATALOG_VERSION))
+    db.commit()
+
+    return {
+        "applied": True,
+        "specialties_added": specialties_added,
+        "acts_added": acts_added,
+    }
+
+
+def list_catalog(db: Session, employer_id: int, user_id: int | None = None) -> list[dict]:
     claim_legacy_if_unambiguous(db)
     specs = db.execute(
         select(specialties).where(specialties.c.employer_id == employer_id).order_by(specialties.c.id)
     ).mappings().all()
+    preference_by_act: dict[int, dict] = {}
+    if user_id is not None:
+        pref_rows = db.execute(
+            select(catalog_act_preferences).where(
+                catalog_act_preferences.c.employer_id == employer_id,
+                catalog_act_preferences.c.user_id == user_id,
+            )
+        ).mappings().all()
+        preference_by_act = {int(row["act_id"]): dict(row) for row in pref_rows}
+
     result = []
     for spec in specs:
         sid = int(spec["id"])
@@ -128,14 +285,163 @@ def list_catalog(db: Session, employer_id: int) -> list[dict]:
             acts.c.employer_id == employer_id,
             acts.c.specialty_id == sid,
         )).mappings().all()
+        normalized_acts = []
+        for item in catalog_acts:
+            payload = dict(item)
+            raw_applicability = payload.pop("applicability_json", None)
+            payload["applicability"] = _decode_applicability(raw_applicability) or default_applicability_for_code(payload.get("code"))
+            pref = preference_by_act.get(int(payload["id"]), {})
+            payload["is_favorite"] = bool(pref.get("is_favorite", False))
+            payload["usage_count"] = int(pref.get("usage_count", 0) or 0)
+            payload["last_used_at"] = pref.get("last_used_at")
+            normalized_acts.append(payload)
         result.append({
             "id": sid,
             "name": spec["name"],
             "color": spec["color"],
             "pathologies": [dict(x) for x in paths],
-            "acts": [dict(x) for x in catalog_acts],
+            "acts": normalized_acts,
         })
     return result
+
+
+def _catalog_act_candidate(
+    db: Session,
+    employer_id: int,
+    *,
+    act_name: str,
+    specialty_name: str | None = None,
+    catalog_act_id: int | None = None,
+):
+    clean_name = _normalize_label(str(act_name or ""))
+    rows = db.execute(
+        select(
+            acts.c.id,
+            acts.c.name,
+            specialties.c.name.label("specialty_name"),
+        )
+        .select_from(acts.join(specialties, acts.c.specialty_id == specialties.c.id))
+        .where(
+            acts.c.employer_id == employer_id,
+            specialties.c.employer_id == employer_id,
+            acts.c.is_active.is_(True),
+        )
+    ).mappings().all()
+
+    candidates = list(rows)
+    if catalog_act_id is not None:
+        try:
+            stable_id = int(catalog_act_id)
+        except (TypeError, ValueError):
+            return None
+        candidates = [row for row in candidates if int(row["id"]) == stable_id]
+    else:
+        if not clean_name:
+            return None
+        candidates = [row for row in candidates if _normalize_label(str(row["name"])) == clean_name]
+        clean_specialty = _normalize_label(str(specialty_name or ""))
+        if clean_specialty:
+            candidates = [
+                row for row in candidates
+                if _normalize_label(str(row["specialty_name"])) == clean_specialty
+            ]
+
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def set_catalog_act_favorite(
+    db: Session,
+    employer_id: int,
+    user_id: int,
+    act_id: int,
+    is_favorite: bool,
+) -> dict | None:
+    if not get_owned(db, acts, act_id, employer_id):
+        return None
+    existing = db.execute(
+        select(catalog_act_preferences).where(
+            catalog_act_preferences.c.employer_id == employer_id,
+            catalog_act_preferences.c.user_id == user_id,
+            catalog_act_preferences.c.act_id == act_id,
+        )
+    ).mappings().first()
+    if existing:
+        db.execute(
+            update(catalog_act_preferences).where(
+                catalog_act_preferences.c.employer_id == employer_id,
+                catalog_act_preferences.c.user_id == user_id,
+                catalog_act_preferences.c.act_id == act_id,
+            ).values(is_favorite=bool(is_favorite))
+        )
+    else:
+        db.execute(insert(catalog_act_preferences).values(
+            employer_id=employer_id,
+            user_id=user_id,
+            act_id=act_id,
+            is_favorite=bool(is_favorite),
+            usage_count=0,
+            last_used_at=None,
+        ))
+    db.commit()
+    return {
+        "act_id": act_id,
+        "is_favorite": bool(is_favorite),
+    }
+
+
+def record_catalog_act_usage(
+    db: Session,
+    employer_id: int,
+    user_id: int,
+    *,
+    act_name: str,
+    specialty_name: str | None = None,
+    catalog_act_id: int | None = None,
+) -> bool:
+    """Update personal recent/frequency metadata only after real archive."""
+    ensure_schema(db)
+    candidate = _catalog_act_candidate(
+        db,
+        employer_id,
+        act_name=act_name,
+        specialty_name=specialty_name,
+        catalog_act_id=catalog_act_id,
+    )
+    if candidate is None:
+        return False
+
+    act_id = int(candidate["id"])
+    existing = db.execute(
+        select(catalog_act_preferences).where(
+            catalog_act_preferences.c.employer_id == employer_id,
+            catalog_act_preferences.c.user_id == user_id,
+            catalog_act_preferences.c.act_id == act_id,
+        )
+    ).mappings().first()
+
+    now = datetime.now(timezone.utc)
+    if existing:
+        db.execute(
+            update(catalog_act_preferences).where(
+                catalog_act_preferences.c.employer_id == employer_id,
+                catalog_act_preferences.c.user_id == user_id,
+                catalog_act_preferences.c.act_id == act_id,
+            ).values(
+                usage_count=int(existing["usage_count"] or 0) + 1,
+                last_used_at=now,
+            )
+        )
+    else:
+        db.execute(insert(catalog_act_preferences).values(
+            employer_id=employer_id,
+            user_id=user_id,
+            act_id=act_id,
+            is_favorite=False,
+            usage_count=1,
+            last_used_at=now,
+        ))
+    db.commit()
+    return True
 
 
 def get_owned(db: Session, table: Table, row_id: int, employer_id: int):
@@ -163,18 +469,34 @@ def create_pathology(db: Session, employer_id: int, specialty_id: int, payload: 
 def create_act(db: Session, employer_id: int, specialty_id: int, payload: dict) -> dict | None:
     if not get_owned(db, specialties, specialty_id, employer_id):
         return None
-    res = db.execute(insert(acts).values(employer_id=employer_id, specialty_id=specialty_id, **payload))
+    values = dict(payload)
+    values["applicability_json"] = _encode_applicability(values.pop("applicability", None))
+    res = db.execute(insert(acts).values(employer_id=employer_id, specialty_id=specialty_id, **values))
     db.commit()
-    return dict(get_owned(db, acts, int(res.inserted_primary_key[0]), employer_id))
+    row = get_owned(db, acts, int(res.inserted_primary_key[0]), employer_id)
+    if not row:
+        return None
+    result = dict(row)
+    raw_applicability = result.pop("applicability_json", None)
+    result["applicability"] = _decode_applicability(raw_applicability) or default_applicability_for_code(result.get("code"))
+    return result
 
 
 def update_owned(db: Session, table: Table, row_id: int, employer_id: int, payload: dict) -> dict | None:
     if not get_owned(db, table, row_id, employer_id):
         return None
     if payload:
+        values = dict(payload)
+        if table is acts and "applicability" in values:
+            values["applicability_json"] = _encode_applicability(values.pop("applicability"))
         db.execute(update(table).where(
             table.c.id == row_id, table.c.employer_id == employer_id
-        ).values(**payload))
+        ).values(**values))
         db.commit()
     row = get_owned(db, table, row_id, employer_id)
-    return dict(row) if row else None
+    if not row:
+        return None
+    result = dict(row)
+    if table is acts:
+        result["applicability"] = _decode_applicability(result.pop("applicability_json", None)) or default_applicability_for_code(result.get("code"))
+    return result

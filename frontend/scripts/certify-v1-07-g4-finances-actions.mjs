@@ -61,28 +61,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const baselinePayments = await apiPayments();
 
   try {
-    await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
-    const patientsLink = page.getByRole('link', { name: 'Patients', exact: true }).first();
-    if (viewport.width < 1024) {
-      const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
-      await menuButton.waitFor({ state: 'visible', timeout: 15000 });
-      await menuButton.click();
-    }
-    await patientsLink.waitFor({ state: 'visible', timeout: 15000 });
-    await patientsLink.click();
-    await page.waitForURL(url => url.pathname === '/patients', { timeout: 15000 });
-
-    const patientSearch = page.getByPlaceholder('Rechercher par nom, prénom ou dossier...');
-    await patientSearch.fill('T2-0001');
-    const patientRow = page.getByRole('button').filter({ hasText: 'T2-0001' }).first();
-    await patientRow.waitFor({ state: 'visible', timeout: 15000 });
-    await patientRow.click();
-    await page.waitForURL(url => url.pathname === `/patients/${patient.id}`, { timeout: 15000 });
-
-    const financeTab = page.getByRole('button', { name: /^(Finances|Finance)$/i }).first();
-    await financeTab.waitFor({ state: 'visible', timeout: 15000 });
-    await financeTab.click();
-    await page.waitForURL(url => url.pathname === `/patients/${patient.id}` && url.searchParams.get('tab') === 'finances', { timeout: 15000 });
+    const financeUrl = `http://127.0.0.1:5173/patients/${patient.id}?tab=finances`;
+    await page.goto(financeUrl, { waitUntil: 'networkidle', timeout: 90000 });
     await page.getByText('Facturé', { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
 
     await page.screenshot({

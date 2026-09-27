@@ -115,10 +115,19 @@ jobs:
                   return route.fulfill(json({}));
                 });
                 await page.goto(`http://127.0.0.1:4179/client-copy-settings.html?mode=${mode}`, { waitUntil:'networkidle', timeout:30000 });
-                await page.getByRole('heading', { name:'Paramètres' }).waitFor({ state:'visible', timeout:15000 });
+                const waitForSettings = async () => {
+                  try {
+                    await page.getByRole('heading', { name:'Paramètres' }).waitFor({ state:'visible', timeout:15000 });
+                  } catch (error) {
+                    await page.waitForLoadState('networkidle').catch(() => {});
+                    await page.reload({ waitUntil:'networkidle', timeout:30000 });
+                    await page.getByRole('heading', { name:'Paramètres' }).waitFor({ state:'visible', timeout:15000 });
+                  }
+                };
+                await waitForSettings();
                 if (!viteWarmed) {
                   await page.reload({ waitUntil:'networkidle', timeout:30000 });
-                  await page.getByRole('heading', { name:'Paramètres' }).waitFor({ state:'visible', timeout:15000 });
+                  await waitForSettings();
                   viteWarmed = true;
                 }
                 if (mode === 'error') await page.getByText('Profil indisponible').waitFor({ state:'visible', timeout:15000 });

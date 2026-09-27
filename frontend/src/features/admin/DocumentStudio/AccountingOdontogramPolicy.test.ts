@@ -76,6 +76,7 @@ describe('AccountingOdontogramPolicy P2-D', () => {
         dent: '16 (MOD)',
         price: 2500,
         category: undefined,
+        catalogActId: undefined,
         toothNumbers: [16],
         _odontogramKey: '16::crown',
         odontogramSurfaces: [],
@@ -83,6 +84,25 @@ describe('AccountingOdontogramPolicy P2-D', () => {
         odontogramTreatmentCode: 'ACT',
       },
     ]);
+  });
+
+  it('propage l’identité du catalogue central depuis la sélection odontogramme', () => {
+    const next = replaceOdontogramToothSelections(
+      [],
+      11,
+      [{
+        toothNumber: 11,
+        treatmentId: 'comp',
+        name: 'Composite',
+        price: 600,
+        category: 'CONSERVATRICE',
+        catalogActId: 42,
+      }],
+      () => 7,
+    );
+
+    expect(next[0].catalogActId).toBe(42);
+    expect(next[0].category).toBe('CONSERVATRICE');
   });
 
   it('réutilise la ligne existante quand la même sélection est reconfirmée', () => {

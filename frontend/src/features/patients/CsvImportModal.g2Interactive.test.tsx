@@ -78,7 +78,7 @@ describe('CsvImportModal G2 interactive matrix', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Importer' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole('button', { name: 'Importer' })).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Importer' })).toBeTruthy());
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
