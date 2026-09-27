@@ -17,16 +17,9 @@ import './components/mobileQuickActionHub.css';
 import { AgendaView } from './views/AgendaView';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { MobilePatientsGate } from './views/MobilePatientsGate';
-import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
-import { LabView } from './views/LabView';
-import { BotView } from './views/BotView';
-import { DentistsView } from './views/DentistsView';
 import { FrontdeskView } from './views/FrontdeskView';
 import { NotificationsView } from './views/NotificationsView';
-import { StockView } from './views/StockView';
-import { LibraryView } from './views/LibraryView';
-import { MarketplaceView } from './views/MarketplaceView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 import { resolveDashboardTab } from '../bridge';
 
@@ -139,18 +132,9 @@ export const MobileDashboard = () => {
                 onClose={() => selectNavTab('agenda')}
               />
             )}
-            {state.activeTab === 'lab' && <LabView labJobs={state.labJobs} handleWhatsAppSend={actions.handleWhatsAppSend} />}
-            {state.activeTab === 'finance' && (
-              <FinanceView snapshot={state.snapshot} syncStatus={state.syncStatus} selectedDate={state.selectedDate} openWhatsApp={actions.openWhatsApp} handleExportPDF={actions.handleExportPDF} />
-            )}
             {state.activeTab === 'securite' && <SecuriteView snapshot={state.snapshot} syncStatus={state.syncStatus} isOnline={state.isOnline} handleLogout={actions.handleLogout} />}
-            {state.activeTab === 'dentists' && <DentistsView embedded />}
             {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} />}
-            {state.activeTab === 'stock' && <StockView />}
-            {state.activeTab === 'library' && <LibraryView role={state.snapshot?.role} />}
-            {state.activeTab === 'marketplace' && <MarketplaceView />}
-            {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>
       </main>
