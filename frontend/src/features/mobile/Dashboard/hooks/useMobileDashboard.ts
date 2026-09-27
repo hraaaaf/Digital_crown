@@ -61,24 +61,12 @@ export function useMobileDashboard() {
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    // Pré-charger le token mobile pour les composants partagés qui utilisent l'intercepteur API.
-    MobileStorage.getCredentials().then(creds => {
-      if (creds?.access_token) {
-        try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
-      }
-    });
-  }, []);
-
   const fetchSnapshot = useCallback(async () => {
     try {
       setSyncStatus('loading');
       const creds = await MobileStorage.getCredentials();
       if (!creds) throw new Error('Non appairé');
       credsRef.current = creds;
-
-      // Sync mobile JWT into localStorage so shared Pocket components send Authorization headers.
-      try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
 
       const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/snapshot?target_date=${selectedDate}`, {
         signal: AbortSignal.timeout(8000),
@@ -101,7 +89,7 @@ export function useMobileDashboard() {
         : rawRes;
 
       setSnapshot(data);
-      await MobileStorage.saveLastSnapshot(data);
+      await MobileStorage.saveLastSnapshot(data, selectedDate);
       setError(null);
       setSyncStatus('success');
     } catch (err) {
@@ -117,11 +105,12 @@ export function useMobileDashboard() {
         setSyncStatus('error');
         return;
       }
-      const cached = await MobileStorage.getLastSnapshot();
+      const cached = await MobileStorage.getLastSnapshot(selectedDate);
       if (cached) {
-        setSnapshot(cached);
+        setSnapshot(cached.data);
         setSyncStatus('error');
-        setError('Hors réseau — données en cache');
+        const cachedAt = new Date(cached.saved_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        setError(`Hors réseau — données du ${cached.target_date} mises en cache à ${cachedAt}`);
       } else {
         setError('Impossible de joindre le cabinet');
         setSyncStatus('error');
@@ -200,11 +189,20 @@ export function useMobileDashboard() {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, [syncQueue]);
 
-  useEffect(() => { 
-    MobileStorage.getLastSnapshot().then(c => { if (c) { setSnapshot(c); setSyncStatus('success'); } }); 
-    fetchSnapshot(); 
-    fetchPatients(); 
-  }, [fetchSnapshot, fetchPatients]);
+  useEffect(() => {
+    let cancelled = false;
+    MobileStorage.getLastSnapshot(selectedDate).then(cached => {
+      if (!cancelled && cached) {
+        setSnapshot(cached.data);
+        setSyncStatus('loading');
+        const cachedAt = new Date(cached.saved_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        setError(`Données du ${cached.target_date} en cache (${cachedAt}) — synchronisation en cours`);
+      }
+    });
+    void fetchSnapshot();
+    void fetchPatients();
+    return () => { cancelled = true; };
+  }, [fetchSnapshot, fetchPatients, selectedDate]);
 
   const handleStatusChange = async (id: number, status: ApptStatus) => {
     const creds = credsRef.current || await MobileStorage.getCredentials();
