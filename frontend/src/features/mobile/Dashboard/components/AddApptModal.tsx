@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
+import { CryptoService } from '../../../../services/zka/CryptoService';
 
 type MobilePatient = { id: number; name: string; phone: string | null };
 
@@ -65,15 +66,18 @@ export function AddApptModal({
   const loadCanonicalPatients = useCallback(async (): Promise<MobilePatient[]> => {
     const creds = await MobileStorage.getCredentials();
     if (!creds) throw new Error('Session mobile indisponible');
-    const res = await mobileFetch(`${creds.api_base_url}/api/patients/`, {
+    const res = await mobileFetch(`${creds.api_base_url}/api/mobile/patients`, {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) {
       const payload = await res.json().catch(() => ({}));
       throw new Error(apiErrorMessage(payload, 'Impossible de charger les patients'));
     }
-    const data = await res.json() as CanonicalPatient[];
-    const mapped = data.map(patientToMobile);
+    const raw = await res.json();
+    const data = raw?.payload ? await CryptoService.decryptPayload(raw.payload, creds.masterKey) : raw;
+    const mapped = ((data?.data ?? data) as Array<MobilePatient | CanonicalPatient>).map((patient) => (
+      'name' in patient ? patient : patientToMobile(patient)
+    ));
     setCanonicalPatients(mapped);
     setPatientLoadError(null);
     return mapped;
@@ -131,7 +135,7 @@ export function AddApptModal({
 
     setIsSubmitting(true);
     try {
-      const res = await mobileFetch(`${creds.api_base_url}/api/patients/`, {
+      const res = await mobileFetch(`${creds.api_base_url}/api/mobile/patients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -156,7 +160,9 @@ export function AddApptModal({
         throw new Error(apiErrorMessage(payload, 'Création patient refusée'));
       }
 
-      const created = patientToMobile(payload as CanonicalPatient);
+      const created = payload?.name
+        ? payload as MobilePatient
+        : patientToMobile(payload as CanonicalPatient);
       setCanonicalPatients(current => [created, ...current.filter(patient => patient.id !== created.id)]);
       onPatientCreated(created);
       setNewApt(current => ({ ...current, patient_id: String(created.id) }));
@@ -202,7 +208,7 @@ export function AddApptModal({
 
     setIsSubmitting(true);
     try {
-      const res = await mobileFetch(`${creds.api_base_url}/api/appointments/`, {
+      const res = await mobileFetch(`${creds.api_base_url}/api/mobile/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
