@@ -72,7 +72,8 @@ describe('PocketTodayOverview', () => {
     );
 
     expect(screen.getByText('Vue praticien · priorité clinique')).toBeTruthy();
-    expect(screen.getByText('Omar Alami')).toBeTruthy();
+    expect(screen.getAllByText('Omar Alami').length).toBeGreaterThanOrEqual(1);
+    expect(container.querySelector('[data-dc-pocket-compact-agenda]')).toBeTruthy();
     expect(container.querySelector('[data-dc-pocket-waiting-count="1"]')).toBeTruthy();
     expect(container.querySelector('[data-dc-pocket-progress-count="1"]')).toBeTruthy();
 
@@ -98,6 +99,7 @@ describe('PocketTodayOverview', () => {
     );
 
     expect(screen.getByText('Vue assistante · flux cabinet')).toBeTruthy();
+    expect(screen.getByText('Vue opérationnelle')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Ouvrir le dossier/i })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Salle d’attente' }));
