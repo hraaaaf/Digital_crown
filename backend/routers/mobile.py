@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, contains_eager
 
-from backend import database, models
+from backend import database, models, schemas
 from backend.routers.auth import has_permission, is_superadmin_user, require_permission
 from backend.security import ALGORITHM, SECRET_KEY, token_blacklist
 from . import admin_legacy as _admin_legacy
@@ -322,24 +322,40 @@ def resolve_mobile_bridge_destination(
     }
 
 
-@router.post('/appointments', include_in_schema=False)
-def legacy_mobile_appointment_create_disabled(
-    _mobile_user: models.User = Depends(require_mobile_permission("agenda")),
+@router.post('/appointments', summary='Créer un rendez-vous depuis Pocket via le contrat agenda canonique')
+def create_mobile_appointment_canonical(
+    appt: schemas.AppointmentCreate,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(require_mobile_permission("agenda")),
 ):
-    raise HTTPException(
-        status_code=410,
-        detail="Création RDV mobile legacy désactivée. Utilisez /api/appointments/ avec patient_id.",
-    )
+    from backend.routers import appointments as _appointments
+
+    # Pocket does not expose practitioner selection in the quick flow. A dentist
+    # acts as themselves; an assistant defaults to the cabinet owner/practitioner.
+    if appt.praticien_id is None:
+        role = _role_name(mobile_user)
+        practitioner_id = mobile_user.id if role in {"DENTISTE", "ADMIN"} else mobile_user.get_employer_id()
+        appt = appt.model_copy(update={"praticien_id": practitioner_id})
+    return _appointments.create_appointment(appt, db, mobile_user)
 
 
-@router.post('/patients', include_in_schema=False)
-def legacy_mobile_patient_create_disabled(
-    _mobile_user: models.User = Depends(require_mobile_permission("patients")),
+@router.post('/patients', summary='Créer un patient depuis Pocket via le contrat patient canonique')
+def create_mobile_patient_canonical(
+    patient: schemas.PatientCreate,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(require_mobile_permission("patients")),
 ):
-    raise HTTPException(
-        status_code=410,
-        detail="Création patient mobile legacy désactivée. Utilisez /api/patients/ avec date de naissance et sexe explicite.",
-    )
+    from backend.routers import patients as _patients
+
+    created = _patients.create_patient(patient, False, db, mobile_user)
+    return {
+        "id": created.id,
+        "nom": created.nom,
+        "prenom": created.prenom,
+        "telephone": created.telephone,
+        "name": f"{created.prenom or ''} {created.nom or ''}".strip(),
+        "phone": created.telephone,
+    }
 
 
 
