@@ -13,6 +13,7 @@ import { PriceBrain, type ActHistory } from './PriceBrain';
 import { cn } from '../../utils/cn';
 import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogStore';
 import { resolveDevisTreatmentPrice } from '../../features/admin/DocumentStudio/AccountingTreatmentPricePolicy';
+import { dentitionForTooth, searchableCatalogActs, suggestedCatalogActs, toothTypeForTooth } from '../../features/admin/DocumentStudio/AccountingActApplicabilityPolicy';
 
 interface TreatmentSelectorProps {
   toothNumber: number;
@@ -26,6 +27,10 @@ interface TreatmentSelectorProps {
 type TreatmentTemplate = Omit<ToothTreatment, 'price'> & {
   catalogPrice?: number;
   isCatalogAct?: boolean;
+  catalogActId?: number;
+  isFavorite?: boolean;
+  lastUsedAt?: string | null;
+  usageCount?: number;
 };
 
 const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
@@ -37,17 +42,8 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
   PARODONTOLOGIE: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-700', dot: 'bg-teal-500' },
   ESTHETIQUE: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', dot: 'bg-purple-500' },
   ORTHODONTIE: { bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-700', dot: 'bg-sky-500' },
+  PEDODONTIE: { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', dot: 'bg-pink-500' },
 };
-
-const getFallbackSuggestions = (): TreatmentTemplate[] => [
-  { id: 'prev-det', name: 'Détartrage complet', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
-  { id: 'chir-ext-s', name: 'Extraction simple', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 20 },
-  { id: 'comp-1', name: 'Composite 1 face', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 20 },
-  { id: 'comp-2', name: 'Composite 2 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 30 },
-  { id: 'endo-mono', name: 'Traitement canalaire mono', category: 'ENDODONTIE', scope: 'UNITAIRE', duration: 45 },
-  { id: 'prost-cm', name: 'Couronne Céramo-métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'prost-zirc', name: 'Couronne Zircone Premium', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-];
 
 export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   toothNumber,
@@ -60,15 +56,16 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   const [selectedTreatments, setSelectedTreatments] = useState<ToothTreatment[]>(currentTreatments);
   const [treatmentPrices, setTreatmentPrices] = useState<Record<string, number>>({});
   const [selectedSurfaces] = useState<ToothSurface[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('FREQUENTS');
+  const [activeCategory, setActiveCategory] = useState<string>('SUGGESTED');
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
   const [showAddAct, setShowAddAct] = useState(false);
   const [newActName, setNewActName] = useState('');
   const [newActPrice, setNewActPrice] = useState('');
+  const [newActSpecialtyId, setNewActSpecialtyId] = useState<number | ''>('');
   const [addingAct, setAddingAct] = useState(false);
-  const { specialties, fetchCatalog, createAct } = useCatalogStore();
+  const { specialties, fetchCatalog, createAct, setActFavorite } = useCatalogStore();
 
   const CATEGORY_LABELS = useMemo(() => {
     const labels: Record<string, string> = {};
@@ -78,21 +75,41 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
     return labels;
   }, [specialties]);
 
+  const catalogContext = useMemo(
+    () => ({ selectedTeeth: [toothNumber], selectionMode: 'INDIVIDUAL' as const }),
+    [toothNumber],
+  );
+
+  const applicableCatalogActs = useMemo(
+    () => searchableCatalogActs(specialties, catalogContext),
+    [catalogContext, specialties],
+  );
+
+  const suggestedActs = useMemo(
+    () => suggestedCatalogActs(specialties, catalogContext, 7),
+    [catalogContext, specialties],
+  );
+
   const TREATMENTS_BY_CATEGORY = useMemo(() => {
     const treatments: Record<string, TreatmentTemplate[]> = {};
-    specialties.forEach(s => {
-      treatments[s.name] = s.acts.map(act => ({
+    applicableCatalogActs.forEach(({ act, specialty }) => {
+      if (!treatments[specialty]) treatments[specialty] = [];
+      treatments[specialty].push({
         id: `act_${act.id}`,
         name: act.name,
-        category: s.name as ToothTreatment['category'],
+        category: specialty as ToothTreatment['category'],
         scope: 'UNITAIRE',
         code: act.code,
         catalogPrice: Number(act.base_price) || 0,
         isCatalogAct: true,
-      }));
+        catalogActId: act.id,
+        isFavorite: Boolean(act.is_favorite),
+        lastUsedAt: act.last_used_at,
+        usageCount: Number(act.usage_count) || 0,
+      });
     });
     return treatments;
-  }, [specialties]);
+  }, [applicableCatalogActs]);
 
   const TREATMENT_TEMPLATES = useMemo(() => {
     return Object.values(TREATMENTS_BY_CATEGORY).flat();
@@ -118,10 +135,38 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
     ? PEDIATRIC_TOOTH_NAMES[toothNumber as PediatricToothNumber]
     : TOOTH_NAMES[toothNumber as ToothNumberFDI];
 
-  const frequentActs = useMemo(() => {
-    const top = PriceBrain.getTopFrequent(7);
-    return top.length > 0 ? top : getFallbackSuggestions();
-  }, []);
+  const toTemplate = React.useCallback(({ act, specialty }: (typeof applicableCatalogActs)[number]): TreatmentTemplate => ({
+    id: `act_${act.id}`,
+    name: act.name,
+    category: specialty,
+    scope: 'UNITAIRE',
+    code: act.code,
+    catalogPrice: Number(act.base_price) || 0,
+    isCatalogAct: true,
+    catalogActId: act.id,
+    isFavorite: Boolean(act.is_favorite),
+    lastUsedAt: act.last_used_at,
+    usageCount: Number(act.usage_count) || 0,
+  }), []);
+
+  const favoriteActs = useMemo<TreatmentTemplate[]>(
+    () => applicableCatalogActs.filter(({ act }) => act.is_favorite).map(toTemplate),
+    [applicableCatalogActs, toTemplate],
+  );
+
+  const recentActs = useMemo<TreatmentTemplate[]>(
+    () => applicableCatalogActs
+      .filter(({ act }) => Boolean(act.last_used_at))
+      .sort((a, b) => Date.parse(b.act.last_used_at || '') - Date.parse(a.act.last_used_at || ''))
+      .slice(0, 10)
+      .map(toTemplate),
+    [applicableCatalogActs, toTemplate],
+  );
+
+  const suggestedTemplates = useMemo<TreatmentTemplate[]>(
+    () => (suggestedActs.length > 0 ? suggestedActs : applicableCatalogActs.slice(0, 7)).map(toTemplate),
+    [applicableCatalogActs, suggestedActs, toTemplate],
+  );
 
   const resolveInitialPrice = (template: TreatmentTemplate | ActHistory, id: string): number => {
     const isCatalogAct = 'isCatalogAct' in template && template.isCatalogAct === true;
@@ -203,7 +248,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     if (e.target.value.length > 0) setActiveCategory('SEARCH');
-                    else setActiveCategory('FREQUENTS');
+                    else setActiveCategory('SUGGESTED');
                   }}
                   className={cn(
                     "w-full pl-14 pr-6 py-4 border rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all shadow-sm",
@@ -214,12 +259,26 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 
               <div className="flex flex-wrap bg-slate-200/50 p-1.5 rounded-2xl gap-1">
                 <button
-                  onClick={() => { setActiveCategory('FREQUENTS'); setSearchQuery(''); }}
+                  onClick={() => { setActiveCategory('FAVORITES'); setSearchQuery(''); }}
                   className={cn(
                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    activeCategory === 'FREQUENTS' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    activeCategory === 'FAVORITES' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                   )}
                 >Favoris</button>
+                <button
+                  onClick={() => { setActiveCategory('RECENT'); setSearchQuery(''); }}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    activeCategory === 'RECENT' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >Récents</button>
+                <button
+                  onClick={() => { setActiveCategory('SUGGESTED'); setSearchQuery(''); }}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    activeCategory === 'SUGGESTED' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >Suggestions</button>
                 <button
                   onClick={() => { setActiveCategory('ALL'); setSearchQuery(''); }}
                   className={cn(
@@ -255,7 +314,9 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                     {(() => {
                       let items: Array<TreatmentTemplate | ActHistory> = [];
                       if (activeCategory === 'SEARCH') items = TREATMENT_TEMPLATES.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
-                      else if (activeCategory === 'FREQUENTS') items = frequentActs;
+                      else if (activeCategory === 'FAVORITES') items = favoriteActs;
+                      else if (activeCategory === 'RECENT') items = recentActs;
+                      else if (activeCategory === 'SUGGESTED') items = suggestedTemplates;
                       else if (activeCategory === 'ALL') items = TREATMENT_TEMPLATES;
                       else items = TREATMENTS_BY_CATEGORY[activeCategory] || [];
 
@@ -293,7 +354,26 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                                     {CATEGORY_LABELS[template.category] || template.category}
                                   </p>
                                 </div>
-                                {activeCategory === 'FREQUENTS' && <Star size={12} className="text-amber-400 fill-amber-400" />}
+                                {'catalogActId' in template && template.catalogActId && (
+                                  <button
+                                    type="button"
+                                    aria-label={template.isFavorite ? `Retirer ${template.name} des favoris` : `Ajouter ${template.name} aux favoris`}
+                                    title={template.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void setActFavorite(template.catalogActId!, !template.isFavorite);
+                                    }}
+                                    className="rounded-lg p-1 transition hover:bg-primary/10"
+                                  >
+                                    <Star
+                                      size={14}
+                                      className={cn(
+                                        'transition-colors',
+                                        template.isFavorite ? 'fill-primary text-primary' : 'text-slate-300 hover:text-primary',
+                                      )}
+                                    />
+                                  </button>
+                                )}
                               </div>
                             </td>
                             <td className="px-6 py-3.5">
@@ -330,7 +410,12 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                 {activeCategory === 'SEARCH' && searchQuery.length > 2 && (
                   <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-center">
                     <button
-                      onClick={() => toggleTreatment({ id: `custom_${Date.now()}`, name: searchQuery, category: 'CONSERVATRICE', scope: 'UNITAIRE' })}
+                      onClick={() => {
+                        setNewActName(searchQuery);
+                        setNewActPrice('');
+                        setNewActSpecialtyId('');
+                        setShowAddAct(true);
+                      }}
                       className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-500 hover:text-primary hover:border-primary transition-all shadow-sm group"
                     >
                       <Plus size={16} className="group-hover:rotate-90 transition-transform" />
@@ -339,65 +424,91 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   </div>
                 )}
 
-                {!['FREQUENTS', 'ALL', 'SEARCH'].includes(activeCategory) && (() => {
-                  const spec = specialties.find(s => s.name === activeCategory);
-                  if (!spec) return null;
-                  return (
-                    <div className="p-4 bg-slate-50/50 border-t border-slate-100">
-                      {!showAddAct ? (
-                        <button
-                          onClick={() => { setShowAddAct(true); setNewActName(''); setNewActPrice(''); }}
-                          className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-dashed border-slate-200 rounded-2xl text-xs font-black text-slate-400 hover:text-primary hover:border-primary transition-all group"
-                        >
-                          <Plus size={14} className="group-hover:rotate-90 transition-transform" />
-                          Ajouter un acte à {activeCategory}
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <input
-                            autoFocus
-                            type="text"
-                            placeholder="Nom de l'acte..."
-                            value={newActName}
-                            onChange={e => setNewActName(e.target.value)}
-                            className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-primary transition-all"
-                          />
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Prix MAD"
-                            value={newActPrice}
-                            onChange={e => setNewActPrice(e.target.value)}
-                            className="w-24 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-right text-slate-800 outline-none focus:border-primary transition-all"
-                          />
-                          <button
-                            disabled={!newActName.trim() || addingAct}
-                            onClick={async () => {
-                              if (!newActName.trim()) return;
-                              setAddingAct(true);
-                              await createAct(spec.id, { name: newActName.trim(), base_price: Number(newActPrice) || 0 });
-                              await fetchCatalog();
-                              setShowAddAct(false);
-                              setNewActName('');
-                              setNewActPrice('');
-                              setAddingAct(false);
-                            }}
-                            className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-black disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-md shadow-primary/20"
-                            style={{ backgroundColor: 'var(--primary)' }}
-                          >
-                            {addingAct ? '...' : 'OK'}
-                          </button>
-                          <button
-                            onClick={() => setShowAddAct(false)}
-                            className="px-3 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-xs font-black hover:bg-slate-200 transition-all"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      )}
+                <div className="p-4 bg-slate-50/50 border-t border-slate-100">
+                  {!showAddAct ? (
+                    <button
+                      onClick={() => {
+                        setShowAddAct(true);
+                        setNewActName('');
+                        setNewActPrice('');
+                        setNewActSpecialtyId(specialties.find(spec => spec.name === activeCategory)?.id || '');
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-dashed border-slate-200 rounded-2xl text-xs font-black text-slate-400 hover:text-primary hover:border-primary transition-all group"
+                    >
+                      <Plus size={14} className="group-hover:rotate-90 transition-transform" />
+                      Ajouter un acte au catalogue
+                    </button>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[11rem_1fr_7rem_auto_auto]">
+                      <select
+                        aria-label="Spécialité du nouvel acte"
+                        value={newActSpecialtyId}
+                        onChange={event => setNewActSpecialtyId(event.target.value ? Number(event.target.value) : '')}
+                        className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-primary"
+                      >
+                        <option value="">Spécialité…</option>
+                        {specialties.map(spec => (
+                          <option key={spec.id} value={spec.id}>{spec.name}</option>
+                        ))}
+                      </select>
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Nom de l'acte..."
+                        value={newActName}
+                        onChange={event => setNewActName(event.target.value)}
+                        className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-primary"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Tarif"
+                        value={newActPrice}
+                        onChange={event => setNewActPrice(event.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-right text-slate-800 outline-none focus:border-primary"
+                      />
+                      <button
+                        disabled={!newActName.trim() || !newActSpecialtyId || addingAct}
+                        onClick={async () => {
+                          if (!newActName.trim() || !newActSpecialtyId) return;
+                          setAddingAct(true);
+                          const ok = await createAct(Number(newActSpecialtyId), {
+                            name: newActName.trim(),
+                            base_price: Number(newActPrice) || 0,
+                            applicability: {
+                              dentitions: [dentitionForTooth(toothNumber)],
+                              tooth_types: [toothTypeForTooth(toothNumber)],
+                              treatment_areas: ['TOOTH', 'SURFACE'],
+                              selection_modes: ['INDIVIDUAL'],
+                              requires_present_tooth: false,
+                              requires_missing_tooth: false,
+                              min_selected_teeth: 1,
+                              max_selected_teeth: 1,
+                              suggestion_priority: 50,
+                              searchable_when_not_suggested: true,
+                            },
+                          });
+                          if (ok) {
+                            setShowAddAct(false);
+                            setNewActName('');
+                            setNewActPrice('');
+                            setNewActSpecialtyId('');
+                          }
+                          setAddingAct(false);
+                        }}
+                        className="rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-md shadow-primary/20"
+                      >
+                        {addingAct ? '...' : 'Ajouter'}
+                      </button>
+                      <button
+                        onClick={() => setShowAddAct(false)}
+                        className="rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-black text-slate-500 hover:bg-slate-200 transition-all"
+                      >
+                        ✕
+                      </button>
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               </div>
             </div>
           </div>

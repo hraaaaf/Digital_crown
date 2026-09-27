@@ -38,21 +38,20 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     'http://127.0.0.1:5173/patients/' + patient.id + '?tab=admin&documentTab=honoraires',
     { waitUntil: 'networkidle', timeout: 90000 }
   );
-  await page.getByRole('button', { name: /Procéder à l'Encaissement/i }).click();
+  await page.getByRole('button', { name: /Échéances & options/i }).click();
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
 
   const accountedLabel = page.getByText('Comptabiliser CA', { exact: true });
   await accountedLabel.locator('..').getByRole('button').click();
-  await page.getByRole('button', { name: 'Partiel', exact: true }).click();
+  const treasuryModal = page.getByText('Encaissement', { exact: true }).locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+  await treasuryModal.getByRole('button', { name: 'Partiel', exact: true }).click();
 
-  const guard = page.getByRole('alert');
+  const guard = treasuryModal.getByRole('alert');
   await guard.waitFor({ state: 'visible', timeout: 5000 });
-  const understood = page.getByRole('button', { name: 'Compris', exact: true });
+  const understood = treasuryModal.getByRole('button', { name: 'Compris', exact: true });
   await understood.waitFor({ state: 'visible', timeout: 5000 });
 
-  const hit = await page.evaluate(() => {
-    const button = [...document.querySelectorAll('button')].find(el => el.textContent?.trim() === 'Compris');
-    if (!(button instanceof HTMLElement)) return null;
+  const hit = await understood.evaluate((button) => {
     const rect = button.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;

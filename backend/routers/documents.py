@@ -355,12 +355,29 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         # Apprentissage des habitudes d'actes uniquement après archivage réel.
         if should_learn_financial_document(req.type, bool(should_archive), preview):
             from backend.services.accounting_service import accounting_service
+            from backend.services import cabinet_catalog_store
             if req.type == "devis":
                 for item in req.data.get('items', []):
                     accounting_service.record_act_usage(db, user_id, item.get('acte'), float(item.get('prix_unitaire', 0)))
+                    cabinet_catalog_store.record_catalog_act_usage(
+                        db,
+                        current_user.get_employer_id(),
+                        user_id,
+                        act_name=item.get('acte'),
+                        specialty_name=item.get('category'),
+                        catalog_act_id=item.get('catalog_act_id'),
+                    )
             else: # honoraires/note
                 for p in req.data.get('payments', []):
                     accounting_service.record_act_usage(db, user_id, p.get('acte'), float(p.get('montant', 0)))
+                    cabinet_catalog_store.record_catalog_act_usage(
+                        db,
+                        current_user.get_employer_id(),
+                        user_id,
+                        act_name=p.get('acte'),
+                        specialty_name=p.get('category'),
+                        catalog_act_id=p.get('catalog_act_id'),
+                    )
 
         # Un document financier n'est pas une preuve de soin réalisé et ne doit
         # pas inventer un délai de suivi clinique générique.

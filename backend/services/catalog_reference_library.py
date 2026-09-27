@@ -1,0 +1,378 @@
+"""Digital Crown V7.1 reference dental act library.
+
+This is a configurable clinical starter library, not a billing nomenclature.
+- Internal DC-* codes are stable identifiers only.
+- Reference acts are created with an unset/zero tariff so the dentist sets prices.
+- Existing cabinet acts/prices are never overwritten by the bootstrap.
+- Every specialty and act remains extensible from Settings.
+"""
+
+from __future__ import annotations
+
+REFERENCE_CATALOG_VERSION = "2026.09-v1"
+
+
+def _app(
+    *,
+    dentitions=None,
+    tooth_types=None,
+    treatment_areas=None,
+    selection_modes=None,
+    min_selected_teeth=0,
+    max_selected_teeth=None,
+    suggestion_priority=0,
+    requires_present_tooth=False,
+    requires_missing_tooth=False,
+    searchable_when_not_suggested=True,
+):
+    return {
+        "dentitions": list(dentitions or []),
+        "tooth_types": list(tooth_types or []),
+        "treatment_areas": list(treatment_areas or []),
+        "selection_modes": list(selection_modes or []),
+        "requires_present_tooth": requires_present_tooth,
+        "requires_missing_tooth": requires_missing_tooth,
+        "min_selected_teeth": min_selected_teeth,
+        "max_selected_teeth": max_selected_teeth,
+        "suggestion_priority": suggestion_priority,
+        "searchable_when_not_suggested": searchable_when_not_suggested,
+    }
+
+
+def _act(name, code, applicability=None):
+    return {
+        "name": name,
+        "code": code,
+        "base_price": 0.0,
+        "is_active": True,
+        "applicability": applicability or _app(),
+    }
+
+
+PRIMARY = ["PRIMARY"]
+PERMANENT = ["PERMANENT"]
+BOTH = ["PRIMARY", "PERMANENT"]
+INDIVIDUAL = ["INDIVIDUAL"]
+GROUP = ["GROUP"]
+GENERAL = ["GENERAL"]
+TOOTH = ["TOOTH"]
+TOOTH_SURFACE = ["TOOTH", "SURFACE"]
+RANGE = ["TOOTH_RANGE"]
+QUADRANT_RANGE = ["QUADRANT", "TOOTH_RANGE"]
+ARCH_MOUTH = ["ARCH", "MOUTH"]
+
+
+REFERENCE_CATALOG = [
+    {
+        "name": "CONSULTATION & DIAGNOSTIC",
+        "color": "#64748B",
+        "acts": [
+            _act("Consultation initiale", "DC-CONS-001"),
+            _act("Consultation de contrôle", "DC-CONS-002"),
+            _act("Consultation d'urgence", "DC-CONS-003"),
+            _act("Second avis", "DC-CONS-004"),
+            _act("Bilan bucco-dentaire complet", "DC-CONS-005"),
+            _act("Bilan pré-prothétique", "DC-CONS-006"),
+            _act("Bilan implantaire", "DC-CONS-007"),
+            _act("Bilan parodontal complet", "DC-CONS-008"),
+            _act("Bilan orthodontique", "DC-CONS-009"),
+            _act("Examen d'une lésion muqueuse", "DC-CONS-010"),
+            _act("Test de vitalité pulpaire", "DC-CONS-011", _app(dentitions=BOTH, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=15)),
+            _act("Tests percussion / palpation", "DC-CONS-012", _app(dentitions=BOTH, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=10)),
+            _act("Test diagnostique de fissure", "DC-CONS-013", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=15)),
+            _act("Analyse occlusale", "DC-CONS-014"),
+            _act("Empreinte ou scan diagnostique", "DC-CONS-015"),
+            _act("Photographies cliniques diagnostiques", "DC-CONS-016"),
+        ],
+    },
+    {
+        "name": "IMAGERIE",
+        "color": "#475569",
+        "acts": [
+            _act("Radiographie rétro-alvéolaire", "DC-IMG-001"),
+            _act("Radiographie bite-wing", "DC-IMG-002"),
+            _act("Radiographie occlusale", "DC-IMG-003"),
+            _act("Radiographie panoramique", "DC-IMG-004"),
+            _act("Téléradiographie de profil", "DC-IMG-005"),
+            _act("Téléradiographie de face", "DC-IMG-006"),
+            _act("CBCT localisé", "DC-IMG-007"),
+            _act("CBCT arcade", "DC-IMG-008"),
+            _act("CBCT maxillo-facial", "DC-IMG-009"),
+            _act("Interprétation d'imagerie externe", "DC-IMG-010"),
+        ],
+    },
+    {
+        "name": "PRÉVENTION & HYGIÈNE",
+        "color": "#F59E0B",
+        "acts": [
+            _act("Instruction d'hygiène orale", "DC-PREV-001"),
+            _act("Conseils diététiques / risque carieux", "DC-PREV-002"),
+            _act("Prophylaxie / polissage", "DC-PREV-003"),
+            _act("Détartrage supra-gingival", "DC-PREV-004"),
+            _act("Application de vernis fluoré", "DC-PREV-005"),
+            _act("Application topique de fluor", "DC-PREV-006"),
+            _act("Scellement de sillons", "DC-PREV-007", _app(dentitions=BOTH, tooth_types=["MOLAR", "PREMOLAR"], treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=75)),
+            _act("Application de SDF", "DC-PREV-008", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Traitement de l'hypersensibilité dentinaire", "DC-PREV-009", _app(dentitions=PERMANENT, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=25)),
+        ],
+    },
+    {
+        "name": "DENTISTERIE RESTAURATRICE",
+        "color": "#3B82F6",
+        "acts": [
+            _act("Pansement / restauration provisoire", "DC-REST-001", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Composite 1 face", "DC-REST-002", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=65)),
+            _act("Composite 2 faces", "DC-REST-003", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=65)),
+            _act("Composite 3 faces ou plus", "DC-REST-004", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=60)),
+            _act("Restauration verre ionomère", "DC-REST-005", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=50)),
+            _act("Restauration temporaire thérapeutique", "DC-REST-006", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Réparation d'une restauration", "DC-REST-007", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=25)),
+            _act("Reconstitution corono-radiculaire directe", "DC-REST-008", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Tenon fibré + reconstitution", "DC-REST-009", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Inlay", "DC-REST-010", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Onlay / Overlay", "DC-REST-011", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Facette composite directe", "DC-REST-012", _app(dentitions=PERMANENT, tooth_types=["INCISOR", "CANINE"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=25)),
+            _act("Infiltration résine", "DC-REST-013", _app(dentitions=BOTH, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Micro-abrasion amélaire", "DC-REST-014", _app(dentitions=PERMANENT, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=15)),
+        ],
+    },
+    {
+        "name": "ENDODONTIE",
+        "color": "#6366F1",
+        "acts": [
+            _act("Ouverture d'urgence endodontique", "DC-ENDO-001", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=50)),
+            _act("Coiffage pulpaire indirect", "DC-ENDO-002", _app(dentitions=BOTH, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Coiffage pulpaire direct", "DC-ENDO-003", _app(dentitions=BOTH, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Pulpotomie partielle", "DC-ENDO-004", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Pulpotomie complète", "DC-ENDO-005", _app(dentitions=BOTH, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Traitement canalaire incisive / canine", "DC-ENDO-006", _app(dentitions=PERMANENT, tooth_types=["INCISOR", "CANINE"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=65)),
+            _act("Traitement canalaire prémolaire", "DC-ENDO-007", _app(dentitions=PERMANENT, tooth_types=["PREMOLAR"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=65)),
+            _act("Traitement canalaire molaire", "DC-ENDO-008", _app(dentitions=PERMANENT, tooth_types=["MOLAR"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=65)),
+            _act("Retraitement canalaire", "DC-ENDO-009", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Désobturation endodontique", "DC-ENDO-010", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Dépose de tenon", "DC-ENDO-011", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=15)),
+            _act("Réparation de perforation", "DC-ENDO-012", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=15)),
+            _act("Apexification", "DC-ENDO-013", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Thérapie pulpaire vitale dent permanente immature", "DC-ENDO-014", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Procédure endodontique régénérative", "DC-ENDO-015", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=10)),
+        ],
+    },
+    {
+        "name": "PARODONTOLOGIE",
+        "color": "#14B8A6",
+        "acts": [
+            _act("Bilan parodontal / charting complet", "DC-PARO-001"),
+            _act("Détartrage sous-gingival localisé", "DC-PARO-002", _app(dentitions=BOTH, treatment_areas=QUADRANT_RANGE, selection_modes=GROUP, min_selected_teeth=1, suggestion_priority=20)),
+            _act("Surfaçage radiculaire par quadrant / secteur", "DC-PARO-003", _app(dentitions=BOTH, treatment_areas=QUADRANT_RANGE, selection_modes=GROUP, min_selected_teeth=1, suggestion_priority=0)),
+            _act("Maintenance parodontale", "DC-PARO-004"),
+            _act("Débridement parodontal localisé", "DC-PARO-005", _app(dentitions=BOTH, treatment_areas=QUADRANT_RANGE, selection_modes=GROUP, min_selected_teeth=1, suggestion_priority=0)),
+            _act("Gingivectomie / gingivoplastie", "DC-PARO-006"),
+            _act("Élongation coronaire", "DC-PARO-007", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=15)),
+            _act("Lambeau d'assainissement", "DC-PARO-008"),
+            _act("Chirurgie osseuse parodontale", "DC-PARO-009"),
+            _act("Greffe osseuse parodontale", "DC-PARO-010"),
+            _act("Régénération tissulaire guidée", "DC-PARO-011"),
+            _act("Greffe de tissu conjonctif", "DC-PARO-012"),
+            _act("Greffe gingivale libre", "DC-PARO-013"),
+            _act("Recouvrement radiculaire", "DC-PARO-014"),
+            _act("Attelle parodontale", "DC-PARO-015", _app(dentitions=PERMANENT, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=2, suggestion_priority=15)),
+        ],
+    },
+    {
+        "name": "CHIRURGIE ORALE",
+        "color": "#EF4444",
+        "acts": [
+            _act("Extraction simple dent permanente", "DC-CHIR-001", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=55)),
+            _act("Extraction dent temporaire", "DC-CHIR-002", _app(dentitions=PRIMARY, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=60)),
+            _act("Extraction chirurgicale", "DC-CHIR-003", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Extraction dent de sagesse", "DC-CHIR-004", _app(dentitions=PERMANENT, tooth_types=["MOLAR"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Extraction dent incluse / enclavée", "DC-CHIR-005", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Coronectomie", "DC-CHIR-006", _app(dentitions=PERMANENT, tooth_types=["MOLAR"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=10)),
+            _act("Dépose de racine / reste radiculaire", "DC-CHIR-007", _app(dentitions=BOTH, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Alvéoloplastie", "DC-CHIR-008"),
+            _act("Incision et drainage d'abcès", "DC-CHIR-009"),
+            _act("Biopsie incisionnelle", "DC-CHIR-010"),
+            _act("Biopsie excisionnelle", "DC-CHIR-011"),
+            _act("Exérèse de kyste / lésion", "DC-CHIR-012"),
+            _act("Résection apicale", "DC-CHIR-013", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=10)),
+            _act("Frenectomie / frénotomie", "DC-CHIR-014"),
+            _act("Exposition chirurgicale pour traction orthodontique", "DC-CHIR-015", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=10)),
+            _act("Préservation alvéolaire", "DC-CHIR-016", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=15)),
+            _act("Suture chirurgicale", "DC-CHIR-017"),
+            _act("Contrôle post-opératoire chirurgical", "DC-CHIR-018"),
+            _act("Dépose des points de suture", "DC-CHIR-019"),
+        ],
+    },
+    {
+        "name": "PROTHÈSE FIXÉE",
+        "color": "#10B981",
+        "acts": [
+            _act("Couronne provisoire", "DC-PFIX-001", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Couronne métallique", "DC-PFIX-002", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=35)),
+            _act("Couronne céramo-métallique", "DC-PFIX-003", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Couronne zircone", "DC-PFIX-004", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=45)),
+            _act("Couronne tout-céramique", "DC-PFIX-005", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=40)),
+            _act("Facette céramique", "DC-PFIX-006", _app(dentitions=PERMANENT, tooth_types=["INCISOR", "CANINE", "PREMOLAR"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=30)),
+            _act("Inlay-core", "DC-PFIX-007", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=30)),
+            _act("Bridge provisoire", "DC-PFIX-008", _app(dentitions=PERMANENT, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=3, suggestion_priority=45)),
+            _act("Bridge définitif", "DC-PFIX-009", _app(dentitions=PERMANENT, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=3, suggestion_priority=95)),
+            _act("Élément pilier de bridge", "DC-PFIX-010", _app(dentitions=PERMANENT, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=2, suggestion_priority=50)),
+            _act("Élément intermédiaire / pontique", "DC-PFIX-011", _app(dentitions=PERMANENT, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=3, requires_missing_tooth=True, suggestion_priority=55)),
+            _act("Scellement / collage définitif", "DC-PFIX-012", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=15)),
+            _act("Rescellement couronne / bridge", "DC-PFIX-013", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=20)),
+            _act("Dépose couronne", "DC-PFIX-014", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Dépose bridge", "DC-PFIX-015", _app(dentitions=PERMANENT, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=2, suggestion_priority=20)),
+            _act("Réparation céramique / composite sur prothèse", "DC-PFIX-016", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=10)),
+        ],
+    },
+    {
+        "name": "PROTHÈSE AMOVIBLE",
+        "color": "#059669",
+        "acts": [
+            _act("Prothèse partielle acrylique", "DC-PAMO-001", _app(dentitions=PERMANENT, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=20)),
+            _act("Prothèse partielle métallique / stellite", "DC-PAMO-002", _app(dentitions=PERMANENT, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=25)),
+            _act("Prothèse partielle flexible", "DC-PAMO-003", _app(dentitions=PERMANENT, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=10)),
+            _act("Prothèse complète maxillaire", "DC-PAMO-004", _app(dentitions=PERMANENT, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=20)),
+            _act("Prothèse complète mandibulaire", "DC-PAMO-005", _app(dentitions=PERMANENT, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=20)),
+            _act("Prothèse complète bimaxillaire", "DC-PAMO-006", _app(dentitions=PERMANENT, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=20)),
+            _act("Prothèse immédiate", "DC-PAMO-007", _app(dentitions=PERMANENT, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=10)),
+            _act("Duplicata de prothèse", "DC-PAMO-008"),
+            _act("Réparation fracture de prothèse", "DC-PAMO-009"),
+            _act("Ajout de dent sur prothèse", "DC-PAMO-010"),
+            _act("Ajout / réparation de crochet", "DC-PAMO-011"),
+            _act("Rebasage", "DC-PAMO-012"),
+            _act("Reconditionnement / reline direct", "DC-PAMO-013"),
+            _act("Reconditionnement / reline laboratoire", "DC-PAMO-014"),
+            _act("Ajustage / équilibration de prothèse", "DC-PAMO-015"),
+            _act("Contrôle de prothèse amovible", "DC-PAMO-016"),
+        ],
+    },
+    {
+        "name": "IMPLANTOLOGIE",
+        "color": "#8B5CF6",
+        "acts": [
+            _act("Planification implantaire", "DC-IMP-001"),
+            _act("Guide chirurgical implantaire", "DC-IMP-002"),
+            _act("Pose d'implant", "DC-IMP-003", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, requires_missing_tooth=True, suggestion_priority=35)),
+            _act("Implant immédiat post-extractionnel", "DC-IMP-004", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Deuxième temps chirurgical", "DC-IMP-005"),
+            _act("Pilier de cicatrisation", "DC-IMP-006"),
+            _act("Pilier prothétique", "DC-IMP-007"),
+            _act("Empreinte / scan implantaire", "DC-IMP-008"),
+            _act("Couronne sur implant vissée", "DC-IMP-009", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=25)),
+            _act("Couronne sur implant scellée", "DC-IMP-010", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Bridge implanto-porté", "DC-IMP-011", _app(dentitions=PERMANENT, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=2, suggestion_priority=30)),
+            _act("Overdenture sur implants", "DC-IMP-012"),
+            _act("Pose / remplacement d'attachement Locator", "DC-IMP-013"),
+            _act("Resserrage de vis implantaire", "DC-IMP-014"),
+            _act("Dépose d'une couronne implantaire", "DC-IMP-015"),
+            _act("Dépose d'implant", "DC-IMP-016"),
+            _act("Maintenance implantaire", "DC-IMP-017"),
+            _act("Débridement péri-implantaire", "DC-IMP-018"),
+            _act("Régénération osseuse guidée", "DC-IMP-019"),
+            _act("Greffe osseuse pré-implantaire", "DC-IMP-020"),
+            _act("Élévation sinusienne interne", "DC-IMP-021"),
+            _act("Élévation sinusienne externe", "DC-IMP-022"),
+        ],
+    },
+    {
+        "name": "PÉDODONTIE",
+        "color": "#F472B6",
+        "acts": [
+            _act("Consultation pédiatrique", "DC-PEDO-001"),
+            _act("Évaluation du risque carieux pédiatrique", "DC-PEDO-002"),
+            _act("Guidance comportementale", "DC-PEDO-003"),
+            _act("Fluorure topique pédiatrique", "DC-PEDO-004"),
+            _act("Scellement de sillons pédiatrique", "DC-PEDO-005", _app(dentitions=BOTH, tooth_types=["MOLAR", "PREMOLAR"], treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=85)),
+            _act("SDF pédiatrique", "DC-PEDO-006", _app(dentitions=PRIMARY, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=55)),
+            _act("Restauration thérapeutique intermédiaire (ITR)", "DC-PEDO-007", _app(dentitions=PRIMARY, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=75)),
+            _act("Restauration composite dent temporaire", "DC-PEDO-008", _app(dentitions=PRIMARY, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=75)),
+            _act("Restauration verre ionomère dent temporaire", "DC-PEDO-009", _app(dentitions=PRIMARY, treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=75)),
+            _act("Traitement pulpaire indirect dent temporaire", "DC-PEDO-010", _app(dentitions=PRIMARY, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=80)),
+            _act("Pulpotomie dent temporaire", "DC-PEDO-011", _app(dentitions=PRIMARY, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=95)),
+            _act("Pulpectomie dent temporaire", "DC-PEDO-012", _app(dentitions=PRIMARY, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=90)),
+            _act("Couronne métallique préformée dent temporaire", "DC-PEDO-013", _app(dentitions=PRIMARY, tooth_types=["MOLAR"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=95)),
+            _act("Couronne pédiatrique esthétique / zircone", "DC-PEDO-014", _app(dentitions=PRIMARY, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=70)),
+            _act("Couronne strip antérieure", "DC-PEDO-015", _app(dentitions=PRIMARY, tooth_types=["INCISOR", "CANINE"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=70)),
+            _act("Extraction dent temporaire", "DC-PEDO-016", _app(dentitions=PRIMARY, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=70)),
+            _act("Mainteneur d'espace bande-boucle", "DC-PEDO-017", _app(dentitions=PRIMARY, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=2, suggestion_priority=90)),
+            _act("Mainteneur d'espace couronne-boucle", "DC-PEDO-018", _app(dentitions=PRIMARY, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=2, suggestion_priority=85)),
+            _act("Mainteneur d'espace distal shoe", "DC-PEDO-019", _app(dentitions=PRIMARY, treatment_areas=RANGE, selection_modes=GROUP, min_selected_teeth=2, suggestion_priority=75)),
+            _act("Arc lingual / Nance / barre transpalatine", "DC-PEDO-020", _app(dentitions=BOTH, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=35)),
+            _act("Mainteneur d'espace amovible", "DC-PEDO-021", _app(dentitions=PRIMARY, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=35)),
+            _act("Récupérateur d'espace", "DC-PEDO-022", _app(dentitions=BOTH, treatment_areas=ARCH_MOUTH, selection_modes=GENERAL, suggestion_priority=25)),
+            _act("Traitement MIH / hypersensibilité", "DC-PEDO-023", _app(dentitions=PERMANENT, tooth_types=["MOLAR", "INCISOR"], treatment_areas=TOOTH_SURFACE, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=25)),
+            _act("Contrôle d'un mainteneur d'espace", "DC-PEDO-024"),
+        ],
+    },
+    {
+        "name": "ORTHODONTIE",
+        "color": "#0EA5E9",
+        "acts": [
+            _act("Bilan orthodontique complet", "DC-ORTHO-001"),
+            _act("Empreintes / scan orthodontique", "DC-ORTHO-002"),
+            _act("Analyse céphalométrique", "DC-ORTHO-003"),
+            _act("Traitement orthodontique limité", "DC-ORTHO-004"),
+            _act("Traitement orthodontique complet", "DC-ORTHO-005"),
+            _act("Appareil fixe une arcade", "DC-ORTHO-006"),
+            _act("Appareil fixe deux arcades", "DC-ORTHO-007"),
+            _act("Traitement par aligneurs", "DC-ORTHO-008"),
+            _act("Appareil fonctionnel", "DC-ORTHO-009"),
+            _act("Expansion maxillaire", "DC-ORTHO-010"),
+            _act("Appareil de correction d'habitude", "DC-ORTHO-011"),
+            _act("Stripping / réduction interproximale", "DC-ORTHO-012"),
+            _act("Repositionnement / recollement bracket", "DC-ORTHO-013"),
+            _act("Contrôle orthodontique", "DC-ORTHO-014"),
+            _act("Dépose appareil orthodontique", "DC-ORTHO-015"),
+            _act("Contention fixe", "DC-ORTHO-016"),
+            _act("Contention amovible", "DC-ORTHO-017"),
+            _act("Réparation de contention", "DC-ORTHO-018"),
+            _act("Mini-vis orthodontique", "DC-ORTHO-019"),
+        ],
+    },
+    {
+        "name": "OCCLUSION & ATM",
+        "color": "#A855F7",
+        "acts": [
+            _act("Bilan occlusal", "DC-OCC-001"),
+            _act("Équilibration occlusale", "DC-OCC-002"),
+            _act("Gouttière occlusale", "DC-OCC-003"),
+            _act("Gouttière de bruxisme", "DC-OCC-004"),
+            _act("Gouttière de stabilisation ATM", "DC-OCC-005"),
+            _act("Contrôle / ajustage de gouttière", "DC-OCC-006"),
+            _act("Réparation / remplacement de gouttière", "DC-OCC-007"),
+        ],
+    },
+    {
+        "name": "DENTISTERIE ESTHÉTIQUE",
+        "color": "#EC4899",
+        "acts": [
+            _act("Éclaircissement au fauteuil", "DC-ESTH-001"),
+            _act("Éclaircissement ambulatoire avec gouttières", "DC-ESTH-002"),
+            _act("Renouvellement gel d'éclaircissement", "DC-ESTH-003"),
+            _act("Éclaircissement interne", "DC-ESTH-004", _app(dentitions=PERMANENT, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=10)),
+            _act("Micro-abrasion esthétique", "DC-ESTH-005"),
+            _act("Bonding esthétique direct", "DC-ESTH-006", _app(dentitions=PERMANENT, tooth_types=["INCISOR", "CANINE"], treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, suggestion_priority=20)),
+        ],
+    },
+    {
+        "name": "URGENCES & SUIVI POST-OP",
+        "color": "#DC2626",
+        "acts": [
+            _act("Soin palliatif d'urgence", "DC-URG-001"),
+            _act("Pansement sédatif / temporaire", "DC-URG-002", _app(dentitions=BOTH, treatment_areas=TOOTH, selection_modes=INDIVIDUAL, min_selected_teeth=1, max_selected_teeth=1, suggestion_priority=20)),
+            _act("Gestion d'une hémorragie post-opératoire", "DC-URG-003"),
+            _act("Contrôle post-extraction", "DC-URG-004"),
+            _act("Contrôle post-chirurgical", "DC-URG-005"),
+            _act("Irrigation / soin d'alvéolite", "DC-URG-006"),
+            _act("Dépose de pansement chirurgical", "DC-URG-007"),
+            _act("Dépose des points de suture", "DC-URG-008"),
+            _act("Réfection de suture", "DC-URG-009"),
+            _act("Contrôle cicatrisation", "DC-URG-010"),
+        ],
+    },
+]
+
+
+def reference_catalog_counts() -> tuple[int, int]:
+    return len(REFERENCE_CATALOG), sum(len(s["acts"]) for s in REFERENCE_CATALOG)
