@@ -83,13 +83,13 @@ def get_mobile_quick_action_capabilities(
 ):
     has_patients = has_permission(mobile_user, 'patients')
     has_accounting = has_permission(mobile_user, 'accounting')
+    has_clinical = has_permission(mobile_user, 'clinical')
     return encrypt_payload({
         'can_create_appointment': has_permission(mobile_user, 'agenda'),
         'can_create_patient': has_patients,
-        'can_open_clinical_context': has_patients,
-        # Preserve the historical Quick Payment contract exactly: patient scope plus
-        # the canonical combined accounting/payments permission check.
-        'can_pay': has_patients and has_permission(mobile_user, ['accounting', 'payments']),
+        'can_open_clinical_context': has_clinical,
+        # Pocket V1 financial information is read-only; payment writes are never a capability.
+        'can_pay': False,
         # MOB-5F mirrors DOCUMENT_TYPE_PERMISSIONS from /api/documents/generate.
         'can_create_prescription': has_permission(mobile_user, 'prescriptions'),
         'can_create_certificate': has_patients,
@@ -106,6 +106,7 @@ def search_mobile_patient_cockpit(
     mobile_user: models.User = Depends(require_mobile_permission('patients')),
 ):
     employer_id = mobile_user.get_employer_id()
+    can_view_clinical = has_permission(mobile_user, 'clinical')
     query = db.query(models.Patient).filter(
         models.Patient.employer_id == employer_id,
         models.Patient.deleted_at.is_(None),
@@ -129,7 +130,7 @@ def search_mobile_patient_cockpit(
                 'name': _patient_name(patient),
                 'phone': patient.telephone,
                 'numero_dossier': patient.numero_dossier,
-                'has_medical_alert': _has_medical_alert(patient),
+                'has_medical_alert': _has_medical_alert(patient) if can_view_clinical else False,
             }
             for patient in patients
         ]
@@ -144,6 +145,8 @@ def get_mobile_patient_cockpit_resources(
 ):
     employer_id = mobile_user.get_employer_id()
     _patient_or_404(db, employer_id, patient_id)
+    if not has_permission(mobile_user, 'clinical'):
+        return encrypt_payload({'documents': [], 'panoramics': []})
 
     documents = []
     candidates = db.query(models.DocumentArchive).filter(
@@ -192,6 +195,8 @@ def create_mobile_patient_cockpit_context(
     mobile_user, tenant_id, mobile_payload = _legacy._decode_mobile_identity(authorization, db)
     if not has_permission(mobile_user, 'patients'):
         raise HTTPException(status_code=403, detail="Accès patient mobile refusé.")
+    if not has_permission(mobile_user, 'clinical'):
+        raise HTTPException(status_code=403, detail="Accès clinique mobile refusé.")
     _patient_or_404(db, tenant_id, patient_id)
 
     resource_type = body.resource_type.strip().lower()
@@ -283,8 +288,9 @@ def get_mobile_patient_cockpit(
             'overdue_count': snapshot['overdue_count'],
         }
 
+    can_view_clinical = has_permission(mobile_user, 'clinical')
     clinical_context = None
-    if has_permission(mobile_user, 'clinical'):
+    if can_view_clinical:
         latest_acte = (
             db.query(models.Acte)
             .filter(models.Acte.patient_id == patient.id)
@@ -302,7 +308,7 @@ def get_mobile_patient_cockpit(
             },
         }
 
-    medical_summary = (patient.antecedents_medicaux or '').strip() or None
+    medical_summary = ((patient.antecedents_medicaux or '').strip() or None) if can_view_clinical else None
     return encrypt_payload({
         'patient': {
             'id': patient.id,
