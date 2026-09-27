@@ -83,9 +83,9 @@ jobs:
           import struct
 
           expected = {
-              'after-team-390x844.png': (390, 844),
-              'after-team-430x932.png': (430, 932),
-              'after-team-768x1024.png': (768, 1024),
+              'after-pocket-plus-390x844.png': (390, 844),
+              'after-pocket-plus-430x932.png': (430, 932),
+              'after-pocket-plus-768x1024.png': (768, 1024),
           }
           root = Path('artifacts/mobile-team-mob5a-after')
           for name, dims in expected.items():
@@ -97,7 +97,7 @@ jobs:
                   raise SystemExit(f'{name}: got {(width, height)}, expected {dims}')
               print(f'{name}: {width}x{height} OK')
           PY
-          printf 'head=%s\nviewports=390x844,430x932,768x1024\nentry=Plus->Equipe\ncanonical_nav=preserved\nhorizontal_overflow=none-required\nruntime_errors=none-required\ntheme=runtime-settings-driven\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-team-mob5a-after/result.txt
+          printf 'head=%s\nviewports=390x844,430x932,768x1024\nentry=Plus->Salle d’attente;retired_Equipe=absent\ncanonical_nav=preserved\nhorizontal_overflow=none-required\nruntime_errors=none-required\ntheme=runtime-settings-driven\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-team-mob5a-after/result.txt
           cp /tmp/mob5a-vite.log artifacts/mobile-team-mob5a-after/vite.log
 
       - uses: actions/upload-artifact@v4
