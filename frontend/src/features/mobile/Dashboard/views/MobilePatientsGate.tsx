@@ -4,12 +4,14 @@ import { MobilePatientsView } from './MobilePatientsView';
 export function MobilePatientsGate({
   isOnline,
   onClose,
+  initialSelectedId,
 }: {
   isOnline: boolean;
   onClose: () => void;
+  initialSelectedId?: number | null;
 }) {
   if (isOnline) {
-    return <MobilePatientsView onClose={onClose} />;
+    return <MobilePatientsView onClose={onClose} initialSelectedId={initialSelectedId} />;
   }
 
   return (
