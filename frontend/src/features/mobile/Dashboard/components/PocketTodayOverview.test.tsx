@@ -55,34 +55,10 @@ const snapshot = (role: string): Snapshot => ({
     total_debt: 0,
   },
   debtors: [],
-
-  it('ranks in-chair, waiting and upcoming patients instead of stale planned appointments', () => {
-    const appointments = snapshot('DENTISTE').appointments;
-    const now = new Date('2026-09-27T10:05:00');
-    const selected = nextOperationalAppointment(appointments, '2026-09-27', now);
-    expect(selected?.id).toBe(2);
-
-    const withChairside = [
-      ...appointments,
-      { ...appointments[0], id: 4, patient_id: 104, time: '10:15', patient_name: 'Chairside', status: 'EN_COURS' as const },
-    ];
-    expect(nextOperationalAppointment(withChairside, '2026-09-27', now)?.id).toBe(4);
-  });
-
-  it('skips appointments without a patient id and does not invent a next patient for a past day', () => {
-    const appointments = [
-      { ...snapshot('DENTISTE').appointments[0], id: 10, patient_id: null, time: '10:30', status: 'PLANIFIE' as const },
-      { ...snapshot('DENTISTE').appointments[0], id: 11, patient_id: 111, time: '10:45', status: 'PLANIFIE' as const },
-    ];
-    const now = new Date('2026-09-27T10:00:00');
-    expect(nextOperationalAppointment(appointments, '2026-09-27', now)?.id).toBe(11);
-    expect(nextOperationalAppointment(appointments, '2026-09-26', now)).toBeNull();
-  });
-
 });
 
 describe('PocketTodayOverview', () => {
-  it('shows the practitioner priority and opens the next patient cockpit directly', () => {
+  it('shows the practitioner priority and opens the waiting patient cockpit directly', () => {
     const onOpenPatient = vi.fn();
     const { container } = render(
       <PocketTodayOverview
@@ -147,5 +123,27 @@ describe('PocketTodayOverview', () => {
 
     expect(screen.queryByRole('heading', { name: 'Aujourd’hui' })).toBeNull();
     expect(screen.getByRole('heading', { name: /Journée du/i })).toBeTruthy();
+  });
+
+  it('ranks in-chair, waiting and upcoming patients instead of stale planned appointments', () => {
+    const appointments = snapshot('DENTISTE').appointments;
+    const now = new Date('2026-09-27T10:05:00');
+    expect(nextOperationalAppointment(appointments, '2026-09-27', now)?.id).toBe(2);
+
+    const withChairside = [
+      ...appointments,
+      { ...appointments[0], id: 4, patient_id: 104, time: '10:15', patient_name: 'Chairside', status: 'EN_COURS' as const },
+    ];
+    expect(nextOperationalAppointment(withChairside, '2026-09-27', now)?.id).toBe(4);
+  });
+
+  it('skips appointments without a patient id and does not invent a next patient for a past day', () => {
+    const appointments = [
+      { ...snapshot('DENTISTE').appointments[0], id: 10, patient_id: null, time: '10:30', status: 'PLANIFIE' as const },
+      { ...snapshot('DENTISTE').appointments[0], id: 11, patient_id: 111, time: '10:45', status: 'PLANIFIE' as const },
+    ];
+    const now = new Date('2026-09-27T10:00:00');
+    expect(nextOperationalAppointment(appointments, '2026-09-27', now)?.id).toBe(11);
+    expect(nextOperationalAppointment(appointments, '2026-09-26', now)).toBeNull();
   });
 });
