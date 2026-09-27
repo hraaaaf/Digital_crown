@@ -2,7 +2,7 @@ name: V1-07 Truth Safety Visual Evidence
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, cert/v1-07-g9-exact-head-20260925]
     paths:
       - .github/workflows/v1-07-truth-safety-visual-evidence.yml
       - frontend/truth-safety-audit.html
