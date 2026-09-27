@@ -12,3 +12,12 @@ def test_planned_and_chairside_statuses_keep_their_existing_contract():
     assert mobile_legacy._to_mobile_status(models.AppointmentStatus.EN_FAUTEUIL) == "EN_COURS"
     assert mobile_legacy._to_mobile_status(models.AppointmentStatus.TERMINE) == "TERMINE"
     assert mobile_legacy._to_mobile_status(models.AppointmentStatus.ANNULE) == "ANNULE"
+
+
+def test_confirmed_is_operational_but_frontdesk_only_states_do_not_fall_back_to_planned():
+    assert mobile_legacy._to_mobile_status(models.AppointmentStatus.CONFIRME) == "PLANIFIE"
+    assert mobile_legacy._to_mobile_status(models.AppointmentStatus.EN_ATTENTE_DEMANDE) is None
+    assert mobile_legacy._to_mobile_status(models.AppointmentStatus.EN_ATTENTE_CONFIRM) is None
+    assert mobile_legacy._to_mobile_status(models.AppointmentStatus.REFUSE) is None
+    assert mobile_legacy._to_mobile_status(models.AppointmentStatus.EXPIRE) is None
+    assert mobile_legacy._to_mobile_status(models.AppointmentStatus.ABSENT) is None
