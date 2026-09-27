@@ -116,18 +116,10 @@ def _approval_value(user: models.User) -> str:
 
 
 def _allowed_bridge_destinations(user: models.User) -> list[str]:
-    """Server-side bridge allowlist. UI filtering never grants permissions."""
+    """General desktop bridge opens only the canonical Pocket role home."""
     if not has_permission(user, "agenda") and not is_superadmin_user(user):
         return []
-
-    destinations = ["agenda", "assistant", "security", "dentists"]
-    if has_permission(user, ["accounting", "payments"]):
-        destinations.append("finance")
-    if has_permission(user, "patients"):
-        destinations.append("lab")
-    if is_superadmin_user(user):
-        destinations.append("superadmin")
-    return destinations
+    return ["agenda"]
 
 
 def _create_bridge_token(destination: str) -> str:
