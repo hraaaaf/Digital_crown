@@ -188,6 +188,22 @@ npm --prefix frontend run build
 
 Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation correspondants. Ne déclarer aucune version installable sans certificat final `INSTALLABLE_CERTIFIED` vérifié.
 
+### Validation CI chirurgicale — INVARIANT OPÉRATIONNEL
+
+Pendant une phase de correction ou de stabilisation :
+
+- un micro-correctif doit être validé d'abord par le **test, job ou workflow directement impacté** ;
+- si aucun code n'a changé et qu'un rerun suffit, relancer **uniquement le job échoué** ou les seuls jobs échoués ; ne pas relancer volontairement la matrice complète ;
+- si un commit déclenche automatiquement d'autres workflows GitHub, **ne pas attendre ni réinterpréter toute la matrice** : suivre uniquement le gate corrigé et ses dépendances directes ;
+- un gate déjà prouvé vert reste acquis tant que ni son code, ni son harness, ni une dépendance pertinente n'ont changé ;
+- après correction d'un rouge, passer au **prochain rouge réel terminé**, sans recommencer les preuves déjà acquises ;
+- la **matrice complète exact-HEAD** n'est requise qu'une seule fois, au closeout final du lot, après élimination de tous les rouges ciblés ;
+- une CI encore queued/in_progress n'autorise pas l'attente passive : traiter le travail indépendant disponible ; sinon déclarer le blocage asynchrone exact ;
+- ne jamais masquer un changement produit derrière une validation ciblée : si le diff touche une dépendance transverse ou un invariant de sécurité/données/release, élargir les tests proportionnellement au risque.
+
+Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
+
+
 ## Runbooks utiles
 
 - `docs/CABINET_CERTIFIED_RELEASE_POLICY.md`
