@@ -24,11 +24,10 @@ describe('M4-C document contextual mobile bridge', () => {
     expect(documentsSource).not.toContain('handleDownload(doc.url');
   });
 
-  it('adds the exact bridge only to canonical numeric archive ids with touch-safe actions', () => {
+  it('retires the document desktop bridge while keeping canonical archive actions touch-safe', () => {
     expect(documentsSource).toContain("/^\\d+$/.test(doc.id)");
-    expect(documentsSource).toContain('<DocumentMobileBridge documentId={canonicalId}');
-    expect(documentsSource).toContain('data-m4c-touch');
-    expect(documentsSource).toContain('min-w-11 min-h-11');
+    expect(documentsSource).not.toContain('DocumentMobileBridge');
+    expect(documentsSource).not.toContain('Ouvrir sur mobile');
     expect(documentsSource).toContain('min-h-[48px]');
   });
 
