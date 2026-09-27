@@ -15,6 +15,7 @@ def _session():
     models.User.__table__.create(engine)
     models.Patient.__table__.create(engine)
     models.Appointment.__table__.create(engine)
+    models.Acte.__table__.create(engine)
     return sessionmaker(bind=engine)()
 
 
@@ -110,6 +111,60 @@ def test_finance_is_returned_only_when_permission_allows_it(monkeypatch):
         'total_collected': 4100.0,
         'overdue_count': 1,
     }
+
+
+def test_clinical_context_is_permission_gated_and_returns_latest_note(monkeypatch):
+    db = _session()
+    owner = _user(1, 'a@example.test')
+    patient = _patient(101, 1, 'Alpha')
+    patient.motif_consultation = 'Douleur secteur 2'
+    db.add_all([owner, patient])
+    db.flush()
+    db.add_all([
+        models.Acte(
+            patient_id=patient.id,
+            praticien_id=owner.id,
+            type_acte=models.ActeType.SOIN,
+            libelle='Ancien soin',
+            montant=100.0,
+            date_debut=datetime(2026, 9, 1, 9, 0),
+            notes_cliniques='Ancienne note',
+        ),
+        models.Acte(
+            patient_id=patient.id,
+            praticien_id=owner.id,
+            type_acte=models.ActeType.SOIN,
+            libelle='Contrôle 26',
+            montant=0.0,
+            date_debut=datetime(2026, 9, 26, 15, 30),
+            notes_cliniques='Sensibilité au froid, contrôle occlusion.',
+        ),
+    ])
+    db.commit()
+
+    monkeypatch.setattr(cockpit, 'encrypt_payload', lambda payload: payload)
+
+    def allowed(_user, permission):
+        return permission == 'clinical'
+
+    monkeypatch.setattr(cockpit, 'has_permission', allowed)
+    result = cockpit.get_mobile_patient_cockpit(patient_id=101, db=db, mobile_user=owner)
+
+    assert result['finance'] is None
+    assert result['clinical_context'] == {
+        'motif_consultation': 'Douleur secteur 2',
+        'latest_acte': {
+            'id': 2,
+            'label': 'Contrôle 26',
+            'type': 'SOIN',
+            'date': '2026-09-26T15:30:00',
+            'note': 'Sensibilité au froid, contrôle occlusion.',
+        },
+    }
+
+    monkeypatch.setattr(cockpit, 'has_permission', lambda _user, _permission: False)
+    restricted = cockpit.get_mobile_patient_cockpit(patient_id=101, db=db, mobile_user=owner)
+    assert restricted['clinical_context'] is None
 
 
 def test_quick_action_capabilities_are_server_authoritative(monkeypatch):
