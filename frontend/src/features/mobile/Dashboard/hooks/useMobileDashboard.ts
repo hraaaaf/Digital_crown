@@ -3,11 +3,7 @@ import toast from 'react-hot-toast';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
-import { fetchLabJobs, patchLabJobStatus } from '../../../../services/labJobService';
-import type { LabJob } from '../../../../types/labJob';
-import { formatLabJobMessage } from '../../../../services/whatsappService';
 import type { Tab, SyncStatus, Snapshot, Appointment, ApptStatus } from '../types';
-import { LabJobStatus } from '../../../../types/labJob';
 
 function resolveApiBaseUrl(stored: string): string {
   const hostname = window.location.hostname;
@@ -35,7 +31,6 @@ export function useMobileDashboard() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queuedActionsCount, setQueuedActionsCount] = useState(0);
   const [now, setNow] = useState(new Date());
-  const [labJobs, setLabJobs] = useState<LabJob[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [patients, setPatients] = useState<{id: number, name: string, phone: string | null}[]>([]);
   const credsRef = useRef<{ access_token: string; api_base_url: string; masterKey: string } | null>(null);
@@ -206,7 +201,6 @@ export function useMobileDashboard() {
     MobileStorage.getLastSnapshot().then(c => { if (c) { setSnapshot(c); setSyncStatus('success'); } }); 
     fetchSnapshot(); 
     fetchPatients(); 
-    fetchLabJobs().then(setLabJobs).catch(err => console.error(err)); 
   }, [fetchSnapshot, fetchPatients]);
 
   const handleStatusChange = async (id: number, status: ApptStatus) => {
@@ -339,26 +333,6 @@ export function useMobileDashboard() {
     setWhatsappApt(null);
   };
 
-  const handleWhatsAppSend = async (job: LabJob) => {
-    const plainText = formatLabJobMessage(job);
-    const whatsappUri = `whatsapp://send?phone=${''}&text=${encodeURIComponent(plainText)}`;
-
-    try {
-      await navigator.clipboard.writeText(plainText);
-    } catch (c) {
-      console.warn('Échec silencieux du presse‑papier', c);
-    }
-
-    try {
-      window.location.href = whatsappUri;
-      await patchLabJobStatus(job.id, { status: LabJobStatus.SENT });
-      setLabJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: LabJobStatus.SENT } : j));
-    } catch (e) {
-      console.error('Échec WhatsApp ou persistance Labo', e);
-      toast.error('WhatsApp ouvert, mais statut Labo non confirmé.');
-    }
-  };
-
   const fetchSignatureDocs = useCallback(async (patientId: number) => {
     setIsLoadingDocs(true);
     try {
@@ -430,39 +404,6 @@ export function useMobileDashboard() {
     window.location.replace('/mobile/onboarding');
   };
 
-  const handleExportPDF = async () => {
-    const creds = credsRef.current || await MobileStorage.getCredentials();
-    if (!creds) return;
-    try {
-      const d = new Date(selectedDate);
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/accounting/export-pdf?year=${d.getFullYear()}&month=${d.getMonth() + 1}`, {
-        headers: { Authorization: `Bearer ${creds.access_token}` },
-      });
-      if (!res.ok) throw new Error('Erreur export');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      
-      if (navigator.share && navigator.canShare) {
-        const file = new File([blob], `Compta_${d.getFullYear()}_${d.getMonth() + 1}.pdf`, { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Comptabilité ${d.getMonth() + 1}/${d.getFullYear()}`,
-          });
-          return;
-        }
-      }
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Compta_${d.getFullYear()}_${d.getMonth() + 1}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      alert("Erreur lors de l'export PDF");
-    }
-  };
-
   return {
     state: {
       activeTab,
@@ -471,7 +412,6 @@ export function useMobileDashboard() {
       error,
       isOnline,
       now,
-      labJobs,
       selectedDate,
       patients,
       sigPatientId,
@@ -496,11 +436,9 @@ export function useMobileDashboard() {
       openWhatsApp,
       openApptWhatsApp,
       handleSendWhatsApp,
-      handleWhatsAppSend,
       handleOpenSignature,
       handleSaveSignature,
       handleLogout,
-      handleExportPDF,
       setSigPatientId,
       setSelectedDocId,
       setWhatsappApt,
