@@ -115,6 +115,42 @@ describe('MobileQuickActionHub', () => {
     expect(onNewAppointment).not.toHaveBeenCalled();
   });
 
+
+  it('traps keyboard focus in the dialog and restores the launcher on Escape', () => {
+    render(
+      <MobileQuickActionHub
+        capabilities={ALL_CAPABILITIES}
+        isOnline
+        onNewAppointment={() => undefined}
+        onNewPatient={() => undefined}
+        onPatientAction={() => undefined}
+      />,
+    );
+
+    const launcher = screen.getByRole('button', { name: 'Ouvrir les actions rapides' });
+    launcher.focus();
+    fireEvent.click(launcher);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    const dialogButtons = Array.from(dialog.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
+    const first = dialogButtons[0];
+    const last = dialogButtons[dialogButtons.length - 1];
+
+    last.focus();
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(launcher);
+  });
+
   it('supports a controlled open state without rendering its legacy floating launcher', () => {
     const onOpenChange = vi.fn();
     const { rerender } = render(
