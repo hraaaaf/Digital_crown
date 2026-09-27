@@ -52,7 +52,6 @@ export const MobileDashboard = () => {
     capabilities.can_create_appointment
     || capabilities.can_create_patient
     || capabilities.can_open_clinical_context
-    || capabilities.can_pay
   );
 
   const refreshAfterPatientMutation = () => {
@@ -173,7 +172,6 @@ export const MobileDashboard = () => {
         setActiveTab={selectNavTab}
         totalCount={totalCount}
         termineCount={termineCount}
-        labJobs={state.labJobs}
         snapshot={state.snapshot}
         quickActionsAvailable={quickActionsAvailable}
         quickActionsOpen={quickActionsOpen}
