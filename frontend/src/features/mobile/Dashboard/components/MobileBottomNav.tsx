@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
+import { Bell, CalendarDays, ClipboardList, MoreHorizontal, ShieldCheck, UserRound, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
-import type { LabJob } from '../../../../types/labJob';
 
 export function MobileBottomNav({
   activeTab,
   setActiveTab,
   totalCount,
   termineCount,
-  labJobs,
   snapshot,
   quickActionsAvailable,
   quickActionsOpen,
@@ -19,7 +17,6 @@ export function MobileBottomNav({
   setActiveTab: (t: Tab) => void;
   totalCount: number;
   termineCount: number;
-  labJobs: LabJob[];
   snapshot: Snapshot | null;
   quickActionsAvailable: boolean;
   quickActionsOpen: boolean;
@@ -37,59 +34,16 @@ export function MobileBottomNav({
       badge: waitingCount > 0 ? waitingCount : undefined,
     },
     {
-      id: 'notifications' as Tab,
-      icon: Bell,
-      label: 'Notifications',
-      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
-    },
-    {
-      id: 'stock' as Tab,
-      icon: Package,
-      label: 'Stock',
-      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
-    },
-    {
-      id: 'library' as Tab,
-      icon: BookOpen,
-      label: 'Bibliothèque',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-    },
-    {
-      id: 'marketplace' as Tab,
-      icon: ShoppingCart,
-      label: 'Approvisionnement',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-    },
-    {
-      id: 'dentists' as Tab,
-      icon: Users,
-      label: 'Équipe',
-      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
-    },
-    {
       id: 'frontdesk' as Tab,
       icon: ClipboardList,
       label: 'Accueil',
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
     {
-      id: 'finance' as Tab,
-      icon: TrendingUp,
-      label: 'Trésorerie',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-    },
-    {
-      id: 'lab' as Tab,
-      icon: FlaskConical,
-      label: 'Envois Labo',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-      dot: labJobs.some(job => job.status === 'PRESCRIPTION'),
-    },
-    {
       id: 'securite' as Tab,
       icon: ShieldCheck,
       label: 'Sécurité',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
+      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
   ].filter(tab => tab.allowedRoles.includes(role));
 
@@ -232,15 +186,17 @@ export function MobileBottomNav({
 
           <button
             type="button"
-            aria-current={activeTab === 'bot' ? 'page' : undefined}
-            onClick={() => selectTab('bot')}
+            aria-current={activeTab === 'notifications' ? 'page' : undefined}
+            onClick={() => selectTab('notifications')}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'bot' ? 'text-primary' : 'text-text-muted'
+              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              activeTab === 'notifications' ? 'text-primary' : 'text-text-muted'
             )}
           >
-            <span className="grid h-8 w-11 place-items-center"><Bot size={20} strokeWidth={activeTab === 'bot' ? 2.35 : 1.9} /></span>
-            <span className="max-w-full truncate">Assistant</span>
+            <span className="relative grid h-8 w-11 place-items-center">
+              <Bell size={20} strokeWidth={activeTab === 'notifications' ? 2.35 : 1.9} />
+            </span>
+            <span className="max-w-full truncate">Alertes</span>
           </button>
 
           <button
