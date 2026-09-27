@@ -356,3 +356,5 @@ export const LandingPage: React.FC = () => {
     </div>
   );
 };
+
+// V1-07 G9 exact-head certification trigger: no runtime behavior change.

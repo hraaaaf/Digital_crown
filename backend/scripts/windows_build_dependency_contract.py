@@ -93,3 +93,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# V1-07 G9 exact-head certification trigger: no runtime behavior change.

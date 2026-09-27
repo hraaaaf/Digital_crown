@@ -207,6 +207,66 @@ for (const viewport of viewports) {
     await studio.waitFor({ state: 'visible', timeout: 30000 });
     await studio.getByRole('button', { name: label, exact: true }).waitFor({ state: 'visible', timeout: 30000 });
     surfaces.push(await inventorySurface(page, viewport, `documents-${slug}`));
+
+    if (slug === 'devis' || slug === 'honoraires') {
+      const plan = page.getByTestId('document-plan-of-care');
+      await plan.waitFor({ state: 'visible', timeout: 30000 });
+
+      const continueButton = page.getByRole('button', { name: /Continuer vers les prestations/i });
+      if (!(await continueButton.count())) {
+        await plan.getByRole('button').filter({ hasText: 'Plan de soins' }).first().click();
+        await continueButton.waitFor({ state: 'visible', timeout: 10000 });
+      }
+
+      const tooth11 = page.getByRole('button', { name: 'Dent 11', exact: true }).first();
+      await tooth11.waitFor({ state: 'visible', timeout: 30000 });
+
+      await plan.screenshot({
+        path: path.join(outDir, `g4-plan-${slug}-schema-open-${viewport.width}x${viewport.height}.png`),
+        animations: 'disabled',
+      });
+
+      await tooth11.focus();
+      await tooth11.press('Enter');
+      await page.waitForFunction(
+        () => [...document.querySelectorAll('[role="button"][aria-label="Dent 11"]')]
+          .some((el) => el.getAttribute('aria-pressed') === 'true'),
+        null,
+        { timeout: 10000 },
+      );
+      await page.waitForTimeout(200);
+
+      await plan.screenshot({
+        path: path.join(outDir, `g4-plan-${slug}-tooth-11-selected-${viewport.width}x${viewport.height}.png`),
+        animations: 'disabled',
+      });
+
+      const childTab = page.getByRole('button', { name: 'Enfant', exact: true });
+      await childTab.click();
+      const tooth51 = page.getByRole('button', { name: 'Dent 51', exact: true }).first();
+      await tooth51.waitFor({ state: 'visible', timeout: 30000 });
+      await page.waitForTimeout(200);
+
+      await plan.screenshot({
+        path: path.join(outDir, `g4-plan-${slug}-child-schema-open-${viewport.width}x${viewport.height}.png`),
+        animations: 'disabled',
+      });
+
+      await tooth51.focus();
+      await tooth51.press('Enter');
+      await page.waitForFunction(
+        () => [...document.querySelectorAll('[role="button"][aria-label="Dent 51"]')]
+          .some((el) => el.getAttribute('aria-pressed') === 'true'),
+        null,
+        { timeout: 10000 },
+      );
+      await page.waitForTimeout(200);
+
+      await plan.screenshot({
+        path: path.join(outDir, `g4-plan-${slug}-child-tooth-51-selected-${viewport.width}x${viewport.height}.png`),
+        animations: 'disabled',
+      });
+    }
   }
 
   await page.goto(`${patientUrl}?tab=archives`, { waitUntil: 'networkidle', timeout: 90000 });

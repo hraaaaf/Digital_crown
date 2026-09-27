@@ -652,12 +652,15 @@ for(const viewport of viewports){
  await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'?tab=radiology&radioTab=cephalo',{waitUntil:'networkidle',timeout:90000});
  const activateOrtho=page.getByRole('button',{name:/Activer le Suivi Orthodontique/i});
  if(await activateOrtho.count()){
+   const refusedOrtho=page.waitForResponse(res=>new URL(res.url()).pathname==='/api/patients/'+patient.id+'/ortho'&&res.request().method()==='PATCH'&&res.status()===503);
    await activateOrtho.click();
-   await page.waitForTimeout(250);
+   await refusedOrtho;
    if(!(await page.getByText('Module Céphalométrique Verrouillé',{exact:true}).count())) throw new Error('cephalo unlocked after refused ortho activation');
    pass(viewport,'patient-ortho-activation-refusal-non-mutation');
 
+   const acceptedOrtho=page.waitForResponse(res=>new URL(res.url()).pathname==='/api/patients/'+patient.id+'/ortho'&&res.request().method()==='PATCH'&&res.status()===200);
    await activateOrtho.click();
+   await acceptedOrtho;
    await page.waitForFunction(()=>!document.body.innerText.includes('Module Céphalométrique Verrouillé'),undefined,{timeout:10000});
    if(orthoPatchCalls!==2) throw new Error('ortho activation ACK count mismatch');
    pass(viewport,'patient-ortho-activation-ack',{orthoPatchCalls});

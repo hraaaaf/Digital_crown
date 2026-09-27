@@ -1,7 +1,8 @@
 from fastapi import HTTPException
 
 from backend import models
-from backend.routers import motifs
+from backend.routers import motifs, patients
+from backend.schemas.patient import PatientCreate
 
 
 def _user(db, email: str):
@@ -93,3 +94,38 @@ def test_custom_motif_rejects_unknown_category(db):
         assert exc.status_code == 422
     else:
         raise AssertionError("unknown category must fail closed")
+
+
+def test_custom_motif_round_trip_through_patient_record(db):
+    owner = _user(db, "motif-patient-e2e@cabinet.test")
+    created_motif = motifs.create_cabinet_motif(
+        motifs.CabinetMotifCreate(
+            label="Contrôle implant personnalisé",
+            category_id="IMPLANTOLOGIE",
+            urgency="normal",
+        ),
+        db=db,
+        current_user=owner,
+    )
+
+    motif_payload = f'["{created_motif["id"]}"]'
+    created_patient = patients.create_patient(
+        PatientCreate(
+            nom="E2E",
+            prenom="Motif",
+            date_naissance="1990-01-01",
+            sexe="M",
+            motif_consultation=motif_payload,
+        ),
+        db=db,
+        current_user=owner,
+    )
+
+    reloaded = patients.read_patient(created_patient.id, db=db, current_user=owner)
+    assert reloaded.motif_consultation == motif_payload
+
+    catalogue = motifs.list_cabinet_motifs(include_inactive=True, db=db, current_user=owner)
+    assert any(
+        item["id"] == created_motif["id"] and item["label"] == "Contrôle implant personnalisé"
+        for item in catalogue
+    )

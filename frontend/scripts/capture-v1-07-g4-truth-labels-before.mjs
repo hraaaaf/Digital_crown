@@ -35,7 +35,7 @@ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   const base=`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=`;
 
   await page.goto(base+'honoraires',{waitUntil:'networkidle',timeout:90000});
-  const treasury=page.getByRole('button',{name:/Procéder à l'Encaissement/i});
+  const treasury=page.getByRole('button',{name:'Échéances & options',exact:true});
   await treasury.waitFor({state:'visible',timeout:30000});
   await treasury.click();
   await page.getByText('Encaissement',{exact:true}).waitFor({state:'visible',timeout:10000});

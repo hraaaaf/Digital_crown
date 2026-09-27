@@ -317,7 +317,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
       <img
         src={backgroundImage}
         alt={`Schéma dentaire ${type === 'ADULT' ? 'adulte' : 'pédiatrique'}`}
-        className="w-full h-auto block select-none pointer-events-none opacity-0"
+        className="w-full h-auto block select-none pointer-events-none"
       />
 
       {canvasSize.width > 0 && canvasSize.height > 0 && (
@@ -356,13 +356,6 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
               );
             })}
           </defs>
-
-          <rect 
-            width="100%" 
-            height="100%" 
-            className="fill-primary opacity-90 transition-colors duration-500 pointer-events-none"
-            mask="url(#blueprint-mask)" 
-          />
 
           {/* Rendu des Dents */}
           {teethList.map((toothNumber) => {

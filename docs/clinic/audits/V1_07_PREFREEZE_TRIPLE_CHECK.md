@@ -1,6 +1,6 @@
 # V1-07 — Pre-freeze Triple-Check Audit
 
-Status: **IN_PROGRESS — V1-08 FREEZE BLOCKED**
+Status: **READY FOR MERGE — EXACT-HEAD CERTIFIED / POST-MERGE PENDING**
 
 Date: 2026-09-19  
 Audit base: `master@ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
@@ -210,3 +210,21 @@ Remediation on branch `audit/v1-05-ortho-triple-check-f5-gate`:
 Canonical dedicated audit: `docs/clinic/audits/V1_05_ORTHO_JOURNEY_DOUBLE_TRIPLE_CHECK_2026-09-19.md`.
 
 The F5 gate is now present on the synchronized audit branch: `engineering_preview_enabled()` requires `ENVIRONMENT` in `development | local | test` plus the explicit preview flag. It remains uncertified until the final exact-head gates are green.
+
+
+## Final pre-merge certification — 2026-09-26
+
+Exact-head certification on `0354bf6828e98ec50ec7afdef95941f621eb335b`:
+- GitHub Actions matrix: **28 SUCCESS / 2 SKIPPED / 0 FAILURE / 0 active**.
+- Patient P7 Final Certification `36205720352` — **SUCCESS**.
+- V1-07 G3 Browser Action Certification `36205720410` — **SUCCESS**.
+- V1-07 G1 Browser Action Certification `36205720287` — **SUCCESS**.
+- CI `36205720407` — **SUCCESS**.
+- T2 Runtime Browser Certification `36205720468` — **SUCCESS**.
+- Catalog Connected Truth Certification `36205720217` — **SUCCESS**.
+- PostgreSQL Alembic Schema Certification `36205720590` — **SUCCESS**.
+- Windows Build Dependency Contract `36205720419` — **SUCCESS**.
+- Exact UI proof retained at 390×844 / 768×1024 / 1280×900 with zero horizontal overflow; no new 390 regression versus retained baseline.
+- Real cabinet port 8005 was not mutated.
+
+Pass 1 findings are classified, Pass 2 corrections are rechecked, and Pass 3 residual findings required for V1 are remediated on the certified exact head. No unresolved V1 BLOCKER/MUST-FIX is known on this PR head. V1-08 remains blocked until merge and post-merge master certification are complete.

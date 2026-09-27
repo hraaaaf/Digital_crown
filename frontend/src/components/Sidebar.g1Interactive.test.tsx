@@ -97,6 +97,18 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(screen.getByRole('link', { name: 'Archives' }).getAttribute('href')).toBe('/patients/42?tab=archives');
   });
 
+  it('lets the practitioner pin and retract the desktop sidebar explicitly', () => {
+    localStorage.setItem('sidebar_desktop_pinned', 'false');
+    renderSidebar();
+
+    fireEvent.click(screen.getByRole('button', { name: 'D?ployer la barre lat?rale' }));
+    expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('true');
+    expect(screen.getByRole('button', { name: 'R?duire la barre lat?rale' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'R?duire la barre lat?rale' }));
+    expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('false');
+  });
+
   it('closes the mobile drawer through the backdrop', () => {
     const onClose = vi.fn();
     const { container } = renderSidebar('/dashboard', { isOpen: true, onClose });

@@ -28,12 +28,16 @@ describe('Document Studio T2-E product polish', () => {
     expect(tabs).toContain('aria-pressed={active}');
   });
 
-  it('preserves a clear total / preview / archive / print hierarchy', () => {
-    expect(footer).toContain('Total document');
+  it('preserves a compact accounting total / payment / preview / archive / print hierarchy', () => {
+    expect(footer).toContain('>Total<');
+    expect(footer).toContain('À régler');
+    expect(footer).toContain('Partiel');
+    expect(footer).toContain('Payé');
+    expect(footer).toContain('Espèces');
     expect(footer).toContain('Aperçu');
     expect(footer).toContain('Enregistrer');
     expect(footer).toContain('Imprimer');
-    expect(footer).toContain('dark:bg-slate-950/85');
+    expect(footer).toContain('dark:bg-slate-950/92');
   });
 
   it('delegates preview rendering and keeps Escape lifecycle on the modal owner', () => {

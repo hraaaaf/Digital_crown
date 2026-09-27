@@ -305,8 +305,10 @@ for(const viewport of viewports){
     await openSidebar();
     const link=shellPage.getByRole('link',{name:label,exact:true});
     await link.waitFor({state:'visible',timeout:10000});
-    await link.click();
-    await shellPage.waitForURL(urlPattern,{timeout:10000});
+    await Promise.all([
+      shellPage.waitForURL(urlPattern,{timeout:10000}),
+      link.click()
+    ]);
   };
 
   await shellPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});

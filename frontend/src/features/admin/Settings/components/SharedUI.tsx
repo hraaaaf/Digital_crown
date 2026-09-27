@@ -60,8 +60,8 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
   <button 
     onClick={onClick} 
     className={cn(
-      "flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all duration-300 w-full text-left",
-      active ? "text-white shadow-lg scale-[1.02]" : "text-slate-500 hover:bg-slate-50 hover:text-primary"
+      "flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 w-auto text-left lg:w-full lg:gap-4 lg:px-6 lg:py-4 lg:rounded-2xl lg:text-base",
+      active ? "text-white shadow-lg lg:scale-[1.02]" : "text-slate-500 hover:bg-slate-50 hover:text-primary"
     )}
     style={{ backgroundColor: active ? 'var(--primary)' : 'transparent', boxShadow: active ? '0 10px 30px -10px var(--primary)' : 'none', color: active ? 'white' : undefined }}
   >

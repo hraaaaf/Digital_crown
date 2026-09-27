@@ -337,7 +337,9 @@ for(const viewport of viewports){
   const profileAfterPreviewBody=await profileAfterPreview.json();
   if(JSON.stringify(profileAfterPreviewBody)!==JSON.stringify(profileBeforePreviewBody)) throw new Error('branding preview mutated backend profile');
   await page.getByRole('button',{name:'Application',exact:true}).click();
-  await page.getByText('Tableau de bord',{exact:true}).first().waitFor({state:'visible',timeout:10000});
+  await page.getByText('Aperçu application',{exact:true}).waitFor({state:'visible',timeout:10000});
+  const scopeApp=await page.evaluate(()=>localStorage.getItem('branding_preview_scope'));
+  if(scopeApp!=='app') throw new Error('branding application preview scope not persisted');
   prove(viewport,'settings-branding-preview-consumer');
 
   // Real document preview controls: generate -> stale -> refresh -> open.
@@ -823,13 +825,16 @@ for(const viewport of viewports){
     await page.getByRole('checkbox',{name:'Mardi ouvert',exact:true}).click();
     await page.getByRole('button',{name:'Enregistrer les horaires',exact:true}).click();
     await page.getByText('Horaires sauvegardés',{exact:true}).last().waitFor({state:'visible',timeout:10000});
+    const addClosureButton=page.getByRole('button',{name:/Ajouter une fermeture/i});
+    await addClosureButton.scrollIntoViewIfNeeded();
+    await addClosureButton.click({trial:true});
     if(agendaSettings.weekly_schedule.monday.is_open!==true || agendaSettings.weekly_schedule.tuesday.is_open!==true){
       throw new Error('agenda fixture was not restored');
     }
     prove(viewport,'settings-agenda-fixture-restored');
 
     // Closure create.
-    await page.getByRole('button',{name:/Ajouter une fermeture/i}).click();
+    await addClosureButton.click();
     const closureDialog=page.getByRole('dialog',{name:'Ajouter une fermeture'});
     await closureDialog.getByLabel(/Début/).fill('2026-10-01');
     await closureDialog.getByLabel(/Fin/).fill('2026-10-02');
@@ -1039,7 +1044,7 @@ for(const viewport of viewports){
     await page.getByRole('button',{name:/Ajouter un acte/i}).click();
     catalogDialog=page.getByRole('dialog');
     await catalogDialog.getByPlaceholder('Ex. Détartrage').fill('Consultation invalide');
-    await catalogDialog.getByPlaceholder('0').fill('-20');
+    await catalogDialog.getByPlaceholder('Tarif à définir').fill('-20');
     await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
     await catalogDialog.getByText(/tarif doit être un nombre positif ou nul/i).waitFor({state:'visible',timeout:5000});
     if(catalogCreateAct!==0) throw new Error('catalog invalid tariff leaked an API mutation');
@@ -1051,7 +1056,7 @@ for(const viewport of viewports){
     catalogDialog=page.getByRole('dialog');
     await catalogDialog.getByPlaceholder('Ex. Détartrage').fill('Consultation');
     await catalogDialog.getByPlaceholder('Ex. DET').fill('CONS');
-    await catalogDialog.getByPlaceholder('0').fill('350');
+    await catalogDialog.getByPlaceholder('Tarif à définir').fill('350');
     await catalogDialog.getByRole('button',{name:'Créer',exact:true}).click();
     await page.getByText('Consultation',{exact:true}).waitFor({state:'visible',timeout:10000});
     if(catalogCreateAct!==1 || !catalogSpecialties[0].acts.some(a=>a.code==='CONS')) throw new Error('catalog act create ACK mismatch');
@@ -1381,7 +1386,7 @@ for(const viewport of viewports){
     prove(viewport,'settings-restore-preflight-compatible',{preflightCalls});
 
     await page.getByRole('button',{name:/Fermer ce préflight/i}).click();
-    await page.waitForFunction(()=>!document.body.innerText.includes('Préflight validé'));
+    await page.getByText('Préflight validé',{exact:true}).waitFor({state:'detached',timeout:10000});
     if(cancelCalls!==1 || applyCalls!==0) throw new Error('restore cancel contract mismatch');
     prove(viewport,'settings-restore-cancel',{cancelCalls});
 

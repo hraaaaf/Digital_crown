@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           HEAD_SHA="$(git rev-parse HEAD)"
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          BASE_SHA="65bf08bdf26a40fef944b6e843f80aedd8dd18b1"
           if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
             test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
           fi

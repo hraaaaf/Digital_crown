@@ -20,6 +20,36 @@ if (!login.ok()) throw new Error(`P7 login failed: ${login.status()} ${await log
 const tokens = await login.json();
 const headers = { Authorization: `Bearer ${tokens.access_token}` };
 
+const motifCreate = await api.post('/api/motifs/', {
+  headers,
+  data: {
+    label: 'Contrôle implant personnalisé',
+    category_id: 'IMPLANTOLOGIE',
+    urgency: 'normal',
+  },
+});
+if (!motifCreate.ok()) throw new Error(`P7 custom motif create failed: ${motifCreate.status()} ${await motifCreate.text()}`);
+const customMotif = await motifCreate.json();
+
+const motifPatientCreate = await api.post('/api/patients', {
+  headers,
+  data: {
+    nom: 'E2E',
+    prenom: 'Motif',
+    date_naissance: '1990-01-01',
+    sexe: 'M',
+    motif_consultation: JSON.stringify([customMotif.id]),
+  },
+});
+if (!motifPatientCreate.ok()) throw new Error(`P7 motif patient create failed: ${motifPatientCreate.status()} ${await motifPatientCreate.text()}`);
+const motifPatient = await motifPatientCreate.json();
+const motifPatientReload = await api.get(`/api/patients/${motifPatient.id}`, { headers });
+if (!motifPatientReload.ok()) throw new Error(`P7 motif patient reload failed: ${motifPatientReload.status()} ${await motifPatientReload.text()}`);
+const motifPatientReloaded = await motifPatientReload.json();
+if (motifPatientReloaded.motif_consultation !== JSON.stringify([customMotif.id])) {
+  throw new Error('P7 custom motif patient round-trip mismatch');
+}
+
 const patients = await api.get('/api/patients', { headers });
 if (!patients.ok()) throw new Error(`P7 patients failed: ${patients.status()} ${await patients.text()}`);
 const patient = (await patients.json()).find((row) => row.numero_dossier === 'T2-0001');
@@ -30,6 +60,10 @@ const ortho = await api.patch(`/api/patients/${patient.id}/ortho`, {
   data: { is_ortho_active: true },
 });
 if (!ortho.ok()) throw new Error(`P7 ortho activation failed: ${ortho.status()} ${await ortho.text()}`);
+const patientAfterOrthoResponse = await api.get(`/api/patients/${patient.id}`, { headers });
+if (!patientAfterOrthoResponse.ok()) throw new Error(`P7 patient reread after ortho failed: ${patientAfterOrthoResponse.status()} ${await patientAfterOrthoResponse.text()}`);
+const patientAfterOrtho = await patientAfterOrthoResponse.json();
+if (patientAfterOrtho?.dossier?.is_ortho_active !== true) throw new Error(`P7 ortho activation did not persist: ${JSON.stringify(patientAfterOrtho?.dossier ?? null)}`);
 
 const odontoUrl = `/api/patients/${patient.id}/odontogram`;
 const odontoBefore = await api.get(odontoUrl, { headers });
@@ -163,6 +197,14 @@ for (const viewport of viewports) {
   const results = [];
   const patientUrl = `http://127.0.0.1:5173/patients/${patient.id}`;
 
+  const motifPatientUrl = `http://127.0.0.1:5173/patients/${motifPatient.id}`;
+  await page.goto(motifPatientUrl, { waitUntil: 'networkidle', timeout: 90000 });
+  results.push({ surface: 'custom-motif-reload', ...(await capture(page, viewport, 'custom-motif-reload', async () => {
+    await page.getByText('Motif de Consultation Initial', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByText(/Contrôle implant personnalisé/).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByText('Cabinet', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  })) });
+
   await page.goto(patientUrl, { waitUntil: 'networkidle', timeout: 90000 });
   results.push({ surface: 'overview', ...(await capture(page, viewport, 'overview', async () => {
     await page.getByText('Prochaine action', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
@@ -173,7 +215,7 @@ for (const viewport of viewports) {
 
   await page.getByRole('button', { name: 'Clinique', exact: true }).click();
   results.push({ surface: 'clinical', ...(await capture(page, viewport, 'clinical', async () => {
-    for (const label of ['Espace Clinique', 'Sécurité médicale', 'Dossier clinique', 'Master Plan']) {
+    for (const label of ['Espace Clinique', 'Sécurité médicale', 'Dossier clinique', 'Plan de traitement']) {
       await page.getByText(label, { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
     }
     if (await page.getByText(/Radar de Vigilance/i).count()) throw new Error('P7 legacy VigilanceRadar visible');
@@ -198,7 +240,7 @@ for (const viewport of viewports) {
 
   await cephTab.click();
   results.push({ surface: 'imaging-cephalo', ...(await capture(page, viewport, 'imaging-cephalo', async () => {
-    await page.getByText('Studio Céphalométrique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('heading', { name: 'Céphalométrie', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   })) });
 
   await page.goto(`${patientUrl}?tab=admin&documentTab=plan`, { waitUntil: 'networkidle', timeout: 90000 });
@@ -253,10 +295,10 @@ const invalid = evidence.flatMap((row) => [
   ...row.http5xx.map((response) => ({ viewport: row.viewport, reason: 'http5xx', ...response })),
 ]);
 const summary = {
-  status: captures === 40 && invalid.length === 0 ? 'PASS' : 'FAIL',
+  status: captures === 44 && invalid.length === 0 ? 'PASS' : 'FAIL',
   captures,
-  expectedCaptures: 40,
-  surfacesPerViewport: 10,
+  expectedCaptures: 44,
+  surfacesPerViewport: 11,
   viewports,
   invalid,
   persistence,

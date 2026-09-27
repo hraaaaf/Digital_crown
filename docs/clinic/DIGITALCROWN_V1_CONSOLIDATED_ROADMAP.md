@@ -427,22 +427,35 @@ V1-06 Success criterion is satisfied. V1-07 is unlocked.
 
 ### LOT V1-07 — Master stabilization
 
-Status: **IN_PROGRESS — PRE-FREEZE TRIPLE-CHECK / V1-08 BLOCKED**
+Status: **READY FOR MERGE — EXACT-HEAD CERTIFIED / POST-MERGE PENDING**
 
 Goal: establish a stable pre-candidate master.
 
 Success: required global CI/regressions green; migrations coherent; no known unresolved mandatory V1 blocker; canonical docs coherent; open PR inventory reconciled.
 
-Proof: exact master SHA + required global run IDs + regression evidence + final pre-freeze audit.
+Certified PR head: `0354bf6828e98ec50ec7afdef95941f621eb335b`.
 
-Additional mandatory gate approved 2026-09-19:
-- Pass 1 broad audit;
-- Pass 2 evidence double-check;
-- Pass 3 adversarial re-audit;
-- every finding classified BLOCKER / MUST-FIX / ACCEPTED-RISK / POST-V1;
-- every V1 BLOCKER and MUST-FIX resolved and re-certified before V1-08.
+Pre-merge proof:
+- full GitHub Actions matrix: **28 SUCCESS / 2 SKIPPED / 0 FAILURE / 0 active**;
+- Patient P7 `36205720352` — SUCCESS;
+- G3 Browser Actions `36205720410` — SUCCESS;
+- G1 Browser Actions `36205720287` — SUCCESS;
+- CI `36205720407` — SUCCESS;
+- T2 Runtime `36205720468` — SUCCESS;
+- PostgreSQL/Alembic `36205720590` — SUCCESS;
+- Windows dependency contract `36205720419` — SUCCESS;
+- exact UI proof retained at 390×844 / 768×1024 / 1280×900 with zero horizontal overflow and no new 390 regression versus baseline;
+- no real cabinet mutation.
+
+Additional mandatory gate:
+- Pass 1 broad audit — complete;
+- Pass 2 evidence double-check — complete;
+- Pass 3 adversarial re-audit — complete;
+- V1 BLOCKER/MUST-FIX findings required for this gate are remediated and re-certified on the exact PR head.
 
 Canonical audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`.
+
+Next exact: merge PR #692 under exact-head guard, certify resulting master, then mark V1-07 CLOSED and unlock V1-08.
 
 ### LOT V1-08 — Freeze exact V1 candidate
 
