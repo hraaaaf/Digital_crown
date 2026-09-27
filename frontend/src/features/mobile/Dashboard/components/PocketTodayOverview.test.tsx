@@ -5,6 +5,11 @@ import type { Snapshot } from '../types';
 
 afterEach(() => cleanup());
 
+const localToday = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 const snapshot = (role: string): Snapshot => ({
   generated_at: '2026-09-27T09:00:00Z',
   role,
@@ -55,9 +60,10 @@ const snapshot = (role: string): Snapshot => ({
 describe('PocketTodayOverview', () => {
   it('shows the practitioner priority and opens the next patient cockpit directly', () => {
     const onOpenPatient = vi.fn();
-    render(
+    const { container } = render(
       <PocketTodayOverview
         snapshot={snapshot('DENTISTE')}
+        selectedDate={localToday()}
         onOpenPatient={onOpenPatient}
         onOpenWaitingRoom={() => undefined}
         onOpenFrontdesk={() => undefined}
@@ -67,7 +73,8 @@ describe('PocketTodayOverview', () => {
 
     expect(screen.getByText('Vue praticien · priorité clinique')).toBeTruthy();
     expect(screen.getByText('Sara Benali')).toBeTruthy();
-    expect(screen.getByText('1', { selector: 'p' })).toBeTruthy();
+    expect(container.querySelector('[data-dc-pocket-waiting-count="1"]')).toBeTruthy();
+    expect(container.querySelector('[data-dc-pocket-progress-count="1"]')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Ouvrir le dossier/i }));
     expect(onOpenPatient).toHaveBeenCalledWith(101);
@@ -82,6 +89,7 @@ describe('PocketTodayOverview', () => {
     render(
       <PocketTodayOverview
         snapshot={snapshot('SECRETAIRE')}
+        selectedDate={localToday()}
         onOpenPatient={() => undefined}
         onOpenWaitingRoom={onOpenWaitingRoom}
         onOpenFrontdesk={onOpenFrontdesk}
@@ -99,5 +107,21 @@ describe('PocketTodayOverview', () => {
     expect(onOpenWaitingRoom).toHaveBeenCalledTimes(1);
     expect(onOpenFrontdesk).toHaveBeenCalledTimes(1);
     expect(onOpenAlerts).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not label a browsed agenda date as Today', () => {
+    render(
+      <PocketTodayOverview
+        snapshot={snapshot('DENTISTE')}
+        selectedDate="2030-01-15"
+        onOpenPatient={() => undefined}
+        onOpenWaitingRoom={() => undefined}
+        onOpenFrontdesk={() => undefined}
+        onOpenAlerts={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('heading', { name: 'Aujourd’hui' })).toBeNull();
+    expect(screen.getByRole('heading', { name: /Journée du/i })).toBeTruthy();
   });
 });
