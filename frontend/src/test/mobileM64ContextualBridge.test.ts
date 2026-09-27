@@ -9,26 +9,31 @@ const securitySource = readSource('src/features/admin/Security/MobileSecurity.ts
 const onboardingSource = readSource('src/features/mobile/Onboarding/OnboardingScanner.tsx');
 const dashboardSource = readSource('src/features/mobile/Dashboard/MobileDashboard.tsx');
 
-describe('M6.4 contextual QR bridge', () => {
-  it('maps only allowlisted destinations to explicit mobile routes', () => {
+describe('Digital Crown Pocket general QR bridge', () => {
+  it('maps every general bridge request to the canonical Pocket home', () => {
     expect(resolveBridgeRoute('agenda')).toBe('/mobile/dashboard?tab=agenda');
-    expect(resolveBridgeRoute('finance')).toBe('/mobile/dashboard?tab=finance');
-    expect(resolveBridgeRoute('lab')).toBe('/mobile/dashboard?tab=lab');
-    expect(resolveBridgeRoute('assistant')).toBe('/mobile/dashboard?tab=bot');
-    expect(resolveBridgeRoute('security')).toBe('/mobile/dashboard?tab=securite');
-    expect(resolveBridgeRoute('dentists')).toBe('/mobile/dashboard?tab=dentists');
-    expect(resolveBridgeRoute('superadmin')).toBe('/mobile/superadmin');
+    expect(resolveBridgeRoute('finance')).toBe('/mobile/dashboard?tab=agenda');
+    expect(resolveBridgeRoute('lab')).toBe('/mobile/dashboard?tab=agenda');
+    expect(resolveBridgeRoute('assistant')).toBe('/mobile/dashboard?tab=agenda');
+    expect(resolveBridgeRoute('security')).toBe('/mobile/dashboard?tab=agenda');
+    expect(resolveBridgeRoute('dentists')).toBe('/mobile/dashboard?tab=agenda');
+    expect(resolveBridgeRoute('superadmin')).toBe('/mobile/dashboard?tab=agenda');
     expect(resolveBridgeRoute('https://evil.example')).toBe('/mobile/dashboard?tab=agenda');
     expect(resolveBridgeRoute('../super-admin')).toBe('/mobile/dashboard?tab=agenda');
   });
 
-  it('hydrates dashboard tab from the router location and fails closed to agenda', () => {
-    expect(resolveDashboardTab('?tab=finance')).toBe('finance');
-    expect(resolveDashboardTab('?tab=bot')).toBe('bot');
+  it('allows only Pocket shell tabs from the router location and fails closed to Today', () => {
+    expect(resolveDashboardTab('?tab=patients')).toBe('patients');
+    expect(resolveDashboardTab('?tab=waiting-room')).toBe('waiting-room');
+    expect(resolveDashboardTab('?tab=frontdesk')).toBe('frontdesk');
+    expect(resolveDashboardTab('?tab=notifications')).toBe('notifications');
     expect(resolveDashboardTab('?tab=securite')).toBe('securite');
-    expect(resolveDashboardTab('?tab=dentists')).toBe('dentists');
+    expect(resolveDashboardTab('?tab=finance')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=bot')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=dentists')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=stock')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=marketplace')).toBe('agenda');
     expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
-    expect(resolveDashboardTab('?tab=superadmin')).toBe('agenda');
     expect(resolveDashboardTab('')).toBe('agenda');
     expect(dashboardSource).toContain("import { useLocation } from 'react-router-dom'");
     expect(dashboardSource).toContain('const location = useLocation()');
@@ -36,19 +41,20 @@ describe('M6.4 contextual QR bridge', () => {
     expect(dashboardSource).not.toContain('resolveDashboardTab(window.location.search)');
   });
 
-  it('requires explicit target + destination before generating the desktop bridge', () => {
+  it('requires only an authorized user before generating the desktop Pocket bridge', () => {
     expect(securitySource).toContain("api.get<BridgeOptions>('/mobile/bridge-options')");
     expect(securitySource).toContain("api.post<BridgePairing>('/mobile/bridge-pairing'");
     expect(securitySource).toContain('target_user_id: selectedTarget.id');
-    expect(securitySource).toContain('destination: selectedDestination');
+    expect(securitySource).not.toContain('destination: selectedDestination');
     expect(securitySource).toContain('aria-label="Utilisateur mobile cible"');
-    expect(securitySource).toContain('aria-label="Destination mobile"');
+    expect(securitySource).not.toContain('aria-label="Destination mobile"');
+    expect(securitySource).toContain('Digital Crown Pocket');
     expect(securitySource).toContain('Générer le QR de connexion');
     expect(securitySource).toContain('contains_patient_data !== false');
     expect(securitySource).not.toContain("api.get('/admin/zka-key-qr')");
   });
 
-  it('resolves destination from the authenticated server after claim, never from a free query param', () => {
+  it('resolves the server-bound home after claim, never from a free query param', () => {
     expect(onboardingSource).toContain('/api/mobile/bridge-destination');
     expect(onboardingSource).toContain('Authorization: `Bearer ${accessToken}`');
     expect(onboardingSource).toContain('body: JSON.stringify({ credential })');
@@ -57,7 +63,7 @@ describe('M6.4 contextual QR bridge', () => {
     expect(onboardingSource).not.toContain("navigate('/mobile/dashboard', { replace: true })");
   });
 
-  it('fixes the measured onboarding touch and 390px form defects', () => {
+  it('keeps the measured onboarding touch and 390px form safeguards', () => {
     expect(onboardingSource).toContain('min-h-11 inline-flex items-center');
     expect(onboardingSource).toContain('min-w-0 flex-1 min-h-[52px]');
     expect(onboardingSource).toContain('shrink-0 min-h-[52px]');
