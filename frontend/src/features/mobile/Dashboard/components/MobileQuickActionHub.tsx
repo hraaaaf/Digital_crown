@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarPlus, Camera, CircleDollarSign, ScanLine, UserPlus, X, Plus } from 'lucide-react';
+import { CalendarPlus, Camera, ScanLine, UserPlus, X, Plus } from 'lucide-react';
 import type { MobileQuickActionCapabilities } from '../hooks/useMobileQuickActionCapabilities';
 
 export type MobileQuickPatientAction = 'photo' | 'scan' | 'payment';
@@ -31,8 +31,7 @@ export function MobileQuickActionHub({
   const open = controlledOpen ?? internalOpen;
   const hasAnyAction = capabilities.can_create_appointment
     || capabilities.can_create_patient
-    || capabilities.can_open_clinical_context
-    || capabilities.can_pay;
+    || capabilities.can_open_clinical_context;
 
   const setOpen = (next: boolean) => {
     if (controlledOpen === undefined) setInternalOpen(next);
@@ -84,7 +83,7 @@ export function MobileQuickActionHub({
             <div className="mx-auto mb-2 h-[5px] w-[68px] rounded-full bg-border-main" aria-hidden="true" />
             <div className="mb-2.5">
               <h2 id="mobile-quick-action-title" className="text-[19px] leading-[23px] font-black text-text-main">Action rapide</h2>
-              <p className="mt-1 text-[10px] leading-[15px] font-bold text-text-muted">Que voulez-vous faire ?</p>
+              <p className="mt-1 text-[10px] leading-[15px] font-bold text-text-muted">Digital Crown Pocket · accès clinique rapide</p>
             </div>
 
             {!isOnline && (
@@ -140,22 +139,6 @@ export function MobileQuickActionHub({
               )}
             </div>
 
-            {capabilities.can_pay && (
-              <button
-                type="button"
-                disabled={!isOnline}
-                onClick={() => run(() => onPatientAction('payment'))}
-                className="mt-2.5 flex min-h-[56px] w-full items-center gap-3 rounded-[18px] bg-primary px-4 text-left text-white shadow-sm active:scale-[0.99] disabled:opacity-40"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-                  <CircleDollarSign size={17} />
-                </span>
-                <span>
-                  <span className="block text-[11px] leading-[15px] font-black">Encaisser rapidement</span>
-                  <span className="mt-0.5 block text-[8px] leading-[12px] font-bold text-white/70">Accès financier requis</span>
-                </span>
-              </button>
-            )}
           </section>
         </div>
       )}
