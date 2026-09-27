@@ -121,7 +121,11 @@ jobs:
                 }
                 if(screen==='edit') await page.getByRole('heading',{name:'Mise à jour'}).waitFor({state:'visible',timeout:15000});
                 if(screen==='add') await page.getByRole('heading',{name:'Nouveau Patient'}).waitFor({state:'visible',timeout:15000});
-                const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));
+                let layout;
+                for(let attempt=0;attempt<3;attempt++){
+                  try{layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));break;}
+                  catch(error){if(!String(error).includes('Execution context was destroyed')||attempt===2) throw error;await page.waitForLoadState('networkidle');}
+                }
                 await page.screenshot({path:`${out}/${screen}-${width}x${height}.png`,fullPage:true,animations:'disabled'});
                 await fs.writeFile(`${out}/${screen}-${width}.layout.json`,JSON.stringify({...layout,overflowPx:Math.max(0,layout.scrollWidth-layout.clientWidth),errors},null,2));
                 if(layout.scrollWidth>layout.clientWidth) throw new Error(`${screen} overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
