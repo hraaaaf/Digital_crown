@@ -47,8 +47,6 @@ const PatientCompanionApp = lazy(() => import('./features/patient-companion/Pati
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
 const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDashboard').then(m => ({ default: m.MobileDashboard })));
 const MobileContext    = lazy(() => import('./features/mobile/Context/MobileContext').then(m => ({ default: m.MobileContext })));
-const DentistsView     = lazy(() => import('./features/mobile/Dashboard/views/DentistsView').then(m => ({ default: m.DentistsView })));
-const MobileSuperAdminView = lazy(() => import('./features/mobile/Dashboard/views/MobileSuperAdminView').then(m => ({ default: m.MobileSuperAdminView })));
 
 import { MobileStorage } from './services/zka/MobileStorage';
 import { MobileBiometricGate } from './features/mobile/Security/MobileBiometricGate';
@@ -365,16 +363,8 @@ function App() {
             <Suspense fallback={<PageLoader />}><MobileContext /></Suspense>
           </MobileProtectedRoute>
         } />
-        <Route path="/mobile/dentists" element={
-          <MobileProtectedRoute>
-            <Suspense fallback={<PageLoader />}><DentistsView /></Suspense>
-          </MobileProtectedRoute>
-        } />
-        <Route path="/mobile/superadmin" element={
-          <MobileProtectedRoute>
-            <Suspense fallback={<PageLoader />}><MobileSuperAdminView /></Suspense>
-          </MobileProtectedRoute>
-        } />
+        <Route path="/mobile/dentists" element={<Navigate to="/mobile/dashboard" replace />} />
+        <Route path="/mobile/superadmin" element={<Navigate to="/mobile/dashboard" replace />} />
 
         {/* Patient Companion: local-first patient boundary paired by one-time QR/code */}
         <Route path="/companion" element={<Suspense fallback={<PageLoader />}><PatientCompanionApp /></Suspense>} />
