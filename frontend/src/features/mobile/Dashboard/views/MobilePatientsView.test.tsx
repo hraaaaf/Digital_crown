@@ -1,11 +1,21 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobilePatientsView, type MobilePatientsPreviewData } from './MobilePatientsView';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 
 vi.mock('../../../../services/zka/mobileFetch', () => ({ mobileFetch: vi.fn() }));
 vi.mock('../../../../services/zka/MobileStorage', () => ({ MobileStorage: { getCredentials: vi.fn() } }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  window.history.replaceState({}, '', '/mobile/dashboard?tab=patients');
+});
+
+afterEach(() => {
+  cleanup();
+  vi.resetAllMocks();
+});
 
 const PREVIEW: MobilePatientsPreviewData = {
   initialSelectedId: 101,
