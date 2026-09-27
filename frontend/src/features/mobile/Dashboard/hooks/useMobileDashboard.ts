@@ -15,6 +15,13 @@ function resolveApiBaseUrl(stored: string): string {
 }
 
 
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function isQueueableNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true;
   const name = error && typeof error === 'object' && 'name' in error
@@ -30,8 +37,7 @@ export function useMobileDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queuedActionsCount, setQueuedActionsCount] = useState(0);
-  const [now, setNow] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => localDateKey());
   const [patients, setPatients] = useState<{id: number, name: string, phone: string | null}[]>([]);
   const credsRef = useRef<{ access_token: string; api_base_url: string; masterKey: string } | null>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -56,14 +62,12 @@ export function useMobileDashboard() {
   }, [activeTab]);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30000);
-    // Pré-charger le token mobile dans localStorage pour que l'intercepteur api le retrouve
+    // Pré-charger le token mobile pour les composants partagés qui utilisent l'intercepteur API.
     MobileStorage.getCredentials().then(creds => {
       if (creds?.access_token) {
         try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
       }
     });
-    return () => clearInterval(t);
   }, []);
 
   const fetchSnapshot = useCallback(async () => {
@@ -73,8 +77,7 @@ export function useMobileDashboard() {
       if (!creds) throw new Error('Non appairé');
       credsRef.current = creds;
 
-      // Sync mobile JWT into localStorage so the standard api interceptor
-      // (used by CrownBotChat and other shared components) sends Authorization headers.
+      // Sync mobile JWT into localStorage so shared Pocket components send Authorization headers.
       try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
 
       const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/snapshot?target_date=${selectedDate}`, {
@@ -293,11 +296,6 @@ export function useMobileDashboard() {
     }
   };
 
-  const openWhatsApp = (phone: string | null, msg: string) => {
-    if (!phone) return;
-    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-  };
-
   const openApptWhatsApp = (apt: Appointment) => {
     setWhatsappApt(apt);
     setWhatsappTemplate('rappel');
@@ -411,7 +409,6 @@ export function useMobileDashboard() {
       snapshot,
       error,
       isOnline,
-      now,
       selectedDate,
       patients,
       sigPatientId,
@@ -433,7 +430,6 @@ export function useMobileDashboard() {
       handleStatusChange,
       handleDeleteAppt,
       handleRescheduleAppt,
-      openWhatsApp,
       openApptWhatsApp,
       handleSendWhatsApp,
       handleOpenSignature,
