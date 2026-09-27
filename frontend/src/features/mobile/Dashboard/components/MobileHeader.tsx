@@ -6,6 +6,21 @@ import type { Tab, SyncStatus, Snapshot } from '../types';
 import { greeting } from '../utils';
 import { MobileNotificationCenter } from './MobileNotificationCenter';
 
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function moveLocalDate(value: string, delta: number): string {
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  parsed.setDate(parsed.getDate() + delta);
+  return localDateKey(parsed);
+}
+
+
 export function MobileHeader({
   activeTab,
   syncStatus,
@@ -98,11 +113,8 @@ export function MobileHeader({
           <div className="flex items-center gap-2 mb-2">
             <Calendar size={12} className="text-primary shrink-0" />
             <button
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() - 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
+              aria-label="Jour précédent"
+              onClick={() => setSelectedDate(moveLocalDate(selectedDate, -1))}
               className="p-1 text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
               <ChevronLeft size={12} />
@@ -114,11 +126,8 @@ export function MobileHeader({
               className="bg-transparent border-none text-text-muted font-bold text-xs capitalize outline-none p-0 cursor-pointer text-center min-w-min"
             />
             <button
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() + 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
+              aria-label="Jour suivant"
+              onClick={() => setSelectedDate(moveLocalDate(selectedDate, 1))}
               className="p-1 text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
               <ChevronRight size={12} />
@@ -147,7 +156,11 @@ export function MobileHeader({
         {activeTab === 'agenda' && totalCount > 0 && (
           <div className="flex items-center gap-2 mt-4">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 border border-primary/10 rounded-full shadow-sm">
-              <span className="text-[10px] font-black text-primary">{totalCount} RDV aujourd'hui</span>
+              <span className="text-[10px] font-black text-primary">
+                {totalCount} RDV {selectedDate === localDateKey()
+                  ? "aujourd'hui"
+                  : `le ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`}
+              </span>
             </div>
             {termineCount > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/5 border border-emerald-500/20 rounded-full shadow-sm">
