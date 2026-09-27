@@ -15,7 +15,6 @@ import { MobileQuickPatientFlow } from './components/MobileQuickPatientFlow';
 import { MobileQuickNewPatientModal } from './components/MobileQuickNewPatientModal';
 import { PocketTodayOverview } from './components/PocketTodayOverview';
 import './components/mobileQuickActionHub.css';
-import { AgendaView } from './views/AgendaView';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { MobilePatientsGate } from './views/MobilePatientsGate';
 import { SecuriteView } from './views/SecuriteView';
@@ -114,30 +113,14 @@ export const MobileDashboard = () => {
             className="h-full"
           >
             {state.activeTab === 'agenda' && (
-              <>
-                <PocketTodayOverview
-                  snapshot={state.snapshot}
-                  selectedDate={state.selectedDate}
-                  onOpenPatient={openPatientCockpit}
-                  onOpenWaitingRoom={() => selectNavTab('waiting-room')}
-                  onOpenFrontdesk={() => selectNavTab('frontdesk')}
-                  onOpenAlerts={() => selectNavTab('notifications')}
-                />
-                <AgendaView
-                  snapshot={state.snapshot}
-                  syncStatus={state.syncStatus}
-                  selectedDate={state.selectedDate}
-                  setSelectedDate={actions.setSelectedDate}
-                  patients={state.patients}
-                  onStatusChange={actions.handleStatusChange}
-                  onRescheduleAppt={actions.handleRescheduleAppt}
-                  openApptWhatsApp={actions.openApptWhatsApp}
-                  handleDeleteAppt={actions.handleDeleteAppt}
-                  handleOpenSignature={actions.handleOpenSignature}
-                  onRefresh={actions.fetchSnapshot}
-                  onPatientCreated={() => actions.fetchPatients()}
-                />
-              </>
+              <PocketTodayOverview
+                snapshot={state.snapshot}
+                selectedDate={state.selectedDate}
+                onOpenPatient={openPatientCockpit}
+                onOpenWaitingRoom={() => selectNavTab('waiting-room')}
+                onOpenFrontdesk={() => selectNavTab('frontdesk')}
+                onOpenAlerts={() => selectNavTab('notifications')}
+              />
             )}
             {state.activeTab === 'waiting-room' && (
               <WaitingRoomView
