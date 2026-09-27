@@ -283,6 +283,25 @@ def get_mobile_patient_cockpit(
             'overdue_count': snapshot['overdue_count'],
         }
 
+    clinical_context = None
+    if has_permission(mobile_user, 'clinical'):
+        latest_acte = (
+            db.query(models.Acte)
+            .filter(models.Acte.patient_id == patient.id)
+            .order_by(models.Acte.date_debut.desc(), models.Acte.id.desc())
+            .first()
+        )
+        clinical_context = {
+            'motif_consultation': (patient.motif_consultation or '').strip() or None,
+            'latest_acte': None if latest_acte is None else {
+                'id': latest_acte.id,
+                'label': latest_acte.libelle,
+                'type': getattr(latest_acte.type_acte, 'value', latest_acte.type_acte),
+                'date': latest_acte.date_debut.isoformat() if latest_acte.date_debut else None,
+                'note': (latest_acte.notes_cliniques or '').strip() or None,
+            },
+        }
+
     medical_summary = (patient.antecedents_medicaux or '').strip() or None
     return encrypt_payload({
         'patient': {
@@ -304,5 +323,6 @@ def get_mobile_patient_cockpit(
             'motif': next_appointment.motif or 'Consultation',
             'status': getattr(next_appointment.status, 'value', next_appointment.status),
         },
+        'clinical_context': clinical_context,
         'finance': finance,
     })
