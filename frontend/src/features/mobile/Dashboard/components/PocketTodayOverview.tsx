@@ -1,11 +1,51 @@
 import { Bell, CalendarDays, CheckCircle2, ChevronRight, Clock3, UsersRound } from 'lucide-react';
 import type { Appointment, Snapshot } from '../types';
 
-function nextOperationalAppointment(appointments: Appointment[]): Appointment | null {
-  return appointments
-    .filter((appointment) => appointment.status !== 'TERMINE' && appointment.status !== 'ANNULE')
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function timeMinutes(value: string): number {
+  const [hour, minute] = value.split(':').map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return Number.POSITIVE_INFINITY;
+  return hour * 60 + minute;
+}
+
+export function nextOperationalAppointment(
+  appointments: Appointment[],
+  selectedDate: string,
+  now = new Date(),
+): Appointment | null {
+  const today = localDateKey(now);
+  if (selectedDate < today) return null;
+
+  const actionable = appointments.filter((appointment) => (
+    Boolean(appointment.patient_id)
+    && appointment.status !== 'TERMINE'
+    && appointment.status !== 'ANNULE'
+  ));
+
+  if (selectedDate > today) {
+    return actionable
+      .slice()
+      .sort((a, b) => timeMinutes(a.time) - timeMinutes(b.time) || a.id - b.id)[0] ?? null;
+  }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const rank = (appointment: Appointment): number => {
+    if (appointment.status === 'EN_COURS') return 0;
+    if (appointment.status === 'EN_ATTENTE') return 1;
+    if (appointment.status === 'PLANIFIE' && timeMinutes(appointment.time) >= currentMinutes) return 2;
+    return 99;
+  };
+
+  return actionable
+    .filter((appointment) => rank(appointment) < 99)
     .slice()
-    .sort((a, b) => a.time.localeCompare(b.time))[0] ?? null;
+    .sort((a, b) => rank(a) - rank(b) || timeMinutes(a.time) - timeMinutes(b.time) || a.id - b.id)[0] ?? null;
 }
 
 export function PocketTodayOverview({
@@ -28,12 +68,11 @@ export function PocketTodayOverview({
   const isAssistant = role === 'SECRETAIRE';
   const waitingCount = appointments.filter((appointment) => appointment.status === 'EN_ATTENTE').length;
   const completedCount = appointments.filter((appointment) => appointment.status === 'TERMINE').length;
-  const nextAppointment = nextOperationalAppointment(appointments);
+  const nextAppointment = nextOperationalAppointment(appointments, selectedDate);
   const remainingCount = appointments.filter(
     (appointment) => appointment.status !== 'TERMINE' && appointment.status !== 'ANNULE',
   ).length;
-  const today = new Date();
-  const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const localToday = localDateKey();
   const isToday = selectedDate === localToday;
   const selectedDateLabel = (() => {
     const parsed = new Date(`${selectedDate}T12:00:00`);
@@ -99,7 +138,15 @@ export function PocketTodayOverview({
               <span className="text-[12px] font-black">{nextAppointment.time}</span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">Prochain patient</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+                {selectedDate > localToday
+                  ? 'Premier patient'
+                  : nextAppointment.status === 'EN_COURS'
+                    ? 'Patient en cours'
+                    : nextAppointment.status === 'EN_ATTENTE'
+                      ? 'Patient en attente'
+                      : 'Prochain patient'}
+              </p>
               <h2 className="mt-1 truncate text-[16px] font-black text-text-main">{nextAppointment.patient_name}</h2>
               <p className="mt-0.5 truncate text-[10px] font-bold uppercase tracking-wider text-text-muted">
                 {nextAppointment.motif} · {nextAppointment.duration_minutes} min
