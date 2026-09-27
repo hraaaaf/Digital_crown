@@ -35,7 +35,12 @@ export function MobileHeader({
   return (
     <div className="px-6 pt-14 pb-6 relative z-10">
       <div className="flex items-center justify-between gap-3 mb-8">
-        <img src={Logo} alt="Digital Crown" className="w-32 sm:w-36 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
+        <div data-dc-pocket-brand className="flex min-w-0 items-center gap-2">
+          <img src={Logo} alt="Digital Crown Pocket" className="w-32 sm:w-36 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
+          <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-primary">
+            Pocket
+          </span>
+        </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {!previewMode && activeTab !== 'patients' && onOpenPatients && (
