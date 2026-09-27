@@ -188,6 +188,24 @@ export const MobileSecurity = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
+                <label className="space-y-2">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                    <UserRound size={14} /> Utilisateur
+                  </span>
+                  <select
+                    aria-label="Utilisateur mobile cible"
+                    value={selectedTargetId ?? ''}
+                    onChange={event => handleTargetChange(event.target.value)}
+                    disabled={isLoadingOptions || targets.length === 0}
+                    className="w-full min-h-[52px] rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-4 text-sm font-bold text-slate-800 dark:text-white outline-none focus:border-primary disabled:opacity-60"
+                  >
+                    {targets.map(target => (
+                      <option key={target.id} value={target.id}>
+                        {target.name} · {target.role}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 <button
                   type="button"
