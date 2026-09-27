@@ -10,12 +10,14 @@ function nextOperationalAppointment(appointments: Appointment[]): Appointment | 
 
 export function PocketTodayOverview({
   snapshot,
+  selectedDate,
   onOpenPatient,
   onOpenWaitingRoom,
   onOpenFrontdesk,
   onOpenAlerts,
 }: {
   snapshot: Snapshot | null;
+  selectedDate: string;
   onOpenPatient: (patientId: number) => void;
   onOpenWaitingRoom: () => void;
   onOpenFrontdesk: () => void;
@@ -30,6 +32,14 @@ export function PocketTodayOverview({
   const remainingCount = appointments.filter(
     (appointment) => appointment.status !== 'TERMINE' && appointment.status !== 'ANNULE',
   ).length;
+  const today = new Date();
+  const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const isToday = selectedDate === localToday;
+  const selectedDateLabel = (() => {
+    const parsed = new Date(`${selectedDate}T12:00:00`);
+    if (Number.isNaN(parsed.getTime())) return 'Journée sélectionnée';
+    return `Journée du ${parsed.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`;
+  })();
 
   return (
     <section
@@ -41,7 +51,9 @@ export function PocketTodayOverview({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Digital Crown Pocket</p>
-            <h1 className="mt-1 font-outfit text-[27px] font-black tracking-tight text-text-main">Aujourd’hui</h1>
+            <h1 className="mt-1 font-outfit text-[27px] font-black tracking-tight text-text-main">
+              {isToday ? 'Aujourd’hui' : selectedDateLabel}
+            </h1>
             <p className="mt-1 text-[11px] font-bold text-text-muted">
               {isAssistant ? 'Vue assistante · flux cabinet' : 'Vue praticien · priorité clinique'}
             </p>
@@ -60,13 +72,17 @@ export function PocketTodayOverview({
           <button
             type="button"
             onClick={onOpenWaitingRoom}
+            data-dc-pocket-waiting-count={waitingCount}
             className="rounded-[17px] border border-amber-500/20 bg-amber-500/5 px-3 py-3 text-left active:scale-[0.98]"
           >
             <UsersRound size={14} className="text-amber-700" />
             <p className="mt-2 text-[18px] font-black text-text-main">{waitingCount}</p>
             <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">Attente</p>
           </button>
-          <div className="rounded-[17px] border border-emerald-500/20 bg-emerald-500/5 px-3 py-3">
+          <div
+            data-dc-pocket-progress-count={isAssistant ? remainingCount : completedCount}
+            className="rounded-[17px] border border-emerald-500/20 bg-emerald-500/5 px-3 py-3"
+          >
             <CheckCircle2 size={14} className="text-emerald-600" />
             <p className="mt-2 text-[18px] font-black text-text-main">{isAssistant ? remainingCount : completedCount}</p>
             <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">
