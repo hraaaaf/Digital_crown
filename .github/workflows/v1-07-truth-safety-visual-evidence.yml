@@ -11,6 +11,16 @@ on:
       - frontend/src/pages/LicenseStatusPage.tsx
       - frontend/src/pages/StockPage.tsx
       - docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/v1-07-truth-safety-visual-evidence.yml
+      - frontend/truth-safety-audit.html
+      - frontend/src/preview/TruthSafetyAuditEntry.tsx
+      - frontend/scripts/capture-truth-safety-audit.mjs
+      - frontend/src/pages/LicenseStatusPage.tsx
+      - frontend/src/pages/StockPage.tsx
+      - docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md
   workflow_dispatch:
 
 permissions:
@@ -36,11 +46,26 @@ jobs:
         run: |
           set -euo pipefail
           HEAD_SHA="$(git rev-parse HEAD)"
-          BASE_SHA="65bf08bdf26a40fef944b6e843f80aedd8dd18b1"
-          if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
-            test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
-          fi
+          EVENT_NAME="${{ github.event_name }}"
+          case "$EVENT_NAME" in
+            pull_request)
+              BASE_SHA="${{ github.event.pull_request.base.sha }}"
+              test "$HEAD_SHA" = "${{ github.event.pull_request.head.sha }}"
+              ;;
+            push)
+              BASE_SHA="${{ github.event.before }}"
+              test "$HEAD_SHA" = "${{ github.sha }}"
+              ;;
+            workflow_dispatch)
+              BASE_SHA="$(git rev-parse HEAD^1)"
+              ;;
+            *)
+              echo "Unsupported event: $EVENT_NAME" >&2
+              exit 2
+              ;;
+          esac
           test -n "$BASE_SHA"
+          test "$BASE_SHA" != "0000000000000000000000000000000000000000"
           echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
           echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
 
