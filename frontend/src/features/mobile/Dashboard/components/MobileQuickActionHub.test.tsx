@@ -12,7 +12,7 @@ const ALL_CAPABILITIES = {
 afterEach(() => cleanup());
 
 describe('MobileQuickActionHub', () => {
-  it('opens from the promoted FAB and exposes the five authorized actions', () => {
+  it('opens from the promoted FAB and exposes the four Pocket actions', () => {
     const onNewAppointment = vi.fn();
     const onNewPatient = vi.fn();
     const onPatientAction = vi.fn();
@@ -33,7 +33,7 @@ describe('MobileQuickActionHub', () => {
     expect(screen.getByText('Nouveau patient')).toBeTruthy();
     expect(screen.getByText('Photo clinique')).toBeTruthy();
     expect(screen.getByText('Scanner document')).toBeTruthy();
-    expect(screen.getByText('Encaisser rapidement')).toBeTruthy();
+    expect(screen.queryByText('Encaisser rapidement')).toBeNull();
     expect(screen.getByRole('button', { name: 'Fermer les actions rapides' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Fermer' })).toBeNull();
 
