@@ -154,7 +154,7 @@ def test_contextual_destination_is_resolved_from_consumed_server_record(client, 
         headers={'Authorization': f'Bearer {access}'},
     )
     assert response.status_code == 200, response.text
-    assert response.json() == {'destination': 'agenda', 'label': 'Agenda', 'fallback': True}
+    assert response.json() == {'destination': 'agenda', 'label': 'Digital Crown Pocket', 'fallback': True}
 
 
 def test_bridge_destination_rechecks_permissions_after_pairing(client, db, dentiste):
@@ -201,7 +201,7 @@ def test_manual_code_recovers_same_server_bound_destination(client, db, dentiste
     )
     assert response.status_code == 200, response.text
     assert response.json()['destination'] == 'agenda'
-    assert response.json()['label'] == 'Agenda'
+    assert response.json()['label'] == 'Digital Crown Pocket'
     assert response.json()['fallback'] is True
 
 
