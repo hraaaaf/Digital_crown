@@ -79,7 +79,7 @@ try {
       }
 
       if (scenario==='landing-geography') {
-        await page.getByText(/dentistes (algériens|marocains)/i).waitFor({state:'visible',timeout:15000});
+        await page.getByRole('heading',{name:/Gérez votre cabinet/i}).waitFor({state:'visible',timeout:15000});
         const body=await page.locator('body').innerText();
         if (phase==='before' && !body.includes('dentistes algériens')) throw new Error('BEFORE landing geography defect not present');
         if (phase==='after' && (body.includes('dentistes algériens') || !body.includes('dentistes marocains'))) throw new Error('AFTER landing geography is not Morocco-aligned');
