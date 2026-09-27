@@ -39,16 +39,31 @@ const PREVIEW: MobilePatientsPreviewData = {
 };
 
 describe('MobilePatientsView MOB-5F', () => {
-  it('adds one primary document CTA without breaking preview isolation', () => {
+  it('shows clinical capture only when the server provides clinical context', () => {
     render(<MobilePatientsView onClose={() => undefined} previewData={PREVIEW} />);
     expect(screen.getByText('Contexte clinique')).toBeTruthy();
     expect(screen.getByText('Douleur secteur 2')).toBeTruthy();
     expect(screen.getByText('Sensibilité au froid, contrôle occlusion.')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: /Créer un document/i }));
-    expect(screen.getByText(/Document rapide/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Ordonnance/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Photo clinique/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Scanner/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Créer un document/i })).toBeNull();
     expect(mobileFetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps an operational patient view free of clinical actions when clinical context is denied', () => {
+    const restricted: MobilePatientsPreviewData = {
+      ...PREVIEW,
+      cockpit: {
+        ...PREVIEW.cockpit,
+        patient: { ...PREVIEW.cockpit.patient, has_medical_alert: false, medical_alert_summary: null },
+        clinical_context: null,
+      },
+      resources: { documents: [], panoramics: [] },
+    };
+    render(<MobilePatientsView onClose={() => undefined} previewData={restricted} />);
+    expect(screen.queryByText('Contexte clinique')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Photo clinique/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Scanner/i })).toBeNull();
   });
 
   it('opens a directly selected patient through the cockpit API without putting the patient id in the URL', async () => {
