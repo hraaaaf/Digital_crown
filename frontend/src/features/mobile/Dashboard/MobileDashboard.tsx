@@ -117,6 +117,7 @@ export const MobileDashboard = () => {
               <>
                 <PocketTodayOverview
                   snapshot={state.snapshot}
+                  selectedDate={state.selectedDate}
                   onOpenPatient={openPatientCockpit}
                   onOpenWaitingRoom={() => selectNavTab('waiting-room')}
                   onOpenFrontdesk={() => selectNavTab('frontdesk')}
