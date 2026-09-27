@@ -8,8 +8,8 @@ from backend.services.catalog_reference_library import (
 def test_reference_catalog_is_broad_and_price_free():
     specialties, acts = reference_catalog_counts()
     assert REFERENCE_CATALOG_VERSION
-    assert specialties >= 14
-    assert acts >= 150
+    assert specialties == 15
+    assert acts == 218
     assert all(
         float(act.get("base_price", 0)) == 0
         for specialty in REFERENCE_CATALOG
