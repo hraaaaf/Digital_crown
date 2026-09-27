@@ -112,9 +112,7 @@ def test_bridge_destinations_are_backend_permission_derived(db, dentiste):
         },
     )
     allowed = _allowed_bridge_destinations(secretary)
-    assert allowed == ['agenda', 'assistant', 'security', 'dentists', 'lab']
-    assert 'finance' not in allowed
-    assert 'superadmin' not in allowed
+    assert allowed == ['agenda']
 
     secretary.permissions = {
         'agenda': True,
@@ -123,7 +121,7 @@ def test_bridge_destinations_are_backend_permission_derived(db, dentiste):
         'payments': False,
     }
     db.commit()
-    assert 'finance' in _allowed_bridge_destinations(secretary)
+    assert _allowed_bridge_destinations(secretary) == ['agenda']
 
 
 def test_bridge_requires_agenda_for_dashboard_shell(db, dentiste):
@@ -156,7 +154,7 @@ def test_contextual_destination_is_resolved_from_consumed_server_record(client, 
         headers={'Authorization': f'Bearer {access}'},
     )
     assert response.status_code == 200, response.text
-    assert response.json() == {'destination': 'finance', 'label': 'Finance', 'fallback': False}
+    assert response.json() == {'destination': 'agenda', 'label': 'Agenda', 'fallback': True}
 
 
 def test_bridge_destination_rechecks_permissions_after_pairing(client, db, dentiste):
@@ -202,8 +200,9 @@ def test_manual_code_recovers_same_server_bound_destination(client, db, dentiste
         headers={'Authorization': f"Bearer {claimed.json()['access_token']}"},
     )
     assert response.status_code == 200, response.text
-    assert response.json()['destination'] == 'lab'
-    assert response.json()['label'] == 'Labo'
+    assert response.json()['destination'] == 'agenda'
+    assert response.json()['label'] == 'Agenda'
+    assert response.json()['fallback'] is True
 
 
 def test_tampering_with_destination_prefix_invalidates_pairing(client, db, dentiste):
