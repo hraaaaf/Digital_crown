@@ -2,37 +2,20 @@ import type { Tab } from './Dashboard/types';
 
 export const MOBILE_BRIDGE_ROUTES: Record<string, string> = {
   agenda: '/mobile/dashboard?tab=agenda',
-  patients: '/mobile/dashboard?tab=patients',
-  finance: '/mobile/dashboard?tab=finance',
-  lab: '/mobile/dashboard?tab=lab',
-  assistant: '/mobile/dashboard?tab=bot',
-  security: '/mobile/dashboard?tab=securite',
-  dentists: '/mobile/dashboard?tab=dentists',
-  frontdesk: '/mobile/dashboard?tab=frontdesk',
-  notifications: '/mobile/dashboard?tab=notifications',
-  stock: '/mobile/dashboard?tab=stock',
-  library: '/mobile/dashboard?tab=library',
-  marketplace: '/mobile/dashboard?tab=marketplace',
-  superadmin: '/mobile/superadmin',
 };
 
 export const MOBILE_BRIDGE_LABELS: Record<string, string> = {
-  agenda: 'Agenda',
-  patients: 'Patients',
-  finance: 'Finance',
-  lab: 'Labo',
-  assistant: 'Assistant',
-  security: 'Sécurité',
-  dentists: 'Équipe praticiens',
-  frontdesk: 'Frontdesk',
-  notifications: 'Notifications',
-  stock: 'Stock',
-  library: 'Bibliothèque',
-  marketplace: 'Marketplace',
-  superadmin: 'SuperAdmin',
+  agenda: 'Digital Crown Pocket',
 };
 
-const DASHBOARD_TABS = new Set<Tab>(['agenda', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace']);
+const DASHBOARD_TABS = new Set<Tab>([
+  'agenda',
+  'patients',
+  'waiting-room',
+  'frontdesk',
+  'notifications',
+  'securite',
+]);
 
 export function resolveBridgeRoute(destination: unknown): string {
   return typeof destination === 'string' && MOBILE_BRIDGE_ROUTES[destination]
