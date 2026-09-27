@@ -1,6 +1,6 @@
 # Digital Crown Pocket — LOT 03 Business Experience
 
-Status: **implementation in progress on isolated PR #696**  
+Status: **remediation in progress after two independent CHANGES_REQUIRED reviews on isolated PR #696**  
 Dependency lock: **do not merge Pocket and do not run final repo-wide certification until PR #699 is merged**.
 
 ## Goal
@@ -100,3 +100,45 @@ These are targeted LOT 03 tests. Their presence does not constitute final certif
 6. Perform AFTER visual evidence on the agreed mobile viewports and compare against the approved Pocket direction.
 7. Double check, triple check, independent internal review.
 8. Only after evidence is green may PR #696 become eligible for merge; merge still requires explicit project authorization.
+
+## Independent review checkpoint — rejected predecessor
+
+Rejected reviewed HEAD: `2cdb49ece774d1604d4052653f3e9aba486191c9`.
+
+Two independent reviewers both returned `CHANGES_REQUIRED`.
+The rejected HEAD is not certifiable and its earlier internal 9.2/8.8 pseudo-double-check scores are invalidated.
+
+Convergent findings:
+- Pocket mobile JWT could authenticate against generic desktop/API dependencies.
+- secretary `patients` permission could cross into clinical context/write paths.
+- mobile document authoring could mutate financial/accounting state.
+- agenda snapshot cache was not scoped to selected date.
+- next-patient selection was time-naive.
+- extended backend appointment statuses could silently become PLANIFIE.
+- latest clinical note semantics were too broad.
+
+## Remediation now implemented — evidence pending
+
+Current remediation branch code now:
+- rejects `type=mobile` JWTs from generic desktop `get_current_user()`;
+- keeps mobile authentication under explicit `/api/mobile/*` dependencies;
+- no longer copies the Pocket JWT into desktop `localStorage.token`;
+- routes Pocket patient/RDV creation through mobile-scoped adapters that reuse canonical backend creation logic;
+- requires `clinical` for opaque patient clinical contexts and patient-context photo/scan writes;
+- hides medical-alert details and clinical actions when clinical permission is absent;
+- removes financial document authoring from the patient cockpit;
+- scopes cached snapshots to cabinet + device + selected date and never labels cached hydration as fresh;
+- ranks Today patients by operational state (EN_COURS → EN_ATTENTE → upcoming PLANIFIE), skips missing patient IDs and does not invent a next patient for a past day;
+- explicitly maps CONFIRME as planned and refuses to silently project request/rejected/expired/absent statuses as PLANIFIE;
+- selects the latest non-empty, non-future clinical note;
+- makes header date wording truthful outside today and labels previous/next date controls.
+
+Targeted negative tests were added for:
+- generic desktop/financial API rejection of mobile JWTs;
+- secretary clinical-context denial;
+- clinical-action fail-closed rendering;
+- operational next-patient ranking;
+- explicit status projection;
+- latest relevant clinical note behavior.
+
+**Important:** these changes are not yet declared validated. The new exact-head CI is automatic and must turn green before this remediation can be considered technically proven. Final repo-wide certification remains blocked by PR #699.
