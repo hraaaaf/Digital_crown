@@ -168,16 +168,17 @@ def resolve_frontend_url(configured: str | None) -> str:
 
 
 # ── MAPPING STATUT RDV ────────────────────────────────────────────────────────
-# Le mobile utilise un vocabulaire simplifié à 4 états ; le métier en a 5.
+# Le mobile expose les cinq états opérationnels nécessaires au flux chairside.
 _MOBILE_TO_BACKEND_STATUS = {
     "PLANIFIE": models.AppointmentStatus.PREVU,
+    "EN_ATTENTE": models.AppointmentStatus.EN_SALLE_ATTENTE,
     "EN_COURS": models.AppointmentStatus.EN_FAUTEUIL,
     "TERMINE": models.AppointmentStatus.TERMINE,
     "ANNULE": models.AppointmentStatus.ANNULE,
 }
 _BACKEND_TO_MOBILE_STATUS = {
     models.AppointmentStatus.PREVU: "PLANIFIE",
-    models.AppointmentStatus.EN_SALLE_ATTENTE: "PLANIFIE",
+    models.AppointmentStatus.EN_SALLE_ATTENTE: "EN_ATTENTE",
     models.AppointmentStatus.EN_FAUTEUIL: "EN_COURS",
     models.AppointmentStatus.TERMINE: "TERMINE",
     models.AppointmentStatus.ANNULE: "ANNULE",
