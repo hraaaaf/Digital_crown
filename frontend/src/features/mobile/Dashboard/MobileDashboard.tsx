@@ -174,7 +174,7 @@ export const MobileDashboard = () => {
 
       {showQuickNewPatient && <MobileQuickNewPatientModal onClose={() => setShowQuickNewPatient(false)} onCreated={refreshAfterPatientMutation} />}
 
-      {quickPatientAction && <MobileQuickPatientFlow action={quickPatientAction} onClose={() => setQuickPatientAction(null)} onPaymentRecorded={() => void actions.fetchSnapshot()} />}
+      {quickPatientAction && <MobileQuickPatientFlow action={quickPatientAction} onClose={() => setQuickPatientAction(null)} />}
 
       {state.whatsappApt && (
         <WhatsAppModal
