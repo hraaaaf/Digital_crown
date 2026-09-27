@@ -1,26 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { MOBILE_BRIDGE_LABELS, MOBILE_BRIDGE_ROUTES, resolveDashboardTab } from './bridge';
 
-describe('MOB-5 secondary routing', () => {
-  it('keeps Team, Frontdesk, Notifications, Stock, Library and Marketplace inside the canonical dashboard shell', () => {
-    expect(MOBILE_BRIDGE_ROUTES.dentists).toBe('/mobile/dashboard?tab=dentists');
-    expect(resolveDashboardTab('?tab=dentists')).toBe('dentists');
-    expect(MOBILE_BRIDGE_ROUTES.frontdesk).toBe('/mobile/dashboard?tab=frontdesk');
+describe('Digital Crown Pocket bounded routing', () => {
+  it('keeps the general bridge canonical and the Pocket shell bounded', () => {
+    expect(MOBILE_BRIDGE_ROUTES).toEqual({ agenda: '/mobile/dashboard?tab=agenda' });
+    expect(MOBILE_BRIDGE_LABELS).toEqual({ agenda: 'Digital Crown Pocket' });
+
+    expect(resolveDashboardTab('?tab=agenda')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=patients')).toBe('patients');
+    expect(resolveDashboardTab('?tab=waiting-room')).toBe('waiting-room');
     expect(resolveDashboardTab('?tab=frontdesk')).toBe('frontdesk');
-    expect(MOBILE_BRIDGE_ROUTES.notifications).toBe('/mobile/dashboard?tab=notifications');
     expect(resolveDashboardTab('?tab=notifications')).toBe('notifications');
-    expect(MOBILE_BRIDGE_ROUTES.stock).toBe('/mobile/dashboard?tab=stock');
-    expect(MOBILE_BRIDGE_LABELS.stock).toBe('Stock');
-    expect(resolveDashboardTab('?tab=stock')).toBe('stock');
-    expect(MOBILE_BRIDGE_ROUTES.library).toBe('/mobile/dashboard?tab=library');
-    expect(MOBILE_BRIDGE_LABELS.library).toBe('Bibliothèque');
-    expect(resolveDashboardTab('?tab=library')).toBe('library');
-    expect(MOBILE_BRIDGE_ROUTES.marketplace).toBe('/mobile/dashboard?tab=marketplace');
-    expect(MOBILE_BRIDGE_LABELS.marketplace).toBe('Marketplace');
-    expect(resolveDashboardTab('?tab=marketplace')).toBe('marketplace');
+    expect(resolveDashboardTab('?tab=securite')).toBe('securite');
   });
 
-  it('keeps unknown dashboard destinations fail-safe on agenda', () => {
+  it('fails closed from retired mobile modules to Today', () => {
+    expect(resolveDashboardTab('?tab=dentists')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=finance')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=lab')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=bot')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=stock')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=library')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=marketplace')).toBe('agenda');
     expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
   });
 });
