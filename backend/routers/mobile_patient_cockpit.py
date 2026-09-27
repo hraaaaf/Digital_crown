@@ -9,7 +9,7 @@ import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import insert, or_
+from sqlalchemy import func, insert, or_
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -293,7 +293,12 @@ def get_mobile_patient_cockpit(
     if can_view_clinical:
         latest_acte = (
             db.query(models.Acte)
-            .filter(models.Acte.patient_id == patient.id)
+            .filter(
+                models.Acte.patient_id == patient.id,
+                models.Acte.date_debut <= datetime.now(),
+                models.Acte.notes_cliniques.isnot(None),
+                func.trim(models.Acte.notes_cliniques) != '',
+            )
             .order_by(models.Acte.date_debut.desc(), models.Acte.id.desc())
             .first()
         )
