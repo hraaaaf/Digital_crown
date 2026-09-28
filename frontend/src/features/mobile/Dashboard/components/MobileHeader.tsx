@@ -147,7 +147,7 @@ export function MobileHeader({
            activeTab === 'notifications' ? 'Alertes' :
            activeTab === 'stock' ? 'Stock' :
            activeTab === 'library' ? 'Bibliothèque' :
-           activeTab === 'marketplace' ? 'Marketplace' :
+           activeTab === 'marketplace' ? 'Catalogue' :
            activeTab === 'bot' ? 'Assistant' : ''}
         </h1>
 
