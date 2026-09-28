@@ -81,7 +81,7 @@ def _enforce_marketplace_control_plane_request(request: Request) -> None:
         )
 
 
-def require_marketplace_superadmin(
+async def require_marketplace_superadmin(
     request: Request,
     db = Depends(database.get_db),
 ) -> models.User:
@@ -113,7 +113,7 @@ def require_marketplace_superadmin(
         token_header = authorization.split(" ", 1)[1].strip() or None
     elif not request.cookies.get("access_token"):
         token_header = None
-    current_user = get_current_user(request=request, token_header=token_header, db=db)
+    current_user = await get_current_user(request=request, token_header=token_header, db=db)
     if not is_superadmin_user(current_user):
         raise _deny("MARKETPLACE_SUPERADMIN_REQUIRED", "Accès SuperAdmin requis.")
 
