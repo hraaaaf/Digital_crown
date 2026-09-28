@@ -1,0 +1,37 @@
+name: V7.1 Frontend Shard 6 Probe
+
+on:
+  push:
+    branches:
+      - probe/v7-1-frontend-shard6-20260928
+
+jobs:
+  shard6:
+    name: Frontend shard 6/12 probe
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Test suite — shard 6/12 isolated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=6/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
