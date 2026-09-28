@@ -15,7 +15,7 @@ const capabilitiesHook = readFileSync(
   'utf8',
 );
 
-describe('MOB-3 quick patient flow contracts', () => {
+describe('MOB-3 Digital Crown Pocket quick patient flow contracts', () => {
   it('keeps clinical actions on the opaque Patient Cockpit bridge', () => {
     expect(patientFlow).toContain('/api/mobile/patient-cockpit/${patient.id}/context');
     expect(patientFlow).toContain('MobileStorage.saveBridgeContext');
