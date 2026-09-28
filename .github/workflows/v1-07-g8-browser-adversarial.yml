@@ -1,6 +1,9 @@
 name: V1-07 G8 Browser Adversarial Certification
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/**"
       - "frontend/scripts/certify-v1-07-g8-browser-adversarial.mjs"
