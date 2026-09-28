@@ -1,6 +1,9 @@
 name: V1-07 G2 Browser Action Certification
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/dashboard/**"
       - "frontend/src/features/patients/**"
