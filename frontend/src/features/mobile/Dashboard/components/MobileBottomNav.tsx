@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bell, CalendarDays, ClipboardList, MoreHorizontal, ShieldCheck, UserRound, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
@@ -23,6 +23,8 @@ export function MobileBottomNav({
   onToggleQuickActions: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreDialogRef = useRef<HTMLElement | null>(null);
+  const moreTriggerRef = useRef<HTMLButtonElement | null>(null);
   const role = snapshot?.role ?? '';
   const waitingCount = snapshot?.appointments.filter(appointment => appointment.status === 'EN_ATTENTE').length ?? 0;
   const secondaryTabs = [
@@ -52,11 +54,46 @@ export function MobileBottomNav({
 
   useEffect(() => {
     if (!moreOpen) return;
+
+    const dialog = moreDialogRef.current;
+    const focusable = Array.from(dialog?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? []);
+    (focusable[0] ?? dialog)?.focus();
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMoreOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMoreOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+
+      const currentFocusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (currentFocusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (moreTriggerRef.current) moreTriggerRef.current.focus();
+    };
   }, [moreOpen]);
 
   const selectTab = (tab: Tab) => {
@@ -76,6 +113,8 @@ export function MobileBottomNav({
             onClick={() => setMoreOpen(false)}
           />
           <section
+            ref={moreDialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-more-title"
@@ -199,6 +238,7 @@ export function MobileBottomNav({
           </button>
 
           <button
+            ref={moreTriggerRef}
             type="button"
             aria-current={isMoreActive ? 'page' : undefined}
             aria-expanded={moreOpen}

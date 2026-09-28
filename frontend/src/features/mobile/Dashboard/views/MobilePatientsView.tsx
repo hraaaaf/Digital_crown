@@ -557,6 +557,7 @@ export function MobilePatientsView({
       </div>
 
       <label className="relative block">
+        <span className="sr-only">Rechercher un patient</span>
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
         <input
           autoFocus

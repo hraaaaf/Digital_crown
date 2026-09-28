@@ -39,6 +39,11 @@ const PREVIEW: MobilePatientsPreviewData = {
 };
 
 describe('MobilePatientsView MOB-5F', () => {
+  it('exposes an explicit accessible name for patient search', () => {
+    render(<MobilePatientsView onClose={() => undefined} previewData={{ ...PREVIEW, initialSelectedId: null }} />);
+    expect(screen.getByRole('textbox', { name: 'Rechercher un patient' })).toBeTruthy();
+  });
+
   it('shows clinical capture only when the server provides clinical context', () => {
     render(<MobilePatientsView onClose={() => undefined} previewData={PREVIEW} />);
     expect(screen.getByText('Contexte clinique')).toBeTruthy();

@@ -69,6 +69,33 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.queryByText('Accès secondaires')).toBeNull();
   });
 
+  it('traps focus inside Plus and restores it to the trigger on Escape', () => {
+    render(
+      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+    );
+
+    const trigger = screen.getByText('Plus').closest('button') as HTMLButtonElement;
+    fireEvent.click(trigger);
+
+    const close = screen.getByRole('button', { name: 'Fermer Plus' });
+    expect(document.activeElement).toBe(close);
+
+    const firstItem = screen.getByRole('button', { name: 'Salle d’attente' });
+    const lastItem = screen.getByRole('button', { name: 'Sécurité' });
+    lastItem.focus();
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(close);
+
+    close.focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(lastItem);
+
+    firstItem.focus();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByText('Accès secondaires')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('gives secretary the same bounded Pocket secondary shell', () => {
     render(
       <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={{ ...SNAPSHOT, role: 'SECRETAIRE' }} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
