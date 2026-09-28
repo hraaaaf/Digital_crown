@@ -2,6 +2,9 @@ name: PC-07 Emergency Photo Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - "backend/models_patient_companion.py"

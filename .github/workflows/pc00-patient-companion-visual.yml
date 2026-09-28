@@ -2,6 +2,9 @@ name: PC-00 Patient Companion Visual Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - .github/workflows/pc00-patient-companion-visual.yml

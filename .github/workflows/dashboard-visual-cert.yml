@@ -2,6 +2,9 @@ name: Dashboard Visual Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/pages/Dashboard.tsx"
       - "frontend/src/features/dashboard/**"

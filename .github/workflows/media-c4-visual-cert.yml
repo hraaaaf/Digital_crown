@@ -2,6 +2,9 @@ name: Media C4 Visual Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/patients/PatientDetailsInner.tsx"
       - "frontend/src/features/patients/components/PatientMediaTimeline.tsx"

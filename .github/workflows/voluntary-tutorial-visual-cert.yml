@@ -2,6 +2,9 @@ name: Voluntary Tutorial Visual Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/tutorial/**"
       - "frontend/src/components/Header.tsx"

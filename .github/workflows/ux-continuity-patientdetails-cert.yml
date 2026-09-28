@@ -2,6 +2,9 @@ name: UX Continuity PatientDetails AFTER
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
