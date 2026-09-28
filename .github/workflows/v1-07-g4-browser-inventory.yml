@@ -2,9 +2,6 @@ name: V1-07 G4 Browser Control Inventory
 
 on:
   pull_request:
-    paths-ignore:
-      - 'frontend/src/features/mobile/**'
-      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/patients/**"
       - "frontend/src/features/ortho/**"
