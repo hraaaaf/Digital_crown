@@ -95,3 +95,5 @@ jobs:
           path: artifacts/mobile-documents-mob5f-after
           if-no-files-found: error
           retention-days: 30
+
+# recertification-trigger: pocket-consolidated-2026-09-28
