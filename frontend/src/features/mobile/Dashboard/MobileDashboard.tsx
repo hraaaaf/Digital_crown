@@ -20,6 +20,13 @@ import { MobilePatientsGate } from './views/MobilePatientsGate';
 import { SecuriteView } from './views/SecuriteView';
 import { FrontdeskView } from './views/FrontdeskView';
 import { NotificationsView } from './views/NotificationsView';
+import { FinanceView } from './views/FinanceView';
+import { LabView } from './views/LabView';
+import { BotView } from './views/BotView';
+import { DentistsView } from './views/DentistsView';
+import { StockView } from './views/StockView';
+import { LibraryView } from './views/LibraryView';
+import { MarketplaceView } from './views/MarketplaceView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 import { resolveDashboardTab } from '../bridge';
 
@@ -141,6 +148,13 @@ export const MobileDashboard = () => {
             {state.activeTab === 'securite' && <SecuriteView snapshot={state.snapshot} syncStatus={state.syncStatus} isOnline={state.isOnline} handleLogout={actions.handleLogout} />}
             {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} />}
+            {state.activeTab === 'lab' && <LabView labJobs={state.labJobs} handleWhatsAppSend={actions.handleWhatsAppSend} />}
+            {state.activeTab === 'finance' && <FinanceView snapshot={state.snapshot} syncStatus={state.syncStatus} selectedDate={state.selectedDate} openWhatsApp={actions.openWhatsApp} handleExportPDF={actions.handleExportPDF} />}
+            {state.activeTab === 'dentists' && <DentistsView embedded />}
+            {state.activeTab === 'stock' && <StockView />}
+            {state.activeTab === 'library' && <LibraryView role={state.snapshot?.role} />}
+            {state.activeTab === 'marketplace' && <MarketplaceView />}
+            {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>
       </main>

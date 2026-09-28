@@ -123,7 +123,7 @@ export function MobileHeader({
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent border-none text-text-muted font-bold text-xs capitalize outline-none p-0 cursor-pointer text-center min-w-min"
+              className="min-h-11 bg-transparent border-none text-text-muted font-bold text-xs capitalize outline-none px-1 py-0 cursor-pointer text-center min-w-min"
             />
             <button
               aria-label="Jour suivant"

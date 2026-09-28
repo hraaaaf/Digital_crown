@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, CalendarDays, ClipboardList, MoreHorizontal, ShieldCheck, UserRound, UsersRound, X } from 'lucide-react';
+import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 
@@ -35,6 +35,13 @@ export function MobileBottomNav({
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
       badge: waitingCount > 0 ? waitingCount : undefined,
     },
+    { id: 'stock' as Tab, icon: Package, label: 'Stock', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
+    { id: 'library' as Tab, icon: BookOpen, label: 'Bibliothèque', allowedRoles: ['DENTISTE', 'ADMIN'] },
+    { id: 'marketplace' as Tab, icon: ShoppingCart, label: 'Approvisionnement', allowedRoles: ['DENTISTE', 'ADMIN'] },
+    { id: 'dentists' as Tab, icon: Users, label: 'Équipe', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
+    { id: 'finance' as Tab, icon: TrendingUp, label: 'Trésorerie', allowedRoles: ['DENTISTE', 'ADMIN'] },
+    { id: 'lab' as Tab, icon: FlaskConical, label: 'Envois Labo', allowedRoles: ['DENTISTE', 'ADMIN'] },
+    { id: 'bot' as Tab, icon: Bot, label: 'Assistant', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     {
       id: 'frontdesk' as Tab,
       icon: ClipboardList,
@@ -130,7 +137,7 @@ export function MobileBottomNav({
                 type="button"
                 aria-label="Fermer Plus"
                 onClick={() => setMoreOpen(false)}
-                className="grid h-10 w-10 place-items-center rounded-full border border-glass-border bg-background text-text-muted"
+                className="grid h-11 w-11 place-items-center rounded-full border border-glass-border bg-background text-text-muted"
               >
                 <X size={18} />
               </button>
