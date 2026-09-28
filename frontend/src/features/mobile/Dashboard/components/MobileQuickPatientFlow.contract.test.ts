@@ -31,8 +31,9 @@ describe('MOB-3 quick patient flow contracts', () => {
     expect(patientFlow).not.toContain("action === 'payment'");
   });
 
-  it('reuses canonical patient creation fields and endpoint', () => {
-    expect(newPatientFlow).toContain('/api/patients/');
+  it('keeps quick patient creation inside the paired-device mobile boundary', () => {
+    expect(newPatientFlow).toContain('/api/mobile/patients');
+    expect(newPatientFlow).not.toContain('/api/patients/');
     expect(newPatientFlow).toContain('date_naissance: form.date_naissance');
     expect(newPatientFlow).toContain('sexe: form.sexe');
   });
