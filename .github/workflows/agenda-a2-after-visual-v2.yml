@@ -2,9 +2,6 @@ name: Agenda A2 AFTER Visual Certification V2
 
 on:
   pull_request:
-    paths-ignore:
-      - 'frontend/src/features/mobile/**'
-      - '.github/workflows/ci.yml'
     paths:
       - ".github/workflows/agenda-a2-after-visual-v2.yml"
       - "frontend/src/features/agenda/**"
