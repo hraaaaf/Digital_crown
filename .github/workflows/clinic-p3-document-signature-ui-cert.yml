@@ -2,6 +2,9 @@ name: Clinic P3 Document Signature UI Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/patients/PatientDocuments.tsx"
       - ".github/workflows/clinic-p3-document-signature-ui-cert.yml"

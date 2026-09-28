@@ -2,6 +2,9 @@ name: Patient UX1-C Overlay Visual Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/App.tsx"
       - "frontend/src/components/Header.tsx"

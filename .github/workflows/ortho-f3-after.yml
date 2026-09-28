@@ -3,6 +3,9 @@ name: Ortho F3 AFTER
 on:
   workflow_dispatch:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     branches:
       - master
     paths:

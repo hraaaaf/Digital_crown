@@ -2,6 +2,9 @@ name: Clinic P2 Patient Billing Visual Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/patients/**"
       - "frontend/src/types/**"

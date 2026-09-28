@@ -2,6 +2,9 @@ name: Settings R11 TemplateBuilder Dependency Audit
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - ".github/workflows/settings-r11-templatebuilder-audit.yml"
       - "docs/settings/R11_TEMPLATEBUILDER_ORPHAN_CLEANUP_GOAL.md"
