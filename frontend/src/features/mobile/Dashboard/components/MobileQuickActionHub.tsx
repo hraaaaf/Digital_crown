@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { CalendarPlus, Camera, CircleDollarSign, ScanLine, UserPlus, X, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CalendarPlus, Camera, ScanLine, UserPlus, X, Plus } from 'lucide-react';
 import type { MobileQuickActionCapabilities } from '../hooks/useMobileQuickActionCapabilities';
 
-export type MobileQuickPatientAction = 'photo' | 'scan' | 'payment';
+export type MobileQuickPatientAction = 'photo' | 'scan';
 
 export function MobileQuickActionHub({
   capabilities,
@@ -28,11 +28,12 @@ export function MobileQuickActionHub({
   onPatientAction: (action: MobileQuickPatientAction) => void;
 }) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const open = controlledOpen ?? internalOpen;
   const hasAnyAction = capabilities.can_create_appointment
     || capabilities.can_create_patient
-    || capabilities.can_open_clinical_context
-    || capabilities.can_pay;
+    || capabilities.can_open_clinical_context;
 
   const setOpen = (next: boolean) => {
     if (controlledOpen === undefined) setInternalOpen(next);
@@ -41,11 +42,56 @@ export function MobileQuickActionHub({
 
   useEffect(() => {
     if (!open) return;
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const dialog = dialogRef.current;
+    const focusable = Array.from(dialog?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? []);
+    (focusable[0] ?? dialog)?.focus();
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+
+      const currentFocusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (currentFocusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      const active = document.activeElement;
+      if (
+        previousFocusRef.current
+        && (active === document.body || (active instanceof Node && dialog?.contains(active)))
+      ) {
+        previousFocusRef.current.focus();
+      }
+    };
   }, [open]);
 
   useEffect(() => {
@@ -72,6 +118,8 @@ export function MobileQuickActionHub({
           />
 
           <section
+            ref={dialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-quick-action-title"
@@ -84,7 +132,7 @@ export function MobileQuickActionHub({
             <div className="mx-auto mb-2 h-[5px] w-[68px] rounded-full bg-border-main" aria-hidden="true" />
             <div className="mb-2.5">
               <h2 id="mobile-quick-action-title" className="text-[19px] leading-[23px] font-black text-text-main">Action rapide</h2>
-              <p className="mt-1 text-[10px] leading-[15px] font-bold text-text-muted">Que voulez-vous faire ?</p>
+              <p className="mt-1 text-[10px] leading-[15px] font-bold text-text-muted">Digital Crown Pocket · accès clinique rapide</p>
             </div>
 
             {!isOnline && (
@@ -140,22 +188,6 @@ export function MobileQuickActionHub({
               )}
             </div>
 
-            {capabilities.can_pay && (
-              <button
-                type="button"
-                disabled={!isOnline}
-                onClick={() => run(() => onPatientAction('payment'))}
-                className="mt-2.5 flex min-h-[56px] w-full items-center gap-3 rounded-[18px] bg-primary px-4 text-left text-white shadow-sm active:scale-[0.99] disabled:opacity-40"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-                  <CircleDollarSign size={17} />
-                </span>
-                <span>
-                  <span className="block text-[11px] leading-[15px] font-black">Encaisser rapidement</span>
-                  <span className="mt-0.5 block text-[8px] leading-[12px] font-bold text-white/70">Accès financier requis</span>
-                </span>
-              </button>
-            )}
           </section>
         </div>
       )}

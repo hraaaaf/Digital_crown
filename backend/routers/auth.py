@@ -76,13 +76,10 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    mobile_header = False
-    if token_header:
-        try:
-            mobile_header = jwt.get_unverified_claims(token_header).get("type") == "mobile"
-        except (JWTError, ValueError, TypeError):
-            mobile_header = False
-    token = token_header if mobile_header else (request.cookies.get("access_token") or token_header)
+    # Desktop/API authentication accepts desktop access tokens only.
+    # Paired Pocket JWTs are intentionally scoped to /api/mobile/* dependencies
+    # and must never become generic Digital Crown sessions.
+    token = request.cookies.get("access_token") or token_header
     if not token:
         raise credentials_exception
     try:
@@ -90,20 +87,16 @@ async def get_current_user(
         token_type: str = payload.get("type")
         jti: str = payload.get("jti")
 
-        if token_type not in ("access", "mobile"):
+        if token_type != "access":
             raise credentials_exception
 
         if jti and token_blacklist.is_revoked(jti, db):
             raise credentials_exception
 
-        if token_type == "mobile":
-            from backend.routers.mobile_legacy import _decode_mobile_identity
-            user, _tenant_id, _mobile_payload = _decode_mobile_identity(f"Bearer {token}", db)
-        else:
-            email: str = payload.get("sub")
-            if email is None:
-                raise credentials_exception
-            user = db.query(models.User).filter(models.User.email == email).first()
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        user = db.query(models.User).filter(models.User.email == email).first()
 
     except HTTPException:
         raise credentials_exception

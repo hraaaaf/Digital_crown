@@ -75,18 +75,6 @@ jobs:
           cache: npm
           cache-dependency-path: after/frontend/package-lock.json
 
-      - name: Generate isolated runtime credential and DB attestation
-        run: |
-          python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
-          (
-            cd backend
-            python - <<'PY'
-import os
-from core.runtime_safety import database_target_fingerprint
-print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(os.environ["DATABASE_URL"]))
-PY
-          ) >> "$GITHUB_ENV"
-
       - name: Install backend dependencies
         working-directory: after
         run: |
@@ -95,6 +83,18 @@ PY
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-d2-visual.txt
           pip install -r /tmp/requirements-d2-visual.txt
           pip install httpx==0.27.2 pytest
+
+      - name: Generate isolated runtime credential and DB attestation
+        run: |
+          python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
+          (
+            cd after
+            python - <<'PY'
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint("sqlite:///./t2-runtime-cert.db"))
+          PY
+          ) >> "$GITHUB_ENV"
 
       - name: Targeted Patient Companion D2 backend tests
         working-directory: after

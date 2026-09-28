@@ -68,8 +68,6 @@ for (const viewport of viewports) {
     const panel = page.locator('[data-patient-companion-admin]');
     await panel.waitFor({ state: 'visible', timeout: 30000 });
     panelVisible = await panel.isVisible();
-    const email = page.getByPlaceholder('patient@email.com');
-    await email.fill('patient@example.test');
     const invitationButton = page.getByRole('button', { name: /Créer une invitation|Réémettre une invitation/ });
     await invitationButton.click();
     const invitation = page.locator('[data-ephemeral-invitation]');

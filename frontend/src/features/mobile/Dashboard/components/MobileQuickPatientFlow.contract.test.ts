@@ -15,7 +15,7 @@ const capabilitiesHook = readFileSync(
   'utf8',
 );
 
-describe('MOB-3 quick patient flow contracts', () => {
+describe('MOB-3 Digital Crown Pocket quick patient flow contracts', () => {
   it('keeps clinical actions on the opaque Patient Cockpit bridge', () => {
     expect(patientFlow).toContain('/api/mobile/patient-cockpit/${patient.id}/context');
     expect(patientFlow).toContain('MobileStorage.saveBridgeContext');
@@ -24,14 +24,16 @@ describe('MOB-3 quick patient flow contracts', () => {
     expect(patientFlow).not.toContain('/mobile/context?patient_id=');
   });
 
-  it('reuses the canonical accounting payment endpoint and explicit payment method', () => {
-    expect(patientFlow).toContain('/api/accounting/payments');
-    expect(patientFlow).toContain('payment_method: paymentMethod');
-    expect(patientFlow).toContain('patient_id: selectedPatient.id');
+  it('does not expose mobile payment writes from the Pocket quick patient flow', () => {
+    expect(patientFlow).not.toContain('/api/accounting/payments');
+    expect(patientFlow).not.toContain('payment_method');
+    expect(patientFlow).not.toContain('Encaisser');
+    expect(patientFlow).not.toContain("action === 'payment'");
   });
 
-  it('reuses canonical patient creation fields and endpoint', () => {
-    expect(newPatientFlow).toContain('/api/patients/');
+  it('keeps quick patient creation inside the paired-device mobile boundary', () => {
+    expect(newPatientFlow).toContain('/api/mobile/patients');
+    expect(newPatientFlow).not.toContain('/api/patients/');
     expect(newPatientFlow).toContain('date_naissance: form.date_naissance');
     expect(newPatientFlow).toContain('sexe: form.sexe');
   });

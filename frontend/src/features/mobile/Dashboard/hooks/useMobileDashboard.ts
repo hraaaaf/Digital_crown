@@ -3,11 +3,7 @@ import toast from 'react-hot-toast';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
-import { fetchLabJobs, patchLabJobStatus } from '../../../../services/labJobService';
-import type { LabJob } from '../../../../types/labJob';
-import { formatLabJobMessage } from '../../../../services/whatsappService';
 import type { Tab, SyncStatus, Snapshot, Appointment, ApptStatus } from '../types';
-import { LabJobStatus } from '../../../../types/labJob';
 
 function resolveApiBaseUrl(stored: string): string {
   const hostname = window.location.hostname;
@@ -18,6 +14,13 @@ function resolveApiBaseUrl(stored: string): string {
   return stored;
 }
 
+
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function isQueueableNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true;
@@ -34,9 +37,7 @@ export function useMobileDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queuedActionsCount, setQueuedActionsCount] = useState(0);
-  const [now, setNow] = useState(new Date());
-  const [labJobs, setLabJobs] = useState<LabJob[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => localDateKey());
   const [patients, setPatients] = useState<{id: number, name: string, phone: string | null}[]>([]);
   const credsRef = useRef<{ access_token: string; api_base_url: string; masterKey: string } | null>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -60,27 +61,12 @@ export function useMobileDashboard() {
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30000);
-    // Pré-charger le token mobile dans localStorage pour que l'intercepteur api le retrouve
-    MobileStorage.getCredentials().then(creds => {
-      if (creds?.access_token) {
-        try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
-      }
-    });
-    return () => clearInterval(t);
-  }, []);
-
   const fetchSnapshot = useCallback(async () => {
     try {
       setSyncStatus('loading');
       const creds = await MobileStorage.getCredentials();
       if (!creds) throw new Error('Non appairé');
       credsRef.current = creds;
-
-      // Sync mobile JWT into localStorage so the standard api interceptor
-      // (used by CrownBotChat and other shared components) sends Authorization headers.
-      try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
 
       const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/snapshot?target_date=${selectedDate}`, {
         signal: AbortSignal.timeout(8000),
@@ -103,7 +89,7 @@ export function useMobileDashboard() {
         : rawRes;
 
       setSnapshot(data);
-      await MobileStorage.saveLastSnapshot(data);
+      await MobileStorage.saveLastSnapshot(data, selectedDate);
       setError(null);
       setSyncStatus('success');
     } catch (err) {
@@ -119,11 +105,12 @@ export function useMobileDashboard() {
         setSyncStatus('error');
         return;
       }
-      const cached = await MobileStorage.getLastSnapshot();
+      const cached = await MobileStorage.getLastSnapshot(selectedDate);
       if (cached) {
-        setSnapshot(cached);
+        setSnapshot(cached.data);
         setSyncStatus('error');
-        setError('Hors réseau — données en cache');
+        const cachedAt = new Date(cached.saved_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        setError(`Hors réseau — données du ${cached.target_date} mises en cache à ${cachedAt}`);
       } else {
         setError('Impossible de joindre le cabinet');
         setSyncStatus('error');
@@ -202,12 +189,20 @@ export function useMobileDashboard() {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, [syncQueue]);
 
-  useEffect(() => { 
-    MobileStorage.getLastSnapshot().then(c => { if (c) { setSnapshot(c); setSyncStatus('success'); } }); 
-    fetchSnapshot(); 
-    fetchPatients(); 
-    fetchLabJobs().then(setLabJobs).catch(err => console.error(err)); 
-  }, [fetchSnapshot, fetchPatients]);
+  useEffect(() => {
+    let cancelled = false;
+    MobileStorage.getLastSnapshot(selectedDate).then(cached => {
+      if (!cancelled && cached) {
+        setSnapshot(cached.data);
+        setSyncStatus('loading');
+        const cachedAt = new Date(cached.saved_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        setError(`Données du ${cached.target_date} en cache (${cachedAt}) — synchronisation en cours`);
+      }
+    });
+    void fetchSnapshot();
+    void fetchPatients();
+    return () => { cancelled = true; };
+  }, [fetchSnapshot, fetchPatients, selectedDate]);
 
   const handleStatusChange = async (id: number, status: ApptStatus) => {
     const creds = credsRef.current || await MobileStorage.getCredentials();
@@ -299,11 +294,6 @@ export function useMobileDashboard() {
     }
   };
 
-  const openWhatsApp = (phone: string | null, msg: string) => {
-    if (!phone) return;
-    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-  };
-
   const openApptWhatsApp = (apt: Appointment) => {
     setWhatsappApt(apt);
     setWhatsappTemplate('rappel');
@@ -337,26 +327,6 @@ export function useMobileDashboard() {
     const phoneClean = whatsappApt.phone.replace(/\D/g, '');
     window.open(`https://wa.me/${phoneClean}?text=${encodeURIComponent(customMessage)}`, '_blank');
     setWhatsappApt(null);
-  };
-
-  const handleWhatsAppSend = async (job: LabJob) => {
-    const plainText = formatLabJobMessage(job);
-    const whatsappUri = `whatsapp://send?phone=${''}&text=${encodeURIComponent(plainText)}`;
-
-    try {
-      await navigator.clipboard.writeText(plainText);
-    } catch (c) {
-      console.warn('Échec silencieux du presse‑papier', c);
-    }
-
-    try {
-      window.location.href = whatsappUri;
-      await patchLabJobStatus(job.id, { status: LabJobStatus.SENT });
-      setLabJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: LabJobStatus.SENT } : j));
-    } catch (e) {
-      console.error('Échec WhatsApp ou persistance Labo', e);
-      toast.error('WhatsApp ouvert, mais statut Labo non confirmé.');
-    }
   };
 
   const fetchSignatureDocs = useCallback(async (patientId: number) => {
@@ -430,39 +400,6 @@ export function useMobileDashboard() {
     window.location.replace('/mobile/onboarding');
   };
 
-  const handleExportPDF = async () => {
-    const creds = credsRef.current || await MobileStorage.getCredentials();
-    if (!creds) return;
-    try {
-      const d = new Date(selectedDate);
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/accounting/export-pdf?year=${d.getFullYear()}&month=${d.getMonth() + 1}`, {
-        headers: { Authorization: `Bearer ${creds.access_token}` },
-      });
-      if (!res.ok) throw new Error('Erreur export');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      
-      if (navigator.share && navigator.canShare) {
-        const file = new File([blob], `Compta_${d.getFullYear()}_${d.getMonth() + 1}.pdf`, { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Comptabilité ${d.getMonth() + 1}/${d.getFullYear()}`,
-          });
-          return;
-        }
-      }
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Compta_${d.getFullYear()}_${d.getMonth() + 1}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      alert("Erreur lors de l'export PDF");
-    }
-  };
-
   return {
     state: {
       activeTab,
@@ -470,8 +407,6 @@ export function useMobileDashboard() {
       snapshot,
       error,
       isOnline,
-      now,
-      labJobs,
       selectedDate,
       patients,
       sigPatientId,
@@ -493,14 +428,11 @@ export function useMobileDashboard() {
       handleStatusChange,
       handleDeleteAppt,
       handleRescheduleAppt,
-      openWhatsApp,
       openApptWhatsApp,
       handleSendWhatsApp,
-      handleWhatsAppSend,
       handleOpenSignature,
       handleSaveSignature,
       handleLogout,
-      handleExportPDF,
       setSigPatientId,
       setSelectedDocId,
       setWhatsappApt,

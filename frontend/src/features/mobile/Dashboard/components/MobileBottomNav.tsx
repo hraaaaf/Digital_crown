@@ -1,15 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Bell, CalendarDays, ClipboardList, MoreHorizontal, ShieldCheck, UserRound, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
-import type { LabJob } from '../../../../types/labJob';
 
 export function MobileBottomNav({
   activeTab,
   setActiveTab,
   totalCount,
   termineCount,
-  labJobs,
   snapshot,
   quickActionsAvailable,
   quickActionsOpen,
@@ -19,13 +17,14 @@ export function MobileBottomNav({
   setActiveTab: (t: Tab) => void;
   totalCount: number;
   termineCount: number;
-  labJobs: LabJob[];
   snapshot: Snapshot | null;
   quickActionsAvailable: boolean;
   quickActionsOpen: boolean;
   onToggleQuickActions: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreDialogRef = useRef<HTMLElement | null>(null);
+  const moreTriggerRef = useRef<HTMLButtonElement | null>(null);
   const role = snapshot?.role ?? '';
   const waitingCount = snapshot?.appointments.filter(appointment => appointment.status === 'EN_ATTENTE').length ?? 0;
   const secondaryTabs = [
@@ -37,59 +36,16 @@ export function MobileBottomNav({
       badge: waitingCount > 0 ? waitingCount : undefined,
     },
     {
-      id: 'notifications' as Tab,
-      icon: Bell,
-      label: 'Notifications',
-      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
-    },
-    {
-      id: 'stock' as Tab,
-      icon: Package,
-      label: 'Stock',
-      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
-    },
-    {
-      id: 'library' as Tab,
-      icon: BookOpen,
-      label: 'Bibliothèque',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-    },
-    {
-      id: 'marketplace' as Tab,
-      icon: ShoppingCart,
-      label: 'Approvisionnement',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-    },
-    {
-      id: 'dentists' as Tab,
-      icon: Users,
-      label: 'Équipe',
-      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
-    },
-    {
       id: 'frontdesk' as Tab,
       icon: ClipboardList,
       label: 'Accueil',
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
     {
-      id: 'finance' as Tab,
-      icon: TrendingUp,
-      label: 'Trésorerie',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-    },
-    {
-      id: 'lab' as Tab,
-      icon: FlaskConical,
-      label: 'Envois Labo',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
-      dot: labJobs.some(job => job.status === 'PRESCRIPTION'),
-    },
-    {
       id: 'securite' as Tab,
       icon: ShieldCheck,
       label: 'Sécurité',
-      allowedRoles: ['DENTISTE', 'ADMIN'],
+      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
   ].filter(tab => tab.allowedRoles.includes(role));
 
@@ -98,11 +54,46 @@ export function MobileBottomNav({
 
   useEffect(() => {
     if (!moreOpen) return;
+
+    const dialog = moreDialogRef.current;
+    const focusable = Array.from(dialog?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? []);
+    (focusable[0] ?? dialog)?.focus();
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMoreOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMoreOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+
+      const currentFocusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (currentFocusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (moreTriggerRef.current) moreTriggerRef.current.focus();
+    };
   }, [moreOpen]);
 
   const selectTab = (tab: Tab) => {
@@ -122,6 +113,8 @@ export function MobileBottomNav({
             onClick={() => setMoreOpen(false)}
           />
           <section
+            ref={moreDialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-more-title"
@@ -144,7 +137,7 @@ export function MobileBottomNav({
             </div>
 
             <div className="grid gap-2.5 max-h-[min(60dvh,520px)] overflow-y-auto pr-0.5">
-              {secondaryTabs.map(({ id, icon: Icon, label, dot, badge }) => (
+              {secondaryTabs.map(({ id, icon: Icon, label, badge }) => (
                 <button
                   key={id}
                   type="button"
@@ -154,7 +147,6 @@ export function MobileBottomNav({
                 >
                   <span className="relative grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
                     <Icon size={18} />
-                    {dot && <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-primary ring-2 ring-white/80" />}
                   </span>
                   <span className="flex-1 text-[11px] font-black">{label}</span>
                   {badge != null && (
@@ -232,18 +224,21 @@ export function MobileBottomNav({
 
           <button
             type="button"
-            aria-current={activeTab === 'bot' ? 'page' : undefined}
-            onClick={() => selectTab('bot')}
+            aria-current={activeTab === 'notifications' ? 'page' : undefined}
+            onClick={() => selectTab('notifications')}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'bot' ? 'text-primary' : 'text-text-muted'
+              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              activeTab === 'notifications' ? 'text-primary' : 'text-text-muted'
             )}
           >
-            <span className="grid h-8 w-11 place-items-center"><Bot size={20} strokeWidth={activeTab === 'bot' ? 2.35 : 1.9} /></span>
-            <span className="max-w-full truncate">Assistant</span>
+            <span className="relative grid h-8 w-11 place-items-center">
+              <Bell size={20} strokeWidth={activeTab === 'notifications' ? 2.35 : 1.9} />
+            </span>
+            <span className="max-w-full truncate">Alertes</span>
           </button>
 
           <button
+            ref={moreTriggerRef}
             type="button"
             aria-current={isMoreActive ? 'page' : undefined}
             aria-expanded={moreOpen}

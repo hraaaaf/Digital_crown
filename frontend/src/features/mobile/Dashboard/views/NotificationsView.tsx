@@ -31,7 +31,7 @@ function priorityMeta(value?: string | null) {
 function actionFor(alert: MobileAlert): { label: string; tab: Tab } | null {
   const type = String(alert.type || '').toUpperCase();
   if (type.startsWith('OVERDUE_PAYMENT') || type.startsWith('HIGH_VALUE_RISK') || type.startsWith('ORTHO_SEMESTER_')) {
-    return { label: 'Voir finance', tab: 'finance' };
+    return alert.patient_id ? { label: 'Voir patient', tab: 'patients' } : null;
   }
   if (alert.patient_id) return { label: 'Voir patient', tab: 'patients' };
   return null;

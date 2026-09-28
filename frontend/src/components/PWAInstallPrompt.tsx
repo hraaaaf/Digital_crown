@@ -20,10 +20,10 @@ export function PWAInstallPrompt() {
         <div className="flex-1">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <Download size={20} className="text-amber-400" />
-            Installer l'App
+            Installer Pocket
           </h3>
           <p className="text-slate-300 text-sm mt-1">
-            Installez Digital Crown sur votre écran d'accueil pour un accès rapide et hors-ligne.
+            Installez Digital Crown Pocket sur votre écran d'accueil pour un accès rapide et hors-ligne.
           </p>
         </div>
       </div>

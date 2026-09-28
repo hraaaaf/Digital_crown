@@ -13,20 +13,13 @@ import { AddApptModal } from './components/AddApptModal';
 import { MobileQuickActionHub, type MobileQuickPatientAction } from './components/MobileQuickActionHub';
 import { MobileQuickPatientFlow } from './components/MobileQuickPatientFlow';
 import { MobileQuickNewPatientModal } from './components/MobileQuickNewPatientModal';
+import { PocketTodayOverview } from './components/PocketTodayOverview';
 import './components/mobileQuickActionHub.css';
-import { AgendaView } from './views/AgendaView';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { MobilePatientsGate } from './views/MobilePatientsGate';
-import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
-import { LabView } from './views/LabView';
-import { BotView } from './views/BotView';
-import { DentistsView } from './views/DentistsView';
 import { FrontdeskView } from './views/FrontdeskView';
 import { NotificationsView } from './views/NotificationsView';
-import { StockView } from './views/StockView';
-import { LibraryView } from './views/LibraryView';
-import { MarketplaceView } from './views/MarketplaceView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 import { resolveDashboardTab } from '../bridge';
 
@@ -38,6 +31,7 @@ export const MobileDashboard = () => {
   const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
   const [quickPatientAction, setQuickPatientAction] = useState<MobileQuickPatientAction | null>(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [initialPatientId, setInitialPatientId] = useState<number | null>(null);
   useMobileRuntimeTheme(state.snapshot?.generated_at);
 
   useEffect(() => {
@@ -52,7 +46,6 @@ export const MobileDashboard = () => {
     capabilities.can_create_appointment
     || capabilities.can_create_patient
     || capabilities.can_open_clinical_context
-    || capabilities.can_pay
   );
 
   const refreshAfterPatientMutation = () => {
@@ -63,7 +56,14 @@ export const MobileDashboard = () => {
 
   const selectNavTab = (tab: typeof state.activeTab) => {
     setQuickActionsOpen(false);
+    if (tab !== 'patients') setInitialPatientId(null);
     actions.setActiveTab(tab);
+  };
+
+  const openPatientCockpit = (patientId: number) => {
+    setInitialPatientId(patientId);
+    setQuickActionsOpen(false);
+    actions.setActiveTab('patients');
   };
 
   return (
@@ -113,19 +113,13 @@ export const MobileDashboard = () => {
             className="h-full"
           >
             {state.activeTab === 'agenda' && (
-              <AgendaView
+              <PocketTodayOverview
                 snapshot={state.snapshot}
-                syncStatus={state.syncStatus}
                 selectedDate={state.selectedDate}
-                setSelectedDate={actions.setSelectedDate}
-                patients={state.patients}
-                onStatusChange={actions.handleStatusChange}
-                onRescheduleAppt={actions.handleRescheduleAppt}
-                openApptWhatsApp={actions.openApptWhatsApp}
-                handleDeleteAppt={actions.handleDeleteAppt}
-                handleOpenSignature={actions.handleOpenSignature}
-                onRefresh={actions.fetchSnapshot}
-                onPatientCreated={() => actions.fetchPatients()}
+                onOpenPatient={openPatientCockpit}
+                onOpenWaitingRoom={() => selectNavTab('waiting-room')}
+                onOpenFrontdesk={() => selectNavTab('frontdesk')}
+                onOpenAlerts={() => selectNavTab('notifications')}
               />
             )}
             {state.activeTab === 'waiting-room' && (
@@ -137,21 +131,16 @@ export const MobileDashboard = () => {
             {state.activeTab === 'patients' && (
               <MobilePatientsGate
                 isOnline={state.isOnline}
-                onClose={() => selectNavTab('agenda')}
+                initialSelectedId={initialPatientId}
+                onClose={() => {
+                  setInitialPatientId(null);
+                  selectNavTab('agenda');
+                }}
               />
             )}
-            {state.activeTab === 'lab' && <LabView labJobs={state.labJobs} handleWhatsAppSend={actions.handleWhatsAppSend} />}
-            {state.activeTab === 'finance' && (
-              <FinanceView snapshot={state.snapshot} syncStatus={state.syncStatus} selectedDate={state.selectedDate} openWhatsApp={actions.openWhatsApp} handleExportPDF={actions.handleExportPDF} />
-            )}
             {state.activeTab === 'securite' && <SecuriteView snapshot={state.snapshot} syncStatus={state.syncStatus} isOnline={state.isOnline} handleLogout={actions.handleLogout} />}
-            {state.activeTab === 'dentists' && <DentistsView embedded />}
             {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} />}
-            {state.activeTab === 'stock' && <StockView />}
-            {state.activeTab === 'library' && <LibraryView role={state.snapshot?.role} />}
-            {state.activeTab === 'marketplace' && <MarketplaceView />}
-            {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -173,7 +162,6 @@ export const MobileDashboard = () => {
         setActiveTab={selectNavTab}
         totalCount={totalCount}
         termineCount={termineCount}
-        labJobs={state.labJobs}
         snapshot={state.snapshot}
         quickActionsAvailable={quickActionsAvailable}
         quickActionsOpen={quickActionsOpen}
@@ -192,7 +180,7 @@ export const MobileDashboard = () => {
 
       {showQuickNewPatient && <MobileQuickNewPatientModal onClose={() => setShowQuickNewPatient(false)} onCreated={refreshAfterPatientMutation} />}
 
-      {quickPatientAction && <MobileQuickPatientFlow action={quickPatientAction} onClose={() => setQuickPatientAction(null)} onPaymentRecorded={() => void actions.fetchSnapshot()} />}
+      {quickPatientAction && <MobileQuickPatientFlow action={quickPatientAction} onClose={() => setQuickPatientAction(null)} />}
 
       {state.whatsappApt && (
         <WhatsAppModal

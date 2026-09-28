@@ -2,6 +2,9 @@ name: T2 Runtime Browser Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
     inputs:
       resume_from_23:

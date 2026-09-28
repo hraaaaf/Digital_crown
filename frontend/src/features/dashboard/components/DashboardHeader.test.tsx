@@ -44,7 +44,7 @@ describe('DashboardHeader — accessibilité clavier D6', () => {
 
     expect(screen.getByRole('button', { name: 'Chercher un patient' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Ajout rapide' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Appairer le téléphone mobile' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ouvrir Digital Crown Pocket' })).toBeTruthy();
   });
 
   it('ouvre le menu rapide, Escape le ferme et rend le focus au déclencheur', async () => {

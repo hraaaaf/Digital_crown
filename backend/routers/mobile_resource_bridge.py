@@ -48,7 +48,7 @@ BRIDGE_CONTEXT_TABLE = Table(
 )
 
 _RESOURCE_SPECS = {
-    "patient": {"permission": "patients", "label": "Dossier patient"},
+    "patient": {"permission": "clinical", "label": "Dossier patient"},
     "panoramic": {"permission": "panoramic", "label": "Radio panoramique"},
     "document": {"permission": None, "label": "Document"},
     "appointment": {"permission": "agenda", "label": "Rendez-vous"},
@@ -106,8 +106,8 @@ def _resource_label(resource_type: str) -> str:
 
 
 def _patient_resource(db: Session, user: models.User, resource_id: int) -> models.Patient:
-    if not has_permission(user, "patients"):
-        raise HTTPException(status_code=403, detail="Accès patient mobile refusé.")
+    if not has_permission(user, "clinical"):
+        raise HTTPException(status_code=403, detail="Accès clinique mobile refusé.")
     patient = db.query(models.Patient).filter(
         models.Patient.id == int(resource_id),
         models.Patient.employer_id == user.get_employer_id(),
@@ -642,6 +642,8 @@ async def upload_resource_context_photo(
     from backend.services.clinical_asset_storage import ClinicalAssetStorageError
 
     mobile_user, context = _validated_mobile_context(db, authorization, context_key)
+    if not has_permission(mobile_user, 'clinical'):
+        raise HTTPException(status_code=403, detail="Accès clinique mobile refusé.")
     if str(context['resource_type']).lower() != 'patient':
         raise HTTPException(status_code=422, detail="La photo clinique exige un contexte Patient.")
 
@@ -736,6 +738,8 @@ async def upload_resource_context_document_scan(
     db: Session = Depends(database.get_db),
 ):
     mobile_user, context = _validated_mobile_context(db, authorization, context_key)
+    if not has_permission(mobile_user, 'clinical'):
+        raise HTTPException(status_code=403, detail="Accès clinique mobile refusé.")
     if str(context['resource_type']).lower() != 'patient':
         raise HTTPException(status_code=422, detail="Le scan de document exige un contexte Patient.")
     patient = _patient_resource(db, mobile_user, int(context['resource_id']))

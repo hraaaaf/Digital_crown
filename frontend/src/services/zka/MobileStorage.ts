@@ -55,6 +55,9 @@ export interface QueuedAction {
 interface SnapshotEntry {
   data: any;
   saved_at: number;
+  target_date: string;
+  cabinetPublicId: string;
+  deviceId: string;
 }
 
 interface BiometricVaultPayload {
@@ -255,7 +258,8 @@ export const MobileStorage = {
     await mobileStore().removeItem(LEGACY_ACTION_QUEUE_ID);
 
     await mobileStore().setItem(STORE_CREDENTIALS_ID, creds);
-    try { localStorage.setItem('token', creds.access_token); } catch { /* ignore */ }
+    // Never promote a Pocket JWT into the desktop auth storage surface.
+    try { localStorage.removeItem('token'); localStorage.removeItem('refresh_token'); } catch { /* ignore */ }
     try { await navigator.storage?.persist?.(); } catch { /* ignore */ }
   },
 
@@ -272,22 +276,42 @@ export const MobileStorage = {
     return this.getCredentials();
   },
 
-  async saveLastSnapshot(data: any): Promise<void> {
+  async saveLastSnapshot(data: any, targetDate: string): Promise<void> {
+    const creds = await rawCredentials();
+    if (!creds?.device_id || !targetDate) throw new Error('Snapshot mobile non scellable sans portée appareil/date.');
+    const entry: SnapshotEntry = {
+      data,
+      saved_at: Date.now(),
+      target_date: targetDate,
+      cabinetPublicId: creds.publicId,
+      deviceId: creds.device_id,
+    };
     const envelope = await rawVault();
     if (envelope) {
       if (!unlockedVault) throw new Error('Coffre biométrique verrouillé.');
-      unlockedVault.payload.snapshot = { data, saved_at: Date.now() };
+      unlockedVault.payload.snapshot = entry;
       await persistUnlockedVault();
       return;
     }
-    await mobileStore().setItem(STORE_SNAPSHOT_ID, { data, saved_at: Date.now() });
+    await mobileStore().setItem(STORE_SNAPSHOT_ID, entry);
   },
 
-  async getLastSnapshot(): Promise<any | null> {
+  async getLastSnapshot(targetDate: string): Promise<SnapshotEntry | null> {
+    const creds = await rawCredentials();
+    if (!creds?.device_id || !targetDate) return null;
     const envelope = await rawVault();
-    if (envelope) return unlockedVault?.payload.snapshot?.data ?? null;
-    const entry = await mobileStore().getItem<SnapshotEntry>(STORE_SNAPSHOT_ID);
-    return entry?.data ?? null;
+    const entry = envelope
+      ? unlockedVault?.payload.snapshot ?? null
+      : await mobileStore().getItem<SnapshotEntry>(STORE_SNAPSHOT_ID);
+    if (!entry) return null;
+    if (
+      entry.target_date !== targetDate
+      || entry.cabinetPublicId !== creds.publicId
+      || entry.deviceId !== creds.device_id
+    ) {
+      return null;
+    }
+    return entry;
   },
 
   async saveBridgeContext(context: MobileBridgeContext): Promise<void> {
@@ -377,7 +401,7 @@ export const MobileStorage = {
   async hasCachedSnapshot(): Promise<boolean> {
     const vault = await rawVault();
     if (vault) return vault.has_snapshot;
-    return (await this.getLastSnapshot()) !== null;
+    return (await mobileStore().getItem<SnapshotEntry>(STORE_SNAPSHOT_ID)) !== null;
   },
 
   async enqueueAction(url: string, method: string, body?: any, actionId?: string): Promise<string> {

@@ -1,8 +1,8 @@
 {
-  "name": "Digital Crown",
-  "short_name": "Digital Crown",
+  "name": "Digital Crown Pocket",
+  "short_name": "Pocket",
   "id": "/",
-  "description": "Gestion de cabinet dentaire — Compagnon Mobile",
+  "description": "Digital Crown Pocket — compagnon mobile du cabinet dentaire",
   "start_url": "/?source=pwa",
   "display": "standalone",
   "orientation": "portrait",

@@ -1,21 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { resolveBridgeRoute, resolveDashboardTab } from './bridge';
 
-describe('mobile bridge MOB-4', () => {
-  it('resolves the new Patients deep link', () => {
-    expect(resolveBridgeRoute('patients')).toBe('/mobile/dashboard?tab=patients');
+describe('Digital Crown Pocket bridge routing', () => {
+  it('keeps Patients as an internal Pocket tab while the general bridge opens Today', () => {
+    expect(resolveBridgeRoute('patients')).toBe('/mobile/dashboard?tab=agenda');
     expect(resolveDashboardTab('?tab=patients')).toBe('patients');
   });
 
-  it('preserves historical dashboard deep links', () => {
+  it('retires historical module deep links and preserves bounded Pocket tabs', () => {
     expect(resolveDashboardTab('?tab=agenda')).toBe('agenda');
-    expect(resolveDashboardTab('?tab=finance')).toBe('finance');
-    expect(resolveDashboardTab('?tab=lab')).toBe('lab');
-    expect(resolveDashboardTab('?tab=bot')).toBe('bot');
+    expect(resolveDashboardTab('?tab=finance')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=lab')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=bot')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=dentists')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=stock')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=library')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=marketplace')).toBe('agenda');
     expect(resolveDashboardTab('?tab=securite')).toBe('securite');
+    expect(resolveDashboardTab('?tab=notifications')).toBe('notifications');
+    expect(resolveDashboardTab('?tab=waiting-room')).toBe('waiting-room');
+    expect(resolveDashboardTab('?tab=frontdesk')).toBe('frontdesk');
   });
 
-  it('fails safely to agenda for unknown tabs', () => {
+  it('fails safely to Today for unknown tabs', () => {
     expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
   });
 });

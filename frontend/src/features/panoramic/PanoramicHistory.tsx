@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Calendar, ChevronRight, Activity, FileText, Loader2, Clock, ExternalLink, Trash2, AlertTriangle } from 'lucide-react';
-import { PanoramicMobileBridge } from './PanoramicMobileBridge';
 
 interface PanoramicAnalysis {
   id: number;
@@ -86,7 +85,6 @@ export const PanoramicHistory: React.FC<PanoramicHistoryProps> = ({ patientId, o
                   <div className="min-w-0"><h4 className="font-black text-slate-800 text-base sm:text-lg tracking-tight">Examen du {dateStr}</h4><div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1"><span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg"><Activity size={14} className="text-indigo-500"/>{landmarksCount} repère{landmarksCount > 1 ? 's' : ''} dentaire{landmarksCount > 1 ? 's' : ''}</span><span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg"><FileText size={14} className="text-emerald-500"/> Rapport enregistré</span></div></div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-                  <PanoramicMobileBridge analysisId={analysis.id} examLabel={dateStr}/>
                   <button data-m4b-touch type="button" onClick={(event) => { event.stopPropagation(); void moveToTrash(analysis); }} className="min-w-11 min-h-11 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all border border-rose-100/50 hover:border-rose-500 shadow-sm active:scale-95 z-10" title="Mettre à la corbeille" aria-label="Mettre l'examen panoramique à la corbeille"><Trash2 size={16}/></button>
                   <div className="hidden lg:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest">Ouvrir dans le studio <ExternalLink size={14}/></div>
                   <div className="min-w-11 min-h-11 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all"><ChevronRight size={20}/></div>

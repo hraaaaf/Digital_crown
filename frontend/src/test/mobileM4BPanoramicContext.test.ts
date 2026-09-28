@@ -17,10 +17,9 @@ describe('M4-B panoramic contextual mobile bridge', () => {
     expect(historySource).not.toContain('Supprimer définitivement');
   });
 
-  it('adds an exact panoramic bridge action on each analysis row with 44px touch controls', () => {
-    expect(historySource).toContain('<PanoramicMobileBridge analysisId={analysis.id}');
-    expect(historySource).toContain('data-m4b-touch');
-    expect(historySource).toContain('min-w-11 min-h-11');
+  it('retires the panoramic desktop bridge action while preserving the history lifecycle', () => {
+    expect(historySource).not.toContain('PanoramicMobileBridge');
+    expect(historySource).not.toContain('Ouvrir sur mobile');
   });
 
   it('sends only the resource type, internal resource id and target user to the backend', () => {

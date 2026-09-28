@@ -6,6 +6,21 @@ import type { Tab, SyncStatus, Snapshot } from '../types';
 import { greeting } from '../utils';
 import { MobileNotificationCenter } from './MobileNotificationCenter';
 
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function moveLocalDate(value: string, delta: number): string {
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  parsed.setDate(parsed.getDate() + delta);
+  return localDateKey(parsed);
+}
+
+
 export function MobileHeader({
   activeTab,
   syncStatus,
@@ -33,11 +48,16 @@ export function MobileHeader({
 }) {
   const navigate = useNavigate();
   return (
-    <div className="px-6 pt-14 pb-6 relative z-10">
-      <div className="flex items-center justify-between gap-3 mb-8">
-        <img src={Logo} alt="Digital Crown" className="w-32 sm:w-36 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
+    <div className="px-4 sm:px-6 pt-14 pb-6 relative z-10">
+      <div className="flex items-center justify-between gap-2 sm:gap-3 mb-8">
+        <div data-dc-pocket-brand className="flex min-w-0 items-center gap-2">
+          <img src={Logo} alt="Digital Crown Pocket" className="w-24 min-[430px]:w-28 sm:w-36 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
+          <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-primary">
+            Pocket
+          </span>
+        </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {!previewMode && activeTab !== 'patients' && onOpenPatients && (
             <button
               type="button"
@@ -70,7 +90,7 @@ export function MobileHeader({
               fetchSnapshot();
             }}
             disabled={syncStatus === 'loading'}
-            className="min-h-12 flex items-center gap-1.5 px-3 bg-card border border-glass-border rounded-[16px] shadow-elite disabled:opacity-40 active:scale-95 transition-all hover:bg-primary/5 backdrop-blur-md"
+            className="h-12 w-12 sm:w-auto sm:min-w-12 flex items-center justify-center gap-1.5 px-0 sm:px-3 bg-card border border-glass-border rounded-[16px] shadow-elite disabled:opacity-40 active:scale-95 transition-all hover:bg-primary/5 backdrop-blur-md"
             style={{ backgroundColor: 'var(--glass-bg)' }}
           >
             <div className={cn(
@@ -80,7 +100,7 @@ export function MobileHeader({
               : 'bg-emerald-500'
             )} />
             <RefreshCw size={10} className={cn('text-text-muted', syncStatus === 'loading' ? 'animate-spin' : '')} />
-            <span className="text-[9px] font-black text-text-muted uppercase tracking-widest flex items-center gap-1">
+            <span className="hidden sm:flex text-[9px] font-black text-text-muted uppercase tracking-widest items-center gap-1">
               {syncStatus === 'loading' ? 'Mise à jour…' : syncStatus === 'error' ? 'Hors ligne' : 'À jour'}
               {queuedActionsCount > 0 && <span className="bg-rose-500 text-white px-1 rounded-full">{queuedActionsCount}</span>}
             </span>
@@ -93,12 +113,9 @@ export function MobileHeader({
           <div className="flex items-center gap-2 mb-2">
             <Calendar size={12} className="text-primary shrink-0" />
             <button
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() - 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
-              className="p-1 text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
+              aria-label="Jour précédent"
+              onClick={() => setSelectedDate(moveLocalDate(selectedDate, -1))}
+              className="min-h-11 min-w-11 inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
               <ChevronLeft size={12} />
             </button>
@@ -109,12 +126,9 @@ export function MobileHeader({
               className="bg-transparent border-none text-text-muted font-bold text-xs capitalize outline-none p-0 cursor-pointer text-center min-w-min"
             />
             <button
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() + 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
-              className="p-1 text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
+              aria-label="Jour suivant"
+              onClick={() => setSelectedDate(moveLocalDate(selectedDate, 1))}
+              className="min-h-11 min-w-11 inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
               <ChevronRight size={12} />
             </button>
@@ -127,7 +141,14 @@ export function MobileHeader({
            activeTab === 'finance' ? 'Finances' :
            activeTab === 'securite' ? 'Sécurité' :
            activeTab === 'lab' ? 'Laboratoire' :
-           activeTab === 'dentists' ? 'Équipe' : ''}
+           activeTab === 'dentists' ? 'Équipe' :
+           activeTab === 'waiting-room' ? "Salle d’attente" :
+           activeTab === 'frontdesk' ? 'Accueil' :
+           activeTab === 'notifications' ? 'Alertes' :
+           activeTab === 'stock' ? 'Stock' :
+           activeTab === 'library' ? 'Bibliothèque' :
+           activeTab === 'marketplace' ? 'Catalogue' :
+           activeTab === 'bot' ? 'Assistant' : ''}
         </h1>
 
         {snapshot?.is_superadmin && (
@@ -142,7 +163,11 @@ export function MobileHeader({
         {activeTab === 'agenda' && totalCount > 0 && (
           <div className="flex items-center gap-2 mt-4">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 border border-primary/10 rounded-full shadow-sm">
-              <span className="text-[10px] font-black text-primary">{totalCount} RDV aujourd'hui</span>
+              <span className="text-[10px] font-black text-primary">
+                {totalCount} RDV {selectedDate === localDateKey()
+                  ? "aujourd'hui"
+                  : `le ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`}
+              </span>
             </div>
             {termineCount > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/5 border border-emerald-500/20 rounded-full shadow-sm">

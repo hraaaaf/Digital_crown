@@ -12,7 +12,7 @@ const ALL_CAPABILITIES = {
 afterEach(() => cleanup());
 
 describe('MobileQuickActionHub', () => {
-  it('opens from the promoted FAB and exposes the five authorized actions', () => {
+  it('opens from the promoted FAB and exposes the four Pocket actions', () => {
     const onNewAppointment = vi.fn();
     const onNewPatient = vi.fn();
     const onPatientAction = vi.fn();
@@ -33,7 +33,7 @@ describe('MobileQuickActionHub', () => {
     expect(screen.getByText('Nouveau patient')).toBeTruthy();
     expect(screen.getByText('Photo clinique')).toBeTruthy();
     expect(screen.getByText('Scanner document')).toBeTruthy();
-    expect(screen.getByText('Encaisser rapidement')).toBeTruthy();
+    expect(screen.queryByText('Encaisser rapidement')).toBeNull();
     expect(screen.getByRole('button', { name: 'Fermer les actions rapides' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Fermer' })).toBeNull();
 
@@ -113,6 +113,42 @@ describe('MobileQuickActionHub', () => {
     expect(rdv?.hasAttribute('disabled')).toBe(true);
     if (rdv) fireEvent.click(rdv);
     expect(onNewAppointment).not.toHaveBeenCalled();
+  });
+
+
+  it('traps keyboard focus in the dialog and restores the launcher on Escape', () => {
+    render(
+      <MobileQuickActionHub
+        capabilities={ALL_CAPABILITIES}
+        isOnline
+        onNewAppointment={() => undefined}
+        onNewPatient={() => undefined}
+        onPatientAction={() => undefined}
+      />,
+    );
+
+    const launcher = screen.getByRole('button', { name: 'Ouvrir les actions rapides' });
+    launcher.focus();
+    fireEvent.click(launcher);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    const dialogButtons = Array.from(dialog.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
+    const first = dialogButtons[0];
+    const last = dialogButtons[dialogButtons.length - 1];
+
+    last.focus();
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(launcher);
   });
 
   it('supports a controlled open state without rendering its legacy floating launcher', () => {

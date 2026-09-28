@@ -48,10 +48,11 @@ describe('NotificationsView G3 interactive matrix', () => {
     expect(await screen.findByText('Paiement en retard')).toBeTruthy();
     expect(api.get).toHaveBeenCalledWith('/mobile/notifications');
 
-    fireEvent.click(screen.getByText('Voir finance'));
-    expect(onNavigate).toHaveBeenCalledWith('finance');
+    const patientActions = screen.getAllByText('Voir patient');
+    fireEvent.click(patientActions[0]);
+    expect(onNavigate).toHaveBeenCalledWith('patients');
 
-    fireEvent.click(screen.getByText('Voir patient'));
+    fireEvent.click(patientActions[1]);
     expect(onNavigate).toHaveBeenCalledWith('patients');
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualiser les notifications' }));

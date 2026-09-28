@@ -33,7 +33,7 @@ try {
     await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
     await page.getByText('Accueil', { exact: true }).click();
     await page.locator('[data-mobile-frontdesk]').waitFor({ state: 'visible' });
-    await page.getByRole('heading', { name: 'Accueil' }).waitFor({ state: 'visible' });
+    await page.locator('[data-mobile-frontdesk]').getByRole('heading', { name: 'Accueil' }).waitFor({ state: 'visible' });
 
     const geometry = await page.evaluate(() => {
       const nav = document.querySelector('[data-mobile-bottom-nav]');

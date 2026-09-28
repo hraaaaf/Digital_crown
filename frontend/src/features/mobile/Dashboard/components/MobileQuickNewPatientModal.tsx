@@ -42,7 +42,7 @@ export function MobileQuickNewPatientModal({
     try {
       const creds = await MobileStorage.getCredentials();
       if (!creds) throw new Error('Session mobile indisponible.');
-      const response = await mobileFetch(`${creds.api_base_url.replace(/\/$/, '')}/api/patients/`, {
+      const response = await mobileFetch(`${creds.api_base_url.replace(/\/$/, '')}/api/mobile/patients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

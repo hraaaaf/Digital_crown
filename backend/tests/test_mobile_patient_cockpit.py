@@ -15,6 +15,7 @@ def _session():
     models.User.__table__.create(engine)
     models.Patient.__table__.create(engine)
     models.Appointment.__table__.create(engine)
+    models.Acte.__table__.create(engine)
     return sessionmaker(bind=engine)()
 
 
@@ -112,6 +113,78 @@ def test_finance_is_returned_only_when_permission_allows_it(monkeypatch):
     }
 
 
+def test_clinical_context_is_permission_gated_and_returns_latest_note(monkeypatch):
+    db = _session()
+    owner = _user(1, 'a@example.test')
+    patient = _patient(101, 1, 'Alpha')
+    patient.motif_consultation = 'Douleur secteur 2'
+    db.add_all([owner, patient])
+    db.flush()
+    db.add_all([
+        models.Acte(
+            patient_id=patient.id,
+            praticien_id=owner.id,
+            type_acte=models.ActeType.SOIN,
+            libelle='Ancien soin',
+            montant=100.0,
+            date_debut=datetime(2026, 9, 1, 9, 0),
+            notes_cliniques='Ancienne note',
+        ),
+        models.Acte(
+            patient_id=patient.id,
+            praticien_id=owner.id,
+            type_acte=models.ActeType.SOIN,
+            libelle='Contrôle 26',
+            montant=0.0,
+            date_debut=datetime(2026, 9, 26, 15, 30),
+            notes_cliniques='Sensibilité au froid, contrôle occlusion.',
+        ),
+        models.Acte(
+            patient_id=patient.id,
+            praticien_id=owner.id,
+            type_acte=models.ActeType.SOIN,
+            libelle='Acte plus récent sans note',
+            montant=0.0,
+            date_debut=datetime(2026, 9, 27, 8, 0),
+            notes_cliniques='',
+        ),
+        models.Acte(
+            patient_id=patient.id,
+            praticien_id=owner.id,
+            type_acte=models.ActeType.SOIN,
+            libelle='Acte futur',
+            montant=0.0,
+            date_debut=datetime(2030, 1, 1, 8, 0),
+            notes_cliniques='Note future à ignorer',
+        ),
+    ])
+    db.commit()
+
+    monkeypatch.setattr(cockpit, 'encrypt_payload', lambda payload: payload)
+
+    def allowed(_user, permission):
+        return permission == 'clinical'
+
+    monkeypatch.setattr(cockpit, 'has_permission', allowed)
+    result = cockpit.get_mobile_patient_cockpit(patient_id=101, db=db, mobile_user=owner)
+
+    assert result['finance'] is None
+    assert result['clinical_context'] == {
+        'motif_consultation': 'Douleur secteur 2',
+        'latest_acte': {
+            'id': 2,
+            'label': 'Contrôle 26',
+            'type': 'SOIN',
+            'date': '2026-09-26T15:30:00',
+            'note': 'Sensibilité au froid, contrôle occlusion.',
+        },
+    }
+
+    monkeypatch.setattr(cockpit, 'has_permission', lambda _user, _permission: False)
+    restricted = cockpit.get_mobile_patient_cockpit(patient_id=101, db=db, mobile_user=owner)
+    assert restricted['clinical_context'] is None
+
+
 def test_quick_action_capabilities_are_server_authoritative(monkeypatch):
     owner = _user(1, 'a@example.test')
     monkeypatch.setattr(cockpit, 'encrypt_payload', lambda payload: payload)
@@ -137,8 +210,8 @@ def test_quick_action_capabilities_are_server_authoritative(monkeypatch):
     assert result == {
         'can_create_appointment': False,
         'can_create_patient': True,
-        'can_open_clinical_context': True,
-        'can_pay': True,
+        'can_open_clinical_context': False,
+        'can_pay': False,
         'can_create_prescription': True,
         'can_create_certificate': True,
         'can_create_devis': True,
@@ -170,7 +243,7 @@ def test_quick_payment_capability_requires_patient_access_too(monkeypatch):
     assert result == {
         'can_create_appointment': True,
         'can_create_patient': False,
-        'can_open_clinical_context': False,
+        'can_open_clinical_context': True,
         'can_pay': False,
         'can_create_prescription': False,
         'can_create_certificate': False,
@@ -276,4 +349,42 @@ def test_patient_context_rejects_session_without_device_binding(monkeypatch):
         )
 
     assert failure.value.status_code == 401
+    assert db.committed is False
+
+
+def test_medical_alert_is_hidden_without_clinical_permission(monkeypatch):
+    db = _session()
+    owner = _user(1, 'a@example.test')
+    patient = _patient(101, 1, 'Alpha')
+    patient.antecedents_medicaux = 'Allergie pénicilline'
+    db.add_all([owner, patient])
+    db.commit()
+
+    monkeypatch.setattr(cockpit, 'encrypt_payload', lambda payload: payload)
+    monkeypatch.setattr(cockpit, 'has_permission', lambda _user, _permission: False)
+    result = cockpit.get_mobile_patient_cockpit(patient_id=101, db=db, mobile_user=owner)
+
+    assert result['patient']['has_medical_alert'] is False
+    assert result['patient']['medical_alert_summary'] is None
+    assert result['clinical_context'] is None
+
+
+def test_patient_context_requires_clinical_permission(monkeypatch):
+    db = _FakeContextDb()
+    _patch_context_dependencies(monkeypatch, {'device_id': 'device-abc'})
+    monkeypatch.setattr(
+        cockpit,
+        'has_permission',
+        lambda _user, permission: permission == 'patients',
+    )
+
+    with pytest.raises(HTTPException) as failure:
+        cockpit.create_mobile_patient_cockpit_context(
+            patient_id=101,
+            body=cockpit.PatientCockpitContextRequest(resource_type='patient'),
+            authorization='test-authorization',
+            db=db,
+        )
+
+    assert failure.value.status_code == 403
     assert db.committed is False

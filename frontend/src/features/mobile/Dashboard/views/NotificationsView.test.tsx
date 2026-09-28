@@ -51,8 +51,8 @@ describe('NotificationsView MOB-5C', () => {
     expect(screen.getByText('Paiement en retard')).toBeTruthy();
     expect(screen.queryByText('Suivi patient')).toBeNull();
 
-    fireEvent.click(screen.getByText('Voir finance'));
-    expect(onNavigate).toHaveBeenCalledWith('finance');
+    fireEvent.click(screen.getByText('Voir patient'));
+    expect(onNavigate).toHaveBeenCalledWith('patients');
   });
 
   it('marks one alert read through the tenant-scoped mobile endpoint', async () => {

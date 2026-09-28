@@ -32,9 +32,12 @@ try {
     await nav.waitFor({ state: 'visible' });
 
     await nav.getByText('Plus', { exact: true }).click();
-    await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
-    await page.getByText('Équipe', { exact: true }).click();
-    await page.getByRole('heading', { name: 'Équipe' }).waitFor({ state: 'visible' });
+    const moreMenu = page.locator('[data-mobile-more-menu]');
+    await moreMenu.waitFor({ state: 'visible' });
+    await moreMenu.getByText('Salle d’attente', { exact: true }).waitFor({ state: 'visible' });
+    if (await moreMenu.getByText('Équipe', { exact: true }).count()) {
+      throw new Error('MOB-5A: retired Équipe entry resurfaced in Pocket Plus');
+    }
 
     const geometry = await page.evaluate(() => {
       const nav = document.querySelector('[data-mobile-bottom-nav]');
@@ -57,7 +60,7 @@ try {
     if (!geometry.fontFamily) throw new Error(`${viewport.width}: runtime font family missing`);
     if (runtimeErrors.length) throw new Error(`${viewport.width}: runtime errors: ${runtimeErrors.join(' | ')}`);
 
-    const screenshot = `after-team-${viewport.width}x${viewport.height}.png`;
+    const screenshot = `after-pocket-plus-${viewport.width}x${viewport.height}.png`;
     await page.screenshot({ path: path.join(outputDir, screenshot) });
     evidence.push({ viewport, ...geometry, runtimeErrors, screenshot });
     await context.close();

@@ -6,7 +6,6 @@ import {
   Camera,
   ChevronRight,
   CircleDollarSign,
-  FilePlus2,
   FileText,
   Image as ImageIcon,
   Loader2,
@@ -15,13 +14,13 @@ import {
   ScanLine,
   Search,
   ShieldCheck,
+  Stethoscope,
   UserRound,
 } from 'lucide-react';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { buildTelHref, buildWhatsAppHref } from '../../Context/mobilePatientContact';
-import { MobileQuickDocumentSheet } from './MobileQuickDocumentSheet';
 
 export interface PatientSearchResult {
   id: number;
@@ -50,6 +49,16 @@ export interface PatientCockpit {
     duration_minutes: number;
     motif: string;
     status: string;
+  } | null;
+  clinical_context?: {
+    motif_consultation?: string | null;
+    latest_acte?: {
+      id: number;
+      label: string;
+      type?: string | null;
+      date?: string | null;
+      note?: string | null;
+    } | null;
   } | null;
   finance?: {
     has_billing_data: boolean;
@@ -129,13 +138,16 @@ async function decryptMobileResponse<T>(response: Response, masterKey: string): 
 export function MobilePatientsView({
   onClose,
   previewData,
+  initialSelectedId,
 }: {
   onClose: () => void;
   previewData?: MobilePatientsPreviewData;
+  initialSelectedId?: number | null;
 }) {
+  const initialPatientId = previewData?.initialSelectedId ?? initialSelectedId ?? null;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PatientSearchResult[]>(previewData?.results ?? []);
-  const [selectedId, setSelectedId] = useState<number | null>(previewData?.initialSelectedId ?? null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialPatientId);
   const [cockpit, setCockpit] = useState<PatientCockpit | null>(
     previewData?.initialSelectedId ? previewData.cockpit : null,
   );
@@ -146,8 +158,12 @@ export function MobilePatientsView({
   const [loadingPatient, setLoadingPatient] = useState(false);
   const [loadingResources, setLoadingResources] = useState(false);
   const [openingContext, setOpeningContext] = useState<string | null>(null);
-  const [quickDocumentOpen, setQuickDocumentOpen] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (previewData || initialSelectedId == null) return;
+    setSelectedId(initialSelectedId);
+  }, [initialSelectedId, previewData]);
 
   useEffect(() => {
     if (selectedId !== null) return;
@@ -200,7 +216,6 @@ export function MobilePatientsView({
   }, [query, selectedId, previewData]);
 
   useEffect(() => {
-    setQuickDocumentOpen(false);
     if (selectedId === null) {
       setCockpit(null);
       setResources({ documents: [], panoramics: [] });
@@ -385,61 +400,99 @@ export function MobilePatientsView({
               </div>
             )}
 
-            <div className="rounded-[24px] border border-glass-border bg-card p-4 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <Camera size={17} className="text-primary" />
-                <h3 className="text-sm font-black text-text-main">Actions cliniques rapides</h3>
-                {loadingResources && <Loader2 size={14} className="ml-auto animate-spin text-primary" />}
-              </div>
-              <button
-                type="button"
-                data-mobile-create-document
-                onClick={() => setQuickDocumentOpen(true)}
-                disabled={Boolean(openingContext)}
-                className="mb-2 w-full min-h-14 rounded-[18px] bg-primary text-primary-foreground flex items-center justify-center gap-2 text-sm font-black active:scale-[0.99] transition-transform disabled:opacity-50"
+            {cockpit.clinical_context && (
+              <div
+                data-mobile-clinical-context
+                className="rounded-[24px] border border-glass-border bg-card p-4 shadow-elite"
+                style={{ backgroundColor: 'var(--glass-bg)' }}
               >
-                <FilePlus2 size={18} /> Créer un document
-              </button>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void openSecureContext('patient')}
-                  disabled={Boolean(openingContext)}
-                  className="min-h-12 rounded-[16px] border border-primary/20 bg-primary/10 text-primary flex items-center justify-center gap-2 text-xs font-black disabled:opacity-50"
-                >
-                  <Camera size={16} /> Photo clinique
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void openSecureContext('patient')}
-                  disabled={Boolean(openingContext)}
-                  className="min-h-12 rounded-[16px] border border-primary/20 bg-primary/10 text-primary flex items-center justify-center gap-2 text-xs font-black disabled:opacity-50"
-                >
-                  <ScanLine size={16} /> Scanner
-                </button>
-                <button
-                  type="button"
-                  onClick={() => latestDocument && void openSecureContext('document', latestDocument.id)}
-                  disabled={!latestDocument || Boolean(openingContext)}
-                  className="min-h-12 rounded-[16px] border border-glass-border bg-background text-text-main flex items-center justify-center gap-2 text-xs font-black disabled:opacity-40"
-                  title={latestDocument?.label}
-                >
-                  <FileText size={16} /> Dernier document
-                </button>
-                <button
-                  type="button"
-                  onClick={() => latestPanoramic && void openSecureContext('panoramic', latestPanoramic.id)}
-                  disabled={!latestPanoramic || Boolean(openingContext)}
-                  className="min-h-12 rounded-[16px] border border-glass-border bg-background text-text-main flex items-center justify-center gap-2 text-xs font-black disabled:opacity-40"
-                  title={latestPanoramic?.label}
-                >
-                  <ImageIcon size={16} /> Dernière pano
-                </button>
+                <div className="flex items-center gap-2">
+                  <Stethoscope size={17} className="text-primary" />
+                  <h3 className="text-sm font-black text-text-main">Contexte clinique</h3>
+                </div>
+                {cockpit.clinical_context.motif_consultation && (
+                  <div className="mt-3">
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-text-muted">Motif de consultation</p>
+                    <p className="mt-1 text-xs font-bold leading-relaxed text-text-main">
+                      {cockpit.clinical_context.motif_consultation}
+                    </p>
+                  </div>
+                )}
+                {cockpit.clinical_context.latest_acte ? (
+                  <div className="mt-3 rounded-[17px] border border-primary/10 bg-primary/5 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Dernier acte</p>
+                        <p className="mt-1 truncate text-sm font-black text-text-main">
+                          {cockpit.clinical_context.latest_acte.label}
+                        </p>
+                      </div>
+                      {cockpit.clinical_context.latest_acte.date && (
+                        <span className="shrink-0 text-[9px] font-bold text-text-muted">
+                          {formatAppointment(cockpit.clinical_context.latest_acte.date)}
+                        </span>
+                      )}
+                    </div>
+                    {cockpit.clinical_context.latest_acte.note && (
+                      <p className="mt-2 line-clamp-4 text-[11px] font-semibold leading-relaxed text-text-muted">
+                        {cockpit.clinical_context.latest_acte.note}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs font-bold text-text-muted">Aucun acte clinique enregistré.</p>
+                )}
               </div>
-              <p className="mt-3 text-[10px] font-bold leading-relaxed text-text-muted">
-                Ouverture via contexte serveur opaque lié à cet appareil. Aucun identifiant patient n’est placé dans l’URL.
-              </p>
-            </div>
+            )}
+
+            {cockpit.clinical_context && (
+              <div className="rounded-[24px] border border-glass-border bg-card p-4 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Camera size={17} className="text-primary" />
+                  <h3 className="text-sm font-black text-text-main">Actions cliniques rapides</h3>
+                  {loadingResources && <Loader2 size={14} className="ml-auto animate-spin text-primary" />}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void openSecureContext('patient')}
+                    disabled={Boolean(openingContext)}
+                    className="min-h-12 rounded-[16px] border border-primary/20 bg-primary/10 text-primary flex items-center justify-center gap-2 text-xs font-black disabled:opacity-50"
+                  >
+                    <Camera size={16} /> Photo clinique
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void openSecureContext('patient')}
+                    disabled={Boolean(openingContext)}
+                    className="min-h-12 rounded-[16px] border border-primary/20 bg-primary/10 text-primary flex items-center justify-center gap-2 text-xs font-black disabled:opacity-50"
+                  >
+                    <ScanLine size={16} /> Scanner
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => latestDocument && void openSecureContext('document', latestDocument.id)}
+                    disabled={!latestDocument || Boolean(openingContext)}
+                    className="min-h-12 rounded-[16px] border border-glass-border bg-background text-text-main flex items-center justify-center gap-2 text-xs font-black disabled:opacity-40"
+                    title={latestDocument?.label}
+                  >
+                    <FileText size={16} /> Dernier document
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => latestPanoramic && void openSecureContext('panoramic', latestPanoramic.id)}
+                    disabled={!latestPanoramic || Boolean(openingContext)}
+                    className="min-h-12 rounded-[16px] border border-glass-border bg-background text-text-main flex items-center justify-center gap-2 text-xs font-black disabled:opacity-40"
+                    title={latestPanoramic?.label}
+                  >
+                    <ImageIcon size={16} /> Dernière pano
+                  </button>
+                </div>
+                <p className="mt-3 text-[10px] font-bold leading-relaxed text-text-muted">
+                  Ouverture via contexte serveur opaque lié à cet appareil. Aucun identifiant patient n’est placé dans l’URL.
+                </p>
+              </div>
+            )}
 
             <div className="rounded-[24px] border border-glass-border bg-card p-4 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)' }}>
               <div className="flex items-center gap-2 mb-3">
@@ -480,13 +533,6 @@ export function MobilePatientsView({
               </div>
             )}
 
-            {quickDocumentOpen && (
-              <MobileQuickDocumentSheet
-                patient={{ id: patient.id, name: patient.name }}
-                preview={Boolean(previewData)}
-                onClose={() => setQuickDocumentOpen(false)}
-              />
-            )}
           </>
         )}
       </section>
@@ -511,6 +557,7 @@ export function MobilePatientsView({
       </div>
 
       <label className="relative block">
+        <span className="sr-only">Rechercher un patient</span>
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
         <input
           autoFocus

@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
-  Navigation,
   QrCode,
   RefreshCw,
   Shield,
@@ -14,18 +13,12 @@ import {
 } from 'lucide-react';
 import { api } from '../../../services/api';
 
-type BridgeDestination = {
-  id: string;
-  label: string;
-};
-
 type BridgeTarget = {
   id: number;
   name: string;
   email: string;
   role: string;
   is_current_user: boolean;
-  destinations: BridgeDestination[];
 };
 
 type BridgeOptions = {
@@ -55,7 +48,6 @@ function formatCountdown(seconds: number): string {
 export const MobileSecurity = () => {
   const [targets, setTargets] = useState<BridgeTarget[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
-  const [selectedDestination, setSelectedDestination] = useState('');
   const [pairing, setPairing] = useState<BridgePairing | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
@@ -78,7 +70,6 @@ export const MobileSecurity = () => {
       setTargets(nextTargets);
       const preferred = nextTargets.find(target => target.is_current_user) ?? nextTargets[0] ?? null;
       setSelectedTargetId(preferred?.id ?? null);
-      setSelectedDestination(preferred?.destinations[0]?.id ?? '');
       if (!preferred) {
         setOptionsError("Aucun utilisateur actif n'est autorisé pour l'expérience mobile.");
       }
@@ -86,7 +77,6 @@ export const MobileSecurity = () => {
       const detail = error?.response?.data?.detail;
       setTargets([]);
       setSelectedTargetId(null);
-      setSelectedDestination('');
       setOptionsError(typeof detail === 'string' ? detail : 'Impossible de charger les utilisateurs mobiles autorisés.');
     } finally {
       setIsLoadingOptions(false);
@@ -115,19 +105,17 @@ export const MobileSecurity = () => {
     const targetId = Number(value);
     const target = targets.find(candidate => candidate.id === targetId) ?? null;
     setSelectedTargetId(target?.id ?? null);
-    setSelectedDestination(target?.destinations[0]?.id ?? '');
     setPairing(null);
     setCountdown(0);
   };
 
   const generateBridge = async () => {
-    if (!selectedTarget || !selectedDestination) return;
+    if (!selectedTarget) return;
     setIsGenerating(true);
     setStatus(null);
     try {
       const response = await api.post<BridgePairing>('/mobile/bridge-pairing', {
         target_user_id: selectedTarget.id,
-        destination: selectedDestination,
       });
       setPairing(response.data);
       setCountdown(response.data.expires_in || 300);
@@ -169,8 +157,8 @@ export const MobileSecurity = () => {
           <Smartphone size={24} />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white font-outfit">Compagnon Mobile</h2>
-          <p className="text-sm text-slate-500">Connectez un téléphone à l’espace mobile de votre choix.</p>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white font-outfit">Digital Crown Pocket</h2>
+          <p className="text-sm text-slate-500">Connectez un téléphone à l’expérience mobile du cabinet.</p>
         </div>
       </div>
 
@@ -183,7 +171,7 @@ export const MobileSecurity = () => {
                 Connexion mobile sécurisée
               </h3>
               <p className="text-sm text-slate-500">
-                Choisissez l’utilisateur et l’espace à ouvrir. Le QR ne contient aucune donnée patient et expire automatiquement.
+                Choisissez l’utilisateur. Pocket s’ouvre automatiquement sur son accueil autorisé par le rôle. Le QR ne contient aucune donnée patient et expire automatiquement.
               </p>
             </div>
 
@@ -209,7 +197,7 @@ export const MobileSecurity = () => {
                     value={selectedTargetId ?? ''}
                     onChange={event => handleTargetChange(event.target.value)}
                     disabled={isLoadingOptions || targets.length === 0}
-                    className="w-full min-h-[52px] rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-4 text-sm font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-400 disabled:opacity-60"
+                    className="w-full min-h-[52px] rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-4 text-sm font-bold text-slate-800 dark:text-white outline-none focus:border-primary disabled:opacity-60"
                   >
                     {targets.map(target => (
                       <option key={target.id} value={target.id}>
@@ -219,31 +207,10 @@ export const MobileSecurity = () => {
                   </select>
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                    <Navigation size={14} /> Ouvrir sur
-                  </span>
-                  <select
-                    aria-label="Destination mobile"
-                    value={selectedDestination}
-                    onChange={event => {
-                      setSelectedDestination(event.target.value);
-                      setPairing(null);
-                      setCountdown(0);
-                    }}
-                    disabled={!selectedTarget || selectedTarget.destinations.length === 0}
-                    className="w-full min-h-[52px] rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-4 text-sm font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-400 disabled:opacity-60"
-                  >
-                    {(selectedTarget?.destinations ?? []).map(destination => (
-                      <option key={destination.id} value={destination.id}>{destination.label}</option>
-                    ))}
-                  </select>
-                </label>
-
                 <button
                   type="button"
                   onClick={() => void generateBridge()}
-                  disabled={isGenerating || isLoadingOptions || !selectedTarget || !selectedDestination}
+                  disabled={isGenerating || isLoadingOptions || !selectedTarget}
                   className="w-full min-h-[52px] rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-black text-sm flex items-center justify-center gap-3 shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]"
                 >
                   {isGenerating ? <RefreshCw size={18} className="animate-spin" /> : <QrCode size={18} />}
@@ -255,7 +222,7 @@ export const MobileSecurity = () => {
             <AnimatePresence mode="wait">
               {pairing && (
                 <motion.div
-                  key={`${pairing.target_user_id}-${pairing.destination}-${pairing.token_code}`}
+                  key={`${pairing.target_user_id}-${pairing.token_code}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
@@ -264,12 +231,12 @@ export const MobileSecurity = () => {
                   <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
                     <img
                       src={pairing.qr_code}
-                      alt="QR de connexion Digital Crown Mobile"
+                      alt="QR de connexion Digital Crown Pocket"
                       className="w-40 h-40 bg-white rounded-2xl p-2 object-contain border border-indigo-100"
                     />
                     <div className="min-w-0 flex-1 text-center sm:text-left">
                       <p className="text-sm font-black text-indigo-950 dark:text-indigo-100 break-words">
-                        {pairing.target_user_name} → {pairing.destination_label}
+                        {pairing.target_user_name} → Digital Crown Pocket
                       </p>
                       <div className="mt-3 font-black text-2xl tracking-[0.22em] text-indigo-600">
                         {pairing.token_code}
@@ -278,7 +245,7 @@ export const MobileSecurity = () => {
                         <Clock3 size={14} /> Valable {formatCountdown(countdown)}
                       </p>
                       <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                        Aucune donnée patient dans le QR. L’accès s’ouvre uniquement vers l’espace choisi.
+                        Aucune donnée patient dans le QR. Pocket ouvre l’accueil autorisé de l’utilisateur connecté.
                       </p>
                     </div>
                   </div>

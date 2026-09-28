@@ -24,9 +24,9 @@ describe('M4-A patient contextual mobile bridge', () => {
     expect(appSource).not.toMatch(/\/mobile\/context\/:/);
   });
 
-  it('adds the bridge to the patient header without replacing the existing actions', () => {
-    expect(patientSource).toContain("import { PatientMobileBridge } from './components/PatientMobileBridge'");
-    expect(patientSource).toContain('<PatientMobileBridge patientId={patient.id} patientName={fullName} />');
+  it('retires the patient desktop bridge without replacing the existing actions', () => {
+    expect(patientSource).not.toContain("import { PatientMobileBridge } from './components/PatientMobileBridge'");
+    expect(patientSource).not.toContain('<PatientMobileBridge');
     expect(patientSource).toContain('label="RDV"');
     expect(patientSource).toContain('label="Document"');
   });

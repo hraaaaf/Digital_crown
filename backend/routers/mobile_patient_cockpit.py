@@ -9,7 +9,7 @@ import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import insert, or_
+from sqlalchemy import func, insert, or_
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -83,13 +83,13 @@ def get_mobile_quick_action_capabilities(
 ):
     has_patients = has_permission(mobile_user, 'patients')
     has_accounting = has_permission(mobile_user, 'accounting')
+    has_clinical = has_permission(mobile_user, 'clinical')
     return encrypt_payload({
         'can_create_appointment': has_permission(mobile_user, 'agenda'),
         'can_create_patient': has_patients,
-        'can_open_clinical_context': has_patients,
-        # Preserve the historical Quick Payment contract exactly: patient scope plus
-        # the canonical combined accounting/payments permission check.
-        'can_pay': has_patients and has_permission(mobile_user, ['accounting', 'payments']),
+        'can_open_clinical_context': has_clinical,
+        # Pocket V1 financial information is read-only; payment writes are never a capability.
+        'can_pay': False,
         # MOB-5F mirrors DOCUMENT_TYPE_PERMISSIONS from /api/documents/generate.
         'can_create_prescription': has_permission(mobile_user, 'prescriptions'),
         'can_create_certificate': has_patients,
@@ -106,6 +106,7 @@ def search_mobile_patient_cockpit(
     mobile_user: models.User = Depends(require_mobile_permission('patients')),
 ):
     employer_id = mobile_user.get_employer_id()
+    can_view_clinical = has_permission(mobile_user, 'clinical')
     query = db.query(models.Patient).filter(
         models.Patient.employer_id == employer_id,
         models.Patient.deleted_at.is_(None),
@@ -129,7 +130,7 @@ def search_mobile_patient_cockpit(
                 'name': _patient_name(patient),
                 'phone': patient.telephone,
                 'numero_dossier': patient.numero_dossier,
-                'has_medical_alert': _has_medical_alert(patient),
+                'has_medical_alert': _has_medical_alert(patient) if can_view_clinical else False,
             }
             for patient in patients
         ]
@@ -144,6 +145,8 @@ def get_mobile_patient_cockpit_resources(
 ):
     employer_id = mobile_user.get_employer_id()
     _patient_or_404(db, employer_id, patient_id)
+    if not has_permission(mobile_user, 'clinical'):
+        return encrypt_payload({'documents': [], 'panoramics': []})
 
     documents = []
     candidates = db.query(models.DocumentArchive).filter(
@@ -192,6 +195,8 @@ def create_mobile_patient_cockpit_context(
     mobile_user, tenant_id, mobile_payload = _legacy._decode_mobile_identity(authorization, db)
     if not has_permission(mobile_user, 'patients'):
         raise HTTPException(status_code=403, detail="Accès patient mobile refusé.")
+    if not has_permission(mobile_user, 'clinical'):
+        raise HTTPException(status_code=403, detail="Accès clinique mobile refusé.")
     _patient_or_404(db, tenant_id, patient_id)
 
     resource_type = body.resource_type.strip().lower()
@@ -283,7 +288,32 @@ def get_mobile_patient_cockpit(
             'overdue_count': snapshot['overdue_count'],
         }
 
-    medical_summary = (patient.antecedents_medicaux or '').strip() or None
+    can_view_clinical = has_permission(mobile_user, 'clinical')
+    clinical_context = None
+    if can_view_clinical:
+        latest_acte = (
+            db.query(models.Acte)
+            .filter(
+                models.Acte.patient_id == patient.id,
+                models.Acte.date_debut <= datetime.now(),
+                models.Acte.notes_cliniques.isnot(None),
+                func.trim(models.Acte.notes_cliniques) != '',
+            )
+            .order_by(models.Acte.date_debut.desc(), models.Acte.id.desc())
+            .first()
+        )
+        clinical_context = {
+            'motif_consultation': (patient.motif_consultation or '').strip() or None,
+            'latest_acte': None if latest_acte is None else {
+                'id': latest_acte.id,
+                'label': latest_acte.libelle,
+                'type': getattr(latest_acte.type_acte, 'value', latest_acte.type_acte),
+                'date': latest_acte.date_debut.isoformat() if latest_acte.date_debut else None,
+                'note': (latest_acte.notes_cliniques or '').strip() or None,
+            },
+        }
+
+    medical_summary = ((patient.antecedents_medicaux or '').strip() or None) if can_view_clinical else None
     return encrypt_payload({
         'patient': {
             'id': patient.id,
@@ -304,5 +334,6 @@ def get_mobile_patient_cockpit(
             'motif': next_appointment.motif or 'Consultation',
             'status': getattr(next_appointment.status, 'value', next_appointment.status),
         },
+        'clinical_context': clinical_context,
         'finance': finance,
     })
