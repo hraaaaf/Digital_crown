@@ -1,9 +1,9 @@
 from fastapi import Depends, HTTPException, Request
 from jose import JWTError, jwt
 
-from backend import models
+from backend import database, models
 from backend.config import settings
-from backend.routers.auth import require_superadmin
+from backend.routers.auth import get_current_user, is_superadmin_user
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -83,7 +83,37 @@ def _enforce_marketplace_control_plane_request(request: Request) -> None:
 
 def require_marketplace_superadmin(
     request: Request,
-    current_user: models.User = Depends(require_superadmin),
+    db = Depends(database.get_db),
 ) -> models.User:
+    """Authenticate desktop SuperAdmin or a device-bound short-lived Pocket UV session.
+
+    This dependency deliberately does not broaden get_current_user: ordinary
+    Pocket JWTs remain invalid as generic desktop/API sessions. Only this
+    Marketplace control-plane boundary may accept a cryptographically validated
+    mobile identity, and the request policy below still requires biometric UV.
+    """
+    authorization = str(request.headers.get("authorization") or "").strip()
+    claims = _explicit_bearer_claims(request)
+
+    if claims.get("type") == "mobile":
+        from backend.routers import mobile_legacy
+
+        user, _tenant_id, verified_claims = mobile_legacy._decode_mobile_identity(authorization, db)
+        if not is_superadmin_user(user):
+            raise _deny("MARKETPLACE_SUPERADMIN_REQUIRED", "Accès SuperAdmin requis.")
+        if verified_claims.get("biometric_uv") is not True:
+            raise _deny(
+                "MARKETPLACE_SUPERADMIN_BIOMETRIC_REQUIRED",
+                "Le control-plane Marketplace requiert une vérification biométrique récente sur mobile.",
+            )
+        return user
+
+    token_header = None
+    if authorization.lower().startswith("bearer "):
+        token_header = authorization.split(" ", 1)[1].strip() or None
+    current_user = get_current_user(request=request, token_header=token_header, db=db)
+    if not is_superadmin_user(current_user):
+        raise _deny("MARKETPLACE_SUPERADMIN_REQUIRED", "Accès SuperAdmin requis.")
+
     _enforce_marketplace_control_plane_request(request)
     return current_user
