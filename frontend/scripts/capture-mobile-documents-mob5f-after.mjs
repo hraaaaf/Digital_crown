@@ -43,6 +43,7 @@ for (const viewport of viewports) {
   const clinicalContextVisible = await page.getByText('Contexte clinique', { exact: true }).isVisible();
   const photoVisible = await page.getByRole('button', { name: /Photo clinique/i }).isVisible();
   const scanVisible = await page.getByRole('button', { name: /^Scanner$/i }).isVisible();
+  const financialContextVisible = await page.getByText('Situation financière', { exact: true }).isVisible();
   const devisVisible = await page.getByRole('button', { name: /^Devis$/i }).isVisible();
   const honorairesVisible = await page.getByRole('button', { name: /^Honoraires$/i }).isVisible();
 
@@ -60,9 +61,10 @@ for (const viewport of viewports) {
 
   const valid = Boolean(response?.ok())
     && !createDocumentVisible
-    && clinicalContextVisible
-    && photoVisible
-    && scanVisible
+    && !clinicalContextVisible
+    && !photoVisible
+    && !scanVisible
+    && financialContextVisible
     && !devisVisible
     && !honorairesVisible
     && !horizontalOverflow
@@ -78,6 +80,7 @@ for (const viewport of viewports) {
     clinicalContextVisible,
     photoVisible,
     scanVisible,
+    financialContextVisible,
     devisVisible,
     honorairesVisible,
     horizontalOverflow,
