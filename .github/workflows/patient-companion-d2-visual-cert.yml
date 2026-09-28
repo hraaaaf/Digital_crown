@@ -92,7 +92,7 @@ jobs:
             python - <<'PY'
           import os
           from backend.core.runtime_safety import database_target_fingerprint
-          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(os.environ["DATABASE_URL"]))
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint("sqlite:///./t2-runtime-cert.db"))
           PY
           ) >> "$GITHUB_ENV"
 
