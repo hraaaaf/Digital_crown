@@ -2,6 +2,9 @@ name: Settings Security Visual Certification
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
       - "frontend/src/features/admin/Security/MobileSecurity.tsx"

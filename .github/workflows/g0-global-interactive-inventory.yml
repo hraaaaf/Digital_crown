@@ -2,6 +2,9 @@ name: G0 Global Interactive Inventory
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - scripts/inventory_interactive_controls.py

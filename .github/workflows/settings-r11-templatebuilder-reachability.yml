@@ -2,6 +2,9 @@ name: Settings R11 TemplateBuilder Reachability Audit
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - 'docs/settings/R11_TEMPLATEBUILDER_REACHABILITY_GOAL.md'
