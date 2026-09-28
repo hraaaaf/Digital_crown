@@ -130,7 +130,7 @@ export function MobileBottomNav({
                 type="button"
                 aria-label="Fermer Plus"
                 onClick={() => setMoreOpen(false)}
-                className="grid h-10 w-10 place-items-center rounded-full border border-glass-border bg-background text-text-muted"
+                className="grid h-11 w-11 place-items-center rounded-full border border-glass-border bg-background text-text-muted"
               >
                 <X size={18} />
               </button>
