@@ -75,17 +75,29 @@ jobs:
           fi
 
           tests=()
+          workflow_only=true
           for file in "${changed[@]}"; do
             case "$file" in
               frontend/src/*.test.ts|frontend/src/*.test.tsx|frontend/src/**/*.test.ts|frontend/src/**/*.test.tsx|frontend/src/*.spec.ts|frontend/src/*.spec.tsx|frontend/src/**/*.spec.ts|frontend/src/**/*.spec.tsx)
                 tests+=("${file#frontend/}")
+                workflow_only=false
+                ;;
+              .github/workflows/ci.yml)
                 ;;
               *)
-                echo "Full CI: non-test file changed: $file"
+                echo "Full CI: non-test/runtime-or-config file changed: $file"
                 exit 0
                 ;;
             esac
           done
+
+          # A change to this CI workflow alone must not recursively certify the
+          # whole product. GitHub parsing + classifier execution is the proof.
+          if [[ "$workflow_only" == "true" ]]; then
+            echo "test_only=true" >> "$GITHUB_OUTPUT"
+            echo "Fast CI: ci.yml-only delta; product shards/build are unnecessary."
+            exit 0
+          fi
 
           printf 'changed_tests=%s\n' "$(IFS=,; echo "${tests[*]}")" >> "$GITHUB_OUTPUT"
           echo "test_only=true" >> "$GITHUB_OUTPUT"
@@ -158,8 +170,11 @@ jobs:
           CHANGED_TESTS: ${{ needs.classify-change.outputs.changed_tests }}
         run: |
           set -euo pipefail
+          if [[ -z "$CHANGED_TESTS" ]]; then
+            echo "No product test changed; CI workflow-only fast-path."
+            exit 0
+          fi
           IFS=',' read -ra files <<< "$CHANGED_TESTS"
-          test "${#files[@]}" -gt 0
           for file in "${files[@]}"; do
             echo "::group::vitest $file"
             npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
