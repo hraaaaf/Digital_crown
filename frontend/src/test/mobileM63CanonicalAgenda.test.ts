@@ -13,11 +13,11 @@ const agendaSource = readFileSync(
 );
 
 describe('Mobile M6.3 canonical patient and agenda contract', () => {
-  it('uses canonical patient and appointment creation routes with patient identity fields', () => {
-    expect(modalSource).toContain('/api/patients/');
-    expect(modalSource).toContain('/api/appointments/');
-    expect(modalSource).not.toContain('/api/mobile/patients');
-    expect(modalSource).not.toContain('/api/mobile/appointments');
+  it('keeps patient and appointment creation inside the paired-device mobile boundary', () => {
+    expect(modalSource).toContain('/api/mobile/patients');
+    expect(modalSource).toContain('/api/mobile/appointments');
+    expect(modalSource).not.toContain('${creds.api_base_url}/api/patients/');
+    expect(modalSource).not.toContain('${creds.api_base_url}/api/appointments/');
     expect(modalSource).toContain('patient_id');
     expect(modalSource).toContain('date_naissance');
     expect(modalSource).toContain("sexe: '' as '' | 'F' | 'M'");
