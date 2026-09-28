@@ -108,3 +108,5 @@ jobs:
           path: artifacts/mobile-waiting-room-mob5i-after
           if-no-files-found: error
           retention-days: 30
+
+# recertification-trigger: pocket-consolidated-2026-09-28
