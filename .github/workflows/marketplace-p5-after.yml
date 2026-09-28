@@ -2,9 +2,6 @@ name: Marketplace Final Certification
 
 on:
   pull_request:
-    paths-ignore:
-      - 'frontend/src/features/mobile/**'
-      - '.github/workflows/ci.yml'
     paths:
       - "backend/**/*marketplace*"
       - "backend/**/*partner*"
