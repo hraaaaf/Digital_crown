@@ -2,9 +2,6 @@ name: Document History Actions Visual Certification
 
 on:
   pull_request:
-    paths-ignore:
-      - 'frontend/src/features/mobile/**'
-      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - 'frontend/src/features/patients/PatientDocuments.tsx'
