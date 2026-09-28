@@ -7,9 +7,6 @@ on:
       - 'frontend/src/features/patients/PatientDocuments.tsx'
       - '.github/workflows/document-history-actions-after-cert.yml'
   pull_request:
-    paths-ignore:
-      - 'frontend/src/features/mobile/**'
-      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - 'frontend/src/features/patients/PatientDocuments.tsx'
