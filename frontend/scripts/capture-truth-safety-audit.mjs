@@ -73,74 +73,47 @@ try {
       if (scenario==='license-expired') {
         await page.getByRole('heading',{name:'Licence Expirée'}).waitFor({state:'visible',timeout:15000});
         const body=await page.locator('body').innerText();
-        if (phase==='before' && !body.includes('licence Elite a expiré')) throw new Error('BEFORE licence copy no longer exposes baseline defect');
-        if (phase==='after' && (body.includes('licence Elite a expiré') || !body.includes('Votre licence a expiré'))) throw new Error('AFTER licence copy is not plan-neutral');
+        if (body.includes('licence Elite a expiré') || !body.includes('Votre licence a expiré')) throw new Error(`${phase.toUpperCase()} licence copy is not plan-neutral`);
       }
 
       if (scenario==='stock-read-error') {
-        if (phase==='before') {
-          await page.getByText('Aucun article. Commencez par en ajouter un.').waitFor({state:'visible',timeout:15000});
-        } else {
-          await page.getByRole('heading',{name:'Stock indisponible'}).waitFor({state:'visible',timeout:15000});
-          const body=await page.locator('body').innerText();
-          if (body.includes('Aucun article. Commencez par en ajouter un.')) throw new Error('False empty stock still visible after read failure');
-        }
+        await page.getByRole('heading',{name:'Stock indisponible'}).waitFor({state:'visible',timeout:15000});
+        const body=await page.locator('body').innerText();
+        if (body.includes('Aucun article. Commencez par en ajouter un.')) throw new Error(`${phase.toUpperCase()} false empty stock visible after read failure`);
       }
 
       if (scenario==='stock-delete-confirm') {
         await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:15000});
         await page.getByTitle('Supprimer').click();
-        if (phase==='before') {
-          for(let i=0;i<30 && deletes.length<1;i+=1) await page.waitForTimeout(50);
-          if (await page.getByRole('dialog',{name:'Supprimer cet article ?'}).count()) throw new Error('Unexpected delete dialog in BEFORE');
-          if (deletes.length!==1) throw new Error(`BEFORE expected immediate DELETE dispatch, got ${deletes.length}`);
-        } else {
-          await page.getByRole('dialog',{name:'Supprimer cet article ?'}).waitFor({state:'visible',timeout:5000});
-          if (deletes.length!==0) throw new Error('AFTER dispatched DELETE before explicit confirmation');
-        }
+        await page.getByRole('dialog',{name:'Supprimer cet article ?'}).waitFor({state:'visible',timeout:5000});
+        if (deletes.length!==0) throw new Error(`${phase.toUpperCase()} dispatched DELETE before explicit confirmation`);
       }
 
       if (scenario==='stock-quantity-refusal') {
         const row=page.getByText('Gants nitrile',{exact:true}).locator('xpath=ancestor::tr');
         await row.waitFor({state:'visible',timeout:15000});
         await row.locator('button').nth(1).click();
-        if (phase==='before') {
-          await page.waitForTimeout(150);
-          if (await page.getByText('Action stock non enregistrée',{exact:true}).count()) throw new Error('Unexpected quantity refusal UI in BEFORE');
-        } else {
-          await page.getByText('Action stock non enregistrée',{exact:true}).waitFor({state:'visible',timeout:5000});
-          await page.getByText('Quantité refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
-        }
+        await page.getByText('Action stock non enregistrée',{exact:true}).waitFor({state:'visible',timeout:5000});
+        await page.getByText('Quantité refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
       }
 
       if (scenario==='stock-add-refusal') {
         await page.getByRole('button',{name:/Ajouter un article/i}).click();
         await page.getByPlaceholder('Ex: Gants nitrile S').fill('Masques FFP2');
         await page.getByRole('button',{name:'Ajouter',exact:true}).click();
-        if (phase==='before') {
-          await page.waitForTimeout(150);
-          if (await page.getByText('Article refusé',{exact:true}).count()) throw new Error('Unexpected add refusal UI in BEFORE');
-        } else {
-          await page.getByText('Article refusé',{exact:true}).waitFor({state:'visible',timeout:5000});
-          await page.getByText('Nouvel article',{exact:true}).waitFor({state:'visible',timeout:5000});
-        }
+        await page.getByText('Article refusé',{exact:true}).waitFor({state:'visible',timeout:5000});
+        await page.getByText('Nouvel article',{exact:true}).waitFor({state:'visible',timeout:5000});
       }
 
       if (scenario==='stock-delete-refusal') {
         await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible',timeout:15000});
         await page.getByTitle('Supprimer').click();
-        if (phase==='before') {
-          for(let i=0;i<30 && deletes.length<1;i+=1) await page.waitForTimeout(50);
-          if (await page.getByRole('dialog',{name:'Supprimer cet article ?'}).count()) throw new Error('Unexpected refusal dialog in BEFORE');
-          if (deletes.length!==1) throw new Error(`BEFORE expected immediate refused DELETE, got ${deletes.length}`);
-        } else {
-          const dialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
-          await dialog.waitFor({state:'visible',timeout:5000});
-          await page.getByRole('button',{name:'Supprimer définitivement'}).click();
-          await dialog.getByText('Suppression refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
-          await dialog.waitFor({state:'visible',timeout:5000});
-          if (deletes.length!==1) throw new Error(`AFTER expected exactly one confirmed DELETE, got ${deletes.length}`);
-        }
+        const dialog=page.getByRole('dialog',{name:'Supprimer cet article ?'});
+        await dialog.waitFor({state:'visible',timeout:5000});
+        await page.getByRole('button',{name:'Supprimer définitivement'}).click();
+        await dialog.getByText('Suppression refusée',{exact:true}).waitFor({state:'visible',timeout:5000});
+        await dialog.waitFor({state:'visible',timeout:5000});
+        if (deletes.length!==1) throw new Error(`${phase.toUpperCase()} expected exactly one confirmed DELETE, got ${deletes.length}`);
       }
 
       const layout=await page.evaluate(()=>({
@@ -148,7 +121,7 @@ try {
         scrollWidth:document.documentElement.scrollWidth,
       }));
       const horizontalOverflow = layout.scrollWidth > layout.clientWidth;
-      if(phase === 'after' && horizontalOverflow) {
+      if(horizontalOverflow) {
         throw new Error(`${scenario} horizontal overflow ${layout.scrollWidth}>${layout.clientWidth} at ${width}`);
       }
 
@@ -158,10 +131,10 @@ try {
           'stock-quantity-refusal',
           'stock-add-refusal',
           'stock-delete-refusal',
-        ].includes(scenario) || (phase === 'before' && scenario === 'stock-delete-confirm');
+        ].includes(scenario);
         const unexpected = runtimeErrors.filter(error => {
           if (error.startsWith('pageerror:')) {
-            return !(phase === 'before' && expectedFailureScenario && error.includes('503'));
+            return !(expectedFailureScenario && error.includes('503'));
           }
           if (expectedFailureScenario && error.startsWith('console:')) return false;
           return !error.includes('503');

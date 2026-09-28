@@ -114,7 +114,9 @@ describe('CrownBot G9 reachable interaction truth', () => {
       expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
     });
     expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/501/read');
-    expect(onUnreadChange).toHaveBeenLastCalledWith(0);
+    await waitFor(() => {
+      expect(onUnreadChange).toHaveBeenLastCalledWith(0);
+    });
   });
 
   it('proves the conversation send/action branch is not reachable from the current Chat tab', async () => {
