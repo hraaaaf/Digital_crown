@@ -43,13 +43,11 @@ describe('Mobile M6.2 offline truth', () => {
     expect(hook).not.toContain("toast('Déplacement mis en attente (hors ligne)'");
   });
 
-  it('does not mark a lab job SENT from a finally block', () => {
+  it('keeps retired lab job mutation behavior out of Pocket runtime', () => {
     const hook = read('src/features/mobile/Dashboard/hooks/useMobileDashboard.ts');
-    const start = hook.indexOf('const handleWhatsAppSend');
-    const end = hook.indexOf('const fetchSignatureDocs', start);
-    const block = hook.slice(start, end);
-    expect(block).toContain('await patchLabJobStatus');
-    expect(block).not.toContain('finally');
+    expect(hook).not.toContain('handleWhatsAppSend');
+    expect(hook).not.toContain('patchLabJobStatus');
+    expect(hook).not.toContain('lab_job');
   });
 
   it('routes mobile 401 refresh through the paired-device endpoint', () => {
