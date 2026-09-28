@@ -108,10 +108,10 @@ jobs:
             const errors = [];
             page.on('pageerror', e => errors.push(String(e)));
             page.on('console', m => {
-  if (m.type() !== 'error') return;
-  const text = m.text();
-  if (text.includes('Outdated Optimize Dep')) return;
-  errors.push(text);
+          if (m.type() !== 'error') return;
+          const text = m.text();
+          if (text.includes('Outdated Optimize Dep')) return;
+          errors.push(text);
           });
 
             await page.route('**/api/**', route => {
