@@ -2,6 +2,9 @@ name: V1-07 Commercial Pack Button Matrix
 
 on:
   pull_request:
+    paths-ignore:
+      - 'frontend/src/features/mobile/**'
+      - '.github/workflows/ci.yml'
     branches: [master]
     paths:
       - .github/workflows/v1-07-commercial-pack-button-matrix.yml
