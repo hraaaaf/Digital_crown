@@ -1,9 +1,6 @@
 name: V1-07 G3 Browser Action Certification
 on:
   pull_request:
-    paths-ignore:
-      - 'frontend/src/features/mobile/**'
-      - '.github/workflows/ci.yml'
     paths:
       - "frontend/src/features/agenda/**"
       - "frontend/src/features/mobile/Dashboard/views/AgendaView.tsx"
