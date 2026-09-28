@@ -79,7 +79,7 @@ jobs:
         run: |
           python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
           (
-            cd backend
+            cd after/backend
             python - <<'PY'
           import os
           from core.runtime_safety import database_target_fingerprint

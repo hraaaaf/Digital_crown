@@ -38,7 +38,7 @@ try {
       if (await page.getByText('Stock', { exact: true }).count()) throw new Error(`${viewport.width}: Stock already present in BEFORE`);
     } else {
       await page.locator('[data-mobile-stock]').waitFor({ state: 'visible' });
-      await page.getByRole('heading', { name: 'Stock' }).waitFor({ state: 'visible' });
+      await page.locator('[data-mobile-stock]').getByRole('heading', { name: 'Stock' }).waitFor({ state: 'visible' });
       await page.getByText('Gants nitrile M', { exact: true }).waitFor({ state: 'visible' });
       await page.getByText('Composite universel', { exact: true }).waitFor({ state: 'visible' });
     }
