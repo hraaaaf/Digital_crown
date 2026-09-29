@@ -160,6 +160,8 @@ jobs:
     name: Emit attested CODE_CERTIFIED universal artifact
     needs: [preflight, backend, postgres18, frontend]
     runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - uses: actions/checkout@v4
         with:
