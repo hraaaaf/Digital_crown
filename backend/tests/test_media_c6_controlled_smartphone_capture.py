@@ -40,7 +40,14 @@ class _DB:
 
 
 def _valid_mobile_context(monkeypatch):
-    user = SimpleNamespace(id=7, get_employer_id=lambda: 41)
+    user = SimpleNamespace(
+        id=7,
+        email='dentiste-mobile@test.local',
+        role='DENTISTE',
+        employer_id=None,
+        permissions={'clinical': True},
+        get_employer_id=lambda: 41,
+    )
     context = {"resource_type": "patient", "resource_id": 19, "device_id": "device-abc"}
     patient = SimpleNamespace(id=19)
     monkeypatch.setattr(bridge, "_validated_mobile_context", lambda *_: (user, context))

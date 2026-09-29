@@ -193,10 +193,10 @@ def test_cabinet_revocation_invalidates_device_and_refresh(client, db, dentiste)
     assert device.revoked_at is not None
 
 
-def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
+def test_mobile_identity_stays_valid_on_scoped_mobile_api(client, db, dentiste):
     secretary = _user(
         db,
-        email='license-inherited-mobile@cabinet.ma',
+        email='scoped-mobile-identity@cabinet.ma',
         role=models.UserRole.SECRETAIRE,
         employer_id=dentiste.id,
         permissions={'agenda': True, 'patients': True},
@@ -205,18 +205,12 @@ def test_mobile_mutation_uses_numeric_subject_as_user_id(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, secretary)).json()
     headers = {'Authorization': f"Bearer {body['access_token']}"}
 
-    # Canonical shared mutation: a licensed cabinet must pass the license middleware.
-    # The deliberately incomplete payload then fails at FastAPI validation (422),
-    # proving the numeric mobile subject was resolved instead of treated as an email.
-    response = client.post('/api/appointments/', json={}, headers=headers)
-    assert response.status_code == 422, response.text
+    response = client.get('/api/mobile/snapshot', headers=headers)
+    assert response.status_code == 200, response.text
 
-    dentiste.is_licensed = False
-    db.commit()
-    backend_main._license_cache.clear()
-    denied = client.post('/api/appointments/', json={}, headers=headers)
-    assert denied.status_code == 403
-    assert denied.json()['detail'] == 'NOT_LICENSED'
+    # The same paired JWT must never cross into the generic desktop/API session.
+    denied = client.get('/api/auth/me', headers=headers)
+    assert denied.status_code == 401
 
 
 def test_permissions_policy_allows_same_origin_camera_only(client):
@@ -227,14 +221,13 @@ def test_permissions_policy_allows_same_origin_camera_only(client):
     assert 'geolocation=()' in policy
 
 
-def test_shared_auth_me_accepts_valid_device_bound_mobile_token(client, db, dentiste):
+def test_shared_auth_me_rejects_valid_device_bound_mobile_token(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
     response = client.get('/api/auth/me', headers={'Authorization': f"Bearer {body['access_token']}"})
-    assert response.status_code == 200, response.text
-    assert response.json()['id'] == dentiste.id
+    assert response.status_code == 401, response.text
 
 
-def test_shared_auth_me_rejects_revoked_mobile_header_even_with_valid_web_cookie(client, db, dentiste):
+def test_shared_auth_me_prefers_valid_web_cookie_over_mobile_header(client, db, dentiste):
     body = _claim(client, _pairing(db, dentiste, dentiste)).json()
     device = db.query(models.MobilePairedDevice).filter(models.MobilePairedDevice.device_id == body['device_id']).one()
     device.revoked_at = datetime.utcnow()
@@ -242,7 +235,8 @@ def test_shared_auth_me_rejects_revoked_mobile_header_even_with_valid_web_cookie
     client.cookies.set('access_token', create_access_token(data={'sub': dentiste.email}))
     response = client.get('/api/auth/me', headers={'Authorization': f"Bearer {body['access_token']}"})
     client.cookies.clear()
-    assert response.status_code == 401, response.text
+    assert response.status_code == 200, response.text
+    assert response.json()['id'] == dentiste.id
 
 
 def test_shared_auth_me_rejects_mobile_tenant_mismatch(client, db, dentiste):

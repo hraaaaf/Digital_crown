@@ -1,5 +1,6 @@
 """Tests routers/mobile.py — ping, auth guard, canonical handoff, and mobile JWT operations."""
 import uuid
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
@@ -9,6 +10,21 @@ from jose import jwt
 from backend import models
 from backend.routers.mobile import _create_mobile_jwt
 from backend.security import SECRET_KEY, ALGORITHM, get_password_hash
+from backend.utils import rate_limit
+
+
+@pytest.fixture(autouse=True)
+def _reset_pairing_rate_limit():
+    path = Path(rate_limit._store_path())
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
+        path.unlink(missing_ok=True)
+    yield
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
+        path.unlink(missing_ok=True)
 
 
 def _make_mobile_jwt(db, user) -> str:
@@ -145,20 +161,15 @@ class TestMobileAppointments:
         assert r.status_code == 200
         assert isinstance(r.json(), dict)
 
-    def test_legacy_create_appointment_fails_closed(self, client, db, dentiste):
+    def test_mobile_create_appointment_rejects_incomplete_contract(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
         before = db.query(models.Appointment).count()
         r = client.post(
             "/api/mobile/appointments",
-            json={
-                "patient_name": "Legacy Mobile",
-                "datetime_start": "2026-09-07T10:00:00",
-                "duration_minutes": 30,
-                "motif": "Contrôle",
-            },
+            json={},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert r.status_code == 410
+        assert r.status_code == 422
         assert db.query(models.Appointment).count() == before
 
     def test_canonical_create_appointment_accepts_mobile_token(self, client, db, dentiste):
@@ -177,7 +188,7 @@ class TestMobileAppointments:
         token = _make_mobile_jwt(db, dentiste)
         with patch("backend.routers.appointments.validate_appointment_availability", return_value=None):
             r = client.post(
-                "/api/appointments/",
+                "/api/mobile/appointments",
                 json={
                     "patient_id": pat.id,
                     "patient_name": "Test MOBILEPAT",
@@ -188,10 +199,15 @@ class TestMobileAppointments:
                 },
                 headers={"Authorization": f"Bearer {token}"},
             )
-        assert r.status_code == 200
-        assert r.json()["patient_id"] == pat.id
+        assert r.status_code == 200, r.text
+        created = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == pat.id,
+            models.Appointment.employer_id == dentiste.id,
+        ).order_by(models.Appointment.id.desc()).first()
+        assert created is not None
+        assert created.patient_id == pat.id
 
-    def test_legacy_quick_appointment_without_patient_id_fails_closed(self, client, db, dentiste):
+    def test_mobile_external_appointment_without_patient_id_is_supported(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
         before = db.query(models.Appointment).count()
         r = client.post(
@@ -205,8 +221,8 @@ class TestMobileAppointments:
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert r.status_code == 410
-        assert db.query(models.Appointment).count() == before
+        assert r.status_code == 200, r.text
+        assert db.query(models.Appointment).count() == before + 1
 
     def test_delete_nonexistent_appointment_is_idempotent(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
@@ -230,21 +246,21 @@ class TestMobilePatients:
         assert r.status_code == 200
         assert isinstance(r.json(), (dict, list))
 
-    def test_legacy_create_patient_fails_closed(self, client, db, dentiste):
+    def test_mobile_create_patient_requires_canonical_fields(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
         before = db.query(models.Patient).count()
         r = client.post(
             "/api/mobile/patients",
-            json={"nom": "LEGACY", "prenom": "Patient", "telephone": "0600000000", "sexe": "M"},
+            json={"nom": "INCOMPLET", "prenom": "Patient", "telephone": "0600000000", "sexe": "M"},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert r.status_code == 410
+        assert r.status_code == 422
         assert db.query(models.Patient).count() == before
 
     def test_canonical_create_patient_accepts_mobile_token(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
         r = client.post(
-            "/api/patients/",
+            "/api/mobile/patients",
             json={
                 "nom": "CANONICAL",
                 "prenom": "Mobile",
@@ -254,6 +270,11 @@ class TestMobilePatients:
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert r.status_code == 200
-        assert r.json()["sexe"] == "F"
-        assert r.json()["nom"] == "CANONICAL"
+        assert r.status_code == 200, r.text
+        created = db.query(models.Patient).filter(
+            models.Patient.nom == "CANONICAL",
+            models.Patient.employer_id == dentiste.id,
+        ).order_by(models.Patient.id.desc()).first()
+        assert created is not None
+        assert created.sexe == "F"
+        assert created.nom == "CANONICAL"
