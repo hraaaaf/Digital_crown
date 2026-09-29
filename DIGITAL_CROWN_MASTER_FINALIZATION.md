@@ -7,7 +7,7 @@
 > V1-07 est en closeout canonique ; V1-08 (freeze exact candidate) vient ensuite. `INSTALLABLE_CERTIFIED` et `V1_OPERATIONAL` ne sont pas encore atteints.
 
 
-**FICHIER CANONIQUE DE PILOTAGE GLOBAL — HORS CÉPHALOMÉTRIE**
+**ANCIEN FICHIER DE PILOTAGE GLOBAL — CONTEXTE HISTORIQUE**
 
 Baseline de création : `master@dca24d01ca5591d4255f3ac85f79a32ab6d673c1`.
 
