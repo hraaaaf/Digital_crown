@@ -427,39 +427,40 @@ V1-06 Success criterion is satisfied. V1-07 is unlocked.
 
 ### LOT V1-07 — Master stabilization
 
-Status: **READY FOR MERGE — EXACT-HEAD CERTIFIED / POST-MERGE PENDING**
+Status: **CLOSED — MERGED / POST-MERGE MASTER CERTIFIED**
 
 Goal: establish a stable pre-candidate master.
 
-Success: required global CI/regressions green; migrations coherent; no known unresolved mandatory V1 blocker; canonical docs coherent; open PR inventory reconciled.
+Final result — 29 September 2026:
+- canonical stabilization PR `#692` merged as `da02ca02c91fb55a8cd1dfa5f7e92c8a45c1c819`;
+- bounded V7.1 Odontogramme / Devis / Honoraires work merged through PR `#693`, merge `c410ca41be87551d9984e5f738e2cd816bf0a0c3`;
+- V7.1 evidence/harness remediations merged through PR `#698` (`60744722d5798d1156330104f334ecc366770428`), PR `#699` (`7f2da9c11a03744f9188bc00257c268a36dfe1b6`) and PR `#701` (`32d32cdd54de9ca412412e5365bdce758b80273d`);
+- Digital Crown Pocket PR `#696` merged as `a681ca61ad0bafe3916897e85efd567fed2813a5`;
+- Pocket real-runtime restoration PR `#702` merged as `c837141068785bc1d7162952397e0f7852c1b261`;
+- post-merge CI targeting PR `#703` merged as current pre-closeout master `6d9dc534f55c8f664fca3cf9eba043e035ecb464`.
 
-Certified PR head: `0354bf6828e98ec50ec7afdef95941f621eb335b`.
+Retained evidence:
+- V7.1 post-merge Truth Safety push run `36418613367` — **SUCCESS** on merge `32d32cdd…`;
+- Pocket exact source HEAD `21e820835b296192235eb3bbc5479f1a93992225`: CI `36550966453` — **SUCCESS**; Mobile Pocket Real Runtime Cert `36550966512` — **SUCCESS**; browser/mobile certification gates green;
+- current master `6d9dc534…`: CI `36578751830` — **SUCCESS**, including Full backend regression and production guard; Frontend job **SKIPPED intentionally** by the post-merge targeting contract;
+- current master `6d9dc534…`: Cabinet Upgrade PostgreSQL Certification `36578751887` — **SUCCESS**;
+- compare `21e820835b296192235eb3bbc5479f1a93992225 → 6d9dc534f55c8f664fca3cf9eba043e035ecb464` changes only `.github/workflows/ci.yml` and backend test files; no frontend runtime file changed, therefore the already-acquired exact-source frontend/Pocket proof remains applicable and was not wastefully rerun.
 
-Pre-merge proof:
-- full GitHub Actions matrix: **28 SUCCESS / 2 SKIPPED / 0 FAILURE / 0 active**;
-- Patient P7 `36205720352` — SUCCESS;
-- G3 Browser Actions `36205720410` — SUCCESS;
-- G1 Browser Actions `36205720287` — SUCCESS;
-- CI `36205720407` — SUCCESS;
-- T2 Runtime `36205720468` — SUCCESS;
-- PostgreSQL/Alembic `36205720590` — SUCCESS;
-- Windows dependency contract `36205720419` — SUCCESS;
-- exact UI proof retained at 390×844 / 768×1024 / 1280×900 with zero horizontal overflow and no new 390 regression versus baseline;
-- no real cabinet mutation.
+Open-PR reconciliation at closeout:
+- `#697` — **CLOSED WITHOUT MERGE**, superseded by merged `#698/#699/#701`;
+- `#695` — **PARKED_POST_V1**, dedicated sidebar visual refinement;
+- `#690` — **PARKED_POST_V1 / V1 LOCK**;
+- `#642` — **PARKED_POST_V1 / V1 LOCK**, client README/AGENTS refresh;
+- `#618`, `#288`, `#289` — retain prior parked classifications;
+- `#383` — retain HUMAN_GATE_PARKED classification.
 
-Additional mandatory gate:
-- Pass 1 broad audit — complete;
-- Pass 2 evidence double-check — complete;
-- Pass 3 adversarial re-audit — complete;
-- V1 BLOCKER/MUST-FIX findings required for this gate are remediated and re-certified on the exact PR head.
+No Vercel deployment. No real cabinet mutation. No `INSTALLABLE_CERTIFIED` claim.
 
-Canonical audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`.
-
-Next exact: merge PR #692 under exact-head guard, certify resulting master, then mark V1-07 CLOSED and unlock V1-08.
+V1-07 Success criterion is satisfied. The exact V1 candidate is **not selected by this lot**; V1-08 is unlocked only after this canonical docs-only closeout is merged.
 
 ### LOT V1-08 — Freeze exact V1 candidate
 
-Status: **BLOCKED BY V1-07**
+Status: **UNLOCKED — NOT STARTED**
 
 Goal: intentionally select one immutable exact 40-character SHA as V1 candidate.
 
@@ -506,19 +507,16 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- active lot: **V1-07 — Master stabilization / PRE-FREEZE TRIPLE-CHECK IN PROGRESS**
-- previous lot: **V1-06 — Pre-freeze repository reconciliation — CLOSED**
-- audit base master: `ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
-- V1-07 ordinary stabilization certification was green, but the product owner added a mandatory adversarial triple-check before freeze.
-- prior closeout PR #627 was closed without merge as premature.
-- canonical objective: `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md`
-- V1-08 freeze: **BLOCKED**
-- V1 candidate SHA: **NOT SELECTED**
-- installability status: **NOT CERTIFIED**
-- V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**
-- production/cabinet mutation: **NOT AUTHORIZED**
-- Vercel deployment: **NOT AUTHORIZED**
-- Next exact: remediate Pass 1 BLOCKER/MUST-FIX findings, then Pass 2 + Pass 3 and exact-head re-certification.
+- previous lot: **V1-07 — Master stabilization — CLOSED** once this docs-only closeout is merged;
+- pre-closeout master: `6d9dc534f55c8f664fca3cf9eba043e035ecb464`;
+- next lot: **V1-08 — Freeze exact V1 candidate — UNLOCKED** after merge of this closeout;
+- V1 candidate SHA: **NOT SELECTED**;
+- installability status: **NOT CERTIFIED**;
+- V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**;
+- production/cabinet mutation: **NOT AUTHORIZED**;
+- Vercel deployment: **NOT AUTHORIZED**;
+- Frontend/Pocket proof is retained from the exact source HEAD because no frontend runtime file changed afterward; do not rerun it unless a relevant frontend/harness/dependency delta appears;
+- Next exact: merge this docs-only closeout, verify the resulting master, then start V1-08 and freeze the exact resulting 40-character master SHA in this roadmap + `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md`.
 
 ## 7. Maintenance rule
 
