@@ -90,7 +90,8 @@ Earlier local build after Hub introduction:
 - 4709 modules transformed;
 - HubPage and WorkstationExperiencePage chunks generated;
 - PWA assets generated;
-- build result PASS.`r`n`r`n## Severe visual review
+- build result PASS.
+- Final exact-state build on `79fea6647283dc9553e89ad102c5d137e4a05883`: PASS; 4709 modules transformed; PWA generated.`r`n`r`n## Severe visual review
 
 Internal double-check:
 - mobile: 9.0/10
