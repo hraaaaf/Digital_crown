@@ -4,7 +4,7 @@
 
 # Etat canonique manuel - 2026-09-29
 
-## V1 - V1_OPERATIONAL
+## V1 — CLOSED / V1_OPERATIONAL
 
 - Repository: `hraaaaf/Digital_crown`
 - V1-08 initial freeze: **CLOSED** - `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
@@ -25,7 +25,7 @@
 
 ## Continuite
 
-V1 is operational on the real cabinet. After merge and post-merge coherence verification of this docs-only closeout, execution authority transfers to the canonical POST-V1 / V1.5 roadmap. Next exact: **V1.5-00 - Hub & Dispatcher**.
+V1 is **CLOSED** and operational on the real cabinet. No V1 execution lot remains. After this final canonical documentation closeout is merged and re-read on `master`, execution authority transfers to the canonical POST-V1 / V1.5 roadmap. Next exact: **V1.5-00 — Hub & Dispatcher**.
 
 # Historique canonique — 2026-08-14
 
