@@ -1,5 +1,12 @@
 # DIGITAL CROWN — FINALISATION PRODUIT
 
+> **STATUT AU 29 SEPTEMBRE 2026 — CONTEXTE HISTORIQUE / NON AUTORITATIF POUR L'EXÉCUTION V1**
+>
+> L'autorité unique d'exécution V1 est `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`.
+> Les pourcentages, human gates et `Next exact` historiques ci-dessous ne doivent ni déverrouiller un lot, ni sélectionner un candidat, ni autoriser une installation.
+> V1-07 est en closeout canonique ; V1-08 (freeze exact candidate) vient ensuite. `INSTALLABLE_CERTIFIED` et `V1_OPERATIONAL` ne sont pas encore atteints.
+
+
 **FICHIER CANONIQUE DE PILOTAGE GLOBAL — HORS CÉPHALOMÉTRIE**
 
 Baseline de création : `master@dca24d01ca5591d4255f3ac85f79a32ab6d673c1`.
