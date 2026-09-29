@@ -42,6 +42,8 @@ const PartnerProductPage = lazy(() => import('./pages/PartnerProductPage').then(
 const WaitingRoomPage  = lazy(() => import('./pages/WaitingRoomPage').then(m => ({ default: m.WaitingRoomPage })));
 const LegalPage        = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
 const PatientCompanionApp = lazy(() => import('./features/patient-companion/PatientCompanionApp').then(m => ({ default: m.PatientCompanionApp })));
+const HubPage = lazy(() => import('./features/hub/HubPage').then(m => ({ default: m.HubPage })));
+const WorkstationExperiencePage = lazy(() => import('./features/hub/WorkstationExperiencePage').then(m => ({ default: m.WorkstationExperiencePage })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -225,6 +227,7 @@ const ProtectedRoutes = () => {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/cabinet" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/agenda" element={<PermissionRoute permission="agenda"><AgendaPage /></PermissionRoute>} />
           <Route path="/accounting" element={<PermissionRoute permission="accounting"><AccountingPage /></PermissionRoute>} />
@@ -300,7 +303,7 @@ const SmartRootRouter = () => {
     return <PageLoader />;
   }
   if (authStatus === 'authenticated') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/hub" replace />;
   }
   return <Navigate to="/landing" replace />;
 };
@@ -365,6 +368,11 @@ function App() {
         } />
         <Route path="/mobile/dentists" element={<Navigate to="/mobile/dashboard" replace />} />
         <Route path="/mobile/superadmin" element={<Navigate to="/mobile/dashboard" replace />} />
+
+        {/* V1.5 workstation Hub: data-free dispatcher remains available even if cabinet backend is down. */}
+        <Route path="/hub" element={<Suspense fallback={<PageLoader />}><HubPage /></Suspense>} />
+        <Route path="/station" element={<Suspense fallback={<PageLoader />}><WorkstationExperiencePage experience="station" /></Suspense>} />
+        <Route path="/control-center" element={<Suspense fallback={<PageLoader />}><WorkstationExperiencePage experience="control-center" /></Suspense>} />
 
         {/* Patient Companion: local-first patient boundary paired by one-time QR/code */}
         <Route path="/companion" element={<Suspense fallback={<PageLoader />}><PatientCompanionApp /></Suspense>} />
