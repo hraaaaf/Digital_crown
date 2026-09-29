@@ -1,0 +1,50 @@
+name: V1.5-00.2 Hub Visual Proof
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'frontend/src/features/hub/**'
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/components/Header.tsx'
+      - 'frontend/src/test/v15HubRoutingContract.test.ts'
+      - 'frontend/scripts/capture-v15-00-2-hub-github.mjs'
+      - '.github/workflows/v15-00-2-hub-visual-proof.yml'
+
+jobs:
+  visual-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Start Vite
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4195 > /tmp/v15-hub-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4195/hub >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v15-hub-vite.log
+          exit 1
+      - name: Capture Hub with Playwright
+        working-directory: frontend
+        run: node scripts/capture-v15-00-2-hub-github.mjs
+      - name: Upload visual proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-00-2-hub-visual-proof
+          path: frontend/artifacts/v15-00-2-hub-github
+          if-no-files-found: error
+          retention-days: 30
