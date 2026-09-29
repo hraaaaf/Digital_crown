@@ -8,8 +8,8 @@
 
 - Repository : `hraaaaf/Digital_crown`
 - Pre-closeout master : `6d9dc534f55c8f664fca3cf9eba043e035ecb464`
-- V1-07 Master stabilization : **CLOSED techniquement ; closeout canonique docs-only en cours**
-- V1-08 Freeze exact candidate : **prochain lot**, à démarrer seulement après merge du closeout canonique
+- V1-07 Master stabilization : **CLOSED — merge/post-merge techniques prouvés ; fermeture canonique enregistrée par cette mise à jour docs-only**
+- V1-08 Freeze exact candidate : **UNLOCKED après arrivée de cette mise à jour sur master**
 - V1 candidate SHA : **NOT SELECTED**
 - `INSTALLABLE_CERTIFIED` : **NON**
 - `V1_OPERATIONAL` : **NON**
