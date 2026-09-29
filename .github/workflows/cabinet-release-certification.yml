@@ -193,7 +193,8 @@ jobs:
 
           # Runtime/build inputs are copied from the checked-out exact SHA only.
           cp -a backend "$ROOT/backend"
-          cp run.py DigitalCrown.spec requirements.txt "$ROOT/"
+          cp -a relay "$ROOT/relay"
+          cp run.py DigitalCrown.spec requirements.txt alembic.ini "$ROOT/"
           cp -a installer "$ROOT/installer"
           cp -a /tmp/certified-frontend/. "$ROOT/frontend/dist/"
 
