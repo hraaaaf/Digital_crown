@@ -112,3 +112,21 @@ Start V1.5-00.3 — controlled workstation-mode memory:
 - admin + owner-PIN gate;
 - direct URL/storage tampering must not grant Cabinet authorization;
 - Station remains fail-closed until the protected mode-change contract exists.
+## Theme-token correction after human review
+
+The first 00.2 visual pass was rejected because Hub surfaces still contained visual hardcodes. The implementation was corrected before human approval:
+- arbitrary radius classes removed in favor of `rounded-elite-sm` / `rounded-elite-lg`;
+- non-token shadow removed in favor of `shadow-elite-hover`;
+- arbitrary font-size/letter-spacing classes removed in favor of canonical Tailwind/theme scale;
+- direct amber warning palette removed; offline state now derives from `primary` theme tokens;
+- malformed Windows-encoded French copy repaired;
+- token contract test added and fails on arbitrary bracket classes or direct palette classes in Hub surfaces.
+
+Local proof after correction:
+- forbidden visual hardcode scan: NONE;
+- targeted tests: 2 files / 6 tests PASS;
+- `npm run build:test`: PASS, 4709 modules, PWA generated;
+- theme proof: Elite / Emerald / Prestige all render 3 Hub cards with zero horizontal overflow and zero JS errors;
+- runtime variables observed changing with theme: `--primary`, `--bg-medical-pearl`, `--card-bg`, `--text-main`, `--border-color`.
+
+Human visual approval must be based on the post-token-correction screenshots, not the earlier 00.2 captures.

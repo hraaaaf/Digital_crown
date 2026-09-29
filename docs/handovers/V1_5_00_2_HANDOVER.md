@@ -129,3 +129,13 @@ GitHub Actions are secondary CI evidence only, never the primary implementation 
 - other GitHub checks are secondary and may still be running/queued; re-check actual state on resume
 
 Do not claim 00.2 fully merged/closed until Achraf explicitly approves the observed AFTER visuals and PR #719 is merged.
+
+## Mandatory theme-token correction
+
+Achraf rejected the initial 00.2 visual implementation because visual values were partially hardcoded. This was corrected before approval. Current Hub surfaces must preserve:
+- theme colors through semantic classes / CSS variables only;
+- `rounded-elite-*`, `shadow-elite*`, `transition-elite` for Digital Crown visual primitives;
+- no arbitrary bracket visual classes in Hub surfaces;
+- no direct Tailwind palette classes such as amber/red/blue/etc. in Hub surfaces.
+
+Regression protection: `v15HubRoutingContract.test.ts` includes a dedicated theme-token contract. Latest local targeted result: 6/6 PASS. Multi-theme browser proof verified Elite, Emerald and Prestige token propagation with zero horizontal overflow.
