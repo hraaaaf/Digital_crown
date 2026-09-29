@@ -51,7 +51,7 @@ This recap is a mandatory closeout deliverable in addition to tests, severe scor
 
 **Canonical V0 SHA:** `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
 
-**V1 candidate SHA:** **NOT SELECTED**
+**V1 candidate SHA:** `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` — **FROZEN V1-08**
 
 **Success:** all mandatory lots below close in order; one exact candidate is frozen; that exact candidate reaches `INSTALLABLE_CERTIFIED` on a fresh isolated restore of real PREUPDATE cabinet data; the same SHA is installed only after explicit human authorization; post-update integrity/startup/smokes pass; rollback remains verified.
 
