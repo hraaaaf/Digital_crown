@@ -39,70 +39,516 @@ jobs:
     outputs:
       test_only: ${{ steps.scope.outputs.test_only }}
       changed_tests: ${{ steps.scope.outputs.changed_tests }}
+      changed_backend_tests: ${{ steps.scope.outputs.changed_backend_tests }}
+      frontend_needed: ${{ steps.scope.outputs.frontend_needed }}
+      reuse_pr_frontend: ${{ steps.scope.outputs.reuse_pr_frontend }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - id: scope
-        name: Detect strict test-only PR synchronization
+        name: Classify targeted tests and reusable merge evidence
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.event.after }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CURRENT_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           echo "test_only=false" >> "$GITHUB_OUTPUT"
           echo "changed_tests=" >> "$GITHUB_OUTPUT"
+          echo "changed_backend_tests=" >> "$GITHUB_OUTPUT"
+          echo "frontend_needed=true" >> "$GITHUB_OUTPUT"
+          echo "reuse_pr_frontend=false" >> "$GITHUB_OUTPUT"
 
-          # Fast-path is intentionally narrow: only an incremental PR synchronize
-          # event with an explicit before/after range may qualify.
-          if [[ "$EVENT_NAME" != "pull_request" || "$EVENT_ACTION" != "synchronize" ]]; then
-            echo "Full CI: event is not an incremental PR synchronization."
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            if [[ -z "$PR_BASE_SHA" || -z "$PR_HEAD_SHA" ]]; then
+              echo "Full CI: missing PR base/head SHA."
+              exit 0
+            fi
+
+            mapfile -t changed < <(git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA")
+            if [[ "${#changed[@]}" -eq 0 ]]; then
+              echo "Full CI: empty PR delta."
+              exit 0
+            fi
+
+            frontend_tests=()
+            backend_tests=()
+            strict_test_only=true
+            frontend_touched=false
+            for file in "${changed[@]}"; do
+              case "$file" in
+                frontend/src/*.test.ts|frontend/src/*.test.tsx|frontend/src/**/*.test.ts|frontend/src/**/*.test.tsx|frontend/src/*.spec.ts|frontend/src/*.spec.tsx|frontend/src/**/*.spec.ts|frontend/src/**/*.spec.tsx)
+                  frontend_tests+=("${file#frontend/}")
+                  frontend_touched=true
+                  ;;
+                backend/tests/*.py|backend/tests/**/*.py)
+                  backend_tests+=("$file")
+                  ;;
+                .github/workflows/ci.yml)
+                  ;;
+                frontend/*|frontend/**/*)
+                  frontend_touched=true
+                  strict_test_only=false
+                  ;;
+                *)
+                  strict_test_only=false
+                  ;;
+              esac
+            done
+
+            printf 'changed_tests=%s\n' "$(IFS=,; echo "${frontend_tests[*]}")" >> "$GITHUB_OUTPUT"
+            printf 'changed_backend_tests=%s\n' "$(IFS=,; echo "${backend_tests[*]}")" >> "$GITHUB_OUTPUT"
+
+            if [[ "$strict_test_only" == "true" ]]; then
+              echo "test_only=true" >> "$GITHUB_OUTPUT"
+              if [[ "${#frontend_tests[@]}" -eq 0 ]]; then
+                echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
+              fi
+              echo "Targeted PR CI: only tests/workflow changed."
+            fi
             exit 0
           fi
-          if [[ -z "$BEFORE_SHA" || -z "$AFTER_SHA" || "$BEFORE_SHA" =~ ^0+$ || "$AFTER_SHA" =~ ^0+$ ]]; then
-            echo "Full CI: missing trustworthy before/after range."
+
+          if [[ "$EVENT_NAME" == "push" && ( "${GITHUB_REF}" == "refs/heads/master" || "${GITHUB_REF}" == "refs/heads/main" ) ]]; then
+            read -ra parents <<< "$(git rev-list --parents -n 1 "$CURRENT_SHA")"
+            if [[ "${#parents[@]}" -eq 3 ]]; then
+              first_parent="${parents[1]}"
+              pr_head="${parents[2]}"
+              merge_tree="$(git rev-parse "$CURRENT_SHA^{tree}")"
+              pr_tree="$(git rev-parse "$pr_head^{tree}")"
+              if [[ "$merge_tree" == "$pr_tree" ]]; then
+                mapfile -t merged_files < <(git diff --name-only "$first_parent" "$pr_head")
+                frontend_changed=false
+                for file in "${merged_files[@]}"; do
+                  case "$file" in
+                    frontend/*|frontend/**/*) frontend_changed=true ;;
+                  esac
+                done
+
+                if [[ "$frontend_changed" == "false" ]]; then
+                  echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
+                  echo "reuse_pr_frontend=true" >> "$GITHUB_OUTPUT"
+                  echo "Post-merge fast-path: merge contains no frontend change."
+                  exit 0
+                fi
+
+                checks="$(curl -fsSL \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "Authorization: Bearer $GH_TOKEN" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${pr_head}/check-runs?per_page=100")"
+                if jq -e 'any(.check_runs[]; .name == "Frontend (tests & build)" and .conclusion == "success")' <<< "$checks" >/dev/null; then
+                  echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
+                  echo "reuse_pr_frontend=true" >> "$GITHUB_OUTPUT"
+                  echo "Post-merge fast-path: identical PR tree with successful exact-head frontend check."
+                else
+                  echo "Post-merge fallback: exact-head frontend success not proven."
+                fi
+              fi
+            fi
+          fi
+  backend-targeted:
+    needs: classify-change
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.changed_backend_tests != ''
+    name: Backend targeted PR tests
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?
+  # PRs keep targeted lot checks plus frontend/build and the lightweight prod gate.
+  test:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
+    name: Full backend regression (post-merge)
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          python -m pip check
+
+      - name: Prod safety check (config hardening)
+        run: python scripts/prod_safety_check.py
+
+      - name: Full backend regression suite (DB / patients / documents included)
+        run: python -m pytest backend/tests -q
+
+  frontend:
+    needs: classify-change
+    if: (github.event_name != 'workflow_dispatch' || inputs.backend_only != true) && needs.classify-change.outputs.frontend_needed != 'false'
+    name: Frontend (tests & build)
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fast-path — run only changed test files
+        if: needs.classify-change.outputs.test_only == 'true'
+        shell: bash
+        env:
+          CHANGED_TESTS: ${{ needs.classify-change.outputs.changed_tests }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$CHANGED_TESTS" ]]; then
+            echo "No product test changed; CI workflow-only fast-path."
             exit 0
           fi
-
-          mapfile -t changed < <(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")
-          if [[ "${#changed[@]}" -eq 0 ]]; then
-            echo "Full CI: empty delta is not eligible for fast-path."
-            exit 0
-          fi
-
-          tests=()
-          workflow_only=true
-          for file in "${changed[@]}"; do
-            case "$file" in
-              frontend/src/*.test.ts|frontend/src/*.test.tsx|frontend/src/**/*.test.ts|frontend/src/**/*.test.tsx|frontend/src/*.spec.ts|frontend/src/*.spec.tsx|frontend/src/**/*.spec.ts|frontend/src/**/*.spec.tsx)
-                tests+=("${file#frontend/}")
-                workflow_only=false
-                ;;
-              .github/workflows/ci.yml)
-                ;;
-              *)
-                echo "Full CI: non-test/runtime-or-config file changed: $file"
-                exit 0
-                ;;
-            esac
+          IFS=',' read -ra files <<< "$CHANGED_TESTS"
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
           done
 
-          # A change to this CI workflow alone must not recursively certify the
-          # whole product. GitHub parsing + classifier execution is the proof.
-          if [[ "$workflow_only" == "true" ]]; then
-            echo "test_only=true" >> "$GITHUB_OUTPUT"
-            echo "Fast CI: ci.yml-only delta; product shards/build are unnecessary."
-            exit 0
+      - name: Test suite — shard 1/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=1/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 2/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=2/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 3/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=3/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 4/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=4/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 5/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=5/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 6/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=6/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 7/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=7/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 8/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=8/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 9/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=9/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 10/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=10/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 11/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=11/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Test suite — shard 12/12 isolated files
+        if: needs.classify-change.outputs.test_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(npx vitest list --filesOnly --shard=12/12)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            echo "::group::vitest $file"
+            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
+            echo "::endgroup::"
+          done
+
+      - name: Build
+        if: needs.classify-change.outputs.test_only != 'true'
+        run: npm run build
+
+  prod-gate:
+    needs: classify-change
+    if: (github.event_name != 'workflow_dispatch' || inputs.backend_only != true) && needs.classify-change.outputs.test_only != 'true'
+    name: Garde production (négatif)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic-settings==2.2.1
+
+      - name: Le garde DOIT refuser une config prod non durcie
+        env:
+          ENVIRONMENT: production
+          SECRET_KEY: changeme
+          DEBUG: "true"
+          DATABASE_URL: "sqlite:///./x.db"
+        run: |
+          if python scripts/prod_safety_check.py; then
+            echo "::error::Le prod safety check a accepté une config production non durcie."
+            exit 1
+          else
+            echo "OK : le garde a bien refusé la config production non durcie."
           fi
 
-          printf 'changed_tests=%s\n' "$(IFS=,; echo "${tests[*]}")" >> "$GITHUB_OUTPUT"
-          echo "test_only=true" >> "$GITHUB_OUTPUT"
-          printf 'Fast CI: strict test-only delta (%d file(s))\n' "${#tests[@]}"
+  m4a-e2e:
+    needs: classify-change
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    name: M4-A Patient contextual bridge AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Assert Pocket patient bridge retirement contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          patient = Path('frontend/src/features/patients/PatientDetailsInner.tsx').read_text()
+          router = Path('backend/routers/mobile_resource_bridge.py').read_text()
+          assert 'PatientMobileBridge' not in patient
+          assert 'Ouvrir sur mobile' not in patient
+          assert 'resource_type == "patient"' in router
+          assert "@router.post('/resource-context'" in router
+          print('Pocket patient desktop CTA absent; secured internal patient context preserved')
+          PY
+
+  m4b-e2e:
+    needs: classify-change
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    name: M4-B Panoramic contextual bridge AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert Pocket panoramic bridge retirement contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          panoramic = Path('frontend/src/features/panoramic/PanoramicHistory.tsx').read_text()
+          router = Path('backend/routers/mobile_resource_bridge.py').read_text()
+          assert 'PanoramicMobileBridge' not in panoramic
+          assert 'Ouvrir sur mobile' not in panoramic
+          assert 'resource_type == "panoramic"' in router
+          assert "@router.post('/resource-context-media'" in router
+          print('Pocket panoramic desktop CTA absent; secured internal panoramic context preserved')
+          PY
+
+  m4c-e2e:
+    needs: classify-change
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    name: M4-C Document contextual bridge AFTER
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert Pocket document bridge retirement contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          documents = Path('frontend/src/features/patients/PatientDocuments.tsx').read_text()
+          router = Path('backend/routers/mobile_resource_bridge.py').read_text()
+          assert 'DocumentMobileBridge' not in documents
+          assert 'Ouvrir sur mobile' not in documents
+          assert 'resource_type == "document"' in router
+          assert "@router.post('/resource-context-media'" in router
+          print('Pocket document desktop CTA absent; secured internal document context preserved')
+          PY
+
+  m4d-retired:
+    needs: classify-change
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    name: M4-D Appointment contextual bridge retired
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert Pocket appointment bridge retirement contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          agenda = Path('frontend/src/features/agenda/AgendaModal.tsx').read_text()
+          router = Path('backend/routers/mobile_resource_bridge.py').read_text()
+          assert 'AppointmentMobileBridge' not in agenda
+          assert 'data-m4d-bridge-slot' not in agenda
+          assert 'resource_type == "appointment"' in router
+          assert "@router.post('/resource-context'" in router
+          print('Pocket appointment desktop CTA absent; secured internal appointment context preserved')
+          PY
+ requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          python -m pip check
+      - name: Run only changed backend test files
+        env:
+          CHANGED_BACKEND_TESTS: ${{ needs.classify-change.outputs.changed_backend_tests }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra files <<< "$CHANGED_BACKEND_TESTS"
+          test "${#files[@]}" -gt 0
+          python -m pytest "${files[@]}" -q
   # Generic full backend regression is intentionally post-merge.
   # PRs keep targeted lot checks plus frontend/build and the lightweight prod gate.
   test:
