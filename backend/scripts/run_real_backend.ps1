@@ -24,6 +24,9 @@ foreach ($v in @($ReleaseId, $ConfirmRealActivation, $RuntimeRoot, $RealEnvFile,
 }
 
 $ErrorActionPreference = "Stop"
+# The verifier imports certified Python modules. Never let that verification or the
+# subsequent runtime write __pycache__/*.pyc into the immutable release file-set.
+$env:PYTHONDONTWRITEBYTECODE = "1"
 $RequiredPacks = @("BASIC", "GOLD", "ELITE")
 
 function Fail([string]$Message) {
