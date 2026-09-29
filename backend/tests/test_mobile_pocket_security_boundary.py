@@ -1,4 +1,7 @@
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -6,6 +9,21 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from backend import models
 from backend.routers.mobile import _create_bridge_token
 from backend.security import get_password_hash
+from backend.utils import rate_limit
+
+
+@pytest.fixture(autouse=True)
+def _reset_pairing_rate_limit():
+    path = Path(rate_limit._store_path())
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
+        path.unlink(missing_ok=True)
+    yield
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
+        path.unlink(missing_ok=True)
 
 
 def _user(db, *, email, role, employer_id=None, permissions=None):
