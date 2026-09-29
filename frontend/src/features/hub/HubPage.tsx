@@ -3,17 +3,17 @@ import { Building2, MonitorCog, TabletSmartphone, ArrowRight, WifiOff } from 'lu
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getRuntimeAuthToken } from '../../services/api';
 
-type HubIdentity = { name: string; type: string };
+type HubIdentity = { name: string; type: string; badge: string };
 
 const experienceCards = [
-  { id: 'cabinet', title: 'Digital Crown Cabinet', eyebrow: 'Cabinet', description: 'Votre espace clinique principal : agenda, patients, soins et gestion.', icon: Building2, route: '/cabinet' },
+  { id: 'cabinet', title: 'Digital Crown', eyebrow: 'DYNAMIC_MAIN', description: 'Votre espace clinique principal : agenda, patients, soins et gestion.', icon: Building2, route: '/cabinet' },
   { id: 'station', title: "Station d'accueil", eyebrow: 'Accueil', description: "Accueil tactile des patients. Configuration guidée avant mise en service.", icon: TabletSmartphone, route: '/station' },
   { id: 'control', title: 'Centre de contr\u00f4le', eyebrow: 'Technique', description: '\u00c9tat du poste, diagnostic local et configuration technique.', icon: MonitorCog, route: '/control-center' },
 ] as const;
 
 export const HubPage = () => {
   const navigate = useNavigate();
-  const [identity, setIdentity] = useState<HubIdentity>({ name: 'Votre cabinet', type: 'Cabinet dentaire' });
+  const [identity, setIdentity] = useState<HubIdentity>({ name: 'Votre \u00e9tablissement', type: '\u00c9tablissement dentaire', badge: '\u00c9TABLISSEMENT' });
   const [serverAvailable, setServerAvailable] = useState(true);
 
   useEffect(() => {
@@ -29,8 +29,9 @@ export const HubPage = () => {
         const config = await response.json();
         if (!active) return;
         setIdentity({
-          name: config.nom_cabinet || 'Votre cabinet',
+          name: config.nom_cabinet || 'Votre ?tablissement',
           type: config.cabinet_type === 'CLINIQUE' ? 'Clinique' : 'Cabinet dentaire',
+          badge: config.cabinet_type === 'CLINIQUE' ? 'CLINIQUE' : 'CABINET',
         });
         setServerAvailable(true);
       } catch {
@@ -65,7 +66,7 @@ export const HubPage = () => {
           {id === 'cabinet' && <div className="absolute inset-x-0 top-0 h-1 bg-primary" />}
           <div className="flex items-start justify-between gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-elite-sm bg-primary/10 text-primary"><Icon size={24}/></div>
-            <span className="rounded-elite-sm border border-border-main bg-main-bg/70 px-2.5 py-1 text-xs font-black uppercase tracking-widest text-text-muted">{eyebrow}</span>
+            <span className="rounded-elite-sm border border-border-main bg-main-bg/70 px-2.5 py-1 text-xs font-black uppercase tracking-widest text-text-muted">{id === 'cabinet' ? identity.badge : eyebrow}</span>
           </div>
           <h2 className="mt-7 font-outfit text-xl font-black tracking-tight">{title}</h2>
           <p className="mt-3 min-h-16 text-sm font-semibold leading-relaxed text-text-muted">{description}</p>
