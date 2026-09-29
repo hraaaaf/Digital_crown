@@ -39,6 +39,15 @@ V1 is achieved only when all of the following are proven:
 
 Only then may the installed cabinet baseline be promoted from V0 to V1.
 
+### V1-09 installability closeout — 2026-09-29
+
+- Candidate `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` reached **INSTALLABLE_CERTIFIED** in an isolated release root.
+- Real PREUPDATE rehearsal passed with historical data/relations, 434 document archives and 2915 media files preserved; target Alembic revision `v7100000020`; health 200.
+- Installable release identity: `dc-cabinet-3c86e72bf0e1-run36597573383`.
+- BASIC/GOLD/ELITE installable verification passed.
+- This does **not** imply `V1_OPERATIONAL`: the real cabinet remains unmodified and V1-10 still requires explicit human authorization immediately before mutation.
+
+
 ## Proof required
 
 The V1 closeout must preserve V0 SHA, candidate/V1 SHA, source/target Alembic revisions, PREUPDATE/POSTUPDATE fingerprints, backup verification, rehearsal result, relevant CI/run IDs, post-update health/smoke evidence, rollback identity, and every mandatory lot closeout from the consolidated roadmap.
