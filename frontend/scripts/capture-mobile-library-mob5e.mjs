@@ -70,7 +70,7 @@ try {
       evidence.push({ mode, viewport, ...beforeGeometry, runtimeErrors, screenshot });
     } else {
       await page.locator('[data-mobile-library]').waitFor({ state: 'visible' });
-      await page.getByRole('heading', { name: 'Bibliothèque' }).waitFor({ state: 'visible' });
+      await page.locator('[data-mobile-library]').getByRole('heading', { name: 'Bibliothèque' }).first().waitFor({ state: 'visible' });
       await page.getByText('50 protocoles', { exact: true }).waitFor({ state: 'visible' });
 
       const listGeometry = await geometry(page, mode);
