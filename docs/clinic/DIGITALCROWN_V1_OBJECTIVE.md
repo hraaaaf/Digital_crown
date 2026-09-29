@@ -1,6 +1,6 @@
 # Digital Crown — V1 objective
 
-Status: CANONICAL OBJECTIVE — V1-08 CLOSED / CANDIDATE FROZEN — 15f8d613c4b7b0ce8bc5fb73b13e46557416eafe
+Status: CANONICAL OBJECTIVE — V1-08 CLOSED / CANDIDATE FROZEN — 3c86e72bf0e132e6f79bc336d4ff9eb121d08fab
 
 ## Execution authority
 
@@ -69,7 +69,7 @@ Before the real cabinet update, rollback must be executable by restoring the ver
 - sole roadmap: `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`
 - V1-07: **CLOSED**
 - V1-08 freeze: **CLOSED**
-- frozen V1 candidate SHA: `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`
+- frozen V1 candidate SHA: `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
 - candidate authorization: explicit product-owner **GO** on 29 September 2026
 - installability status: **NOT CERTIFIED**
 - V1 status: **EXECUTION LOCKED / NOT OPERATIONAL**
@@ -81,4 +81,4 @@ Before the real cabinet update, rollback must be executable by restoring the ver
 
 ## Current next exact
 
-V1-09 is **UNLOCKED** and must certify exactly `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` against a fresh isolated restore of the real cabinet PREUPDATE state, with verified backups, migration/integrity checks, startup/health/critical smokes and rollback proof. Do not substitute latest master, a branch name or a later commit for the frozen candidate. Do not claim `INSTALLABLE_CERTIFIED` until V1-09 succeeds.
+V1-09 is **UNLOCKED** and must certify exactly `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` against a fresh isolated restore of the real cabinet PREUPDATE state, with verified backups, migration/integrity checks, startup/health/critical smokes and rollback proof. Do not substitute latest master, a branch name or a later commit for the frozen candidate. Do not claim `INSTALLABLE_CERTIFIED` until V1-09 succeeds.
