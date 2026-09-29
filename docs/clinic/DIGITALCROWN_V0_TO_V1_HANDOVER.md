@@ -1,6 +1,10 @@
 # HANDOVER — Digital Crown cabinet update V0 -> V1
 
-Status: READY FOR NEW WINDOW
+Status: **CLOSED — HISTORICAL V0→V1 HANDOVER**
+
+## Closure — 2026-09-29
+
+This handover is retained as historical evidence of the managed V0→V1 contract. That contract has now been executed: V1 is installed and operational at `bce60b26059054ba43cf8ec13cd210098e648ea4`, release `dc-cabinet-bce60b260590-run36628947897`. V1-10 runtime/data closeout is recorded in `docs/migrations/V1_10_REAL_CABINET_CLOSEOUT.md`. **Do not use the old “next window” instructions below as current execution authority.** Current authority is `STATE.md` and, after final canonical closeout merge/coherence, the POST-V1 / V1.5 roadmap.
 
 ## Goal
 
