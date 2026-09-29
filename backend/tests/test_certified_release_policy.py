@@ -265,6 +265,7 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "verify_installable_release.py" in launcher
     assert "INSTALLABLE_CERTIFIED" in launcher
     assert "runtime-assets-certification.json" in launcher
+    assert 'PYTHONDONTWRITEBYTECODE = "1"' in launcher
 
     assert "verify_installable_release_directory(_CERTIFIED_RELEASE_ROOT)" in spec
     assert "iter_runtime_asset_files" in spec
@@ -310,4 +311,5 @@ def test_release_certification_workflow_is_exact_master_sha_attested_and_code_on
     assert "steps.materialize.outputs.release_id" in workflow
     assert "runner.temp" in workflow
     assert "BASIC" in workflow and "GOLD" in workflow and "ELITE" in workflow
+    assert 'cp -a relay "$ROOT/relay"' in workflow
     assert "release-content.sha256" in workflow
