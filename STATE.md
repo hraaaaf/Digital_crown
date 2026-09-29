@@ -2,40 +2,30 @@
 
 > Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
-# État canonique manuel — 2026-09-29
+# Etat canonique manuel - 2026-09-29
 
-## V1 — état courant vérifié
+## V1 - V1_OPERATIONAL
 
-- Repository : `hraaaaf/Digital_crown`
-- V1-07 Master stabilization : **CLOSED**
-- V1-08 Freeze exact candidate : **CLOSED**
-- V1 candidate SHA : `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
-- Autorisation freeze : product owner **GO**, 29 septembre 2026
-- V1-09 Installability certification : **CLOSED**
-- `INSTALLABLE_CERTIFIED` : **OUI**
-- `V1_OPERATIONAL` : **NON**
-- Mutation cabinet réelle : **NON AUTORISÉE**
-- Déploiement Vercel : **NON AUTORISÉ**
+- Repository: `hraaaaf/Digital_crown`
+- V1-08 initial freeze: **CLOSED** - `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
+- V1-09 installability: **CLOSED / INSTALLABLE_CERTIFIED**
+- V1-10 real cabinet activation: **CLOSED / VERIFIED**
+- Final certified/installed V1 SHA: `bce60b26059054ba43cf8ec13cd210098e648ea4`
+- Installed release: `dc-cabinet-bce60b260590-run36628947897`
+- `INSTALLABLE_CERTIFIED`: **OUI**
+- `V1_OPERATIONAL`: **OUI**
+- Evidence-carrying master before docs closeout: `6966ebf2656f78dd6674d435bc806bd659248d0f`
+- Master CI `36638379136`: **SUCCESS**
+- PostgreSQL certification `36638379156`: **SUCCESS**
+- Live cabinet: health/db/storage HTTP 200; normal launcher restart OK
+- Preservation: 434/434 document archives and 2915 media files; integrity PASS
+- Rollback: fresh encrypted DB/media backup retained; isolated historical rollback rehearsal documented
+- Limitation: V1-10 does not claim comparative visual UX certification
+- Vercel: **NOT AUTHORIZED / NOT REQUIRED**
 
-## Preuves de fermeture / freeze
+## Continuite
 
-- PR `#704` : merged `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` — closeout V1-07 canonique
-- CI exact-master V1-07 : `36586694637` SUCCESS — backend regression + prod guard ; Frontend SKIPPED
-- PostgreSQL exact-master V1-07 : `36586694618` SUCCESS
-- V7.1 : PR `#693` + remédiations `#698/#699/#701` mergées
-- Digital Crown Pocket : PR `#696` + runtime PR `#702` mergées
-- Frontend/Pocket : preuve retenue du dernier SHA pertinent, aucun rerun inutile
-- Le candidat V1 reste exactement `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` même si master avance par commits documentaires de freeze.
-- INSTALLABLE release V1-09 : `dc-cabinet-3c86e72bf0e1-run36597573383`.
-- Rehearsal réel isolé : PASS ; Alembic `f7a8b9c0d1e2 → v7100000020`, données/relations/archives/médias préservés, health 200.
-- Runtime assets : 2328 fichiers / 1547416562 octets ; bundle SHA256 `da97e81bea6b2dc8ed283df283f942879951a6eea6ab0824fdbad9891d4cdabb`.
-- `V1_OPERATIONAL` reste **NON** ; cabinet réel non muté.
-
-## Continuité
-
-Autorité d'exécution V1 : `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`.
-
-Next exact : V1-10 — installer uniquement la release `dc-cabinet-3c86e72bf0e1-run36597573383` / candidat `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` sur le cabinet réel, après autorisation humaine explicite immédiatement avant mutation. `V1_OPERATIONAL` reste **NON** tant que cette activation et ses contrôles post-update ne sont pas prouvés.
+V1 is operational on the real cabinet. After merge and post-merge coherence verification of this docs-only closeout, execution authority transfers to the canonical POST-V1 / V1.5 roadmap. Next exact: **V1.5-00 - Hub & Dispatcher**.
 
 # Historique canonique — 2026-08-14
 
