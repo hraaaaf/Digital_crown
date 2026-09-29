@@ -1,6 +1,6 @@
 # Digital Crown — V1 objective
 
-Status: CANONICAL OBJECTIVE — V1-07 EXACT-HEAD CERTIFIED / MERGE PENDING — candidate SHA not yet selected
+Status: CANONICAL OBJECTIVE — V1-07 CLOSED / V1-08 UNLOCKED — candidate SHA not yet selected
 
 ## Execution authority
 
@@ -67,16 +67,16 @@ Before the real cabinet update, rollback must be executable by restoring the ver
 
 - Canonical V0: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
 - sole roadmap: `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`
-- active lot: **V1-07 — exact-head certified / merge and post-merge certification pending**
-- audit base: `master@ceae1624c5f1311eb7ffcf512785b8a30fe438fc`
-- V1-08 freeze: **BLOCKED** until PR #692 merge and post-merge master certification complete
+- previous lot: **V1-07 — CLOSED**
+- pre-closeout stabilized master: `6d9dc534f55c8f664fca3cf9eba043e035ecb464`
+- V1-08 freeze: **UNLOCKED after the V1-07 canonical closeout reaches master**
 - V1 candidate SHA: **NOT SELECTED**
 - installability status: **NOT CERTIFIED**
 - V1 status: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
 - Vercel deployment: **NOT AUTHORIZED**
-- audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`
+- V1-07 audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`
 
 ## Current next exact
 
-Merge PR #692 from certified head `0354bf6828e98ec50ec7afdef95941f621eb335b`, certify the resulting master, then close V1-07 and let V1-08 intentionally select the immutable V1 candidate SHA.
+After the V1-07 canonical closeout is merged, start V1-08 and intentionally freeze the exact resulting 40-character `master` SHA in this file and in `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`. Do not infer the candidate from a moving branch name and do not advance V1-09 until that exact candidate is recorded.

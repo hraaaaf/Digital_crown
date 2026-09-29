@@ -2,7 +2,38 @@
 
 > Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
-# État canonique manuel — 2026-08-14
+# État canonique manuel — 2026-09-29
+
+## V1 — état courant vérifié
+
+- Repository : `hraaaaf/Digital_crown`
+- Pre-closeout master : `6d9dc534f55c8f664fca3cf9eba043e035ecb464`
+- V1-07 Master stabilization : **CLOSED — merge/post-merge techniques prouvés ; fermeture canonique enregistrée par cette mise à jour docs-only**
+- V1-08 Freeze exact candidate : **UNLOCKED après arrivée de cette mise à jour sur master**
+- V1 candidate SHA : **NOT SELECTED**
+- `INSTALLABLE_CERTIFIED` : **NON**
+- `V1_OPERATIONAL` : **NON**
+- Mutation cabinet réelle : **NON AUTORISÉE**
+- Déploiement Vercel : **NON AUTORISÉ**
+
+## Preuves de closeout V1-07
+
+- PR `#692` : merged `da02ca02c91fb55a8cd1dfa5f7e92c8a45c1c819`
+- V7.1 : PR `#693` + remédiations `#698/#699/#701` mergées
+- Digital Crown Pocket : PR `#696` merged `a681ca61ad0bafe3916897e85efd567fed2813a5`
+- Pocket runtime : PR `#702` merged `c837141068785bc1d7162952397e0f7852c1b261`
+- CI targeting post-merge : PR `#703` merged `6d9dc534f55c8f664fca3cf9eba043e035ecb464`
+- Pocket exact source HEAD `21e820835b296192235eb3bbc5479f1a93992225` : CI `36550966453` SUCCESS + Mobile Pocket Real Runtime `36550966512` SUCCESS
+- Master `6d9dc534…` : CI `36578751830` SUCCESS (backend regression + prod guard), PostgreSQL `36578751887` SUCCESS
+- Frontend n'a pas été rejoué : comparaison `21e820… → 6d9dc534…` = aucun fichier frontend runtime modifié ; le job Frontend du CI master est volontairement SKIPPED.
+
+## Continuité
+
+Autorité d'exécution V1 : `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`.
+
+Le bloc ci-dessous est conservé comme historique de l'ancien état manuel ; il ne déverrouille aucun lot V1.
+
+# Historique canonique — 2026-08-14
 
 ## Baseline vérifiée
 
