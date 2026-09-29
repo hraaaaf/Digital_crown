@@ -520,9 +520,9 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 ## 6. Current canonical state
 
 - V1-07 — Master stabilization: **CLOSED**;
-- V1-08 — Freeze exact V1 candidate: **CLOSED** once this docs-only freeze record reaches master;
+- V1-08 — Freeze exact V1 candidate: **CLOSED**;
 - frozen V1 candidate SHA: `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`;
-- next lot: **V1-09 — V0 → V1 installability certification — UNLOCKED** after merge of this freeze record;
+- active lot: **V1-09 — V0 → V1 installability certification — UNLOCKED**;
 - installability status: **NOT CERTIFIED**;
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**;
 - production/cabinet mutation: **NOT AUTHORIZED**;

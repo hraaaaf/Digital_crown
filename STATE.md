@@ -8,10 +8,10 @@
 
 - Repository : `hraaaaf/Digital_crown`
 - V1-07 Master stabilization : **CLOSED**
-- V1-08 Freeze exact candidate : **CLOSED** une fois ce record docs-only mergé
+- V1-08 Freeze exact candidate : **CLOSED**
 - V1 candidate SHA : `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`
 - Autorisation freeze : product owner **GO**, 29 septembre 2026
-- V1-09 Installability certification : **UNLOCKED après merge du record de freeze**
+- V1-09 Installability certification : **UNLOCKED**
 - `INSTALLABLE_CERTIFIED` : **NON**
 - `V1_OPERATIONAL` : **NON**
 - Mutation cabinet réelle : **NON AUTORISÉE**
