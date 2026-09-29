@@ -1,6 +1,6 @@
 # Digital Crown — V1 Consolidated Roadmap
 
-Status: **CANONICAL / V1_OPERATIONAL**
+Status: **CLOSED / V1_OPERATIONAL — HISTORICAL EXECUTION AUTHORITY**
 
 Effective date: 17 September 2026
 
@@ -519,7 +519,7 @@ Proof: complete rehearsal/certification report tied to the exact candidate SHA.
 
 ### LOT V1-10 — Real cabinet update + V1 operational closure
 
-Status: **UNLOCKED — BLOCKED ONLY BY EXPLICIT HUMAN AUTHORIZATION**
+Status: **CLOSED — REAL CABINET VERIFIED**
 
 Goal: install the exact `INSTALLABLE_CERTIFIED` candidate on the real cabinet and prove operational integrity.
 
@@ -566,8 +566,9 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 - PostgreSQL certification `36638379156`: **SUCCESS**;
 - production/cabinet mutation for V1: **COMPLETED AND VERIFIED**;
 - Vercel deployment: **NOT AUTHORIZED / NOT REQUIRED FOR V1**;
-- next roadmap authority after this canonical docs closeout: **Digital Crown - Roadmap canonique POST-V1 / V1.5**;
-- next exact after merge + post-merge coherence check: open **V1.5-00 - Hub & Dispatcher**.
+- V1 execution authority: **CLOSED**; this roadmap is retained as the historical V1 execution record.
+- next roadmap authority after this final canonical docs closeout: **Digital Crown — Roadmap canonique POST-V1 / V1.5**;
+- next exact after merge + read-only post-merge coherence check: open **V1.5-00 — Hub & Dispatcher**.
 
 ## 7. Maintenance rule
 
