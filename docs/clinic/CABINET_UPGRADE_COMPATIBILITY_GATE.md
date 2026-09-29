@@ -2,7 +2,7 @@
 
 ## Statut
 
-**NO-GO cabinet tant qu'un rehearsal frais sur copie de la DB et des médias réels n'a pas validé le candidat exact.**
+**V1 GATE SATISFIED / CLOSED.** Le NO-GO historique ci-dessous est conservé comme preuve du risque découvert avant l'upgrade. Le rehearsal frais, la certification installable, l'autorisation humaine, l'activation réelle et le contrôle POSTUPDATE ont depuis été exécutés pour la V1 finale `bce60b26059054ba43cf8ec13cd210098e648ea4`. Voir `docs/migrations/V1_10_REAL_CABINET_CLOSEOUT.md`. Ce document ne constitue plus un blocage courant.
 
 Ce gate a été ouvert après un audit Codex read-only du runtime cabinet réel suivi d'un upgrade rehearsal sur copie isolée. Aucune donnée réelle, configuration réelle ni release réelle n'a été modifiée pendant cet audit.
 
