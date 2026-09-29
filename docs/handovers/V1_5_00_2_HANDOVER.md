@@ -90,7 +90,7 @@ Final AFTER captures:
    - HEAD
    - git status
    - PR/merge state if one exists
-3. Verify V1.5-00.2 closeout proof; final local build is already PASS on `79fea6647283dc9553e89ad102c5d137e4a05883`.
+3. Verify V1.5-00.2 closeout proof; exact-head local verification is being finalized on `97474038e8253016cfed86bf371dccb234525ba5` before handover publication.
 4. Do not reimplement the Hub.
 5. Start V1.5-00.3 only after 00.2 is formally closed.
 
@@ -115,3 +115,16 @@ Required contract:
 
 Work directly on DESKTOP-3MAJEEH through Remote Desktop Commander.
 GitHub Actions are secondary CI evidence only, never the primary implementation or validation environment.
+
+## GitHub closeout status
+
+- PR: #719
+- URL: https://github.com/hraaaaf/Digital_crown/pull/719
+- PR head: 6312a6748825acc32f317de9525e902b4c22f68e
+- mergeable: YES
+- current merge state: UNSTABLE
+- local implementation/testing/build/visual proof: COMPLETE
+- blocking check: Human visual approval (Achraf) = FAILURE because no explicit human approval has been recorded yet
+- other GitHub checks are secondary and still running/queued
+
+Do not claim 00.2 fully merged/closed until Achraf explicitly approves the observed AFTER visuals and PR #719 is merged.
