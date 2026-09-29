@@ -1,6 +1,6 @@
 # Digital Crown — V1 objective
 
-Status: **CANONICAL OBJECTIVE - V1_OPERATIONAL**
+Status: **CLOSED — V1_OPERATIONAL**
 
 ## Execution authority
 
@@ -102,8 +102,9 @@ Before the real cabinet update, rollback must be executable by restoring the ver
 - master CI: `36638379136` - **SUCCESS**
 - PostgreSQL certification: `36638379156` - **SUCCESS**
 - Vercel deployment: **NOT AUTHORIZED / NOT REQUIRED**
-- next exact: merge this docs-only V1 closeout, verify post-merge coherence, then transfer execution authority to the canonical POST-V1 / V1.5 roadmap and open V1.5-00.
+- V1 execution: **CLOSED**; no V1 lot remains.
+- next exact: after this final canonical documentation closeout is merged and re-read on `master`, transfer execution authority to the canonical POST-V1 / V1.5 roadmap and open V1.5-00.
 
 ## Current next exact
 
-After this docs-only closeout is merged and post-merge master coherence is verified, V1 is closed. The next execution authority is the canonical POST-V1 / V1.5 roadmap; start with **V1.5-00 - Hub & Dispatcher**.
+V1 runtime/product closure is proven and **V1 is CLOSED**. This final documentation pass only synchronizes the canonical declarations; it does not reopen V1. After merge and a read-only coherence check on `master`, the next execution authority is the canonical POST-V1 / V1.5 roadmap; start with **V1.5-00 — Hub & Dispatcher**.
