@@ -48,6 +48,20 @@ def test_health_ok(client):
     assert data["db"] == "ok"
 
 
+def test_app_version_prefers_certified_release_marker(tmp_path, monkeypatch):
+    import backend.main as main
+
+    backend_dir = tmp_path / "backend"
+    backend_dir.mkdir()
+    (tmp_path / ".digitalcrown-release-sha").write_text(
+        "2dd3c970bcf8139f80192d7ff850742dbf5ee059\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(main, "BASE_DIR", str(backend_dir))
+
+    assert main._get_app_version() == "2dd3c970bcf8"
+
+
 def test_root_health_error_does_not_expose_exception_detail(client, monkeypatch):
     def _explode():
         raise RuntimeError("postgresql://secret-user:secret-password@private-host/db")
