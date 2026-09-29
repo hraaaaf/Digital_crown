@@ -14,9 +14,10 @@ V1.5-00.1 read-only architecture audit:
 - commit: db1cadd74eb60d3e11e6c31d5da6780fefaacbb4
 - document: docs/architecture/V1_5_00_1_HUB_DISPATCHER_READONLY_AUDIT.md
 
-V1.5-00.2 runtime implementation commit:
-- commit: 79fea6647283dc9553e89ad102c5d137e4a05883
-- message: feat(v1.5-00): add local Hub dispatcher shell
+V1.5-00.2 implementation chain:
+- implementation: 79fea6647283dc9553e89ad102c5d137e4a05883
+- closeout: 97474038e8253016cfed86bf371dccb234525ba5
+- handover/merge-gate state before final metadata refresh: d439a5cbd35bb929b8bdf91daea5dec577864d51
 
 ## What 00.2 implemented
 
@@ -90,7 +91,7 @@ Final AFTER captures:
    - HEAD
    - git status
    - PR/merge state if one exists
-3. Verify V1.5-00.2 closeout proof; exact-head local verification is being finalized on `97474038e8253016cfed86bf371dccb234525ba5` before handover publication.
+3. Verify V1.5-00.2 closeout proof. Local exact-HEAD verification on `d439a5cbd35bb929b8bdf91daea5dec577864d51`: 2 files / 5 tests PASS + `npm run build:test` PASS (4709 modules, PWA assets generated).
 4. Do not reimplement the Hub.
 5. Start V1.5-00.3 only after 00.2 is formally closed.
 
@@ -120,11 +121,11 @@ GitHub Actions are secondary CI evidence only, never the primary implementation 
 
 - PR: #719
 - URL: https://github.com/hraaaaf/Digital_crown/pull/719
-- PR head: 6312a6748825acc32f317de9525e902b4c22f68e
+- PR head before this handover metadata refresh: d439a5cbd35bb929b8bdf91daea5dec577864d51
 - mergeable: YES
 - current merge state: UNSTABLE
 - local implementation/testing/build/visual proof: COMPLETE
 - blocking check: Human visual approval (Achraf) = FAILURE because no explicit human approval has been recorded yet
-- other GitHub checks are secondary and still running/queued
+- other GitHub checks are secondary and may still be running/queued; re-check actual state on resume
 
 Do not claim 00.2 fully merged/closed until Achraf explicitly approves the observed AFTER visuals and PR #719 is merged.
