@@ -33,9 +33,9 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
     expect(screen.getByText('Aujourd’hui')).toBeTruthy();
     expect(screen.getByText('Patients')).toBeTruthy();
-    expect(screen.getByText('Alertes')).toBeTruthy();
+    expect(screen.getByText('Assistant')).toBeTruthy();
     expect(screen.getByText('Plus')).toBeTruthy();
-    expect(screen.queryByText('Assistant')).toBeNull();
+    expect(screen.queryByText('Alertes')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
     expect(onToggleQuickActions).toHaveBeenCalledTimes(1);
@@ -43,8 +43,8 @@ describe('Digital Crown Pocket canonical navigation', () => {
     fireEvent.click(screen.getByText('Patients'));
     expect(setActiveTab).toHaveBeenCalledWith('patients');
 
-    fireEvent.click(screen.getByText('Alertes'));
-    expect(setActiveTab).toHaveBeenCalledWith('notifications');
+    fireEvent.click(screen.getByText('Assistant'));
+    expect(setActiveTab).toHaveBeenCalledWith('bot');
   });
 
   it('restores merged Pocket V1 secondary destinations for practitioners', () => {
@@ -55,6 +55,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Salle d’attente')).toBeTruthy();
+    expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Accueil')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();
@@ -105,6 +106,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }).hasAttribute('disabled')).toBe(true);
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Salle d’attente')).toBeTruthy();
+    expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Accueil')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();

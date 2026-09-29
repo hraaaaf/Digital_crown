@@ -16,8 +16,8 @@ const roles = [
   { value: 'DENTISTE', slug: 'dentiste', marker: 'practitioner', label: 'Vue praticien · priorité clinique' },
   { value: 'SECRETAIRE', slug: 'secretaire', marker: 'assistant', label: 'Vue assistante · flux cabinet' },
 ];
-const expectedDentistLabels = ['Stock', 'Bibliothèque', 'Approvisionnement', 'Trésorerie', 'Envois Labo', 'Équipe', 'Assistant'];
-const expectedSecretaryLabels = ['Stock', 'Équipe', 'Assistant'];
+const expectedDentistLabels = ['Notifications', 'Stock', 'Bibliothèque', 'Approvisionnement', 'Trésorerie', 'Envois Labo', 'Équipe'];
+const expectedSecretaryLabels = ['Notifications', 'Stock', 'Équipe'];
 const credentials = {
   publicId: '0123456789abcdef',
   masterKey: 'a'.repeat(64),
@@ -82,6 +82,8 @@ async function installRoutes(page, role) {
     selected_theme: 'elite', primary_color: '#003380', secondary_color: '#1e40af',
     accent_color: '#60a5fa', app_accent_color: null, font_fr: 'inter',
   }));
+  await page.route('**/api/lab-jobs/**', route => json(route, []));
+  await page.route('**/api/mobile/dentists', route => json(route, { dentists: [] }));
   await page.route('**/stock/items', route => json(route, [
     { id: 1, nom: 'Gants nitrile', categorie: 'CONSOMMABLE', quantite: 8, seuil_alerte: 10, unite: 'boîte', fournisseur: 'Demo', alerte: true },
     { id: 2, nom: 'Composite', categorie: 'MATERIAU', quantite: 20, seuil_alerte: 5, unite: 'seringue', fournisseur: null, alerte: false },
@@ -147,6 +149,8 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
     };
   });
   if (geometry.navButtons !== 5) throw new Error(`${role.value}/${viewport.width}: nav buttons ${geometry.navButtons}`);
+  await nav.getByText('Assistant', { exact: true }).waitFor({ state: 'visible' });
+  if (await nav.getByText('Alertes', { exact: true }).count()) throw new Error('Legacy Alertes permanent nav leaked into canonical Pocket nav');
   if (geometry.navHeight !== 76) throw new Error(`${role.value}/${viewport.width}: nav height ${geometry.navHeight}`);
   if (geometry.horizontalOverflow) throw new Error(`${role.value}/${viewport.width}: overflow ${geometry.scrollWidth}>${geometry.innerWidth}`);
   await assertTouchTarget(page.locator('input[type="date"]'), 'date input');
