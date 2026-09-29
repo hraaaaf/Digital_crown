@@ -97,13 +97,16 @@ if (-not (Test-Path -LiteralPath $verifyScript -PathType Leaf)) {
     Fail "INSTALLABLE verifier missing: $verifyScript"
 }
 $oldPythonPath = $env:PYTHONPATH
+$oldDontWriteBytecode = $env:PYTHONDONTWRITEBYTECODE
 $env:PYTHONPATH = $releaseDir
+$env:PYTHONDONTWRITEBYTECODE = "1"
 try {
     & $VenvPython $verifyScript --release-dir $releaseDir
     if ($LASTEXITCODE -ne 0) { Fail "INSTALLABLE verifier rejected $ReleaseId" }
 }
 finally {
     $env:PYTHONPATH = $oldPythonPath
+    $env:PYTHONDONTWRITEBYTECODE = $oldDontWriteBytecode
 }
 
 if ($manifest.frontend_dist_path -match 'rehearsal|dist-test') { Fail "release frontend points to rehearsal/test output" }
