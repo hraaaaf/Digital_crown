@@ -11,8 +11,8 @@
 - V1-08 Freeze exact candidate : **CLOSED**
 - V1 candidate SHA : `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
 - Autorisation freeze : product owner **GO**, 29 septembre 2026
-- V1-09 Installability certification : **UNLOCKED**
-- `INSTALLABLE_CERTIFIED` : **NON**
+- V1-09 Installability certification : **CLOSED**
+- `INSTALLABLE_CERTIFIED` : **OUI**
 - `V1_OPERATIONAL` : **NON**
 - Mutation cabinet réelle : **NON AUTORISÉE**
 - Déploiement Vercel : **NON AUTORISÉ**
@@ -26,12 +26,16 @@
 - Digital Crown Pocket : PR `#696` + runtime PR `#702` mergées
 - Frontend/Pocket : preuve retenue du dernier SHA pertinent, aucun rerun inutile
 - Le candidat V1 reste exactement `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` même si master avance par commits documentaires de freeze.
+- INSTALLABLE release V1-09 : `dc-cabinet-3c86e72bf0e1-run36597573383`.
+- Rehearsal réel isolé : PASS ; Alembic `f7a8b9c0d1e2 → v7100000020`, données/relations/archives/médias préservés, health 200.
+- Runtime assets : 2328 fichiers / 1547416562 octets ; bundle SHA256 `da97e81bea6b2dc8ed283df283f942879951a6eea6ab0824fdbad9891d4cdabb`.
+- `V1_OPERATIONAL` reste **NON** ; cabinet réel non muté.
 
 ## Continuité
 
 Autorité d'exécution V1 : `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`.
 
-Next exact : V1-09 certifie uniquement le candidat figé `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` sur restore PREUPDATE isolé. Aucun autre SHA ne peut hériter de cette certification.
+Next exact : V1-10 — installer uniquement la release `dc-cabinet-3c86e72bf0e1-run36597573383` / candidat `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` sur le cabinet réel, après autorisation humaine explicite immédiatement avant mutation. `V1_OPERATIONAL` reste **NON** tant que cette activation et ses contrôles post-update ne sont pas prouvés.
 
 # Historique canonique — 2026-08-14
 

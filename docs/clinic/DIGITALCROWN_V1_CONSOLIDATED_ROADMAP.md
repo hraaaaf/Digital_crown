@@ -482,7 +482,21 @@ V1-08 Success criterion is satisfied once this docs-only freeze record reaches m
 
 ### LOT V1-09 — V0 → V1 installability certification
 
-Status: **UNLOCKED — NOT STARTED**
+Status: **CLOSED — INSTALLABLE_CERTIFIED**
+
+Closeout proof (2026-09-29):
+- exact candidate: `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`;
+- CODE_CERTIFIED run: `36597573383` — SUCCESS;
+- isolated real PREUPDATE rehearsal: **PASS**;
+- source Alembic: `f7a8b9c0d1e2` → target `v7100000020`;
+- historical data hash, historical relations hash, 434/434 document archives and 2915 media files preserved;
+- second `alembic upgrade head`: schema no-op;
+- isolated backend smoke: `/api/health = 200`;
+- runtime assets certified: 2328 files / 1547416562 bytes;
+- installable release: `dc-cabinet-3c86e72bf0e1-run36597573383`;
+- BASIC / GOLD / ELITE verifier: **PASS**;
+- `INSTALLABLE_CERTIFIED = OUI`.
+
 
 Goal: certify the locked candidate against a fresh isolated restore of the real cabinet PREUPDATE state.
 
@@ -503,7 +517,7 @@ Proof: complete rehearsal/certification report tied to the exact candidate SHA.
 
 ### LOT V1-10 — Real cabinet update + V1 operational closure
 
-Status: **BLOCKED BY V1-09 + EXPLICIT HUMAN AUTHORIZATION**
+Status: **UNLOCKED — BLOCKED ONLY BY EXPLICIT HUMAN AUTHORIZATION**
 
 Goal: install the exact `INSTALLABLE_CERTIFIED` candidate on the real cabinet and prove operational integrity.
 
