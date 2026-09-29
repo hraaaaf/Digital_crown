@@ -665,7 +665,15 @@ async def health_check():
 
 
 def _get_app_version() -> str:
-    """Retourne le hash court du commit git déployé, ou 'unknown' hors dépôt git."""
+    """Retourne le SHA certifié du runtime, avec Git en fallback de développement."""
+    marker = Path(BASE_DIR).parent / ".digitalcrown-release-sha"
+    try:
+        sha = marker.read_text(encoding="utf-8-sig").strip().lower()
+        if len(sha) == 40 and all(char in "0123456789abcdef" for char in sha):
+            return sha[:12]
+    except (OSError, UnicodeError):
+        pass
+
     try:
         import subprocess
         return subprocess.check_output(
