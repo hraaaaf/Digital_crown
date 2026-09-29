@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../../services/api';
+import { mobileApiJson } from '../../services/zka/mobileApi';
 import { useAuthStore } from '../../stores/useAuthStore';
 import type { AppUser } from '../../types';
 import {
@@ -40,6 +41,11 @@ export type MarketplaceCartLine = PartnerProduct & {
   lineTotal: number;
 };
 
+type MarketplaceOrderResult = {
+  orderNumber: string;
+  orderCount?: number;
+};
+
 const emptyCustomer: MarketplaceCustomer = {
   fullName: '',
   clinic: '',
@@ -48,6 +54,24 @@ const emptyCustomer: MarketplaceCustomer = {
   city: '',
   note: '',
 };
+
+const isPocketRuntime = () => typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile');
+
+async function marketplaceGet<T>(path: string): Promise<{ data: T }> {
+  if (isPocketRuntime()) return { data: await mobileApiJson<T>(path) };
+  return api.get<T>(path);
+}
+
+async function marketplacePost<T>(path: string, payload: unknown): Promise<{ data: T }> {
+  if (isPocketRuntime()) {
+    return { data: await mobileApiJson<T>(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }) };
+  }
+  return api.post<T>(path, payload);
+}
 
 export function buildMarketplaceCustomer(user?: AppUser | null): MarketplaceCustomer {
   return {
@@ -128,10 +152,10 @@ export function usePartnerMarketplace(options?: { previewData?: MarketplacePrevi
     const hadCache = hydrateFromCache();
     try {
       const [ordersMetaRes, catalogMetaRes, suppliersRes, productsRes] = await Promise.all([
-        api.get('/partner-orders/meta'),
-        api.get('/partner-catalog/meta'),
-        api.get('/partner-catalog/suppliers'),
-        api.get('/partner-catalog/products'),
+        marketplaceGet<{ strategyPresets: PartnerMarketplaceStrategyPreset[] }>('/partner-orders/meta'),
+        marketplaceGet<PartnerMarketplaceCatalogMeta>('/partner-catalog/meta'),
+        marketplaceGet<PartnerCatalogSupplier[]>('/partner-catalog/suppliers'),
+        marketplaceGet<PartnerCatalogProduct[]>('/partner-catalog/products'),
       ]);
 
       const nextStrategyPresets = (ordersMetaRes.data?.strategyPresets || []) as PartnerMarketplaceStrategyPreset[];
@@ -244,7 +268,7 @@ export function usePartnerMarketplace(options?: { previewData?: MarketplacePrevi
     setSubmitting(true);
     try {
       const fallbackSupplier = activeSuppliers[0];
-      const response = await api.post('/partner-orders', {
+      const response = await marketplacePost<MarketplaceOrderResult>('/partner-orders', {
         partnerId: fallbackSupplier ? String(fallbackSupplier.id) : 'server-resolved',
         partnerName: fallbackSupplier?.name || 'Server resolved',
         strategyLabel: checkoutStrategy.label,

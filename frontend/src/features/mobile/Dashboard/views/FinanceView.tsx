@@ -21,7 +21,7 @@ export function FinanceView({
   const f = snapshot?.finance;
 
   return (
-    <div className="space-y-6">
+    <div data-mobile-finance className="space-y-6">
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-5 shadow-elite" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
           <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-[12px] flex items-center justify-center text-white mb-3 border border-white/30">

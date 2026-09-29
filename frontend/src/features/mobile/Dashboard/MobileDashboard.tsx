@@ -20,6 +20,13 @@ import { MobilePatientsGate } from './views/MobilePatientsGate';
 import { SecuriteView } from './views/SecuriteView';
 import { FrontdeskView } from './views/FrontdeskView';
 import { NotificationsView } from './views/NotificationsView';
+import { FinanceView } from './views/FinanceView';
+import { LabView } from './views/LabView';
+import { BotView } from './views/BotView';
+import { DentistsView } from './views/DentistsView';
+import { StockView } from './views/StockView';
+import { LibraryView } from './views/LibraryView';
+import { MarketplaceView } from './views/MarketplaceView';
 import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 import { resolveDashboardTab } from '../bridge';
 
@@ -42,6 +49,8 @@ export const MobileDashboard = () => {
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = state.snapshot?.appointments.length ?? 0;
+  const role = state.snapshot?.role ?? '';
+  const practitionerModuleAllowed = role === 'DENTISTE' || role === 'ADMIN';
   const quickActionsAvailable = capabilitiesLoaded && (
     capabilities.can_create_appointment
     || capabilities.can_create_patient
@@ -141,6 +150,19 @@ export const MobileDashboard = () => {
             {state.activeTab === 'securite' && <SecuriteView snapshot={state.snapshot} syncStatus={state.syncStatus} isOnline={state.isOnline} handleLogout={actions.handleLogout} />}
             {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} />}
+            {state.activeTab === 'lab' && (practitionerModuleAllowed
+              ? <LabView labJobs={state.labJobs} handleWhatsAppSend={actions.handleWhatsAppSend} />
+              : <PocketRestrictedView label="Envois Labo" />)}
+            {state.activeTab === 'finance' && (practitionerModuleAllowed
+              ? <FinanceView snapshot={state.snapshot} syncStatus={state.syncStatus} selectedDate={state.selectedDate} openWhatsApp={actions.openWhatsApp} handleExportPDF={actions.handleExportPDF} />
+              : <PocketRestrictedView label="Trésorerie" />)}
+            {state.activeTab === 'dentists' && <DentistsView embedded />}
+            {state.activeTab === 'stock' && <StockView />}
+            {state.activeTab === 'library' && <LibraryView role={state.snapshot?.role} />}
+            {state.activeTab === 'marketplace' && (practitionerModuleAllowed
+              ? <MarketplaceView />
+              : <PocketRestrictedView label="Approvisionnement" />)}
+            {state.activeTab === 'bot' && <BotView />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -208,3 +230,16 @@ export const MobileDashboard = () => {
     </div>
   );
 };
+function PocketRestrictedView({ label }: { label: string }) {
+  return (
+    <section data-mobile-restricted className="pb-8 pt-2">
+      <div className="rounded-[24px] border border-glass-border bg-card p-5 shadow-sm">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">{label}</p>
+        <h1 className="mt-2 text-[24px] font-black tracking-tight text-text-main">Accès réservé</h1>
+        <p className="mt-2 text-[12px] font-semibold leading-relaxed text-text-muted">
+          Cette surface Pocket est réservée aux praticiens et administrateurs autorisés.
+        </p>
+      </div>
+    </section>
+  );
+}

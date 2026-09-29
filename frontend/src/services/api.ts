@@ -59,8 +59,10 @@ export function resetAuthState() {
  */
 export function getRuntimeAuthToken(): string | null {
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
-    const uvToken = MobileStorage.getBiometricAccessToken();
-    if (uvToken) return uvToken;
+    // Pocket must never fall back to desktop browser storage. Shared Axios requests
+    // hydrate the durable paired-device JWT asynchronously in the request interceptor;
+    // only the memory-only biometric step-up token is synchronously exposable here.
+    return MobileStorage.getBiometricAccessToken() || null;
   }
   try {
     return localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -76,7 +78,7 @@ function propagateMobileBiometricLock(): void {
 }
 
 // Request interceptor — annule toute requête si la session est terminée
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   if (_authFailed) {
     return Promise.reject(new axios.Cancel('Session expirée — requête annulée.'));
   }
@@ -106,8 +108,18 @@ api.interceptors.request.use((config) => {
     };
   }
 
-  const token = getRuntimeAuthToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
+    // Pocket must authenticate only with its paired-device Authorization token.
+    // Do not co-send desktop HttpOnly cookies across the mobile boundary.
+    config.withCredentials = false;
+    const uvToken = MobileStorage.getBiometricAccessToken();
+    const creds = uvToken ? null : await MobileStorage.getCredentials();
+    const mobileToken = uvToken || creds?.access_token || null;
+    if (mobileToken) config.headers.Authorization = `Bearer ${mobileToken}`;
+  } else {
+    const token = getRuntimeAuthToken();
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
@@ -166,10 +178,8 @@ api.interceptors.response.use(
       // le réutiliser après refresh : la requête durable suivante doit être refusée
       // par le gate biométrique puis reverrouiller l'interface.
       if (MobileStorage.getBiometricAccessToken()) MobileStorage.clearBiometricAccessToken();
-      const previousToken = localStorage.getItem('token');
       const refreshed = await MobileStorage.refreshCredentials();
-      if (refreshed?.access_token && refreshed.access_token !== previousToken) {
-        localStorage.setItem('token', refreshed.access_token);
+      if (refreshed?.access_token) {
         original.headers = original.headers ?? {};
         original.headers['Authorization'] = `Bearer ${refreshed.access_token}`;
         return api(original);

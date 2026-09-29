@@ -35,9 +35,8 @@ try {
     const moreMenu = page.locator('[data-mobile-more-menu]');
     await moreMenu.waitFor({ state: 'visible' });
     await moreMenu.getByText('Salle d’attente', { exact: true }).waitFor({ state: 'visible' });
-    if (await moreMenu.getByText('Équipe', { exact: true }).count()) {
-      throw new Error('MOB-5A: retired Équipe entry resurfaced in Pocket Plus');
-    }
+    // PR #702 is the newer Pocket contract: Équipe is restored as a real Pocket route.
+    await moreMenu.getByText('Équipe', { exact: true }).waitFor({ state: 'visible' });
 
     const geometry = await page.evaluate(() => {
       const nav = document.querySelector('[data-mobile-bottom-nav]');

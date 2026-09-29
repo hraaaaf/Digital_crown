@@ -33,9 +33,9 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
     expect(screen.getByText('Aujourd’hui')).toBeTruthy();
     expect(screen.getByText('Patients')).toBeTruthy();
-    expect(screen.getByText('Alertes')).toBeTruthy();
+    expect(screen.getByText('Assistant')).toBeTruthy();
     expect(screen.getByText('Plus')).toBeTruthy();
-    expect(screen.queryByText('Assistant')).toBeNull();
+    expect(screen.queryByText('Alertes')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }));
     expect(onToggleQuickActions).toHaveBeenCalledTimes(1);
@@ -43,11 +43,11 @@ describe('Digital Crown Pocket canonical navigation', () => {
     fireEvent.click(screen.getByText('Patients'));
     expect(setActiveTab).toHaveBeenCalledWith('patients');
 
-    fireEvent.click(screen.getByText('Alertes'));
-    expect(setActiveTab).toHaveBeenCalledWith('notifications');
+    fireEvent.click(screen.getByText('Assistant'));
+    expect(setActiveTab).toHaveBeenCalledWith('bot');
   });
 
-  it('limits practitioner secondary destinations to waiting room, frontdesk and security', () => {
+  it('restores merged Pocket V1 secondary destinations for practitioners', () => {
     const setActiveTab = vi.fn();
     render(
       <MobileBottomNav activeTab="agenda" setActiveTab={setActiveTab} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
@@ -55,14 +55,16 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Salle d’attente')).toBeTruthy();
+    expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Accueil')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
-    expect(screen.queryByText('Stock')).toBeNull();
-    expect(screen.queryByText('Bibliothèque')).toBeNull();
-    expect(screen.queryByText('Approvisionnement')).toBeNull();
-    expect(screen.queryByText('Trésorerie')).toBeNull();
-    expect(screen.queryByText('Envois Labo')).toBeNull();
-    expect(screen.queryByText('Équipe')).toBeNull();
+    expect(screen.getByText('Stock')).toBeTruthy();
+    expect(screen.getByText('Bibliothèque')).toBeTruthy();
+    expect(screen.getByText('Approvisionnement')).toBeTruthy();
+    expect(screen.getByText('Trésorerie')).toBeTruthy();
+    expect(screen.getByText('Envois Labo')).toBeTruthy();
+    expect(screen.getByText('Équipe')).toBeTruthy();
+    expect(screen.getByText('Assistant')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Salle d’attente'));
     expect(setActiveTab).toHaveBeenCalledWith('waiting-room');
@@ -104,13 +106,16 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }).hasAttribute('disabled')).toBe(true);
     fireEvent.click(screen.getByText('Plus'));
     expect(screen.getByText('Salle d’attente')).toBeTruthy();
+    expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Accueil')).toBeTruthy();
     expect(screen.getByText('Sécurité')).toBeTruthy();
-    expect(screen.queryByText('Stock')).toBeNull();
+    expect(screen.getByText('Stock')).toBeTruthy();
+    expect(screen.getByText('Équipe')).toBeTruthy();
+    expect(screen.getByText('Assistant')).toBeTruthy();
+    expect(screen.queryByText('Bibliothèque')).toBeNull();
     expect(screen.queryByText('Approvisionnement')).toBeNull();
     expect(screen.queryByText('Trésorerie')).toBeNull();
     expect(screen.queryByText('Envois Labo')).toBeNull();
-    expect(screen.queryByText('Équipe')).toBeNull();
   });
 
   it('fails closed when role is not loaded yet', () => {

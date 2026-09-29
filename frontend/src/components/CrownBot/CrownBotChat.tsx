@@ -6,6 +6,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { api, API_BASE, getRuntimeAuthToken } from '../../services/api';
+import { mobileFetch } from '../../services/zka/mobileFetch';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { cn } from '../../utils/cn';
 
@@ -380,19 +381,22 @@ export function CrownBotChat({
 
     try {
       const token = getRuntimeAuthToken();
-      const res = await fetch(`${API_BASE}/api/bot/chat/stream`, {
+      const requestInit: RequestInit = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: 'include',
+        credentials: location.pathname.startsWith('/mobile') ? 'omit' : 'include',
         body: JSON.stringify({
           message: text,
           ...(currentSessionId ? { session_id: currentSessionId } : {}),
           ...(patientId ? { patient_id: patientId } : {}),
         }),
-      });
+      };
+      const res = location.pathname.startsWith('/mobile')
+        ? await mobileFetch(`${API_BASE}/api/bot/chat/stream`, requestInit)
+        : await fetch(`${API_BASE}/api/bot/chat/stream`, requestInit);
       if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
 
       const reader = res.body.getReader();

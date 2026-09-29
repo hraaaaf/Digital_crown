@@ -6,41 +6,49 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 const hookSource = readSource('src/features/mobile/Dashboard/hooks/useMobileDashboard.ts');
 const dashboardSource = readSource('src/features/mobile/Dashboard/MobileDashboard.tsx');
 const storageSource = readSource('src/services/zka/MobileStorage.ts');
-const addApptSource = readSource('src/features/mobile/Dashboard/components/AddApptModal.tsx');
-const patientsSource = readSource('src/features/mobile/Dashboard/views/MobilePatientsView.tsx');
+const mobileApiSource = readSource('src/services/zka/mobileApi.ts');
+const stockSource = readSource('src/features/mobile/Dashboard/views/StockView.tsx');
+const botSource = readSource('src/features/mobile/Dashboard/views/BotView.tsx');
+const marketplaceSource = readSource('src/features/partnerMarketplace/usePartnerMarketplace.ts');
+const authBackend = readSource('../backend/routers/auth.py');
+const mobileBackend = readSource('../backend/routers/mobile.py');
 
 describe('Digital Crown Pocket production runtime scope', () => {
-  it('keeps the Today surface out of the legacy full agenda manager', () => {
+  it('keeps Today bounded and restores the canonical Pocket surfaces', () => {
     expect(dashboardSource).not.toContain("import { AgendaView }");
-    expect(dashboardSource).not.toContain('<AgendaView');
+    expect(dashboardSource).toContain('PocketTodayOverview');
+    for (const surface of ['FinanceView', 'LabView', 'BotView', 'DentistsView', 'StockView', 'LibraryView', 'MarketplaceView']) {
+      expect(dashboardSource).toContain(surface);
+    }
+    expect(dashboardSource).toContain('PocketRestrictedView');
   });
 
-  it('does not preload retired Lab or Finance workflows', () => {
-    expect(hookSource).not.toContain('fetchLabJobs');
-    expect(hookSource).not.toContain('labJobService');
-    expect(hookSource).not.toContain('LabJobStatus');
-    expect(hookSource).not.toContain('/api/mobile/accounting/export-pdf');
-    expect(hookSource).not.toContain('handleExportPDF');
-    expect(hookSource).not.toContain('handleWhatsAppSend');
+  it('routes Pocket data through the mobile boundary instead of desktop auth', () => {
+    expect(mobileApiSource).toContain('/api/mobile');
+    expect(mobileApiSource).toContain('mobileFetch');
+    expect(mobileApiSource).toContain('MobileStorage.getCredentials()');
+    expect(stockSource).toContain('mobileApiJson');
+    expect(stockSource).not.toContain("services/api");
+    expect(hookSource).toContain("mobileApiJson<LabJob[]>('/lab-jobs')");
+    expect(hookSource).toContain("activeTab !== 'lab' || !labRoleAllowed");
+    expect(marketplaceSource).toContain('mobileApiJson');
+    expect(marketplaceSource).toContain('isPocketRuntime');
   });
 
-  it('does not promote Pocket credentials into desktop auth or generic write APIs', () => {
+  it('keeps desktop and Pocket credentials isolated and fails closed', () => {
     expect(storageSource).not.toContain("localStorage.setItem('token'");
     expect(hookSource).not.toContain("localStorage.setItem('token'");
-    expect(addApptSource).not.toContain('/api/patients/');
-    expect(addApptSource).not.toContain('/api/appointments/');
-    expect(addApptSource).toContain('/api/mobile/patients');
-    expect(addApptSource).toContain('/api/mobile/appointments');
-    expect(patientsSource).not.toContain('MobileQuickDocumentSheet');
-    expect(patientsSource).not.toContain('Créer un document');
+    expect(authBackend).toContain('token_type != "access"');
+    expect(authBackend).toContain('Paired Pocket JWTs are intentionally scoped');
+    expect(mobileBackend).toContain("_legacy.require_mobile_permission");
+    expect(mobileBackend).toContain("@router.get('/stock/items'");
+    expect(mobileBackend).toContain("@router.get('/lab-jobs'");
+    expect(mobileBackend).toContain("@router.get('/partner-catalog/products'");
   });
 
-  it('keeps the production shell on the bounded Pocket surfaces', () => {
-    for (const retired of ['FinanceView', 'LabView', 'BotView', 'DentistsView', 'StockView', 'LibraryView', 'MarketplaceView']) {
-      expect(dashboardSource).not.toContain(retired);
-    }
-    expect(dashboardSource).toContain('PocketTodayOverview');
-    expect(dashboardSource).toContain("actions.setActiveTab('patients')");
-    expect(dashboardSource).toContain('initialSelectedId={initialPatientId}');
+  it('keeps Assistant canonical without opening a desktop session', () => {
+    expect(botSource).toContain('data-mobile-assistant');
+    expect(botSource).toContain('En cours de construction');
+    expect(botSource).not.toContain('CrownBotChat');
   });
 });

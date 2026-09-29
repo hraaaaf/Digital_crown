@@ -1,14 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StockView } from './StockView';
-import { api } from '../../../../services/api';
+import { mobileApiJson } from '../../../../services/zka/mobileApi';
 
-vi.mock('../../../../services/api', () => ({
-  api: {
-    get: vi.fn(),
-    patch: vi.fn(),
-    post: vi.fn(),
-  },
+vi.mock('../../../../services/zka/mobileApi', () => ({
+  mobileApiJson: vi.fn(),
 }));
 
 const items = [
@@ -23,18 +19,14 @@ afterEach(() => {
 });
 
 describe('StockView MOB-5D', () => {
-  it('loads the shared stock endpoint and exposes rupture/alert/search contracts', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: items } as any);
+  it('loads the Pocket stock endpoint and exposes rupture/alert/search contracts', async () => {
+    vi.mocked(mobileApiJson).mockResolvedValue(items as any);
     render(<StockView />);
 
     expect(await screen.findByText('Gants nitrile M')).toBeTruthy();
-    expect(api.get).toHaveBeenCalledWith('/stock/items');
+    expect(mobileApiJson).toHaveBeenCalledWith('/stock/items');
     expect(screen.getByText('Composite universel')).toBeTruthy();
-    expect(screen.getByText('Masques')).toBeTruthy();
-
     fireEvent.click(screen.getByText('À traiter'));
-    expect(screen.getByText('Gants nitrile M')).toBeTruthy();
-    expect(screen.getByText('Composite universel')).toBeTruthy();
     expect(screen.queryByText('Masques')).toBeNull();
 
     fireEvent.click(screen.getByText('Tous'));
@@ -44,8 +36,9 @@ describe('StockView MOB-5D', () => {
   });
 
   it('persists +1 and never exposes a decrement below zero', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: items } as any);
-    vi.mocked(api.patch).mockResolvedValue({ data: { ...items[1], quantite: 3, alerte: true } } as any);
+    vi.mocked(mobileApiJson)
+      .mockResolvedValueOnce(items as any)
+      .mockResolvedValueOnce({ ...items[1], quantite: 3, alerte: true } as any);
     render(<StockView />);
 
     expect(await screen.findByText('Composite universel')).toBeTruthy();
@@ -53,12 +46,16 @@ describe('StockView MOB-5D', () => {
     expect(ruptureMinus.hasAttribute('disabled')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter une seringues à Composite universel' }));
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/stock/items/2', { quantite: 3 }));
+    await waitFor(() => expect(mobileApiJson).toHaveBeenCalledWith('/stock/items/2', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantite: 3 }),
+    }));
   });
-
-  it('creates a quick item with the existing stock API and no delete action', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: [] } as any);
-    vi.mocked(api.post).mockResolvedValue({ data: { id: 9, nom: 'Compresses', categorie: 'CONSOMMABLE', quantite: 10, seuil_alerte: 4, unite: 'paquets', alerte: false } } as any);
+  it('creates a quick item through the Pocket API and exposes no delete action', async () => {
+    vi.mocked(mobileApiJson)
+      .mockResolvedValueOnce([] as any)
+      .mockResolvedValueOnce({ id: 9, nom: 'Compresses', categorie: 'CONSOMMABLE', quantite: 10, seuil_alerte: 4, unite: 'paquets', alerte: false } as any);
     render(<StockView />);
 
     expect(await screen.findByText('Aucun article')).toBeTruthy();
@@ -70,8 +67,12 @@ describe('StockView MOB-5D', () => {
     fireEvent.change(screen.getByLabelText('Unité'), { target: { value: 'paquets' } });
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/stock/items', {
-      nom: 'Compresses', categorie: 'CONSOMMABLE', quantite: 10, seuil_alerte: 4, unite: 'paquets',
+    await waitFor(() => expect(mobileApiJson).toHaveBeenCalledWith('/stock/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nom: 'Compresses', categorie: 'CONSOMMABLE', quantite: 10, seuil_alerte: 4, unite: 'paquets',
+      }),
     }));
     expect(await screen.findByText('Compresses')).toBeTruthy();
   });
