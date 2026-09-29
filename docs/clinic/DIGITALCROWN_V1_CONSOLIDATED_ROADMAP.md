@@ -1,6 +1,6 @@
 # Digital Crown — V1 Consolidated Roadmap
 
-Status: **CANONICAL / EXECUTION LOCKED / NOT OPERATIONAL**
+Status: **CANONICAL / V1_OPERATIONAL**
 
 Effective date: 17 September 2026
 
@@ -51,7 +51,9 @@ This recap is a mandatory closeout deliverable in addition to tests, severe scor
 
 **Canonical V0 SHA:** `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
 
-**V1 candidate SHA:** `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` — **FROZEN V1-08**
+**V1 installed SHA:** `bce60b26059054ba43cf8ec13cd210098e648ea4` - **V1_OPERATIONAL**
+
+**Initial V1-08 freeze SHA:** `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` - superseded after packaging/runtime blockers triggered the mandatory re-certification cycle.
 
 **Success:** all mandatory lots below close in order; one exact candidate is frozen; that exact candidate reaches `INSTALLABLE_CERTIFIED` on a fresh isolated restore of real PREUPDATE cabinet data; the same SHA is installed only after explicit human authorization; post-update integrity/startup/smokes pass; rollback remains verified.
 
@@ -525,6 +527,23 @@ Success: explicit authorization immediately before mutation; writes frozen as re
 
 Proof: installed SHA + POSTUPDATE integrity + health/smoke evidence + rollback identity.
 
+### V1-10 final closeout - 2026-09-29
+
+- initial V1-08 freeze: `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`;
+- live activation exposed fail-closed packaging/runtime blockers, so the frozen identity was not silently reused;
+- repaired source was re-certified as `bce60b26059054ba43cf8ec13cd210098e648ea4` by Cabinet Certified Release run `36628947897` - SUCCESS;
+- exact installed release: `dc-cabinet-bce60b260590-run36628947897`;
+- fresh encrypted DB/media backup captured before activation;
+- live `/api/health`, `/api/health/db`, and `/api/health/storage`: HTTP 200;
+- normal launcher restart returned the same certified version with zero `.pyc` contamination;
+- 434/434 document archives and 2915 media files preserved; post-update integrity: PASS;
+- technical closeout source: `docs/migrations/V1_10_REAL_CABINET_CLOSEOUT.md`;
+- exact master carrying the V1-10 evidence: `6966ebf2656f78dd6674d435bc806bd659248d0f`;
+- master CI `36638379136`: SUCCESS; PostgreSQL certification `36638379156`: SUCCESS;
+- visual UX comparative certification is explicitly not claimed by V1-10; this does not weaken the runtime/data-integrity V1_OPERATIONAL claim.
+
+**V1_OPERATIONAL = OUI.** The installed cabinet baseline is now V1 at `bce60b26059054ba43cf8ec13cd210098e648ea4`.
+
 ## 5. Unlock / closeout rule
 
 Only one lot may be `IN_PROGRESS` at a time. Lot N+1 unlocks only when lot N has Goal met, observable Success met, Proof captured, impacted tests/CI green, canonical closeout written here, and merge/post-merge completed when applicable.
@@ -533,17 +552,22 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- V1-07 — Master stabilization: **CLOSED**;
-- V1-08 — Freeze exact V1 candidate: **CLOSED**;
-- frozen V1 candidate SHA: `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`;
-- active lot: **V1-09 — V0 → V1 installability certification — UNLOCKED**;
-- installability status: **NOT CERTIFIED**;
-- V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**;
-- production/cabinet mutation: **NOT AUTHORIZED**;
-- Vercel deployment: **NOT AUTHORIZED**;
-- Frontend/Pocket proof remains retained from the last relevant exact source HEAD; do not rerun it unless a relevant frontend/harness/dependency delta appears;
-- master may move because of documentation-only freeze recording, but the V1 candidate identity remains exactly `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`;
-- Next exact: V1-09 must rehearse/certify the frozen candidate `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` against a fresh isolated restore of the real cabinet PREUPDATE state. No other SHA may inherit its certification.
+- V1-00 - V1-07: **CLOSED**;
+- V1-08 initial freeze: **CLOSED** at `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`;
+- V1-09 installability certification: **CLOSED**;
+- packaging/runtime blockers discovered during activation invalidated silent reuse of the initial freeze and triggered repairs + re-certification;
+- final certified/installed V1 SHA: `bce60b26059054ba43cf8ec13cd210098e648ea4`;
+- Cabinet Certified Release run: `36628947897` - **SUCCESS**;
+- V1-10 real cabinet activation: **CLOSED**;
+- V1_OPERATIONAL: **OUI**;
+- installed release: `dc-cabinet-bce60b260590-run36628947897`;
+- exact master carrying closeout evidence before this docs-only reconciliation: `6966ebf2656f78dd6674d435bc806bd659248d0f`;
+- master CI `36638379136`: **SUCCESS**;
+- PostgreSQL certification `36638379156`: **SUCCESS**;
+- production/cabinet mutation for V1: **COMPLETED AND VERIFIED**;
+- Vercel deployment: **NOT AUTHORIZED / NOT REQUIRED FOR V1**;
+- next roadmap authority after this canonical docs closeout: **Digital Crown - Roadmap canonique POST-V1 / V1.5**;
+- next exact after merge + post-merge coherence check: open **V1.5-00 - Hub & Dispatcher**.
 
 ## 7. Maintenance rule
 

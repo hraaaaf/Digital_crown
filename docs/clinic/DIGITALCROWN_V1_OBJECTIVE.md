@@ -1,6 +1,6 @@
 # Digital Crown — V1 objective
 
-Status: CANONICAL OBJECTIVE — V1-08 CLOSED / CANDIDATE FROZEN — 3c86e72bf0e132e6f79bc336d4ff9eb121d08fab
+Status: **CANONICAL OBJECTIVE - V1_OPERATIONAL**
 
 ## Execution authority
 
@@ -48,6 +48,23 @@ Only then may the installed cabinet baseline be promoted from V0 to V1.
 - This does **not** imply `V1_OPERATIONAL`: the real cabinet remains unmodified and V1-10 still requires explicit human authorization immediately before mutation.
 
 
+### V1 operational closeout - 2026-09-29
+
+The initial V1-08 freeze `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` was superseded only after fail-closed packaging/runtime blockers were discovered during the real activation path. Those blockers produced code/package changes, so certification was restarted rather than inherited.
+
+Final certified and installed V1 identity:
+- SHA: `bce60b26059054ba43cf8ec13cd210098e648ea4`;
+- release: `dc-cabinet-bce60b260590-run36628947897`;
+- Cabinet Certified Release: `36628947897` - SUCCESS;
+- live health/db/storage: HTTP 200;
+- post-update preservation: 434/434 document archives, 2915 media files, integrity PASS;
+- master evidence carrier: `6966ebf2656f78dd6674d435bc806bd659248d0f`;
+- master CI `36638379136`: SUCCESS;
+- PostgreSQL certification `36638379156`: SUCCESS;
+- V1-10 evidence: `docs/migrations/V1_10_REAL_CABINET_CLOSEOUT.md`.
+
+**V1_OPERATIONAL = OUI.**
+
 ## Proof required
 
 The V1 closeout must preserve V0 SHA, candidate/V1 SHA, source/target Alembic revisions, PREUPDATE/POSTUPDATE fingerprints, backup verification, rehearsal result, relevant CI/run IDs, post-update health/smoke evidence, rollback identity, and every mandatory lot closeout from the consolidated roadmap.
@@ -75,19 +92,18 @@ Before the real cabinet update, rollback must be executable by restoring the ver
 ## Current state
 
 - Canonical V0: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
-- sole roadmap: `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`
-- V1-07: **CLOSED**
-- V1-08 freeze: **CLOSED**
-- frozen V1 candidate SHA: `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
-- candidate authorization: explicit product-owner **GO** on 29 September 2026
-- installability status: **NOT CERTIFIED**
-- V1 status: **EXECUTION LOCKED / NOT OPERATIONAL**
-- production/cabinet mutation: **NOT AUTHORIZED**
-- Vercel deployment: **NOT AUTHORIZED**
-- V1-07 final exact-master CI: `36586694637` — **SUCCESS**
-- V1-07 final PostgreSQL certification: `36586694618` — **SUCCESS**
-- V1-07 audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`
+- initial V1-08 freeze: `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
+- final certified/installed V1 SHA: `bce60b26059054ba43cf8ec13cd210098e648ea4`
+- V1-09: **CLOSED / INSTALLABLE_CERTIFIED**
+- V1-10: **CLOSED / REAL CABINET VERIFIED**
+- V1 status: **V1_OPERATIONAL**
+- installed release: `dc-cabinet-bce60b260590-run36628947897`
+- closeout master evidence: `6966ebf2656f78dd6674d435bc806bd659248d0f`
+- master CI: `36638379136` - **SUCCESS**
+- PostgreSQL certification: `36638379156` - **SUCCESS**
+- Vercel deployment: **NOT AUTHORIZED / NOT REQUIRED**
+- next exact: merge this docs-only V1 closeout, verify post-merge coherence, then transfer execution authority to the canonical POST-V1 / V1.5 roadmap and open V1.5-00.
 
 ## Current next exact
 
-V1-09 is **UNLOCKED** and must certify exactly `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` against a fresh isolated restore of the real cabinet PREUPDATE state, with verified backups, migration/integrity checks, startup/health/critical smokes and rollback proof. Do not substitute latest master, a branch name or a later commit for the frozen candidate. Do not claim `INSTALLABLE_CERTIFIED` until V1-09 succeeds.
+After this docs-only closeout is merged and post-merge master coherence is verified, V1 is closed. The next execution authority is the canonical POST-V1 / V1.5 roadmap; start with **V1.5-00 - Hub & Dispatcher**.
