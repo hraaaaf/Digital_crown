@@ -9,7 +9,7 @@
 - Repository : `hraaaaf/Digital_crown`
 - V1-07 Master stabilization : **CLOSED**
 - V1-08 Freeze exact candidate : **CLOSED**
-- V1 candidate SHA : `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`
+- V1 candidate SHA : `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab`
 - Autorisation freeze : product owner **GO**, 29 septembre 2026
 - V1-09 Installability certification : **UNLOCKED**
 - `INSTALLABLE_CERTIFIED` : **NON**
@@ -19,19 +19,19 @@
 
 ## Preuves de fermeture / freeze
 
-- PR `#704` : merged `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` — closeout V1-07 canonique
+- PR `#704` : merged `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` — closeout V1-07 canonique
 - CI exact-master V1-07 : `36586694637` SUCCESS — backend regression + prod guard ; Frontend SKIPPED
 - PostgreSQL exact-master V1-07 : `36586694618` SUCCESS
 - V7.1 : PR `#693` + remédiations `#698/#699/#701` mergées
 - Digital Crown Pocket : PR `#696` + runtime PR `#702` mergées
 - Frontend/Pocket : preuve retenue du dernier SHA pertinent, aucun rerun inutile
-- Le candidat V1 reste exactement `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` même si master avance par commits documentaires de freeze.
+- Le candidat V1 reste exactement `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` même si master avance par commits documentaires de freeze.
 
 ## Continuité
 
 Autorité d'exécution V1 : `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`.
 
-Next exact : V1-09 certifie uniquement le candidat figé `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` sur restore PREUPDATE isolé. Aucun autre SHA ne peut hériter de cette certification.
+Next exact : V1-09 certifie uniquement le candidat figé `3c86e72bf0e132e6f79bc336d4ff9eb121d08fab` sur restore PREUPDATE isolé. Aucun autre SHA ne peut hériter de cette certification.
 
 # Historique canonique — 2026-08-14
 
