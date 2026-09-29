@@ -199,8 +199,13 @@ class TestMobileAppointments:
                 },
                 headers={"Authorization": f"Bearer {token}"},
             )
-        assert r.status_code == 200
-        assert r.json()["patient_id"] == pat.id
+        assert r.status_code == 200, r.text
+        created = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == pat.id,
+            models.Appointment.employer_id == dentiste.id,
+        ).order_by(models.Appointment.id.desc()).first()
+        assert created is not None
+        assert created.patient_id == pat.id
 
     def test_mobile_external_appointment_without_patient_id_is_supported(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
@@ -265,6 +270,11 @@ class TestMobilePatients:
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert r.status_code == 200
-        assert r.json()["sexe"] == "F"
-        assert r.json()["nom"] == "CANONICAL"
+        assert r.status_code == 200, r.text
+        created = db.query(models.Patient).filter(
+            models.Patient.nom == "CANONICAL",
+            models.Patient.employer_id == dentiste.id,
+        ).order_by(models.Patient.id.desc()).first()
+        assert created is not None
+        assert created.sexe == "F"
+        assert created.nom == "CANONICAL"
