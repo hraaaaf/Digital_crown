@@ -82,12 +82,18 @@ async function installRoutes(page, role) {
     selected_theme: 'elite', primary_color: '#003380', secondary_color: '#1e40af',
     accent_color: '#60a5fa', app_accent_color: null, font_fr: 'inter',
   }));
-  await page.route('**/api/lab-jobs/**', route => json(route, []));
+  await page.route('**/api/mobile/lab-jobs**', route => json(route, []));
   await page.route('**/api/mobile/dentists', route => json(route, { dentists: [] }));
-  await page.route('**/stock/items', route => json(route, [
+  await page.route('**/api/mobile/stock/items**', route => json(route, [
     { id: 1, nom: 'Gants nitrile', categorie: 'CONSOMMABLE', quantite: 8, seuil_alerte: 10, unite: 'boîte', fournisseur: 'Demo', alerte: true },
     { id: 2, nom: 'Composite', categorie: 'MATERIAU', quantite: 20, seuil_alerte: 5, unite: 'seringue', fournisseur: null, alerte: false },
   ]));
+  await page.route('**/api/mobile/partner-orders/meta', route => json(route, {
+    strategyPresets: [{ key: 'draft', label: 'Brouillon', settlementBasis: 'SENT_TO_PARTNER', revenueModel: 'COMMISSION', commissionRate: 0, discountRate: 0, fixedFeeAmount: 0 }],
+  }));
+  await page.route('**/api/mobile/partner-catalog/meta', route => json(route, { categories: [], specialties: [], availability: [] }));
+  await page.route('**/api/mobile/partner-catalog/suppliers', route => json(route, []));
+  await page.route('**/api/mobile/partner-catalog/products', route => json(route, []));
   await page.route('**/stock/alerts', route => json(route, []));
   await page.route('**/appointments/pending', route => json(route, [
     {
@@ -101,6 +107,7 @@ async function installRoutes(page, role) {
 
 async function seedPocketSession(page) {
   await page.goto(`${baseUrl}/landing`, { waitUntil: 'domcontentloaded' });
+  const runtimeCredentials = { ...credentials, api_base_url: baseUrl };
   await page.evaluate(async (creds) => {
     await new Promise((resolve, reject) => {
       const request = indexedDB.open('digital-crown-zka', 1);
@@ -116,7 +123,7 @@ async function seedPocketSession(page) {
         tx.onerror = () => reject(tx.error);
       };
     });
-  }, credentials);
+  }, runtimeCredentials);
 }
 
 async function assertTouchTarget(locator, label) {
@@ -182,13 +189,41 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   const stockScreenshot = `runtime-${role.slug}-stock-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outputDir, stockScreenshot) });
 
-  await page.goto(`${baseUrl}/mobile/dashboard?tab=library`, { waitUntil: 'networkidle' });
+  await page.goto(`${baseUrl}/mobile/dashboard?tab=library`, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-mobile-library]').waitFor({ state: 'visible', timeout: 30000 });
   if (role.value === 'DENTISTE') await page.getByText('Bibliothèque', { exact: true }).first().waitFor({ state: 'visible' });
   else await page.getByText('Accès réservé', { exact: true }).waitFor({ state: 'visible' });
+  await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-library-${viewport.width}x${viewport.height}.png`) });
+
+  if (role.value === 'DENTISTE') {
+    for (const [tab, marker] of [
+      ['finance', '[data-mobile-finance]'],
+      ['lab', '[data-mobile-lab]'],
+      ['dentists', '[data-mob5a-team]'],
+      ['marketplace', '[data-mobile-marketplace]'],
+      ['bot', '[data-mobile-assistant]'],
+    ]) {
+      await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
+      await page.locator(marker).waitFor({ state: 'visible', timeout: 30000 });
+      await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
+    }
+  } else {
+    for (const tab of ['finance', 'lab', 'marketplace']) {
+      await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
+      await page.locator('[data-mobile-restricted]').waitFor({ state: 'visible', timeout: 30000 });
+      await page.getByText('Accès réservé', { exact: true }).waitFor({ state: 'visible' });
+      await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
+    }
+    for (const [tab, marker] of [['dentists', '[data-mob5a-team]'], ['bot', '[data-mobile-assistant]']]) {
+      await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
+      await page.locator(marker).waitFor({ state: 'visible', timeout: 30000 });
+      await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
+    }
+  }
+
   if (runtimeErrors.length) throw new Error(`${role.value}/${viewport.width}: runtime errors: ${runtimeErrors.join(' | ')}`);
 
-  return { role: role.value, viewport, path: '/mobile/dashboard', preview: false, stockRoutable: true, libraryRoutable: true, ...geometry, runtimeErrors, todayScreenshot, screenshot, stockScreenshot };
+  return { role: role.value, viewport, path: '/mobile/dashboard', preview: false, stockRoutable: true, libraryRoutable: true, restoredModulesRoutable: true, roleGuardsVerified: true, ...geometry, runtimeErrors, todayScreenshot, screenshot, stockScreenshot };
 }
 
 await fs.mkdir(outputDir, { recursive: true });

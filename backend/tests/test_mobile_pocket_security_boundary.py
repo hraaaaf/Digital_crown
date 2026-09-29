@@ -132,3 +132,28 @@ def test_secretary_patient_access_does_not_grant_clinical_context(client, db, de
     )
     assert response.status_code == 403
     assert 'clinique' in response.json()['detail'].lower()
+
+
+def test_pocket_v1_facades_preserve_mobile_scope_and_role_guards(client, db, dentiste):
+    secretary = _user(
+        db,
+        email='pocket-v1-secretary@cabinet.ma',
+        role=models.UserRole.SECRETAIRE,
+        employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True, 'accounting': False, 'payments': False},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    headers = {'Authorization': f'Bearer {access}'}
+
+    # Stock is operational for the secretary through the explicit Pocket facade.
+    assert client.get('/api/mobile/stock/items', headers=headers).status_code == 200
+
+    # Practitioner-only secondary modules fail closed even by direct deep-link/API call.
+    assert client.get('/api/mobile/lab-jobs', headers=headers).status_code == 403
+    assert client.get('/api/mobile/partner-catalog/meta', headers=headers).status_code == 403
+    assert client.get('/api/mobile/partner-orders/meta', headers=headers).status_code == 403
+
+    # The paired JWT never becomes a generic desktop/API session.
+    assert client.get('/api/stock/items', headers=headers).status_code == 401
+    assert client.get('/api/lab-jobs/', headers=headers).status_code == 401
+    assert client.get('/api/partner-catalog/meta', headers=headers).status_code == 401

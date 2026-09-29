@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Minus, Package, Plus, RefreshCw, Search, X } from 'lucide-react';
-import { api } from '../../../../services/api';
+import { mobileApiJson } from '../../../../services/zka/mobileApi';
 
 export type MobileStockItem = {
   id: number;
@@ -62,10 +62,10 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get<MobileStockItem[]>('/stock/items');
-      setItems(Array.isArray(response.data) ? response.data : []);
+      const data = await mobileApiJson<MobileStockItem[]>('/stock/items');
+      setItems(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Impossible de charger le stock.');
+      setError(err?.message || 'Impossible de charger le stock.');
     } finally {
       setLoading(false);
     }
@@ -96,10 +96,14 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
     setMutatingId(item.id);
     setError(null);
     try {
-      const response = await api.patch<MobileStockItem>(`/stock/items/${item.id}`, { quantite: next });
-      setItems(current => current.map(candidate => candidate.id === item.id ? response.data : candidate));
+      const updated = await mobileApiJson<MobileStockItem>(`/stock/items/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantite: next }),
+      });
+      setItems(current => current.map(candidate => candidate.id === item.id ? updated : candidate));
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Mouvement de stock impossible.');
+      setError(err?.message || 'Mouvement de stock impossible.');
     } finally {
       setMutatingId(null);
     }
@@ -111,18 +115,22 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
     setSaving(true);
     setError(null);
     try {
-      const response = await api.post<MobileStockItem>('/stock/items', {
-        nom: form.nom.trim(),
-        categorie: form.categorie,
-        quantite: Math.max(0, Number(form.quantite) || 0),
-        seuil_alerte: Math.max(0, Number(form.seuil_alerte) || 0),
-        unite: form.unite.trim() || 'unité',
+      const created = await mobileApiJson<MobileStockItem>('/stock/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nom: form.nom.trim(),
+          categorie: form.categorie,
+          quantite: Math.max(0, Number(form.quantite) || 0),
+          seuil_alerte: Math.max(0, Number(form.seuil_alerte) || 0),
+          unite: form.unite.trim() || 'unité',
+        }),
       });
-      setItems(current => [...current, response.data]);
+      setItems(current => [...current, created]);
       setForm({ nom: '', categorie: 'CONSOMMABLE', quantite: '0', seuil_alerte: '5', unite: 'unité' });
       setAddOpen(false);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Impossible d’ajouter cet article.');
+      setError(err?.message || 'Impossible d’ajouter cet article.');
     } finally {
       setSaving(false);
     }

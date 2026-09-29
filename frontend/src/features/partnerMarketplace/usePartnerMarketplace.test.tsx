@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppUser } from '../../types';
 import { api } from '../../services/api';
+import { mobileApiJson } from '../../services/zka/mobileApi';
 import { buildMarketplaceCustomer, usePartnerMarketplace } from './usePartnerMarketplace';
 
 const USER = {
@@ -19,6 +20,10 @@ vi.mock('../../stores/useAuthStore', () => ({
 
 vi.mock('../../services/api', () => ({
   api: { get: vi.fn(), post: vi.fn() },
+}));
+
+vi.mock('../../services/zka/mobileApi', () => ({
+  mobileApiJson: vi.fn(),
 }));
 
 const product = {
@@ -54,6 +59,7 @@ const strategy = {
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
+  window.history.replaceState({}, '', '/');
   vi.mocked(api.get).mockImplementation(async (path: string) => {
     if (path === '/partner-orders/meta') return { data: { strategyPresets: [strategy] } } as never;
     if (path === '/partner-catalog/meta') return { data: { categories: ['Restauration'], specialties: ['Omnipratique'], availability: ['AVAILABLE'] } } as never;
@@ -106,6 +112,24 @@ describe('shared Marketplace controller', () => {
     expect(submitted).toBe(true);
     expect(api.post).not.toHaveBeenCalled();
     expect(result.current.successMessage).toContain('Aucune donnée réelle');
+  });
+
+  it('uses the explicit Pocket marketplace facade on /mobile', async () => {
+    window.history.replaceState({}, '', '/mobile/dashboard?tab=marketplace');
+    vi.mocked(mobileApiJson).mockImplementation(async (path: string) => {
+      if (path === '/partner-orders/meta') return { strategyPresets: [strategy] } as any;
+      if (path === '/partner-catalog/meta') return { categories: ['Restauration'], specialties: ['Omnipratique'], availability: ['AVAILABLE'] } as any;
+      if (path === '/partner-catalog/suppliers') return [{ id: 11, supplierKey: 'atlas', name: 'Atlas Dental', isActive: true, productCount: 1 }] as any;
+      if (path === '/partner-catalog/products') return [product] as any;
+      throw new Error(`Unexpected mobile GET ${path}`);
+    });
+
+    const { result } = renderHook(() => usePartnerMarketplace());
+    await waitFor(() => expect(result.current.catalogLoading).toBe(false));
+
+    expect(api.get).not.toHaveBeenCalled();
+    expect(mobileApiJson).toHaveBeenCalledWith('/partner-catalog/products');
+    expect(result.current.filteredProducts).toHaveLength(1);
   });
 
   it('loads the canonical catalog, searches by SKU and prepares one server DRAFT POST', async () => {

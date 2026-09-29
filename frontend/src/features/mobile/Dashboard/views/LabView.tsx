@@ -9,7 +9,7 @@ export function LabView({
   handleWhatsAppSend: (job: LabJob) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div data-mobile-lab className="space-y-4">
       {labJobs.filter(job => job.status === 'PRESCRIPTION').map(job => (
         <div key={job.id} className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-5 shadow-elite flex items-center justify-between">
           <div>

@@ -43,11 +43,16 @@ describe('Mobile M6.2 offline truth', () => {
     expect(hook).not.toContain("toast('Déplacement mis en attente (hors ligne)'");
   });
 
-  it('keeps retired lab job mutation behavior out of Pocket runtime', () => {
+  it('keeps restored lab mutations on the Pocket-scoped API contract', () => {
     const hook = read('src/features/mobile/Dashboard/hooks/useMobileDashboard.ts');
-    expect(hook).not.toContain('handleWhatsAppSend');
+    const mobileApi = read('src/services/zka/mobileApi.ts');
+    expect(hook).toContain('handleWhatsAppSend');
+    expect(hook).toContain("mobileApiJson<LabJob[]>('/lab-jobs')");
+    expect(hook).toContain("mobileApiJson<LabJob>(`/lab-jobs/${job.id}`");
     expect(hook).not.toContain('patchLabJobStatus');
-    expect(hook).not.toContain('lab_job');
+    expect(hook).not.toContain('labJobService');
+    expect(mobileApi).toContain('/api/mobile');
+    expect(mobileApi).toContain('mobileFetch');
   });
 
   it('routes mobile 401 refresh through the paired-device endpoint', () => {

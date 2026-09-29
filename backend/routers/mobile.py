@@ -530,3 +530,112 @@ def refresh_mobile_credentials(
         'tenant_id': tenant_id,
         'role': role,
     }
+
+def _require_mobile_roles(user: models.User, allowed: set[str]) -> None:
+    if _role_name(user) not in allowed:
+        raise HTTPException(status_code=403, detail="Accès mobile refusé pour ce rôle.")
+
+
+@router.get('/stock/items', summary='Stock Pocket — liste')
+def mobile_stock_items(
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    from backend.routers import stock as _stock
+    return _stock.get_stock_items(db, mobile_user)
+
+
+@router.post('/stock/items', summary='Stock Pocket — ajout rapide')
+def mobile_create_stock_item(
+    payload: dict,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    from backend.routers import stock as _stock
+    return _stock.create_stock_item(_stock.StockItemCreate(**payload), db, mobile_user)
+
+
+@router.patch('/stock/items/{item_id}', summary='Stock Pocket — mouvement court')
+def mobile_update_stock_item(
+    item_id: int,
+    payload: dict,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    from backend.routers import stock as _stock
+    return _stock.update_stock_item(item_id, payload, db, mobile_user)
+
+
+@router.get('/lab-jobs', summary='Labo Pocket — travaux actifs')
+def mobile_lab_jobs(
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    _require_mobile_roles(mobile_user, {"DENTISTE", "ADMIN"})
+    from backend.routers import lab_jobs as _lab
+    return _lab.get_lab_jobs(db, mobile_user)
+
+
+@router.patch('/lab-jobs/{job_id}', summary='Labo Pocket — mise à jour courte')
+def mobile_update_lab_job(
+    job_id: int,
+    payload: dict,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    _require_mobile_roles(mobile_user, {"DENTISTE", "ADMIN"})
+    from backend.routers import lab_jobs as _lab
+    return _lab.update_lab_job(job_id, payload, db, mobile_user)
+
+
+@router.get('/partner-orders/meta', summary='Marketplace Pocket — stratégie')
+def mobile_partner_order_meta(
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    _require_mobile_roles(mobile_user, {"DENTISTE", "ADMIN"})
+    from backend.routers import partner_orders as _orders
+    return _orders.get_partner_order_meta(mobile_user)
+
+
+@router.get('/partner-catalog/meta', summary='Marketplace Pocket — métadonnées')
+def mobile_partner_catalog_meta(
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    _require_mobile_roles(mobile_user, {"DENTISTE", "ADMIN"})
+    from backend.routers import partner_catalog as _catalog
+    return _catalog.get_partner_catalog_meta(mobile_user)
+
+
+@router.get('/partner-catalog/suppliers', summary='Marketplace Pocket — fournisseurs')
+def mobile_partner_suppliers(
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    _require_mobile_roles(mobile_user, {"DENTISTE", "ADMIN"})
+    from backend.routers import partner_catalog as _catalog
+    return _catalog.list_suppliers(offset=0, limit=None, db=db, current_user=mobile_user)
+
+
+@router.get('/partner-catalog/products', summary='Marketplace Pocket — produits')
+def mobile_partner_products(
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    _require_mobile_roles(mobile_user, {"DENTISTE", "ADMIN"})
+    from backend.routers import partner_catalog as _catalog
+    return _catalog.list_products(
+        supplier_id=None, category=None, specialty=None, q=None,
+        offset=0, limit=None, db=db, current_user=mobile_user,
+    )
+
+
+@router.post('/partner-orders', summary='Marketplace Pocket — brouillon')
+def mobile_create_partner_order(
+    payload: dict,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    _require_mobile_roles(mobile_user, {"DENTISTE", "ADMIN"})
+    from backend.routers import partner_orders as _orders
+    body = _orders.PartnerOrderCreateIn(**payload)
+    return _orders.create_partner_order(body, db, mobile_user)

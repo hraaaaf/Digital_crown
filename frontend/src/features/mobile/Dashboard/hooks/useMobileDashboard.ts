@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
-import { fetchLabJobs, patchLabJobStatus } from '../../../../services/labJobService';
+import { mobileApiJson } from '../../../../services/zka/mobileApi';
 import type { LabJob } from '../../../../types/labJob';
 import { LabJobStatus } from '../../../../types/labJob';
 import { formatLabJobMessage } from '../../../../services/whatsappService';
@@ -206,9 +206,17 @@ export function useMobileDashboard() {
     });
     void fetchSnapshot();
     void fetchPatients();
-    fetchLabJobs().then(setLabJobs).catch(err => console.error('[MobileDashboard] lab jobs failed:', err));
     return () => { cancelled = true; };
   }, [fetchSnapshot, fetchPatients, selectedDate]);
+
+  useEffect(() => {
+    if (activeTab !== 'lab') return;
+    let cancelled = false;
+    mobileApiJson<LabJob[]>('/lab-jobs')
+      .then(items => { if (!cancelled) setLabJobs(Array.isArray(items) ? items : []); })
+      .catch(err => { if (!cancelled) console.error('[MobileDashboard] lab jobs failed:', err); });
+    return () => { cancelled = true; };
+  }, [activeTab]);
 
   const handleStatusChange = async (id: number, status: ApptStatus) => {
     const creds = credsRef.current || await MobileStorage.getCredentials();
@@ -349,8 +357,12 @@ export function useMobileDashboard() {
     }
     try {
       window.location.href = `whatsapp://send?text=${encodeURIComponent(plainText)}`;
-      await patchLabJobStatus(job.id, { status: LabJobStatus.SENT });
-      setLabJobs(current => current.map(item => item.id === job.id ? { ...item, status: LabJobStatus.SENT } : item));
+      const updated = await mobileApiJson<LabJob>(`/lab-jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: LabJobStatus.SENT }),
+      });
+      setLabJobs(current => current.map(item => item.id === job.id ? updated : item));
     } catch (error) {
       console.error('[MobileDashboard] lab WhatsApp failed:', error);
       toast.error('WhatsApp ouvert, mais statut Labo non confirmé.');
