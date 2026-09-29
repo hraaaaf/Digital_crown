@@ -312,4 +312,9 @@ def test_release_certification_workflow_is_exact_master_sha_attested_and_code_on
     assert "runner.temp" in workflow
     assert "BASIC" in workflow and "GOLD" in workflow and "ELITE" in workflow
     assert 'cp -a relay "$ROOT/relay"' in workflow
+    assert 'cp alembic.ini run.py DigitalCrown.spec requirements.txt "$ROOT/"' in workflow
+    assert 'test -f "$ROOT/alembic.ini"' in workflow
+    assert 'test -f "$ROOT/relay/contract.py"' in workflow
+    assert "PACKAGE_IMPORT_SMOKE=PASS" in workflow
+    assert 'PYTHONPATH="$ROOT" python -m alembic heads' in workflow
     assert "release-content.sha256" in workflow
