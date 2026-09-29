@@ -1,6 +1,6 @@
 # Digital Crown — V1 objective
 
-Status: CANONICAL OBJECTIVE — V1-07 CLOSED / V1-08 UNLOCKED — candidate SHA not yet selected
+Status: CANONICAL OBJECTIVE — V1-08 CLOSED / CANDIDATE FROZEN — 15f8d613c4b7b0ce8bc5fb73b13e46557416eafe
 
 ## Execution authority
 
@@ -67,16 +67,18 @@ Before the real cabinet update, rollback must be executable by restoring the ver
 
 - Canonical V0: `76547ed178b98b4d8cf14c0fdc691ff3f787076e`
 - sole roadmap: `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`
-- previous lot: **V1-07 — CLOSED**
-- pre-closeout stabilized master: `6d9dc534f55c8f664fca3cf9eba043e035ecb464`
-- V1-08 freeze: **UNLOCKED after the V1-07 canonical closeout reaches master**
-- V1 candidate SHA: **NOT SELECTED**
+- V1-07: **CLOSED**
+- V1-08 freeze: **CLOSED** once this docs-only freeze record reaches master
+- frozen V1 candidate SHA: `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`
+- candidate authorization: explicit product-owner **GO** on 29 September 2026
 - installability status: **NOT CERTIFIED**
 - V1 status: **EXECUTION LOCKED / NOT OPERATIONAL**
 - production/cabinet mutation: **NOT AUTHORIZED**
 - Vercel deployment: **NOT AUTHORIZED**
+- V1-07 final exact-master CI: `36586694637` — **SUCCESS**
+- V1-07 final PostgreSQL certification: `36586694618` — **SUCCESS**
 - V1-07 audit: `docs/clinic/audits/V1_07_PREFREEZE_TRIPLE_CHECK.md`
 
 ## Current next exact
 
-After the V1-07 canonical closeout is merged, start V1-08 and intentionally freeze the exact resulting 40-character `master` SHA in this file and in `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`. Do not infer the candidate from a moving branch name and do not advance V1-09 until that exact candidate is recorded.
+V1-09 must certify exactly `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` against a fresh isolated restore of the real cabinet PREUPDATE state, with verified backups, migration/integrity checks, startup/health/critical smokes and rollback proof. Do not substitute latest master, a branch name or a later commit for the frozen candidate. Do not claim `INSTALLABLE_CERTIFIED` until V1-09 succeeds.
