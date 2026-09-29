@@ -41,6 +41,11 @@ export type MarketplaceCartLine = PartnerProduct & {
   lineTotal: number;
 };
 
+type MarketplaceOrderResult = {
+  orderNumber: string;
+  orderCount?: number;
+};
+
 const emptyCustomer: MarketplaceCustomer = {
   fullName: '',
   clinic: '',
@@ -147,10 +152,10 @@ export function usePartnerMarketplace(options?: { previewData?: MarketplacePrevi
     const hadCache = hydrateFromCache();
     try {
       const [ordersMetaRes, catalogMetaRes, suppliersRes, productsRes] = await Promise.all([
-        marketplaceGet('/partner-orders/meta'),
-        marketplaceGet('/partner-catalog/meta'),
-        marketplaceGet('/partner-catalog/suppliers'),
-        marketplaceGet('/partner-catalog/products'),
+        marketplaceGet<{ strategyPresets: PartnerMarketplaceStrategyPreset[] }>('/partner-orders/meta'),
+        marketplaceGet<PartnerMarketplaceCatalogMeta>('/partner-catalog/meta'),
+        marketplaceGet<PartnerCatalogSupplier[]>('/partner-catalog/suppliers'),
+        marketplaceGet<PartnerCatalogProduct[]>('/partner-catalog/products'),
       ]);
 
       const nextStrategyPresets = (ordersMetaRes.data?.strategyPresets || []) as PartnerMarketplaceStrategyPreset[];
@@ -263,7 +268,7 @@ export function usePartnerMarketplace(options?: { previewData?: MarketplacePrevi
     setSubmitting(true);
     try {
       const fallbackSupplier = activeSuppliers[0];
-      const response = await marketplacePost('/partner-orders', {
+      const response = await marketplacePost<MarketplaceOrderResult>('/partner-orders', {
         partnerId: fallbackSupplier ? String(fallbackSupplier.id) : 'server-resolved',
         partnerName: fallbackSupplier?.name || 'Server resolved',
         strategyLabel: checkoutStrategy.label,
