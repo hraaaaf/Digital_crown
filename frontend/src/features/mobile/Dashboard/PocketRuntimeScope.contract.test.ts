@@ -30,6 +30,7 @@ describe('Digital Crown Pocket production runtime scope', () => {
     expect(stockSource).toContain('mobileApiJson');
     expect(stockSource).not.toContain("services/api");
     expect(hookSource).toContain("mobileApiJson<LabJob[]>('/lab-jobs')");
+    expect(hookSource).toContain("activeTab !== 'lab' || !labRoleAllowed");
     expect(marketplaceSource).toContain('mobileApiJson');
     expect(marketplaceSource).toContain('isPocketRuntime');
   });

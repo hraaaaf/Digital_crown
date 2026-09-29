@@ -209,14 +209,16 @@ export function useMobileDashboard() {
     return () => { cancelled = true; };
   }, [fetchSnapshot, fetchPatients, selectedDate]);
 
+  const labRoleAllowed = snapshot?.role === 'DENTISTE' || snapshot?.role === 'ADMIN';
+
   useEffect(() => {
-    if (activeTab !== 'lab') return;
+    if (activeTab !== 'lab' || !labRoleAllowed) return;
     let cancelled = false;
     mobileApiJson<LabJob[]>('/lab-jobs')
       .then(items => { if (!cancelled) setLabJobs(Array.isArray(items) ? items : []); })
       .catch(err => { if (!cancelled) console.error('[MobileDashboard] lab jobs failed:', err); });
     return () => { cancelled = true; };
-  }, [activeTab]);
+  }, [activeTab, labRoleAllowed]);
 
   const handleStatusChange = async (id: number, status: ApptStatus) => {
     const creds = credsRef.current || await MobileStorage.getCredentials();
