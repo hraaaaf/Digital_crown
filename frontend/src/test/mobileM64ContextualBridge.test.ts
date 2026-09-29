@@ -10,29 +10,34 @@ const onboardingSource = readSource('src/features/mobile/Onboarding/OnboardingSc
 const dashboardSource = readSource('src/features/mobile/Dashboard/MobileDashboard.tsx');
 
 describe('Digital Crown Pocket general QR bridge', () => {
-  it('maps every general bridge request to the canonical Pocket home', () => {
+  it('preserves trusted canonical Pocket destinations and fails closed for unknown input', () => {
     expect(resolveBridgeRoute('agenda')).toBe('/mobile/dashboard?tab=agenda');
-    expect(resolveBridgeRoute('finance')).toBe('/mobile/dashboard?tab=agenda');
-    expect(resolveBridgeRoute('lab')).toBe('/mobile/dashboard?tab=agenda');
-    expect(resolveBridgeRoute('assistant')).toBe('/mobile/dashboard?tab=agenda');
-    expect(resolveBridgeRoute('security')).toBe('/mobile/dashboard?tab=agenda');
-    expect(resolveBridgeRoute('dentists')).toBe('/mobile/dashboard?tab=agenda');
-    expect(resolveBridgeRoute('superadmin')).toBe('/mobile/dashboard?tab=agenda');
+    expect(resolveBridgeRoute('finance')).toBe('/mobile/dashboard?tab=finance');
+    expect(resolveBridgeRoute('lab')).toBe('/mobile/dashboard?tab=lab');
+    expect(resolveBridgeRoute('assistant')).toBe('/mobile/dashboard?tab=bot');
+    expect(resolveBridgeRoute('security')).toBe('/mobile/dashboard?tab=securite');
+    expect(resolveBridgeRoute('dentists')).toBe('/mobile/dashboard?tab=dentists');
+    expect(resolveBridgeRoute('stock')).toBe('/mobile/dashboard?tab=stock');
+    expect(resolveBridgeRoute('library')).toBe('/mobile/dashboard?tab=library');
+    expect(resolveBridgeRoute('marketplace')).toBe('/mobile/dashboard?tab=marketplace');
+    expect(resolveBridgeRoute('superadmin')).toBe('/mobile/superadmin');
     expect(resolveBridgeRoute('https://evil.example')).toBe('/mobile/dashboard?tab=agenda');
     expect(resolveBridgeRoute('../super-admin')).toBe('/mobile/dashboard?tab=agenda');
   });
 
-  it('allows only Pocket shell tabs from the router location and fails closed to Today', () => {
+  it('allows canonical Pocket tabs from the router location and fails closed for unknown tabs', () => {
     expect(resolveDashboardTab('?tab=patients')).toBe('patients');
     expect(resolveDashboardTab('?tab=waiting-room')).toBe('waiting-room');
     expect(resolveDashboardTab('?tab=frontdesk')).toBe('frontdesk');
     expect(resolveDashboardTab('?tab=notifications')).toBe('notifications');
     expect(resolveDashboardTab('?tab=securite')).toBe('securite');
-    expect(resolveDashboardTab('?tab=finance')).toBe('agenda');
-    expect(resolveDashboardTab('?tab=bot')).toBe('agenda');
-    expect(resolveDashboardTab('?tab=dentists')).toBe('agenda');
-    expect(resolveDashboardTab('?tab=stock')).toBe('agenda');
-    expect(resolveDashboardTab('?tab=marketplace')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=finance')).toBe('finance');
+    expect(resolveDashboardTab('?tab=lab')).toBe('lab');
+    expect(resolveDashboardTab('?tab=bot')).toBe('bot');
+    expect(resolveDashboardTab('?tab=dentists')).toBe('dentists');
+    expect(resolveDashboardTab('?tab=stock')).toBe('stock');
+    expect(resolveDashboardTab('?tab=library')).toBe('library');
+    expect(resolveDashboardTab('?tab=marketplace')).toBe('marketplace');
     expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
     expect(resolveDashboardTab('')).toBe('agenda');
     expect(dashboardSource).toContain("import { useLocation } from 'react-router-dom'");
