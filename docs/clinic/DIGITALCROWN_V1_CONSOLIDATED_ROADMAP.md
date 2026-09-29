@@ -444,6 +444,7 @@ Retained evidence:
 - Pocket exact source HEAD `21e820835b296192235eb3bbc5479f1a93992225`: CI `36550966453` — **SUCCESS**; Mobile Pocket Real Runtime Cert `36550966512` — **SUCCESS**; browser/mobile certification gates green;
 - current master `6d9dc534…`: CI `36578751830` — **SUCCESS**, including Full backend regression and production guard; Frontend job **SKIPPED intentionally** by the post-merge targeting contract;
 - current master `6d9dc534…`: Cabinet Upgrade PostgreSQL Certification `36578751887` — **SUCCESS**;
+- final V1-07 closeout master `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`: CI `36586694637` — **SUCCESS** with Full backend regression + production guard green and Frontend intentionally SKIPPED; Cabinet Upgrade PostgreSQL Certification `36586694618` — **SUCCESS**;
 - compare `21e820835b296192235eb3bbc5479f1a93992225 → 6d9dc534f55c8f664fca3cf9eba043e035ecb464` changes only `.github/workflows/ci.yml` and backend test files; no frontend runtime file changed, therefore the already-acquired exact-source frontend/Pocket proof remains applicable and was not wastefully rerun.
 
 Open-PR reconciliation at closeout:
@@ -460,17 +461,28 @@ V1-07 Success criterion is satisfied. The exact V1 candidate is **not selected b
 
 ### LOT V1-08 — Freeze exact V1 candidate
 
-Status: **UNLOCKED — NOT STARTED**
+Status: **CLOSED — EXACT CANDIDATE FROZEN**
 
 Goal: intentionally select one immutable exact 40-character SHA as V1 candidate.
+
+Result — 29 September 2026:
+- explicit product-owner authorization: **GO**;
+- frozen V1 candidate SHA: `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`;
+- candidate identity is the exact commit SHA above, never a moving branch name;
+- the freeze records the already-certified V1-07 product/runtime state; this V1-08 branch changes canonical documentation only;
+- no Vercel deployment and no real cabinet mutation;
+- `INSTALLABLE_CERTIFIED`: **NOT YET**;
+- `V1_OPERATIONAL`: **NOT YET**.
 
 Success: candidate SHA recorded here and in `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md`; moving branch names are not install identity.
 
 Rule: any code change after freeze creates a new candidate SHA and restarts candidate certification.
 
+V1-08 Success criterion is satisfied once this docs-only freeze record reaches master. V1-09 is then unlocked and must certify **exactly `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`**.
+
 ### LOT V1-09 — V0 → V1 installability certification
 
-Status: **BLOCKED BY V1-08**
+Status: **UNLOCKED — NOT STARTED**
 
 Goal: certify the locked candidate against a fresh isolated restore of the real cabinet PREUPDATE state.
 
@@ -507,16 +519,17 @@ Pending CI does not unlock the next lot. Independent work is permitted only insi
 
 ## 6. Current canonical state
 
-- previous lot: **V1-07 — Master stabilization — CLOSED** once this docs-only closeout is merged;
-- pre-closeout master: `6d9dc534f55c8f664fca3cf9eba043e035ecb464`;
-- next lot: **V1-08 — Freeze exact V1 candidate — UNLOCKED** after merge of this closeout;
-- V1 candidate SHA: **NOT SELECTED**;
+- V1-07 — Master stabilization: **CLOSED**;
+- V1-08 — Freeze exact V1 candidate: **CLOSED** once this docs-only freeze record reaches master;
+- frozen V1 candidate SHA: `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`;
+- next lot: **V1-09 — V0 → V1 installability certification — UNLOCKED** after merge of this freeze record;
 - installability status: **NOT CERTIFIED**;
 - V1 state: **EXECUTION LOCKED / NOT OPERATIONAL**;
 - production/cabinet mutation: **NOT AUTHORIZED**;
 - Vercel deployment: **NOT AUTHORIZED**;
-- Frontend/Pocket proof is retained from the exact source HEAD because no frontend runtime file changed afterward; do not rerun it unless a relevant frontend/harness/dependency delta appears;
-- Next exact: merge this docs-only closeout, verify the resulting master, then start V1-08 and freeze the exact resulting 40-character master SHA in this roadmap + `docs/clinic/DIGITALCROWN_V1_OBJECTIVE.md`.
+- Frontend/Pocket proof remains retained from the last relevant exact source HEAD; do not rerun it unless a relevant frontend/harness/dependency delta appears;
+- master may move because of documentation-only freeze recording, but the V1 candidate identity remains exactly `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe`;
+- Next exact: V1-09 must rehearse/certify the frozen candidate `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` against a fresh isolated restore of the real cabinet PREUPDATE state. No other SHA may inherit its certification.
 
 ## 7. Maintenance rule
 
