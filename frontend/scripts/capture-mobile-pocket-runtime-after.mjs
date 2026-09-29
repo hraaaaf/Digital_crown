@@ -204,7 +204,17 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
       ['bot', '[data-mobile-assistant]'],
     ]) {
       await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
-      await page.locator(marker).waitFor({ state: 'visible', timeout: 30000 });
+      if (tab === 'lab') {
+        // An empty LabView is a valid practitioner runtime state. Its root has zero
+        // geometry when there are no jobs, so Playwright does not classify it as
+        // "visible" even though the canonical Labo component is mounted.
+        await page.locator(marker).waitFor({ state: 'attached', timeout: 30000 });
+        if (await page.locator('[data-mobile-restricted]').count()) {
+          throw new Error('DENTISTE: Labo deep-link resolved to the restricted role guard');
+        }
+      } else {
+        await page.locator(marker).waitFor({ state: 'visible', timeout: 30000 });
+      }
       await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
     }
   } else {
