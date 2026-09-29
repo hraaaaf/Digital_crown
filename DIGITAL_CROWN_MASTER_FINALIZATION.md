@@ -4,7 +4,7 @@
 >
 > L'autorité unique d'exécution V1 est `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`.
 > Les pourcentages, human gates et `Next exact` historiques ci-dessous ne doivent ni déverrouiller un lot, ni sélectionner un candidat, ni autoriser une installation.
-> V1-07 est en closeout canonique ; V1-08 (freeze exact candidate) vient ensuite. `INSTALLABLE_CERTIFIED` et `V1_OPERATIONAL` ne sont pas encore atteints.
+> V1-08 a figé le candidat exact `15f8d613c4b7b0ce8bc5fb73b13e46557416eafe` ; V1-09 (installability certification) vient ensuite. `INSTALLABLE_CERTIFIED` et `V1_OPERATIONAL` ne sont pas encore atteints.
 
 
 **ANCIEN FICHIER DE PILOTAGE GLOBAL — CONTEXTE HISTORIQUE**
