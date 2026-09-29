@@ -194,9 +194,19 @@ jobs:
           # Runtime/build inputs are copied from the checked-out exact SHA only.
           cp -a backend "$ROOT/backend"
           cp -a relay "$ROOT/relay"
-          cp run.py DigitalCrown.spec requirements.txt "$ROOT/"
+          cp alembic.ini run.py DigitalCrown.spec requirements.txt "$ROOT/"
           cp -a installer "$ROOT/installer"
           cp -a /tmp/certified-frontend/. "$ROOT/frontend/dist/"
+
+          # Package-closure gates: the emitted artifact must contain every top-level
+          # runtime/update input required after checkout is gone.
+          test -f "$ROOT/alembic.ini"
+          test -f "$ROOT/relay/contract.py"
+          PYTHONPATH="$ROOT" python -c "from relay.contract import JOSE_JWE_ALG; import backend.services.patient_companion_remote_crypto; print('PACKAGE_IMPORT_SMOKE=PASS')"
+          (
+            cd "$ROOT"
+            PYTHONPATH="$ROOT" python -m alembic heads
+          )
 
           python - "$ROOT" <<'PY'
           import hashlib
