@@ -2,7 +2,7 @@ import pytest
 
 from backend import models
 from backend.routers.mobile import _create_mobile_jwt
-from backend.security import get_password_hash
+from backend.security import get_password_hash, token_blacklist
 
 
 @pytest.fixture(autouse=True)
@@ -320,6 +320,42 @@ def test_ghost_insights_websocket_rejects_mobile_jwt(client, db, dentiste):
         ) as websocket:
             websocket.receive_json()
     assert closed.value.code == 1008
+
+
+def test_ghost_insights_websocket_revalidates_session_revocation(client, db, dentiste, monkeypatch):
+    import threading
+    from starlette.websockets import WebSocketDisconnect
+    from backend.routers import ai_feedback
+
+    token = _token(client, dentiste.email, "TestPass123!")
+
+    original_sleep = ai_feedback.asyncio.sleep
+    release_next_tick = threading.Event()
+
+    async def _controlled_sleep(_seconds):
+        while not release_next_tick.is_set():
+            await original_sleep(0.01)
+
+    monkeypatch.setattr(ai_feedback.asyncio, "sleep", _controlled_sleep)
+
+    counts = {"value": -1}
+    def _changing_count(*_args, **_kwargs):
+        counts["value"] += 1
+        return counts["value"]
+    monkeypatch.setattr(ai_feedback.ghost_memory, "get_unread_count", _changing_count)
+
+    with client.websocket_connect(
+        f"/api/ai/ws/ghost-insights/{dentiste.id}?token={token}",
+    ) as websocket:
+        first = websocket.receive_json()
+        assert "insights" in first
+
+        token_blacklist.revoke(token)
+        release_next_tick.set()
+
+        with pytest.raises(WebSocketDisconnect) as closed:
+            websocket.receive_json()
+        assert closed.value.code == 1008
 
 
 def test_ghost_insights_websocket_revalidates_permission_revocation(client, db, dentiste, monkeypatch):

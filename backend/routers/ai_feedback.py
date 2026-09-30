@@ -29,8 +29,12 @@ def _ghost_stream_user_authorized(
     db: Session,
     *,
     employer_id: int | None = None,
+    session_jti: str | None = None,
 ) -> bool:
     if user is None or not user.is_active:
+        return False
+
+    if session_jti and token_blacklist.is_revoked(session_jti, db):
         return False
 
     if employer_id is not None and (user.employer_id or user.id) != employer_id:
@@ -231,6 +235,7 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
                     refreshed_user,
                     db,
                     employer_id=employer_id,
+                    session_jti=session_jti,
                 ):
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                     return
