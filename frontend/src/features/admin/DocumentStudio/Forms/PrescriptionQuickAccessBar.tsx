@@ -125,6 +125,8 @@ export function PrescriptionQuickAccessBar({
   const [showActions, setShowActions] = React.useState(false);
   const [saveKind, setSaveKind] = React.useState<ReusableKind | null>(null);
   const [saveName, setSaveName] = React.useState('');
+  const [saveActCode, setSaveActCode] = React.useState<string | null>(null);
+  const [appliedReusable, setAppliedReusable] = React.useState<ReusablePrescription | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -187,6 +189,7 @@ export function PrescriptionQuickAccessBar({
 
   const applyReusable = async (row: ReusablePrescription) => {
     setDrugs(hydrateReusable(row.drugs || [], drugs));
+    setAppliedReusable(row);
     setQuery('');
     setCatalog([]);
     inputRef.current?.focus();
@@ -226,6 +229,14 @@ export function PrescriptionQuickAccessBar({
     if (section === 'FAVORITES') return reusables.filter(item => item.is_favorite).slice(0, 6);
     if (section === 'PROTOCOLS') return reusables.filter(item => item.kind !== 'SAVED_PRESCRIPTION').slice(0, 6);
     if (section === 'SAVED') return reusables.filter(item => item.kind === 'SAVED_PRESCRIPTION').slice(0, 6);
+    if (section === 'RECENT') return [...reusables]
+      .filter(item => item.last_used)
+      .sort((a, b) => String(b.last_used).localeCompare(String(a.last_used)))
+      .slice(0, 4);
+    if (section === 'FREQUENT') return [...reusables]
+      .filter(item => item.usage_count > 0)
+      .sort((a, b) => b.usage_count - a.usage_count)
+      .slice(0, 4);
     return [];
   }, [reusables, section]);
 
@@ -243,7 +254,7 @@ export function PrescriptionQuickAccessBar({
     setSaveError('');
     try {
       await api.post('/prescriptions/preferences', {
-        act_code: name,
+        act_code: saveActCode || name,
         label: name,
         kind: saveKind,
         indication: saveKind === 'SAVED_PRESCRIPTION' ? (prescriptionIndication.trim() || null) : null,
@@ -259,6 +270,7 @@ export function PrescriptionQuickAccessBar({
       });
       setSaveKind(null);
       setSaveName('');
+      setSaveActCode(null);
       setShowActions(false);
       await reload();
     } catch (error: any) {
@@ -319,7 +331,7 @@ export function PrescriptionQuickAccessBar({
               <button
                 type="button"
                 disabled={!drugs.some(drug => drug.name.trim())}
-                onClick={() => { setSaveKind('PROTOCOL'); setSaveName(''); setSaveError(''); }}
+                onClick={() => { setSaveKind('PROTOCOL'); setSaveName(''); setSaveActCode(null); setSaveError(''); }}
                 className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-bold text-text-main hover:bg-primary/5 disabled:opacity-40"
               >
                 <BookmarkPlus size={14} /> Enregistrer comme protocole
@@ -327,11 +339,26 @@ export function PrescriptionQuickAccessBar({
               <button
                 type="button"
                 disabled={!drugs.some(drug => drug.name.trim())}
-                onClick={() => { setSaveKind('SAVED_PRESCRIPTION'); setSaveName(''); setSaveError(''); }}
+                onClick={() => { setSaveKind('SAVED_PRESCRIPTION'); setSaveName(''); setSaveActCode(null); setSaveError(''); }}
                 className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-bold text-text-main hover:bg-primary/5 disabled:opacity-40"
               >
                 <FileText size={14} /> Enregistrer cette ordonnance
               </button>
+              {appliedReusable?.kind === 'PROTOCOL' && (
+                <button
+                  type="button"
+                  disabled={!drugs.some(drug => drug.name.trim())}
+                  onClick={() => {
+                    setSaveKind('PROTOCOL');
+                    setSaveName(appliedReusable.label);
+                    setSaveActCode(appliedReusable.act_context);
+                    setSaveError('');
+                  }}
+                  className="flex min-h-11 w-full items-center gap-2 border-t border-border-main px-3 text-left text-xs font-bold text-text-main hover:bg-primary/5 disabled:opacity-40"
+                >
+                  <Sparkles size={14} /> Mettre à jour « {appliedReusable.label} »
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -453,7 +480,7 @@ export function PrescriptionQuickAccessBar({
                   {saveKind === 'PROTOCOL' ? 'Enregistrer comme protocole' : 'Enregistrer cette ordonnance'}
                 </h3>
               </div>
-              <button type="button" aria-label="Fermer" onClick={() => setSaveKind(null)} className="rounded-lg p-2 text-text-muted hover:bg-background">
+              <button type="button" aria-label="Fermer" onClick={() => { setSaveKind(null); setSaveActCode(null); }} className="rounded-lg p-2 text-text-muted hover:bg-background">
                 <X size={16} />
               </button>
             </div>
@@ -473,7 +500,7 @@ export function PrescriptionQuickAccessBar({
             </p>
             {saveError && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{saveError}</p>}
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setSaveKind(null)} className="min-h-11 rounded-xl border border-border-main px-4 text-sm font-bold text-text-muted">Annuler</button>
+              <button type="button" onClick={() => { setSaveKind(null); setSaveActCode(null); }} className="min-h-11 rounded-xl border border-border-main px-4 text-sm font-bold text-text-muted">Annuler</button>
               <button type="button" onClick={() => void saveReusable()} disabled={!saveName.trim() || saving} className="min-h-11 rounded-xl bg-primary px-4 text-sm font-black text-white disabled:opacity-40">
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </button>
