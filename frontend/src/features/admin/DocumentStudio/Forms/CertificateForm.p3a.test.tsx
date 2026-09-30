@@ -129,7 +129,7 @@ describe('CertificateForm P3', () => {
     );
 
     await waitFor(() => {
-      expect(setCertifCustomMotif).toHaveBeenCalledWith('');
+      expect(setCertifCustomMotif).toHaveBeenCalledWith('Patient :');
     });
   });
 

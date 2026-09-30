@@ -26,10 +26,14 @@ export function certificateTemplateBodyToPlainText(value: string): string {
   const raw = String(value || '').replace(/\r\n?/g, '\n').trim();
   if (!raw) return '';
 
-  const hasHtmlMarkup = /<\/?[a-z][^>]*>/i.test(raw);
-  if (!hasHtmlMarkup) return raw;
+  const withoutTemplateCode = raw
+    .replace(/\{\{[\s\S]*?\}\}/g, '')
+    .replace(/\{%[\s\S]*?%\}/g, '')
+    .replace(/\{colors\.[^}]+\}/gi, '');
+  const hasHtmlMarkup = /<\/?[a-z][^>]*>/i.test(withoutTemplateCode);
+  if (!hasHtmlMarkup) return withoutTemplateCode.replace(/[ \t]{2,}/g, ' ').trim();
 
-  const stripped = raw
+  const stripped = withoutTemplateCode
     .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, ' ')
     .replace(/<\s*br\s*\/?\s*>/gi, '\n')
     .replace(/<\s*li\b[^>]*>/gi, '• ')
@@ -349,9 +353,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
 
   React.useEffect(() => {
     if (certifType !== CERTIFICATE_TYPE_FREE || !certifCustomMotif.trim()) return;
-    const cleaned = certificateTemplateContainsLayoutCode(certifCustomMotif)
-      ? ''
-      : certificateTemplateBodyToPlainText(certifCustomMotif);
+    const cleaned = certificateTemplateBodyToPlainText(certifCustomMotif);
     if (cleaned !== certifCustomMotif) setCertifCustomMotif(cleaned);
   }, [certifType, certifCustomMotif, setCertifCustomMotif]);
 
