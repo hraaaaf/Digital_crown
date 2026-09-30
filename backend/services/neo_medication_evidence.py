@@ -123,7 +123,8 @@ def evaluate_bounded_evidence(
             ))
         if "METHOTREXATE" in meds:
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_METHOTREXATE_INTERACTION", "HIGH_RISK", (SRC_AMOX_TEVA,)
+                "AMOXICILLIN_METHOTREXATE_INTERACTION", "HIGH_RISK",
+                (SRC_AMOX_TEVA,),
             ))
         if meds & {"WARFARIN", "ACENOCOUMAROL"}:
             findings.append(EvidenceFinding(
@@ -132,15 +133,18 @@ def evaluate_bounded_evidence(
             ))
         if "PROBENECID" in meds:
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_PROBENECID_NOT_RECOMMENDED", "AVOID", (SRC_AMOX_SANDOZ,)
+                "AMOXICILLIN_PROBENECID_NOT_RECOMMENDED", "AVOID",
+                (SRC_AMOX_SANDOZ,),
             ))
         if "ALLOPURINOL" in meds:
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_ALLOPURINOL_RASH_RISK", "REVIEW", (SRC_AMOX_SANDOZ,)
+                "AMOXICILLIN_ALLOPURINOL_RASH_RISK", "REVIEW",
+                (SRC_AMOX_SANDOZ,),
             ))
         if renal_status == "IMPAIRMENT_REPORTED":
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_RENAL_DOSE_REVIEW_REQUIRED", "REVIEW", (SRC_AMOX_SANDOZ,)
+                "AMOXICILLIN_RENAL_DOSE_REVIEW_REQUIRED", "REVIEW",
+                (SRC_AMOX_SANDOZ,),
             ))
         return EvidenceEvaluation(
             ingredient, True, False, False, tuple(findings), tuple(sources)
@@ -149,7 +153,8 @@ def evaluate_bounded_evidence(
         sources = [SRC_IBU_BIOGARAN, SRC_IBU_CRISTERS]
         if pregnancy_status == "YES":
             findings.append(EvidenceFinding(
-                "IBUPROFEN_PREGNANCY_GESTATIONAL_AGE_REQUIRED", "BLOCK", (SRC_IBU_BIOGARAN,)
+                "IBUPROFEN_PREGNANCY_GESTATIONAL_AGE_REQUIRED", "BLOCK",
+                (SRC_IBU_BIOGARAN,),
             ))
         if renal_status == "IMPAIRMENT_REPORTED":
             findings.append(EvidenceFinding(
@@ -186,7 +191,8 @@ def evaluate_bounded_evidence(
         }
         if meds & ace_arb:
             findings.append(EvidenceFinding(
-                "IBUPROFEN_ACE_ARB_RENAL_REVIEW", "MONITOR", (SRC_IBU_CRISTERS,)
+                "IBUPROFEN_ACE_ARB_RENAL_REVIEW", "MONITOR",
+                (SRC_IBU_CRISTERS,),
             ))
         return EvidenceEvaluation(
             ingredient, True, False, False, tuple(findings), tuple(sources)
