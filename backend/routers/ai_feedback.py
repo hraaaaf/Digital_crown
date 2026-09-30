@@ -8,7 +8,7 @@ from datetime import datetime
 import asyncio
 
 from backend import database, models
-from backend.routers.auth import get_current_user, require_permission, require_elite_license
+from backend.routers.auth import get_current_user, has_permission, require_permission, require_elite_license
 from backend.security import SECRET_KEY, ALGORITHM, token_blacklist
 
 router = APIRouter(
@@ -36,24 +36,33 @@ def _get_websocket_identity(websocket: WebSocket, db: Session) -> tuple[Optional
         token_type: str = payload.get("type")
         jti: str = payload.get("jti")
 
-        if token_type not in ("access", "mobile"):
+        # Ghost insights is a Cabinet desktop channel. Pocket/mobile JWTs have
+        # their own device-bound trust boundary and must never authenticate it.
+        if token_type != "access":
             return None, None
         if jti and token_blacklist.is_revoked(jti, db):
             return None, None
 
-        if token_type == "mobile":
-            user_id = int(payload["sub"])
-            user = db.query(models.User).filter(models.User.id == user_id).first()
-        else:
-            email: str = payload.get("sub")
-            if email is None:
-                return None, None
-            user = db.query(models.User).filter(models.User.email == email).first()
+        email: str = payload.get("sub")
+        if email is None:
+            return None, None
+        user = db.query(models.User).filter(models.User.email == email).first()
     except (JWTError, ValueError, KeyError):
         return None, None
 
     if user is None or not user.is_active:
         return None, None
+
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
+        return None, None
+    if not has_permission(user, "patients"):
+        return None, None
+    try:
+        require_elite_license(current_user=user, db=db)
+    except HTTPException:
+        return None, None
+
     return user, jti
 
 

@@ -1,6 +1,7 @@
 import pytest
 
 from backend import models
+from backend.routers.mobile import _create_mobile_jwt
 from backend.security import get_password_hash
 
 
@@ -257,6 +258,65 @@ def test_ghost_insights_websocket_is_rejected_when_station_locked(client, db, de
     with pytest.raises(WebSocketDisconnect) as closed:
         with client.websocket_connect(
             f"/api/ai/ws/ghost-insights/{dentiste.id}?token={token}",
+        ) as websocket:
+            websocket.receive_json()
+    assert closed.value.code == 1008
+
+
+def test_ghost_insights_websocket_enforces_patients_permission(client, db, dentiste):
+    from starlette.websockets import WebSocketDisconnect
+
+    restricted = models.User(
+        email="restricted.ws@cabinet.ma",
+        hashed_password=get_password_hash("RestrictedPass123!"),
+        role=models.UserRole.DENTISTE,
+        nom_complet="Restricted WS",
+        is_active=True,
+        is_licensed=True,
+        employer_id=dentiste.id,
+        permissions={"agenda": True, "patients": False},
+    )
+    db.add(restricted)
+    db.commit()
+    token = _token(client, restricted.email, "RestrictedPass123!")
+
+    with pytest.raises(WebSocketDisconnect) as closed:
+        with client.websocket_connect(
+            f"/api/ai/ws/ghost-insights/{dentiste.id}?token={token}",
+        ) as websocket:
+            websocket.receive_json()
+    assert closed.value.code == 1008
+
+
+def test_ghost_insights_websocket_enforces_active_license(client, db, dentiste):
+    from starlette.websockets import WebSocketDisconnect
+
+    token = _token(client, dentiste.email, "TestPass123!")
+    dentiste.is_licensed = False
+    db.commit()
+
+    with pytest.raises(WebSocketDisconnect) as closed:
+        with client.websocket_connect(
+            f"/api/ai/ws/ghost-insights/{dentiste.id}?token={token}",
+        ) as websocket:
+            websocket.receive_json()
+    assert closed.value.code == 1008
+
+
+def test_ghost_insights_websocket_rejects_mobile_jwt(client, db, dentiste):
+    from starlette.websockets import WebSocketDisconnect
+
+    # Ghost insights is a Cabinet desktop channel. Pocket JWTs have a separate,
+    # device-bound trust boundary and must never authenticate this socket.
+    mobile_token = _create_mobile_jwt(
+        dentiste.id,
+        "DENTISTE",
+        dentiste.id,
+    )
+
+    with pytest.raises(WebSocketDisconnect) as closed:
+        with client.websocket_connect(
+            f"/api/ai/ws/ghost-insights/{dentiste.id}?token={mobile_token}",
         ) as websocket:
             websocket.receive_json()
     assert closed.value.code == 1008
