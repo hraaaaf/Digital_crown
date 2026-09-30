@@ -44,6 +44,9 @@ describe('Ordonnance Perfect V2 UX contract', () => {
     expect(prescription).toContain('Recherche médicament → présentation → validation');
     expect(prescription).toContain('data-clinical-rule-status="blocked"');
     expect(prescription).toContain('data-safety-status="blocked"');
+    expect(prescription).toContain('data-safety-mechanics="background-only"');
+    expect(prescription).not.toContain('PatientClinicalContextPanel');
+    expect(prescription).not.toContain('IEProphylaxisRulePanel');
     expect(prescription).not.toContain("api.post('/prescriptions/safety/check'");
     expect(prescription).toContain('min-h-11');
   });
