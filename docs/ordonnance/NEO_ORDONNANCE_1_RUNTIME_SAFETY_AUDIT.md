@@ -52,3 +52,14 @@ Targeted Vitest run: 5 files passed, 39/39 tests passed:
 PARTIAL PASS for the runtime boundary. Remaining requirement before NEO-ORDONNANCE 1 closeout: make the quarantine structural (remove or make the unsafe substitution branch unreachable by API), add a regression guard against direct use, and inventory the remaining medication interaction/renal/hepatic/pregnancy coverage gaps.
 
 Strict score after trace: 8.2/10 runtime safety boundary. Not closed.
+
+## Coverage inventory — first pass
+- Pregnancy: structured field reaches the arbiter; explicit ibuprofen review gate exists. Broad medication coverage is not yet demonstrated.
+- Renal: structured UI context exists; severe amoxicillin path fails closed. Broad medication coverage is not yet demonstrated.
+- Hepatic: structured UI context exists and pipeline carries a hepatic flag, but no broad executable hepatic safety rule was found in this first pass.
+- Interactions: documentation marks clarithromycin, miconazole and fluconazole as requiring interaction review, but this first pass did not find a comprehensive executable drug-drug interaction engine in the ordonnance module.
+
+### Priority gaps
+P0: make legacy unsafe substitution structurally impossible to call directly.
+P0: prove or implement a deterministic interaction gate for the medications whose source contract requires interaction review.
+P1: expand structured pregnancy/renal/hepatic gates molecule-by-molecule from source-backed rules; do not infer missing facts.
