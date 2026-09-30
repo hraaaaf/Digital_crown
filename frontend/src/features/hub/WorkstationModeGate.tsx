@@ -90,15 +90,14 @@ export const WorkstationModeGate = ({ target, children }: Props) => {
   if (!resolved) return null;
 
   if (!state) {
-    // Any server-backed experience fails closed when workstation authority cannot
-    // be read. Only the data-free Hub remains available as a recovery surface.
-    if (target === 'hub') return <>{children}</>;
-    if (target === 'protected' || target === 'control-center') {
+    // Clinical and Station experiences fail closed when workstation authority
+    // cannot be read. The Hub and local Control Center remain recovery surfaces.
+    if (target === 'hub' || target === 'station' || target === 'control-center') return <>{children}</>;
+    if (target === 'protected') {
       return <Navigate to="/hub?mode-check=failed" replace />;
     }
 
-    // Direct Station entry is never authorized without server-backed workstation state.
-    return <Navigate to="/hub?select=1" replace />;
+    return <Navigate to="/hub?mode-check=failed" replace />;
   }
 
   if (state.enrollmentRequired && target !== 'hub') {

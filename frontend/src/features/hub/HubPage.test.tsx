@@ -27,7 +27,7 @@ describe('V1.5 HubPage', () => {
     expect(screen.getByText('Digital Crown')).toBeInTheDocument();
     expect(screen.getByText("Station d'accueil")).toBeInTheDocument();
     expect(screen.getByText('Centre de contrôle')).toBeInTheDocument();
-    expect(screen.getByText('Le Hub ne contient aucune donnée patient ou clinique.')).toBeInTheDocument();
+    expect(screen.getByText('Le Hub ne contient aucune donnée patient ni donnée métier clinique.')).toBeInTheDocument();
     await waitFor(() => { expect(screen.getByText('Clinique Test')).toBeInTheDocument(); expect(screen.getByText('CLINIQUE')).toBeInTheDocument(); });
   });
 
