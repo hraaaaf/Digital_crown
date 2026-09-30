@@ -262,6 +262,46 @@ def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
     return hits
 
 
+def search_unified(q: str, limit: int = 30) -> List[Dict[str, Any]]:
+    """Recherche Neo unifi?e : overlay AMMPS courant d'abord, puis r?f?rentiels documentaires.
+
+    Le r?sultat n'inf?re jamais un statut courant pour une ligne historique. Quand une
+    pr?sentation AMMPS courante correspond exactement ? l'identit? documentaire, elle
+    masque uniquement le doublon historique dans cette vue; les deux sources restent
+    disponibles via leurs APIs d?di?es.
+    """
+    _load()
+    query = (q or "").upper().strip()
+    if len(query) < 2:
+        return []
+
+    bounded = max(1, min(limit, 100))
+    ordered_records = [*_regulatory_records(), *_legacy_records()]
+    hits: List[Dict[str, Any]] = []
+    seen_identity: set[str] = set()
+    for rec in ordered_records:
+        if not _matches_query(rec, query):
+            continue
+        identity = _canonical_presentation_key(rec)
+        if identity in seen_identity:
+            continue
+        seen_identity.add(identity)
+        item = _public_presentation(rec)
+        source = item.get("source") or {}
+        item["neo_source_state"] = (
+            "CURRENT_REGULATORY_OVERLAY"
+            if source.get("id") == AMMPS_CURRENT_SOURCE["id"]
+            else "DOCUMENTARY_REFERENCE"
+        )
+        item["may_claim_current_marketing_status"] = bool(
+            source.get("current_marketing_status_verified")
+        )
+        hits.append(item)
+        if len(hits) >= bounded:
+            break
+    return hits
+
+
 def search_regulatory_presentations(q: str, limit: int = 100) -> List[Dict[str, Any]]:
     """Recherche package-level dans le snapshot AMMPS courant uniquement."""
     _load()

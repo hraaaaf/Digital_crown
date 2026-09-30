@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 MedicationAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
 PenicillinAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
 OrganContextStatus = Literal["UNKNOWN", "NO_KNOWN_IMPAIRMENT", "IMPAIRMENT_REPORTED"]
+BinaryFactStatus = Literal["UNKNOWN", "NO", "YES"]
+CurrentMedicationsStatus = Literal["UNKNOWN", "NONE_REPORTED", "PRESENT"]
 IECardiacRiskCategory = Literal[
     "UNKNOWN",
     "NONE_REPORTED",
@@ -46,6 +48,10 @@ class PatientClinicalContextUpdate(BaseModel):
     renal_context_note: Optional[str] = None
     hepatic_context_status: OrganContextStatus = "UNKNOWN"
     hepatic_context_note: Optional[str] = None
+    pregnancy_status: BinaryFactStatus = "UNKNOWN"
+    breastfeeding_status: BinaryFactStatus = "UNKNOWN"
+    current_medications_status: CurrentMedicationsStatus = "UNKNOWN"
+    current_medications: Optional[List[str]] = None
 
     @field_validator("weight_kg")
     @classmethod
@@ -73,6 +79,23 @@ class PatientClinicalContextUpdate(BaseModel):
                 cleaned.append(label)
         return cleaned
 
+    @field_validator("current_medications")
+    @classmethod
+    def normalize_current_medications(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        if value is None:
+            return None
+        cleaned: List[str] = []
+        seen = set()
+        for item in value:
+            label = str(item).strip()
+            if not label:
+                raise ValueError("Un traitement en cours renseign? ne peut pas ?tre vide")
+            key = label.casefold()
+            if key not in seen:
+                seen.add(key)
+                cleaned.append(label)
+        return cleaned
+
     @field_validator("renal_context_note", "hepatic_context_note", mode="before")
     @classmethod
     def normalize_optional_text(cls, value):
@@ -82,18 +105,28 @@ class PatientClinicalContextUpdate(BaseModel):
     def validate_state_consistency(self):
         allergies = self.medication_allergies or []
         if self.medication_allergy_status == "PRESENT" and not allergies:
-            raise ValueError("Le statut PRESENT exige au moins une allergie médicamenteuse explicite")
+            raise ValueError("Le statut PRESENT exige au moins une allergie m?dicamenteuse explicite")
         if self.medication_allergy_status != "PRESENT" and allergies:
-            raise ValueError("Des allergies ne peuvent être listées que lorsque le statut est PRESENT")
+            raise ValueError("Des allergies ne peuvent ?tre list?es que lorsque le statut est PRESENT")
         if self.medication_allergy_status == "NONE_KNOWN":
             self.medication_allergies = []
         elif self.medication_allergy_status == "UNKNOWN":
             self.medication_allergies = None
 
         if self.renal_context_status != "IMPAIRMENT_REPORTED" and self.renal_context_note:
-            raise ValueError("Une note rénale exige le statut IMPAIRMENT_REPORTED")
+            raise ValueError("Une note r?nale exige le statut IMPAIRMENT_REPORTED")
         if self.hepatic_context_status != "IMPAIRMENT_REPORTED" and self.hepatic_context_note:
-            raise ValueError("Une note hépatique exige le statut IMPAIRMENT_REPORTED")
+            raise ValueError("Une note h?patique exige le statut IMPAIRMENT_REPORTED")
+
+        treatments = self.current_medications or []
+        if self.current_medications_status == "PRESENT" and not treatments:
+            raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
+        if self.current_medications_status != "PRESENT" and treatments:
+            raise ValueError("Des traitements actuels ne peuvent ?tre list?s que lorsque le statut est PRESENT")
+        if self.current_medications_status == "NONE_REPORTED":
+            self.current_medications = []
+        elif self.current_medications_status == "UNKNOWN":
+            self.current_medications = None
         return self
 
 

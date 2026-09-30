@@ -32,5 +32,10 @@ class PatientClinicalContext(Base):
     hepatic_context_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     hepatic_context_note = Column(Text, nullable=True)
 
+    pregnancy_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    breastfeeding_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    current_medications_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    current_medications = Column(JSON, nullable=True)
+
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

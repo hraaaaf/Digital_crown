@@ -40,6 +40,15 @@ def search_medications(
     return medication_dict.search(q, limit=15)
 
 
+@router.get("/neo/search")
+def search_medications_neo(
+    q: str = Query(..., min_length=2),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Recherche Neo unifi?e, avec AMMPS courant prioritaire et provenance explicite."""
+    return medication_dict.search_unified(q, limit=20)
+
+
 @router.get("/presentations/{presentation_id:path}")
 def get_medication_presentation(
     presentation_id: str,
