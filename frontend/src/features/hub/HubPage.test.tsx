@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -11,6 +13,12 @@ const LocationProbe = () => { const location = useLocation(); return <div data-t
 const renderHub = () => render(<MemoryRouter initialEntries={['/hub']}><HubPage/><LocationProbe/></MemoryRouter>);
 
 describe('V1.5 HubPage', () => {
+  it('uses a correctly encoded establishment fallback', () => {
+    const source = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'HubPage.tsx'), 'utf8');
+    expect(source).toContain("config.nom_cabinet || 'Votre \\u00e9tablissement'");
+    expect(source).not.toContain('Votre ?tablissement');
+  });
+
   beforeEach(() => { vi.resetAllMocks(); vi.stubGlobal('fetch', vi.fn()); });
 
   it('renders only the three workstation experiences without business data', async () => {

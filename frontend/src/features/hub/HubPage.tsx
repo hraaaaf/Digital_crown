@@ -30,7 +30,7 @@ export const HubPage = () => {
         const config = await response.json();
         if (!active) return;
         setIdentity({
-          name: config.nom_cabinet || 'Votre ?tablissement',
+          name: config.nom_cabinet || 'Votre \u00e9tablissement',
           type: config.cabinet_type === 'CLINIQUE' ? 'Clinique' : 'Cabinet dentaire',
           badge: config.cabinet_type === 'CLINIQUE' ? 'CLINIQUE' : 'CABINET',
         });
