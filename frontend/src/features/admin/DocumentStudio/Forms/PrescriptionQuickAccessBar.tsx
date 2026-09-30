@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock3, FileText, Search, Sparkles, Star } from 'lucide-react';
+import { BookmarkPlus, Clock3, FileText, MoreHorizontal, Search, Sparkles, Star, X } from 'lucide-react';
 
 import { api } from '../../../../services/api';
 import type { DrugItem } from './prescriptionTypes';
@@ -108,9 +108,11 @@ function selectedPresentation(row: CatalogPresentation, current: DrugItem[]): Dr
 export function PrescriptionQuickAccessBar({
   drugs,
   setDrugs,
+  prescriptionIndication,
 }: {
   drugs: DrugItem[];
   setDrugs: (drugs: DrugItem[]) => void;
+  prescriptionIndication: string;
 }) {
   const [section, setSection] = React.useState<QuickSection>('FAVORITES');
   const [query, setQuery] = React.useState('');
@@ -119,6 +121,11 @@ export function PrescriptionQuickAccessBar({
   const [catalog, setCatalog] = React.useState<CatalogPresentation[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [highlighted, setHighlighted] = React.useState(0);
+  const [showActions, setShowActions] = React.useState(false);
+  const [saveKind, setSaveKind] = React.useState<ReusableKind | null>(null);
+  const [saveName, setSaveName] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const reload = React.useCallback(async () => {
@@ -216,6 +223,39 @@ export function PrescriptionQuickAccessBar({
       ? (quickPicks.frequent_medications || [])
       : [];
 
+  const saveReusable = async () => {
+    const name = saveName.trim();
+    const reusableDrugs = drugs.filter(drug => drug.name.trim());
+    if (!saveKind || !name || !reusableDrugs.length || saving) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await api.post('/prescriptions/preferences', {
+        act_code: name,
+        label: name,
+        kind: saveKind,
+        indication: saveKind === 'SAVED_PRESCRIPTION' ? (prescriptionIndication.trim() || null) : null,
+        drugs: reusableDrugs.map(drug => ({
+          name: drug.name,
+          dosage: drug.dosage,
+          forme: drug.forme,
+          posologie: drug.posologie,
+          type: drug.type || 'MEDICAMENT',
+          quantite: drug.quantite ?? null,
+          non_substituable: Boolean(drug.non_substituable),
+        })),
+      });
+      setSaveKind(null);
+      setSaveName('');
+      setShowActions(false);
+      await reload();
+    } catch (error: any) {
+      setSaveError(error?.response?.data?.detail || 'Enregistrement impossible.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (!query.trim() || !searchItems.length) return;
     if (event.key === 'ArrowDown') {
@@ -238,18 +278,51 @@ export function PrescriptionQuickAccessBar({
 
   return (
     <section data-neo-quick-access className="rounded-2xl border border-border-main bg-card/95 p-3 shadow-sm sm:p-4">
-      <div className="relative">
-        <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={event => { setQuery(event.target.value); setHighlighted(0); }}
-          onKeyDown={onKeyDown}
-          autoComplete="off"
-          aria-label="Ajouter un médicament ou un protocole"
-          placeholder="Ajouter un médicament ou un protocole…"
-          className="min-h-12 w-full rounded-xl border border-border-main bg-background pl-10 pr-4 text-sm font-bold text-text-main outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-        />
+      <div className="flex items-stretch gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={event => { setQuery(event.target.value); setHighlighted(0); }}
+            onKeyDown={onKeyDown}
+            autoComplete="off"
+            aria-label="Ajouter un médicament ou un protocole"
+            placeholder="Ajouter un médicament ou un protocole…"
+            className="min-h-12 w-full rounded-xl border border-border-main bg-background pl-10 pr-4 text-sm font-bold text-text-main outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+          />
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Actions ordonnance"
+            aria-expanded={showActions}
+            onClick={() => setShowActions(value => !value)}
+            className="flex h-12 w-12 items-center justify-center rounded-xl border border-border-main bg-background text-text-muted transition hover:border-primary/30 hover:text-primary"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          {showActions && (
+            <div className="absolute right-0 top-full z-[120] mt-2 w-64 overflow-hidden rounded-xl border border-border-main bg-card py-1.5 shadow-2xl">
+              <button
+                type="button"
+                disabled={!drugs.some(drug => drug.name.trim())}
+                onClick={() => { setSaveKind('PROTOCOL'); setSaveName(''); setSaveError(''); }}
+                className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-bold text-text-main hover:bg-primary/5 disabled:opacity-40"
+              >
+                <BookmarkPlus size={14} /> Enregistrer comme protocole
+              </button>
+              <button
+                type="button"
+                disabled={!drugs.some(drug => drug.name.trim())}
+                onClick={() => { setSaveKind('SAVED_PRESCRIPTION'); setSaveName(''); setSaveError(''); }}
+                className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-bold text-text-main hover:bg-primary/5 disabled:opacity-40"
+              >
+                <FileText size={14} /> Enregistrer cette ordonnance
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {!query.trim() && (
@@ -346,6 +419,46 @@ export function PrescriptionQuickAccessBar({
               {section === 'FAVORITES' ? 'Aucun favori.' : section === 'PROTOCOLS' ? 'Aucun protocole enregistré.' : 'Aucun usage enregistré.'}
             </span>
           )}
+        </div>
+      )}
+      {saveKind && (
+        <div role="dialog" aria-modal="true" aria-label={saveKind === 'PROTOCOL' ? 'Enregistrer comme protocole' : 'Enregistrer cette ordonnance'} className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border-main bg-card p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-widest text-text-muted">
+                  {saveKind === 'PROTOCOL' ? 'Protocole' : 'Ordonnance enregistrée'}
+                </div>
+                <h3 className="mt-1 text-lg font-black text-text-main">
+                  {saveKind === 'PROTOCOL' ? 'Enregistrer comme protocole' : 'Enregistrer cette ordonnance'}
+                </h3>
+              </div>
+              <button type="button" aria-label="Fermer" onClick={() => setSaveKind(null)} className="rounded-lg p-2 text-text-muted hover:bg-background">
+                <X size={16} />
+              </button>
+            </div>
+            <label className="mt-4 block">
+              <span className="mb-1.5 block text-xs font-bold text-text-muted">Nom</span>
+              <input
+                autoFocus
+                value={saveName}
+                onChange={event => setSaveName(event.target.value)}
+                onKeyDown={event => { if (event.key === 'Enter') void saveReusable(); }}
+                placeholder={saveKind === 'PROTOCOL' ? 'Ex. Post-op extraction' : 'Ex. Ordonnance post-op habituelle'}
+                className="min-h-11 w-full rounded-xl border border-border-main bg-background px-3 text-sm font-semibold text-text-main outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+              />
+            </label>
+            <p className="mt-2 text-[10px] font-semibold text-text-muted">
+              {drugs.filter(drug => drug.name.trim()).length} ligne(s). {saveKind === 'PROTOCOL' ? 'Le protocole restera éditable après insertion.' : 'L’indication actuelle est conservée avec ce modèle.'}
+            </p>
+            {saveError && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{saveError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setSaveKind(null)} className="min-h-11 rounded-xl border border-border-main px-4 text-sm font-bold text-text-muted">Annuler</button>
+              <button type="button" onClick={() => void saveReusable()} disabled={!saveName.trim() || saving} className="min-h-11 rounded-xl bg-primary px-4 text-sm font-black text-white disabled:opacity-40">
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>
