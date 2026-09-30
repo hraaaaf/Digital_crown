@@ -252,9 +252,14 @@ def test_station_backend_blocks_clinical_api_and_escape_is_session_bound(client,
     token = _token(client, dentiste.email, "TestPass123!")
     _configure_station(client, token)
 
-    blocked = client.get("/api/patients/", headers=_headers(token))
-    assert blocked.status_code == 423, blocked.text
-    assert blocked.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+    for path in (
+        "/api/patients/",
+        "/api/mobile/bridge-options",
+        "/api/patient-companion/admin/patients/999/status",
+    ):
+        blocked = client.get(path, headers=_headers(token))
+        assert blocked.status_code == 423, f"{path}: {blocked.text}"
+        assert blocked.json()["detail"] == "WORKSTATION_STATION_LOCKED"
 
     escaped = client.post(
         "/api/workstation/station/escape",
