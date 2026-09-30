@@ -129,6 +129,20 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(shell?.className).toContain('lg:w-72');
   });
 
+  it('uses a staged premium desktop motion contract with reduced-motion fallback', () => {
+    localStorage.setItem('sidebar_desktop_pinned', 'false');
+    const { container } = renderSidebar();
+    const shell = container.querySelector('.sidebar-shell');
+    const nav = container.querySelector('.sidebar-nav');
+    const styleText = Array.from(container.querySelectorAll('style')).map(node => node.textContent || '').join('\n');
+
+    expect(shell?.className).toContain('lg:w-[68px]');
+    expect(nav?.className).toContain('px-2');
+    expect(styleText).toContain('width 340ms cubic-bezier(0.16, 1, 0.3, 1)');
+    expect(styleText).toContain('opacity 150ms ease 125ms');
+    expect(styleText).toContain('@media (prefers-reduced-motion: reduce)');
+  });
+
   it('closes the mobile drawer through the backdrop', () => {
     const onClose = vi.fn();
     const { container } = renderSidebar('/dashboard', { isOpen: true, onClose });
