@@ -54,7 +54,7 @@ export const HubPage = () => {
         <h1 className="mt-5 font-outfit text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight">{identity.name}</h1>
         <p className="mt-3 text-sm font-bold text-text-muted">{identity.type} · Choisissez l’espace de ce poste</p>
         {!serverAvailable && <div data-hub-offline className="mx-auto mt-5 flex max-w-xl items-center justify-center gap-2 rounded-elite-sm border border-primary/20 bg-primary/5 px-4 py-3 text-xs font-bold text-primary">
-          <WifiOff size={16}/> Serveur indisponible — le Hub reste accessible. Les espaces du poste restent verrouillés jusqu’au rétablissement.
+          <WifiOff size={16}/> Serveur indisponible — le Hub et le Centre de contrôle restent accessibles. Les espaces cliniques restent verrouillés jusqu’au rétablissement.
         </div>}
       </div>
 
@@ -82,7 +82,7 @@ export const HubPage = () => {
 
       <WorkstationModeAdminPanel />
 
-      <p className="mt-5 text-center text-xs font-bold text-text-muted">Le Hub ne contient aucune donnée patient ou clinique.</p>
+      <p className="mt-5 text-center text-xs font-bold text-text-muted">Le Hub ne contient aucune donnée patient ni donnée métier clinique.</p>
     </section>
   </main>;
 };

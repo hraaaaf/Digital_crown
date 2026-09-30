@@ -64,11 +64,18 @@ describe('WorkstationModeGate V1.5-00.3 direct URL security', () => {
     await waitFor(() => expect(screen.getByText('STATION')).toBeInTheDocument());
   });
 
-  it('fails closed for Control Center when workstation authority is unavailable', async () => {
+  it('keeps Control Center available as the fail-soft recovery surface when workstation authority is unavailable', async () => {
     vi.mocked(workstationModeService.getBootstrapState).mockRejectedValue(new Error('backend unavailable'));
     renderGate('/control-center', 'control-center');
-    await waitFor(() => expect(screen.getByText('HUB')).toBeInTheDocument());
-    expect(screen.queryByText('REQUESTED')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('REQUESTED')).toBeInTheDocument());
+    expect(screen.queryByText('HUB')).not.toBeInTheDocument();
+  });
+
+  it('keeps the restrictive Station shell in place when workstation authority is unavailable', async () => {
+    vi.mocked(workstationModeService.getBootstrapState).mockRejectedValue(new Error('backend unavailable'));
+    renderGate('/station', 'station');
+    await waitFor(() => expect(screen.getByText('REQUESTED')).toBeInTheDocument());
+    expect(screen.queryByText('HUB')).not.toBeInTheDocument();
   });
 
   it('does not authorize Station by direct URL on an unconfigured workstation', async () => {
