@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from dataclasses import asdict
+from datetime import date, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -9,6 +12,8 @@ from backend.schemas.patient_clinical_context import (
     PatientClinicalContextUpdate,
 )
 from backend.services.audit_service import audit_service
+from backend.services.neo_medication_evidence import resolve_medication_identity
+from backend.services.neo_prescription_safety import evaluate_neo_prescription_safety
 from backend.utils.access_control import assert_patient_access
 
 
@@ -35,6 +40,51 @@ def _empty_context(patient_id: int, employer_id: int) -> PatientClinicalContextO
         updated_at=None,
         updated_by_user_id=None,
     )
+
+
+def _age_years(date_naissance: datetime | date | None, *, today: date | None = None) -> int | None:
+    if date_naissance is None:
+        return None
+    born = date_naissance.date() if isinstance(date_naissance, datetime) else date_naissance
+    ref = today or date.today()
+    if born > ref:
+        return None
+    return ref.year - born.year - ((ref.month, ref.day) < (born.month, born.day))
+
+
+@router.get("/{patient_id}/neo-prescription-safety")
+def read_neo_prescription_safety(
+    patient_id: int,
+    presentation_id: str = Query(..., min_length=1),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("prescriptions")),
+):
+    """Read-only Neo safety evaluation; never mutates patient or prescription state."""
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = current_user.get_employer_id()
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == patient_id, models.Patient.employer_id == employer_id,
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+    context = db.query(PatientClinicalContext).filter(
+        PatientClinicalContext.patient_id == patient_id,
+        PatientClinicalContext.employer_id == employer_id,
+    ).first()
+    patient_context = context if context is not None else _empty_context(patient_id, employer_id)
+    age_years = _age_years(patient.date_naissance)
+    result = evaluate_neo_prescription_safety(
+        presentation_id=presentation_id, patient_context=patient_context, age_years=age_years,
+    )
+    current_meds = getattr(patient_context, "current_medications", None) or []
+    medication_resolution = []
+    for value in current_meds:
+        identity = resolve_medication_identity(value)
+        medication_resolution.append({"input": value, "identity": identity, "resolved": identity is not None})
+    return {
+        **asdict(result), "patient_id": patient_id, "age_years": age_years,
+        "current_medication_resolution": medication_resolution, "read_only": True,
+    }
 
 
 @router.get("/{patient_id}/clinical-context", response_model=PatientClinicalContextOut)
