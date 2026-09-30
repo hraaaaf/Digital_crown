@@ -76,14 +76,23 @@ def evaluate_neo_prescription_safety(
     for field, allowed, blocker_prefix in status_contracts:
         value = _value(patient_context, field, "UNKNOWN")
         if value == "UNKNOWN": blockers.append(f"{blocker_prefix}_UNKNOWN")
-        elif value not in allowed: blockers.append(f"{blocker_prefix}_INVALID")
+        elif not isinstance(value, str) or value not in allowed: blockers.append(f"{blocker_prefix}_INVALID")
+
+    def _valid_string_list(value: Any) -> bool:
+        return isinstance(value, list) and bool(value) and all(isinstance(x, str) and x.strip() for x in value)
 
     current_status = _value(patient_context, "current_medications_status", "UNKNOWN")
     current_meds = _value(patient_context, "current_medications")
-    if current_status == "PRESENT" and not current_meds:
-        blockers.append("CURRENT_MEDICATIONS_PRESENT_WITHOUT_LIST")
-    if current_status != "PRESENT" and current_meds:
+    if current_status == "PRESENT" and not _valid_string_list(current_meds):
+        blockers.append("CURRENT_MEDICATIONS_PRESENT_WITHOUT_VALID_LIST")
+    if current_status != "PRESENT" and current_meds not in (None, []):
         blockers.append("CURRENT_MEDICATIONS_LIST_STATUS_MISMATCH")
+    allergy_status = _value(patient_context, "medication_allergy_status", "UNKNOWN")
+    allergies = _value(patient_context, "medication_allergies")
+    if allergy_status == "PRESENT" and not _valid_string_list(allergies):
+        blockers.append("MEDICATION_ALLERGY_PRESENT_WITHOUT_VALID_LIST")
+    if allergy_status != "PRESENT" and allergies not in (None, []):
+        blockers.append("MEDICATION_ALLERGY_LIST_STATUS_MISMATCH")
 
     # N3 establishes the Neo safety boundary. It does not replace the legacy runtime yet.
     # Therapeutic knowledge is not yet

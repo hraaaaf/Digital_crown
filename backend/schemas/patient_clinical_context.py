@@ -108,11 +108,6 @@ class PatientClinicalContextUpdate(BaseModel):
             raise ValueError("Le statut PRESENT exige au moins une allergie m?dicamenteuse explicite")
         if self.medication_allergy_status != "PRESENT" and allergies:
             raise ValueError("Des allergies ne peuvent ?tre list?es que lorsque le statut est PRESENT")
-        if self.medication_allergy_status == "NONE_KNOWN":
-            self.medication_allergies = []
-        elif self.medication_allergy_status == "UNKNOWN":
-            self.medication_allergies = None
-
         if self.renal_context_status != "IMPAIRMENT_REPORTED" and self.renal_context_note:
             raise ValueError("Une note r?nale exige le statut IMPAIRMENT_REPORTED")
         if self.hepatic_context_status != "IMPAIRMENT_REPORTED" and self.hepatic_context_note:
@@ -123,10 +118,6 @@ class PatientClinicalContextUpdate(BaseModel):
             raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
         if self.current_medications_status != "PRESENT" and treatments:
             raise ValueError("Des traitements actuels ne peuvent ?tre list?s que lorsque le statut est PRESENT")
-        if self.current_medications_status == "NONE_REPORTED":
-            self.current_medications = []
-        elif self.current_medications_status == "UNKNOWN":
-            self.current_medications = None
         return self
 
 

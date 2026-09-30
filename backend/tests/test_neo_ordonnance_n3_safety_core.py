@@ -97,7 +97,7 @@ def test_malformed_mapping_facts_fail_closed():
     assert "MEDICATION_ALLERGY_STATUS_INVALID" in result.blockers
     assert "PENICILLIN_ALLERGY_STATUS_INVALID" in result.blockers
     assert "RENAL_CONTEXT_INVALID" in result.blockers
-    assert "CURRENT_MEDICATIONS_PRESENT_WITHOUT_LIST" in result.blockers
+    assert "CURRENT_MEDICATIONS_PRESENT_WITHOUT_VALID_LIST" in result.blockers
 
 
 def test_explicit_penicillin_allergy_is_never_silent():
@@ -106,3 +106,19 @@ def test_explicit_penicillin_allergy_is_never_silent():
         presentation_id=_current_presentation_id(), patient_context=context, age_years=40
     )
     assert "PENICILLIN_ALLERGY_REPORTED_REQUIRES_RECONCILIATION" in result.warnings
+
+
+def test_unhashable_and_malformed_collections_fail_closed_without_exception():
+    result = evaluate_neo_prescription_safety(
+        presentation_id=_current_presentation_id(), age_years=40,
+        patient_context={
+            "medication_allergy_status": "NONE_KNOWN", "medication_allergies": ["amoxicillin"],
+            "penicillin_allergy_status": "NONE_KNOWN", "renal_context_status": "NO_KNOWN_IMPAIRMENT",
+            "hepatic_context_status": "NO_KNOWN_IMPAIRMENT", "pregnancy_status": [],
+            "breastfeeding_status": "NO", "current_medications_status": "PRESENT",
+            "current_medications": [None],
+        },
+    )
+    assert "PREGNANCY_STATUS_INVALID" in result.blockers
+    assert "CURRENT_MEDICATIONS_PRESENT_WITHOUT_VALID_LIST" in result.blockers
+    assert "MEDICATION_ALLERGY_LIST_STATUS_MISMATCH" in result.blockers

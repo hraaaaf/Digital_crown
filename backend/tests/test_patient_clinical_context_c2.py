@@ -68,3 +68,9 @@ def test_c2_ie_context_roundtrip(client, db, dentiste, auth_headers):
     assert data["ie_cardiac_risk_category"] == "PREVIOUS_INFECTIVE_ENDOCARDITIS"
     assert "clinical_ready" not in data
     assert "dose" not in data
+
+
+def test_partial_payload_does_not_mark_omitted_lists_as_set():
+    payload = PatientClinicalContextUpdate(pregnancy_status="NO")
+    dumped = payload.model_dump(exclude_unset=True)
+    assert dumped == {"pregnancy_status": "NO"}
