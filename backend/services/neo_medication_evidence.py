@@ -10,7 +10,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Iterable, Optional, Tuple
 
-EVIDENCE_VERSION = "2026-09-30.n4.1-v1"
+EVIDENCE_VERSION = "2026-09-30.n4.2-v1"
 SRC_AMOX_SANDOZ = "BDM_ANSM_RCP_67410088_7"
 SRC_AMOX_TEVA = "BDM_ANSM_RCP_66748343_1"
 SRC_IBU_BIOGARAN = "BDM_ANSM_RCP_68337369_4"
@@ -81,6 +81,24 @@ _MEDICATION_ALIASES = {
     # Brand names are identity resolution only; they do not imply interaction coverage.
     "RIVAROXABAN": ("RIVAROXABAN", "XARELTO"),
     "APIXABAN": ("APIXABAN", "ELIQUIS"),
+    "DOXYCYCLINE": ("DOXYCYCLINE",),
+    "TETRACYCLINE": ("TETRACYCLINE",),
+    "LITHIUM": ("LITHIUM",),
+    "CICLOSPORIN": ("CICLOSPORINE", "CYCLOSPORINE", "CICLOSPORIN"),
+    "TACROLIMUS": ("TACROLIMUS",),
+    "MIFEPRISTONE": ("MIFEPRISTONE",),
+    "ZIDOVUDINE": ("ZIDOVUDINE",),
+    "PREDNISONE": ("PREDNISONE",),
+    "PREDNISOLONE": ("PREDNISOLONE",),
+    "CLOPIDOGREL": ("CLOPIDOGREL",),
+    "SERTRALINE": ("SERTRALINE",),
+    "FLUOXETINE": ("FLUOXETINE",),
+    "PAROXETINE": ("PAROXETINE",),
+    "CITALOPRAM": ("CITALOPRAM",),
+    "ESCITALOPRAM": ("ESCITALOPRAM",),
+    "HYDROCHLOROTHIAZIDE": ("HYDROCHLOROTHIAZIDE",),
+    "FUROSEMIDE": ("FUROSEMIDE",),
+    "SPIRONOLACTONE": ("SPIRONOLACTONE",),
 }
 
 
@@ -121,29 +139,40 @@ def evaluate_bounded_evidence(
                 "AMOXICILLIN_BETA_LACTAM_ALLERGY_REQUIRES_REVIEW",
                 "REVIEW", (SRC_AMOX_SANDOZ,),
             ))
+        if meds & {"DOXYCYCLINE", "TETRACYCLINE"}:
+            findings.append(EvidenceFinding(
+                "AMOXICILLIN_TETRACYCLINE_BACTERIOSTATIC_REVIEW",
+                "REVIEW",
+                (SRC_AMOX_SANDOZ, SRC_AMOX_TEVA),
+            ))
         if "METHOTREXATE" in meds:
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_METHOTREXATE_INTERACTION", "HIGH_RISK",
+                "AMOXICILLIN_METHOTREXATE_INTERACTION",
+                "HIGH_RISK",
                 (SRC_AMOX_TEVA,),
             ))
         if meds & {"WARFARIN", "ACENOCOUMAROL"}:
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_ORAL_ANTICOAGULANT_MONITORING", "MONITOR",
+                "AMOXICILLIN_ORAL_ANTICOAGULANT_MONITORING",
+                "MONITOR",
                 (SRC_AMOX_SANDOZ, SRC_AMOX_TEVA),
             ))
         if "PROBENECID" in meds:
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_PROBENECID_NOT_RECOMMENDED", "AVOID",
+                "AMOXICILLIN_PROBENECID_NOT_RECOMMENDED",
+                "AVOID",
                 (SRC_AMOX_SANDOZ,),
             ))
         if "ALLOPURINOL" in meds:
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_ALLOPURINOL_RASH_RISK", "REVIEW",
+                "AMOXICILLIN_ALLOPURINOL_RASH_RISK",
+                "REVIEW",
                 (SRC_AMOX_SANDOZ,),
             ))
         if renal_status == "IMPAIRMENT_REPORTED":
             findings.append(EvidenceFinding(
-                "AMOXICILLIN_RENAL_DOSE_REVIEW_REQUIRED", "REVIEW",
+                "AMOXICILLIN_RENAL_DOSE_REVIEW_REQUIRED",
+                "REVIEW",
                 (SRC_AMOX_SANDOZ,),
             ))
         return EvidenceEvaluation(
@@ -153,27 +182,32 @@ def evaluate_bounded_evidence(
         sources = [SRC_IBU_BIOGARAN, SRC_IBU_CRISTERS]
         if pregnancy_status == "YES":
             findings.append(EvidenceFinding(
-                "IBUPROFEN_PREGNANCY_GESTATIONAL_AGE_REQUIRED", "BLOCK",
+                "IBUPROFEN_PREGNANCY_GESTATIONAL_AGE_REQUIRED",
+                "BLOCK",
                 (SRC_IBU_BIOGARAN,),
             ))
         if renal_status == "IMPAIRMENT_REPORTED":
             findings.append(EvidenceFinding(
-                "IBUPROFEN_RENAL_IMPAIRMENT_REQUIRES_SEVERITY_REVIEW", "BLOCK",
+                "IBUPROFEN_RENAL_IMPAIRMENT_REQUIRES_SEVERITY_REVIEW",
+                "BLOCK",
                 (SRC_IBU_BIOGARAN,),
             ))
         if hepatic_status == "IMPAIRMENT_REPORTED":
             findings.append(EvidenceFinding(
-                "IBUPROFEN_HEPATIC_IMPAIRMENT_REQUIRES_SEVERITY_REVIEW", "BLOCK",
+                "IBUPROFEN_HEPATIC_IMPAIRMENT_REQUIRES_SEVERITY_REVIEW",
+                "BLOCK",
                 (SRC_IBU_BIOGARAN,),
             ))
         if meds & {"WARFARIN", "ACENOCOUMAROL"}:
             findings.append(EvidenceFinding(
-                "IBUPROFEN_ORAL_ANTICOAGULANT_BLEEDING_RISK", "HIGH_RISK",
+                "IBUPROFEN_ORAL_ANTICOAGULANT_BLEEDING_RISK",
+                "HIGH_RISK",
                 (SRC_IBU_CRISTERS,),
             ))
         if "ASPIRIN" in meds:
             findings.append(EvidenceFinding(
-                "IBUPROFEN_ASPIRIN_ASSOCIATION_NOT_RECOMMENDED", "AVOID",
+                "IBUPROFEN_ASPIRIN_ASSOCIATION_NOT_RECOMMENDED",
+                "AVOID",
                 (SRC_IBU_BIOGARAN, SRC_IBU_CRISTERS),
             ))
         nsaids = {
@@ -182,16 +216,50 @@ def evaluate_bounded_evidence(
         }
         if meds & nsaids:
             findings.append(EvidenceFinding(
-                "IBUPROFEN_CONCOMITANT_NSAID_AVOID", "AVOID",
+                "IBUPROFEN_CONCOMITANT_NSAID_AVOID",
+                "AVOID",
                 (SRC_IBU_BIOGARAN, SRC_IBU_CRISTERS),
             ))
         ace_arb = {
             "RAMIPRIL", "PERINDOPRIL", "ENALAPRIL", "LISINOPRIL",
             "LOSARTAN", "VALSARTAN", "CANDESARTAN",
         }
+        if meds & {"HYDROCHLOROTHIAZIDE", "FUROSEMIDE", "SPIRONOLACTONE"}:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_DIURETIC_RENAL_REVIEW", "MONITOR", (SRC_IBU_CRISTERS,),
+            ))
+        if meds & {"PREDNISONE", "PREDNISOLONE"}:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_CORTICOSTEROID_GI_BLEEDING_RISK", "REVIEW", (SRC_IBU_CRISTERS,),
+            ))
+        if meds & {"CLOPIDOGREL", "SERTRALINE", "FLUOXETINE", "PAROXETINE", "CITALOPRAM", "ESCITALOPRAM"}:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_ANTIPLATELET_SSRI_GI_BLEEDING_RISK", "REVIEW", (SRC_IBU_CRISTERS,),
+            ))
+        if "LITHIUM" in meds:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_LITHIUM_AVOID", "AVOID", (SRC_IBU_CRISTERS,),
+            ))
+        if "METHOTREXATE" in meds:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_METHOTREXATE_AVOID", "AVOID", (SRC_IBU_CRISTERS,),
+            ))
+        if meds & {"CICLOSPORIN", "TACROLIMUS"}:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_CALCINEURIN_NEPHROTOXICITY", "HIGH_RISK", (SRC_IBU_CRISTERS,),
+            ))
+        if "MIFEPRISTONE" in meds:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_MIFEPRISTONE_TIMING_REQUIRED", "BLOCK", (SRC_IBU_CRISTERS,),
+            ))
+        if "ZIDOVUDINE" in meds:
+            findings.append(EvidenceFinding(
+                "IBUPROFEN_ZIDOVUDINE_BLEEDING_REVIEW", "REVIEW", (SRC_IBU_CRISTERS,),
+            ))
         if meds & ace_arb:
             findings.append(EvidenceFinding(
-                "IBUPROFEN_ACE_ARB_RENAL_REVIEW", "MONITOR",
+                "IBUPROFEN_ACE_ARB_RENAL_REVIEW",
+                "MONITOR",
                 (SRC_IBU_CRISTERS,),
             ))
         return EvidenceEvaluation(
