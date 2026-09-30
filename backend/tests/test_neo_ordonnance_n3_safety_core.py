@@ -81,3 +81,28 @@ def test_historical_identity_cannot_claim_current_marketing_status():
     )
     assert "CURRENT_MARKETING_STATUS_NOT_VERIFIED" in result.blockers
     assert result.current_marketing_status_verified is False
+
+
+def test_malformed_mapping_facts_fail_closed():
+    result = evaluate_neo_prescription_safety(
+        presentation_id=_current_presentation_id(),
+        patient_context={
+            "medication_allergy_status": None, "penicillin_allergy_status": "",
+            "renal_context_status": "BOGUS", "hepatic_context_status": "NO_KNOWN_IMPAIRMENT",
+            "pregnancy_status": "NO", "breastfeeding_status": "NO",
+            "current_medications_status": "PRESENT", "current_medications": [],
+        }, age_years=-1,
+    )
+    assert "AGE_INVALID" in result.blockers
+    assert "MEDICATION_ALLERGY_STATUS_INVALID" in result.blockers
+    assert "PENICILLIN_ALLERGY_STATUS_INVALID" in result.blockers
+    assert "RENAL_CONTEXT_INVALID" in result.blockers
+    assert "CURRENT_MEDICATIONS_PRESENT_WITHOUT_LIST" in result.blockers
+
+
+def test_explicit_penicillin_allergy_is_never_silent():
+    context = _complete_context(penicillin_allergy_status="PRESENT")
+    result = evaluate_neo_prescription_safety(
+        presentation_id=_current_presentation_id(), patient_context=context, age_years=40
+    )
+    assert "PENICILLIN_ALLERGY_REPORTED_REQUIRES_RECONCILIATION" in result.warnings

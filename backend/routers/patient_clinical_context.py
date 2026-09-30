@@ -70,7 +70,8 @@ def update_patient_clinical_context(
     if context is not None and context.employer_id != employer_id:
         raise HTTPException(status_code=409, detail="Contexte clinique rattaché à un autre cabinet")
 
-    values = payload.model_dump()
+    # Preserve fields omitted by older/partial clients; explicit values still update.
+    values = payload.model_dump(exclude_unset=True)
     if context is None:
         context = PatientClinicalContext(
             patient_id=patient_id,

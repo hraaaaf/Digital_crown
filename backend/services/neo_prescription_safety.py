@@ -62,20 +62,28 @@ def evaluate_neo_prescription_safety(
 
     if age_years is None:
         blockers.append("AGE_UNKNOWN")
-    if _value(patient_context, "medication_allergy_status", "UNKNOWN") == "UNKNOWN":
-        blockers.append("MEDICATION_ALLERGY_STATUS_UNKNOWN")
-    if _value(patient_context, "penicillin_allergy_status", "UNKNOWN") == "UNKNOWN":
-        blockers.append("PENICILLIN_ALLERGY_STATUS_UNKNOWN")
-    if _value(patient_context, "renal_context_status", "UNKNOWN") == "UNKNOWN":
-        blockers.append("RENAL_CONTEXT_UNKNOWN")
-    if _value(patient_context, "hepatic_context_status", "UNKNOWN") == "UNKNOWN":
-        blockers.append("HEPATIC_CONTEXT_UNKNOWN")
-    if _value(patient_context, "pregnancy_status", "UNKNOWN") == "UNKNOWN":
-        blockers.append("PREGNANCY_STATUS_UNKNOWN")
-    if _value(patient_context, "breastfeeding_status", "UNKNOWN") == "UNKNOWN":
-        blockers.append("BREASTFEEDING_STATUS_UNKNOWN")
-    if _value(patient_context, "current_medications_status", "UNKNOWN") == "UNKNOWN":
-        blockers.append("CURRENT_MEDICATIONS_STATUS_UNKNOWN")
+    elif not isinstance(age_years, int) or isinstance(age_years, bool) or age_years < 0 or age_years > 130:
+        blockers.append("AGE_INVALID")
+    status_contracts = (
+        ("medication_allergy_status", {"UNKNOWN", "NONE_KNOWN", "PRESENT"}, "MEDICATION_ALLERGY_STATUS"),
+        ("penicillin_allergy_status", {"UNKNOWN", "NONE_KNOWN", "PRESENT"}, "PENICILLIN_ALLERGY_STATUS"),
+        ("renal_context_status", {"UNKNOWN", "NO_KNOWN_IMPAIRMENT", "IMPAIRMENT_REPORTED"}, "RENAL_CONTEXT"),
+        ("hepatic_context_status", {"UNKNOWN", "NO_KNOWN_IMPAIRMENT", "IMPAIRMENT_REPORTED"}, "HEPATIC_CONTEXT"),
+        ("pregnancy_status", {"UNKNOWN", "NO", "YES"}, "PREGNANCY_STATUS"),
+        ("breastfeeding_status", {"UNKNOWN", "NO", "YES"}, "BREASTFEEDING_STATUS"),
+        ("current_medications_status", {"UNKNOWN", "NONE_REPORTED", "PRESENT"}, "CURRENT_MEDICATIONS_STATUS"),
+    )
+    for field, allowed, blocker_prefix in status_contracts:
+        value = _value(patient_context, field, "UNKNOWN")
+        if value == "UNKNOWN": blockers.append(f"{blocker_prefix}_UNKNOWN")
+        elif value not in allowed: blockers.append(f"{blocker_prefix}_INVALID")
+
+    current_status = _value(patient_context, "current_medications_status", "UNKNOWN")
+    current_meds = _value(patient_context, "current_medications")
+    if current_status == "PRESENT" and not current_meds:
+        blockers.append("CURRENT_MEDICATIONS_PRESENT_WITHOUT_LIST")
+    if current_status != "PRESENT" and current_meds:
+        blockers.append("CURRENT_MEDICATIONS_LIST_STATUS_MISMATCH")
 
     # N3 establishes the Neo safety boundary. It does not replace the legacy runtime yet.
     # Therapeutic knowledge is not yet
@@ -87,6 +95,8 @@ def evaluate_neo_prescription_safety(
 
     if _value(patient_context, "medication_allergy_status") == "PRESENT":
         warnings.append("MEDICATION_ALLERGY_REPORTED_REQUIRES_RECONCILIATION")
+    if _value(patient_context, "penicillin_allergy_status") == "PRESENT":
+        warnings.append("PENICILLIN_ALLERGY_REPORTED_REQUIRES_RECONCILIATION")
     if _value(patient_context, "renal_context_status") == "IMPAIRMENT_REPORTED":
         warnings.append("RENAL_IMPAIRMENT_REPORTED_REQUIRES_REVIEW")
     if _value(patient_context, "hepatic_context_status") == "IMPAIRMENT_REPORTED":
