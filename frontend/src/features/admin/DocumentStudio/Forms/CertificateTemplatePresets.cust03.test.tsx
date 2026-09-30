@@ -52,6 +52,58 @@ describe('CUST-03 certificate templates', () => {
     });
   });
 
+  it('converts rich HTML formatting into clean plain text before filling the certificate textarea', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/templates') {
+        return { data: [{ id: 'tpl-rich', name: 'Texte enrichi', description: null }] } as never;
+      }
+      if (url === '/templates/tpl-rich') {
+        return {
+          data: {
+            id: 'tpl-rich',
+            name: 'Texte enrichi',
+            body_html: '<p>Je certifie que <strong>le patient</strong> a été examiné.</p><p>Repos&nbsp;recommandé<br>pendant 3 jours.</p>',
+          },
+        } as never;
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    const onApply = vi.fn();
+    render(<CertificateTemplatePresets content="" onApply={onApply} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Texte enrichi/i }));
+
+    await waitFor(() => {
+      expect(onApply).toHaveBeenCalledWith(
+        'Je certifie que le patient a été examiné.\nRepos recommandé\npendant 3 jours.',
+      );
+    });
+  });
+
+  it('rejects document-layout template code instead of exposing it in the free-text certificate', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/templates') {
+        return { data: [{ id: 'tpl-layout', name: 'Mise en page', description: null }] } as never;
+      }
+      return {
+        data: {
+          id: 'tpl-layout',
+          name: 'Mise en page',
+          body_html: '<div><b>Patient : {{ patient.nom }}</b></div>',
+        },
+      } as never;
+    });
+
+    const onApply = vi.fn();
+    render(<CertificateTemplatePresets content="" onApply={onApply} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Mise en page/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/code de mise en page/i);
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it('does not overwrite an existing certificate draft when replacement is declined', async () => {
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === '/templates') {
