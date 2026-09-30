@@ -19,6 +19,22 @@ try {
       contentType: 'application/json',
       body: JSON.stringify({ nom_cabinet: 'Centre Dentaire Benmoussa', cabinet_type: 'CLINIQUE', logo_path: null })
     }));
+    await context.route('**/api/workstation/bootstrap', async route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        workstationId: null,
+        defaultExperience: null,
+        stationLocked: false,
+        stationEscapeAuthorized: false,
+        stationEscapeExpiresAt: null,
+        enrollmentRequired: false,
+        authenticated: false,
+        pinConfigured: false,
+        canManage: false,
+        canConfigurePin: false,
+      })
+    }));
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
