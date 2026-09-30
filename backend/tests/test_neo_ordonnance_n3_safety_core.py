@@ -48,14 +48,14 @@ def test_unknown_structured_context_never_becomes_silent_pass():
         assert blocker in result.blockers
 
 
-def test_n3_boundary_is_replaced_only_when_n4_has_bounded_evidence():
+def test_n3_boundary_stays_fail_closed_with_bounded_n4_evidence():
     result = evaluate_neo_prescription_safety(
         presentation_id=_current_presentation_id(), patient_context=_complete_context(), age_years=40
     )
-    assert result.interaction_evaluation_complete is True
-    assert result.contraindication_evaluation_complete is True
-    assert "INTERACTION_KNOWLEDGE_NOT_COMPLETE" not in result.blockers
-    assert "CONTRAINDICATION_KNOWLEDGE_NOT_COMPLETE" not in result.blockers
+    assert result.interaction_evaluation_complete is False
+    assert result.contraindication_evaluation_complete is False
+    assert "INTERACTION_KNOWLEDGE_NOT_COMPLETE" in result.blockers
+    assert "CONTRAINDICATION_KNOWLEDGE_NOT_COMPLETE" in result.blockers
     assert result.evidence_version is not None
 
 

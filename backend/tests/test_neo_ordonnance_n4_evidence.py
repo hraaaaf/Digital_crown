@@ -34,11 +34,11 @@ def test_ibuprofen_pregnancy_does_not_guess_gestational_age():
     r=evaluate_bounded_evidence(dci="IBUPROFEN", current_medications=[], pregnancy_status="YES", renal_status="NO_KNOWN_IMPAIRMENT", hepatic_status="NO_KNOWN_IMPAIRMENT", medication_allergies=[], penicillin_allergy_status="NONE_KNOWN")
     assert any(x.code=="IBUPROFEN_PREGNANCY_GESTATIONAL_AGE_REQUIRED" and x.severity=="BLOCK" for x in r.findings)
 
-def test_n4_core_replaces_generic_knowledge_blockers_only_for_covered_dci():
+def test_n4_core_keeps_interaction_boundary_fail_closed_for_covered_dci():
     r=evaluate_neo_prescription_safety(presentation_id=_pid("AMOXICILLINE"), patient_context=_ctx(), age_years=40)
-    assert r.interaction_evaluation_complete and r.contraindication_evaluation_complete
-    assert "INTERACTION_KNOWLEDGE_NOT_COMPLETE" not in r.blockers
-    assert "CONTRAINDICATION_KNOWLEDGE_NOT_COMPLETE" not in r.blockers
+    assert not r.interaction_evaluation_complete and not r.contraindication_evaluation_complete
+    assert "INTERACTION_KNOWLEDGE_NOT_COMPLETE" in r.blockers
+    assert "CONTRAINDICATION_KNOWLEDGE_NOT_COMPLETE" in r.blockers
     assert r.evidence_version and r.source_ids
 
 def test_n4_core_blocks_known_amoxicillin_methotrexate_interaction():
