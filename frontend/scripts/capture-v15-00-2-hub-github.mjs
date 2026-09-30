@@ -41,3 +41,9 @@ try {
 } finally { await browser.close(); }
 await fs.writeFile(path.join(out, 'report.json'), JSON.stringify({ commit: process.env.GITHUB_SHA || null, report }, null, 2));
 console.log(JSON.stringify(report, null, 2));
+
+const failures = report.filter(item => item.cards !== 3 || item.scrollWidth > item.width || item.errors.length > 0);
+if (failures.length > 0) {
+  console.error('Hub visual proof failed closed:', JSON.stringify(failures, null, 2));
+  process.exit(1);
+}
