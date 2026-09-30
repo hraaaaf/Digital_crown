@@ -73,11 +73,12 @@ def update_patient_clinical_context(
     # Preserve fields omitted by older/partial clients; explicit values still update.
     values = payload.model_dump(exclude_unset=True)
     if context is None:
+        validated = PatientClinicalContextUpdate(**payload.model_dump())
         context = PatientClinicalContext(
             patient_id=patient_id,
             employer_id=employer_id,
             updated_by_user_id=current_user.id,
-            **values,
+            **validated.model_dump(),
         )
         db.add(context)
     else:

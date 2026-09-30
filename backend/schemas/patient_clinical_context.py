@@ -1,4 +1,4 @@
-import math
+﻿import math
 from datetime import datetime
 from typing import List, Literal, Optional
 
@@ -59,7 +59,7 @@ class PatientClinicalContextUpdate(BaseModel):
         if value is None:
             return None
         if not math.isfinite(value) or value <= 0:
-            raise ValueError("Le poids doit être une valeur finie strictement positive")
+            raise ValueError("Le poids doit Ãªtre une valeur finie strictement positive")
         return value
 
     @field_validator("medication_allergies")
@@ -72,7 +72,7 @@ class PatientClinicalContextUpdate(BaseModel):
         for item in value:
             label = str(item).strip()
             if not label:
-                raise ValueError("Une allergie renseignée ne peut pas être vide")
+                raise ValueError("Une allergie renseignÃ©e ne peut pas Ãªtre vide")
             key = label.casefold()
             if key not in seen:
                 seen.add(key)
@@ -103,21 +103,24 @@ class PatientClinicalContextUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_state_consistency(self):
+        supplied = self.model_fields_set
         allergies = self.medication_allergies or []
-        if self.medication_allergy_status == "PRESENT" and not allergies:
-            raise ValueError("Le statut PRESENT exige au moins une allergie m?dicamenteuse explicite")
-        if self.medication_allergy_status != "PRESENT" and allergies:
-            raise ValueError("Des allergies ne peuvent ?tre list?es que lorsque le statut est PRESENT")
+        if {"medication_allergy_status", "medication_allergies"} <= supplied:
+            if self.medication_allergy_status == "PRESENT" and not allergies:
+                raise ValueError("Le statut PRESENT exige au moins une allergie m?dicamenteuse explicite")
+            if self.medication_allergy_status != "PRESENT" and allergies:
+                raise ValueError("Des allergies ne peuvent ?tre list?es que lorsque le statut est PRESENT")
         if self.renal_context_status != "IMPAIRMENT_REPORTED" and self.renal_context_note:
             raise ValueError("Une note r?nale exige le statut IMPAIRMENT_REPORTED")
         if self.hepatic_context_status != "IMPAIRMENT_REPORTED" and self.hepatic_context_note:
             raise ValueError("Une note h?patique exige le statut IMPAIRMENT_REPORTED")
 
         treatments = self.current_medications or []
-        if self.current_medications_status == "PRESENT" and not treatments:
-            raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
-        if self.current_medications_status != "PRESENT" and treatments:
-            raise ValueError("Des traitements actuels ne peuvent ?tre list?s que lorsque le statut est PRESENT")
+        if {"current_medications_status", "current_medications"} <= supplied:
+            if self.current_medications_status == "PRESENT" and not treatments:
+                raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
+            if self.current_medications_status != "PRESENT" and treatments:
+                raise ValueError("Des traitements actuels ne peuvent ?tre list?s que lorsque le statut est PRESENT")
         return self
 
 
@@ -128,3 +131,4 @@ class PatientClinicalContextOut(PatientClinicalContextUpdate):
     updated_by_user_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
+
