@@ -246,8 +246,8 @@ class TestLetterheadUpload:
         )
         assert r.status_code == 200
         rel = r.json()["letterhead_url"].replace("/static/uploads/", "")
-        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        stored = os.path.join(backend_dir, "static", "uploads", rel)
+        from backend.core.media_paths import get_media_root
+        stored = get_media_root() / rel
         with open(stored, "rb") as f:
             magic = f.read(8)
         assert magic == b"\x89PNG\r\n\x1a\n"
@@ -265,8 +265,8 @@ class TestLetterheadUpload:
         )
         assert r.status_code == 200
         rel = r.json()["letterhead_url"].replace("/static/uploads/", "")
-        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        stored = os.path.join(backend_dir, "static", "uploads", rel)
+        from backend.core.media_paths import get_media_root
+        stored = get_media_root() / rel
         img = Image.open(stored).convert("RGB")
         w, h = img.size
         assert img.getpixel((w // 2, int(h * 0.10))) == (200, 30, 30)
