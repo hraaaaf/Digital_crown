@@ -90,8 +90,8 @@ export const WorkstationModeGate = ({ target, children }: Props) => {
   if (!resolved) return null;
 
   if (!state) {
-    // Clinical and Station experiences fail closed when workstation authority
-    // cannot be read. The Hub and local Control Center remain recovery surfaces.
+    // Clinical routes fail closed when workstation authority cannot be read.
+    // The data-free Hub, restrictive Station shell, and local Control Center remain recovery surfaces.
     if (target === 'hub' || target === 'station' || target === 'control-center') return <>{children}</>;
     if (target === 'protected') {
       return <Navigate to="/hub?mode-check=failed" replace />;
