@@ -11,7 +11,7 @@ import {
 } from '../PrescriptionFormPolicy';
 import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
-import { PrescriptionPresetBar } from './PrescriptionPresetBar';
+import { PrescriptionQuickAccessBar } from './PrescriptionQuickAccessBar';
 import { FORMES, type DrugItem } from './prescriptionTypes';
 
 export interface PrescriptionAgenticStudioProps {
@@ -217,7 +217,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         </div>
       </section>
 
-      <PrescriptionPresetBar drugs={drugs} setDrugs={setDrugs} />
+      <PrescriptionQuickAccessBar drugs={drugs} setDrugs={setDrugs} prescriptionIndication={prescriptionIndication} />
 
       <div className="space-y-3">
         {drugs.map((drug, idx) => (
