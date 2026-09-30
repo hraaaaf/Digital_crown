@@ -9,6 +9,7 @@ vi.mock('../../../../services/api', () => ({
   api: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
@@ -54,6 +55,7 @@ describe('Neo prescription quick access', () => {
       return { data: [] } as never;
     });
     vi.mocked(api.post).mockResolvedValue({ data: { status: 'success' } } as never);
+    vi.mocked(api.put).mockResolvedValue({ data: { status: 'success' } } as never);
   });
 
   it('inserts a protocol as editable prescription lines and records its use', async () => {
@@ -79,6 +81,25 @@ describe('Neo prescription quick access', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Fréquentes' }));
     expect(screen.getByRole('button', { name: /AMOXICILLINE/ })).toBeInTheDocument();
+  });
+
+  it('lets the practitioner update the explicitly applied protocol source', async () => {
+    const setDrugs = vi.fn();
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Extraction simple' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions ordonnance' }));
+    fireEvent.click(screen.getByRole('button', { name: /Mettre à jour « Extraction simple »/i }));
+    expect(screen.getByRole('textbox', { name: 'Nom' })).toHaveValue('Extraction simple');
+  });
+
+  it('can favorite a reusable item without changing prescription lines', async () => {
+    const setDrugs = vi.fn();
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    const star = await screen.findByRole('button', { name: /Retirer Extraction simple des favoris/i });
+    fireEvent.click(star);
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/prescriptions/preferences/7/favorite', { is_favorite: false }));
+    expect(setDrugs).not.toHaveBeenCalled();
   });
 
   it('saves the current draft explicitly as a protocol', async () => {
