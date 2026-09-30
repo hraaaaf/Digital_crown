@@ -123,7 +123,7 @@ def test_clinic_asset_route_is_bound_to_authenticated_cabinet_source():
     source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
     assert "models.CabinetConfig.owner_id == current_user.get_employer_id()" in source
     assert 'parts[0] != public_id' in source
-    assert 'os.path.join(UPLOAD_DIR, "clinics", public_id)' in source
+    assert 'str(MEDIA_DIR / "clinics" / public_id)' in source
 
 
 def test_authenticated_orphan_document_requires_valid_preview_token(client, auth_headers, dentiste, tmp_path, monkeypatch):
