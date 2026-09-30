@@ -77,7 +77,8 @@ def evaluate_neo_prescription_safety(
     if _value(patient_context, "current_medications_status", "UNKNOWN") == "UNKNOWN":
         blockers.append("CURRENT_MEDICATIONS_STATUS_UNKNOWN")
 
-    # N3 establishes the single safety boundary. Therapeutic knowledge is not yet
+    # N3 establishes the Neo safety boundary. It does not replace the legacy runtime yet.
+    # Therapeutic knowledge is not yet
     # complete enough to assert absence of interactions or contraindications.
     blockers.extend((
         "INTERACTION_KNOWLEDGE_NOT_COMPLETE",

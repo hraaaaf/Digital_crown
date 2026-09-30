@@ -45,3 +45,21 @@ def test_rx_context_unknown_never_carries_silent_medications():
     assert ctx.current_medications is None
     assert ctx.pregnancy_status == "UNKNOWN"
     assert ctx.breastfeeding_status == "UNKNOWN"
+
+
+def test_neo_search_current_rows_precede_documentary_fallbacks():
+    results = medication_dict.search_unified("AMOXICILLINE", limit=50)
+    states = [row["neo_source_state"] for row in results]
+    assert "CURRENT_REGULATORY_OVERLAY" in states
+    if "DOCUMENTARY_REFERENCE" in states:
+        first_documentary = states.index("DOCUMENTARY_REFERENCE")
+        assert all(state == "CURRENT_REGULATORY_OVERLAY" for state in states[:first_documentary])
+
+
+def test_neo_search_deduplicates_exact_presentation_identity():
+    results = medication_dict.search_unified("AMOXICILLINE", limit=50)
+    identities = [
+        tuple(str(row.get(field) or "").strip().upper() for field in ("nom", "dci", "dosage", "unite", "forme"))
+        for row in results
+    ]
+    assert len(identities) == len(set(identities))
