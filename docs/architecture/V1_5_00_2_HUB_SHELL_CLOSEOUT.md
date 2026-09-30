@@ -1,132 +1,76 @@
-# V1.5-00.2 — Hub shell + routing closeout
+# V1.5-00.2 ? Hub shell + routing closeout
 
 Date: 2026-09-30
 Repository: hraaaaf/Digital_crown
-Worktree: C:\Users\lenovo\Documents\Cabinet\DigitalCrown-v1.5-00
-Branch: feat/v1.5-00-2-hub-implementation
-Base: db1cadd74eb60d3e11e6c31d5da6780fefaacbb4`r`nImplementation HEAD: 79fea6647283dc9553e89ad102c5d137e4a05883
+Base before implementation: db1cadd74eb60d3e11e6c31d5da6780fefaacbb4
+PR: #719
+PR head approved by Achraf: d257202d6a882c23fac8597084cdb0a1b4087f46
+Merge commit: 9b135e5dbad3b13b289cf2de78784959060f52b3
+Status: CLOSED
 
-## Goal / Success / Proof
+## Goal
 
-Goal: add the first real Digital Crown Hub shell and routing without duplicating Cabinet, Mobile or Patient Companion.
+Add the first real Digital Crown Hub shell and routing without duplicating Cabinet, Mobile or Patient Companion.
 
-Success:
-- authenticated desktop root dispatches to /hub;
-- /hub, /cabinet, /station, /control-center exist;
-- Cabinet still uses the existing protected business surface;
+## Delivered
+
+- authenticated desktop root dispatches to `/hub`;
+- `/hub`, `/cabinet`, `/station`, `/control-center` exist;
+- `/cabinet` remains behind the existing `ProtectedRoute` and Cabinet RBAC/init boundary;
+- Station and Control Center are shells only;
+- Cabinet header exposes `Changer d'espace`;
+- Hub contains no business or patient data;
 - Mobile and Patient Companion remain separate;
-- Hub remains renderable when cabinet backend identity lookup fails;
-- Cabinet header exposes Changer d'espace;
-- legacy appMode is not reused for workstation mode;
-- UI observed locally at 390x844 / 768x1024 / 1280x900.## BEFORE
+- legacy `appMode` is not reused as workstation-mode state;
+- canonical clinic identity is read from `/api/clinics/me`;
+- main experience title is neutral `Digital Crown` with dynamic `CABINET` / `CLINIQUE` badge;
+- backend identity failure leaves the Hub available with an explicit offline state.
 
-Exact pre-00.2 source: db1cadd74eb60d3e11e6c31d5da6780fefaacbb4.
+## Security boundary
 
-Observed locally on the remote workstation:
-- no Hub product surface;
-- /hub stayed in the legacy startup/protected path;
-- no workstation dispatcher;
-- no stable Cabinet / Station / Control Center entries.
+00.2 does not claim secure Station lock, permanent workstation-mode persistence, owner/admin PIN enforcement, trusted workstation identity, or server-authorized workstation-mode mutation. Those belong to 00.3.
 
-Retained local BEFORE captures:
-- artifacts/v1.5-00.2-local/before/hub-390x844-final.png
-  SHA256 F347EBBF9C4C511081C235CFB5C6D4EB4BB002A5D6BFB48F5F1D4471BD0640FB
-- artifacts/v1.5-00.2-local/before/hub-768x1024-final.png
-  SHA256 630DED6A9DED18000375ADCE47EC0720D486034F2B1C221D1F5B0B8A9FF6988E
-- artifacts/v1.5-00.2-local/before/hub-1280x900-final.png
-  SHA256 9780C636FCF8BABD636400C3E54A1BB0B27A945377075385DEC922D684E24783## DURING
+`localStorage` and direct URL navigation are not authorization authorities. Direct `/cabinet` remains protected by authentication. Station remains non-operational until the 00.3 mode-poste/PIN contract exists.
 
-Implemented locally on DESKTOP-3MAJEEH:
-- lazy-loaded Hub and workstation placeholder surfaces;
-- /hub data-free dispatcher;
-- /cabinet protected alias to existing dashboard/Cabinet surface;
-- /station placeholder with no patient escape control;
-- /control-center placeholder;
-- authenticated desktop root -> /hub;
-- Cabinet header -> Changer d'espace;
-- canonical clinic identity fetched from API_BASE + /api/clinics/me with current runtime auth token;
-- backend failure leaves the Hub available and shows an explicit offline state;
-- three premium experience cards: Cabinet / Accueil / Technique.
+## Theme-token correction
 
-Security boundary retained:
-- Hub does not grant permissions;
-- /cabinet remains behind existing auth/init/RBAC protection;
-- Station is not declared secure/operational yet;
-- workstation persistence and owner-PIN enforcement are deferred to 00.3.## AFTER
+The initial visual pass was rejected because Hub surfaces still contained visual hardcodes. Before approval, those were removed in favor of canonical semantic/theme primitives: `rounded-elite-*`, `shadow-elite*`, `transition-elite`, `primary`, `card`, `text-main`, `text-muted`, and `border-main`.
 
-Observed locally with Playwright against the remote worktree.
+Regression protection in `v15HubRoutingContract.test.ts` rejects arbitrary bracket visual classes and direct Tailwind palette classes in Hub surfaces.
 
-Deterministic online identity fixture:
-- cabinet: Centre Dentaire Benmoussa;
-- type: CLINIQUE.
+## Verification
 
-Results:
-- 390x844: Hub present, 3 cards, no horizontal overflow, no JS errors;
-- 768x1024: Hub present, 3 cards, no horizontal overflow, no JS errors;
-- 1280x900: Hub present, 3 cards, no horizontal overflow, no JS errors.
+Exact merged master verification performed after merge on `master@9b135e5dbad3b13b289cf2de78784959060f52b3`:
 
-Offline behavior also tested:
-- backend identity request fails;
-- Hub remains usable;
-- explicit offline banner renders;
-- Control Center remains reachable;
-- targeted unit/integration tests pass.`r`n`r`nRetained final AFTER captures:
-- artifacts/v15-00-2-refined/hub-390x844.png
-  SHA256 DFCBF81DA474C3C79F0AB50E66BF8B10C54B43BEEE411A4EE6BBE49FF420CC70
-- artifacts/v15-00-2-refined/hub-768x1024.png
-  SHA256 05C5D98440CC5C4169DDD144129D968F667F9155B199BA3ECF42006C18E56AC2
-- artifacts/v15-00-2-refined/hub-1280x900.png
-  SHA256 4739EF894CDF4CB783F88C0EB1CA67A8AD090C9D58D6998C3B922D5B9F0E9A54
+- targeted Hub tests: 2 files / 7 tests PASS;
+- `npm run build:test`: PASS;
+- 4745 modules transformed;
+- PWA generated;
+- build manifest commit: `9b135e5dbad3b13b289cf2de78784959060f52b3`;
+- Hub hardcode scan: NONE.
 
-## Local verification
+Adversarial browser review on merged master:
 
-Targeted tests:
-- HubPage.test.tsx
-- v15HubRoutingContract.test.ts
-- result: 2 test files / 5 tests PASS.
+- Hub offline/anonymous: accessible without business data;
+- direct `/station`: shell only, no Hub escape button;
+- direct `/control-center`: shell only, Hub return available;
+- tampered `localStorage.appMode=station` + direct `/cabinet`: redirected to `/login`;
+- persisted Prestige theme inherited correctly;
+- direct mobile `/hub` at 390px: no horizontal overflow.
 
-Earlier local build after Hub introduction:
-- npm run build:test
-- 4709 modules transformed;
-- HubPage and WorkstationExperiencePage chunks generated;
-- PWA assets generated;
-- build result PASS.
-- Final exact-state build on `79fea6647283dc9553e89ad102c5d137e4a05883`: PASS; 4709 modules transformed; PWA generated.`r`n`r`n## Severe visual review
+## Visual proof and human gate
 
-Internal double-check:
-- mobile: 9.0/10
-- tablet: 9.0/10
-- desktop: 9.1/10
+GitHub Playwright visual proof for the approved PR head completed successfully. PR #719 carries label `visual-approved-by-achraf`; the subsequent `Human visual approval (Achraf)` run completed SUCCESS before merge.
 
-Internal triple-check:
-- 8.9/10 overall.
-- Remaining limitation is intentional: Station and Control Center are shells, not completed workstation modes.
-- No claim of secure Station lock or permanent workstation mode is made in 00.2.
+The visual artifact was produced from the PR merge ref corresponding to approved head `d257202d?`. Comparison to final merge commit `9b135e5d?` shows no frontend differences; the intervening master-side differences are documentation-only.
+
+Severe review scores after merge:
+
+- internal double-check: 8.6/10;
+- internal triple-check: 8.4/10.
+
+Deductions were for stale closeout metadata and one fallback mojibake found after merge, not for a discovered authentication bypass. The follow-up closeout patch corrects both and hardens the visual workflow fail-closed.
 
 ## Next exact
 
-Start V1.5-00.3 — controlled workstation-mode memory:
-- separate workstation mode from appMode;
-- workstation identity independent of logged-in user;
-- server-authorized permanent mode changes;
-- admin + owner-PIN gate;
-- direct URL/storage tampering must not grant Cabinet authorization;
-- Station remains fail-closed until the protected mode-change contract exists.
-## Theme-token correction after human review
-
-The first 00.2 visual pass was rejected because Hub surfaces still contained visual hardcodes. The implementation was corrected before human approval:
-- arbitrary radius classes removed in favor of `rounded-elite-sm` / `rounded-elite-lg`;
-- non-token shadow removed in favor of `shadow-elite-hover`;
-- arbitrary font-size/letter-spacing classes removed in favor of canonical Tailwind/theme scale;
-- direct amber warning palette removed; offline state now derives from `primary` theme tokens;
-- malformed Windows-encoded French copy repaired;
-- token contract test added and fails on arbitrary bracket classes or direct palette classes in Hub surfaces.
-
-Local proof after correction:
-- forbidden visual hardcode scan: NONE;
-- targeted tests: 2 files / 6 tests PASS;
-- `npm run build:test`: PASS, 4709 modules, PWA generated;
-- theme proof: Elite / Emerald / Prestige all render 3 Hub cards with zero horizontal overflow and zero JS errors;
-- runtime variables observed changing with theme: `--primary`, `--bg-medical-pearl`, `--card-bg`, `--text-main`, `--border-color`.
-
-Human visual approval must be based on the post-token-correction screenshots, not the earlier 00.2 captures.
+Start V1.5-00.3 only from verified current `master`, using the canonical handover. 00.3 owns workstation identity/persistence, admin + owner-PIN protected permanent mode changes, Station exit protection, auditability, and precedence of workstation identity over viewport-only routing for dedicated tablet/kiosk devices.

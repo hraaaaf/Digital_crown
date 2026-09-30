@@ -1,141 +1,96 @@
-# HANDOVER — Digital Crown V1.5-00.2 → V1.5-00.3
+# HANDOVER ? Digital Crown V1.5-00.2 ? V1.5-00.3
 
 Date: 2026-09-30
-
 Repository: hraaaaf/Digital_crown
 Remote workstation: DESKTOP-3MAJEEH
-Worktree: C:\Users\lenovo\Documents\Cabinet\DigitalCrown-v1.5-00
-Branch: feat/v1.5-00-2-hub-implementation
 
 ## Canonical starting point
 
 V1 is operational and closed.
-V1.5-00.1 read-only architecture audit:
-- commit: db1cadd74eb60d3e11e6c31d5da6780fefaacbb4
-- document: docs/architecture/V1_5_00_1_HUB_DISPATCHER_READONLY_AUDIT.md
+V1.5-00.2 is closed and merged.
 
-V1.5-00.2 implementation chain:
-- implementation: 79fea6647283dc9553e89ad102c5d137e4a05883
-- closeout: 97474038e8253016cfed86bf371dccb234525ba5
-- handover/merge-gate state before final metadata refresh: d439a5cbd35bb929b8bdf91daea5dec577864d51
+- pre-00.2 architecture audit: `db1cadd74eb60d3e11e6c31d5da6780fefaacbb4`;
+- approved PR head: `d257202d6a882c23fac8597084cdb0a1b4087f46`;
+- PR: #719 ? MERGED;
+- merge commit: `9b135e5dbad3b13b289cf2de78784959060f52b3`;
+- human visual gate: SUCCESS after explicit Achraf approval;
+- closeout: `docs/architecture/V1_5_00_2_HUB_SHELL_CLOSEOUT.md`.
+
+Before starting 00.3, fetch `origin/master` and use the actual current master SHA. Do not assume the merge SHA above is still repository HEAD if master has advanced.
 
 ## What 00.2 implemented
 
-- authenticated desktop root now dispatches to /hub;
-- /hub added as data-free workstation dispatcher;
-- /cabinet added as protected alias to the existing Cabinet/dashboard surface;
-- /station added as a shell only;
-- /control-center added as a shell only;
-- Cabinet header exposes "Changer d'espace";
+- authenticated desktop root -> `/hub`;
+- data-free `/hub` dispatcher;
+- protected `/cabinet` entry to existing Cabinet surface;
+- `/station` shell only;
+- `/control-center` shell only;
+- Cabinet header -> `Changer d'espace`;
 - Mobile team and Patient Companion remain separate;
-- legacy appMode is not reused as workstation-mode state;
-- Hub cabinet identity reads /api/clinics/me using the runtime auth token;
-- backend identity failure does not remove the Hub;
-- explicit offline Hub state exists.
+- main product card = `Digital Crown` with dynamic `CABINET` / `CLINIQUE` badge;
+- Hub remains available when clinic identity lookup fails;
+- Hub visual primitives inherit canonical theme tokens;
+- no workstation-mode state is stored in legacy `appMode`.
 
-## Security boundary
+## Verified evidence
 
-00.2 does NOT claim:
+Merged-master independent review:
+
+- Hub targeted tests: 2 files / 7 tests PASS;
+- local `npm run build:test`: PASS;
+- 4745 modules transformed;
+- PWA generated;
+- no forbidden visual hardcodes in Hub surfaces;
+- tampered `localStorage.appMode` did not bypass `/cabinet` authentication;
+- Prestige persisted theme inherited correctly;
+- mobile direct Hub at 390px had no horizontal overflow.
+
+Human visual approval was explicitly given by Achraf for the Clinic rendering before PR #719 merged.
+
+## Security boundary ? carry forward unchanged
+
+00.2 does not provide:
+
 - secure Station lock;
 - permanent workstation-mode persistence;
 - owner/admin PIN enforcement;
 - trusted workstation identity;
 - server-authorized mode mutation.
 
-Those belong to 00.3.
+Station and Control Center are deliberately non-business shells. Do not promote them to operational workstation modes until 00.3 closes its security contract.
 
-Station must remain fail-closed until the 00.3 protected mode-change contract exists.
-LocalStorage or direct URL navigation must never become authorization authority.
-
-## Local verification already observed
-
-Targeted tests:
-- frontend/src/features/hub/HubPage.test.tsx
-- frontend/src/test/v15HubRoutingContract.test.ts
-- result: 2 files / 5 tests PASS.
-
-Visual proof on DESKTOP-3MAJEEH:
-- 390x844: Hub present, 3 cards, no horizontal overflow;
-- 768x1024: Hub present, 3 cards, no horizontal overflow;
-- 1280x900: Hub present, 3 cards, no horizontal overflow;
-- refined online fixture produced zero JS errors;
-- offline behavior was separately observed and tested.
-
-Severe visual review:
-- mobile 9.0/10
-- tablet 9.0/10
-- desktop 9.1/10
-- internal triple-check 8.9/10
-
-## Evidence files
-
-Closeout:
-- docs/architecture/V1_5_00_2_HUB_SHELL_CLOSEOUT.md
-
-BEFORE captures:
-- artifacts/v1.5-00.2-local/before/hub-390x844-final.png
-- artifacts/v1.5-00.2-local/before/hub-768x1024-final.png
-- artifacts/v1.5-00.2-local/before/hub-1280x900-final.png
-
-Final AFTER captures:
-- artifacts/v15-00-2-refined/hub-390x844.png
-- artifacts/v15-00-2-refined/hub-768x1024.png
-- artifacts/v15-00-2-refined/hub-1280x900.png
-
-## Required first actions in the next conversation
-
-1. Read this handover.
-2. Verify actual repo state on DESKTOP-3MAJEEH:
-   - git fetch origin master
-   - current branch
-   - HEAD
-   - git status
-   - PR/merge state if one exists
-3. Verify V1.5-00.2 closeout proof. Local exact-HEAD verification on `d439a5cbd35bb929b8bdf91daea5dec577864d51`: 2 files / 5 tests PASS + `npm run build:test` PASS (4709 modules, PWA assets generated).
-4. Do not reimplement the Hub.
-5. Start V1.5-00.3 only after 00.2 is formally closed.
-
-## V1.5-00.3 — next exact scope
+## V1.5-00.3 ? next exact scope
 
 Goal: controlled workstation-mode memory and secure permanent mode changes.
 
 Required contract:
-- separate workstation-mode model from legacy appMode;
-- mode belongs to workstation, independent of logged-in user;
-- first launch goes to Hub;
-- configured workstation remembers default experience;
-- classic reception PC defaults to Cabinet;
+
+- workstation mode is separate from legacy `appMode`;
+- workstation identity belongs to the device, independent of logged-in user;
+- first launch goes to Hub when workstation mode is not configured;
+- configured workstation remembers its default experience;
+- classic reception PC may default to Cabinet;
 - dedicated kiosk may default to Station;
 - permanent mode change requires authorized admin/owner + server-verified owner PIN;
 - Station exit to Hub requires protected admin action + PIN;
-- local storage may remember convenience state but cannot authorize anything;
-- direct URL or storage tampering must not bypass RBAC or Station lock;
-- all changes must be auditable.
+- local storage may cache convenience state but cannot authorize anything;
+- direct URL/storage tampering must not bypass RBAC or Station lock;
+- changes must be auditable;
+- workstation identity must take precedence over the current viewport-only mobile redirect for dedicated tablet/kiosk devices.
+
+## Known repo debt not introduced by 00.2
+
+A post-merge production dependency audit observed existing vulnerabilities, including axios/react-router related findings. No package dependency delta was introduced by 00.2. Treat this as separate repository debt; do not silently fold dependency upgrades into 00.3 unless explicitly scoped and tested.
 
 ## Execution rule
 
-Work directly on DESKTOP-3MAJEEH through Remote Desktop Commander.
-GitHub Actions are secondary CI evidence only, never the primary implementation or validation environment.
+Work directly on DESKTOP-3MAJEEH through Remote Desktop Commander. GitHub Actions are secondary CI evidence, not the primary implementation environment.
 
-## GitHub closeout status
+## Required first actions in the next conversation
 
-- PR: #719
-- URL: https://github.com/hraaaaf/Digital_crown/pull/719
-- PR head before this handover metadata refresh: d439a5cbd35bb929b8bdf91daea5dec577864d51
-- mergeable: YES
-- current merge state: UNSTABLE
-- local implementation/testing/build/visual proof: COMPLETE
-- blocking check: Human visual approval (Achraf) = FAILURE because no explicit human approval has been recorded yet
-- other GitHub checks are secondary and may still be running/queued; re-check actual state on resume
-
-Do not claim 00.2 fully merged/closed until Achraf explicitly approves the observed AFTER visuals and PR #719 is merged.
-
-## Mandatory theme-token correction
-
-Achraf rejected the initial 00.2 visual implementation because visual values were partially hardcoded. This was corrected before approval. Current Hub surfaces must preserve:
-- theme colors through semantic classes / CSS variables only;
-- `rounded-elite-*`, `shadow-elite*`, `transition-elite` for Digital Crown visual primitives;
-- no arbitrary bracket visual classes in Hub surfaces;
-- no direct Tailwind palette classes such as amber/red/blue/etc. in Hub surfaces.
-
-Regression protection: `v15HubRoutingContract.test.ts` includes a dedicated theme-token contract. Latest local targeted result: 6/6 PASS. Multi-theme browser proof verified Elite, Emerald and Prestige token propagation with zero horizontal overflow.
+1. Read this handover.
+2. `git fetch origin master`.
+3. Verify current `origin/master`, worktree cleanliness, PR/CI state.
+4. Read the 00.2 closeout and the 00.1 read-only architecture audit.
+5. Do not reimplement the Hub.
+6. Start 00.3 with an explicit workstation-mode threat model before persistence or PIN implementation.
