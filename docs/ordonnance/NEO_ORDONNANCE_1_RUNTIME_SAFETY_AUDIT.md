@@ -34,3 +34,21 @@ NEO-ORDONNANCE 1 cannot be certified while it is unproven that DiagnosticEngine.
 Safety architecture: 8.5/10.
 Runtime coherence: 6.5/10 until the legacy path is resolved.
 NEO-ORDONNANCE 1 gate: NOT PASSED.
+
+## Runtime trace — verified
+Repository search shows DiagnosticEngine.ts is imported only by SafeDiagnosticEngine.ts. The UI caller (HouseWizard.tsx) imports the safe wrapper, not the legacy engine directly. The safe wrapper invokes the legacy evaluator with medicalHistory: '', preventing its free-text allergy substitution branch from firing, then emits warning-only review signals from the actual history.
+
+Therefore the initially suspected automatic allergy substitution is currently quarantined from the observed UI call path. The unsafe code still exists and remains technical/clinical debt; direct future import would re-open the hazard.
+
+## Test evidence
+Targeted Vitest run: 5 files passed, 39/39 tests passed:
+- DiagnosticEngine.p5p0.test.ts
+- PrescriptionPharmacologyPipeline.test.ts
+- PrescriptionAmoxicillinSevereSafety.test.ts
+- normalizeMedicationForPatient.test.ts
+- PrescriptionSafetyState.test.ts
+
+## Revised gate status
+PARTIAL PASS for the runtime boundary. Remaining requirement before NEO-ORDONNANCE 1 closeout: make the quarantine structural (remove or make the unsafe substitution branch unreachable by API), add a regression guard against direct use, and inventory the remaining medication interaction/renal/hepatic/pregnancy coverage gaps.
+
+Strict score after trace: 8.2/10 runtime safety boundary. Not closed.
