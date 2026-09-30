@@ -38,3 +38,20 @@ This contradicted both the product contract and the Control Center screen copy (
 - Station lock still wins when state is available and mode is `station`.
 - Hub offline copy now distinguishes recovery surfaces from locked clinical spaces.
 - Hub footer now says “aucune donnée patient ni donnée métier clinique”, which is truthful while still allowing canonical clinic identity.
+
+## Closeout evidence
+
+- candidate HEAD: `f406ae767f2585e468a15cbc65ce5d106573e9f1`
+- PR: #724
+- merge commit: `2f0fdeb4583e633e479627a275d7da2d6bc1375e`
+- targeted Hub/Gate/Station/Admin tests: **17/17 PASS**
+- Hub Visual Proof: run `36788607154` — **SUCCESS**
+- Human Visual Approval: run `36790450196` — **SUCCESS**
+- double-check exact-head: **9.3/10**
+- triple-check adversarial exact-head: **9.0/10**
+- post-merge targeted identity check: `HubPage.tsx`, `HubPage.test.tsx`, `WorkstationModeGate.tsx`, and `WorkstationModeGate.test.tsx` have identical blob SHAs on candidate HEAD and merge commit
+- no Vercel deployment; no cabinet runtime mutation
+
+### Closeout status
+
+V1.5-00 is closed on the merged code above. V1.5-01 may unlock only after this documentation closeout is merged and re-read on `master`.

@@ -2,6 +2,25 @@
 
 > Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
+# Etat canonique manuel - 2026-09-30
+
+## V1.5-00 — Hub & Dispatcher — CLOSED
+
+- PR closeout: #724 — MERGED
+- merge commit: `2f0fdeb4583e633e479627a275d7da2d6bc1375e`
+- exact candidate head: `f406ae767f2585e468a15cbc65ce5d106573e9f1`
+- targeted Hub/Gate/Station/Admin tests: **17/17 PASS**
+- Hub Visual Proof run `36788607154`: **SUCCESS**
+- Human Visual Approval run `36790450196`: **SUCCESS**
+- double-check exact-head: **9.3/10**
+- triple-check adversarial exact-head: **9.0/10**
+- post-merge code identity: the four touched Hub/Gate runtime+test blobs are byte-identical between candidate HEAD and merge commit
+- V1.5-00 residual gap closed: Control Center remains fail-soft as a local recovery surface while clinical routes remain fail-closed; Station remains restrictive
+- CI doctrine: only directly impacted tests/builds/workflows are proof-relevant; broad unrelated frontend/browser matrices are not rerun or treated as blockers unless a transverse dependency or invariant requires it
+- Vercel: **NOT AUTHORIZED / NOT REQUIRED**
+
+**Next exact after closeout docs merge:** open **V1.5-01 — Cabinet topology & workstation roles**.
+
 # Etat canonique manuel - 2026-09-29
 
 ## V1 — CLOSED / V1_OPERATIONAL
