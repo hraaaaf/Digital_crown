@@ -44,6 +44,7 @@ const LegalPage        = lazy(() => import('./pages/LegalPage').then(m => ({ def
 const PatientCompanionApp = lazy(() => import('./features/patient-companion/PatientCompanionApp').then(m => ({ default: m.PatientCompanionApp })));
 const HubPage = lazy(() => import('./features/hub/HubPage').then(m => ({ default: m.HubPage })));
 const WorkstationExperiencePage = lazy(() => import('./features/hub/WorkstationExperiencePage').then(m => ({ default: m.WorkstationExperiencePage })));
+const WorkstationModeGate = lazy(() => import('./features/hub/WorkstationModeGate').then(m => ({ default: m.WorkstationModeGate })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -370,9 +371,9 @@ function App() {
         <Route path="/mobile/superadmin" element={<Navigate to="/mobile/dashboard" replace />} />
 
         {/* V1.5 workstation Hub: data-free dispatcher remains available even if cabinet backend is down. */}
-        <Route path="/hub" element={<Suspense fallback={<PageLoader />}><HubPage /></Suspense>} />
-        <Route path="/station" element={<Suspense fallback={<PageLoader />}><WorkstationExperiencePage experience="station" /></Suspense>} />
-        <Route path="/control-center" element={<Suspense fallback={<PageLoader />}><WorkstationExperiencePage experience="control-center" /></Suspense>} />
+        <Route path="/hub" element={<Suspense fallback={<PageLoader />}><WorkstationModeGate target="hub"><HubPage /></WorkstationModeGate></Suspense>} />
+        <Route path="/station" element={<Suspense fallback={<PageLoader />}><WorkstationModeGate target="station"><WorkstationExperiencePage experience="station" /></WorkstationModeGate></Suspense>} />
+        <Route path="/control-center" element={<Suspense fallback={<PageLoader />}><WorkstationModeGate target="control-center"><WorkstationExperiencePage experience="control-center" /></WorkstationModeGate></Suspense>} />
 
         {/* Patient Companion: local-first patient boundary paired by one-time QR/code */}
         <Route path="/companion" element={<Suspense fallback={<PageLoader />}><PatientCompanionApp /></Suspense>} />
@@ -393,7 +394,7 @@ function App() {
                 <Route path="/terms" element={<LegalPage type="terms" />} />
                 <Route path="/privacy" element={<LegalPage type="privacy" />} />
                 <Route path="/setup" element={<SetupWizard />} />
-                <Route path="/*" element={<ProtectedRoutes />} />
+                <Route path="/*" element={<WorkstationModeGate target="protected"><ProtectedRoutes /></WorkstationModeGate>} />
               </Routes>
             </Suspense>
           </ProtectedRoute>

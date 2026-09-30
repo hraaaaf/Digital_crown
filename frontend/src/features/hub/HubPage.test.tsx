@@ -2,6 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('./WorkstationModeAdminPanel', () => ({ WorkstationModeAdminPanel: () => null }));
+
 import { HubPage } from './HubPage';
 
 const LocationProbe = () => { const location = useLocation(); return <div data-testid="location">{location.pathname}</div>; };

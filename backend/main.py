@@ -606,12 +606,13 @@ from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
     appointments, templates, prescriptions, accounting, team,
     intelligence, clinical_data, mobile, installments, lab_jobs, stock,
-    bot, catalog, motifs, verification, analytics, agenda_settings, agenda_resources, medications, frontdesk, partner_orders, partner_catalog
+    bot, catalog, motifs, verification, analytics, agenda_settings, agenda_resources, medications, frontdesk, partner_orders, partner_catalog, workstation_mode
 )
 from backend.routers import ai_feedback as ai_feedback_router
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
+app.include_router(workstation_mode.router, prefix="/api/workstation", tags=["Workstation Mode"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
 app.include_router(ia.router, prefix="/api/ia", tags=["IA & Analysis"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])

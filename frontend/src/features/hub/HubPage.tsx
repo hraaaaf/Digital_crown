@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Building2, MonitorCog, TabletSmartphone, ArrowRight, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getRuntimeAuthToken } from '../../services/api';
+import { WorkstationModeAdminPanel } from './WorkstationModeAdminPanel';
 
 type HubIdentity = { name: string; type: string; badge: string };
 
@@ -76,6 +77,8 @@ export const HubPage = () => {
           </div>
         </button>)}
       </div>
+
+      <WorkstationModeAdminPanel />
 
       <p className="mt-8 text-center text-xs font-bold text-text-muted">Le Hub ne contient aucune donnée patient ou clinique.</p>
     </section>
