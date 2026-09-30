@@ -24,6 +24,30 @@ class AIFeedbackCreate(BaseModel):
     corrected_text: Optional[str] = None
 
 
+def _ghost_stream_user_authorized(
+    user: Optional[models.User],
+    db: Session,
+    *,
+    employer_id: int | None = None,
+) -> bool:
+    if user is None or not user.is_active:
+        return False
+
+    if employer_id is not None and (user.employer_id or user.id) != employer_id:
+        return False
+
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if getattr(user, "employer_id", None) is not None and approval != "approved":
+        return False
+    if not has_permission(user, "patients"):
+        return False
+    try:
+        require_elite_license(current_user=user, db=db)
+    except HTTPException:
+        return False
+    return True
+
+
 def _get_websocket_identity(websocket: WebSocket, db: Session) -> tuple[Optional[models.User], Optional[str]]:
     token = websocket.cookies.get("access_token") or websocket.query_params.get("token")
     if token and token.lower().startswith("bearer "):
@@ -50,19 +74,8 @@ def _get_websocket_identity(websocket: WebSocket, db: Session) -> tuple[Optional
     except (JWTError, ValueError, KeyError):
         return None, None
 
-    if user is None or not user.is_active:
+    if not _ghost_stream_user_authorized(user, db):
         return None, None
-
-    approval = getattr(user, "approval_status", "approved") or "approved"
-    if getattr(user, "employer_id", None) is not None and approval != "approved":
-        return None, None
-    if not has_permission(user, "patients"):
-        return None, None
-    try:
-        require_elite_license(current_user=user, db=db)
-    except HTTPException:
-        return None, None
-
     return user, jti
 
 
@@ -214,7 +227,11 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
             payload = None
             with database.SessionLocal() as db:
                 refreshed_user = db.query(models.User).filter(models.User.id == current_user.id).first()
-                if refreshed_user is None or not refreshed_user.is_active:
+                if not _ghost_stream_user_authorized(
+                    refreshed_user,
+                    db,
+                    employer_id=employer_id,
+                ):
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                     return
                 try:
