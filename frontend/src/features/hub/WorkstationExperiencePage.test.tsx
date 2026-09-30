@@ -32,7 +32,7 @@ describe('WorkstationExperiencePage Station escape', () => {
   });
 
   it('leaves Station only after hidden admin activation and server-authorized owner PIN escape', async () => {
-    vi.mocked(workstationModeService.authorizeStationEscape).mockResolvedValue();
+    vi.mocked(workstationModeService.authorizeStationEscape).mockResolvedValue({ expiresAt: Math.floor(Date.now() / 1000) + 300 });
 
     render(
       <MemoryRouter initialEntries={['/station']}>

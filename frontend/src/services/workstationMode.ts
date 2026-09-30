@@ -7,6 +7,8 @@ export type WorkstationBootstrapState = {
   defaultExperience: WorkstationExperience | null;
   stationLocked: boolean;
   stationEscapeAuthorized: boolean;
+  stationEscapeExpiresAt?: number | null;
+  enrollmentRequired?: boolean;
   authenticated?: boolean;
   pinConfigured?: boolean;
   canManage?: boolean;
@@ -18,9 +20,51 @@ export type WorkstationState = WorkstationBootstrapState & {
   pinConfigured: boolean;
   canManage: boolean;
   canConfigurePin: boolean;
+  enrollmentRequired?: false;
 };
 
 const CONVENIENCE_KEY = 'dc_workstation_default_experience';
+const CHANNEL_NAME = 'dc-workstation-mode';
+const LOCAL_EVENT = 'dc-workstation-mode-changed';
+
+const emitWorkstationChange = () => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(LOCAL_EVENT));
+  try {
+    if ('BroadcastChannel' in window) {
+      const channel = new BroadcastChannel(CHANNEL_NAME);
+      channel.postMessage({ type: 'changed' });
+      channel.close();
+    }
+  } catch {
+    // Cross-tab notification is best effort; server state remains authoritative.
+  }
+};
+
+const subscribeToWorkstationChanges = (listener: () => void) => {
+  if (typeof window === 'undefined') return () => undefined;
+
+  const localListener = () => listener();
+  window.addEventListener(LOCAL_EVENT, localListener);
+
+  let channel: BroadcastChannel | null = null;
+  try {
+    if ('BroadcastChannel' in window) {
+      channel = new BroadcastChannel(CHANNEL_NAME);
+      channel.addEventListener('message', listener);
+    }
+  } catch {
+    channel = null;
+  }
+
+  return () => {
+    window.removeEventListener(LOCAL_EVENT, localListener);
+    if (channel) {
+      channel.removeEventListener('message', listener);
+      channel.close();
+    }
+  };
+};
 
 export const workstationModeService = {
   async getBootstrapState(): Promise<WorkstationBootstrapState> {
@@ -39,16 +83,30 @@ export const workstationModeService = {
     return data;
   },
 
+  async enrollWorkstation(accountPassword: string): Promise<WorkstationState> {
+    const { data } = await api.post<WorkstationState>('/workstation/enroll', { accountPassword });
+    emitWorkstationChange();
+    return data;
+  },
+
   async configureOwnerPin(accountPassword: string, newPin: string): Promise<void> {
     await api.post('/workstation/owner-pin', { accountPassword, newPin });
+    emitWorkstationChange();
   },
 
   async changeMode(mode: WorkstationExperience, ownerPin: string): Promise<WorkstationState> {
     const { data } = await api.post<WorkstationState>('/workstation/mode', { mode, ownerPin });
+    emitWorkstationChange();
     return data;
   },
 
-  async authorizeStationEscape(ownerPin: string): Promise<void> {
-    await api.post('/workstation/station/escape', { ownerPin });
+  async authorizeStationEscape(ownerPin: string): Promise<{ expiresAt: number }> {
+    const { data } = await api.post<{ expiresAt: number }>('/workstation/station/escape', { ownerPin });
+    emitWorkstationChange();
+    return data;
+  },
+
+  subscribe(listener: () => void): () => void {
+    return subscribeToWorkstationChanges(listener);
   },
 };

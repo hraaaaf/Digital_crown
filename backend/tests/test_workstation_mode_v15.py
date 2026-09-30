@@ -5,8 +5,17 @@ from backend.security import get_password_hash
 
 
 @pytest.fixture(autouse=True)
-def _isolate_workstation_rate_limit(monkeypatch):
-    monkeypatch.setattr("backend.routers.workstation_mode.check_rate_limit", lambda *args, **kwargs: None)
+def _isolate_workstation_rate_limit(monkeypatch, tmp_path):
+    from backend.utils import rate_limit
+
+    monkeypatch.setattr(rate_limit, "_store_path", lambda: tmp_path / "workstation_rate_limit.json")
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = True
+    yield
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = False
 
 
 def _token(client, email: str, password: str) -> str:
@@ -220,3 +229,224 @@ def test_workstation_cookie_does_not_cross_tenant_authority(client, db, dentiste
     bootstrap = client.get("/api/workstation/bootstrap", headers=_headers(other_token))
     assert bootstrap.status_code == 200
     assert bootstrap.json()["workstationId"] == other.json()["workstationId"]
+
+
+def _configure_station(client, token: str) -> str:
+    state = client.get("/api/workstation/state", headers=_headers(token))
+    assert state.status_code == 200, state.text
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+    changed = client.post(
+        "/api/workstation/mode",
+        headers=_headers(token),
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert changed.status_code == 200, changed.text
+    return changed.json()["workstationId"]
+
+
+def test_station_backend_blocks_clinical_api_and_escape_is_session_bound(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    _configure_station(client, token)
+
+    blocked = client.get("/api/patients/", headers=_headers(token))
+    assert blocked.status_code == 423, blocked.text
+    assert blocked.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+
+    escaped = client.post(
+        "/api/workstation/station/escape",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert escaped.status_code == 200, escaped.text
+    assert escaped.json()["expiresAt"] > 0
+
+    allowed = client.get("/api/patients/", headers=_headers(token))
+    assert allowed.status_code == 200, allowed.text
+
+    # Same user, new access session/JTI: the previous Station escape must not carry over.
+    second_token = _token(client, dentiste.email, "TestPass123!")
+    stale_escape = client.get("/api/patients/", headers=_headers(second_token))
+    assert stale_escape.status_code == 423, stale_escape.text
+    state = client.get("/api/workstation/state", headers=_headers(second_token))
+    assert state.status_code == 200
+    assert state.json()["stationEscapeAuthorized"] is False
+
+
+def test_lost_or_tampered_workstation_identity_is_fail_closed_until_owner_reenrolls(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    initial = client.get("/api/workstation/state", headers=_headers(token))
+    assert initial.status_code == 200
+    first_id = initial.json()["workstationId"]
+
+    client.cookies.delete("dc_workstation")
+    blocked = client.get("/api/patients/", headers=_headers(token))
+    assert blocked.status_code == 423
+    assert blocked.json()["detail"] == "WORKSTATION_IDENTITY_REQUIRED"
+
+    state = client.get("/api/workstation/state", headers=_headers(token))
+    assert state.status_code == 423
+    assert state.json()["detail"] == "WORKSTATION_ENROLLMENT_REQUIRED"
+
+    bootstrap = client.get("/api/workstation/bootstrap", headers=_headers(token))
+    assert bootstrap.status_code == 200
+    assert bootstrap.json()["enrollmentRequired"] is True
+
+    client.cookies.set("dc_workstation", "tampered-token")
+    tampered = client.get("/api/patients/", headers=_headers(token))
+    assert tampered.status_code == 423
+    assert tampered.json()["detail"] == "WORKSTATION_IDENTITY_REQUIRED"
+    client.cookies.delete("dc_workstation")
+
+    rejected = client.post(
+        "/api/workstation/enroll",
+        headers=_headers(token),
+        json={"accountPassword": "wrong"},
+    )
+    assert rejected.status_code == 403
+
+    reenrolled = client.post(
+        "/api/workstation/enroll",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!"},
+    )
+    assert reenrolled.status_code == 200, reenrolled.text
+    assert reenrolled.json()["workstationId"] != first_id
+    assert reenrolled.json()["enrollmentRequired"] is False
+
+    allowed = client.get("/api/patients/", headers=_headers(token))
+    assert allowed.status_code == 200, allowed.text
+
+
+def test_workstation_pin_rate_limit_counts_failures_not_successes(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    assert client.get("/api/workstation/state", headers=_headers(token)).status_code == 200
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+
+    # Legitimate successful privileged actions do not consume the failure budget.
+    for mode in ["cabinet", "control_center", "cabinet", "control_center", "cabinet", "control_center"]:
+        response = client.post(
+            "/api/workstation/mode",
+            headers=_headers(token),
+            json={"mode": mode, "ownerPin": "2468"},
+        )
+        assert response.status_code == 200, response.text
+
+    for _ in range(5):
+        wrong = client.post(
+            "/api/workstation/mode",
+            headers=_headers(token),
+            json={"mode": "station", "ownerPin": "0000"},
+        )
+        assert wrong.status_code == 403, wrong.text
+
+    limited = client.post(
+        "/api/workstation/mode",
+        headers=_headers(token),
+        json={"mode": "station", "ownerPin": "0000"},
+    )
+    assert limited.status_code == 429, limited.text
+    assert int(limited.headers["Retry-After"]) > 0
+
+    actions = [
+        action
+        for (action,) in db.query(models.AuditLog.action)
+        .filter(models.AuditLog.employer_id == dentiste.id)
+        .all()
+    ]
+    assert actions.count("WORKSTATION_MODE_REJECTED") >= 5
+    assert "WORKSTATION_MODE_RATE_LIMITED" in actions
+
+
+def test_logout_revokes_station_escape_cookie(client, db, dentiste):
+    login = client.post(
+        "/api/auth/login",
+        data={"username": dentiste.email, "password": "TestPass123!"},
+    )
+    assert login.status_code == 200, login.text
+    token = login.json()["access_token"]
+    refresh_token = login.json()["refresh_token"]
+    client.cookies.delete("access_token")
+    client.cookies.delete("refresh_token")
+
+    _configure_station(client, token)
+    assert client.post(
+        "/api/workstation/station/escape",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    ).status_code == 200
+    assert client.cookies.get("dc_station_escape")
+
+    logged_out = client.post(
+        "/api/auth/logout",
+        headers=_headers(token),
+        json={"refresh_token": refresh_token},
+    )
+    assert logged_out.status_code == 204, logged_out.text
+    assert client.cookies.get("dc_station_escape") is None
+
+
+def test_expired_station_escape_is_rejected_by_backend(client, db, dentiste):
+    from datetime import datetime, timedelta, timezone
+    from jose import jwt
+    from backend.security import ALGORITHM, SECRET_KEY
+
+    token = _token(client, dentiste.email, "TestPass123!")
+    workstation_id = _configure_station(client, token)
+    access_payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+    expired = datetime.now(timezone.utc) - timedelta(seconds=1)
+    stale_escape = jwt.encode(
+        {
+            "type": "workstation_escape",
+            "wsid": workstation_id,
+            "tenant": dentiste.id,
+            "sub": str(dentiste.id),
+            "sid": access_payload["jti"],
+            "iat": expired - timedelta(minutes=5),
+            "exp": expired,
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+    client.cookies.set("dc_station_escape", stale_escape)
+
+    state = client.get("/api/workstation/state", headers=_headers(token))
+    assert state.status_code == 200
+    assert state.json()["stationEscapeAuthorized"] is False
+    assert state.json()["stationEscapeExpiresAt"] is None
+
+    blocked = client.get("/api/patients/", headers=_headers(token))
+    assert blocked.status_code == 423
+    assert blocked.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+
+
+def test_failure_rate_limiter_is_thread_safe(monkeypatch, tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    from fastapi import HTTPException
+    from starlette.requests import Request
+    from backend.utils import rate_limit
+
+    monkeypatch.setattr(rate_limit, "_store_path", lambda: tmp_path / "thread_rate_limit.json")
+    with rate_limit._lock:
+        rate_limit._attempts.clear()
+        rate_limit._loaded = True
+
+    request = Request({"type": "http", "client": ("127.0.0.1", 4242), "headers": []})
+    scope = "workstation-concurrent-test"
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(lambda _index: rate_limit.record_rate_limit_failure(request, scope), range(20)))
+
+    key = f"{scope}:127.0.0.1"
+    assert rate_limit._attempts[key][0] == 20
+    with pytest.raises(HTTPException) as exc:
+        rate_limit.enforce_failure_rate_limit(request, scope, max_attempts=5)
+    assert exc.value.status_code == 429

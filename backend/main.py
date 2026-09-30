@@ -416,7 +416,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=exc.headers,
+    )
 
 # --- MIDDLEWARES ---
 # CORS is added further down after HTTP middlewares

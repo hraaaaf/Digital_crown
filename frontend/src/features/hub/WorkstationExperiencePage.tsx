@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, KeyRound, MonitorCog, TabletSmartphone } from 'lucide-react';
+import { ArrowLeft, KeyRound, MonitorCog, ShieldCheck, TabletSmartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { workstationModeService } from '../../services/workstationMode';
 
@@ -65,9 +65,9 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
   };
 
   return <main data-workstation-experience={experience} className="relative min-h-screen overflow-hidden bg-main-bg text-main flex items-center justify-center px-5 py-10">
-    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[42rem] w-[42rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/[0.045]" />
-    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/[0.06]" />
-    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.035] blur-3xl" />
+    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 scale-150 rounded-full border border-primary/5" />
+    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 scale-125 rounded-full border border-primary/10" />
+    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
     <section className="relative z-10 w-full max-w-2xl overflow-hidden rounded-elite-lg border border-border-main bg-card-bg/95 p-7 sm:p-10 shadow-elite text-center backdrop-blur-sm">
       <div aria-hidden="true" className="absolute inset-x-24 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent" />
       {isStation ? (
@@ -84,8 +84,13 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
       )}
       <p className="mt-6 text-xs font-black uppercase tracking-widest text-primary">Digital Crown</p>
       <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight">{isStation ? "Station d'accueil" : 'Centre de contrôle'}</h1>
-      <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-relaxed text-text-muted">{isStation ? "Configuration en cours de construction. La Station patient sera activée après le contrat de mode poste sécurisé." : "Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible."}</p>
-      {isStation && !adminOpen && <div aria-hidden="true" className="mx-auto mt-8 flex max-w-md items-center gap-4"><span className="h-px flex-1 bg-gradient-to-r from-transparent to-border-main"/><span className="h-2 w-2 rounded-full border-2 border-card-bg bg-primary/55 shadow-[0_0_0_4px_rgba(15,76,129,0.06)]"/><span className="h-px flex-1 bg-gradient-to-l from-transparent to-border-main"/></div>}
+      <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-relaxed text-text-muted">{isStation ? "Bienvenue au cabinet. Ce poste fonctionne en mode accueil sécurisé. Les espaces cliniques et administratifs restent verrouillés." : "Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible."}</p>
+      {isStation && !adminOpen && <>
+        <div className="mx-auto mt-7 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3.5 py-2 text-xs font-black uppercase tracking-widest text-primary">
+          <ShieldCheck size={14} aria-hidden="true" /> Mode accueil sécurisé
+        </div>
+        <div aria-hidden="true" className="mx-auto mt-7 flex max-w-md items-center gap-4"><span className="h-px flex-1 bg-gradient-to-r from-transparent to-border-main"/><span className="h-2 w-2 rounded-full border-2 border-card-bg bg-primary/55 ring-4 ring-primary/5"/><span className="h-px flex-1 bg-gradient-to-l from-transparent to-border-main"/></div>
+      </>}
 
       {isStation && adminOpen ? (
         <div data-station-admin className="mx-auto mt-8 max-w-sm rounded-elite-sm border border-border-main bg-main-bg p-4 text-left">
@@ -105,7 +110,7 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
             type="button"
             disabled={busy || !ownerPin}
             onClick={leaveStation}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-4 text-sm font-black text-card-bg transition-elite disabled:bg-slate-200 disabled:text-slate-500 disabled:opacity-100"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-4 text-sm font-black text-card-bg transition-elite disabled:border disabled:border-border-main disabled:bg-main-bg disabled:text-text-muted disabled:opacity-100"
           >
             <KeyRound size={16} />
             {busy ? 'Vérification…' : 'Autoriser l’accès au Hub'}

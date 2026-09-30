@@ -8,6 +8,7 @@ vi.mock('../../services/workstationMode', () => ({
   workstationModeService: {
     getBootstrapState: vi.fn(),
     getState: vi.fn(),
+    enrollWorkstation: vi.fn(),
     configureOwnerPin: vi.fn(),
     changeMode: vi.fn(),
   },
@@ -70,6 +71,32 @@ describe('WorkstationModeAdminPanel V1.5-00.3', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Appliquer ce mode' }));
 
     await waitFor(() => expect(workstationModeService.changeMode).toHaveBeenCalledWith('station', '2468'));
+  });
+
+  it('requires explicit owner re-enrollment when the workstation identity is missing', async () => {
+    vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
+      ...baseState,
+      workstationId: null,
+      authenticated: true,
+      enrollmentRequired: true,
+    });
+    vi.mocked(workstationModeService.enrollWorkstation).mockResolvedValue({
+      ...baseState,
+      workstationId: 'ws-reenrolled',
+      enrollmentRequired: false,
+    });
+
+    render(<MemoryRouter><WorkstationModeAdminPanel /></MemoryRouter>);
+
+    await screen.findByText('Réenregistrer ce navigateur');
+    expect(workstationModeService.getState).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Mot de passe du compte propriétaire'), {
+      target: { value: 'AccountPass!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Réenregistrer le poste' }));
+
+    await waitFor(() => expect(workstationModeService.enrollWorkstation).toHaveBeenCalledWith('AccountPass!'));
+    await screen.findByText('Mode de démarrage permanent');
   });
 
   it('stays invisible and never calls protected state for a user who cannot manage workstation mode', async () => {
