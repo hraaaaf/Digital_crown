@@ -81,8 +81,15 @@ def update_patient_clinical_context(
         )
         db.add(context)
     else:
-        for field, value in values.items():
-            setattr(context, field, value)
+        # Validate the complete post-update state before mutating/persisting it.
+        merged = {
+            field: getattr(context, field)
+            for field in PatientClinicalContextUpdate.model_fields
+        }
+        merged.update(values)
+        validated = PatientClinicalContextUpdate(**merged)
+        for field in values:
+            setattr(context, field, getattr(validated, field))
         context.updated_by_user_id = current_user.id
 
     audit_service.log(
