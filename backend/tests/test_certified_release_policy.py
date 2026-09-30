@@ -283,6 +283,20 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "github-attestation-verification.json" in installer
 
 
+def test_desktop_shortcut_uses_stable_runtime_not_dev_launcher():
+    root = Path(__file__).resolve().parents[2]
+    helper = (root / "scripts/install-desktop-shortcut.ps1").read_text(encoding="utf-8-sig")
+    installer = (root / "installer/DigitalCrown.iss").read_text(encoding="utf-8-sig")
+
+    assert "Programs\\DigitalCrown" in helper
+    assert "open_digitalcrown.ps1" in helper
+    assert "Start_DigitalCrown.bat" not in helper
+    assert "--reload" not in helper
+    assert "DigitalCrown.lnk" in helper
+    assert "{autodesktop}\\{#MyAppName}" in installer
+    assert 'Filename: "{app}\\{#MyAppExeName}"' in installer
+
+
 def test_future_prs_cannot_skip_cabinet_upgrade_gate_by_path_filter():
     root = Path(__file__).resolve().parents[2]
     workflow = (root / ".github/workflows/cabinet-upgrade-postgres-cert.yml").read_text(
