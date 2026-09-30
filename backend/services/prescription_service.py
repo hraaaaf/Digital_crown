@@ -162,7 +162,7 @@ class PrescriptionService(LegacyPrescriptionService):
             models.DoctorPrescriptionPreference.doctor_id == doctor_id
         ).order_by(
             models.DoctorPrescriptionPreference.is_favorite.desc(),
-            models.DoctorPrescriptionPreference.last_used.desc().nullslast(),
+            models.DoctorPrescriptionPreference.last_used.desc(),
             models.DoctorPrescriptionPreference.updated_at.desc(),
             models.DoctorPrescriptionPreference.id.desc(),
         ).limit(50).all()
