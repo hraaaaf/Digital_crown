@@ -324,6 +324,21 @@ def search_regulatory_presentations(q: str, limit: int = 100) -> List[Dict[str, 
     return hits
 
 
+def get_unified_presentation(presentation_id: str) -> Optional[Dict[str, Any]]:
+    """Resolve a Neo presentation id with the current AMMPS overlay first.
+
+    Legacy resolution remains unchanged; this resolver is only for the Neo boundary.
+    """
+    _load()
+    wanted = (presentation_id or "").strip()
+    if not wanted:
+        return None
+    for rec in [*_regulatory_records(), *_legacy_records()]:
+        if _presentation_id(rec) == wanted:
+            return _public_presentation(rec)
+    return None
+
+
 def get_presentation(presentation_id: str) -> Optional[Dict[str, Any]]:
     _load()
     wanted = (presentation_id or "").strip()
