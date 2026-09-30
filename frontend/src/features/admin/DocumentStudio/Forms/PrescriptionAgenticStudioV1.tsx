@@ -11,8 +11,6 @@ import {
 } from '../PrescriptionFormPolicy';
 import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
-import { IEProphylaxisRulePanel } from './IEProphylaxisRulePanel';
-import { PatientClinicalContextPanel } from './PatientClinicalContextPanel';
 import { PrescriptionPresetBar } from './PrescriptionPresetBar';
 import { FORMES, type DrugItem } from './prescriptionTypes';
 
@@ -80,13 +78,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   );
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
   const numericPatientId = patientId.trim() ? Number(patientId) : Number.NaN;
-  const contextPatientId = Number.isInteger(numericPatientId) && numericPatientId > 0
-    ? numericPatientId
-    : undefined;
-  const ieAmoxicillinDrug = drugs.find(drug => (
-    Boolean(drug.catalogPresentationId)
-    && ['AMOXICILLINE', 'AMOXICILLIN'].includes((drug.catalogDci || '').trim().toUpperCase())
-  ));
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -303,9 +294,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         <Plus size={15} /> Ajouter une ligne
       </button>
 
-      <PatientClinicalContextPanel patientId={contextPatientId} />
-
-      <IEProphylaxisRulePanel patientId={contextPatientId} drug={ieAmoxicillinDrug} />
 
       <section
         data-prescription-indication="document"
