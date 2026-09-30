@@ -31,6 +31,11 @@ def test_first_launch_creates_user_independent_workstation_state(client, db, den
     assert payload["pinConfigured"] is False
     assert payload["stationLocked"] is False
     workstation_id = payload["workstationId"]
+    raw_cookie = client.cookies.get("dc_workstation")
+    stored = db.query(models.WorkstationMode).filter(models.WorkstationMode.id == workstation_id).one()
+    assert raw_cookie
+    assert stored.token_hash != raw_cookie
+    assert stored.token_hash == __import__("hashlib").sha256(raw_cookie.encode("utf-8")).hexdigest()
 
     bootstrap = client.get("/api/workstation/bootstrap")
     assert bootstrap.status_code == 200

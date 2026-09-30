@@ -43,8 +43,10 @@ export const HubPage = () => {
     return () => { active = false; };
   }, []);
 
-  return <main data-v15-hub className="min-h-screen bg-main-bg text-main px-5 py-8 sm:py-10 lg:py-12">
-    <section className="mx-auto w-full max-w-6xl">
+  return <main data-v15-hub className="relative min-h-screen overflow-hidden bg-main-bg text-main px-5 py-8 sm:py-10 lg:py-12">
+    <div aria-hidden="true" className="pointer-events-none absolute -left-40 -top-48 h-96 w-96 rounded-full bg-primary/[0.035] blur-3xl" />
+    <div aria-hidden="true" className="pointer-events-none absolute -right-44 top-32 h-96 w-96 rounded-full bg-primary/[0.025] blur-3xl" />
+    <section className="relative z-10 mx-auto w-full max-w-6xl">
       <div className="mb-6 sm:mb-8 text-center">
         <div className="inline-flex items-center gap-2 rounded-elite-sm border border-border-main bg-card-bg px-4 py-2 text-xs font-black uppercase tracking-widest text-primary shadow-elite">
           Digital Crown Hub

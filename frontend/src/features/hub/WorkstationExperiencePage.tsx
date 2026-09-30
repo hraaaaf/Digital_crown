@@ -64,8 +64,12 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
     }
   };
 
-  return <main data-workstation-experience={experience} className="min-h-screen bg-main-bg text-main flex items-center justify-center px-5 py-10">
-    <section className="w-full max-w-2xl rounded-elite-lg border border-border-main bg-card-bg p-7 sm:p-10 shadow-elite text-center">
+  return <main data-workstation-experience={experience} className="relative min-h-screen overflow-hidden bg-main-bg text-main flex items-center justify-center px-5 py-10">
+    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[42rem] w-[42rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/[0.045]" />
+    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/[0.06]" />
+    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.035] blur-3xl" />
+    <section className="relative z-10 w-full max-w-2xl overflow-hidden rounded-elite-lg border border-border-main bg-card-bg/95 p-7 sm:p-10 shadow-elite text-center backdrop-blur-sm">
+      <div aria-hidden="true" className="absolute inset-x-24 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent" />
       {isStation ? (
         <button
           type="button"
@@ -81,7 +85,7 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
       <p className="mt-6 text-xs font-black uppercase tracking-widest text-primary">Digital Crown</p>
       <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight">{isStation ? "Station d'accueil" : 'Centre de contrôle'}</h1>
       <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-relaxed text-text-muted">{isStation ? "Configuration en cours de construction. La Station patient sera activée après le contrat de mode poste sécurisé." : "Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible."}</p>
-      {isStation && !adminOpen && <div aria-hidden="true" className="mx-auto mt-7 flex max-w-md items-center gap-3"><span className="h-px flex-1 bg-border-main"/><span className="h-1.5 w-1.5 rounded-full bg-primary/40"/><span className="h-px flex-1 bg-border-main"/></div>}
+      {isStation && !adminOpen && <div aria-hidden="true" className="mx-auto mt-8 flex max-w-md items-center gap-4"><span className="h-px flex-1 bg-gradient-to-r from-transparent to-border-main"/><span className="h-2 w-2 rounded-full border-2 border-card-bg bg-primary/55 shadow-[0_0_0_4px_rgba(15,76,129,0.06)]"/><span className="h-px flex-1 bg-gradient-to-l from-transparent to-border-main"/></div>}
 
       {isStation && adminOpen ? (
         <div data-station-admin className="mx-auto mt-8 max-w-sm rounded-elite-sm border border-border-main bg-main-bg p-4 text-left">
