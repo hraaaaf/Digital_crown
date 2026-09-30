@@ -17,8 +17,15 @@ from backend.database import get_db
 from backend.routers.auth import get_current_user, is_superadmin_user, require_permission
 from backend.services.logo_processor import LogoProcessor
 from backend.services.license_service import LicenseService
+from backend.core.media_paths import get_media_root
 
 router = APIRouter()
+
+
+def _clinic_asset_dir(public_id: str):
+    path = get_media_root() / "clinics" / str(public_id)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _require_setup_owner(
@@ -245,9 +252,7 @@ async def upload_clinic_logo(
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non configuré")
 
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-    clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
-    os.makedirs(clinic_dir, exist_ok=True)
+    clinic_dir = _clinic_asset_dir(config.public_id)
 
     file_bytes = await file.read()
     if len(file_bytes) > 5 * 1024 * 1024:
@@ -345,9 +350,7 @@ async def upload_clinic_letterhead(
         content, file.content_type, strip_body, header_pct, footer_pct,
     )
 
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-    clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
-    os.makedirs(clinic_dir, exist_ok=True)
+    clinic_dir = _clinic_asset_dir(config.public_id)
 
     # _process_letterhead_file always returns inert PNG bytes.
     file_ext = "png"

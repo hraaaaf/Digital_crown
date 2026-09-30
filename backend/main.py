@@ -923,7 +923,7 @@ async def serve_clinic_asset(
         raise HTTPException(status_code=403, detail="Accès refusé")
 
     return _serve_protected_file(
-        os.path.join(UPLOAD_DIR, "clinics", public_id),
+        str(MEDIA_DIR / "clinics" / public_id),
         "/".join(parts[1:]),
     )
 

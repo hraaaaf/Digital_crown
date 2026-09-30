@@ -84,7 +84,7 @@ class BotPendingAction(Base):
 class CabinetSettings(Base):
     __tablename__ = "cabinet_settings"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True, default=1)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement=True)
     
     # Horaires
     opening_time_morning: Mapped[Optional[str]] = mapped_column(String(5), default="09:00")

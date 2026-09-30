@@ -10,7 +10,7 @@ const source = fs.readFileSync(
 
 describe('CUST-02 custom consultation motifs', () => {
   it('loads cabinet motifs without replacing the system dictionary', () => {
-    expect(source).toContain("api.get('/motifs'");
+    expect(source).toContain("api.get('/motifs/'");
     expect(source).toContain('MOTIFS_DICTIONARY.map');
     expect(source).toContain("source: 'cabinet'");
   });
@@ -34,7 +34,7 @@ describe('CUST-02 custom consultation motifs', () => {
   });
 
   it('creates through the cabinet API and handles permission denial explicitly', () => {
-    expect(source).toContain("api.post('/motifs'");
+    expect(source).toContain("api.post('/motifs/'");
     expect(source).toContain('status === 403');
     expect(source).toContain('réservée aux utilisateurs autorisés');
   });
