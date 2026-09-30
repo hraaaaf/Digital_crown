@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Tuple
 
 from backend.services import medication_dict
+from backend.services.neo_medication_evidence import evaluate_bounded_evidence
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,8 @@ class NeoSafetyResult:
     current_marketing_status_verified: bool
     interaction_evaluation_complete: bool
     contraindication_evaluation_complete: bool
+    evidence_version: Optional[str] = None
+    evidence_findings: Tuple[str, ...] = ()
 
 
 def _value(context: Any, name: str, default: Any = None) -> Any:
@@ -94,13 +97,25 @@ def evaluate_neo_prescription_safety(
     if allergy_status != "PRESENT" and allergies not in (None, []):
         blockers.append("MEDICATION_ALLERGY_LIST_STATUS_MISMATCH")
 
-    # N3 establishes the Neo safety boundary. It does not replace the legacy runtime yet.
-    # Therapeutic knowledge is not yet
-    # complete enough to assert absence of interactions or contraindications.
-    blockers.extend((
-        "INTERACTION_KNOWLEDGE_NOT_COMPLETE",
-        "CONTRAINDICATION_KNOWLEDGE_NOT_COMPLETE",
-    ))
+    evidence = evaluate_bounded_evidence(
+        dci=str(presentation.get("dci") or ""),
+        current_medications=current_meds or [],
+        pregnancy_status=str(_value(patient_context, "pregnancy_status", "UNKNOWN")),
+        renal_status=str(_value(patient_context, "renal_context_status", "UNKNOWN")),
+        hepatic_status=str(_value(patient_context, "hepatic_context_status", "UNKNOWN")),
+        medication_allergies=allergies or [],
+        penicillin_allergy_status=str(_value(patient_context, "penicillin_allergy_status", "UNKNOWN")),
+    )
+    if not evidence.interaction_complete_for_inputs:
+        blockers.append("INTERACTION_KNOWLEDGE_NOT_COMPLETE")
+    if not evidence.contraindication_complete_for_inputs:
+        blockers.append("CONTRAINDICATION_KNOWLEDGE_NOT_COMPLETE")
+    for finding in evidence.findings:
+        if finding.severity in {"CONTRAINDICATED", "HIGH_RISK", "AVOID", "BLOCK"}:
+            blockers.append(finding.code)
+        else:
+            warnings.append(finding.code)
+    source_ids_extra = evidence.source_ids
 
     if _value(patient_context, "medication_allergy_status") == "PRESENT":
         warnings.append("MEDICATION_ALLERGY_REPORTED_REQUIRES_RECONCILIATION")
@@ -120,9 +135,11 @@ def evaluate_neo_prescription_safety(
         presentation_id=presentation_id,
         blockers=tuple(dict.fromkeys(blockers)),
         warnings=tuple(dict.fromkeys(warnings)),
-        source_ids=(source_id,),
+        source_ids=tuple(dict.fromkeys((source_id, *source_ids_extra))),
         medication_identity_verified=True,
         current_marketing_status_verified=current_verified,
-        interaction_evaluation_complete=False,
-        contraindication_evaluation_complete=False,
+        interaction_evaluation_complete=evidence.interaction_complete_for_inputs,
+        contraindication_evaluation_complete=evidence.contraindication_complete_for_inputs,
+        evidence_version=evidence.evidence_version,
+        evidence_findings=tuple(f.code for f in evidence.findings),
     )
