@@ -1,7 +1,7 @@
 # V1.5-00.4 — Hub & Dispatcher final integration audit
 
 Date: 2026-09-30
-Base inspected: `docs/v1.5-00-4-start@981d7742fc26a590894c3b1d28e0d17a594ac367`
+Base inspected: certified `master@efc21e1a193c9adcf0ff057c25cde36e4a04d8cd`, merged into the 00.4 branch after the initial prep commit `981d7742…`
 Implementation branch: `feat/v1.5-00-4-final-integration`
 
 ## Goal
@@ -34,7 +34,7 @@ This contradicted both the product contract and the Control Center screen copy (
 
 - `control-center` is now allowed when bootstrap authority cannot be read.
 - `protected` clinical routes still fail closed.
-- direct Station still fails closed without server-backed workstation state.
+- when bootstrap authority is unavailable, Station remains on its restrictive non-clinical shell; no clinical route is opened.
 - Station lock still wins when state is available and mode is `station`.
 - Hub offline copy now distinguishes recovery surfaces from locked clinical spaces.
 - Hub footer now says “aucune donnée patient ni donnée métier clinique”, which is truthful while still allowing canonical clinic identity.
