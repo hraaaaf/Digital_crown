@@ -11,7 +11,6 @@ import {
   BookOpen,
   Shield,
   Store,
-  Crown,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -105,17 +104,40 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         .animate-logo-pulse-light { animation: logo-pulse-light 2s ease-in-out infinite; }
         .sidebar-cabinet-compact { display: none; }
         @media (min-width: 1024px) {
+          .sidebar-shell {
+            transition: width 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 220ms ease-out;
+            will-change: width;
+          }
+          .sidebar-label,
+          .sidebar-section-label,
+          .sidebar-expanded-only {
+            transition: opacity 140ms ease 90ms, transform 220ms cubic-bezier(0.22, 1, 0.36, 1) 70ms;
+          }
+          .sidebar-label {
+            max-width: 190px;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: max-width 220ms cubic-bezier(0.22, 1, 0.36, 1) 55ms, opacity 140ms ease 90ms, transform 220ms cubic-bezier(0.22, 1, 0.36, 1) 70ms;
+          }
           .sidebar-shell[data-expanded="false"] .sidebar-label,
+          .sidebar-shell[data-expanded="false"] .sidebar-section-label,
+          .sidebar-shell[data-expanded="false"] .sidebar-expanded-only {
+            opacity: 0;
+            transform: translateX(-8px);
+            pointer-events: none;
+          }
+          .sidebar-shell[data-expanded="false"] .sidebar-label { max-width: 0; }
           .sidebar-shell[data-expanded="false"] .sidebar-section-label,
           .sidebar-shell[data-expanded="false"] .sidebar-expanded-only,
           .sidebar-shell[data-expanded="false"] .sidebar-cabinet-full { display: none; }
           .sidebar-shell[data-expanded="false"] .sidebar-cabinet-compact { display: flex; }
-          .sidebar-shell[data-expanded="false"] .sidebar-logo-wrap { height: 4.5rem; padding: 0.875rem; }
+          .sidebar-shell[data-expanded="false"] .sidebar-logo-wrap { height: 4.75rem; padding: 0.875rem; }
           .sidebar-shell[data-expanded="false"] .sidebar-nav { padding-left: 0.5rem; padding-right: 0.5rem; }
-          .sidebar-shell[data-expanded="false"] .sidebar-nav-item { justify-content: center; min-height: 2.875rem; padding-left: 0.75rem; padding-right: 0.75rem; }
+          .sidebar-shell[data-expanded="false"] .sidebar-nav-item { justify-content: center; gap: 0; min-height: 2.875rem; padding-left: 0.75rem; padding-right: 0.75rem; }
           .sidebar-shell[data-expanded="false"] .sidebar-logo { display: none; }
           .sidebar-brand-compact { display: none; }
           .sidebar-shell[data-expanded="false"] .sidebar-brand-compact { display: flex; }
+          .sidebar-shell[data-expanded="false"] .sidebar-pin-toggle { opacity: 0; pointer-events: none; transform: translateX(-4px); }
           .sidebar-shell[data-expanded="false"] .sidebar-badge { position: absolute; top: 0.35rem; right: 0.35rem; width: 0.5rem; height: 0.5rem; padding: 0; font-size: 0; border-radius: 999px; }
         }
       `}</style>
@@ -123,6 +145,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
       <aside
         className={cn(
           "sidebar-shell w-72 lg:w-[68px] h-screen fixed lg:relative z-[10000] shrink-0",
+          desktopExpanded && "lg:w-72",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         data-expanded={desktopExpanded ? "true" : "false"}
@@ -134,8 +157,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         }}
       >
         <div className={cn(
-          "h-full w-72 lg:absolute lg:inset-y-0 lg:left-0 lg:w-[68px] bg-sidebar border-r border-border-main shadow-elite flex flex-col transition-[width,background-color,box-shadow] duration-200 ease-out overflow-hidden",
-          desktopExpanded && "lg:w-72 lg:shadow-2xl"
+          "h-full w-full bg-sidebar border-r border-border-main shadow-elite flex flex-col transition-[background-color,box-shadow] duration-200 ease-out overflow-hidden",
+          desktopExpanded && "lg:shadow-2xl"
         )}
         style={{
           background: desktopExpanded ? 'color-mix(in srgb, var(--sidebar-bg) 92%, transparent)' : 'var(--sidebar-bg)',
@@ -149,7 +172,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             setDesktopPinned(value => !value);
             setDesktopHovered(false);
           }}
-          className="hidden lg:flex absolute -right-3 top-5 z-20 h-7 w-7 items-center justify-center rounded-full border border-border-main bg-card-bg text-text-muted shadow-md transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="sidebar-pin-toggle hidden lg:flex absolute right-2 top-2 z-20 h-7 w-7 items-center justify-center rounded-lg border border-border-main bg-card-bg/90 text-text-muted shadow-sm transition-[opacity,transform,color,background-color] duration-150 hover:text-primary hover:bg-card-bg focus:outline-none focus:ring-2 focus:ring-primary/30"
           aria-pressed={desktopPinned}
           aria-label={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
           title={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
@@ -163,8 +186,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             to="/dashboard" 
             className="transition-elite block w-full hover:opacity-80 flex items-center justify-center"
           >
-            <span className="sidebar-brand-compact h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/75 text-primary shadow-sm" aria-hidden="true">
-              <Crown size={20} strokeWidth={1.8} />
+            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm overflow-hidden" aria-hidden="true">
+              <img src={Logo} alt="" className="absolute left-1/2 top-[-8px] w-[180px] max-w-none -translate-x-1/2 object-contain" />
             </span>
             <img 
               src={Logo} 

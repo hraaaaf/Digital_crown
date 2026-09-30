@@ -109,6 +109,26 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('false');
   });
 
+  it('keeps one desktop shell and the official brand asset across compact and expanded states', () => {
+    localStorage.setItem('sidebar_desktop_pinned', 'false');
+    const { container } = renderSidebar();
+
+    const shell = container.querySelector('.sidebar-shell');
+    const surface = container.querySelector('.sidebar-shell > div');
+    const toggle = screen.getByRole('button', { name: 'D?ployer la barre lat?rale' });
+    const brandImages = container.querySelectorAll('.sidebar-logo-wrap img');
+
+    expect(shell).toBeTruthy();
+    expect(surface?.className).not.toContain('lg:absolute');
+    expect(toggle.className).toContain('right-2');
+    expect(toggle.className).not.toContain('-right-3');
+    expect(brandImages).toHaveLength(2);
+    expect(brandImages[0].getAttribute('src')).toBe(brandImages[1].getAttribute('src'));
+
+    fireEvent.click(toggle);
+    expect(shell?.className).toContain('lg:w-72');
+  });
+
   it('closes the mobile drawer through the backdrop', () => {
     const onClose = vi.fn();
     const { container } = renderSidebar('/dashboard', { isOpen: true, onClose });
