@@ -29,12 +29,8 @@ def _ghost_stream_user_authorized(
     db: Session,
     *,
     employer_id: int | None = None,
-    session_jti: str | None = None,
 ) -> bool:
     if user is None or not user.is_active:
-        return False
-
-    if session_jti and token_blacklist.is_revoked(session_jti, db):
         return False
 
     if employer_id is not None and (user.employer_id or user.id) != employer_id:
@@ -52,6 +48,30 @@ def _ghost_stream_user_authorized(
     return True
 
 
+def _websocket_access_session_valid(
+    websocket: WebSocket,
+    db: Session,
+    *,
+    expected_jti: str | None,
+) -> bool:
+    token = websocket.cookies.get("access_token") or websocket.query_params.get("token")
+    if token and token.lower().startswith("bearer "):
+        token = token.split(" ", 1)[1]
+    if not token or not expected_jti:
+        return False
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        return False
+    jti = payload.get("jti")
+    return bool(
+        payload.get("type") == "access"
+        and jti
+        and str(jti) == str(expected_jti)
+        and not token_blacklist.is_revoked(str(jti), db)
+    )
+
+
 def _get_websocket_identity(websocket: WebSocket, db: Session) -> tuple[Optional[models.User], Optional[str]]:
     token = websocket.cookies.get("access_token") or websocket.query_params.get("token")
     if token and token.lower().startswith("bearer "):
@@ -66,9 +86,9 @@ def _get_websocket_identity(websocket: WebSocket, db: Session) -> tuple[Optional
 
         # Ghost insights is a Cabinet desktop channel. Pocket/mobile JWTs have
         # their own device-bound trust boundary and must never authenticate it.
-        if token_type != "access":
+        if token_type != "access" or not jti:
             return None, None
-        if jti and token_blacklist.is_revoked(jti, db):
+        if token_blacklist.is_revoked(jti, db):
             return None, None
 
         email: str = payload.get("sub")
@@ -230,12 +250,19 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
             # clinique puis libère la connexion DB avant le sleep.
             payload = None
             with database.SessionLocal() as db:
+                if not _websocket_access_session_valid(
+                    websocket,
+                    db,
+                    expected_jti=session_jti,
+                ):
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
+
                 refreshed_user = db.query(models.User).filter(models.User.id == current_user.id).first()
                 if not _ghost_stream_user_authorized(
                     refreshed_user,
                     db,
                     employer_id=employer_id,
-                    session_jti=session_jti,
                 ):
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                     return
