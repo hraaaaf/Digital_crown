@@ -391,6 +391,32 @@ def test_station_backend_blocks_clinical_api_and_escape_is_session_bound(client,
     assert state.json()["stationEscapeAuthorized"] is False
 
 
+def test_station_lock_is_workstation_scoped_and_does_not_capture_paired_mobile(client, db, dentiste):
+    desktop_token = _token(client, dentiste.email, "TestPass123!")
+    _configure_station(client, desktop_token)
+
+    # The enrolled desktop is locked even with a valid cabinet access session.
+    blocked = client.get("/api/patients/", headers=_headers(desktop_token))
+    assert blocked.status_code == 423, blocked.text
+    assert blocked.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+
+    # Pocket is a separate paired-device trust boundary. The workstation cookie
+    # carried by this TestClient must not globally lock an independently paired mobile.
+    device_id = "00000000-0000-4000-8000-000000000003"
+    db.add(models.MobilePairedDevice(
+        device_id=device_id,
+        user_id=dentiste.id,
+        employer_id=dentiste.id,
+        client_public_key_hex="04" + ("11" * 64),
+        refresh_jti="workstation-scope-mobile-refresh",
+    ))
+    db.commit()
+    mobile_token = _create_mobile_jwt(dentiste.id, "DENTISTE", dentiste.id, device_id)
+
+    mobile = client.get("/api/mobile/patients", headers=_headers(mobile_token))
+    assert mobile.status_code == 200, mobile.text
+
+
 def test_station_escape_replay_is_rejected_after_mode_change(client, db, dentiste):
     token = _token(client, dentiste.email, "TestPass123!")
     _configure_station(client, token)
