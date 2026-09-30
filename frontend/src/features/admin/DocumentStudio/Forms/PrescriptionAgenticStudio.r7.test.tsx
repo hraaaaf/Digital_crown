@@ -42,10 +42,13 @@ describe('PrescriptionAgenticStudio practitioner copy', () => {
     expect(screen.getByLabelText('Indication de cette ordonnance')).toHaveValue('Contexte documenté');
     expect(screen.queryByText(/Suggestion clinique bloquée/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Contrôle clinique automatique bloqué/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Contexte patient')).not.toBeInTheDocument();
+    expect(screen.queryByText('Prévention endocardite')).not.toBeInTheDocument();
 
     const studio = container.querySelector('[data-prescription-intelligence-studio="v1"]');
     expect(studio).toHaveAttribute('data-clinical-rule-status', 'blocked');
     expect(studio).toHaveAttribute('data-safety-status', 'blocked');
+    expect(studio).toHaveAttribute('data-safety-mechanics', 'background-only');
   });
 
   it('ouvre réellement le sélecteur manuel de forme et applique le choix explicite', () => {
