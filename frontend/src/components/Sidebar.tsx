@@ -254,8 +254,10 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             setDesktopPinned(value => !value);
             setDesktopHovered(false);
           }}
-          className="sidebar-pin-toggle hidden lg:flex absolute right-2 top-2 z-20 h-7 w-7 items-center justify-center rounded-lg border border-border-main bg-card-bg/90 text-text-muted shadow-sm transition-[opacity,transform,color,background-color] duration-150 hover:text-primary hover:bg-card-bg focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="sidebar-pin-toggle hidden lg:flex absolute right-2 top-2 z-20 h-7 w-7 items-center justify-center rounded-lg border border-border-main bg-card-bg/90 text-text-muted shadow-sm transition-[opacity,transform,color,background-color] duration-150 hover:text-primary hover:bg-card-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
           aria-pressed={desktopPinned}
+          aria-hidden={!desktopExpanded}
+          tabIndex={desktopExpanded ? 0 : -1}
           aria-label={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
           title={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
         >
@@ -266,7 +268,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         <div className="sidebar-logo-wrap p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo transition-all duration-200">
           <Link 
             to="/dashboard" 
-            className="transition-elite block w-full hover:opacity-80 flex items-center justify-center"
+            className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
           >
             <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm overflow-hidden" aria-hidden="true">
               <img src={Logo} alt="" className="absolute left-1/2 top-[-8px] w-[180px] max-w-none -translate-x-1/2 object-contain" />
@@ -391,7 +393,7 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
     className={({ isActive }) => {
       const isActuallyActive = forceActive !== undefined ? forceActive : isActive;
       return cn(
-        "sidebar-nav-item flex items-center gap-3 px-4 py-3 rounded-elite-sm transition-elite group relative overflow-hidden cursor-pointer mb-1",
+        "sidebar-nav-item flex items-center gap-3 px-4 py-3 rounded-elite-sm transition-elite group relative overflow-hidden cursor-pointer mb-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-inset",
           isActuallyActive 
           ? "shadow-elite border border-border-main" 
           : "text-text-muted hover:bg-primary/5 hover:text-primary"
