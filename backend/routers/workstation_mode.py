@@ -293,6 +293,57 @@ def _escape_expires_at(
         return None
 
 
+def enforce_workstation_access_from_values(
+    *,
+    db: Session,
+    user: models.User,
+    workstation_cookie: str | None,
+    escape_cookie: str | None,
+    session_jti: str | None,
+) -> None:
+    """Transport-neutral Station authority used by HTTP and long-lived channels."""
+    employer_id = _employer_id(user)
+    row = None
+    if workstation_cookie:
+        row = (
+            db.query(models.WorkstationMode)
+            .filter(
+                models.WorkstationMode.token_hash == _token_hash(workstation_cookie),
+                models.WorkstationMode.employer_id == employer_id,
+            )
+            .first()
+        )
+
+    if row is None:
+        if workstation_cookie or _tenant_has_workstations(db, employer_id):
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail="WORKSTATION_IDENTITY_REQUIRED",
+            )
+        return
+
+    escape_authorized = False
+    if row.default_experience == "station" and escape_cookie and session_jti:
+        try:
+            payload = jwt.decode(escape_cookie, SECRET_KEY, algorithms=[ALGORITHM])
+            escape_authorized = bool(
+                payload.get("type") == "workstation_escape"
+                and payload.get("wsid") == row.id
+                and int(payload.get("tenant", -1)) == int(row.employer_id)
+                and int(payload.get("rev", -1)) == int(row.mode_revision or 0)
+                and str(payload.get("sub", "")) == str(user.id)
+                and str(payload.get("sid", "")) == session_jti
+            )
+        except (JWTError, TypeError, ValueError):
+            escape_authorized = False
+
+    if row.default_experience == "station" and not escape_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="WORKSTATION_STATION_LOCKED",
+        )
+
+
 def enforce_authenticated_workstation_access(
     request: Request,
     db: Session,
@@ -300,31 +351,13 @@ def enforce_authenticated_workstation_access(
     *,
     session_jti: str | None,
 ) -> None:
-    employer_id = _employer_id(user)
-    raw = request.cookies.get(WORKSTATION_COOKIE)
-    row = _find_workstation(request, db, employer_id)
-
-    if row is None:
-        # Legacy/un-enrolled tenant: no workstation policy exists yet, so there
-        # is no Station lock to enforce. Once a tenant enrolls any workstation,
-        # loss/tampering of the identity cookie is fail-closed.
-        if raw or _tenant_has_workstations(db, employer_id):
-            raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
-                detail="WORKSTATION_IDENTITY_REQUIRED",
-            )
-        return
-
-    if row.default_experience == "station" and not _escape_authorized(
-        request,
-        row,
-        user,
+    enforce_workstation_access_from_values(
+        db=db,
+        user=user,
+        workstation_cookie=request.cookies.get(WORKSTATION_COOKIE),
+        escape_cookie=request.cookies.get(ESCAPE_COOKIE),
         session_jti=session_jti,
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED,
-            detail="WORKSTATION_STATION_LOCKED",
-        )
+    )
 
 
 def _state_payload(request: Request, row: models.WorkstationMode, user: models.User, db: Session) -> dict:

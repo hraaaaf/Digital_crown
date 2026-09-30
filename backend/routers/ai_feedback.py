@@ -24,12 +24,12 @@ class AIFeedbackCreate(BaseModel):
     corrected_text: Optional[str] = None
 
 
-def _get_websocket_user(websocket: WebSocket, db: Session) -> Optional[models.User]:
+def _get_websocket_identity(websocket: WebSocket, db: Session) -> tuple[Optional[models.User], Optional[str]]:
     token = websocket.cookies.get("access_token") or websocket.query_params.get("token")
     if token and token.lower().startswith("bearer "):
         token = token.split(" ", 1)[1]
     if not token:
-        return None
+        return None, None
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -37,9 +37,9 @@ def _get_websocket_user(websocket: WebSocket, db: Session) -> Optional[models.Us
         jti: str = payload.get("jti")
 
         if token_type not in ("access", "mobile"):
-            return None
+            return None, None
         if jti and token_blacklist.is_revoked(jti, db):
-            return None
+            return None, None
 
         if token_type == "mobile":
             user_id = int(payload["sub"])
@@ -47,14 +47,14 @@ def _get_websocket_user(websocket: WebSocket, db: Session) -> Optional[models.Us
         else:
             email: str = payload.get("sub")
             if email is None:
-                return None
+                return None, None
             user = db.query(models.User).filter(models.User.email == email).first()
     except (JWTError, ValueError, KeyError):
-        return None
+        return None, None
 
     if user is None or not user.is_active:
-        return None
-    return user
+        return None, None
+    return user, jti
 
 
 @router.post("/feedback", dependencies=[Depends(require_elite_license)])
@@ -169,13 +169,27 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
     On ouvre donc une session COURTE (auth, puis par tick) qui est libérée
     immédiatement après chaque requête.
     """
-    # 1. Authentification via une session courte, refermée aussitôt
+    # 1. Authentification + workstation authority via une session courte.
+    # The same authority is re-evaluated on every tick so a socket opened in
+    # Cabinet cannot keep streaming clinical content after Cabinet -> Station.
     with database.SessionLocal() as auth_db:
-        current_user = _get_websocket_user(websocket, auth_db)
+        current_user, session_jti = _get_websocket_identity(websocket, auth_db)
         authorized = (
             current_user is not None
             and (current_user.employer_id or current_user.id) == employer_id
         )
+        if authorized:
+            from backend.routers.workstation_mode import enforce_workstation_access_from_values
+            try:
+                enforce_workstation_access_from_values(
+                    db=auth_db,
+                    user=current_user,
+                    workstation_cookie=websocket.cookies.get("dc_workstation"),
+                    escape_cookie=websocket.cookies.get("dc_station_escape"),
+                    session_jti=session_jti,
+                )
+            except HTTPException:
+                authorized = False
 
     if not authorized:
         await websocket.accept()
@@ -186,10 +200,26 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
     last_count = -1
     try:
         while True:
-            # 2. Session courte par tick : la connexion DB est rendue au pool
-            #    entre deux sondages (aucune connexion tenue pendant le sleep).
+            # 2. Session courte par tick : revalide Station avant toute lecture
+            # clinique puis libère la connexion DB avant le sleep.
             payload = None
             with database.SessionLocal() as db:
+                refreshed_user = db.query(models.User).filter(models.User.id == current_user.id).first()
+                if refreshed_user is None or not refreshed_user.is_active:
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
+                try:
+                    enforce_workstation_access_from_values(
+                        db=db,
+                        user=refreshed_user,
+                        workstation_cookie=websocket.cookies.get("dc_workstation"),
+                        escape_cookie=websocket.cookies.get("dc_station_escape"),
+                        session_jti=session_jti,
+                    )
+                except HTTPException:
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
+
                 unread_count = ghost_memory.get_unread_count(db, employer_id)
                 if unread_count != last_count:
                     logs = db.query(models.GhostMemoryLog).filter(

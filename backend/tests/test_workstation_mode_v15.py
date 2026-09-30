@@ -248,6 +248,56 @@ def _configure_station(client, token: str) -> str:
     return changed.json()["workstationId"]
 
 
+def test_ghost_insights_websocket_is_rejected_when_station_locked(client, db, dentiste):
+    from starlette.websockets import WebSocketDisconnect
+
+    token = _token(client, dentiste.email, "TestPass123!")
+    _configure_station(client, token)
+
+    with pytest.raises(WebSocketDisconnect) as closed:
+        with client.websocket_connect(
+            f"/api/ai/ws/ghost-insights/{dentiste.id}?token={token}",
+        ) as websocket:
+            websocket.receive_json()
+    assert closed.value.code == 1008
+
+
+def test_ghost_insights_websocket_revalidates_after_cabinet_to_station(client, db, dentiste, monkeypatch):
+    from starlette.websockets import WebSocketDisconnect
+    from backend.routers import ai_feedback
+
+    token = _token(client, dentiste.email, "TestPass123!")
+    state = client.get("/api/workstation/state", headers=_headers(token))
+    assert state.status_code == 200, state.text
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+
+    original_sleep = ai_feedback.asyncio.sleep
+    async def _fast_sleep(_seconds):
+        await original_sleep(0.01)
+    monkeypatch.setattr(ai_feedback.asyncio, "sleep", _fast_sleep)
+
+    with client.websocket_connect(
+        f"/api/ai/ws/ghost-insights/{dentiste.id}?token={token}",
+    ) as websocket:
+        first = websocket.receive_json()
+        assert "insights" in first
+
+        changed = client.post(
+            "/api/workstation/mode",
+            headers=_headers(token),
+            json={"mode": "station", "ownerPin": "2468"},
+        )
+        assert changed.status_code == 200, changed.text
+
+        with pytest.raises(WebSocketDisconnect) as closed:
+            websocket.receive_json()
+        assert closed.value.code == 1008
+
+
 def test_station_backend_blocks_clinical_api_and_escape_is_session_bound(client, db, dentiste):
     token = _token(client, dentiste.email, "TestPass123!")
     _configure_station(client, token)
