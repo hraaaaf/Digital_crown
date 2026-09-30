@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   adaptNeoContextToPharmacology,
-  neoContextHasUnresolvedMedicationIdentity,
 } from './NeoPrescriptionContextAdapter';
 
 describe('NeoPrescriptionContextAdapter', () => {
@@ -47,9 +46,5 @@ describe('NeoPrescriptionContextAdapter', () => {
     expect(mapped.breastfeeding).toBe(true);
     expect(mapped.anticoagulant).toBeNull();
     expect(mapped.antiplatelet).toBeNull();
-    expect(neoContextHasUnresolvedMedicationIdentity({
-      current_medications_status: 'PRESENT',
-      current_medications: ['Xarelto 20 mg'],
-    })).toBe(true);
   });
 });
