@@ -50,6 +50,7 @@ class WorkstationMode(Base):
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     default_experience: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    mode_revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     updated_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)

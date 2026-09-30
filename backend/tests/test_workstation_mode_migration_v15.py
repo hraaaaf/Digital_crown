@@ -41,6 +41,7 @@ def test_workstation_mode_migration_upgrade_downgrade_roundtrip(tmp_path):
                 "employer_id",
                 "token_hash",
                 "default_experience",
+                "mode_revision",
                 "updated_by_user_id",
                 "created_at",
                 "updated_at",

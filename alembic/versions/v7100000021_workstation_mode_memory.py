@@ -30,6 +30,7 @@ def upgrade() -> None:
         sa.Column("employer_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False, unique=True),
         sa.Column("default_experience", sa.String(length=32), nullable=True),
+        sa.Column("mode_revision", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("updated_by_user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),

@@ -187,6 +187,7 @@ def _register_workstation(
         employer_id=_employer_id(user),
         token_hash=_token_hash(raw),
         default_experience=None,
+        mode_revision=0,
         updated_by_user_id=user.id,
     )
     db.add(row)
@@ -255,6 +256,7 @@ def _escape_payload(request: Request, row: models.WorkstationMode) -> dict | Non
         payload.get("type") != "workstation_escape"
         or payload.get("wsid") != row.id
         or int(payload.get("tenant", -1)) != int(row.employer_id)
+        or int(payload.get("rev", -1)) != int(row.mode_revision or 0)
     ):
         return None
     return payload
@@ -504,6 +506,13 @@ def configure_owner_pin(
         db.add(policy)
     policy.owner_pin_hash = get_password_hash(payload.newPin)
     policy.updated_by_user_id = current_user.id
+    # PIN rotation revokes every outstanding Station escape for the tenant,
+    # including copied/replayed cookies that the browser can no longer delete.
+    for workstation in db.query(models.WorkstationMode).filter(
+        models.WorkstationMode.employer_id == employer_id
+    ).all():
+        workstation.mode_revision = int(workstation.mode_revision or 0) + 1
+        workstation.updated_by_user_id = current_user.id
     _commit_with_audit(
         db,
         user=current_user,
@@ -554,6 +563,7 @@ def change_mode(
 
     previous = row.default_experience
     row.default_experience = payload.mode
+    row.mode_revision = int(row.mode_revision or 0) + 1
     row.updated_by_user_id = current_user.id
     _commit_with_audit(
         db,
@@ -629,6 +639,7 @@ def authorize_station_escape(
             "tenant": _employer_id(current_user),
             "sub": str(current_user.id),
             "sid": session_jti,
+            "rev": int(row.mode_revision or 0),
             "iat": now,
             "exp": expires_at,
         },

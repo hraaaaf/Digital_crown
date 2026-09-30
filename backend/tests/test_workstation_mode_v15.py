@@ -281,6 +281,57 @@ def test_station_backend_blocks_clinical_api_and_escape_is_session_bound(client,
     assert state.json()["stationEscapeAuthorized"] is False
 
 
+def test_station_escape_replay_is_rejected_after_mode_change(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    _configure_station(client, token)
+    escaped = client.post(
+        "/api/workstation/station/escape",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert escaped.status_code == 200, escaped.text
+    captured_escape = client.cookies.get("dc_station_escape")
+    assert captured_escape
+
+    for mode in ("cabinet", "station"):
+        changed = client.post(
+            "/api/workstation/mode",
+            headers=_headers(token),
+            json={"mode": mode, "ownerPin": "2468"},
+        )
+        assert changed.status_code == 200, changed.text
+
+    client.cookies.set("dc_station_escape", captured_escape)
+    replay = client.get("/api/patients/", headers=_headers(token))
+    assert replay.status_code == 423, replay.text
+    assert replay.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+
+
+def test_station_escape_replay_is_rejected_after_pin_rotation(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    _configure_station(client, token)
+    escaped = client.post(
+        "/api/workstation/station/escape",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert escaped.status_code == 200, escaped.text
+    captured_escape = client.cookies.get("dc_station_escape")
+    assert captured_escape
+
+    rotated = client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "1357"},
+    )
+    assert rotated.status_code == 200, rotated.text
+
+    client.cookies.set("dc_station_escape", captured_escape)
+    replay = client.get("/api/patients/", headers=_headers(token))
+    assert replay.status_code == 423, replay.text
+    assert replay.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+
+
 def test_lost_or_tampered_workstation_identity_is_fail_closed_until_owner_reenrolls(client, db, dentiste):
     token = _token(client, dentiste.email, "TestPass123!")
     initial = client.get("/api/workstation/state", headers=_headers(token))
