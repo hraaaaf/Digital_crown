@@ -55,7 +55,6 @@ const clearCatalogMetadata = (drug: DrugItem): DrugItem => ({
 });
 
 export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps> = ({
-  patientId,
   drugs,
   setDrugs,
   prescriptionIndication,
@@ -77,7 +76,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     [drugs, prescriptionIndication],
   );
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
-  const numericPatientId = patientId.trim() ? Number(patientId) : Number.NaN;
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -195,6 +193,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       data-prescription-intelligence-studio="v1"
       data-clinical-rule-status="blocked"
       data-safety-status="blocked"
+      data-safety-mechanics="background-only"
       className="space-y-3"
     >
       <style>{`
