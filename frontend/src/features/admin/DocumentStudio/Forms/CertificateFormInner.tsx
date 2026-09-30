@@ -22,6 +22,47 @@ type CertificateTemplateDetail = CertificateTemplateSummary & {
   body_html?: string | null;
 };
 
+export function certificateTemplateBodyToPlainText(value: string): string {
+  const raw = String(value || '').replace(/\r\n?/g, '\n').trim();
+  if (!raw) return '';
+
+  const withoutTemplateCode = raw
+    .replace(/\{\{[\s\S]*?\}\}/g, '')
+    .replace(/\{%[\s\S]*?%\}/g, '')
+    .replace(/\{colors\.[^}]+\}/gi, '');
+  const hasHtmlMarkup = /<\/?[a-z][^>]*>/i.test(withoutTemplateCode);
+  if (!hasHtmlMarkup) return withoutTemplateCode.replace(/[ \t]{2,}/g, ' ').trim();
+
+  const stripped = withoutTemplateCode
+    .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, ' ')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '• ')
+    .replace(/<\s*\/\s*(p|div|li|h[1-6]|tr|section|article)\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '');
+
+  const decoded = stripped
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, value) => String.fromCodePoint(Number.parseInt(value, 16)))
+    .replace(/&#(\d+);/g, (_, value) => String.fromCodePoint(Number.parseInt(value, 10)));
+
+  return decoded
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function certificateTemplateContainsLayoutCode(value: string): boolean {
+  const raw = String(value || '');
+  return /\{\{[\s\S]*?\}\}|\{%[\s\S]*?%\}|\{colors\.[^}]+\}/i.test(raw);
+}
+
 export const CertificateTemplatePresets: React.FC<{
   content: string;
   onApply: (content: string) => void;
@@ -72,7 +113,16 @@ export const CertificateTemplatePresets: React.FC<{
     setError('');
     try {
       const response = await api.get(`/templates/${templateId}`);
-      const body = String((response?.data as CertificateTemplateDetail | undefined)?.body_html || '').trim();
+      const rawBody = String((response?.data as CertificateTemplateDetail | undefined)?.body_html || '').trim();
+      if (!rawBody) {
+        setError('Ce modèle ne contient aucun texte réutilisable.');
+        return;
+      }
+      if (certificateTemplateContainsLayoutCode(rawBody)) {
+        setError('Ce modèle contient du code de mise en page et ne peut pas être injecté dans le texte libre du certificat.');
+        return;
+      }
+      const body = certificateTemplateBodyToPlainText(rawBody);
       if (!body) {
         setError('Ce modèle ne contient aucun texte réutilisable.');
         return;
@@ -300,6 +350,12 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
     if (normalized.type !== certifType) setCertifType(normalized.type);
     if (normalized.content !== certifCustomMotif) setCertifCustomMotif(normalized.content);
   }, [certifType, certifCustomMotif, setCertifType, setCertifCustomMotif]);
+
+  React.useEffect(() => {
+    if (certifType !== CERTIFICATE_TYPE_FREE || !certifCustomMotif.trim()) return;
+    const cleaned = certificateTemplateBodyToPlainText(certifCustomMotif);
+    if (cleaned !== certifCustomMotif) setCertifCustomMotif(cleaned);
+  }, [certifType, certifCustomMotif, setCertifCustomMotif]);
 
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";

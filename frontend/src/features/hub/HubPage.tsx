@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Building2, MonitorCog, TabletSmartphone, ArrowRight, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getRuntimeAuthToken } from '../../services/api';
+import { WorkstationModeAdminPanel } from './WorkstationModeAdminPanel';
 
 type HubIdentity = { name: string; type: string; badge: string };
 
@@ -42,16 +43,18 @@ export const HubPage = () => {
     return () => { active = false; };
   }, []);
 
-  return <main data-v15-hub className="min-h-screen bg-main-bg text-main px-5 py-10 sm:py-14 lg:py-20">
-    <section className="mx-auto w-full max-w-6xl">
-      <div className="mb-8 sm:mb-10 text-center">
+  return <main data-v15-hub className="relative min-h-screen overflow-hidden bg-main-bg text-main px-5 py-8 sm:py-10 lg:py-12">
+    <div aria-hidden="true" className="pointer-events-none absolute -left-40 -top-48 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+    <div aria-hidden="true" className="pointer-events-none absolute -right-44 top-32 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+    <section className="relative z-10 mx-auto w-full max-w-6xl">
+      <div className="mb-6 sm:mb-8 text-center">
         <div className="inline-flex items-center gap-2 rounded-elite-sm border border-border-main bg-card-bg px-4 py-2 text-xs font-black uppercase tracking-widest text-primary shadow-elite">
           Digital Crown Hub
         </div>
         <h1 className="mt-5 font-outfit text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight">{identity.name}</h1>
         <p className="mt-3 text-sm font-bold text-text-muted">{identity.type} · Choisissez l’espace de ce poste</p>
         {!serverAvailable && <div data-hub-offline className="mx-auto mt-5 flex max-w-xl items-center justify-center gap-2 rounded-elite-sm border border-primary/20 bg-primary/5 px-4 py-3 text-xs font-bold text-primary">
-          <WifiOff size={16}/> Serveur indisponible — le Hub reste accessible. Le Centre de contrôle peut être ouvert.
+          <WifiOff size={16}/> Serveur indisponible — le Hub reste accessible. Les espaces du poste restent verrouillés jusqu’au rétablissement.
         </div>}
       </div>
 
@@ -77,7 +80,9 @@ export const HubPage = () => {
         </button>)}
       </div>
 
-      <p className="mt-8 text-center text-xs font-bold text-text-muted">Le Hub ne contient aucune donnée patient ou clinique.</p>
+      <WorkstationModeAdminPanel />
+
+      <p className="mt-5 text-center text-xs font-bold text-text-muted">Le Hub ne contient aucune donnée patient ou clinique.</p>
     </section>
   </main>;
 };

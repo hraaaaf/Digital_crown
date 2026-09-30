@@ -99,14 +99,74 @@ describe('Sidebar G1 navigation matrix', () => {
 
   it('lets the practitioner pin and retract the desktop sidebar explicitly', () => {
     localStorage.setItem('sidebar_desktop_pinned', 'false');
-    renderSidebar();
+    const { container } = renderSidebar();
+    const shell = container.querySelector('.sidebar-shell');
+    const toggle = container.querySelector('.sidebar-pin-toggle') as HTMLButtonElement;
 
-    fireEvent.click(screen.getByRole('button', { name: 'D?ployer la barre lat?rale' }));
+    expect(toggle.tabIndex).toBe(-1);
+    fireEvent.focus(screen.getByRole('link', { name: 'Digital Crown' }));
+    expect(shell).toHaveAttribute('data-expanded', 'true');
+    expect(toggle.tabIndex).toBe(0);
+
+    fireEvent.click(toggle);
     expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('true');
     expect(screen.getByRole('button', { name: 'R?duire la barre lat?rale' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'R?duire la barre lat?rale' }));
     expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('false');
+  });
+
+  it('keeps one desktop shell and the official brand asset across compact and expanded states', () => {
+    localStorage.setItem('sidebar_desktop_pinned', 'false');
+    const { container } = renderSidebar();
+
+    const shell = container.querySelector('.sidebar-shell');
+    const surface = container.querySelector('.sidebar-shell > div');
+    const toggle = container.querySelector('.sidebar-pin-toggle') as HTMLButtonElement;
+    const brandImages = container.querySelectorAll('.sidebar-logo-wrap img');
+
+    expect(shell).toBeTruthy();
+    expect(surface?.className).not.toContain('lg:absolute');
+    expect(toggle.className).toContain('right-2');
+    expect(toggle.className).not.toContain('-right-3');
+    expect(brandImages).toHaveLength(2);
+    expect(brandImages[0].getAttribute('src')).toBe(brandImages[1].getAttribute('src'));
+
+    fireEvent.click(toggle);
+    expect(shell?.className).toContain('lg:w-72');
+  });
+
+  it('uses a staged premium desktop motion contract with reduced-motion fallback', () => {
+    localStorage.setItem('sidebar_desktop_pinned', 'false');
+    const { container } = renderSidebar();
+    const shell = container.querySelector('.sidebar-shell');
+    const nav = container.querySelector('.sidebar-nav');
+    const styleText = Array.from(container.querySelectorAll('style')).map(node => node.textContent || '').join('\n');
+
+    expect(shell?.className).toContain('lg:w-[68px]');
+    expect(nav?.className).toContain('px-2');
+    expect(styleText).toContain('width 340ms cubic-bezier(0.16, 1, 0.3, 1)');
+    expect(styleText).toContain('opacity 150ms ease 125ms');
+    expect(styleText).toContain('@media (prefers-reduced-motion: reduce)');
+  });
+
+  it('keeps invisible compact controls out of keyboard and accessibility flow', () => {
+    localStorage.setItem('sidebar_desktop_pinned', 'false');
+    const { container } = renderSidebar();
+    const shell = container.querySelector('.sidebar-shell');
+    const toggle = container.querySelector('.sidebar-pin-toggle') as HTMLButtonElement;
+    const logoLink = screen.getByRole('link', { name: 'Digital Crown' });
+
+    expect(toggle.tabIndex).toBe(-1);
+    expect(toggle).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('button', { name: 'D?ployer la barre lat?rale' })).toBeNull();
+
+    fireEvent.focus(logoLink);
+    expect(shell).toHaveAttribute('data-expanded', 'true');
+    expect(toggle.tabIndex).toBe(0);
+    expect(toggle).toHaveAttribute('aria-hidden', 'false');
+    expect(toggle.className).toContain('focus-visible:ring-2');
+    expect(logoLink.className).toContain('focus-visible:ring-2');
   });
 
   it('closes the mobile drawer through the backdrop', () => {

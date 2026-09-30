@@ -33,6 +33,29 @@ class AuditLog(Base):
     user: Mapped[Optional["User"]] = relationship("User")
 
 
+class WorkstationSecurityPolicy(Base):
+    __tablename__ = "workstation_security_policies"
+
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    owner_pin_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class WorkstationMode(Base):
+    __tablename__ = "workstation_modes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    default_experience: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    mode_revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    updated_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class RevokedToken(Base):
     """
     Stockage persistant des tokens révoqués (JTI Blacklist).

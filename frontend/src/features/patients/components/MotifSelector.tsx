@@ -52,7 +52,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
 
   useEffect(() => {
     let cancelled = false;
-    api.get('/motifs', { params: { include_inactive: true } })
+    api.get('/motifs/', { params: { include_inactive: true } })
       .then(response => {
         if (!cancelled && Array.isArray(response.data)) setCabinetMotifs(response.data);
       })
@@ -148,7 +148,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
     setSaving(true);
     setCreateError('');
     try {
-      const response = await api.post('/motifs', {
+      const response = await api.post('/motifs/', {
         label,
         category_id: newCategory,
         urgency: newUrgency,

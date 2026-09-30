@@ -591,7 +591,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             multiSelectedTeeth={groupSelectedTeeth}
                             onToothClick={handleToothDirectClick}
                             showNumbers
-                            className="w-full max-w-[720px] sm:max-w-[680px]"
+                            className="w-full max-w-[960px]"
                           />
                         </div>
 

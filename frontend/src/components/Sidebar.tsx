@@ -11,7 +11,6 @@ import {
   BookOpen,
   Shield,
   Store,
-  Crown,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -105,24 +104,130 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         .animate-logo-pulse-light { animation: logo-pulse-light 2s ease-in-out infinite; }
         .sidebar-cabinet-compact { display: none; }
         @media (min-width: 1024px) {
+          .sidebar-shell {
+            transition: width 340ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms ease-out;
+            will-change: width;
+          }
+          .sidebar-surface {
+            transition: background-color 280ms ease, border-color 280ms ease, box-shadow 340ms cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 280ms ease;
+          }
+          .sidebar-logo-wrap {
+            transition: height 300ms cubic-bezier(0.16, 1, 0.3, 1), padding 300ms cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .sidebar-logo,
+          .sidebar-brand-compact {
+            transition: opacity 160ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .sidebar-brand-compact {
+            display: flex;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9);
+            pointer-events: none;
+          }
+          .sidebar-label,
+          .sidebar-section-label,
+          .sidebar-expanded-only {
+            opacity: 1;
+            transform: translateX(0);
+            transition: opacity 150ms ease 125ms, transform 260ms cubic-bezier(0.16, 1, 0.3, 1) 90ms;
+          }
+          .sidebar-label {
+            max-width: 190px;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: max-width 280ms cubic-bezier(0.16, 1, 0.3, 1) 80ms, opacity 150ms ease 125ms, transform 260ms cubic-bezier(0.16, 1, 0.3, 1) 90ms;
+          }
+          .sidebar-cabinet-section {
+            min-height: 94px;
+            transition: min-height 300ms cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .sidebar-cabinet-full {
+            max-height: 84px;
+            opacity: 1;
+            transform: translateX(0);
+            overflow: hidden;
+            transition: max-height 280ms cubic-bezier(0.16, 1, 0.3, 1) 50ms, opacity 150ms ease 110ms, transform 260ms cubic-bezier(0.16, 1, 0.3, 1) 80ms;
+          }
+          .sidebar-cabinet-compact {
+            display: flex;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.92);
+            transition: opacity 140ms ease, transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .sidebar-pin-toggle {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+            transition: opacity 140ms ease 150ms, transform 240ms cubic-bezier(0.16, 1, 0.3, 1) 120ms, color 150ms ease, background-color 150ms ease;
+          }
           .sidebar-shell[data-expanded="false"] .sidebar-label,
           .sidebar-shell[data-expanded="false"] .sidebar-section-label,
-          .sidebar-shell[data-expanded="false"] .sidebar-expanded-only,
-          .sidebar-shell[data-expanded="false"] .sidebar-cabinet-full { display: none; }
-          .sidebar-shell[data-expanded="false"] .sidebar-cabinet-compact { display: flex; }
-          .sidebar-shell[data-expanded="false"] .sidebar-logo-wrap { height: 4.5rem; padding: 0.875rem; }
-          .sidebar-shell[data-expanded="false"] .sidebar-nav { padding-left: 0.5rem; padding-right: 0.5rem; }
-          .sidebar-shell[data-expanded="false"] .sidebar-nav-item { justify-content: center; min-height: 2.875rem; padding-left: 0.75rem; padding-right: 0.75rem; }
-          .sidebar-shell[data-expanded="false"] .sidebar-logo { display: none; }
-          .sidebar-brand-compact { display: none; }
-          .sidebar-shell[data-expanded="false"] .sidebar-brand-compact { display: flex; }
+          .sidebar-shell[data-expanded="false"] .sidebar-expanded-only {
+            opacity: 0;
+            transform: translateX(-10px);
+            pointer-events: none;
+            transition-delay: 0ms;
+          }
+          .sidebar-shell[data-expanded="false"] .sidebar-label { max-width: 0; }
+          .sidebar-shell[data-expanded="false"] .sidebar-section-label,
+          .sidebar-shell[data-expanded="false"] .sidebar-expanded-only { visibility: hidden; }
+          .sidebar-shell[data-expanded="false"] .sidebar-cabinet-full {
+            max-height: 0;
+            opacity: 0;
+            transform: translateX(-10px);
+            pointer-events: none;
+            transition-delay: 0ms;
+          }
+          .sidebar-shell[data-expanded="false"] .sidebar-cabinet-compact {
+            display: flex;
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            transition-delay: 110ms;
+          }
+          .sidebar-shell[data-expanded="false"] .sidebar-logo {
+            opacity: 0;
+            transform: scale(0.92);
+            pointer-events: none;
+          }
+          .sidebar-shell[data-expanded="false"] .sidebar-brand-compact {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            transition-delay: 110ms;
+          }
+          .sidebar-shell[data-expanded="false"] .sidebar-pin-toggle {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(-5px) scale(0.94);
+            transition-delay: 0ms;
+          }
+          .sidebar-shell[data-expanded="false"] .sidebar-nav-item { gap: 0; }
           .sidebar-shell[data-expanded="false"] .sidebar-badge { position: absolute; top: 0.35rem; right: 0.35rem; width: 0.5rem; height: 0.5rem; padding: 0; font-size: 0; border-radius: 999px; }
+          @media (prefers-reduced-motion: reduce) {
+            .sidebar-shell,
+            .sidebar-surface,
+            .sidebar-logo-wrap,
+            .sidebar-logo,
+            .sidebar-brand-compact,
+            .sidebar-label,
+            .sidebar-section-label,
+            .sidebar-expanded-only,
+            .sidebar-cabinet-section,
+            .sidebar-cabinet-full,
+            .sidebar-cabinet-compact,
+            .sidebar-pin-toggle { transition-duration: 1ms !important; transition-delay: 0ms !important; }
+          }
         }
       `}</style>
       {/* SIDEBAR : Clinical Premium Elite */}
       <aside
         className={cn(
           "sidebar-shell w-72 lg:w-[68px] h-screen fixed lg:relative z-[10000] shrink-0",
+          desktopExpanded && "lg:w-72",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         data-expanded={desktopExpanded ? "true" : "false"}
@@ -134,8 +239,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         }}
       >
         <div className={cn(
-          "h-full w-72 lg:absolute lg:inset-y-0 lg:left-0 lg:w-[68px] bg-sidebar border-r border-border-main shadow-elite flex flex-col transition-[width,background-color,box-shadow] duration-200 ease-out overflow-hidden",
-          desktopExpanded && "lg:w-72 lg:shadow-2xl"
+          "sidebar-surface h-full w-full bg-sidebar border-r border-border-main shadow-elite flex flex-col overflow-hidden",
+          desktopExpanded && "lg:shadow-2xl"
         )}
         style={{
           background: desktopExpanded ? 'color-mix(in srgb, var(--sidebar-bg) 92%, transparent)' : 'var(--sidebar-bg)',
@@ -149,8 +254,10 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             setDesktopPinned(value => !value);
             setDesktopHovered(false);
           }}
-          className="hidden lg:flex absolute -right-3 top-5 z-20 h-7 w-7 items-center justify-center rounded-full border border-border-main bg-card-bg text-text-muted shadow-md transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="sidebar-pin-toggle hidden lg:flex absolute right-2 top-2 z-20 h-7 w-7 items-center justify-center rounded-lg border border-border-main bg-card-bg/90 text-text-muted shadow-sm transition-[opacity,transform,color,background-color] duration-150 hover:text-primary hover:bg-card-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
           aria-pressed={desktopPinned}
+          aria-hidden={!desktopExpanded}
+          tabIndex={desktopExpanded ? 0 : -1}
           aria-label={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
           title={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
         >
@@ -161,10 +268,10 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         <div className="sidebar-logo-wrap p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo transition-all duration-200">
           <Link 
             to="/dashboard" 
-            className="transition-elite block w-full hover:opacity-80 flex items-center justify-center"
+            className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
           >
-            <span className="sidebar-brand-compact h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/75 text-primary shadow-sm" aria-hidden="true">
-              <Crown size={20} strokeWidth={1.8} />
+            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm overflow-hidden" aria-hidden="true">
+              <img src={Logo} alt="" className="absolute left-1/2 top-[-8px] w-[180px] max-w-none -translate-x-1/2 object-contain" />
             </span>
             <img 
               src={Logo} 
@@ -179,7 +286,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         </div>
 
         {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}
-        <div className="px-3 lg:px-2 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
+        <div className="sidebar-cabinet-section relative px-3 lg:px-2 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
           <div
             className="sidebar-cabinet-compact h-10 w-10 mx-auto items-center justify-center rounded-xl border border-border-main bg-card-bg/60 text-base"
             aria-hidden="true"
@@ -211,7 +318,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         </div>
 
         {/* STACKED NAVIGATION */}
-        <nav className="sidebar-nav flex-1 p-5 space-y-1.5 overflow-y-auto custom-scrollbar">
+        <nav className="sidebar-nav flex-1 px-2 py-5 space-y-1.5 overflow-y-auto custom-scrollbar">
           <div className="sidebar-section-label text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Cabinet</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" badge={alertCount > 0 ? String(alertCount) : undefined} />
@@ -286,7 +393,7 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
     className={({ isActive }) => {
       const isActuallyActive = forceActive !== undefined ? forceActive : isActive;
       return cn(
-        "sidebar-nav-item flex items-center gap-3 px-4 py-3 rounded-elite-sm transition-elite group relative overflow-hidden cursor-pointer mb-1",
+        "sidebar-nav-item flex items-center gap-3 px-4 py-3 rounded-elite-sm transition-elite group relative overflow-hidden cursor-pointer mb-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-inset",
           isActuallyActive 
           ? "shadow-elite border border-border-main" 
           : "text-text-muted hover:bg-primary/5 hover:text-primary"

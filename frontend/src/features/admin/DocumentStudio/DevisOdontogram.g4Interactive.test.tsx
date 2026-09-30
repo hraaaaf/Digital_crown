@@ -67,8 +67,8 @@ vi.mock('../Settings/hooks/useCatalogStore', () => ({
   useCatalogStore: (selector?: any) => selector ? selector(catalogState) : catalogState,
 }));
 vi.mock('../../../components/odontogram/PremiumOdontogramSVG', () => ({
-  PremiumOdontogramSVG: ({onToothClick,type}:any) => (
-    <div>
+  PremiumOdontogramSVG: ({onToothClick,type,className}:any) => (
+    <div data-testid="premium-odontogram" data-class-name={className || ''}>
       <span>Odontogram {type}</span>
       {type==='PEDIATRIC'
         ? <button onClick={()=>onToothClick(51)}>Tooth 51</button>
@@ -131,6 +131,16 @@ function renderHonoraires(){
 }
 
 describe('Devis/Odontogram G4 interactive controls', () => {
+  it('keeps the clinical odontogram large in both Devis and Note d\'honoraires', () => {
+    const devis = renderDevis();
+    expect(screen.getByTestId('premium-odontogram')).toHaveAttribute('data-class-name', 'w-full max-w-[960px]');
+    devis.unmount();
+    useAccountingStore.getState().reset();
+
+    renderHonoraires();
+    expect(screen.getByTestId('premium-odontogram')).toHaveAttribute('data-class-name', 'w-full max-w-[960px]');
+  });
+
   it('switches adult/pediatric and uses the same 1→N tooth selection gesture without modes', () => {
     renderDevis();
 

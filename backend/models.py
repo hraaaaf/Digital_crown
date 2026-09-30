@@ -916,6 +916,8 @@ class Installment(Base):
 
 from backend.models_platform import (
     AuditLog,
+    WorkstationSecurityPolicy,
+    WorkstationMode,
     RevokedToken,
     AIFeedback,
     ProactiveAlert,

@@ -89,6 +89,50 @@ describe('CertificateForm P3', () => {
     expect(screen.queryByLabelText(/Durée du repos/i)).toBeNull();
   });
 
+  it('nettoie un ancien brouillon HTML dès l’ouverture du certificat médical libre', async () => {
+    const setCertifCustomMotif = vi.fn();
+    render(
+      <CertificateForm
+        patientId=""
+        certifType="Certificat médical"
+        setCertifType={vi.fn()}
+        certifDays={0}
+        setCertifDays={vi.fn()}
+        docDate="2026-08-15"
+        certifStartDate=""
+        setCertifStartDate={vi.fn()}
+        certifCustomMotif="<p>Texte <strong>important</strong><br>Deuxième ligne</p>"
+        setCertifCustomMotif={setCertifCustomMotif}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(setCertifCustomMotif).toHaveBeenCalledWith('Texte important\nDeuxième ligne');
+    });
+  });
+
+  it('retire un ancien code de mise en page au lieu de l’exposer dans le certificat médical', async () => {
+    const setCertifCustomMotif = vi.fn();
+    render(
+      <CertificateForm
+        patientId=""
+        certifType="Certificat médical"
+        setCertifType={vi.fn()}
+        certifDays={0}
+        setCertifDays={vi.fn()}
+        docDate="2026-08-15"
+        certifStartDate=""
+        setCertifStartDate={vi.fn()}
+        certifCustomMotif="<div><b>Patient : {{ patient.nom }}</b></div>"
+        setCertifCustomMotif={setCertifCustomMotif}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(setCertifCustomMotif).toHaveBeenCalledWith('Patient :');
+    });
+  });
+
   it('affiche un début du repos distinct uniquement pour un arrêt de travail', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({ data: null } as never);
     render(

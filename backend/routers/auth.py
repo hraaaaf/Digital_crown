@@ -108,6 +108,25 @@ async def get_current_user(
     approval = getattr(user, "approval_status", "approved") or "approved"
     if getattr(user, "employer_id", None) is not None and approval != "approved":
         raise credentials_exception
+
+    # Only auth/session lifecycle and workstation recovery endpoints may bypass
+    # the Station boundary. Any other endpoint that resolves a cabinet web
+    # session through get_current_user remains subject to workstation authority,
+    # including privileged /api/mobile/* and /api/patient-companion/* routes.
+    workstation_guard_exempt = request.url.path.startswith((
+        "/api/auth",
+        "/api/workstation",
+    ))
+    if not workstation_guard_exempt:
+        # Lazy import avoids the auth <-> workstation router import cycle while
+        # enforcing Station at the backend dependency used by clinical APIs.
+        from backend.routers.workstation_mode import enforce_authenticated_workstation_access
+        enforce_authenticated_workstation_access(
+            request,
+            db,
+            user,
+            session_jti=str(jti) if jti else None,
+        )
     return user
 
 
@@ -401,6 +420,9 @@ async def logout(
 
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
+    # Station escape is bound to the current access-session JTI and must not
+    # survive an explicit logout, even for the same user reconnecting quickly.
+    response.delete_cookie("dc_station_escape", path="/")
 
     audit_service.log(
         db=db,
