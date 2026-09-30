@@ -58,15 +58,3 @@ export function adaptNeoContextToPharmacology(
   };
 }
 
-/**
- * Intentionally does not infer anticoagulant/antiplatelet state from free-text
- * current medications. Neo's bounded backend safety layer owns current-medication
- * resolution until a structured medication identity contract is shared end-to-end.
- */
-export function neoContextHasUnresolvedMedicationIdentity(
-  context: NeoStructuredPrescriptionContext | null | undefined,
-): boolean {
-  return context?.current_medications_status === 'PRESENT'
-    && Array.isArray(context.current_medications)
-    && context.current_medications.length > 0;
-}
