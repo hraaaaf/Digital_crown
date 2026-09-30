@@ -190,6 +190,8 @@ Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation corresp
 
 ### Validation CI chirurgicale — INVARIANT OPÉRATIONNEL
 
+**RÈGLE ABSOLUE — NE JAMAIS RELANCER TOUTE LA CI PAR DÉFAUT.** Relancer uniquement les tests, builds, jobs et workflows directement touchés par le code modifié. **En particulier, ne jamais relancer tout le frontend lorsqu'une modification n'affecte qu'une sous-partie du frontend ou n'affecte pas le frontend du tout.** Un élargissement de la validation n'est autorisé que si le diff touche une dépendance transverse, un harness partagé, un invariant sécurité/données/release, ou si une preuve concrète montre qu'une surface plus large peut régresser. Les gates déjà verts et non impactés restent acquis.
+
 Pendant une phase de correction ou de stabilisation :
 
 - un micro-correctif doit être validé d'abord par le **test, job ou workflow directement impacté** ;
