@@ -80,7 +80,8 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
       )}
       <p className="mt-6 text-xs font-black uppercase tracking-widest text-primary">Digital Crown</p>
       <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight">{isStation ? "Station d'accueil" : 'Centre de contrôle'}</h1>
-      <p className="mt-4 text-sm font-semibold leading-relaxed text-text-muted">{isStation ? "Configuration en cours de construction. La Station patient sera activée après le contrat de mode poste sécurisé." : "Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible."}</p>
+      <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-relaxed text-text-muted">{isStation ? "Configuration en cours de construction. La Station patient sera activée après le contrat de mode poste sécurisé." : "Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible."}</p>
+      {isStation && !adminOpen && <div aria-hidden="true" className="mx-auto mt-7 flex max-w-md items-center gap-3"><span className="h-px flex-1 bg-border-main"/><span className="h-1.5 w-1.5 rounded-full bg-primary/40"/><span className="h-px flex-1 bg-border-main"/></div>}
 
       {isStation && adminOpen ? (
         <div data-station-admin className="mx-auto mt-8 max-w-sm rounded-elite-sm border border-border-main bg-main-bg p-4 text-left">
@@ -100,7 +101,7 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
             type="button"
             disabled={busy || !ownerPin}
             onClick={leaveStation}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-4 text-sm font-black text-card-bg transition-elite disabled:opacity-50"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-4 text-sm font-black text-card-bg transition-elite disabled:bg-slate-200 disabled:text-slate-500 disabled:opacity-100"
           >
             <KeyRound size={16} />
             {busy ? 'Vérification…' : 'Autoriser l’accès au Hub'}

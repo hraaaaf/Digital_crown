@@ -43,9 +43,9 @@ export const HubPage = () => {
     return () => { active = false; };
   }, []);
 
-  return <main data-v15-hub className="min-h-screen bg-main-bg text-main px-5 py-10 sm:py-14 lg:py-20">
+  return <main data-v15-hub className="min-h-screen bg-main-bg text-main px-5 py-8 sm:py-10 lg:py-12">
     <section className="mx-auto w-full max-w-6xl">
-      <div className="mb-8 sm:mb-10 text-center">
+      <div className="mb-6 sm:mb-8 text-center">
         <div className="inline-flex items-center gap-2 rounded-elite-sm border border-border-main bg-card-bg px-4 py-2 text-xs font-black uppercase tracking-widest text-primary shadow-elite">
           Digital Crown Hub
         </div>
@@ -80,7 +80,7 @@ export const HubPage = () => {
 
       <WorkstationModeAdminPanel />
 
-      <p className="mt-8 text-center text-xs font-bold text-text-muted">Le Hub ne contient aucune donnée patient ou clinique.</p>
+      <p className="mt-5 text-center text-xs font-bold text-text-muted">Le Hub ne contient aucune donnée patient ou clinique.</p>
     </section>
   </main>;
 };

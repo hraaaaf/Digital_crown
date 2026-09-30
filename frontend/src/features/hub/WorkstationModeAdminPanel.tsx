@@ -202,7 +202,7 @@ export const WorkstationModeAdminPanel = () => {
           type="button"
           disabled={!state.pinConfigured || busy !== null || !ownerPin}
           onClick={saveMode}
-          className="self-end min-h-11 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:opacity-50"
+          className="self-end min-h-11 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:bg-slate-200 disabled:text-slate-500 disabled:opacity-100"
         >
           {busy === 'mode' ? 'Application…' : 'Appliquer ce mode'}
         </button>
