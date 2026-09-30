@@ -38,11 +38,12 @@ type QuickPicks = {
   frequent_medications?: string[];
 };
 
-type QuickSection = 'FAVORITES' | 'PROTOCOLS' | 'RECENT' | 'FREQUENT';
+type QuickSection = 'FAVORITES' | 'PROTOCOLS' | 'SAVED' | 'RECENT' | 'FREQUENT';
 
 const sectionLabels: Record<QuickSection, string> = {
   FAVORITES: 'Favoris',
   PROTOCOLS: 'Protocoles',
+  SAVED: 'Ordonnances',
   RECENT: 'Récentes',
   FREQUENT: 'Fréquentes',
 };
@@ -203,6 +204,16 @@ export function PrescriptionQuickAccessBar({
     setCatalog([]);
     inputRef.current?.focus();
   };
+  const toggleFavorite = async (row: ReusablePrescription) => {
+    const next = !row.is_favorite;
+    setReusables(current => current.map(item => item.id === row.id ? { ...item, is_favorite: next } : item));
+    try {
+      await api.put(`/prescriptions/preferences/${row.id}/favorite`, { is_favorite: next });
+    } catch {
+      setReusables(current => current.map(item => item.id === row.id ? { ...item, is_favorite: row.is_favorite } : item));
+    }
+  };
+
 
   const applyPresentation = (row: CatalogPresentation) => {
     setDrugs(selectedPresentation(row, drugs));
@@ -214,6 +225,7 @@ export function PrescriptionQuickAccessBar({
   const idleRows = React.useMemo(() => {
     if (section === 'FAVORITES') return reusables.filter(item => item.is_favorite).slice(0, 6);
     if (section === 'PROTOCOLS') return reusables.filter(item => item.kind !== 'SAVED_PRESCRIPTION').slice(0, 6);
+    if (section === 'SAVED') return reusables.filter(item => item.kind === 'SAVED_PRESCRIPTION').slice(0, 6);
     return [];
   }, [reusables, section]);
 
@@ -394,15 +406,23 @@ export function PrescriptionQuickAccessBar({
       ) : (
         <div className="mt-2 flex flex-wrap gap-2">
           {idleRows.map(row => (
-            <button
-              key={row.id}
-              type="button"
-              onClick={() => void applyReusable(row)}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border-main bg-background px-3 text-[10px] font-black text-text-main transition hover:border-primary/30 hover:text-primary"
-            >
-              {row.is_favorite ? <Star size={12} fill="currentColor" /> : <FileText size={12} />}
-              {row.label}
-            </button>
+            <div key={row.id} className="inline-flex min-h-10 overflow-hidden rounded-xl border border-border-main bg-background">
+              <button
+                type="button"
+                onClick={() => void applyReusable(row)}
+                className="inline-flex items-center gap-2 px-3 text-[10px] font-black text-text-main transition hover:bg-primary/5 hover:text-primary"
+              >
+                <FileText size={12} /> {row.label}
+              </button>
+              <button
+                type="button"
+                aria-label={row.is_favorite ? `Retirer ${row.label} des favoris` : `Ajouter ${row.label} aux favoris`}
+                onClick={() => void toggleFavorite(row)}
+                className="flex w-9 items-center justify-center border-l border-border-main text-text-muted transition hover:bg-primary/5 hover:text-primary"
+              >
+                <Star size={12} fill={row.is_favorite ? 'currentColor' : 'none'} />
+              </button>
+            </div>
           ))}
           {idleMedicationNames.map(name => (
             <button
@@ -416,7 +436,7 @@ export function PrescriptionQuickAccessBar({
           ))}
           {!idleRows.length && !idleMedicationNames.length && (
             <span className="px-1 py-2 text-[10px] font-bold text-text-muted">
-              {section === 'FAVORITES' ? 'Aucun favori.' : section === 'PROTOCOLS' ? 'Aucun protocole enregistré.' : 'Aucun usage enregistré.'}
+              {section === 'FAVORITES' ? 'Aucun favori.' : section === 'PROTOCOLS' ? 'Aucun protocole enregistré.' : section === 'SAVED' ? 'Aucune ordonnance enregistrée.' : 'Aucun usage enregistré.'}
             </span>
           )}
         </div>
