@@ -12,6 +12,12 @@ const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
 const login = await api.post('/api/auth/login', { form: { username: user, password } });
 if (!login.ok()) throw new Error(`login ${login.status()}`);
 const tokens = await login.json();
+const enroll = await api.post('/api/workstation/enroll', {
+  data: { accountPassword: password },
+  headers: { Authorization: `Bearer ${tokens.access_token}` },
+});
+if (!enroll.ok()) throw new Error(`Workstation enrollment failed: ${enroll.status()} ${await enroll.text()}`);
+const workstationStorage = await api.storageState();
 const patients = await api.get('/api/patients', { headers: { Authorization: `Bearer ${tokens.access_token}` } });
 const patient = (await patients.json()).find((p) => p.numero_dossier === 'T2-0001');
 if (!patient) throw new Error('certification patient missing');
@@ -19,7 +25,7 @@ if (!patient) throw new Error('certification patient missing');
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
 for (const viewport of [{width:390,height:844},{width:768,height:1024},{width:1280,height:900}]) {
-  const context = await browser.newContext({ viewport, colorScheme: 'light' });
+  const context = await browser.newContext({ viewport, colorScheme: 'light', storageState: workstationStorage });
   const page = await context.newPage();
   await page.addInitScript(({access,refresh}) => {
     localStorage.setItem('token', access);
