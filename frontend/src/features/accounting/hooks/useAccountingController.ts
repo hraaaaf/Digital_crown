@@ -12,6 +12,7 @@ export const useAccountingController = () => {
   const [exporting, setExporting] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<Record<string, string>>({});
   const [overdueData, setOverdueData] = useState<any>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: 'title' | 'amount' } | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
@@ -215,11 +216,21 @@ export const useAccountingController = () => {
     }
   };
 
-  const handleEncaisser = async (id: number | string) => {
+  const handleEncaisser = async (id: number | string, paymentMethod?: string) => {
+    const selectedMethod = (paymentMethod || paymentMethods[String(id)] || '').trim().toUpperCase();
+    if (!selectedMethod) {
+      toast.error("Choisissez un mode de paiement avant l'encaissement.");
+      return;
+    }
     try {
-      await api.post(`/accounting/encaisser/${id}`);
+      await api.post(`/accounting/encaisser/${id}`, { payment_method: selectedMethod });
       toast.success("Règlement encaissé avec succès !");
-      fetchTreasury(); // Rafraîchir les données
+      setPaymentMethods(prev => {
+        const next = { ...prev };
+        delete next[String(id)];
+        return next;
+      });
+      await Promise.all([fetchHonoraires(), fetchTreasury()]);
     } catch (err) {
       console.error("Erreur encaissement:", err);
       toast.error("Échec de l'encaissement.");
@@ -332,6 +343,8 @@ export const useAccountingController = () => {
     exporting,
     exportingCsv,
     sendingEmail,
+    paymentMethods,
+    setPaymentMethods,
     overdueData,
     editingCell,
     editingValue,
