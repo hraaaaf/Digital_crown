@@ -62,13 +62,13 @@ describe('ProcedureSafetyNotice', () => {
       ['SPECIALIST_REVIEW_RECOMMENDED', 'Avis spécialisé recommandé.'],
     ] as const;
 
-    const { rerender } = render(<ProcedureSafetyNotice patientId="42" />);
-    for (const [key, message] of cases) {
+    for (const [index, [key, message]] of cases.entries()) {
       vi.mocked(api.get).mockResolvedValueOnce({
         data: { status: 'X', alert_key: key, read_only: true },
       } as any);
-      rerender(<ProcedureSafetyNotice patientId={String(Math.random())} />);
+      const view = render(<ProcedureSafetyNotice patientId={String(100 + index)} />);
       expect(await screen.findByText(message)).toBeInTheDocument();
+      view.unmount();
     }
   });
 
