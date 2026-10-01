@@ -45,7 +45,26 @@ def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, heig
       "migration":{"migration_version":"CEPHALO_V1_TO_V2_MIGRATION_V1","source_schema":"_evidence_graph_v1","source_sha256":sha256(source),"compatibility_class":"LOSSLESS_V1","opaque_legacy_payload":source}
     }
 
+def validate_v2_identity_registry(v2: Mapping[str, Any]) -> None:
+    registry=v2.get("landmark_registry")
+    if not isinstance(registry,list): raise Lot05MigrationError("Missing landmark registry")
+    canonical=set()
+    aliases=set()
+    for item in registry:
+        if not isinstance(item,dict) or not isinstance(item.get("canonical_id"),str) or not item["canonical_id"]:
+            raise Lot05MigrationError("Malformed canonical landmark identity")
+        cid=item["canonical_id"]
+        if cid in canonical or cid in aliases: raise Lot05MigrationError("Canonical landmark identity collision")
+        canonical.add(cid)
+        raw_aliases=item.get("aliases",[])
+        if not isinstance(raw_aliases,list): raise Lot05MigrationError("Malformed aliases")
+        for alias in raw_aliases:
+            if not isinstance(alias,str) or not alias or alias==cid or alias in aliases or alias in canonical:
+                raise Lot05MigrationError("Landmark alias collision")
+            aliases.add(alias)
+
 def roundtrip_v2_to_v1(v2: Mapping[str, Any]) -> dict[str, Any]:
+    validate_v2_identity_registry(v2)
     migration=v2.get("migration",{})
     if migration.get("compatibility_class")!="LOSSLESS_V1": raise Lot05MigrationError("V2 object is not lossless-V1")
     source=migration.get("opaque_legacy_payload")
