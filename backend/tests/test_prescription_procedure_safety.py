@@ -357,3 +357,19 @@ def test_mronj_gate_fails_closed_on_inconsistent_implant_or_medication_context()
     assert "MRONJ_IMPLANT_OSSEOUS_CONTEXT_INCONSISTENT" in inconsistent_implant.internal_codes
     assert inconsistent_medication.status == "CONTEXT_REQUIRED"
     assert "MRONJ_MEDICATION_CONTEXT_INCONSISTENT" in inconsistent_medication.internal_codes
+
+
+
+def test_mronj_suspected_or_known_status_dominates_secondary_context_inconsistency():
+    result = evaluate_mronj_procedure_safety(
+        _mronj(
+            procedure_osseous_risk="NO_OSSEOUS_INJURY",
+            procedure_is_implant=True,
+            medication_status="NONE_REPORTED",
+            agent_class="DENOSUMAB",
+            indication="MALIGNANCY",
+            suspected_or_known_mronj="YES",
+        )
+    )
+    assert result.status == "SPECIALIST_REVIEW_REQUIRED"
+    assert "MRONJ_SUSPECTED_OR_KNOWN" in result.internal_codes
