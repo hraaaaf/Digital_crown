@@ -11,6 +11,16 @@ def canonical_bytes(payload: Mapping[str, Any]) -> bytes:
 def sha256(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(canonical_bytes(payload)).hexdigest()
 
+_SOFT = {"Ls_soft","Li_soft","Sn_soft","Pog_soft","Prn","Cm","Ls2","Li2","Gn_soft","Me_soft","G_soft","N_soft","C_point"}
+_DENTAL = {"L1_incisal","U1_incisal","U1_apex","L1_apex","U6","L6"}
+_ANCHORS = {"Occ_Ant","Occ_Post"}
+
+def _domain(cid: str) -> str:
+    if cid in _SOFT: return "SOFT"
+    if cid in _DENTAL: return "DENTAL"
+    if cid in _ANCHORS: return "CONSTRUCTION_ANCHOR"
+    return "HARD"
+
 def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, height: int) -> dict[str, Any]:
     source=copy.deepcopy(dict(v1))
     case_id=source.get("case_id")
