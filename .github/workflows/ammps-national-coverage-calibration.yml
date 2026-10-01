@@ -1,0 +1,75 @@
+name: AMMPS National Coverage Calibration
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-national-coverage
+    paths:
+      - 'scripts/probe_ammps_dictionary_sync.py'
+      - 'scripts/crawl_ammps_catalog_batch.py'
+      - 'scripts/test_crawl_ammps_catalog_batch.py'
+      - '.github/workflows/ammps-national-coverage-calibration.yml'
+  workflow_dispatch:
+
+jobs:
+  d3-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact HEAD
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.12.3
+
+      - name: Run crawler bounds test
+        run: python scripts/test_crawl_ammps_catalog_batch.py
+
+      - name: Crawl national calibration pages 1 to 3
+        run: |
+          python scripts/crawl_ammps_catalog_batch.py \
+            --start-page 1 \
+            --end-page 3 \
+            --delay-seconds 0.5 \
+            --out-dir artifacts/ammps-d3-calibration
+
+      - name: Validate calibration manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("artifacts/ammps-d3-calibration")
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          rows = json.loads((root / "rows.json").read_text(encoding="utf-8"))
+          assert manifest["start_page"] == 1
+          assert manifest["end_page"] == 3
+          assert manifest["page_count"] == 3
+          assert manifest["reported_total"] > 0
+          assert manifest["updated_at"]
+          assert manifest["parsed_unique_count"] == len(rows)
+          assert manifest["mutated_dictionary"] is False
+          ids = [r["regulatory_presentation_id"] for r in rows]
+          assert len(ids) == len(set(ids))
+          assert all(x.startswith("ammps-reg:") for x in ids)
+          assert all(p["http_status"] == 200 for p in manifest["pages"])
+          print({
+            "reported_total": manifest["reported_total"],
+            "updated_at": manifest["updated_at"],
+            "parsed_unique_count": len(rows),
+            "pages": manifest["pages"],
+          })
+          PY
+
+      - name: Upload D3 calibration proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ammps-d3-calibration
+          path: artifacts/ammps-d3-calibration
+          if-no-files-found: warn
+          retention-days: 14
