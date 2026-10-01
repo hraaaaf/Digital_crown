@@ -310,7 +310,8 @@ for(const viewport of viewports){
  const browserDossierProbe=await page.evaluate(async()=>{
    const token=localStorage.getItem('token');
    const response=await fetch('http://127.0.0.1:8005/api/patients/check-dossier/G2-BROWSER-NEW',{
-     headers:{Authorization:'Bearer '+token}
+     headers:{Authorization:'Bearer '+token},
+     credentials:'include'
    });
    const body=await response.json().catch(()=>null);
    return {status:response.status,body};
