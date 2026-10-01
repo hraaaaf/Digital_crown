@@ -43,6 +43,13 @@ def _hidden_context_payload():
         "mronj_concurrent_risk_therapy": [],
         "active_oral_infection_or_inflammation": "NO",
         "suspected_or_known_mronj": "NO",
+        "procedure_date": "2026-10-01",
+        "procedure_bleeding_risk": "HIGHER_POSTOP_BLEEDING_RISK",
+        "procedure_osseous_risk": "DENTOALVEOLAR_OSSEOUS_INJURY",
+        "procedure_is_implant": True,
+        "ie_procedure_qualifies": True,
+        "oral_route_possible": True,
+        "currently_taking_penicillin_or_amoxicillin": False,
     }
 
 
@@ -59,6 +66,10 @@ def test_n43b_antithrombotic_context_defaults_fail_closed():
     assert payload.mronj_agent_class == "UNKNOWN"
     assert payload.mronj_indication == "UNKNOWN"
     assert payload.suspected_or_known_mronj == "UNKNOWN"
+    assert payload.procedure_date is None
+    assert payload.procedure_bleeding_risk == "UNKNOWN"
+    assert payload.procedure_osseous_risk == "UNKNOWN"
+    assert payload.procedure_is_implant is None
 
 
 def test_practitioner_context_api_rejects_hidden_n43b_fields(
@@ -87,6 +98,9 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
     assert "antithrombotic_classes" not in visible_before.json()
     assert "mronj_medication_status" not in visible_before.json()
     assert "mronj_indication" not in visible_before.json()
+    assert "procedure_date" not in visible_before.json()
+    assert "procedure_bleeding_risk" not in visible_before.json()
+    assert "procedure_osseous_risk" not in visible_before.json()
 
     saved = client.put(
         f"/api/patients/{patient.id}/procedure-safety-context",
@@ -102,6 +116,10 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
     assert data["mronj_medication_status"] == "PRESENT"
     assert data["mronj_agents"] == ["Denosumab"]
     assert data["mronj_indication"] == "OSTEOPOROSIS_NONMALIGNANT"
+    assert data["procedure_date"] == "2026-10-01"
+    assert data["procedure_bleeding_risk"] == "HIGHER_POSTOP_BLEEDING_RISK"
+    assert data["procedure_osseous_risk"] == "DENTOALVEOLAR_OSSEOUS_INJURY"
+    assert data["procedure_is_implant"] is True
 
     partial = client.put(
         f"/api/patients/{patient.id}/clinical-context",
@@ -123,6 +141,8 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
     assert hidden["antithrombotic_classes"] == ["DOAC"]
     assert hidden["mronj_medication_status"] == "PRESENT"
     assert hidden["mronj_agents"] == ["Denosumab"]
+    assert hidden["procedure_date"] == "2026-10-01"
+    assert hidden["procedure_is_implant"] is True
 
 
 def test_n43b_context_rejects_implicit_or_inconsistent_antithrombotic_facts():
@@ -187,4 +207,15 @@ def test_n43b_context_rejects_inconsistent_mronj_facts():
         PatientProcedureSafetyContextUpdate(
             mronj_medication_status="NONE_REPORTED",
             mronj_agent_class="DENOSUMAB",
+        )
+
+
+
+def test_n43b_context_rejects_inconsistent_hidden_procedure_facts():
+    with pytest.raises(ValidationError):
+        PatientProcedureSafetyContextUpdate(
+            procedure_date="2026-10-01",
+            procedure_bleeding_risk="HIGHER_POSTOP_BLEEDING_RISK",
+            procedure_osseous_risk="NO_OSSEOUS_INJURY",
+            procedure_is_implant=True,
         )
