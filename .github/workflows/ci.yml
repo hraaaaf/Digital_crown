@@ -142,6 +142,15 @@ jobs:
                 alembic/versions/neo000000024_extend_reusable_prescription_preferences.py|\
                 docs/neo-ordonnance/*|\
                 .github/workflows/ordonnance-composer-visual-cert.yml|\
+                .github/workflows/agenda-a5-visual-evidence.yml|\
+                .github/workflows/catalog-connected-cert.yml|\
+                .github/workflows/ordonnance-fidelity-v3-visual-cert.yml|\
+                .github/workflows/patient-p7-final-certification.yml|\
+                .github/workflows/settings-r11-templatebuilder-audit.yml|\
+                .github/workflows/t2-runtime-cert.yml|\
+                .github/workflows/v1-07-g1-g7-browser-inventory.yml|\
+                .github/workflows/v1-07-g4-browser-inventory.yml|\
+                .github/workflows/v1-07-g8-browser-adversarial.yml|\
                 .github/workflows/ci.yml)
                   ;;
                 *)
