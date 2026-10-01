@@ -37,7 +37,8 @@ describe('PrescriptionAgenticStudio practitioner copy', () => {
       />,
     );
 
-    expect(screen.getByText(/Recherche médicament → présentation → validation/)).toBeInTheDocument();
+    expect(screen.getByText('Ordonnance')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' })).toBeInTheDocument();
     expect(screen.getByText('1 ligne renseignée')).toBeInTheDocument();
     expect(screen.getByLabelText('Indication de cette ordonnance')).toHaveValue('Contexte documenté');
     expect(screen.queryByText(/Suggestion clinique bloquée/i)).not.toBeInTheDocument();
@@ -51,7 +52,7 @@ describe('PrescriptionAgenticStudio practitioner copy', () => {
     expect(studio).toHaveAttribute('data-safety-mechanics', 'background-only');
   });
 
-  it('ouvre réellement le sélecteur manuel de forme et applique le choix explicite', () => {
+  it('ouvre le choix contextuel de forme et conserve le chemin de modification manuelle', () => {
     const Harness = () => {
       const [drugs, setDrugs] = useState<DrugItem[]>([
         { id: 1, name: 'MEDICAMENT TEST', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' as const },
@@ -74,13 +75,16 @@ describe('PrescriptionAgenticStudio practitioner copy', () => {
     };
 
     render(<Harness />);
-    const trigger = screen.getByTitle('Choisir la forme manuellement');
+    const trigger = screen.getByRole('button', { name: 'Forme' });
     fireEvent.click(trigger);
 
-    expect(screen.getByRole('menu', { name: 'Choisir la forme' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'COMPRIMÉS' }));
-    expect(screen.queryByRole('menu', { name: 'Choisir la forme' })).not.toBeInTheDocument();
-    expect(screen.getByTitle('Choisir la forme manuellement')).toHaveTextContent('COMPRIMÉS');
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: /COMPRIMÉS/i }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Forme' })).toHaveTextContent('COMPRIMÉS');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Forme' }));
+    expect(screen.getByRole('menuitem', { name: /Modifier manuellement/i })).toBeInTheDocument();
   });
 
 });
