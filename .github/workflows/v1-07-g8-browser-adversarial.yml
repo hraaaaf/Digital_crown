@@ -66,4 +66,4 @@ jobs:
           cat /tmp/g8-frontend.log; exit 1
       - name: Certify transverse browser adversarial behavior
         working-directory: frontend
-        run: node scripts/certify-v1-07-g8-browser-adversarial.mjs
+        run: node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g8-browser-adversarial.mjs
