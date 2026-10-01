@@ -279,7 +279,8 @@ jobs:
       - name: Certify G4 Cephalo browser actions
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_after != true }}
         working-directory: frontend
-        run: python ../scripts/t2_reset_workstation_fixture.py
+        run: |
+          python ../scripts/t2_reset_workstation_fixture.py
           node scripts/certify-v1-07-g4-cephalo-actions.mjs
 
       - name: Reproduce Dashboard to patient Finances path
