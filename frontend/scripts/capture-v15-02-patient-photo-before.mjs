@@ -42,7 +42,13 @@ try {
       timeout: 90000,
     });
     await page.getByRole('heading', { name: 'Mise à jour', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
-    await page.getByDisplayValue(patient.nom).waitFor({ state: 'visible', timeout: 30000 });
+    await page.waitForFunction(
+      (expectedName) => Array.from(document.querySelectorAll('input')).some(
+        (input) => input instanceof HTMLInputElement && input.value === expectedName
+      ),
+      patient.nom,
+      { timeout: 30000 },
+    );
 
     const metrics = await page.evaluate(() => ({
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
