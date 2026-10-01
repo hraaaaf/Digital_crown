@@ -77,6 +77,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     [drugs, prescriptionIndication],
   );
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
+  const iePresentationId = useMemo(() => (
+    drugs.find(drug => (
+      Boolean(drug.catalogPresentationId)
+      && ['AMOXICILLINE', 'AMOXICILLIN'].includes((drug.catalogDci || '').trim().toUpperCase())
+    ))?.catalogPresentationId || null
+  ), [drugs]);
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -188,7 +194,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         </div>
       </section>
 
-      <ProcedureSafetyNotice patientId={patientId} />
+      <ProcedureSafetyNotice patientId={patientId} presentationId={iePresentationId} />
 
       <PrescriptionQuickAccessBar
         drugs={drugs}
