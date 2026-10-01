@@ -1,0 +1,63 @@
+name: AMMPS National Coverage Certification
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-national-coverage
+    paths:
+      - 'scripts/aggregate_ammps_national_batches.py'
+      - '.github/workflows/ammps-national-coverage-certification.yml'
+  workflow_dispatch:
+
+jobs:
+  certify-national:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check beautifulsoup4==4.12.3
+
+      - name: Download all national batch checkpoints
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36936278584
+          pattern: ammps-d3-batch-*
+          path: artifacts/d3-national
+          merge-multiple: false
+
+      - name: Aggregate and certify national coverage
+        run: |
+          mkdir -p artifacts/d3-cert
+          python scripts/aggregate_ammps_national_batches.py \
+            --root artifacts/d3-national \
+            --expected-total 9936 \
+            --expected-updated-at 01/10/2026 \
+            --expected-pages 828 \
+            --manifest-out artifacts/d3-cert/national-manifest.json \
+            --rows-out artifacts/d3-cert/national-rows.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path("artifacts/d3-cert/national-manifest.json").read_text(encoding="utf-8"))
+          assert m["covered_pages"] == 828
+          assert m["missing_pages"] == []
+          assert m["extra_pages"] == []
+          assert m["source_row_count"] == 9936
+          assert m["unique_presentations"] == 9931
+          assert m["source_duplicate_count"] == 5
+          assert m["conflicting_ids"] == []
+          print(m)
+          PY
+
+      - name: Upload national certification
+        uses: actions/upload-artifact@v4
+        with:
+          name: ammps-d3-national-certification
+          path: artifacts/d3-cert
+          retention-days: 14
