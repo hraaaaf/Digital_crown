@@ -36,6 +36,19 @@ Use official Aariz split/device metadata only for anatomically compatible mappin
 ### G3 — Legacy compatibility
 Representative existing DC schema, manual corrections, calibration, evidence graph, tracing, PDF/report and superimposition states. Use de-identified/synthetic material according to test policy.
 
+G3 is a migration oracle, not a smoke test. Before LOT12, freeze representative legacy fixtures and expected outcomes for:
+- persisted landmark coordinates and aliases;
+- auto/manual/validated provenance and correction history;
+- calibration values and physical-unit reconstruction;
+- canonical and legacy measurement IDs/labels;
+- NOT_COMPUTABLE/BLOCKED states;
+- tracing geometry and visibility state;
+- evidence/source graph;
+- report/PDF semantic values and provenance;
+- superimposition references and serial-study linkage.
+
+Migration acceptance requires deterministic pre/post comparison. A record merely opening successfully is insufficient. Any intentional semantic change requires an explicit versioned migration rule, expected-difference fixture and rollback path. No silent recalculation of historical results is permitted.
+
 ## D. Required metrics
 Landmarks: calibrated per-landmark Euclidean mm error, X/Y directional error, mean/median/SD/robust percentiles, SDR only as secondary predeclared summary, failure rate, device/quality stratification where available.
 
@@ -70,6 +83,8 @@ Tolerance policy is analysis-aware, not a single inherited 2 mm rule:
 - if evidence is insufficient to set a defensible clinical tolerance, the item remains RESEARCH_ONLY / BLOCKED rather than receiving an arbitrary number.
 
 A measurement is promoted only if its landmark identities are locked, G0 geometry is exact, calibrated landmark + downstream errors are reported, failures are fail-closed, human correction exists, analysis/norm versions are explicit, and G3 compatibility passes before LOT12.
+
+Validation datasets are separated from development/training data. Gold-set cases used for final acceptance must not be used to tune detector weights, preprocessing, thresholds or post-processing. Any exploratory exposure moves the affected cases out of the untouched acceptance subset and is recorded in the manifest.
 
 ## F. Normative safety
 Geometric truth and normative truth are separate. LEGACY_UNVALIDATED remains untrusted for new claims. Aariz supplies no DC norms. Historical author values remain contextual until population/age/sex/scaling applicability is locked. Conflicts remain HOLD, never averaged.
