@@ -78,7 +78,7 @@ describe('ProcedureSafetyNotice', () => {
     }
   });
 
-  it('stays silent on READY/null alert, backend failure, wrong patient or non-read-only response', async () => {
+  it('stays silent on READY/null and wrong patient, but fails closed on unavailable/invalid responses', async () => {
     vi.mocked(api.post)
       .mockResolvedValueOnce({ data: { status: 'READY', alert_key: null, read_only: true } } as any)
       .mockRejectedValueOnce(new Error('offline'))
@@ -116,7 +116,7 @@ describe('ProcedureSafetyNotice', () => {
       });
     });
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(await screen.findByText('Vérification clinique momentanément indisponible.')).toBeInTheDocument();
 
     act(() => {
       dispatchProcedureSafetyEvaluation({
@@ -127,6 +127,6 @@ describe('ProcedureSafetyNotice', () => {
       });
     });
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(await screen.findByText('Vérification clinique momentanément indisponible.')).toBeInTheDocument();
   });
 });
