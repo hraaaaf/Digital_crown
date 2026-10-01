@@ -63,9 +63,32 @@ def upgrade():
         "patient_clinical_contexts",
         sa.Column("suspected_or_known_mronj", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
     )
+    op.add_column("patient_clinical_contexts", sa.Column("procedure_date", sa.Date(), nullable=True))
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("procedure_bleeding_risk", sa.String(length=48), nullable=False, server_default="UNKNOWN"),
+    )
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("procedure_osseous_risk", sa.String(length=48), nullable=False, server_default="UNKNOWN"),
+    )
+    op.add_column("patient_clinical_contexts", sa.Column("procedure_is_implant", sa.Boolean(), nullable=True))
+    op.add_column("patient_clinical_contexts", sa.Column("ie_procedure_qualifies", sa.Boolean(), nullable=True))
+    op.add_column("patient_clinical_contexts", sa.Column("oral_route_possible", sa.Boolean(), nullable=True))
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("currently_taking_penicillin_or_amoxicillin", sa.Boolean(), nullable=True),
+    )
 
 
 def downgrade():
+    op.drop_column("patient_clinical_contexts", "currently_taking_penicillin_or_amoxicillin")
+    op.drop_column("patient_clinical_contexts", "oral_route_possible")
+    op.drop_column("patient_clinical_contexts", "ie_procedure_qualifies")
+    op.drop_column("patient_clinical_contexts", "procedure_is_implant")
+    op.drop_column("patient_clinical_contexts", "procedure_osseous_risk")
+    op.drop_column("patient_clinical_contexts", "procedure_bleeding_risk")
+    op.drop_column("patient_clinical_contexts", "procedure_date")
     op.drop_column("patient_clinical_contexts", "suspected_or_known_mronj")
     op.drop_column("patient_clinical_contexts", "active_oral_infection_or_inflammation")
     op.drop_column("patient_clinical_contexts", "mronj_concurrent_risk_therapy")
