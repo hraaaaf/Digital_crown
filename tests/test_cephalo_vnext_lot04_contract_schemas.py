@@ -63,3 +63,75 @@ def test_acceptance_record_requires_explicit_decision():
     del payload["overall_decision"]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(payload, schema)
+
+
+def validate_manifest_semantics(payload):
+    cases = payload["dataset"]["cases"]
+    case_ids = [case["case_id"] for case in cases]
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError("duplicate case_id")
+    known = set(case_ids)
+    development = set(payload["dataset"]["development_case_ids"])
+    acceptance = set(payload["dataset"]["acceptance_case_ids"])
+    if not development <= known or not acceptance <= known:
+        raise ValueError("split references unknown case_id")
+    if development & acceptance:
+        raise ValueError("development and acceptance splits must be disjoint")
+
+
+def validate_acceptance_semantics(payload):
+    landmarks = payload["landmarks"]
+    if len({item["landmark_id"] for item in landmarks}) != len(landmarks):
+        raise ValueError("duplicate landmark decision")
+    if payload["overall_decision"] == "PASS":
+        if any(item["decision"] != "PASS" for item in landmarks):
+            raise ValueError("overall PASS requires every reported landmark to PASS")
+        if any(item["n"] <= 0 for item in landmarks):
+            raise ValueError("overall PASS requires observed landmark evidence")
+        if any(item["human_reference_uncertainty_mm"] is None for item in landmarks):
+            raise ValueError("overall PASS requires human-reference uncertainty")
+        if any(item["decision"] in {"FAIL", "INSUFFICIENT_EVIDENCE", "NOT_COMPUTABLE"} for item in payload["clinical_measurements"]):
+            raise ValueError("overall PASS cannot hide a non-passing clinical measurement")
+    if payload["overall_decision"] == "INSUFFICIENT_EVIDENCE":
+        if not any(item["decision"] == "INSUFFICIENT_EVIDENCE" for item in landmarks) and not any(
+            item["decision"] in {"INSUFFICIENT_EVIDENCE", "NOT_COMPUTABLE"} for item in payload["clinical_measurements"]
+        ):
+            raise ValueError("insufficient-evidence decision needs an explicit insufficient component")
+
+
+def test_manifest_semantics_reject_split_overlap_and_unknown_ids():
+    payload = valid_manifest()
+    payload["dataset"]["acceptance_case_ids"] = ["G0-fixture"]
+    with pytest.raises(ValueError):
+        validate_manifest_semantics(payload)
+    payload = valid_manifest()
+    payload["dataset"]["acceptance_case_ids"] = ["UNKNOWN"]
+    with pytest.raises(ValueError):
+        validate_manifest_semantics(payload)
+
+
+def test_manifest_semantics_reject_duplicate_case_ids():
+    payload = valid_manifest()
+    payload["dataset"]["cases"].append(dict(payload["dataset"]["cases"][0]))
+    with pytest.raises(ValueError):
+        validate_manifest_semantics(payload)
+
+
+def test_acceptance_semantics_forbids_false_pass():
+    payload = {
+        "landmarks": [{"landmark_id":"S","n":0,"human_reference_uncertainty_mm":None,"decision":"INSUFFICIENT_EVIDENCE"}],
+        "clinical_measurements": [],
+        "overall_decision": "PASS",
+    }
+    with pytest.raises(ValueError):
+        validate_acceptance_semantics(payload)
+
+
+def test_acceptance_semantics_forbids_pass_hiding_clinical_failure():
+    payload = {
+        "landmarks": [{"landmark_id":"S","n":10,"human_reference_uncertainty_mm":0.5,"decision":"PASS"}],
+        "clinical_measurements": [{"measurement_id":"SNA","decision":"FAIL"}],
+        "overall_decision": "PASS",
+    }
+    with pytest.raises(ValueError):
+        validate_acceptance_semantics(payload)
