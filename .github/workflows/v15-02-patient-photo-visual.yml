@@ -94,7 +94,7 @@ jobs:
           exit 1
 
       - name: Capture BEFORE
-        if: hashFiles('frontend/scripts/capture-v15-02-patient-photo-before.mjs') != ''
+        if: hashFiles('frontend/scripts/capture-v15-02-patient-photo-after.mjs') == '' && hashFiles('frontend/scripts/capture-v15-02-patient-photo-before.mjs') != ''
         working-directory: frontend
         run: node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-patient-photo-before.mjs
 
