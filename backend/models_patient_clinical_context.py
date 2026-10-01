@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
 
 from backend.models_base import Base
 
@@ -61,6 +61,16 @@ class PatientClinicalContext(Base):
     mronj_concurrent_risk_therapy = Column(JSON, nullable=True)
     active_oral_infection_or_inflammation = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     suspected_or_known_mronj = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+
+    # Hidden procedure facts that drive the practitioner notification. They are
+    # persisted server-side and are never exposed by the normal clinical-context API.
+    procedure_date = Column(Date, nullable=True)
+    procedure_bleeding_risk = Column(String(48), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    procedure_osseous_risk = Column(String(48), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    procedure_is_implant = Column(Boolean, nullable=True)
+    ie_procedure_qualifies = Column(Boolean, nullable=True)
+    oral_route_possible = Column(Boolean, nullable=True)
+    currently_taking_penicillin_or_amoxicillin = Column(Boolean, nullable=True)
 
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
