@@ -1,6 +1,6 @@
 # Cephalo vNext — LOT04 Detector Contract & Benchmark Plan
 
-Status: CANDIDATE — documentation only
+Status: APPROVED — benchmark/protocol contract only
 Parent: LOT03 ontology HEAD 8e97c8a7e7650f1b6807a9638d03dac76f69c267
 Gate target: CEPH_DETECTOR_CONTRACT_APPROVED
 
@@ -146,3 +146,25 @@ CEPH_DETECTOR_CONTRACT_APPROVED requires:
 It does not require the future G1/G2 benchmark to already pass. Actual detector-performance certification belongs to the later validation execution gate.
 
 No runtime/model/schema/patient/master mutation is authorized by this document.
+
+
+## Adversarial review record
+
+### Double-check — internal independent perspective 1: biometric validation / leakage
+Prompt: "Assume LOT04 will overstate detector quality. Find leakage, threshold tuning after results, misuse of 2 mm, aggregate metrics hiding landmark failures, calibration errors, weak human reference, device-domain bias, and failure to propagate landmark error into clinical measurements. Return blockers/major/minor findings and a severe /10 score."
+
+Result: no blocking finding in the contract. The plan freezes untouched acceptance data and the complete candidate/metric/tolerance manifest before scoring; uses calibrated per-landmark and directional metrics; treats SDR as secondary; requires human-reference reproducibility and downstream measurement propagation; and prohibits a universal 2 mm clinical gate.
+Severe score: **9.2/10**.
+Residual: actual G1 sample composition, sample-size justification and quantitative tier tolerances cannot be scored until the corpus and human reproducibility data exist.
+
+### Triple-check — internal independent perspective 2: reproducibility / clinical safety
+Prompt: "Try to make a numerically reproducible detector unsafe in production. Look for artifact drift, preprocessing drift, channel reorder, semantic aliasing, non-finite/out-of-frame outputs, silent correction overwrite, historical reinterpretation, and a replacement model that wins aggregate MRE while regressing a clinically critical landmark. Return blockers/major/minor findings and a severe /10 score."
+
+Result: no blocking finding. Hashes/output cardinality are frozen; preprocessing/decoder must be versioned before benchmark; LOT03 semantic HOLDs survive; automatic evidence is immutable relative to corrections; failure states are fail-closed; candidate comparison prohibits aggregate gains from hiding clinically important regressions.
+Severe score: **9.3/10**.
+Residual: the preprocessing implementation is not yet fully enumerated from executable code in this documentation lot; exact implementation freeze must be generated/verified before running G1/G2.
+
+## Gate decision
+**CEPH_DETECTOR_CONTRACT_APPROVED** for the benchmark/protocol contract only.
+
+This approval freezes how detector candidates must be identified and evaluated. It does not certify SRPose38 anatomical performance, does not claim G1/G2 passed, and does not authorize model/runtime/master mutation.
