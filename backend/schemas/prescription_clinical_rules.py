@@ -40,11 +40,17 @@ AntithromboticStatus = Literal["UNKNOWN", "NONE_REPORTED", "PRESENT"]
 AntithromboticClass = Literal["VKA", "DOAC", "ANTIPLATELET", "LMWH", "OTHER"]
 CombinationStatus = Literal["UNKNOWN", "NO", "YES"]
 LMWHDoseClass = Literal["UNKNOWN", "PROPHYLACTIC", "TREATMENT"]
+ProcedureOsseousRisk = Literal[
+    "UNKNOWN",
+    "NO_OSSEOUS_INJURY",
+    "DENTOALVEOLAR_OSSEOUS_INJURY",
+]
 ProcedureSafetyStatus = Literal[
     "READY",
     "CONTEXT_REQUIRED",
     "CLINICAL_REVIEW_REQUIRED",
     "PRESCRIBER_REVIEW_REQUIRED",
+    "SPECIALIST_REVIEW_REQUIRED",
 ]
 
 
@@ -56,6 +62,8 @@ class ProcedureSafetyEvaluationRequest(BaseModel):
     patient_id: int
     procedure_date: date
     procedure_bleeding_risk: ProcedureBleedingRisk = "UNKNOWN"
+    procedure_osseous_risk: ProcedureOsseousRisk = "UNKNOWN"
+    procedure_is_implant: Optional[bool] = None
     ie_procedure_qualifies: Optional[bool] = None
     oral_route_possible: Optional[bool] = None
     currently_taking_penicillin_or_amoxicillin: Optional[bool] = None
