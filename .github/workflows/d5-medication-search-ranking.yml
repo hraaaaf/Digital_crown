@@ -19,8 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check pytest
+      - name: Install targeted backend dependencies
+        run: python -m pip install --disable-pip-version-check -r backend/requirements.txt
       - name: Run D5 lexical ranking tests
         run: pytest -q backend/tests/test_medication_search_ranking_d5.py
       - name: Observe national golden queries
