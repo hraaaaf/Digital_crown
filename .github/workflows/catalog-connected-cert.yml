@@ -13,7 +13,6 @@ on:
       - "requirements.txt"
       - "frontend/package.json"
       - "frontend/package-lock.json"
-      - ".github/workflows/catalog-connected-cert.yml"
   workflow_dispatch:
 
 concurrency:
