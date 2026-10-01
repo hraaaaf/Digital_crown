@@ -126,7 +126,7 @@ class TestSendEmail:
         send_email.assert_called_once()
         attachments = send_email.call_args.kwargs["attachments"]
         assert len(attachments) == 1
-        assert attachments[0][0] == doc.filename
+        assert attachments[0][0] == doc.original_filename
         assert attachments[0][1].startswith(b"%PDF-1.4")
         assert attachments[0][2] == "application/pdf"
 
