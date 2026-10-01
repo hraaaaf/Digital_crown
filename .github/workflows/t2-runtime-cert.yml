@@ -254,6 +254,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          python ../scripts/t2_reset_workstation_fixture.py
           node scripts/certify-v1-07-g4-panoramic-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-panoramic-actions-runner.log
 
       - name: Certify G4 RVG browser actions
@@ -262,6 +263,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          python ../scripts/t2_reset_workstation_fixture.py
           node scripts/certify-v1-07-g4-rvg-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-rvg-actions-runner.log
 
       - name: Capture G4 truth-label BEFORE
@@ -277,7 +279,8 @@ jobs:
       - name: Certify G4 Cephalo browser actions
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_after != true }}
         working-directory: frontend
-        run: node scripts/certify-v1-07-g4-cephalo-actions.mjs
+        run: python ../scripts/t2_reset_workstation_fixture.py
+          node scripts/certify-v1-07-g4-cephalo-actions.mjs
 
       - name: Reproduce Dashboard to patient Finances path
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_after != true }}
@@ -285,6 +288,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          python ../scripts/t2_reset_workstation_fixture.py
           node scripts/certify-v1-07-dashboard-finance-path.mjs 2>&1 | tee ../artifacts/t2-browser/dashboard-finance-path-runner.log
 
       - name: Certify G4 UI truth AFTER
