@@ -27,8 +27,9 @@ import {
   parsePrescriptionPosology,
   type PrescriptionComposerState,
 } from './PrescriptionComposer';
+import { PrescriptionContextualChoice } from './PrescriptionContextualChoice';
 import type { DrugItem } from './prescriptionTypes';
-import { getFormeIcon } from './prescriptionTypes';
+import { FORMES, getFormeIcon } from './prescriptionTypes';
 
 interface CatalogSource {
   id: string;
@@ -113,14 +114,14 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     : null;
 
   useEffect(() => {
-    if (isRadio || hasCatalogPresentation) {
+    if (isRadio) {
       setCatalogResults([]);
       setCatalogSearching(false);
       setCatalogError(false);
       return;
     }
 
-    const query = drug.name.trim();
+    const query = (drug.catalogDci || drug.name).trim();
     if (query.length < 2) {
       setCatalogResults([]);
       setCatalogSearching(false);
@@ -151,7 +152,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [drug.name, hasCatalogPresentation, isRadio]);
+  }, [drug.catalogDci, drug.name, isRadio]);
 
   const clearCatalogIdentity = () => {
     onUpdateDrug(drug.id, 'catalogPresentationId', undefined);
@@ -173,11 +174,11 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     onUpdateDrug(drug.id, 'name', next);
   };
 
-  const selectPresentation = (presentation: CatalogPresentation) => {
+  const applyPresentationIdentity = (presentation: CatalogPresentation, preservePosology: boolean) => {
     onUpdateDrug(drug.id, 'name', presentation.nom);
     onUpdateDrug(drug.id, 'dosage', presentationStrength(presentation));
     onUpdateDrug(drug.id, 'forme', presentation.forme);
-    onUpdateDrug(drug.id, 'posologie', '');
+    if (!preservePosology) onUpdateDrug(drug.id, 'posologie', '');
     onUpdateDrug(drug.id, 'catalogPresentationId', presentation.presentation_id);
     onUpdateDrug(drug.id, 'catalogDci', presentation.dci || '');
     onUpdateDrug(drug.id, 'catalogSourceId', presentation.source.id);
@@ -191,6 +192,70 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     setCatalogResults([]);
     setCatalogError(false);
     setHighlightedPresentation(-1);
+  };
+
+  const selectPresentation = (presentation: CatalogPresentation) => {
+    applyPresentationIdentity(presentation, false);
+  };
+
+  const matchingPresentations = catalogResults.filter(presentation => (
+    !drug.catalogDci
+    || presentation.dci.trim().toLocaleUpperCase() === drug.catalogDci.trim().toLocaleUpperCase()
+  ));
+
+  const doseOptions = Array.from(new Map(
+    matchingPresentations
+      .map(presentation => [presentationStrength(presentation), presentation] as const)
+      .filter(([strength]) => Boolean(strength)),
+  ).entries()).map(([strength, presentation]) => ({
+    value: strength,
+    label: strength,
+    secondary: presentation.forme || undefined,
+  }));
+
+  const formOptions = Array.from(new Map(
+    matchingPresentations
+      .map(presentation => [presentation.forme?.trim(), presentation] as const)
+      .filter(([forme]) => Boolean(forme)),
+  ).entries()).map(([forme, presentation]) => ({
+    value: forme,
+    label: forme,
+    secondary: presentationStrength(presentation) || undefined,
+  }));
+
+  const amountOptionsForForm = PRESCRIPTION_AMOUNT_OPTIONS.filter(option => {
+    const forme = drug.forme.toLocaleUpperCase();
+    if (!forme) return true;
+    if (forme.includes('COMPR')) return option.value.includes('comprimé');
+    if (forme.includes('GÉL') || forme.includes('GEL')) return option.value.includes('gélule');
+    if (forme.includes('SACH')) return option.value.includes('sachet');
+    if (forme.includes('SIROP') || forme.includes('SUSP') || forme.includes('SOLUTION')) return option.value.includes('ml');
+    if (forme.includes('BAIN')) return option.value.includes('rinçage');
+    return true;
+  });
+
+  const relinkByDose = (value: string) => {
+    const exact = matchingPresentations.find(presentation => (
+      presentationStrength(presentation) === value
+      && (!drug.forme || presentation.forme === drug.forme)
+    )) || matchingPresentations.find(presentation => presentationStrength(presentation) === value);
+    if (exact) applyPresentationIdentity(exact, true);
+    else {
+      clearCatalogIdentity();
+      onUpdateDrug(drug.id, 'dosage', value);
+    }
+  };
+
+  const relinkByForm = (value: string) => {
+    const exact = matchingPresentations.find(presentation => (
+      presentation.forme === value
+      && (!drug.dosage || presentationStrength(presentation) === drug.dosage)
+    )) || matchingPresentations.find(presentation => presentation.forme === value);
+    if (exact) applyPresentationIdentity(exact, true);
+    else {
+      clearCatalogIdentity();
+      onUpdateDrug(drug.id, 'forme', value);
+    }
   };
 
   const handleNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -378,8 +443,8 @@ export const DrugRow: React.FC<DrugRowProps> = ({
             </div>
           </div>
 
-          {!isRadio && catalogSearching && (
-            <p className="mt-1 text-[9px] font-semibold text-text-muted">Recherche dans le référentiel documentaire…</p>
+          {!isRadio && !hasCatalogPresentation && catalogSearching && (
+            <p className="mt-1 text-[9px] font-semibold text-text-muted">Recherche des présentations…</p>
           )}
           {!isRadio && catalogError && (
             <div className="mt-2 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50/70 px-3 py-2 text-[10px] font-semibold text-red-700" role="status">
@@ -403,32 +468,26 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 </div>
               )}
 
-              <div className="flex min-w-0 flex-wrap content-start items-center gap-2">
-                <button
-                  type="button"
-                  onClick={event => {
-                    if (!hasCatalogPresentation) onFormeOpen(event, drug.id);
-                  }}
-                  disabled={hasCatalogPresentation}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-main bg-input-field/70 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-text-main transition-all enabled:hover:border-primary/30 enabled:hover:bg-card enabled:hover:text-primary disabled:cursor-default disabled:opacity-80"
-                  title={hasCatalogPresentation ? 'Forme issue de la présentation sélectionnée' : 'Choisir la forme manuellement'}
-                >
-                  {getFormeIcon(drug.forme)}
-                  <span className="max-w-[12rem] truncate">{drug.forme.startsWith('AUTRE') ? 'AUTRE' : (drug.forme || 'FORME')}</span>
-                </button>
+              <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-[minmax(9rem,1fr)_minmax(8rem,0.8fr)_auto]">
+                <PrescriptionContextualChoice
+                  ariaLabel="Forme"
+                  value={drug.forme}
+                  placeholder="Forme"
+                  options={formOptions.length ? formOptions : FORMES.map(item => ({ value: item.l, label: item.l }))}
+                  onSelect={relinkByForm}
+                  onManual={relinkByForm}
+                  icon={getFormeIcon(drug.forme)}
+                />
 
-                <label className="flex min-h-11 min-w-[9rem] items-center gap-2 rounded-xl border border-border-main bg-input-field/70 px-3 py-2">
-                  <span className="shrink-0 text-[9px] font-black uppercase tracking-wide text-text-muted">Dose</span>
-                  <input
-                    type="text"
-                    className="min-w-0 flex-1 border-none bg-transparent p-0 text-[11px] font-black uppercase tracking-wide text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0 disabled:cursor-default"
-                    placeholder="500 MG"
-                    value={drug.dosage}
-                    readOnly={hasCatalogPresentation}
-                    onChange={event => onUpdateDrug(drug.id, 'dosage', event.target.value)}
-                    aria-label="Dose"
-                  />
-                </label>
+                <PrescriptionContextualChoice
+                  ariaLabel="Dose"
+                  value={drug.dosage}
+                  placeholder="Dose"
+                  options={doseOptions}
+                  onSelect={relinkByDose}
+                  onManual={relinkByDose}
+                  icon={<Pill size={14} className="shrink-0 text-text-muted" />}
+                />
 
                 <button
                   type="button"
@@ -465,73 +524,42 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 </div>
 
                 <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
-                  <label className="relative min-w-0">
-                    <Pill size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="amount"
-                      aria-label="Prise"
-                      value={composer.amount}
-                      onChange={event => updateComposer('amount', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Prise</option>
-                      {PRESCRIPTION_AMOUNT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
-
-                  <label className="relative min-w-0">
-                    <Clock3 size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="frequency"
-                      aria-label="Rythme"
-                      value={composer.frequency}
-                      onChange={event => updateComposer('frequency', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Rythme</option>
-                      {PRESCRIPTION_FREQUENCY_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
-
-                  <label className="relative min-w-0">
-                    <CalendarDays size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="constraint"
-                      aria-label="Durée ou limite"
-                      value={composer.constraint}
-                      onChange={event => updateComposer('constraint', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Durée ou limite</option>
-                      {PRESCRIPTION_CONSTRAINT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
-
-                  <label className="relative min-w-0">
-                    <Utensils size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="context"
-                      aria-label="Moment ou condition"
-                      value={composer.context}
-                      onChange={event => updateComposer('context', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Moment ou condition</option>
-                      {PRESCRIPTION_CONTEXT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
+                  <PrescriptionContextualChoice
+                    ariaLabel="Prise"
+                    value={composer.amount}
+                    placeholder="Prise"
+                    options={amountOptionsForForm}
+                    onSelect={value => updateComposer('amount', value)}
+                    onManual={value => updateComposer('amount', value)}
+                    icon={<Pill size={14} className="shrink-0 text-text-muted" />}
+                  />
+                  <PrescriptionContextualChoice
+                    ariaLabel="Rythme"
+                    value={composer.frequency}
+                    placeholder="Rythme"
+                    options={PRESCRIPTION_FREQUENCY_OPTIONS}
+                    onSelect={value => updateComposer('frequency', value)}
+                    onManual={value => updateComposer('frequency', value)}
+                    icon={<Clock3 size={14} className="shrink-0 text-text-muted" />}
+                  />
+                  <PrescriptionContextualChoice
+                    ariaLabel="Durée ou limite"
+                    value={composer.constraint}
+                    placeholder="Durée ou limite"
+                    options={PRESCRIPTION_CONSTRAINT_OPTIONS}
+                    onSelect={value => updateComposer('constraint', value)}
+                    onManual={value => updateComposer('constraint', value)}
+                    icon={<CalendarDays size={14} className="shrink-0 text-text-muted" />}
+                  />
+                  <PrescriptionContextualChoice
+                    ariaLabel="Moment ou condition"
+                    value={composer.context}
+                    placeholder="Moment ou condition"
+                    options={PRESCRIPTION_CONTEXT_OPTIONS}
+                    onSelect={value => updateComposer('context', value)}
+                    onManual={value => updateComposer('context', value)}
+                    icon={<Utensils size={14} className="shrink-0 text-text-muted" />}
+                  />
                 </div>
 
                 <div className="mt-2 rounded-xl border border-border-main/80 bg-card/75 px-3 py-2">
