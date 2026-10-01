@@ -176,4 +176,6 @@ LOT03 defines scientific identities but does **not** rename persisted/runtime ID
 ## Gate
 `CEPH_LANDMARK_SET_APPROVED` requires exact definitions and evidence for all L1/L2 points, explicit L3 disposition, and reviewed mapping to the LOT01/LOT02 contracts.
 
+Current gate state: **HOLD**. Remaining blockers are not U6/L6 (now explicit L3), but unresolved L1/L2 identity/provenance items: runtime/DC operational confirmation for Pn↔Prn, exact analysis binding for Go/Gn/Po consumers, and exact reproducible anchor algorithm/golden fixture for each occlusal-plane construction that will be promoted.
+
 No runtime/schema/model/master mutation is authorized.
