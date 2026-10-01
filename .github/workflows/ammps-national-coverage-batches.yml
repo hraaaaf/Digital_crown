@@ -1,0 +1,93 @@
+name: AMMPS National Coverage Batches
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-national-coverage
+    paths:
+      - 'scripts/crawl_ammps_catalog_batch.py'
+      - '.github/workflows/ammps-national-coverage-batches.yml'
+  workflow_dispatch:
+
+jobs:
+  crawl:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - { name: "001-050", start: 1, end: 50 }
+          - { name: "051-100", start: 51, end: 100 }
+          - { name: "101-150", start: 101, end: 150 }
+          - { name: "151-200", start: 151, end: 200 }
+          - { name: "201-250", start: 201, end: 250 }
+          - { name: "251-300", start: 251, end: 300 }
+          - { name: "301-350", start: 301, end: 350 }
+          - { name: "351-400", start: 351, end: 400 }
+          - { name: "401-450", start: 401, end: 450 }
+          - { name: "451-500", start: 451, end: 500 }
+          - { name: "501-550", start: 501, end: 550 }
+          - { name: "551-600", start: 551, end: 600 }
+          - { name: "601-650", start: 601, end: 650 }
+          - { name: "651-700", start: 651, end: 700 }
+          - { name: "701-750", start: 701, end: 750 }
+          - { name: "751-800", start: 751, end: 800 }
+          - { name: "801-828", start: 801, end: 828 }
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout exact HEAD
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.12.3
+
+      - name: Crawl AMMPS batch ${{ matrix.name }}
+        run: |
+          python scripts/crawl_ammps_catalog_batch.py \
+            --start-page ${{ matrix.start }} \
+            --end-page ${{ matrix.end }} \
+            --delay-seconds 0.5 \
+            --out-dir artifacts/ammps-d3-batch-${{ matrix.name }}
+
+      - name: Validate batch manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("artifacts/ammps-d3-batch-${{ matrix.name }}")
+          m = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          rows = json.loads((root / "rows.json").read_text(encoding="utf-8"))
+          assert m["start_page"] == ${{ matrix.start }}
+          assert m["end_page"] == ${{ matrix.end }}
+          assert m["reported_total"] == 9936
+          assert m["updated_at"] == "01/10/2026"
+          assert m["parsed_unique_count"] == len(rows)
+          assert m["mutated_dictionary"] is False
+          ids = [r["regulatory_presentation_id"] for r in rows]
+          assert len(ids) == len(set(ids))
+          assert all(p["http_status"] == 200 for p in m["pages"])
+          print({
+            "batch": "${{ matrix.name }}",
+            "rows": len(rows),
+            "pages": m["page_count"],
+            "first_page": m["start_page"],
+            "last_page": m["end_page"],
+          })
+          PY
+
+      - name: Upload batch checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ammps-d3-batch-${{ matrix.name }}
+          path: artifacts/ammps-d3-batch-${{ matrix.name }}
+          if-no-files-found: warn
+          retention-days: 14
