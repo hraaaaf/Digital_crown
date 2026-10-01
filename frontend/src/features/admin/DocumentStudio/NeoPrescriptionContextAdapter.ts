@@ -16,6 +16,10 @@ export interface NeoStructuredPrescriptionContext {
   breastfeeding_status?: NeoFactStatus;
   current_medications_status?: NeoMedicationStatus;
   current_medications?: string[] | null;
+  anticoagulant_status?: NeoMedicationStatus;
+  anticoagulants?: string[] | null;
+  antiplatelet_status?: NeoMedicationStatus;
+  antiplatelets?: string[] | null;
 }
 
 const triState = (value: NeoFactStatus | undefined): boolean | null => {
@@ -28,6 +32,17 @@ const impairment = (value: NeoOrganStatus | undefined): boolean | null => {
   if (value === 'IMPAIRMENT_REPORTED') return true;
   if (value === 'NO_KNOWN_IMPAIRMENT') return false;
   return null;
+};
+
+const explicitMedicationList = (
+  status: NeoMedicationStatus | undefined,
+  values: string[] | null | undefined,
+): string | null => {
+  if (status !== 'PRESENT') return null;
+  const cleaned = (values || [])
+    .filter(item => typeof item === 'string' && item.trim())
+    .map(item => item.trim());
+  return cleaned.length > 0 ? [...new Set(cleaned)].join('; ') : null;
 };
 
 export function adaptNeoContextToPharmacology(
@@ -52,9 +67,8 @@ export function adaptNeoContextToPharmacology(
     breastfeeding: triState(source.breastfeeding_status),
     renalImpairment: impairment(source.renal_context_status),
     hepaticImpairment: impairment(source.hepatic_context_status),
-    anticoagulant: null,
-    antiplatelet: null,
+    anticoagulant: explicitMedicationList(source.anticoagulant_status, source.anticoagulants),
+    antiplatelet: explicitMedicationList(source.antiplatelet_status, source.antiplatelets),
     allergies: [...new Set(allergies)],
   };
 }
-
