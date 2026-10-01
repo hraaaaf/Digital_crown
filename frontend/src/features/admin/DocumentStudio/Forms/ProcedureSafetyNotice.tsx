@@ -16,7 +16,7 @@ type EvaluationResponse = {
 };
 
 const MESSAGE_BY_KEY: Record<ProcedureSafetyAlertKey, string> = {
-  CONTEXT_REQUIRED: 'Contexte patient à compléter.',
+  CONTEXT_REQUIRED: 'Contexte clinique à compléter.',
   CLINICAL_REVIEW_RECOMMENDED: 'Vérification clinique conseillée avant validation.',
   PRESCRIBER_REVIEW_RECOMMENDED: 'Avis prescripteur recommandé.',
   SPECIALIST_REVIEW_RECOMMENDED: 'Avis spécialisé recommandé.',
