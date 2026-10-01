@@ -93,16 +93,18 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   const [catalogSearching, setCatalogSearching] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
   const [highlightedPresentation, setHighlightedPresentation] = useState(-1);
+  const [nameSearchActive, setNameSearchActive] = useState(false);
 
   const fieldError = validationErrors.find(error => error.field === `drug_${idx}`);
   const isRadio = drug.type === 'EXAMEN';
   const hasIdentity = isRadio || Boolean(drug.name.trim());
   const hasCatalogPresentation = Boolean(drug.catalogPresentationId);
+  const hasManualPresentationOverride = Boolean(drug.catalogDci && !drug.catalogPresentationId);
   const medCheck = medChecks[drug.id];
   const composer = parsePrescriptionPosology(drug.posologie);
   const composerRecognized = composerRecognitionCount(composer);
   const hasCustomPosology = Boolean(drug.posologie.trim()) && composerRecognized < 2;
-  const catalogOpen = !isRadio && !hasCatalogPresentation && catalogResults.length > 0;
+  const catalogOpen = nameSearchActive && !isRadio && !hasCatalogPresentation && catalogResults.length > 0;
   const cardLabel = isRadio
     ? `Examen ${String(idx + 1).padStart(2, '0')}`
     : `Médicament ${String(idx + 1).padStart(2, '0')}`;
@@ -170,6 +172,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
       onUpdateDrug(drug.id, 'posologie', '');
     }
     onUpdateDrug(drug.id, 'name', next);
+    setNameSearchActive(true);
   };
 
   const applyPresentationIdentity = (presentation: CatalogPresentation, preservePosology: boolean) => {
@@ -190,6 +193,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     setCatalogResults([]);
     setCatalogError(false);
     setHighlightedPresentation(-1);
+    setNameSearchActive(false);
   };
 
   const selectPresentation = (presentation: CatalogPresentation) => {
@@ -351,6 +355,8 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                   placeholder={isRadio ? "DÉTAILS DE L'EXAMEN RADIOLOGIQUE..." : 'NOM OU DCI DU MÉDICAMENT...'}
                   value={drug.name}
                   onChange={event => handleNameChange(event.target.value)}
+                  onFocus={() => setNameSearchActive(true)}
+                  onBlur={() => window.setTimeout(() => setNameSearchActive(false), 120)}
                   onKeyDown={handleNameKeyDown}
                   autoComplete="off"
                 />
@@ -453,16 +459,16 @@ export const DrugRow: React.FC<DrugRowProps> = ({
 
           {!hasIdentity && !isRadio && (
             <p className="mt-1 text-[10px] font-semibold leading-relaxed text-text-muted">
-              Recherchez un médicament puis choisissez explicitement sa présentation.
+              Commencez par choisir le médicament.
             </p>
           )}
 
           {!isRadio && hasIdentity && (
             <div className="mt-3 min-w-0 space-y-3">
-              {!hasCatalogPresentation && (
+              {!hasCatalogPresentation && !hasManualPresentationOverride && (
                 <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                  Choisissez une présentation pour compléter automatiquement la ligne.
+                  Choisissez le médicament pour compléter la ligne.
                 </div>
               )}
 
