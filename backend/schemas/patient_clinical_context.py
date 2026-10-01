@@ -159,7 +159,6 @@ class PatientProcedureSafetyContextUpdate(BaseModel):
     suspected_or_known_mronj: BinaryFactStatus = "UNKNOWN"
 
     @field_validator("anticoagulants", "antiplatelets", "mronj_agents")
-
     @classmethod
     def normalize_agents(cls, value: Optional[List[str]]) -> Optional[List[str]]:
         return _clean_string_list(value, "Un traitement antithrombotique renseigné ne peut pas être vide")
