@@ -1,3 +1,4 @@
+import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
@@ -84,8 +85,11 @@ describe('Neo prescription quick access', () => {
   });
 
   it('lets the practitioner update the explicitly applied protocol source', async () => {
-    const setDrugs = vi.fn();
-    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    const Harness = () => {
+      const [drugs, setDrugs] = React.useState([emptyLine]);
+      return <PrescriptionQuickAccessBar drugs={drugs} setDrugs={setDrugs} prescriptionIndication="" />;
+    };
+    render(<Harness />);
     fireEvent.click(await screen.findByRole('button', { name: 'Extraction simple' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Actions ordonnance' }));
