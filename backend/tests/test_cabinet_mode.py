@@ -97,14 +97,20 @@ class TestRunPyHostResolution:
         _, port, _, _, _ = self._resolve({"CABINET_PORT": "9000"})
         assert port == 9000
 
-    def test_run_py_source_uses_env_vars(self):
-        """Vérifie que run.py garde le contrat réseau fail-closed."""
-        import pathlib
-        source = (pathlib.Path(__file__).parent.parent.parent / "run.py").read_text(encoding="utf-8")
-        assert "CABINET_HOST" in source
-        assert "CABINET_PORT" in source
-        assert "_resolve_runtime_network" in source
-        assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in source
+    @pytest.mark.parametrize("port", ["not-a-port", "0", "65536"])
+    def test_invalid_port_is_refused_by_launcher(self, port):
+        with pytest.raises(RuntimeError, match="CABINET_PORT"):
+            self._resolve({"CABINET_PORT": port})
+
+    def test_https_requires_existing_certificate_pair(self, tmp_path):
+        with pytest.raises(RuntimeError, match="TLS.*introuvable"):
+            self._resolve({
+                "ENVIRONMENT": "cabinet",
+                "CABINET_HOST": "0.0.0.0",
+                "DIGITALCROWN_ENABLE_HTTPS": "true",
+                "DIGITALCROWN_TLS_CERT_FILE": str(tmp_path / "missing-cert.pem"),
+                "DIGITALCROWN_TLS_KEY_FILE": str(tmp_path / "missing-key.pem"),
+            })
 
 
 class TestSpecNoSecrets:
