@@ -70,6 +70,7 @@ export interface DrugRowProps {
   onApplySuggestion: (id: number, field: string, val: string) => void;
   onForceAllergy: (id: number) => void;
   onToggleType: (id: number, type: 'MEDICAMENT' | 'EXAMEN') => void;
+  disableCatalogLookup?: boolean;
 }
 
 const presentationStrength = (presentation: CatalogPresentation): string =>
@@ -88,6 +89,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   onRemoveDrug,
   onMove,
   onToggleType,
+  disableCatalogLookup = false,
 }) => {
   const [catalogResults, setCatalogResults] = useState<CatalogPresentation[]>([]);
   const [catalogSearching, setCatalogSearching] = useState(false);
@@ -114,7 +116,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     : null;
 
   useEffect(() => {
-    if (isRadio) {
+    if (isRadio || disableCatalogLookup) {
       setCatalogResults([]);
       setCatalogSearching(false);
       setCatalogError(false);
@@ -152,7 +154,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [drug.catalogDci, drug.name, isRadio]);
+  }, [disableCatalogLookup, drug.catalogDci, drug.name, isRadio]);
 
   const clearCatalogIdentity = (preserveDci = false) => {
     onUpdateDrug(drug.id, 'catalogPresentationId', undefined);
