@@ -33,6 +33,14 @@ describe('DentalProcedureSafetyContext', () => {
     });
   });
 
+  it('keeps local anaesthesia IE eligibility unknown without explicit noninfected-tissue context', () => {
+    expect(dentalProcedureSafetyContext('LOCAL_ANAESTHESIA_INFILTRATION')).toEqual({
+      bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
+      ieProcedureQualifies: null,
+      osseousRisk: 'NO_OSSEOUS_INJURY',
+    });
+  });
+
   it('uses explicit AHA exclusion for routine orthodontic adjustment', () => {
     expect(dentalProcedureSafetyContext('ORTHODONTIC_APPLIANCE_ADJUSTMENT')).toEqual({
       bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
