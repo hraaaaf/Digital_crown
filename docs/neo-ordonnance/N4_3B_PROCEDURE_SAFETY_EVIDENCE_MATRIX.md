@@ -2,7 +2,7 @@
 
 Date: 2026-10-01  
 Branch: `feat/neo-n4-3b-procedure-safety`  
-Status: evidence-backed contract + bounded backoffice runtime for procedure taxonomy, antithrombotic bleeding review and IE orchestration. MRONJ runtime remains pending.
+Status: evidence-backed contract + bounded backoffice runtime for procedure taxonomy, antithrombotic bleeding review, IE orchestration and MRONJ prevention review.
 
 ## Goal
 
@@ -295,8 +295,15 @@ Completed in the current N4.3B branch:
 5. read-only backoffice endpoint exposing only generic workflow status/alert key;
 6. positive/negative/UNKNOWN and tenant-isolation tests for this slice.
 
+Completed MRONJ slice:
+1. durable backoffice-only MRONJ exposure/context facts;
+2. bounded prevention gate with no diagnosis, no drug-holiday recommendation and no CTX clearance;
+3. malignant-disease + osseous/implant scenarios escalate to generic specialist review;
+4. osteoporosis/nonmalignant + osseous scenarios escalate to generic clinical review;
+5. suspected/known MRONJ exits the prevention gate into specialist review rather than a treatment algorithm;
+6. endpoint remains read-only and exposes only generic workflow status/alert keys.
+
 Still pending:
-1. bounded MRONJ prevention gate with no drug-holiday or CTX recommendation;
-2. MRONJ-specific backoffice structured facts and tests;
-3. final N4.3B integration review after the MRONJ slice;
-4. only then, subtle practitioner notification wiring if product validation keeps that surface.
+1. final N4.3B exact-head CI/Alembic and adversarial review;
+2. subtle practitioner notification wiring only if product validation keeps that surface;
+3. no integration to master until the entire Neo-Ordonnance chantier closes.
