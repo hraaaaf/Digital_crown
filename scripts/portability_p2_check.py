@@ -17,6 +17,7 @@ PLATFORM_FILE = ROOT / "backend" / "core" / "platform.py"
 SUPERVISOR_FILE = ROOT / "backend" / "core" / "runtime_supervisor.py"
 RUN_FILE = ROOT / "run.py"
 MAIN_FILE = ROOT / "backend" / "main.py"
+TOPOLOGY_FILE = ROOT / "backend" / "core" / "cabinet_topology.py"
 
 
 def _load(name: str, path: Path):
@@ -114,6 +115,7 @@ def _readiness_and_existing_instance_contract(platform_mod, supervisor_mod) -> N
 def _source_contract() -> None:
     run_source = RUN_FILE.read_text(encoding="utf-8")
     main_source = MAIN_FILE.read_text(encoding="utf-8")
+    topology_source = TOPOLOGY_FILE.read_text(encoding="utf-8")
 
     assert "time.sleep(2)" not in run_source
     assert "RuntimeSupervisor" in run_source
@@ -122,7 +124,8 @@ def _source_contract() -> None:
     assert "DIGITALCROWN_RESTORE_RESTART" in run_source
     assert "open_existing=not suppress_browser" in run_source
     assert "_load_launcher_environment()\n    host, port, https_enabled, cert_file, key_file = _resolve_runtime_network()" in run_source
-    assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in run_source
+    assert "resolve_cabinet_network" in run_source
+    assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in topology_source
     assert "ssl_certfile=cert_file if https_enabled else None" in run_source
     assert "load_backend_env(override=False)" in run_source
     assert "http://127.0.0.1:8000" not in main_source
