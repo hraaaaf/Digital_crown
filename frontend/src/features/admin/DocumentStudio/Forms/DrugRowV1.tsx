@@ -88,7 +88,6 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   onUpdateDrug,
   onRemoveDrug,
   onMove,
-  onFormeOpen,
   onToggleType,
 }) => {
   const [catalogResults, setCatalogResults] = useState<CatalogPresentation[]>([]);
@@ -154,9 +153,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     };
   }, [drug.catalogDci, drug.name, isRadio]);
 
-  const clearCatalogIdentity = () => {
+  const clearCatalogIdentity = (preserveDci = false) => {
     onUpdateDrug(drug.id, 'catalogPresentationId', undefined);
-    onUpdateDrug(drug.id, 'catalogDci', undefined);
+    if (!preserveDci) onUpdateDrug(drug.id, 'catalogDci', undefined);
     onUpdateDrug(drug.id, 'catalogSourceId', undefined);
     onUpdateDrug(drug.id, 'catalogSourceLabel', undefined);
     onUpdateDrug(drug.id, 'catalogSnapshotDate', undefined);
@@ -241,7 +240,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     )) || matchingPresentations.find(presentation => presentationStrength(presentation) === value);
     if (exact) applyPresentationIdentity(exact, true);
     else {
-      clearCatalogIdentity();
+      clearCatalogIdentity(true);
       onUpdateDrug(drug.id, 'dosage', value);
     }
   };
@@ -253,7 +252,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     )) || matchingPresentations.find(presentation => presentation.forme === value);
     if (exact) applyPresentationIdentity(exact, true);
     else {
-      clearCatalogIdentity();
+      clearCatalogIdentity(true);
       onUpdateDrug(drug.id, 'forme', value);
     }
   };
