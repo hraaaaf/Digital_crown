@@ -1,0 +1,23 @@
+name: AMMPS National Aggregation Tests
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-national-coverage
+    paths:
+      - 'scripts/aggregate_ammps_national_batches.py'
+      - 'scripts/test_aggregate_ammps_national_batches.py'
+      - '.github/workflows/ammps-national-aggregation-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  aggregate-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run D3 aggregation invariant tests
+        run: python scripts/test_aggregate_ammps_national_batches.py
