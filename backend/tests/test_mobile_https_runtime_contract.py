@@ -101,12 +101,16 @@ def test_https_setup_targets_immutable_runtime() -> None:
 
 def test_packaged_cabinet_runtime_is_loopback_unless_explicit_tls() -> None:
     run_source = _read("run.py")
+    topology_source = _read("backend/core/cabinet_topology.py")
     auth_source = _read("backend/routers/auth.py")
     main_source = _read("backend/main.py")
 
-    assert 'os.environ.get("CABINET_HOST", "127.0.0.1")' in run_source
-    assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in run_source
-    assert "DIGITALCROWN_TLS_CERT_FILE" in run_source
+    # V1.5-01 moved host/TLS policy into the canonical topology resolver.
+    # Preserve the historical security assertions, but assert them at their new owner.
+    assert "resolve_cabinet_network" in run_source
+    assert 'CABINET_HOST", "127.0.0.1"' in topology_source
+    assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in topology_source
+    assert "DIGITALCROWN_TLS_CERT_FILE" in topology_source
     assert "ssl_certfile=cert_file if https_enabled else None" in run_source
     assert 'environment == "cabinet" and cabinet_https' in auth_source
     assert 'if _RUNTIME_ENV in {"development", "local", "test"}' in main_source

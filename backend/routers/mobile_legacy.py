@@ -141,9 +141,10 @@ def _detect_lan_ip() -> str:
 
 
 def get_lan_base_url() -> str:
-    """URL LAN du backend — auto-détectée, toujours HTTP."""
-    port = os.getenv("PORT", "8005")
-    return f"http://{_detect_lan_ip()}:{port}"
+    """URL backend canonique alignée sur le contrat réseau du launcher."""
+    from backend.core.cabinet_topology import get_cabinet_base_url
+
+    return get_cabinet_base_url()
 
 
 def get_lan_frontend_url() -> str:

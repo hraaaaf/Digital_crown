@@ -41,15 +41,6 @@ def _first_boot_bootstrap() -> None:
         )
 
     import secrets
-    import socket
-
-    def _detect_lan_ip() -> str | None:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("8.8.8.8", 80))
-                return s.getsockname()[0]
-        except Exception:
-            return None
 
     # First boot is loopback-only. LAN exposure is enabled later only through
     # the explicit HTTPS/certificate contract.
@@ -129,32 +120,18 @@ def _load_launcher_environment() -> None:
     load_backend_env(override=False)
 
 
-def _truthy_env(name: str) -> bool:
-    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
-
-
 def _resolve_runtime_network():
-    """Resolve a fail-closed local/LAN transport contract for the packaged runtime."""
-    env = os.environ.get("ENVIRONMENT", "development").strip().lower()
-    host = os.environ.get("CABINET_HOST", "127.0.0.1").strip() or "127.0.0.1"
-    port = int(os.environ.get("CABINET_PORT", "8005"))
-    https_enabled = _truthy_env("DIGITALCROWN_ENABLE_HTTPS")
-    cert_file = os.environ.get("DIGITALCROWN_TLS_CERT_FILE", "").strip()
-    key_file = os.environ.get("DIGITALCROWN_TLS_KEY_FILE", "").strip()
+    """Compatibility wrapper over the canonical V1.5-01 transport contract."""
+    from backend.core.cabinet_topology import resolve_cabinet_network
 
-    loopback_hosts = {"127.0.0.1", "localhost", "::1"}
-    if https_enabled:
-        if not cert_file or not key_file:
-            raise RuntimeError("SECURITE : HTTPS cabinet exige DIGITALCROWN_TLS_CERT_FILE et DIGITALCROWN_TLS_KEY_FILE.")
-        if not os.path.isfile(cert_file) or not os.path.isfile(key_file):
-            raise RuntimeError("SECURITE : certificat/clé TLS cabinet introuvable.")
-    elif env in {"cabinet", "production"} and host not in loopback_hosts:
-        raise RuntimeError(
-            "SECURITE : exposition réseau cabinet/production refusée sans HTTPS explicite ; "
-            "utilisez 127.0.0.1 ou configurez TLS."
-        )
-
-    return host, port, https_enabled, cert_file, key_file
+    contract = resolve_cabinet_network()
+    return (
+        contract.host,
+        contract.port,
+        contract.https_enabled,
+        contract.cert_file,
+        contract.key_file,
+    )
 
 
 def main() -> int:
