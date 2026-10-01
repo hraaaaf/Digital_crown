@@ -1,6 +1,14 @@
 name: Agenda A5 Visual Evidence
 on:
   pull_request:
+    paths:
+      - 'frontend/src/pages/AgendaPage.tsx'
+      - 'frontend/src/features/agenda/**'
+      - 'frontend/src/components/**/*Agenda*'
+      - 'frontend/src/services/**/*appointment*'
+      - 'backend/**/*appointment*'
+      - 'backend/**/*agenda*'
+      - '.github/workflows/agenda-a5-visual-evidence.yml'
   workflow_dispatch:
 permissions:
   contents: read
