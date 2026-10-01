@@ -7,6 +7,7 @@ on:
       - 'frontend/src/features/admin/DocumentStudio/Forms/ProcedureSafetyNotice.test.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
       - 'frontend/scripts/certify-neo-n43b-procedure-safety-visual.mjs'
+      - 'frontend/scripts/certify-neo-dol-quick-search.mjs'
       - 'backend/services/prescription_procedure_safety.py'
       - 'backend/routers/prescriptions.py'
       - 'backend/routers/patient_clinical_context.py'
@@ -102,6 +103,10 @@ jobs:
       - name: Capture real N4.3B MRONJ alert evidence
         working-directory: frontend
         run: node scripts/certify-neo-n43b-procedure-safety-visual.mjs
+
+      - name: Capture real DOL quick search evidence
+        working-directory: frontend
+        run: node scripts/certify-neo-dol-quick-search.mjs
 
       - name: Dump runtime logs on failure
         if: failure()
