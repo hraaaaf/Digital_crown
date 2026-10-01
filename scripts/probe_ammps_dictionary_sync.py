@@ -95,7 +95,7 @@ def _next_page_url(soup: BeautifulSoup, current_url: str) -> str | None:
 def parse_page(html: str, source_url: str) -> tuple[list[dict], dict]:
     soup = BeautifulSoup(html, "html.parser")
     body_text = norm(soup.get_text(" ", strip=True))
-    total_m = re.search(r"(\d[\d\s]*)\s+médicament\(s\) trouvé\(s\)", body_text, flags=re.I)
+    total_m = re.search(r"(\d+(?:[ \u00A0\u202F]\d{3})*)\s+médicament\(s\) trouvé\(s\)", body_text, flags=re.I)
     updated_m = re.search(r"Base de données mise à jour le\s+(\d{2}/\d{2}/\d{4})", body_text, flags=re.I)
 
     rows: list[dict] = []
