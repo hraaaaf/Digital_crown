@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"cephalo-vnext-lot04-acceptance-record-v1",
+  "title":"Cephalo vNext LOT04 Acceptance Record",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","manifest_sha256","candidate_model_sha256","executed_at","landmarks","clinical_measurements","overall_decision","decision_reasons"],
+  "properties":{
+    "schema_version":{"const":"CEPHALO_LOT04_ACCEPTANCE_RECORD_V1"},
+    "manifest_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "candidate_model_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "executed_at":{"type":"string","format":"date-time"},
+    "landmarks":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["landmark_id","status","n","median_mm","p95_mm","failure_rate","human_reference_uncertainty_mm","tolerance_version","decision"],"properties":{"landmark_id":{"type":"string","minLength":1},"status":{"enum":["CLINICAL_CANONICAL","VALIDATION_REQUIRED","RESEARCH_ONLY","BLOCKED"]},"n":{"type":"integer","minimum":0},"median_mm":{"type":["number","null"],"minimum":0},"p95_mm":{"type":["number","null"],"minimum":0},"failure_rate":{"type":"number","minimum":0,"maximum":1},"human_reference_uncertainty_mm":{"type":["number","null"],"minimum":0},"tolerance_version":{"type":"string","minLength":1},"decision":{"enum":["PASS","FAIL","INSUFFICIENT_EVIDENCE"]}}}},
+    "clinical_measurements":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["measurement_id","n","signed_bias","absolute_error","decision"],"properties":{"measurement_id":{"type":"string","minLength":1},"n":{"type":"integer","minimum":0},"signed_bias":{"type":["number","null"]},"absolute_error":{"type":["number","null"],"minimum":0},"decision":{"enum":["PASS","FAIL","INSUFFICIENT_EVIDENCE","NOT_COMPUTABLE"]}}}},
+    "overall_decision":{"enum":["PASS","FAIL","INSUFFICIENT_EVIDENCE"]},
+    "decision_reasons":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}}
+  }
+}
