@@ -33,7 +33,16 @@ describe('Neo prescription quick access', () => {
         label: 'Extraction simple',
         kind: 'PROTOCOL',
         drugs: [
-          { name: 'MED A', dosage: '1', forme: 'COMPRIME', posologie: 'A' },
+          {
+            name: 'MED A',
+            dosage: '1',
+            forme: 'COMPRIME',
+            posologie: 'A',
+            catalogPresentationId: 'ammps:med-a',
+            catalogDci: 'MED A DCI',
+            catalogSourceId: 'ammps-current',
+            catalogMarketingStatusVerified: true,
+          },
           { name: 'MED B', dosage: '2', forme: 'GELULE', posologie: 'B' },
         ],
         is_favorite: true,
@@ -67,7 +76,13 @@ describe('Neo prescription quick access', () => {
 
     expect(setDrugs).toHaveBeenCalledTimes(1);
     expect(setDrugs.mock.calls[0][0]).toMatchObject([
-      { name: 'MED A', dosage: '1', posologie: 'A' },
+      {
+        name: 'MED A',
+        dosage: '1',
+        posologie: 'A',
+        catalogPresentationId: 'ammps:med-a',
+        catalogDci: 'MED A DCI',
+      },
       { name: 'MED B', dosage: '2', posologie: 'B' },
     ]);
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/prescriptions/preferences/7/use'));
@@ -177,7 +192,16 @@ describe('Neo prescription quick access', () => {
   });
 
   it('saves the current draft explicitly as a protocol', async () => {
-    const current = [{ ...emptyLine, name: 'MED TEST', dosage: '1G', posologie: 'x' }];
+    const current = [{
+      ...emptyLine,
+      name: 'MED TEST',
+      dosage: '1G',
+      posologie: 'x',
+      catalogPresentationId: 'ammps:save-1',
+      catalogDci: 'MED TEST DCI',
+      catalogSourceId: 'ammps-current',
+      catalogMarketingStatusVerified: true,
+    }];
     render(<PrescriptionQuickAccessBar drugs={current} setDrugs={vi.fn()} prescriptionIndication="Test" />);
     await screen.findByRole('button', { name: 'Extraction simple' });
 
@@ -191,6 +215,12 @@ describe('Neo prescription quick access', () => {
       label: 'Mon protocole',
       kind: 'PROTOCOL',
       indication: null,
+      drugs: [expect.objectContaining({
+        catalogPresentationId: 'ammps:save-1',
+        catalogDci: 'MED TEST DCI',
+        catalogSourceId: 'ammps-current',
+        catalogMarketingStatusVerified: true,
+      })],
     })));
   });
 });
