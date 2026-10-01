@@ -16,10 +16,9 @@ if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.
 const tokens = await login.json();
 const headers = { Authorization: `Bearer ${tokens.access_token}` };
 
-const now = new Date();
-const certificationDate = now.toISOString().slice(0, 10);
-const certificationYear = now.getUTCFullYear();
-const certificationMonth = now.getUTCMonth() + 1;
+const certificationDate = '2026-09-20';
+const certificationYear = 2026;
+const certificationMonth = 9;
 
 const suffix = Date.now().toString().slice(-6);
 const patientResp = await api.post('/api/patients/', {
@@ -72,6 +71,27 @@ await page.addInitScript(({ access, refresh }) => {
 }, { access: tokens.access_token, refresh: tokens.refresh_token });
 
 await page.goto('http://127.0.0.1:5173/accounting', { waitUntil: 'networkidle', timeout: 90000 });
+const yearFilter = page.locator('select').filter({ has: page.locator('option[value="2026"]') });
+const monthFilter = page.locator('select').filter({ has: page.locator('option', { hasText: 'Année complète' }) });
+await yearFilter.selectOption(String(certificationYear));
+await page.waitForLoadState('networkidle');
+if (await monthFilter.inputValue() !== String(certificationMonth)) {
+  const [periodResponse] = await Promise.all([
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === '/api/accounting/honoraires' &&
+        url.searchParams.get('year') === String(certificationYear) &&
+        url.searchParams.get('month') === String(certificationMonth);
+    }, { timeout: 30000 }),
+    monthFilter.selectOption(String(certificationMonth)),
+  ]);
+  if (!periodResponse.ok()) throw new Error(`Accounting period refresh failed: ${periodResponse.status()}`);
+  await periodResponse.finished();
+} else {
+  await monthFilter.selectOption(String(certificationMonth));
+}
+await page.waitForLoadState('networkidle');
+await page.getByText('Extraction des encaissements...', { exact: true }).waitFor({ state: 'hidden', timeout: 30000 });
 await page.getByText(patient.nom, { exact: false }).first().waitFor({ timeout: 30000 });
 await page.screenshot({ path: path.join(outDir, 'before-delete.png'), fullPage: true });
 
