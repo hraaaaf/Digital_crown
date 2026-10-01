@@ -11,6 +11,9 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const login=await api.post('/api/auth/login',{form:{username:user,password}});
 if(!login.ok()) throw new Error('panoramic BEFORE login failed');
 const tokens=await login.json(),headers={Authorization:`Bearer ${tokens.access_token}`};
+const workstationEnroll=await api.post('/api/workstation/enroll',{data:{accountPassword:process.env.T2_PASSWORD},headers});
+if(!workstationEnroll.ok()) throw new Error(`Workstation enrollment failed: ${workstationEnroll.status()} ${await workstationEnroll.text()}`);
+const workstationStorage=await api.storageState();
 const patients=await api.get('/api/patients',{headers});
 const patient=(await patients.json()).find(x=>x.numero_dossier==='T2-0001');
 if(!patient) throw new Error('panoramic BEFORE patient missing');
@@ -28,7 +31,7 @@ if(!seeded.ok()) throw new Error(`panoramic BEFORE seed failed: ${seeded.status(
 const browser=await chromium.launch({headless:true});
 const evidence=[];
 for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
-  const context=await browser.newContext({viewport,colorScheme:'light'});
+  const context=await browser.newContext({storageState:workstationStorage,viewport,colorScheme:'light'});
   const page=await context.newPage();
   await page.addInitScript(({a,r})=>{
     localStorage.setItem('token',a);
