@@ -213,6 +213,8 @@ class AccountingService:
         for d in docs:
             items.append({
                 "id": f"doc_{d.id}",
+                "document_archive_id": d.id,
+                "file_url": f"documents/{d.id}/download",
                 "patient_name": f"{d.patient.nom} {d.patient.prenom}",
                 "patient_id": d.patient_id,
                 "amount": extract_amount_from_clinical_data(d.clinical_data),
@@ -224,6 +226,8 @@ class AccountingService:
         for a in actes:
             items.append({
                 "id": f"acte_{a.id}",
+                "document_archive_id": a.document_archive_id,
+                "file_url": f"documents/{a.document_archive_id}/download" if a.document_archive_id else "",
                 "patient_name": f"{a.patient.nom} {a.patient.prenom}",
                 "patient_id": a.patient_id,
                 "amount": a.montant,

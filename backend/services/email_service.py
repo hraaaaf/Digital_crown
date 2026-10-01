@@ -15,7 +15,14 @@ class EmailService:
     def is_configured(self) -> bool:
         return bool(settings.SMTP_HOST and settings.SMTP_FROM_EMAIL)
 
-    def send_email(self, to_email: str, subject: str, text: str, html: str | None = None) -> bool:
+    def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        text: str,
+        html: str | None = None,
+        attachments: list[tuple[str, bytes, str]] | None = None,
+    ) -> bool:
         if not to_email:
             logger.warning("Email ignore: destinataire vide pour '%s'", subject)
             return False
@@ -35,6 +42,17 @@ class EmailService:
         message.set_content(text)
         if html:
             message.add_alternative(html, subtype="html")
+
+        for filename, payload, content_type in attachments or []:
+            maintype, _, subtype = (content_type or "application/octet-stream").partition("/")
+            if not subtype:
+                maintype, subtype = "application", "octet-stream"
+            message.add_attachment(
+                payload,
+                maintype=maintype,
+                subtype=subtype,
+                filename=filename,
+            )
 
         try:
             with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as smtp:

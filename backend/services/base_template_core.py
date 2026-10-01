@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import arabic_reshaper
 from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A5
@@ -9,6 +10,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from backend.services.qr_service import QRService
 from reportlab.platypus import Flowable
 from reportlab.lib.utils import ImageReader
+from backend.core.media_paths import get_media_root
 
 # --- DESIGN SYSTEM : SINGLE SOURCE OF TRUTH ---
 NAVY_BLUE = colors.HexColor('#003380')
@@ -157,6 +159,31 @@ class BaseTemplate:
         lh_path = self._get_val(config, 'letterhead_path')
         use_letterhead = self._get_val(config, 'use_letterhead', False)
         return bool(use_letterhead and lh_path and str(lh_path) not in ["null", "None", ""])
+
+    def _resolve_brand_asset(self, relative_path):
+        """Résout un asset cabinet depuis MEDIA_ROOT, avec fallback legacy contrôlé."""
+        raw = str(relative_path or "").strip()
+        if not raw or raw in {"null", "None"}:
+            return None
+
+        candidate_rel = Path(raw)
+        if candidate_rel.is_absolute():
+            return None
+
+        roots = (
+            Path(get_media_root()),
+            Path(self.base_path) / "static" / "uploads",
+        )
+        for root in roots:
+            root = root.resolve(strict=False)
+            candidate = (root / candidate_rel).resolve(strict=False)
+            try:
+                candidate.relative_to(root)
+            except ValueError:
+                continue
+            if candidate.is_file():
+                return str(candidate)
+        return None
 
     @staticmethod
     def get_adaptive_font_size(text, font_name, base_fs, max_width, min_fs=6.5, max_fs=None):
@@ -349,10 +376,8 @@ class BaseTemplate:
         accent_color = colors.HexColor(a_color_hex)
         
         logo_filename = self._get_val(config, 'logo_path')
-        logo_path = None
-        if logo_filename:
-            logo_path = os.path.join(self.base_path, "static", "uploads", logo_filename)
-        if not logo_path or not os.path.exists(logo_path):
+        logo_path = self._resolve_brand_asset(logo_filename)
+        if not logo_path:
             logo_path = self.default_logo_path if os.path.exists(self.default_logo_path) else None
 
         p_width, p_height = doc.pagesize
@@ -363,8 +388,8 @@ class BaseTemplate:
         letterhead_rendered = False
 
         if has_letterhead:
-            lh_path = os.path.join(self.base_path, "static", "uploads", str(lh_path_str))
-            if os.path.exists(lh_path):
+            lh_path = self._resolve_brand_asset(lh_path_str)
+            if lh_path:
                 canvas.saveState()
                 self._draw_safe_image(canvas, lh_path, 0, 0, p_width, p_height)
                 canvas.restoreState()
