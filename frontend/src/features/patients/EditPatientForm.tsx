@@ -20,6 +20,7 @@ import {
   Mail
 } from 'lucide-react';
 import { MotifSelector } from './components/MotifSelector';
+import { PatientPhotoEditor } from './components/PatientPhotoEditor';
 import { createPatientIdentityFormData, patientIdentityFromApi, patientIdentityToApiPayload, validatePatientIdentity, type DossierStatus } from './PatientIdentityContract';
 
 
@@ -37,6 +38,7 @@ export const EditPatientForm = () => {
   const [numeroError, setNumeroError] = useState('');
   const [dossierStatus, setDossierStatus] = useState<DossierStatus>({ status: 'idle' });
   const [originalNumero, setOriginalNumero] = useState('');
+  const [hasPatientPhoto, setHasPatientPhoto] = useState(false);
 
   // Chargement initial des données du patient
   useEffect(() => {
@@ -51,6 +53,7 @@ export const EditPatientForm = () => {
         if (patient.telephone_2) setShowPhone2(true);
         if (patient.telephone_3) setShowPhone3(true);
         setOriginalNumero(patient.numero_dossier || '');
+        setHasPatientPhoto(Boolean(patient.photo_url));
       } catch (err) {
         console.error("Erreur de récupération:", err);
         setFetchError(true);
@@ -169,6 +172,12 @@ export const EditPatientForm = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          <PatientPhotoEditor
+            patientId={id || ''}
+            firstName={formData.prenom}
+            lastName={formData.nom}
+            initialHasPhoto={hasPatientPhoto}
+          />
           
           {/* Numéro de dossier - Section spéciale */}
           <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
