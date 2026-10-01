@@ -814,7 +814,7 @@ for(const viewport of viewports){
    localStorage.setItem('appMode','prod');
  },{access:restrictedTokens.access_token,refresh:restrictedTokens.refresh_token});
  await restrictedPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
- await restrictedPage.getByText(/Bonjour, T2 Restricted Secretary/i).waitFor({state:'visible',timeout:10000});
+ await restrictedPage.getByRole('button',{name:'Ajout rapide'}).waitFor({state:'visible',timeout:10000});
 
  if(await restrictedPage.getByRole('button',{name:'Chercher un patient'}).count()) throw new Error('restricted user sees patient search');
  if(await restrictedPage.getByRole('button',{name:'Appairer le téléphone mobile'}).count()) throw new Error('restricted user sees mobile admin control');
