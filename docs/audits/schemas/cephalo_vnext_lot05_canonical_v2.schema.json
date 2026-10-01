@@ -1,39 +1,254 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "$id":"cephalo-vnext-canonical-schema-v2",
-  "title":"Cephalo vNext Canonical Schema V2",
-  "type":"object","additionalProperties":false,
-  "required":["schema_version","case_id","patient_id","evidence_graph_version","landmark_registry","current_landmark_refs","coordinate_space","migration"],
-  "properties":{
-    "schema_version":{"const":"CEPHALO_CANONICAL_SCHEMA_V2"},
-    "case_id":{"type":"string","minLength":1},
-    "patient_id":{"type":"integer","minimum":1},
-    "evidence_graph_version":{"const":"_evidence_graph_v1"},
-    "landmark_registry":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["canonical_id","aliases","identity_version","semantic_status","tissue_domain"],"properties":{
-      "canonical_id":{"type":"string","minLength":1},
-      "aliases":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
-      "identity_version":{"type":"string","minLength":1},
-      "semantic_status":{"enum":["CLINICAL_CANONICAL","TRACING_CANONICAL","RESEARCH_ONLY","LEGACY_AMBIGUOUS"]},
-      "tissue_domain":{"enum":["HARD","SOFT","DENTAL","CONSTRUCTION_ANCHOR"]},
-      "analysis_scope":{"type":["string","null"]}
-    }}},
-    "current_landmark_refs":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
-    "coordinate_space":{"type":"object","additionalProperties":false,"required":["version","unit","source_width_px","source_height_px"],"properties":{
-      "version":{"type":"string","minLength":1},"unit":{"const":"px"},
-      "source_width_px":{"type":"integer","minimum":1},"source_height_px":{"type":"integer","minimum":1},
-      "calibration_ref":{"type":["string","null"]}
-    }},
-    "quality_metadata":{"type":"object","additionalProperties":false,"properties":{
-      "model_id":{"type":["string","null"]},"model_sha256":{"type":["string","null"],"pattern":"^[a-f0-9]{64}$"},
-      "raw_score":{"type":["number","null"]},"score_semantics":{"enum":["RAW_UNCALIBRATED","CALIBRATED_WITH_EVIDENCE","NOT_AVAILABLE"]},
-      "score_calibration_ref":{"type":["string","null"]}
-    }},
-    "migration":{"type":"object","additionalProperties":false,"required":["migration_version","source_schema","source_sha256","compatibility_class"],"properties":{
-      "migration_version":{"const":"CEPHALO_V1_TO_V2_MIGRATION_V1"},
-      "source_schema":{"const":"_evidence_graph_v1"},
-      "source_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
-      "compatibility_class":{"enum":["LOSSLESS_V1","FAIL_CLOSED_AMBIGUOUS","OPAQUE_LEGACY_PRESERVED","V2_NATIVE"]},
-      "opaque_legacy_payload":{"type":["object","null"]}
-    }}
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cephalo-vnext-canonical-schema-v2",
+  "title": "Cephalo vNext Canonical Schema V2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "patient_id",
+    "evidence_graph_version",
+    "landmark_registry",
+    "current_landmark_refs",
+    "coordinate_space",
+    "migration"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "CEPHALO_CANONICAL_SCHEMA_V2"
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "patient_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "evidence_graph_version": {
+      "const": "_evidence_graph_v1"
+    },
+    "landmark_registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "canonical_id",
+          "aliases",
+          "identity_version",
+          "semantic_status",
+          "tissue_domain"
+        ],
+        "properties": {
+          "canonical_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aliases": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "identity_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "semantic_status": {
+            "enum": [
+              "CLINICAL_CANONICAL",
+              "TRACING_CANONICAL",
+              "RESEARCH_ONLY",
+              "LEGACY_AMBIGUOUS"
+            ]
+          },
+          "tissue_domain": {
+            "enum": [
+              "HARD",
+              "SOFT",
+              "DENTAL",
+              "CONSTRUCTION_ANCHOR"
+            ]
+          },
+          "analysis_scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "current_landmark_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "coordinate_space": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "unit",
+        "source_width_px",
+        "source_height_px"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "const": "px"
+        },
+        "source_width_px": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_height_px": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "calibration_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "quality_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "raw_score": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "score_semantics": {
+          "enum": [
+            "RAW_UNCALIBRATED",
+            "CALIBRATED_WITH_EVIDENCE",
+            "NOT_AVAILABLE"
+          ]
+        },
+        "score_calibration_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "model_id",
+        "model_sha256",
+        "raw_score",
+        "score_semantics",
+        "score_calibration_ref"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "score_semantics": {
+                "const": "CALIBRATED_WITH_EVIDENCE"
+              }
+            },
+            "required": [
+              "score_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "score_calibration_ref": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "score_semantics": {
+                "const": "NOT_AVAILABLE"
+              }
+            },
+            "required": [
+              "score_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "raw_score": {
+                "type": "null"
+              },
+              "score_calibration_ref": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migration_version",
+        "source_schema",
+        "source_sha256",
+        "compatibility_class"
+      ],
+      "properties": {
+        "migration_version": {
+          "const": "CEPHALO_V1_TO_V2_MIGRATION_V1"
+        },
+        "source_schema": {
+          "const": "_evidence_graph_v1"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "compatibility_class": {
+          "enum": [
+            "LOSSLESS_V1",
+            "FAIL_CLOSED_AMBIGUOUS",
+            "OPAQUE_LEGACY_PRESERVED",
+            "V2_NATIVE"
+          ]
+        },
+        "opaque_legacy_payload": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    }
   }
 }
