@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Camera, ImagePlus, Loader2, Trash2, X, Check, ZoomIn } from 'lucide-react';
 import { api } from '../../../services/api';
 
@@ -99,7 +100,7 @@ export function PatientPhotoEditor({
     });
   };
 
-  const trapDialogKey = (event: React.KeyboardEvent<HTMLDivElement>, close: () => void) => {
+  const trapDialogKey = (event: KeyboardEvent<HTMLDivElement>, close: () => void) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       close();
@@ -281,6 +282,7 @@ export function PatientPhotoEditor({
       await api.post(`/patients/${patientId}/photo`, data);
       closeCrop();
       setHasPhoto(true);
+      returnFocus();
     } catch {
       setError('La photo n’a pas pu être enregistrée. Réessayez.');
     } finally {
