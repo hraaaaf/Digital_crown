@@ -1,0 +1,42 @@
+name: AMMPS Dictionary Incremental Pilot
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-incremental-sync
+    paths:
+      - 'scripts/probe_ammps_dictionary_sync.py'
+      - '.github/workflows/ammps-dictionary-incremental-pilot.yml'
+  workflow_dispatch:
+
+jobs:
+  doliprane-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact HEAD
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install probe dependencies
+        run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.12.3
+
+      - name: Probe official AMMPS DOLIPRANE and one RCP transport
+        run: |
+          python scripts/probe_ammps_dictionary_sync.py \
+            --query DOLIPRANE \
+            --probe-one-rcp \
+            --out artifacts/ammps-dictionary-pilot/doliprane-probe.json
+
+      - name: Upload pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ammps-dictionary-pilot
+          path: artifacts/ammps-dictionary-pilot
+          if-no-files-found: error
+          retention-days: 14
