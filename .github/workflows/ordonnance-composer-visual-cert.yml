@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposer.ts'
       - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposerFixture.tsx'
       - 'frontend/scripts/certify-ordonnance-composer.mjs'
