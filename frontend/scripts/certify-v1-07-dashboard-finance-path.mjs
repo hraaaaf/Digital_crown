@@ -19,7 +19,7 @@ if(!patient) throw new Error('fixture patient missing');
 const browser=await chromium.launch({headless:true});
 const evidence=[];
 for(const viewport of [{width:1280,height:900},{width:390,height:844}]){
-  const context=await browser.newContext({ storageState: workstationStorage,viewport,colorScheme:'light'});
+  const context=await browser.newContext({viewport,colorScheme:'light'});
   const page=await context.newPage();
   await page.addInitScript(({access,refresh})=>{
     localStorage.setItem('token',access);
