@@ -155,9 +155,21 @@ def resolve_cabinet_network(
     )
 
 
-def get_cabinet_base_url(environ: Mapping[str, str] | None = None) -> str:
-    """Return the canonical reachable backend URL or fail closed."""
-    return resolve_cabinet_network(environ).base_url
+def get_cabinet_base_url(
+    environ: Mapping[str, str] | None = None,
+    *,
+    validate_tls_files: bool = True,
+) -> str:
+    """Return the canonical reachable backend URL or fail closed.
+
+    ``environ`` is an explicit integration seam for installers/tests; runtime
+    callers use the real process environment. TLS file validation remains on by
+    default and can be disabled only by an explicit caller.
+    """
+    return resolve_cabinet_network(
+        environ,
+        validate_tls_files=validate_tls_files,
+    ).base_url
 
 
 def _remediation_code(contract: CabinetNetworkContract) -> str | None:
