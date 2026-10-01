@@ -1,35 +1,99 @@
 from pathlib import Path
 
+from backend.services import mobile_mdns
+
+
+ROOT = Path(__file__).resolve().parents[2]
 STABLE_ORIGIN = "https://digitalcrown.local:8005"
 
 
-def _read(path: str) -> str:
-    return Path(path).read_text(encoding="utf-8")
+def _read(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_backend_https_runtime_contract() -> None:
-    main = _read("backend/main.py")
-    auth = _read("backend/routers/auth.py")
-    mobile = _read("backend/routers/mobile_legacy.py")
+def test_stable_https_origin_is_single_runtime_port() -> None:
+    assert mobile_mdns.STABLE_LAN_HOSTNAME == "digitalcrown.local"
+    assert mobile_mdns.STABLE_HTTPS_PORT == 8005
+    assert mobile_mdns.STABLE_HTTPS_ORIGIN == STABLE_ORIGIN
 
-    assert 'environment == "cabinet" and cabinet_https' in auth
-    assert 'if _RUNTIME_ENV in {"development", "local", "test"}' in main
-    assert "get_cabinet_base_url" in mobile
+    biometric = _read("backend/services/mobile_biometric.py")
+    client = _read("frontend/src/services/zka/mobilePasskey.ts")
+    gate = _read("frontend/src/features/mobile/Security/MobileBiometricGate.tsx")
+
+    assert 'f"https://{WEBAUTHN_RP_ID}:8005"' in biometric
+    assert STABLE_ORIGIN in client
+    assert STABLE_ORIGIN in gate
+    assert ":5173" not in client
+    assert ":5173" not in gate
 
 
-def test_mobile_pairing_uses_stable_origin_contract() -> None:
-    mobile = _read("backend/routers/mobile_legacy.py")
-    assert "get_cabinet_base_url" in mobile
-    assert 'os.getenv("PORT"' not in mobile
+def test_real_launcher_enables_tls_without_reload() -> None:
+    launcher = _read("backend/scripts/run_real_backend.ps1")
+
+    assert '$env:DIGITALCROWN_ENABLE_HTTPS = "true"' in launcher
+    assert '$env:DIGITALCROWN_WEBAUTHN_ORIGIN = "https://digitalcrown.local:$Port"' in launcher
+    assert '"--ssl-certfile", $TlsCertFile, "--ssl-keyfile", $TlsKeyFile' in launcher
+    assert "HTTPS mobile/WebAuthn contract requires the real runtime on port 8005" in launcher
+
+    invocations = [
+        line.strip()
+        for line in launcher.splitlines()
+        if line.strip().startswith("& $VenvPython")
+    ]
+    runtime_invocation = "& $VenvPython @uvicornArgs"
+    assert runtime_invocation in invocations
+    assert "--reload" not in runtime_invocation
 
 
-def test_https_runtime_keeps_canonical_port() -> None:
-    topology = _read("backend/core/cabinet_topology.py")
-    assert "CABINET_PORT=8005" in topology
+def test_secure_pairing_url_override_and_mdns_share_origin() -> None:
+    source = _read("backend/services/mobile_mdns.py")
+
+    assert "install_stable_lan_url_overrides()" in source
+    assert "legacy.get_lan_base_url = lambda: STABLE_HTTPS_ORIGIN" in source
+    assert "legacy.get_lan_frontend_url = lambda: STABLE_HTTPS_ORIGIN" in source
+    assert "port=STABLE_HTTPS_PORT" in source
+
+
+def test_mdns_registration_runs_off_application_event_loop(monkeypatch) -> None:
+    started = {}
+
+    class FakeThread:
+        def __init__(self, *, target, args, name, daemon):
+            started.update(target=target, args=args, name=name, daemon=daemon, started=False)
+
+        def start(self):
+            started["started"] = True
+
+    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
+    monkeypatch.setattr(mobile_mdns, "install_stable_lan_url_overrides", lambda: None)
+    monkeypatch.setattr(mobile_mdns, "_detect_lan_ip", lambda: "192.168.11.128")
+    monkeypatch.setattr(mobile_mdns.threading, "Thread", FakeThread)
+
+    mobile_mdns._zeroconf = None
+    mobile_mdns._service_info = None
+    mobile_mdns._starting = False
+    try:
+        mobile_mdns.start_mdns_if_secure()
+        assert started["target"] is mobile_mdns._start_mdns_sync
+        assert started["args"] == ("192.168.11.128",)
+        assert started["name"] == "digitalcrown-mdns-start"
+        assert started["daemon"] is True
+        assert started["started"] is True
+        assert mobile_mdns._starting is True
+    finally:
+        mobile_mdns._zeroconf = None
+        mobile_mdns._service_info = None
+        mobile_mdns._starting = False
+
+
+def test_zeroconf_runtime_dependency_is_declared() -> None:
+    requirements = _read("backend/requirements.txt")
+    assert "zeroconf==0.150.0" in requirements.splitlines()
 
 
 def test_https_setup_targets_immutable_runtime() -> None:
     setup = _read("scripts/setup-https.ps1")
+
     assert STABLE_ORIGIN in setup
     assert "ne pas utiliser Start_DigitalCrown.bat" in setup
     assert "run_real_backend.ps1" in setup
@@ -41,8 +105,8 @@ def test_packaged_cabinet_runtime_is_loopback_unless_explicit_tls() -> None:
     auth_source = _read("backend/routers/auth.py")
     main_source = _read("backend/main.py")
 
-    # V1.5-01 centralizes host/TLS policy in cabinet_topology; run.py must delegate
-    # instead of duplicating the previous string-level implementation.
+    # V1.5-01 moved host/TLS policy into the canonical topology resolver.
+    # Preserve the historical security assertions, but assert them at their new owner.
     assert "resolve_cabinet_network" in run_source
     assert 'CABINET_HOST", "127.0.0.1"' in topology_source
     assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in topology_source
