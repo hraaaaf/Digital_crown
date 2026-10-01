@@ -42,6 +42,7 @@ jobs:
       changed_backend_tests: ${{ steps.scope.outputs.changed_backend_tests }}
       frontend_needed: ${{ steps.scope.outputs.frontend_needed }}
       reuse_pr_frontend: ${{ steps.scope.outputs.reuse_pr_frontend }}
+      neo_ordonnance_targeted: ${{ steps.scope.outputs.neo_ordonnance_targeted }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +64,7 @@ jobs:
           echo "changed_backend_tests=" >> "$GITHUB_OUTPUT"
           echo "frontend_needed=true" >> "$GITHUB_OUTPUT"
           echo "reuse_pr_frontend=false" >> "$GITHUB_OUTPUT"
+          echo "neo_ordonnance_targeted=false" >> "$GITHUB_OUTPUT"
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             if [[ -z "$PR_BASE_SHA" || -z "$PR_HEAD_SHA" ]]; then
@@ -97,6 +99,49 @@ jobs:
 
             printf 'changed_tests=%s\n' "$(IFS=,; echo "${frontend_tests[*]}")" >> "$GITHUB_OUTPUT"
             printf 'changed_backend_tests=%s\n' "$(IFS=,; echo "${backend_tests[*]}")" >> "$GITHUB_OUTPUT"
+
+            neo_ordonnance_targeted=true
+            for file in "${changed[@]}"; do
+              case "$file" in
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.test.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposer.ts|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposer.test.ts|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposerFixture.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.r7.test.tsx|\
+                frontend/src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts|\
+                frontend/src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts|\
+                frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.ts|\
+                frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts|\
+                frontend/scripts/certify-ordonnance-composer.mjs|\
+                frontend/ordonnance-composer-fixture.html|\
+                backend/models.py|\
+                backend/services/prescription_service.py|\
+                backend/routers/prescriptions_core.py|\
+                backend/routers/medications.py|\
+                backend/core/schema_runtime.py|\
+                backend/tests/test_neo_ordonnance_reusables.py|\
+                backend/tests/test_cust04_prescription_presets.py|\
+                alembic/versions/neo000000023_add_neo_rx_context_fields.py|\
+                alembic/versions/neo000000024_extend_reusable_prescription_preferences.py|\
+                docs/neo-ordonnance/*|\
+                .github/workflows/ordonnance-composer-visual-cert.yml|\
+                .github/workflows/ci.yml)
+                  ;;
+                *)
+                  neo_ordonnance_targeted=false
+                  break
+                  ;;
+              esac
+            done
+            if [[ "$neo_ordonnance_targeted" == "true" ]]; then
+              echo "neo_ordonnance_targeted=true" >> "$GITHUB_OUTPUT"
+              echo "Neo-Ordonnance targeted CI: global frontend shards are unnecessary."
+            fi
 
             if [[ "$strict_test_only" == "true" ]]; then
               echo "test_only=true" >> "$GITHUB_OUTPUT"
@@ -238,8 +283,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Neo-Ordonnance targeted frontend tests
+        if: needs.classify-change.outputs.neo_ordonnance_targeted == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vitest run \
+            src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.test.tsx \
+            src/features/admin/DocumentStudio/Forms/PrescriptionComposer.test.ts \
+            src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx \
+            src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.r7.test.tsx \
+            src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts \
+            src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts \
+            src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+
+      - name: Neo-Ordonnance targeted build
+        if: needs.classify-change.outputs.neo_ordonnance_targeted == 'true'
+        run: npm run build
+
       - name: Fast-path — run only changed test files
-        if: needs.classify-change.outputs.test_only == 'true'
+        if: needs.classify-change.outputs.test_only == 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         env:
           CHANGED_TESTS: ${{ needs.classify-change.outputs.changed_tests }}
@@ -257,7 +321,7 @@ jobs:
           done
 
       - name: Test suite — shard 1/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -270,7 +334,7 @@ jobs:
           done
 
       - name: Test suite — shard 2/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -283,7 +347,7 @@ jobs:
           done
 
       - name: Test suite — shard 3/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -296,7 +360,7 @@ jobs:
           done
 
       - name: Test suite — shard 4/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -309,7 +373,7 @@ jobs:
           done
 
       - name: Test suite — shard 5/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -322,7 +386,7 @@ jobs:
           done
 
       - name: Test suite — shard 6/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -335,7 +399,7 @@ jobs:
           done
 
       - name: Test suite — shard 7/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -348,7 +412,7 @@ jobs:
           done
 
       - name: Test suite — shard 8/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -361,7 +425,7 @@ jobs:
           done
 
       - name: Test suite — shard 9/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -374,7 +438,7 @@ jobs:
           done
 
       - name: Test suite — shard 10/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -387,7 +451,7 @@ jobs:
           done
 
       - name: Test suite — shard 11/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -400,7 +464,7 @@ jobs:
           done
 
       - name: Test suite — shard 12/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -413,7 +477,7 @@ jobs:
           done
 
       - name: Build
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
         run: npm run build
 
   prod-gate:
