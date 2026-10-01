@@ -117,7 +117,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p ../artifacts/v1-07-g4-browser-inventory
-          node scripts/inventory-v1-07-g4-browser-controls.mjs 2>&1 | tee ../artifacts/v1-07-g4-browser-inventory/runner.log
+          node scripts/run-with-t2-workstation.mjs scripts/inventory-v1-07-g4-browser-controls.mjs 2>&1 | tee ../artifacts/v1-07-g4-browser-inventory/runner.log
 
       - name: Dump runtime logs on failure
         if: failure()
