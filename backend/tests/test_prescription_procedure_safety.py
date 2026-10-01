@@ -1,8 +1,10 @@
 from backend.services.prescription_clinical_rules import IEProphylaxisAdultOralAmoxicillinInput
 from backend.services.prescription_procedure_safety import (
     AntithromboticProcedureSafetyInput,
+    MRONJProcedureSafetyInput,
     evaluate_antithrombotic_procedure_safety,
     evaluate_ie_prophylaxis_background,
+    evaluate_mronj_procedure_safety,
     orchestrate_procedure_safety,
 )
 
@@ -206,3 +208,128 @@ def test_orchestrator_exposes_only_generic_alert_key_from_dominant_gate():
     assert combined.alert_key == "PRESCRIBER_REVIEW_RECOMMENDED"
     assert combined.ie is not None
     assert combined.ie.status == "READY"
+
+
+
+def _mronj(**overrides):
+    data = dict(
+        procedure_osseous_risk="DENTOALVEOLAR_OSSEOUS_INJURY",
+        procedure_is_implant=False,
+        medication_status="NONE_REPORTED",
+        agent_class="UNKNOWN",
+        indication="UNKNOWN",
+        route="UNKNOWN",
+        duration_months=None,
+        concurrent_risk_therapy=(),
+        active_oral_infection_or_inflammation="UNKNOWN",
+        suspected_or_known_mronj="NO",
+    )
+    data.update(overrides)
+    return MRONJProcedureSafetyInput(**data)
+
+
+def test_mronj_gate_is_silent_without_at_risk_medication_or_osseous_injury():
+    no_med = evaluate_mronj_procedure_safety(_mronj())
+    no_osseous = evaluate_mronj_procedure_safety(
+        _mronj(
+            procedure_osseous_risk="NO_OSSEOUS_INJURY",
+            medication_status="PRESENT",
+            agent_class="DENOSUMAB",
+            indication="OSTEOPOROSIS_NONMALIGNANT",
+        )
+    )
+    assert no_med.status == "READY"
+    assert no_med.alert_key is None
+    assert no_osseous.status == "READY"
+    assert no_osseous.alert_key is None
+
+
+def test_mronj_gate_fails_closed_when_osseous_context_or_medication_context_is_unknown():
+    procedure_unknown = evaluate_mronj_procedure_safety(
+        _mronj(
+            procedure_osseous_risk="UNKNOWN",
+            medication_status="PRESENT",
+            agent_class="DENOSUMAB",
+            indication="OSTEOPOROSIS_NONMALIGNANT",
+        )
+    )
+    medication_unknown = evaluate_mronj_procedure_safety(
+        _mronj(medication_status="UNKNOWN")
+    )
+    incomplete = evaluate_mronj_procedure_safety(
+        _mronj(
+            medication_status="PRESENT",
+            agent_class="UNKNOWN",
+            indication="OSTEOPOROSIS_NONMALIGNANT",
+        )
+    )
+    assert procedure_unknown.status == "CONTEXT_REQUIRED"
+    assert medication_unknown.status == "CONTEXT_REQUIRED"
+    assert incomplete.status == "CONTEXT_REQUIRED"
+
+
+def test_mronj_nonmalignant_osseous_care_requires_clinical_review_not_automatic_contraindication():
+    result = evaluate_mronj_procedure_safety(
+        _mronj(
+            medication_status="PRESENT",
+            agent_class="BISPHOSPHONATE",
+            indication="OSTEOPOROSIS_NONMALIGNANT",
+            route="ORAL",
+            duration_months=36,
+        )
+    )
+    assert result.status == "CLINICAL_REVIEW_REQUIRED"
+    assert result.alert_key == "CLINICAL_REVIEW_RECOMMENDED"
+    rendered = repr(result).lower()
+    for prohibited in ("drug holiday", "ctx", "stop ", "skip ", "hold ", "arrêt", "suspend"):
+        assert prohibited not in rendered
+
+
+def test_mronj_malignancy_osseous_and_implant_care_require_specialist_review():
+    surgery = evaluate_mronj_procedure_safety(
+        _mronj(
+            medication_status="PRESENT",
+            agent_class="DENOSUMAB",
+            indication="MALIGNANCY",
+            route="PARENTERAL",
+        )
+    )
+    implant = evaluate_mronj_procedure_safety(
+        _mronj(
+            procedure_is_implant=True,
+            medication_status="PRESENT",
+            agent_class="BISPHOSPHONATE",
+            indication="MALIGNANCY",
+            route="PARENTERAL",
+        )
+    )
+    assert surgery.status == "SPECIALIST_REVIEW_REQUIRED"
+    assert surgery.alert_key == "SPECIALIST_REVIEW_RECOMMENDED"
+    assert implant.status == "SPECIALIST_REVIEW_REQUIRED"
+    assert "MRONJ_MALIGNANCY_IMPLANT_REVIEW" in implant.internal_codes
+
+
+def test_mronj_suspected_or_known_disease_is_not_treated_by_prevention_gate():
+    result = evaluate_mronj_procedure_safety(
+        _mronj(
+            procedure_osseous_risk="NO_OSSEOUS_INJURY",
+            suspected_or_known_mronj="YES",
+        )
+    )
+    assert result.status == "SPECIALIST_REVIEW_REQUIRED"
+    assert result.alert_key == "SPECIALIST_REVIEW_RECOMMENDED"
+
+
+def test_orchestrator_lets_mronj_specialist_review_dominate_other_gates():
+    combined = orchestrate_procedure_safety(
+        _bleeding(),
+        _ie(dental_procedure_qualifies=False),
+        _mronj(
+            medication_status="PRESENT",
+            agent_class="DENOSUMAB",
+            indication="MALIGNANCY",
+        ),
+    )
+    assert combined.status == "SPECIALIST_REVIEW_REQUIRED"
+    assert combined.alert_key == "SPECIALIST_REVIEW_RECOMMENDED"
+    assert combined.mronj is not None
