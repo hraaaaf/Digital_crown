@@ -91,15 +91,15 @@ describe('Accounting global page G9 interaction truth', () => {
 
     postMock.mockRejectedValueOnce(new Error('encaissement refused'));
     await act(async () => {
-      await result.current.handleEncaisser(12);
+      await result.current.handleEncaisser('acte_12', 'ESPECES');
     });
 
-    expect(postMock).toHaveBeenCalledWith('/accounting/encaisser/12');
+    expect(postMock).toHaveBeenCalledWith('/accounting/encaisser/acte_12', { payment_method: 'ESPECES' });
     expect(toastError).toHaveBeenCalledWith("Échec de l'encaissement.");
     expect(toastSuccess).not.toHaveBeenCalledWith('Règlement encaissé avec succès !');
 
     await act(async () => {
-      await result.current.handleEncaisser(12);
+      await result.current.handleEncaisser('acte_12', 'ESPECES');
     });
 
     expect(toastSuccess).toHaveBeenCalledWith('Règlement encaissé avec succès !');
