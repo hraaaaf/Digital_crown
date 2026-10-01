@@ -3,14 +3,11 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { api } from '../../../../services/api';
-import {
-  dispatchProcedureSafetyEvaluation,
-  ProcedureSafetyNotice,
-} from './ProcedureSafetyNotice';
+import { ProcedureSafetyNotice } from './ProcedureSafetyNotice';
 
 vi.mock('../../../../services/api', () => ({
   api: {
-    post: vi.fn(),
+    get: vi.fn(),
   },
 }));
 
@@ -19,14 +16,14 @@ describe('ProcedureSafetyNotice', () => {
     vi.clearAllMocks();
   });
 
-  it('renders nothing until explicit structured procedure context is dispatched', () => {
-    render(<ProcedureSafetyNotice patientId="42" />);
+  it('stays absent for an invalid/no-patient context', () => {
+    render(<ProcedureSafetyNotice patientId="0" />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(api.post).not.toHaveBeenCalled();
+    expect(api.get).not.toHaveBeenCalled();
   });
 
-  it('shows only the generic subtle clinical-review wording', async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
+  it('renders only the generic subtle clinical-review wording', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
       data: {
         status: 'CLINICAL_REVIEW_REQUIRED',
         alert_key: 'CLINICAL_REVIEW_RECOMMENDED',
@@ -36,21 +33,29 @@ describe('ProcedureSafetyNotice', () => {
 
     render(<ProcedureSafetyNotice patientId="42" />);
 
-    act(() => {
-      dispatchProcedureSafetyEvaluation({
-        patientId: 42,
-        procedureDate: '2026-10-01',
-        procedureBleedingRisk: 'HIGHER_POSTOP_BLEEDING_RISK',
-        procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
-        procedureIsImplant: true,
-      });
-    });
-
     expect(await screen.findByText('Vérification clinique conseillée avant validation.')).toBeInTheDocument();
     expect(screen.queryByText(/MRONJ|endocard|anticoag|bisphosph|denosumab|CTX|drug holiday/i)).not.toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith(
+      '/prescriptions/clinical-rules/procedure-safety/alert/42',
+      { params: {} },
+    );
   });
 
-  it('maps every exposed key to short nontechnical wording only', async () => {
+  it('passes only exact presentation identity when supplied', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: { status: 'READY', alert_key: null, read_only: true },
+    } as any);
+
+    render(<ProcedureSafetyNotice patientId="42" presentationId="rx-123" />);
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(
+      '/prescriptions/clinical-rules/procedure-safety/alert/42',
+      { params: { presentation_id: 'rx-123' } },
+    ));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('maps exposed keys to short nontechnical wording only', async () => {
     const cases = [
       ['CONTEXT_REQUIRED', 'Contexte patient à compléter.'],
       ['PRESCRIBER_REVIEW_RECOMMENDED', 'Avis prescripteur recommandé.'],
@@ -58,75 +63,54 @@ describe('ProcedureSafetyNotice', () => {
     ] as const;
 
     const { rerender } = render(<ProcedureSafetyNotice patientId="42" />);
-
     for (const [key, message] of cases) {
-      vi.mocked(api.post).mockResolvedValueOnce({
+      vi.mocked(api.get).mockResolvedValueOnce({
         data: { status: 'X', alert_key: key, read_only: true },
       } as any);
-
-      act(() => {
-        dispatchProcedureSafetyEvaluation({
-          patientId: 42,
-          procedureDate: '2026-10-01',
-          procedureBleedingRisk: 'LOW_POSTOP_BLEEDING_RISK',
-          procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
-        });
-      });
-
+      rerender(<ProcedureSafetyNotice patientId={String(Math.random())} />);
       expect(await screen.findByText(message)).toBeInTheDocument();
-      rerender(<ProcedureSafetyNotice patientId="42" />);
     }
   });
 
-  it('stays silent on READY/null and wrong patient, but fails closed on unavailable/invalid responses', async () => {
-    vi.mocked(api.post)
-      .mockResolvedValueOnce({ data: { status: 'READY', alert_key: null, read_only: true } } as any)
+  it('fails closed on backend failure or non-read-only response', async () => {
+    vi.mocked(api.get)
       .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValueOnce({ data: { status: 'SPECIALIST_REVIEW_REQUIRED', alert_key: 'SPECIALIST_REVIEW_RECOMMENDED', read_only: false } } as any);
+      .mockResolvedValueOnce({
+        data: {
+          status: 'SPECIALIST_REVIEW_REQUIRED',
+          alert_key: 'SPECIALIST_REVIEW_RECOMMENDED',
+          read_only: false,
+        },
+      } as any);
+
+    const { rerender } = render(<ProcedureSafetyNotice patientId="42" />);
+    expect(await screen.findByText('Vérification clinique momentanément indisponible.')).toBeInTheDocument();
+
+    rerender(<ProcedureSafetyNotice patientId="43" />);
+    expect(await screen.findByText('Vérification clinique momentanément indisponible.')).toBeInTheDocument();
+  });
+
+  it('refreshes after structured backoffice context update events', async () => {
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: { status: 'READY', alert_key: null, read_only: true } } as any)
+      .mockResolvedValueOnce({
+        data: {
+          status: 'SPECIALIST_REVIEW_REQUIRED',
+          alert_key: 'SPECIALIST_REVIEW_RECOMMENDED',
+          read_only: true,
+        },
+      } as any);
 
     render(<ProcedureSafetyNotice patientId="42" />);
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
 
     act(() => {
-      dispatchProcedureSafetyEvaluation({
-        patientId: 99,
-        procedureDate: '2026-10-01',
-        procedureBleedingRisk: 'LOW_POSTOP_BLEEDING_RISK',
-        procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
-      });
+      window.dispatchEvent(new CustomEvent('digitalcrown:procedure-safety-context-updated', {
+        detail: { patientId: 42 },
+      }));
     });
-    expect(api.post).not.toHaveBeenCalled();
 
-    act(() => {
-      dispatchProcedureSafetyEvaluation({
-        patientId: 42,
-        procedureDate: '2026-10-01',
-        procedureBleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
-        procedureOsseousRisk: 'NO_OSSEOUS_INJURY',
-      });
-    });
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-
-    act(() => {
-      dispatchProcedureSafetyEvaluation({
-        patientId: 42,
-        procedureDate: '2026-10-01',
-        procedureBleedingRisk: 'LOW_POSTOP_BLEEDING_RISK',
-        procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
-      });
-    });
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText('Vérification clinique momentanément indisponible.')).toBeInTheDocument();
-
-    act(() => {
-      dispatchProcedureSafetyEvaluation({
-        patientId: 42,
-        procedureDate: '2026-10-01',
-        procedureBleedingRisk: 'LOW_POSTOP_BLEEDING_RISK',
-        procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
-      });
-    });
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
-    expect(await screen.findByText('Vérification clinique momentanément indisponible.')).toBeInTheDocument();
+    expect(await screen.findByText('Avis spécialisé recommandé.')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledTimes(2);
   });
 });
