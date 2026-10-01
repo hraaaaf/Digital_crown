@@ -122,6 +122,8 @@ jobs:
                 frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx|\
                 frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx|\
                 frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.r7.test.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel.test.tsx|\
                 frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioLegacy.tsx|\
                 frontend/src/features/admin/DocumentStudio/Forms/DrugRow.test.tsx|\
                 frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx|\
@@ -314,6 +316,7 @@ jobs:
             src/features/admin/DocumentStudio/Forms/PrescriptionComposer.test.ts \
             src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx \
             src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.r7.test.tsx \
+            src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel.test.tsx \
             src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts \
             src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts \
             src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts \
