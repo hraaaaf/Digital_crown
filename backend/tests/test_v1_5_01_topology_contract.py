@@ -90,3 +90,46 @@ def test_v1_5_01_wildcard_url_fails_closed_without_detected_lan(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="aucune adresse LAN utilisable"):
         _ = contract.base_url
+
+
+def test_v1_5_01_mobile_backend_consumes_canonical_origin_only():
+    source = Path("backend/routers/mobile_legacy.py").read_text(encoding="utf-8")
+    start = source.index("def get_lan_base_url")
+    end = source.index("def get_lan_frontend_url", start)
+    function_source = source[start:end]
+    assert "get_cabinet_base_url" in function_source
+    assert 'os.getenv("PORT"' not in function_source
+    assert "_detect_lan_ip" not in function_source
+
+
+def test_v1_5_01_server_mobile_origin_is_https_and_port_8005(monkeypatch):
+    """Integration seam: mobile helper must publish the server contract verbatim."""
+    from backend.routers import mobile_legacy
+
+    env = _env(
+        CABINET_HOST="192.168.50.12",
+        DIGITALCROWN_ENABLE_HTTPS="true",
+        DIGITALCROWN_TLS_CERT_FILE="cert.pem",
+        DIGITALCROWN_TLS_KEY_FILE="key.pem",
+    )
+    monkeypatch.setattr(topology, "resolve_cabinet_network", lambda environ=None: resolve_cabinet_network(env, validate_tls_files=False))
+    assert topology.get_cabinet_base_url(env) == "https://192.168.50.12:8005"
+
+    monkeypatch.setenv("ENVIRONMENT", "cabinet")
+    monkeypatch.setenv("CABINET_HOST", "192.168.50.12")
+    monkeypatch.setenv("CABINET_PORT", "8005")
+    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
+    monkeypatch.setenv("DIGITALCROWN_TLS_CERT_FILE", "cert.pem")
+    monkeypatch.setenv("DIGITALCROWN_TLS_KEY_FILE", "key.pem")
+    monkeypatch.setattr(topology.os.path, "isfile", lambda _path: True)
+    assert mobile_legacy.get_lan_base_url() == "https://192.168.50.12:8005"
+
+
+def test_v1_5_01_no_mobile_backend_http_lan_fallback():
+    """Prevent regression to an independently constructed insecure backend URL."""
+    source = Path("backend/routers/mobile_legacy.py").read_text(encoding="utf-8")
+    start = source.index("def get_lan_base_url")
+    end = source.index("def get_lan_frontend_url", start)
+    function_source = source[start:end]
+    assert 'f"http://' not in function_source
+    assert "127.0.0.1" not in function_source
