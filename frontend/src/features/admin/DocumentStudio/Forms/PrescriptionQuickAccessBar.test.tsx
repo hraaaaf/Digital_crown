@@ -102,6 +102,76 @@ describe('Neo prescription quick access', () => {
     expect(setDrugs).not.toHaveBeenCalled();
   });
 
+  it('restores the indication when applying a saved prescription', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.includes('/habits/presets')) return { data: [{
+        id: 9,
+        act_context: 'POST OP SAVED',
+        label: 'Post-op sauvegardée',
+        kind: 'SAVED_PRESCRIPTION',
+        indication: 'Douleur postopératoire',
+        drugs: [{ name: 'MED X', dosage: '1', forme: 'COMPRIME', posologie: 'x' }],
+        is_favorite: false,
+        usage_count: 1,
+        last_used: '2026-09-30T21:00:00',
+      }] } as never;
+      if (url.includes('/habits/suggest')) return { data: {} } as never;
+      return { data: [] } as never;
+    });
+    const setIndication = vi.fn();
+    render(
+      <PrescriptionQuickAccessBar
+        drugs={[emptyLine]}
+        setDrugs={vi.fn()}
+        prescriptionIndication=""
+        onPrescriptionIndicationChange={setIndication}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Ordonnances' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Post-op sauvegardée' }));
+    expect(setIndication).toHaveBeenCalledWith('Douleur postopératoire');
+  });
+
+  it('prioritizes a medication presentation over a homonymous reusable on Enter', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.includes('/habits/presets')) return { data: [{
+        id: 10,
+        act_context: 'DOL PROTOCOLE',
+        label: 'Dol protocole',
+        kind: 'PROTOCOL',
+        drugs: [{ name: 'PROTO', dosage: '', forme: '', posologie: '' }],
+        is_favorite: false,
+        usage_count: 0,
+        last_used: null,
+      }] } as never;
+      if (url.includes('/habits/suggest')) return { data: {} } as never;
+      if (url.includes('/medications/search')) return { data: [{
+        presentation_id: 'dol-1',
+        nom: 'DOLIPRANE',
+        dci: 'PARACETAMOL',
+        dosage: '1',
+        unite: 'G',
+        forme: 'COMPRIMES',
+        source: { id: 'ammps-x', current_marketing_status_verified: true },
+      }] } as never;
+      return { data: [] } as never;
+    });
+    const setDrugs = vi.fn();
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+
+    const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
+    fireEvent.change(input, { target: { value: 'dol' } });
+    await screen.findByText('DOLIPRANE');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(setDrugs).toHaveBeenCalled();
+    expect(setDrugs.mock.calls[0][0][0]).toMatchObject({
+      name: 'DOLIPRANE',
+      catalogPresentationId: 'dol-1',
+    });
+  });
+
   it('saves the current draft explicitly as a protocol', async () => {
     const current = [{ ...emptyLine, name: 'MED TEST', dosage: '1G', posologie: 'x' }];
     render(<PrescriptionQuickAccessBar drugs={current} setDrugs={vi.fn()} prescriptionIndication="Test" />);
