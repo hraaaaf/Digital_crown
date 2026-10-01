@@ -52,17 +52,31 @@ def test_https_lan_contract_uses_canonical_cabinet_port(tmp_path: Path):
     contract = resolve_cabinet_network(
         _env(
             CABINET_HOST="192.168.1.20",
-            CABINET_PORT="8443",
+            CABINET_PORT="8005",
             DIGITALCROWN_ENABLE_HTTPS="true",
             DIGITALCROWN_TLS_CERT_FILE=str(cert),
             DIGITALCROWN_TLS_KEY_FILE=str(key),
             PORT="9999",
         )
     )
-    assert contract.base_url == "https://192.168.1.20:8443"
+    assert contract.base_url == "https://192.168.1.20:8005"
     assert contract.lan_exposed is True
     assert contract.tls_ready is True
     assert contract.diagnostics()["remediation"] is None
+
+
+def test_https_rejects_noncanonical_mobile_port():
+    with pytest.raises(RuntimeError, match="CABINET_PORT=8005"):
+        resolve_cabinet_network(
+            _env(
+                CABINET_HOST="192.168.1.20",
+                CABINET_PORT="8443",
+                DIGITALCROWN_ENABLE_HTTPS="true",
+                DIGITALCROWN_TLS_CERT_FILE="cert.pem",
+                DIGITALCROWN_TLS_KEY_FILE="key.pem",
+            ),
+            validate_tls_files=False,
+        )
 
 
 @pytest.mark.parametrize("port", ["0", "65536", "abc"])

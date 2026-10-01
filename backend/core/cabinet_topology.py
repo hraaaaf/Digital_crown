@@ -106,6 +106,8 @@ def resolve_cabinet_network(
     loopback = _is_loopback(host)
 
     if https_enabled:
+        if port != 8005:
+            raise RuntimeError("SECURITE : HTTPS mobile/WebAuthn exige CABINET_PORT=8005.")
         if not cert_file or not key_file:
             raise RuntimeError("SECURITE : HTTPS cabinet exige DIGITALCROWN_TLS_CERT_FILE et DIGITALCROWN_TLS_KEY_FILE.")
         if validate_tls_files and (not os.path.isfile(cert_file) or not os.path.isfile(key_file)):

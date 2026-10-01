@@ -169,7 +169,7 @@ DigitalCrown AppEnvironmentExtra ...`).
 | `DATABASE_URL` | absent (SQLite) ou `postgresql://...` local | |
 | `CABINET_MASTER_KEY_HEX` | généré (64 hex) | Chiffre DB SQLCipher + backups |
 | `CABINET_HOST` | `127.0.0.1` par défaut ; adresse LAN ou `0.0.0.0` seulement si HTTPS configuré | Aucun bind LAN automatique |
-| `CABINET_PORT` | `8005` par défaut | Autorité unique du port backend ; `PORT` n’est pas utilisé par le contrat cabinet |
+| `CABINET_PORT` | `8005` | Autorité unique du backend ; le contrat HTTPS mobile/WebAuthn exige 8005 et ignore `PORT` |
 | `DIGITALCROWN_ENABLE_HTTPS` | `false` en loopback ; `true` obligatoire pour LAN en cabinet/production | Fail-closed |
 | `DIGITALCROWN_TLS_CERT_FILE` / `DIGITALCROWN_TLS_KEY_FILE` | chemins locaux | Obligatoires quand HTTPS est activé |
 | `ALLOWED_ORIGINS` | origine(s) correspondant au transport réellement configuré | Jamais `*` |
