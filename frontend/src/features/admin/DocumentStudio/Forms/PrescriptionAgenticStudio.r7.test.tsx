@@ -21,13 +21,17 @@ import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 describe('PrescriptionAgenticStudio practitioner copy', () => {
   it('affiche uniquement l alerte générique fournie par le backend caché', async () => {
     const { api } = await import('../../../../services/api');
-    vi.mocked(api.get).mockResolvedValueOnce({
-      data: {
-        status: 'SPECIALIST_REVIEW_REQUIRED',
-        alert_key: 'SPECIALIST_REVIEW_RECOMMENDED',
-        read_only: true,
-      },
-    } as any);
+    vi.mocked(api.get).mockImplementation(async (url: string) => (
+      url.includes('/procedure-safety/alert/')
+        ? {
+            data: {
+              status: 'SPECIALIST_REVIEW_REQUIRED',
+              alert_key: 'SPECIALIST_REVIEW_RECOMMENDED',
+              read_only: true,
+            },
+          } as any
+        : { data: [] } as any
+    ));
 
     render(
       <PrescriptionAgenticStudio
