@@ -13,6 +13,12 @@ const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
 const login = await api.post('/api/auth/login', { form: { username: user, password } });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
+const enrollResponse = await api.post('/api/workstation/enroll', {
+  data: { accountPassword: process.env.T2_PASSWORD },
+  headers: { Authorization: `Bearer ${tokens.access_token}` },
+});
+if (!enrollResponse.ok()) throw new Error(`Workstation enrollment failed: ${enrollResponse.status()} ${await enrollResponse.text()}`);
+const workstationState = await api.storageState();
 
 const patientsResponse = await api.get('/api/patients', {
   headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -24,7 +30,7 @@ const patientB = patients.find((patient) => patient.numero_dossier === 'T2-0002'
 if (!patientA || !patientB) throw new Error('T1 runtime patients T2-0001/T2-0002 not found');
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light', storageState: workstationState });
 const page = await context.newPage();
 const pageErrors = [];
 const aiDiagnosticRequests = [];
@@ -122,7 +128,7 @@ const cancelPreservedDraft = (await libreEditor.inputValue()) === dirtyMarker;
 const cancelCompanionAbsent = (await page.locator('[data-tour="tab-strategie"]').count()) === 0
   && (await page.getByText('Compagnon Diagnostique', { exact: true }).count()) === 0;
 
-const confirmContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+const confirmContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light', storageState: workstationState });
 const confirmPage = await confirmContext.newPage();
 observePage(confirmPage);
 await installAuth(confirmPage);
