@@ -110,14 +110,28 @@ def evaluate_antithrombotic_procedure_safety(
             alert_key="CONTEXT_REQUIRED",
         )
 
+    classes = tuple(dict.fromkeys(data.antithrombotic_classes))
+
     if data.antithrombotic_status == "NONE_REPORTED":
+        if classes:
+            return _result(
+                "CONTEXT_REQUIRED",
+                "ANTITHROMBOTIC_CONTEXT_INCONSISTENT",
+                alert_key="CONTEXT_REQUIRED",
+            )
         return _result("READY")
 
-    classes = tuple(dict.fromkeys(data.antithrombotic_classes))
     if not classes:
         return _result(
             "CONTEXT_REQUIRED",
             "ANTITHROMBOTIC_CLASS_UNKNOWN",
+            alert_key="CONTEXT_REQUIRED",
+        )
+
+    if data.combination_therapy == "UNKNOWN":
+        return _result(
+            "CONTEXT_REQUIRED",
+            "ANTITHROMBOTIC_COMBINATION_STATUS_UNKNOWN",
             alert_key="CONTEXT_REQUIRED",
         )
 
@@ -181,7 +195,6 @@ _IE_UNKNOWN_CODES = {
     "ORAL_ROUTE_UNKNOWN",
     "CURRENT_ANTIBIOTIC_EXPOSURE_UNKNOWN",
     "PRESENTATION_NOT_VERIFIED",
-    "ACTIVE_INGREDIENT_NOT_AMOXICILLIN",
 }
 _IE_NONQUALIFYING_CODES = {
     "CARDIAC_RISK_NOT_QUALIFYING",
@@ -201,7 +214,7 @@ def evaluate_ie_prophylaxis_background(
         return _result("READY", sources=sources)
 
     blockers = set(rule.blockers)
-    if blockers and blockers <= _IE_NONQUALIFYING_CODES:
+    if blockers & _IE_NONQUALIFYING_CODES:
         return _result("READY", *rule.blockers, sources=sources)
 
     if blockers & _IE_UNKNOWN_CODES:
