@@ -43,7 +43,7 @@ describe('Neo prescription quick access', () => {
         recent_medications: ['DOLIPRANE'],
         frequent_medications: ['AMOXICILLINE'],
       } } as never;
-      if (url.includes('/medications/search')) return { data: [{
+      if (url.includes('/medications/neo/search')) return { data: [{
         presentation_id: 'p1',
         nom: 'DOLIPRANE',
         dci: 'PARACETAMOL',
@@ -146,7 +146,7 @@ describe('Neo prescription quick access', () => {
         last_used: null,
       }] } as never;
       if (url.includes('/habits/suggest')) return { data: {} } as never;
-      if (url.includes('/medications/search')) return { data: [{
+      if (url.includes('/medications/neo/search')) return { data: [{
         presentation_id: 'dol-1',
         nom: 'DOLIPRANE',
         dci: 'PARACETAMOL',
