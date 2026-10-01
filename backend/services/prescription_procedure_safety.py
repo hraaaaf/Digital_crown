@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from typing import Literal, Optional, Tuple
 
@@ -145,7 +146,12 @@ def evaluate_antithrombotic_procedure_safety(
     drug_class = classes[0]
 
     if drug_class == "VKA":
-        if data.warfarin_inr is None or data.warfarin_inr_current is not True:
+        if (
+            data.warfarin_inr is None
+            or not math.isfinite(data.warfarin_inr)
+            or data.warfarin_inr <= 0
+            or data.warfarin_inr_current is not True
+        ):
             return _result(
                 "CONTEXT_REQUIRED",
                 "VKA_INR_CURRENT_VALUE_REQUIRED",
