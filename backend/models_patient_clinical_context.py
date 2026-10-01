@@ -37,5 +37,17 @@ class PatientClinicalContext(Base):
     current_medications_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     current_medications = Column(JSON, nullable=True)
 
+    # N4.3B backoffice-only antithrombotic facts. These remain explicit patient facts;
+    # no drug class is inferred from free-text medication names.
+    anticoagulant_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    anticoagulants = Column(JSON, nullable=True)
+    antiplatelet_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    antiplatelets = Column(JSON, nullable=True)
+    antithrombotic_classes = Column(JSON, nullable=True)
+    antithrombotic_combination_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    warfarin_inr = Column(Float, nullable=True)
+    warfarin_inr_checked_at = Column(DateTime, nullable=True)
+    lmwh_dose_class = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
