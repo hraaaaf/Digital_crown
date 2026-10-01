@@ -212,3 +212,16 @@ def test_profile_photo_rejects_invalid_file_and_direct_photo_url_mutation(
     assert direct.status_code == 422
     db.refresh(patient)
     assert patient.photo_url is None
+
+
+def test_patient_contract_suppresses_legacy_external_photo_url(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id, "LEGACYURL")
+    patient.photo_url = "https://tracker.invalid/patient.jpg"
+    db.commit()
+
+    response = client.get(f"/api/patients/{patient.id}", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["photo_url"] is None
