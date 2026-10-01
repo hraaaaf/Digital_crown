@@ -83,3 +83,30 @@ def test_reusable_usage_is_doctor_scoped_and_updates_dynamic_rank_fields(db):
         assert getattr(exc, "status_code", None) == 404
     else:
         raise AssertionError("cross-doctor reusable usage must fail closed")
+
+
+def test_same_label_protocol_and_saved_prescription_do_not_overwrite_each_other(db):
+    doctor = _doctor(db, "neo-reusable-same-label@cabinet.test")
+    prescription_service.learn_habit(
+        db,
+        doctor.id,
+        "Post-op",
+        [{"name": "PROTO", "dosage": "1", "forme": "COMPRIME", "posologie": "p"}],
+        label="Post-op",
+        preference_type="PROTOCOL",
+    )
+    prescription_service.learn_habit(
+        db,
+        doctor.id,
+        "Post-op",
+        [{"name": "SAVED", "dosage": "2", "forme": "GELULE", "posologie": "s"}],
+        label="Post-op",
+        preference_type="SAVED_PRESCRIPTION",
+        indication="Indication sauvegardée",
+    )
+
+    rows = prescription_service.get_doctor_presets(db, doctor.id)
+    assert len(rows) == 2
+    by_kind = {row["kind"]: row for row in rows}
+    assert by_kind["PROTOCOL"]["drugs"][0]["name"] == "PROTO"
+    assert by_kind["SAVED_PRESCRIPTION"]["drugs"][0]["name"] == "SAVED"
