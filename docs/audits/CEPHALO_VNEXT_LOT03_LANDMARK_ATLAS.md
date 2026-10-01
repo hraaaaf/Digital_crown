@@ -1,6 +1,6 @@
 # Cephalo vNext — LOT03 Landmark Atlas
 
-Status: CANDIDATE — documentation only
+Status: APPROVED — documentation/ontology only
 Parent: LOT02 candidate ed955dce3a289bac995d83e2680577b91fcbc2f3
 Gate target: CEPH_LANDMARK_SET_APPROVED
 
@@ -176,7 +176,7 @@ LOT03 defines scientific identities but does **not** rename persisted/runtime ID
 ## Gate
 `CEPH_LANDMARK_SET_APPROVED` approves the **canonical landmark ontology and identity/disposition contract**. It requires: source-backed definitions for identities promoted as canonical anatomy; explicit separation of non-equivalent identities; an explicit L1/L2/L3/HOLD disposition for every mapped point; consumer bindings/legacy ambiguity documented; and reviewed mapping to LOT01/LOT02. It does **not** certify detector accuracy, activate a quarantined analysis, or certify a derived construction whose exact algorithm belongs to a later implementation/validation lot.
 
-Current gate state: **CANDIDATE_FOR_FINAL_REVIEW**. Pn↔Prn is operationally confirmed as an existing DC alias but still requires detector validation; Go/Gn/Po legacy consumers are now inventoried and constrained to explicit future identities; Wits remains quarantined and therefore its unresolved exact plane algorithm is not promoted by this gate. These are downstream validation/migration obligations, not unresolved ontology identities.
+Current gate state: **APPROVED — CEPH_LANDMARK_SET_APPROVED** after two independent internal adversarial perspectives. Pn↔Prn is operationally confirmed as an existing DC alias but still requires detector validation; Go/Gn/Po legacy consumers are now inventoried and constrained to explicit future identities; Wits remains quarantined and therefore its unresolved exact plane algorithm is not promoted by this gate. These are downstream validation/migration obligations, not unresolved ontology identities.
 
 No runtime/schema/model/master mutation is authorized.
 
@@ -211,3 +211,31 @@ Direct file inspection on master (not code-search inference) shows:
 - A source-specific construction may remain `BLOCKED` without blocking the ontology if no approved active consumer requires it.
 - A legacy generic ID is never silently upgraded to a canonical identity.
 - Any future promotion that changes these dispositions requires a new evidence/version decision; LOT03 approval is not blanket permission.
+
+
+## Final adversarial review record
+
+### Double-check — internal independent perspective 1: orthodontic anatomy / identity collision
+Prompt: "Assume this atlas is unsafe until proven otherwise. Look for anatomical aliases that collapse distinct landmarks, analysis-specific constructions mislabeled as anatomy, hard/soft-tissue collisions, detector-name-to-anatomy inference, and any gate wording that could certify unvalidated detector accuracy. Return blocking/major/minor findings and a severe /10 score."
+
+Initial finding: MAJOR — the gate wording required exact evidence for all L1/L2 while the later gate interpretation allowed unresolved detector/construction obligations, creating a contradictory certification surface.
+
+Correction: commit e221fe3 redefined the gate strictly as ontology/identity/disposition approval, separated detector validation and inactive constructions, and added explicit review invariants.
+
+Post-correction severe score: **9.4/10**.
+Residual: individual detector-channel accuracy and analysis-specific construction algorithms remain downstream validation work by design; they are not certified here.
+
+### Triple-check — internal independent perspective 2: migration / fail-closed architecture
+Prompt: "Try to make LOT12 silently corrupt historical cephalometry despite a green LOT03. Look for generic IDs being reinterpreted, stored coordinates being relabeled, historical measurements being recomputed, Wits becoming active through UI tracing, SRPose channel count drift, or aliases losing provenance/calibration/manual corrections. Return blocking/major/minor findings and a severe /10 score."
+
+Result after e221fe3: no blocking finding. Existing migration contract preserves legacy IDs/coordinates/provenance/calibration/manual state, forbids silent historical recomputation, keeps Wits quarantined, and freezes detector output at 38 channels unless separately benchmarked.
+
+Post-review severe score: **9.3/10**.
+Residual: the migration oracle must still be instantiated and executed in G3/LOT12; LOT03 specifies the contract but does not claim execution.
+
+### Scientific sanity check
+Current evidence supports keeping detector validation distinct from ontology approval: systematic reviews report heterogeneous landmark-specific performance, high/reference-standard bias concerns, and continuing need for expert supervision rather than treating a universal 2 mm threshold as clinical proof. This reinforces the LOT02/LOT03 separation between identity, detector performance, and human validation.
+
+### Gate decision
+**CEPH_LANDMARK_SET_APPROVED granted for the documentation/ontology contract only.**
+This does not certify SRPose38 accuracy, activate Wits, approve unresolved source-specific constructions, mutate persisted identities, or authorize runtime/schema/model/master changes.
