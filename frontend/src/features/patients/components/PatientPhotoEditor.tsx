@@ -73,6 +73,10 @@ export function PatientPhotoEditor({
   initialHasPhoto = false,
 }: PatientPhotoEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importButtonRef = useRef<HTMLButtonElement>(null);
+  const cameraButtonRef = useRef<HTMLButtonElement>(null);
+  const cameraDialogRef = useRef<HTMLDivElement>(null);
+  const cropDialogRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
@@ -87,6 +91,38 @@ export function PatientPhotoEditor({
   const [zoom, setZoom] = useState(1);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
+  const lastTriggerRef = useRef<'import' | 'camera'>('import');
+
+  const returnFocus = () => {
+    requestAnimationFrame(() => {
+      (lastTriggerRef.current === 'camera' ? cameraButtonRef.current : importButtonRef.current)?.focus();
+    });
+  };
+
+  const trapDialogKey = (event: React.KeyboardEvent<HTMLDivElement>, close: () => void) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      returnFocus();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter(node => !node.hasAttribute('aria-hidden'));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const initials = useMemo(() => {
     const first = firstName.trim().charAt(0);
@@ -130,6 +166,14 @@ export function PatientPhotoEditor({
     revokeObjectUrl(previewUrlRef.current);
   }, []);
 
+  useEffect(() => {
+    if (cameraOpen) cameraDialogRef.current?.focus();
+  }, [cameraOpen]);
+
+  useEffect(() => {
+    if (crop) cropDialogRef.current?.focus();
+  }, [crop]);
+
   const resetCropControls = () => {
     setZoom(1);
     setOffsetX(0);
@@ -144,6 +188,7 @@ export function PatientPhotoEditor({
 
   const openCropFromBlob = (blob: Blob, sourceName: string) => {
     const src = URL.createObjectURL(blob);
+    lastTriggerRef.current = sourceName === 'camera.jpg' ? 'camera' : 'import';
     setCrop({ src, sourceName });
     resetCropControls();
     setError('');
@@ -170,7 +215,13 @@ export function PatientPhotoEditor({
     setCameraOpen(false);
   };
 
+  const closeCamera = () => {
+    stopCamera();
+    returnFocus();
+  };
+
   const openCamera = async () => {
+    lastTriggerRef.current = 'camera';
     setCameraError('');
     setError('');
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -285,14 +336,19 @@ export function PatientPhotoEditor({
 
           <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
             <button
+              ref={importButtonRef}
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                lastTriggerRef.current = 'import';
+                fileInputRef.current?.click();
+              }}
               disabled={busy}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#003380] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-md transition hover:bg-blue-900 disabled:opacity-50"
             >
               <ImagePlus size={16} /> Importer
             </button>
             <button
+              ref={cameraButtonRef}
               type="button"
               onClick={openCamera}
               disabled={busy}
@@ -329,14 +385,22 @@ export function PatientPhotoEditor({
       )}
 
       {cameraOpen && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Prendre une photo">
+        <div
+          ref={cameraDialogRef}
+          tabIndex={-1}
+          onKeyDown={event => trapDialogKey(event, closeCamera)}
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/70 p-4 outline-none"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Prendre une photo"
+        >
           <div className="w-full max-w-lg rounded-[2rem] bg-white p-4 shadow-2xl sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-black text-[#003380]">Prendre une photo</h3>
                 <p className="text-sm text-slate-500">Placez le visage au centre du cadre.</p>
               </div>
-              <button type="button" aria-label="Fermer la caméra" onClick={stopCamera} className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
+              <button type="button" aria-label="Fermer la caméra" onClick={closeCamera} className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
                 <X size={20} />
               </button>
             </div>
@@ -351,14 +415,22 @@ export function PatientPhotoEditor({
       )}
 
       {crop && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Recadrer la photo">
+        <div
+          ref={cropDialogRef}
+          tabIndex={-1}
+          onKeyDown={event => trapDialogKey(event, () => { closeCrop(); returnFocus(); })}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 sm:p-5 outline-none"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Recadrer la photo"
+        >
           <div className="max-h-[96vh] w-full max-w-xl overflow-y-auto rounded-[2rem] bg-white p-4 shadow-2xl sm:p-6">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-black text-[#003380]">Recadrer la photo</h3>
                 <p className="mt-1 text-sm text-slate-500">Ajustez le visage dans le cadre carré.</p>
               </div>
-              <button type="button" aria-label="Annuler le recadrage" onClick={closeCrop} disabled={busy} className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
+              <button type="button" aria-label="Annuler le recadrage" onClick={() => { closeCrop(); returnFocus(); }} disabled={busy} className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
                 <X size={20} />
               </button>
             </div>
@@ -393,7 +465,7 @@ export function PatientPhotoEditor({
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button type="button" onClick={closeCrop} disabled={busy} className="min-h-12 rounded-xl border border-slate-200 font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+              <button type="button" onClick={() => { closeCrop(); returnFocus(); }} disabled={busy} className="min-h-12 rounded-xl border border-slate-200 font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50">
                 Annuler
               </button>
               <button type="button" onClick={saveCrop} disabled={busy} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#003380] font-black text-white disabled:opacity-50">
