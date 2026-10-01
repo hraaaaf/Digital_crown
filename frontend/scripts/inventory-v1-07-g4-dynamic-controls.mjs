@@ -12,6 +12,12 @@ const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
 const login = await api.post('/api/auth/login', { form: { username: user, password } });
 if (!login.ok()) throw new Error('dynamic inventory login failed');
 const tokens = await login.json();
+const workstationEnroll = await api.post('/api/workstation/enroll', {
+  data: { accountPassword: process.env.T2_PASSWORD },
+  headers: { Authorization: `Bearer ${tokens.access_token}` },
+});
+if (!workstationEnroll.ok()) throw new Error(`Workstation enrollment failed: ${workstationEnroll.status()} ${await workstationEnroll.text()}`);
+const workstationStorage = await api.storageState();
 const headers = { Authorization: `Bearer ${tokens.access_token}` };
 const patientsResponse = await api.get('/api/patients', { headers });
 if (!patientsResponse.ok()) throw new Error('dynamic inventory patient list failed');
@@ -77,7 +83,7 @@ async function selectExactAmoxicillin(page) {
 }
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
-  const context = await browser.newContext({ viewport, colorScheme: 'light' });
+  const context = await browser.newContext({ storageState: workstationStorage, viewport, colorScheme: 'light' });
   const page = await context.newPage();
   await seedAuth(page);
   const base = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=`;
