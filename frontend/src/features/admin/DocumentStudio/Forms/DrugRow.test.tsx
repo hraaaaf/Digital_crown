@@ -123,6 +123,50 @@ describe('DrugRow — Prescription Intelligence V1', () => {
     expect(screen.getByText(/Aucune règle de dose V1 certifiée/)).toBeInTheDocument();
   });
 
+  it('réévalue silencieusement la sécurité N5 quand une présentation exacte est liée', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/patients/42/neo-prescription-safety') {
+        return { data: { status: 'READY' } } as any;
+      }
+      return { data: [presentation] } as any;
+    });
+
+    renderDrugRow({
+      patientId: '42',
+      drug: {
+        ...baseDrug,
+        name: 'PARACETAMOL TEST 500 MG',
+        dosage: '500 MG',
+        forme: 'COMPRIME',
+        catalogPresentationId: 'cnops:test-500',
+        catalogDci: 'PARACETAMOL',
+      },
+    });
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith('/patients/42/neo-prescription-safety', {
+        params: { presentation_id: 'cnops:test-500' },
+      });
+    });
+    expect(screen.queryByRole('alert')).not.toHaveTextContent(/Contexte patient à vérifier/i);
+  });
+
+  it('demande confirmation locale après override manuel sans identité exacte', () => {
+    renderDrugRow({
+      patientId: '42',
+      drug: {
+        ...baseDrug,
+        name: 'PARACETAMOL TEST',
+        dosage: '750 MG',
+        forme: 'COMPRIME',
+        catalogPresentationId: undefined,
+        catalogDci: 'PARACETAMOL',
+      },
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Présentation à confirmer avant validation.');
+  });
+
   it('efface identité documentaire et champs cliniques si le nom sélectionné est modifié', () => {
     const { onUpdateDrug } = renderDrugRow({
       drug: {
