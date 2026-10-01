@@ -25,6 +25,9 @@ jobs:
       - name: Install probe dependencies
         run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.12.3
 
+      - name: Run deterministic parser tests
+        run: python scripts/test_probe_ammps_dictionary_sync.py
+
       - name: Probe official AMMPS representative medication queries
         run: |
           python scripts/probe_ammps_dictionary_sync.py \
