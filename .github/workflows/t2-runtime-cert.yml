@@ -27,6 +27,8 @@ on:
       - 'frontend/src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts'
       - 'frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.ts'
       - 'frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel.test.tsx'
       - 'frontend/scripts/certify-ordonnance-composer.mjs'
       - 'frontend/ordonnance-composer-fixture.html'
       - 'backend/tests/test_neo_ordonnance_reusables.py'
