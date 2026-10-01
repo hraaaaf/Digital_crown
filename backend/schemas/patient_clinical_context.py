@@ -13,6 +13,10 @@ CurrentMedicationsStatus = Literal["UNKNOWN", "NONE_REPORTED", "PRESENT"]
 AntithromboticClass = Literal["VKA", "DOAC", "ANTIPLATELET", "LMWH", "OTHER"]
 CombinationStatus = Literal["UNKNOWN", "NO", "YES"]
 LMWHDoseClass = Literal["UNKNOWN", "PROPHYLACTIC", "TREATMENT"]
+MRONJAgentClass = Literal["UNKNOWN", "BISPHOSPHONATE", "DENOSUMAB", "ROMOSOZUMAB", "ANTIANGIOGENIC", "OTHER"]
+MRONJIndication = Literal["UNKNOWN", "OSTEOPOROSIS_NONMALIGNANT", "MALIGNANCY", "OTHER"]
+MRONJRoute = Literal["UNKNOWN", "ORAL", "PARENTERAL", "OTHER"]
+MRONJConcurrentRiskTherapy = Literal["CHEMOTHERAPY", "STEROID", "ANTIANGIOGENIC", "OTHER"]
 IECardiacRiskCategory = Literal[
     "UNKNOWN",
     "NONE_REPORTED",
@@ -144,17 +148,37 @@ class PatientProcedureSafetyContextUpdate(BaseModel):
     warfarin_inr_current: Optional[bool] = None
     lmwh_dose_class: LMWHDoseClass = "UNKNOWN"
 
-    @field_validator("anticoagulants", "antiplatelets")
+    mronj_medication_status: CurrentMedicationsStatus = "UNKNOWN"
+    mronj_agents: Optional[List[str]] = None
+    mronj_agent_class: MRONJAgentClass = "UNKNOWN"
+    mronj_indication: MRONJIndication = "UNKNOWN"
+    mronj_route: MRONJRoute = "UNKNOWN"
+    mronj_duration_months: Optional[int] = None
+    mronj_concurrent_risk_therapy: Optional[List[MRONJConcurrentRiskTherapy]] = None
+    active_oral_infection_or_inflammation: BinaryFactStatus = "UNKNOWN"
+    suspected_or_known_mronj: BinaryFactStatus = "UNKNOWN"
+
+    @field_validator("anticoagulants", "antiplatelets", "mronj_agents")
+
     @classmethod
     def normalize_agents(cls, value: Optional[List[str]]) -> Optional[List[str]]:
         return _clean_string_list(value, "Un traitement antithrombotique renseigné ne peut pas être vide")
 
-    @field_validator("antithrombotic_classes")
+    @field_validator("antithrombotic_classes", "mronj_concurrent_risk_therapy")
     @classmethod
-    def normalize_antithrombotic_classes(cls, value):
+    def normalize_enum_lists(cls, value):
         if value is None:
             return None
         return list(dict.fromkeys(value))
+
+    @field_validator("mronj_duration_months")
+    @classmethod
+    def validate_mronj_duration(cls, value: Optional[int]) -> Optional[int]:
+        if value is None:
+            return None
+        if value < 0:
+            raise ValueError("Durée MRONJ invalide")
+        return value
 
     @field_validator("warfarin_inr")
     @classmethod
@@ -201,6 +225,17 @@ class PatientProcedureSafetyContextUpdate(BaseModel):
             )
         ):
             raise ValueError("Le statut combinaison YES exige une combinaison explicite")
+
+        mronj_agents = self.mronj_agents or []
+        if self.mronj_medication_status == "PRESENT" and not mronj_agents:
+            raise ValueError("Le statut MRONJ PRESENT exige au moins un agent explicite")
+        if self.mronj_medication_status != "PRESENT" and mronj_agents:
+            raise ValueError("Les agents MRONJ exigent le statut PRESENT")
+        if self.mronj_medication_status != "PRESENT":
+            if self.mronj_agent_class != "UNKNOWN" or self.mronj_indication != "UNKNOWN" or self.mronj_route != "UNKNOWN":
+                raise ValueError("Les détails MRONJ exigent le statut PRESENT")
+            if self.mronj_duration_months is not None or self.mronj_concurrent_risk_therapy:
+                raise ValueError("Les facteurs MRONJ exigent le statut PRESENT")
         return self
 
 
