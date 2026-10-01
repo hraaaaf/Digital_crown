@@ -552,7 +552,12 @@ def download_document(
             raise HTTPException(status_code=400, detail="Chemin de fichier invalide")
         return FileResponse(path=str(file_path), filename=filename)
     
-    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(document_id)).first()
+    try:
+        numeric_document_id = int(document_id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Identifiant de document invalide")
+
+    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == numeric_document_id).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     # Gate de permission selon le type de document (S6) : symetrique a generate/archive.
     # Ex : un PDF financier (devis/honoraires) exige la permission "accounting".
