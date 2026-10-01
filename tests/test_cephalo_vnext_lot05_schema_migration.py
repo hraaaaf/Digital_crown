@@ -81,3 +81,10 @@ def test_duplicate_alias_fails_closed():
     v2["landmark_registry"][0]["aliases"]=["legacy-x"]
     v2["landmark_registry"][1]["aliases"]=["legacy-x"]
     with pytest.raises(Lot05MigrationError): roundtrip_v2_to_v1(v2)
+
+
+def test_migration_timestamp_is_auditable_and_timezone_aware():
+    v2=migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400,migrated_at="2026-10-01T17:00:00+00:00")
+    assert v2["migration"]["migrated_at"]=="2026-10-01T17:00:00+00:00"
+    with pytest.raises(Lot05MigrationError):
+        migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400,migrated_at="2026-10-01T17:00:00")
