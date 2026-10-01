@@ -29,6 +29,13 @@ const login = await api.post('/api/auth/login', {
 });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
+const enroll = await api.post('/api/workstation/enroll', {
+  data: { accountPassword: runtimePassword },
+  headers: { Authorization: `Bearer ${tokens.access_token}` },
+});
+if (!enroll.ok()) throw new Error(`Workstation enrollment failed: ${enroll.status()} ${await enroll.text()}`);
+const workstationStorage = await api.storageState();
+
 const patients = await api.get('/api/patients', {
   headers: { Authorization: `Bearer ${tokens.access_token}` },
 });
@@ -175,7 +182,7 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
 }
 
 for (const viewport of viewports) {
-  const context = await browser.newContext({ viewport, colorScheme: 'light' });
+  const context = await browser.newContext({ viewport, colorScheme: 'light', storageState: workstationStorage });
   const page = await context.newPage();
   await seedAuth(page);
 
@@ -191,7 +198,7 @@ for (const viewport of viewports) {
 
 {
   const viewport = { width: 1280, height: 900 };
-  const context = await browser.newContext({ viewport, colorScheme: 'dark' });
+  const context = await browser.newContext({ viewport, colorScheme: 'dark', storageState: workstationStorage });
   const page = await context.newPage();
   await seedAuth(page);
   for (const studioPage of studioPages) {
@@ -202,7 +209,7 @@ for (const viewport of viewports) {
 }
 
 {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light', storageState: workstationStorage });
   const page = await context.newPage();
   await seedAuth(page);
   let edited = false;
