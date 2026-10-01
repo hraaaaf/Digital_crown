@@ -1,5 +1,5 @@
 import math
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
@@ -17,6 +17,8 @@ MRONJAgentClass = Literal["UNKNOWN", "BISPHOSPHONATE", "DENOSUMAB", "ROMOSOZUMAB
 MRONJIndication = Literal["UNKNOWN", "OSTEOPOROSIS_NONMALIGNANT", "MALIGNANCY", "OTHER"]
 MRONJRoute = Literal["UNKNOWN", "ORAL", "PARENTERAL", "OTHER"]
 MRONJConcurrentRiskTherapy = Literal["CHEMOTHERAPY", "STEROID", "ANTIANGIOGENIC", "IMMUNOMODULATOR", "OTHER"]
+ProcedureBleedingRisk = Literal["UNKNOWN", "UNLIKELY_TO_CAUSE_BLEEDING", "LOW_POSTOP_BLEEDING_RISK", "HIGHER_POSTOP_BLEEDING_RISK"]
+ProcedureOsseousRisk = Literal["UNKNOWN", "NO_OSSEOUS_INJURY", "DENTOALVEOLAR_OSSEOUS_INJURY"]
 IECardiacRiskCategory = Literal[
     "UNKNOWN",
     "NONE_REPORTED",
@@ -163,6 +165,14 @@ class PatientProcedureSafetyContextUpdate(BaseModel):
     active_oral_infection_or_inflammation: BinaryFactStatus = "UNKNOWN"
     suspected_or_known_mronj: BinaryFactStatus = "UNKNOWN"
 
+    procedure_date: Optional[date] = None
+    procedure_bleeding_risk: ProcedureBleedingRisk = "UNKNOWN"
+    procedure_osseous_risk: ProcedureOsseousRisk = "UNKNOWN"
+    procedure_is_implant: Optional[bool] = None
+    ie_procedure_qualifies: Optional[bool] = None
+    oral_route_possible: Optional[bool] = None
+    currently_taking_penicillin_or_amoxicillin: Optional[bool] = None
+
     @field_validator("anticoagulants", "antiplatelets", "mronj_agents")
     @classmethod
     def normalize_agents(cls, value: Optional[List[str]]) -> Optional[List[str]]:
@@ -240,6 +250,9 @@ class PatientProcedureSafetyContextUpdate(BaseModel):
                 raise ValueError("Les détails MRONJ exigent le statut PRESENT")
             if self.mronj_duration_months is not None or self.mronj_concurrent_risk_therapy:
                 raise ValueError("Les facteurs MRONJ exigent le statut PRESENT")
+
+        if self.procedure_is_implant is True and self.procedure_osseous_risk != "DENTOALVEOLAR_OSSEOUS_INJURY":
+            raise ValueError("Un implant exige un contexte procédural avec atteinte osseuse")
         return self
 
 
