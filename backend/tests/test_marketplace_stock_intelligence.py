@@ -222,14 +222,14 @@ def test_consumption_uses_fefo_is_idempotent_and_drives_reorder(client, db, dent
         dentiste,
         order,
         "receipt-p7-fefo-a",
-        [{"productId": str(product.id), "quantityReceived": 2, "lotNumber": "EARLY", "expiresAt": "2026-10-01T00:00:00"}],
+        [{"productId": str(product.id), "quantityReceived": 2, "lotNumber": "EARLY", "expiresAt": "2098-10-01T00:00:00"}],
     )
     receipt_b = _receipt(
         db,
         dentiste,
         order,
         "receipt-p7-fefo-b",
-        [{"productId": str(product.id), "quantityReceived": 2, "lotNumber": "LATE", "expiresAt": "2027-01-01T00:00:00"}],
+        [{"productId": str(product.id), "quantityReceived": 2, "lotNumber": "LATE", "expiresAt": "2099-01-01T00:00:00"}],
     )
     assert client.post(f"/api/stock/marketplace/receipts/{receipt_a.id}/apply", headers=auth_headers).status_code == 201
     assert client.post(f"/api/stock/marketplace/receipts/{receipt_b.id}/apply", headers=auth_headers).status_code == 201
