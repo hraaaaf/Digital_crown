@@ -55,6 +55,7 @@ const clearCatalogMetadata = (drug: DrugItem): DrugItem => ({
 });
 
 export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps> = ({
+  patientId,
   drugs,
   setDrugs,
   prescriptionIndication,
@@ -215,6 +216,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             onApplySuggestion={() => undefined}
             onForceAllergy={() => undefined}
             onToggleType={toggleType}
+            patientId={patientId}
           />
         ))}
       </div>
