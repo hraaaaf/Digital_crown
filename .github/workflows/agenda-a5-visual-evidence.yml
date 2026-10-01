@@ -1,6 +1,13 @@
 name: Agenda A5 Visual Evidence
 on:
   pull_request:
+    paths:
+      - 'frontend/src/pages/AgendaPage.tsx'
+      - 'frontend/src/features/agenda/**'
+      - 'frontend/src/components/**/*Agenda*'
+      - 'frontend/src/services/**/*appointment*'
+      - 'backend/**/*appointment*'
+      - 'backend/**/*agenda*'
   workflow_dispatch:
 permissions:
   contents: read

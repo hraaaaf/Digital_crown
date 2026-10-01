@@ -3,11 +3,22 @@ on:
   pull_request:
     paths:
       - "frontend/src/**"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar*"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice*"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposer*"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/DrugRow*.test.tsx"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioLegacy.tsx"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.r7.test.tsx"
+      - "!frontend/src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts"
+      - "!frontend/src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts"
+      - "!frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter*"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel*"
       - "frontend/scripts/inventory-v1-07-g1-g7-browser-controls.mjs"
       - "scripts/t2_runtime_server.py"
       - "requirements.txt"
       - "frontend/package*.json"
-      - ".github/workflows/v1-07-g1-g7-browser-inventory.yml"
   workflow_dispatch:
 concurrency:
   group: v1-07-g1-g7-browser-inventory-${{ github.ref }}

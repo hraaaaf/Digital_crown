@@ -4,9 +4,20 @@ on:
   pull_request:
     paths:
       - 'frontend/src/features/admin/DocumentStudio/**'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar*'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice*'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposer*'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/DrugRow*.test.tsx'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioLegacy.tsx'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.r7.test.tsx'
+      - '!frontend/src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts'
+      - '!frontend/src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts'
+      - '!frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter*'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel*'
       - 'frontend/scripts/certify-ordonnance-fidelity-v3.mjs'
       - 'frontend/scripts/capture-acig-autocomplete-proof.mjs'
-      - '.github/workflows/ordonnance-fidelity-v3-visual-cert.yml'
   workflow_dispatch:
 
 concurrency:

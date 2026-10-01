@@ -90,6 +90,18 @@ describe('PatientClinicalContextPanel C2', () => {
     expect(screen.getByText('haut risque déclaré')).toBeInTheDocument();
   });
 
+  it('émet un signal après sauvegarde du contexte patient', async () => {
+    const listener = vi.fn();
+    window.addEventListener('digitalcrown:patient-clinical-context-updated', listener);
+
+    render(<PatientClinicalContextPanel patientId={42} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Renseigner/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer le contexte/i }));
+
+    await waitFor(() => expect(listener).toHaveBeenCalledTimes(1));
+    window.removeEventListener('digitalcrown:patient-clinical-context-updated', listener);
+  });
+
   it('préserve les faits C2 existants lors d une sauvegarde C1', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {

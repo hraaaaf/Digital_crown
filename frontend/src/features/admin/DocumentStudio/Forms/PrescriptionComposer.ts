@@ -153,6 +153,8 @@ export function composePrescriptionPosology(state: PrescriptionComposerState): s
     sentence += `${sentence ? ', ' : ''}sans dépasser ${max} fois par jour`;
   } else if (isDuration(state.constraint)) {
     sentence += `${sentence ? ' pendant ' : 'Pendant '}${state.constraint}`;
+  } else if (state.constraint) {
+    sentence += `${sentence ? ', ' : ''}${state.constraint}`;
   }
 
   if (isDuration(state.context)) {

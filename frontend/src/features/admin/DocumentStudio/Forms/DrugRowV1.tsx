@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
   CalendarDays,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -11,7 +10,6 @@ import {
   Microscope,
   Pill,
   Search,
-  ShieldAlert,
   Trash2,
   Utensils,
 } from 'lucide-react';
@@ -29,8 +27,9 @@ import {
   parsePrescriptionPosology,
   type PrescriptionComposerState,
 } from './PrescriptionComposer';
+import { PrescriptionContextualChoice } from './PrescriptionContextualChoice';
 import type { DrugItem } from './prescriptionTypes';
-import { getFormeIcon } from './prescriptionTypes';
+import { FORMES, getFormeIcon } from './prescriptionTypes';
 
 interface CatalogSource {
   id: string;
@@ -69,19 +68,15 @@ export interface DrugRowProps {
   onSearch: (id: number, field: string, val: string) => void;
   onKeyDown: (e: React.KeyboardEvent, id: number, field: string) => void;
   onApplySuggestion: (id: number, field: string, val: string) => void;
-  onFormeOpen: (e: React.MouseEvent<HTMLButtonElement>, drugId: number) => void;
   onForceAllergy: (id: number) => void;
   onToggleType: (id: number, type: 'MEDICAMENT' | 'EXAMEN') => void;
+  disableCatalogLookup?: boolean;
+  patientId?: string;
 }
 
 const presentationStrength = (presentation: CatalogPresentation): string =>
   [presentation.dosage, presentation.unite].filter(Boolean).join(' ').trim();
 
-const catalogSourceShortLabel = (source: CatalogSource): string => {
-  if (source.id.startsWith('ammps-')) return 'AMMPS';
-  if (source.id === 'cnops-open-data-medications') return 'CNOPS Open Data';
-  return source.label || 'Référentiel documentaire';
-};
 
 const fmtMg = (mg: number) => (mg < 1000 ? `${mg}mg` : `${mg / 1000}g`);
 
@@ -89,51 +84,125 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   drug,
   idx,
   drugsCount,
-  assessment,
   validationErrors,
   medChecks,
   onUpdateDrug,
   onRemoveDrug,
   onMove,
-  onFormeOpen,
   onToggleType,
+  disableCatalogLookup = false,
+  patientId,
 }) => {
   const [catalogResults, setCatalogResults] = useState<CatalogPresentation[]>([]);
   const [catalogSearching, setCatalogSearching] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
   const [highlightedPresentation, setHighlightedPresentation] = useState(-1);
+  const [nameSearchActive, setNameSearchActive] = useState(false);
+  const [neoSafety, setNeoSafety] = useState<'idle' | 'checking' | 'ready' | 'warning' | 'blocked' | 'error'>('idle');
+  const [neoSafetyMessage, setNeoSafetyMessage] = useState<string | null>(null);
+  const [safetyRevision, setSafetyRevision] = useState(0);
 
   const fieldError = validationErrors.find(error => error.field === `drug_${idx}`);
   const isRadio = drug.type === 'EXAMEN';
   const hasIdentity = isRadio || Boolean(drug.name.trim());
   const hasCatalogPresentation = Boolean(drug.catalogPresentationId);
+  const hasManualPresentationOverride = Boolean(drug.catalogDci && !drug.catalogPresentationId);
   const medCheck = medChecks[drug.id];
   const composer = parsePrescriptionPosology(drug.posologie);
   const composerRecognized = composerRecognitionCount(composer);
   const hasCustomPosology = Boolean(drug.posologie.trim()) && composerRecognized < 2;
-  const catalogOpen = !isRadio && !hasCatalogPresentation && catalogResults.length > 0;
+  const catalogOpen = nameSearchActive && !isRadio && !hasCatalogPresentation && catalogResults.length > 0;
   const cardLabel = isRadio
     ? `Examen ${String(idx + 1).padStart(2, '0')}`
     : `Médicament ${String(idx + 1).padStart(2, '0')}`;
 
   const nationalMsg = medCheck && medCheck.known && medCheck.exists === false && medCheck.available_mg?.length
-    ? `Dosage absent du snapshot documentaire${medCheck.dci ? ` (${medCheck.dci})` : ''} — valeurs connues : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
+    ? `Ce dosage n’est pas disponible parmi les présentations connues. Alternatives : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
     : null;
 
-  const missingClinicalContext = useMemo(() => {
-    const missing = assessment?.evaluation?.missing_fields;
-    return Array.isArray(missing) ? missing.filter(Boolean) : [];
-  }, [assessment]);
 
   useEffect(() => {
-    if (isRadio || hasCatalogPresentation) {
+    if (!patientId) return;
+    const handleContextUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ patientId?: number | string }>).detail;
+      if (String(detail?.patientId ?? '') === String(patientId)) {
+        setSafetyRevision(value => value + 1);
+      }
+    };
+    window.addEventListener('digitalcrown:patient-clinical-context-updated', handleContextUpdated);
+    return () => window.removeEventListener('digitalcrown:patient-clinical-context-updated', handleContextUpdated);
+  }, [patientId]);
+
+  useEffect(() => {
+    if (isRadio || !patientId) {
+      setNeoSafety('idle');
+      setNeoSafetyMessage(null);
+      return;
+    }
+    if (!drug.catalogPresentationId) {
+      setNeoSafety(hasManualPresentationOverride ? 'blocked' : 'idle');
+      setNeoSafetyMessage(hasManualPresentationOverride ? 'Présentation à confirmer avant validation.' : null);
+      return;
+    }
+
+    let cancelled = false;
+    setNeoSafety('checking');
+    setNeoSafetyMessage(null);
+    void api.get(`/patients/${patientId}/neo-prescription-safety`, {
+      params: { presentation_id: drug.catalogPresentationId },
+    }).then(response => {
+      if (cancelled) return;
+      const blockers = Array.isArray(response.data?.blockers) ? response.data.blockers.map(String) : [];
+      const warnings = Array.isArray(response.data?.warnings) ? response.data.warnings.map(String) : [];
+      if (response.data?.status === 'READY') {
+        if (warnings.length) {
+          setNeoSafety('warning');
+          setNeoSafetyMessage('Point clinique à vérifier avant validation.');
+        } else {
+          setNeoSafety('ready');
+          setNeoSafetyMessage(null);
+        }
+        return;
+      }
+      const identityIssue = blockers.some((code: string) => (
+        code === 'MEDICATION_IDENTITY_UNRESOLVED'
+        || code === 'CURRENT_MARKETING_STATUS_NOT_VERIFIED'
+      ));
+      const contextIssue = blockers.some((code: string) => (
+        code.endsWith('_UNKNOWN')
+        || code.endsWith('_INVALID')
+        || code.includes('_WITHOUT_VALID_LIST')
+        || code.includes('_LIST_STATUS_MISMATCH')
+      ));
+      setNeoSafety('blocked');
+      setNeoSafetyMessage(
+        identityIssue
+          ? 'Présentation à confirmer avant validation.'
+          : contextIssue
+            ? 'Contexte patient incomplet avant validation.'
+            : 'Vérification clinique requise avant validation.',
+      );
+    }).catch(() => {
+      if (!cancelled) {
+        setNeoSafety('error');
+        setNeoSafetyMessage('Vérification clinique momentanément indisponible.');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [drug.catalogPresentationId, hasManualPresentationOverride, isRadio, patientId, safetyRevision]);
+
+  useEffect(() => {
+    if (isRadio || disableCatalogLookup) {
       setCatalogResults([]);
       setCatalogSearching(false);
       setCatalogError(false);
       return;
     }
 
-    const query = drug.name.trim();
+    const query = (drug.catalogDci || drug.name).trim();
     if (query.length < 2) {
       setCatalogResults([]);
       setCatalogSearching(false);
@@ -146,7 +215,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     setCatalogError(false);
     const timer = window.setTimeout(async () => {
       try {
-        const response = await api.get('/medications/search', { params: { q: query } });
+        const response = await api.get('/medications/neo/search', { params: { q: query } });
         if (cancelled) return;
         setCatalogResults(Array.isArray(response.data) ? response.data : []);
         setHighlightedPresentation(-1);
@@ -164,11 +233,11 @@ export const DrugRow: React.FC<DrugRowProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [drug.name, hasCatalogPresentation, isRadio]);
+  }, [disableCatalogLookup, drug.catalogDci, drug.name, isRadio]);
 
-  const clearCatalogIdentity = () => {
+  const clearCatalogIdentity = (preserveDci = false) => {
     onUpdateDrug(drug.id, 'catalogPresentationId', undefined);
-    onUpdateDrug(drug.id, 'catalogDci', undefined);
+    if (!preserveDci) onUpdateDrug(drug.id, 'catalogDci', undefined);
     onUpdateDrug(drug.id, 'catalogSourceId', undefined);
     onUpdateDrug(drug.id, 'catalogSourceLabel', undefined);
     onUpdateDrug(drug.id, 'catalogSnapshotDate', undefined);
@@ -184,13 +253,14 @@ export const DrugRow: React.FC<DrugRowProps> = ({
       onUpdateDrug(drug.id, 'posologie', '');
     }
     onUpdateDrug(drug.id, 'name', next);
+    setNameSearchActive(true);
   };
 
-  const selectPresentation = (presentation: CatalogPresentation) => {
+  const applyPresentationIdentity = (presentation: CatalogPresentation, preservePosology: boolean) => {
     onUpdateDrug(drug.id, 'name', presentation.nom);
     onUpdateDrug(drug.id, 'dosage', presentationStrength(presentation));
     onUpdateDrug(drug.id, 'forme', presentation.forme);
-    onUpdateDrug(drug.id, 'posologie', '');
+    if (!preservePosology) onUpdateDrug(drug.id, 'posologie', '');
     onUpdateDrug(drug.id, 'catalogPresentationId', presentation.presentation_id);
     onUpdateDrug(drug.id, 'catalogDci', presentation.dci || '');
     onUpdateDrug(drug.id, 'catalogSourceId', presentation.source.id);
@@ -204,6 +274,86 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     setCatalogResults([]);
     setCatalogError(false);
     setHighlightedPresentation(-1);
+    setNameSearchActive(false);
+  };
+
+  const selectPresentation = (presentation: CatalogPresentation) => {
+    applyPresentationIdentity(presentation, false);
+  };
+
+  const matchingPresentations = catalogResults.filter(presentation => (
+    !drug.catalogDci
+    || presentation.dci.trim().toLocaleUpperCase() === drug.catalogDci.trim().toLocaleUpperCase()
+  ));
+  const currentBrandRoot = drug.name.trim().split(/\s+/)[0]?.toLocaleUpperCase() || '';
+  const sameBrand = (presentation: CatalogPresentation) => (
+    Boolean(currentBrandRoot)
+    && presentation.nom.trim().toLocaleUpperCase().startsWith(currentBrandRoot)
+  );
+  const orderedPresentations = [
+    ...matchingPresentations.filter(sameBrand),
+    ...matchingPresentations.filter(presentation => !sameBrand(presentation)),
+  ];
+
+  const doseOptions = Array.from(new Map(
+    orderedPresentations
+      .map(presentation => [presentationStrength(presentation), presentation] as const)
+      .filter(([strength]) => Boolean(strength)),
+  ).entries()).map(([strength, presentation]) => ({
+    value: strength,
+    label: strength,
+    secondary: [presentation.nom, presentation.forme].filter(Boolean).join(' · ') || undefined,
+  }));
+
+  const formOptions = Array.from(new Map(
+    orderedPresentations
+      .map(presentation => [presentation.forme?.trim(), presentation] as const)
+      .filter(([forme]) => Boolean(forme)),
+  ).entries()).map(([forme, presentation]) => ({
+    value: forme,
+    label: forme,
+    secondary: [presentation.nom, presentationStrength(presentation)].filter(Boolean).join(' · ') || undefined,
+  }));
+
+  const amountOptionsForForm = PRESCRIPTION_AMOUNT_OPTIONS.filter(option => {
+    const forme = drug.forme.toLocaleUpperCase();
+    if (!forme) return true;
+    if (forme.includes('COMPR')) return option.value.includes('comprimé');
+    if (forme.includes('GÉL') || forme.includes('GEL')) return option.value.includes('gélule');
+    if (forme.includes('SACH')) return option.value.includes('sachet');
+    if (forme.includes('SIROP') || forme.includes('SUSP') || forme.includes('SOLUTION')) return option.value.includes('ml');
+    if (forme.includes('BAIN')) return option.value.includes('rinçage');
+    return true;
+  });
+
+  const relinkByDose = (value: string) => {
+    const exact = orderedPresentations.find(presentation => (
+      sameBrand(presentation)
+      && presentationStrength(presentation) === value
+      && (!drug.forme || presentation.forme === drug.forme)
+    )) || orderedPresentations.find(presentation => (
+      sameBrand(presentation) && presentationStrength(presentation) === value
+    )) || orderedPresentations.find(presentation => presentationStrength(presentation) === value);
+    if (exact) applyPresentationIdentity(exact, true);
+    else {
+      clearCatalogIdentity(true);
+      onUpdateDrug(drug.id, 'dosage', value);
+    }
+  };
+
+  const relinkByForm = (value: string) => {
+    const exact = orderedPresentations.find(presentation => (
+      sameBrand(presentation)
+      && presentation.forme === value
+      && (!drug.dosage || presentationStrength(presentation) === drug.dosage)
+    )) || orderedPresentations.find(presentation => (
+      sameBrand(presentation) && presentation.forme === value
+    )) || orderedPresentations.find(presentation => presentation.forme === value);
+    if (exact) applyPresentationIdentity(exact, true);
+    else {
+      clearCatalogIdentity(true);
+      onUpdateDrug(drug.id, 'forme', value);
+    }
   };
 
   const handleNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -288,11 +438,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
             <div className="relative min-w-0 flex-1">
               <div className="mb-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">
                 {cardLabel}
-                {!isRadio && hasCatalogPresentation && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] tracking-normal text-emerald-700">
-                    <CheckCircle2 size={9} /> Présentation identifiée
-                  </span>
-                )}
+
               </div>
               <div className="relative">
                 {!isRadio && <Search size={14} className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-text-muted/70" />}
@@ -305,6 +451,8 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                   placeholder={isRadio ? "DÉTAILS DE L'EXAMEN RADIOLOGIQUE..." : 'NOM OU DCI DU MÉDICAMENT...'}
                   value={drug.name}
                   onChange={event => handleNameChange(event.target.value)}
+                  onFocus={() => setNameSearchActive(true)}
+                  onBlur={() => window.setTimeout(() => setNameSearchActive(false), 120)}
                   onKeyDown={handleNameKeyDown}
                   autoComplete="off"
                 />
@@ -320,7 +468,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                     className="absolute left-0 right-0 top-full z-[100] mt-2 max-h-[340px] overflow-y-auto rounded-2xl border border-border-main bg-card py-2 shadow-2xl"
                   >
                     <div className="border-b border-border-main px-4 pb-2 pt-1 text-[8px] font-bold text-text-muted sm:px-5">
-                      Référentiels documentaires marocains · provenance indiquée par présentation
+                      Présentations disponibles
                     </div>
                     {catalogResults.map((presentation, index) => (
                       <button
@@ -344,9 +492,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                           <span className="mt-0.5 block truncate text-[9px] font-semibold text-text-muted">
                             {presentation.dci || 'DCI non renseignée'}
                           </span>
-                          <span className="mt-0.5 block truncate text-[8px] font-bold text-text-muted/80">
-                            {catalogSourceShortLabel(presentation.source)} · {presentation.source.snapshot_date || 'date non renseignée'} · statut commercial actuel {presentation.source.current_marketing_status_verified ? 'vérifié' : 'non certifié'}
-                          </span>
+
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           <span className="text-right">
@@ -397,73 +543,56 @@ export const DrugRow: React.FC<DrugRowProps> = ({
             </div>
           </div>
 
-          {!isRadio && catalogSearching && (
-            <p className="mt-1 text-[9px] font-semibold text-text-muted">Recherche dans le référentiel documentaire…</p>
+          {!isRadio && patientId && ['blocked', 'warning', 'error'].includes(neoSafety) && neoSafetyMessage && (
+            <p role="alert" aria-live="polite" className="mt-1 text-[10px] font-bold text-amber-700">
+              {neoSafetyMessage}
+            </p>
+          )}
+          {!isRadio && !hasCatalogPresentation && catalogSearching && (
+            <p className="mt-1 text-[9px] font-semibold text-text-muted">Recherche des présentations…</p>
           )}
           {!isRadio && catalogError && (
             <div className="mt-2 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50/70 px-3 py-2 text-[10px] font-semibold text-red-700" role="status">
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
-              Référentiel médicament indisponible. Aucune suggestion locale n’est substituée.
+              Recherche médicament indisponible pour le moment.
             </div>
           )}
 
           {!hasIdentity && !isRadio && (
             <p className="mt-1 text-[10px] font-semibold leading-relaxed text-text-muted">
-              Recherchez un médicament puis choisissez explicitement sa présentation.
+              Commencez par choisir le médicament.
             </p>
           )}
 
           {!isRadio && hasIdentity && (
             <div className="mt-3 min-w-0 space-y-3">
-              {hasCatalogPresentation ? (
-                <div
-                  data-selected-medication-presentation
-                  className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/55 px-3 py-2 text-emerald-800"
-                >
-                  <div className="min-w-0">
-                    <div className="text-[9px] font-black uppercase tracking-wide">Présentation sélectionnée explicitement</div>
-                    <div className="mt-0.5 text-[10px] font-semibold">
-                      {drug.catalogDci || 'DCI non renseignée'} · {drug.forme || 'forme non renseignée'} · {drug.dosage || 'dosage non renseigné'}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right text-[8px] font-bold opacity-80">
-                    <div>{drug.catalogSourceLabel || 'Référentiel documentaire'}</div>
-                    <div>Snapshot {drug.catalogSnapshotDate || 'date non renseignée'} · disponibilité actuelle non certifiée</div>
-                  </div>
-                </div>
-              ) : (
+              {!hasCatalogPresentation && !hasManualPresentationOverride && (
                 <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800">
-                  <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                  Présentation non liée au référentiel : aucune suggestion clinique ne peut être activée.
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  Choisissez le médicament pour compléter la ligne.
                 </div>
               )}
 
-              <div className="flex min-w-0 flex-wrap content-start items-center gap-2">
-                <button
-                  type="button"
-                  onClick={event => {
-                    if (!hasCatalogPresentation) onFormeOpen(event, drug.id);
-                  }}
-                  disabled={hasCatalogPresentation}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-main bg-input-field/70 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-text-main transition-all enabled:hover:border-primary/30 enabled:hover:bg-card enabled:hover:text-primary disabled:cursor-default disabled:opacity-80"
-                  title={hasCatalogPresentation ? 'Forme issue de la présentation sélectionnée' : 'Choisir la forme manuellement'}
-                >
-                  {getFormeIcon(drug.forme)}
-                  <span className="max-w-[12rem] truncate">{drug.forme.startsWith('AUTRE') ? 'AUTRE' : (drug.forme || 'FORME')}</span>
-                </button>
+              <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-[minmax(9rem,1fr)_minmax(8rem,0.8fr)_auto]">
+                <PrescriptionContextualChoice
+                  ariaLabel="Forme"
+                  value={drug.forme}
+                  placeholder="Forme"
+                  options={formOptions.length ? formOptions : FORMES.map(item => ({ value: item.l, label: item.l }))}
+                  onSelect={relinkByForm}
+                  onManual={relinkByForm}
+                  icon={getFormeIcon(drug.forme)}
+                />
 
-                <label className="flex min-h-11 min-w-[9rem] items-center gap-2 rounded-xl border border-border-main bg-input-field/70 px-3 py-2">
-                  <span className="shrink-0 text-[9px] font-black uppercase tracking-wide text-text-muted">Dose</span>
-                  <input
-                    type="text"
-                    className="min-w-0 flex-1 border-none bg-transparent p-0 text-[11px] font-black uppercase tracking-wide text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0 disabled:cursor-default"
-                    placeholder="500 MG"
-                    value={drug.dosage}
-                    readOnly={hasCatalogPresentation}
-                    onChange={event => onUpdateDrug(drug.id, 'dosage', event.target.value)}
-                    aria-label="Dose"
-                  />
-                </label>
+                <PrescriptionContextualChoice
+                  ariaLabel="Dose"
+                  value={drug.dosage}
+                  placeholder="Dose"
+                  options={doseOptions}
+                  onSelect={relinkByDose}
+                  onManual={relinkByDose}
+                  icon={<Pill size={14} className="shrink-0 text-text-muted" />}
+                />
 
                 <button
                   type="button"
@@ -487,20 +616,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 </div>
               )}
 
-              <div
-                data-clinical-suggestion-status="blocked"
-                className="flex items-start gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 text-[10px] font-semibold text-slate-600"
-              >
-                <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                <div>
-                  <span className="font-black">Suggestion clinique indisponible.</span>{' '}
-                  {missingClinicalContext.length > 0
-                    ? `Contexte patient incomplet : ${missingClinicalContext.join(', ')}.`
-                    : 'Aucune règle de dose V1 certifiée pour cette présentation.'}
-                  {' '}La posologie reste une saisie et une validation explicites du praticien.
-                </div>
-              </div>
-
+              <div data-clinical-suggestion-status="blocked" hidden />
               <div
                 data-ordonnance-prescription-composer
                 className="rounded-2xl border border-border-main bg-glass-bg/70 p-2.5 shadow-sm backdrop-blur-xl sm:p-3"
@@ -513,73 +629,42 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 </div>
 
                 <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
-                  <label className="relative min-w-0">
-                    <Pill size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="amount"
-                      aria-label="Prise"
-                      value={composer.amount}
-                      onChange={event => updateComposer('amount', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Prise</option>
-                      {PRESCRIPTION_AMOUNT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
-
-                  <label className="relative min-w-0">
-                    <Clock3 size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="frequency"
-                      aria-label="Rythme"
-                      value={composer.frequency}
-                      onChange={event => updateComposer('frequency', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Rythme</option>
-                      {PRESCRIPTION_FREQUENCY_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
-
-                  <label className="relative min-w-0">
-                    <CalendarDays size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="constraint"
-                      aria-label="Durée ou limite"
-                      value={composer.constraint}
-                      onChange={event => updateComposer('constraint', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Durée ou limite</option>
-                      {PRESCRIPTION_CONSTRAINT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
-
-                  <label className="relative min-w-0">
-                    <Utensils size={14} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-muted" />
-                    <select
-                      data-composer-field="context"
-                      aria-label="Moment ou condition"
-                      value={composer.context}
-                      onChange={event => updateComposer('context', event.target.value)}
-                      className="min-h-11 w-full appearance-none rounded-xl border border-border-main bg-input-field/80 py-2 pl-9 pr-7 text-[10px] font-black text-text-main outline-none transition-all hover:border-primary/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-                    >
-                      <option value="">Moment ou condition</option>
-                      {PRESCRIPTION_CONTEXT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  </label>
+                  <PrescriptionContextualChoice
+                    ariaLabel="Prise"
+                    value={composer.amount}
+                    placeholder="Prise"
+                    options={amountOptionsForForm}
+                    onSelect={value => updateComposer('amount', value)}
+                    onManual={value => updateComposer('amount', value)}
+                    icon={<Pill size={14} className="shrink-0 text-text-muted" />}
+                  />
+                  <PrescriptionContextualChoice
+                    ariaLabel="Rythme"
+                    value={composer.frequency}
+                    placeholder="Rythme"
+                    options={PRESCRIPTION_FREQUENCY_OPTIONS}
+                    onSelect={value => updateComposer('frequency', value)}
+                    onManual={value => updateComposer('frequency', value)}
+                    icon={<Clock3 size={14} className="shrink-0 text-text-muted" />}
+                  />
+                  <PrescriptionContextualChoice
+                    ariaLabel="Durée ou limite"
+                    value={composer.constraint}
+                    placeholder="Durée ou limite"
+                    options={PRESCRIPTION_CONSTRAINT_OPTIONS}
+                    onSelect={value => updateComposer('constraint', value)}
+                    onManual={value => updateComposer('constraint', value)}
+                    icon={<CalendarDays size={14} className="shrink-0 text-text-muted" />}
+                  />
+                  <PrescriptionContextualChoice
+                    ariaLabel="Moment ou condition"
+                    value={composer.context}
+                    placeholder="Moment ou condition"
+                    options={PRESCRIPTION_CONTEXT_OPTIONS}
+                    onSelect={value => updateComposer('context', value)}
+                    onManual={value => updateComposer('context', value)}
+                    icon={<Utensils size={14} className="shrink-0 text-text-muted" />}
+                  />
                 </div>
 
                 <div className="mt-2 rounded-xl border border-border-main/80 bg-card/75 px-3 py-2">

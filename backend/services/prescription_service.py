@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
@@ -55,9 +56,23 @@ class PrescriptionService(LegacyPrescriptionService):
             raise ValueError("Code acte vide")
         return normalized
 
-    def learn_habit(self, db: Session, doctor_id: int, act_code: str, drugs: List[Dict[str, Any]]):
-        """Persist a doctor prescription preference and never mask DB failures."""
+    def learn_habit(
+        self,
+        db: Session,
+        doctor_id: int,
+        act_code: str,
+        drugs: List[Dict[str, Any]],
+        *,
+        label: Optional[str] = None,
+        preference_type: str = "PROTOCOL",
+        indication: Optional[str] = None,
+        is_favorite: Optional[bool] = None,
+    ):
+        """Persist a reusable prescription object while preserving legacy callers."""
         normalized_act_code = self._normalize_preference_act_code(act_code)
+        normalized_type = str(preference_type or "PROTOCOL").strip().upper()
+        if normalized_type not in {"PROTOCOL", "SAVED_PRESCRIPTION"}:
+            raise ValueError("Type de préférence ordonnance invalide")
         cleaned_drugs = [
             {
                 "name": d.get("name", d.get("nom", "")),
@@ -67,6 +82,12 @@ class PrescriptionService(LegacyPrescriptionService):
                 "type": d.get("type", "MEDICAMENT"),
                 "quantite": d.get("quantite"),
                 "non_substituable": bool(d.get("non_substituable", False)),
+                "catalogPresentationId": d.get("catalogPresentationId"),
+                "catalogDci": d.get("catalogDci"),
+                "catalogSourceId": d.get("catalogSourceId"),
+                "catalogSourceLabel": d.get("catalogSourceLabel"),
+                "catalogSnapshotDate": d.get("catalogSnapshotDate"),
+                "catalogMarketingStatusVerified": d.get("catalogMarketingStatusVerified"),
             }
             for d in drugs
         ]
@@ -75,15 +96,25 @@ class PrescriptionService(LegacyPrescriptionService):
             existing = db.query(models.DoctorPrescriptionPreference).filter(
                 models.DoctorPrescriptionPreference.doctor_id == doctor_id,
                 models.DoctorPrescriptionPreference.act_code == normalized_act_code,
+                models.DoctorPrescriptionPreference.preference_type == normalized_type,
             ).first()
 
             if existing:
                 existing.drugs_json = cleaned_drugs
+                existing.preference_type = normalized_type
+                existing.label = (label or act_code).strip()[:100] or None
+                existing.indication = (indication or "").strip() or None
+                if is_favorite is not None:
+                    existing.is_favorite = bool(is_favorite)
             else:
                 db.add(
                     models.DoctorPrescriptionPreference(
                         doctor_id=doctor_id,
                         act_code=normalized_act_code,
+                        label=(label or act_code).strip()[:100] or None,
+                        preference_type=normalized_type,
+                        indication=(indication or "").strip() or None,
+                        is_favorite=bool(is_favorite) if is_favorite is not None else False,
                         drugs_json=cleaned_drugs,
                     )
                 )
@@ -133,31 +164,62 @@ class PrescriptionService(LegacyPrescriptionService):
         }
 
     def get_doctor_presets(self, db: Session, doctor_id: int) -> List[Dict[str, Any]]:
-        """Return doctor-scoped persisted presets in a stable order."""
+        """Return doctor-scoped reusable prescription objects with Neo metadata."""
         presets = db.query(models.DoctorPrescriptionPreference).filter(
             models.DoctorPrescriptionPreference.doctor_id == doctor_id
         ).order_by(
+            models.DoctorPrescriptionPreference.is_favorite.desc(),
+            models.DoctorPrescriptionPreference.last_used.desc(),
             models.DoctorPrescriptionPreference.updated_at.desc(),
             models.DoctorPrescriptionPreference.id.desc(),
-        ).limit(10).all()
+        ).limit(50).all()
 
         return [
             {
                 "id": preset.id,
                 "act_context": preset.act_code,
-                "label": preset.act_code.strip().lower().capitalize(),
+                "label": (preset.label or preset.act_code.strip().lower().capitalize()),
+                "kind": preset.preference_type or "PROTOCOL",
                 "drugs": preset.drugs_json,
+                "indication": preset.indication,
+                "is_favorite": bool(preset.is_favorite),
+                "usage_count": int(preset.usage_count or 0),
+                "last_used": preset.last_used.isoformat() if preset.last_used else None,
             }
             for preset in presets
         ]
 
+    def record_reusable_use(self, db: Session, doctor_id: int, preset_id: int) -> bool:
+        preset = db.query(models.DoctorPrescriptionPreference).filter(
+            models.DoctorPrescriptionPreference.id == preset_id,
+            models.DoctorPrescriptionPreference.doctor_id == doctor_id,
+        ).first()
+        if preset is None:
+            raise HTTPException(status_code=404, detail="Élément réutilisable introuvable")
+        preset.usage_count = int(preset.usage_count or 0) + 1
+        preset.last_used = datetime.utcnow()
+        db.commit()
+        return True
+
+    def set_reusable_favorite(self, db: Session, doctor_id: int, preset_id: int, value: bool) -> bool:
+        preset = db.query(models.DoctorPrescriptionPreference).filter(
+            models.DoctorPrescriptionPreference.id == preset_id,
+            models.DoctorPrescriptionPreference.doctor_id == doctor_id,
+        ).first()
+        if preset is None:
+            raise HTTPException(status_code=404, detail="Élément réutilisable introuvable")
+        preset.is_favorite = bool(value)
+        db.commit()
+        return True
+
     def delete_doctor_preset(self, db: Session, doctor_id: int, act_code: str) -> bool:
-        """Delete the exact doctor preference row used by save/load."""
+        """Delete only the legacy PROTOCOL matching this doctor and act code."""
         normalized_act_code = self._normalize_preference_act_code(act_code)
         try:
             deleted = db.query(models.DoctorPrescriptionPreference).filter(
                 models.DoctorPrescriptionPreference.doctor_id == doctor_id,
                 models.DoctorPrescriptionPreference.act_code == normalized_act_code,
+                models.DoctorPrescriptionPreference.preference_type == "PROTOCOL",
             ).delete(synchronize_session=False)
             if not deleted:
                 db.rollback()

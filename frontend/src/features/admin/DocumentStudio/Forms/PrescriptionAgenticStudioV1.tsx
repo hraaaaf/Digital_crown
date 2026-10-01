@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Plus } from 'lucide-react';
 
 import { api } from '../../../../services/api';
@@ -11,10 +11,8 @@ import {
 } from '../PrescriptionFormPolicy';
 import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
-import { IEProphylaxisRulePanel } from './IEProphylaxisRulePanel';
-import { PatientClinicalContextPanel } from './PatientClinicalContextPanel';
-import { PrescriptionPresetBar } from './PrescriptionPresetBar';
-import { FORMES, type DrugItem } from './prescriptionTypes';
+import { PrescriptionQuickAccessBar } from './PrescriptionQuickAccessBar';
+import type { DrugItem } from './prescriptionTypes';
 
 export interface PrescriptionAgenticStudioProps {
   patientId: string;
@@ -70,7 +68,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const baselineFingerprintRef = useRef<string | null>(null);
   const currentDrugsRef = useRef(drugs);
   const currentIndicationRef = useRef(prescriptionIndication);
-  const [formePicker, setFormePicker] = useState<{ drugId: number; top: number; left: number; width: number } | null>(null);
   currentDrugsRef.current = drugs;
   currentIndicationRef.current = prescriptionIndication;
 
@@ -79,14 +76,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     [drugs, prescriptionIndication],
   );
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
-  const numericPatientId = patientId.trim() ? Number(patientId) : Number.NaN;
-  const contextPatientId = Number.isInteger(numericPatientId) && numericPatientId > 0
-    ? numericPatientId
-    : undefined;
-  const ieAmoxicillinDrug = drugs.find(drug => (
-    Boolean(drug.catalogPresentationId)
-    && ['AMOXICILLINE', 'AMOXICILLIN'].includes((drug.catalogDci || '').trim().toUpperCase())
-  ));
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -161,33 +150,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     setDrugs(next);
   };
 
-  const handleFormeOpen = (event: React.MouseEvent<HTMLButtonElement>, drugId: number) => {
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    setFormePicker(current => current?.drugId === drugId
-      ? null
-      : { drugId, top: rect.bottom + 8, left: rect.left, width: rect.width });
-  };
-
-  useEffect(() => {
-    if (!formePicker) return;
-    const close = () => setFormePicker(null);
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
-    };
-    const attachScrollListener = window.setTimeout(() => {
-      window.addEventListener('scroll', close, true);
-    }, 0);
-    window.addEventListener('resize', close);
-    window.addEventListener('keydown', closeOnEscape);
-    return () => {
-      window.clearTimeout(attachScrollListener);
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-      window.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [formePicker]);
-
   const toggleType = (id: number, type: 'MEDICAMENT' | 'EXAMEN') => {
     setDrugs(drugs.map(drug => {
       if (drug.id !== id) return drug;
@@ -204,6 +166,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       data-prescription-intelligence-studio="v1"
       data-clinical-rule-status="blocked"
       data-safety-status="blocked"
+      data-safety-mechanics="background-only"
       className="space-y-3"
     >
       <style>{`
@@ -216,10 +179,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">Prescription</div>
-            <div className="mt-1 text-xs font-black text-text-main">Recherche médicament → présentation → validation</div>
-            <p className="mt-1 max-w-3xl text-[10px] font-semibold leading-relaxed text-text-muted">
-              Recherchez le médicament, choisissez sa présentation puis complétez les instructions de prescription avant validation.
-            </p>
+            <div className="mt-1 text-xs font-black text-text-main">Ordonnance</div>
           </div>
           <div className="rounded-xl border border-border-main bg-card/80 px-3 py-2 text-[9px] font-black uppercase tracking-wide text-text-muted">
             {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''} renseignée{activeLineCount > 1 ? 's' : ''}
@@ -227,7 +187,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         </div>
       </section>
 
-      <PrescriptionPresetBar drugs={drugs} setDrugs={setDrugs} />
+      <PrescriptionQuickAccessBar
+        drugs={drugs}
+        setDrugs={setDrugs}
+        prescriptionIndication={prescriptionIndication}
+        onPrescriptionIndicationChange={onPrescriptionIndicationChange}
+      />
 
       <div className="space-y-3">
         {drugs.map((drug, idx) => (
@@ -249,51 +214,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             onSearch={(id, field, value) => onUpdateDrug(id, field as keyof DrugItem, value)}
             onKeyDown={() => undefined}
             onApplySuggestion={() => undefined}
-            onFormeOpen={handleFormeOpen}
             onForceAllergy={() => undefined}
             onToggleType={toggleType}
+            patientId={patientId}
           />
         ))}
       </div>
-
-      {formePicker && (() => {
-        const activeDrug = drugs.find(drug => drug.id === formePicker.drugId);
-        return (
-          <div
-            data-g4-manual-form-picker
-            role="menu"
-            aria-label="Choisir la forme"
-            style={{
-              position: 'fixed',
-              top: formePicker.top,
-              left: formePicker.left,
-              width: Math.max(formePicker.width, 208),
-              zIndex: 200,
-            }}
-            className="overflow-hidden rounded-2xl border border-border-main bg-card py-2 shadow-2xl"
-          >
-            {FORMES.map(forme => {
-              const Icon = forme.icon;
-              const selected = Boolean(activeDrug?.forme.startsWith(forme.l));
-              return (
-                <button
-                  key={forme.l}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={selected}
-                  onClick={() => {
-                    onUpdateDrug(formePicker.drugId, 'forme', forme.l === 'AUTRE' ? 'AUTRE: ' : forme.l);
-                    setFormePicker(null);
-                  }}
-                  className={`flex min-h-11 w-full items-center gap-3 px-5 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors ${selected ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-primary/5 hover:text-primary'}`}
-                >
-                  <Icon size={14} /> {forme.l}
-                </button>
-              );
-            })}
-          </div>
-        );
-      })()}
 
       <button
         type="button"
@@ -303,9 +229,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         <Plus size={15} /> Ajouter une ligne
       </button>
 
-      <PatientClinicalContextPanel patientId={contextPatientId} />
-
-      <IEProphylaxisRulePanel patientId={contextPatientId} drug={ieAmoxicillinDrug} />
 
       <section
         data-prescription-indication="document"
