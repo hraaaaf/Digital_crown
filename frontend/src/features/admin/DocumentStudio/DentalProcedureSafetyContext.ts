@@ -44,12 +44,12 @@ export type CanonicalDentalProcedure =
 const PROCEDURE_CONTEXT: Record<CanonicalDentalProcedure, DentalProcedureSafetyContext> = {
   LOCAL_ANAESTHESIA_INFILTRATION: {
     bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
-    ieProcedureQualifies: false,
+    ieProcedureQualifies: null,
     osseousRisk: 'NO_OSSEOUS_INJURY',
   },
   REGIONAL_NERVE_BLOCK: {
     bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
-    ieProcedureQualifies: false,
+    ieProcedureQualifies: null,
     osseousRisk: 'NO_OSSEOUS_INJURY',
   },
   BASIC_PERIODONTAL_EXAM: {
