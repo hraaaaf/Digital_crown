@@ -90,6 +90,7 @@ class PrescriptionService(LegacyPrescriptionService):
             existing = db.query(models.DoctorPrescriptionPreference).filter(
                 models.DoctorPrescriptionPreference.doctor_id == doctor_id,
                 models.DoctorPrescriptionPreference.act_code == normalized_act_code,
+                models.DoctorPrescriptionPreference.preference_type == normalized_type,
             ).first()
 
             if existing:
