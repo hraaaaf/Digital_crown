@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, ImagePlus, Loader2, Trash2, X, Check, ZoomIn } from 'lucide-react';
 import { api } from '../../../services/api';
 
@@ -386,7 +387,7 @@ export function PatientPhotoEditor({
         </p>
       )}
 
-      {cameraOpen && (
+      {cameraOpen && createPortal(
         <div
           ref={cameraDialogRef}
           tabIndex={-1}
@@ -413,10 +414,12 @@ export function PatientPhotoEditor({
               <Camera size={18} /> Capturer
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {crop && (
+      {crop && createPortal(
+        <div
         <div
           ref={cropDialogRef}
           tabIndex={-1}
@@ -476,7 +479,8 @@ export function PatientPhotoEditor({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </section>
   );
