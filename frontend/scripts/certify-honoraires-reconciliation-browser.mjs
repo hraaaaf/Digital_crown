@@ -14,6 +14,12 @@ const login = await api.post('/api/auth/login', {
 });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
+const workstationEnroll = await api.post('/api/workstation/enroll', {
+  data: { accountPassword: process.env.T2_PASSWORD },
+  headers: { Authorization: `Bearer ${tokens.access_token}` },
+});
+if (!workstationEnroll.ok()) throw new Error(`Workstation enrollment failed: ${workstationEnroll.status()} ${await workstationEnroll.text()}`);
+const workstationStorage = await api.storageState();
 const headers = { Authorization: `Bearer ${tokens.access_token}` };
 
 const suffix = Date.now().toString().slice(-6);
@@ -58,7 +64,7 @@ if (archiveIds.length !== 1 || !archiveIds[0]) throw new Error(`Missing unique d
 const archiveId = archiveIds[0];
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+const context = await browser.newContext({ storageState: workstationStorage, viewport: { width: 1280, height: 900 } });
 const page = await context.newPage();
 await page.addInitScript(({ access, refresh }) => {
   localStorage.setItem('token', access);
