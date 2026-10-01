@@ -19,7 +19,19 @@ def _patient(db, employer_id: int, suffix: str):
     return patient
 
 
-def _context(db, patient_id: int, employer_id: int, user_id: int):
+def _context(db, patient_id: int, employer_id: int, user_id: int, **overrides):
+    values = dict(
+        anticoagulant_status="NONE_REPORTED",
+        anticoagulants=None,
+        antiplatelet_status="NONE_REPORTED",
+        antiplatelets=None,
+        antithrombotic_classes=None,
+        antithrombotic_combination_status="NO",
+        warfarin_inr=None,
+        warfarin_inr_current=None,
+        lmwh_dose_class="UNKNOWN",
+    )
+    values.update(overrides)
     context = PatientClinicalContext(
         patient_id=patient_id,
         employer_id=employer_id,
@@ -30,6 +42,7 @@ def _context(db, patient_id: int, employer_id: int, user_id: int):
         renal_context_status="UNKNOWN",
         hepatic_context_status="UNKNOWN",
         updated_by_user_id=user_id,
+        **values,
     )
     db.add(context)
     db.commit()
@@ -43,12 +56,6 @@ def _payload(patient_id: int, **overrides):
         "procedure_date": "2026-10-01",
         "procedure_bleeding_risk": "LOW_POSTOP_BLEEDING_RISK",
         "ie_procedure_qualifies": False,
-        "antithrombotic_status": "NONE_REPORTED",
-        "antithrombotic_classes": [],
-        "combination_therapy": "NO",
-        "warfarin_inr": None,
-        "warfarin_inr_current": None,
-        "lmwh_dose_class": "UNKNOWN",
         "oral_route_possible": None,
         "currently_taking_penicillin_or_amoxicillin": None,
         "presentation_id": None,
@@ -85,7 +92,16 @@ def test_background_endpoint_surfaces_only_generic_doac_review_alert(
     client, db, dentiste, auth_headers
 ):
     patient = _patient(db, dentiste.id, "DOAC")
-    _context(db, patient.id, dentiste.id, dentiste.id)
+    _context(
+        db,
+        patient.id,
+        dentiste.id,
+        dentiste.id,
+        anticoagulant_status="PRESENT",
+        anticoagulants=["Rivaroxaban"],
+        antithrombotic_classes=["DOAC"],
+        antithrombotic_combination_status="NO",
+    )
 
     response = client.post(
         "/api/prescriptions/clinical-rules/procedure-safety/evaluate",
@@ -93,9 +109,6 @@ def test_background_endpoint_surfaces_only_generic_doac_review_alert(
         json=_payload(
             patient.id,
             procedure_bleeding_risk="HIGHER_POSTOP_BLEEDING_RISK",
-            antithrombotic_status="PRESENT",
-            antithrombotic_classes=["DOAC"],
-            combination_therapy="NO",
         ),
     )
     assert response.status_code == 200, response.text
@@ -110,17 +123,23 @@ def test_background_endpoint_escalates_combination_without_stop_instruction(
     client, db, dentiste, auth_headers
 ):
     patient = _patient(db, dentiste.id, "COMBO")
-    _context(db, patient.id, dentiste.id, dentiste.id)
+    _context(
+        db,
+        patient.id,
+        dentiste.id,
+        dentiste.id,
+        anticoagulant_status="PRESENT",
+        anticoagulants=["Rivaroxaban"],
+        antiplatelet_status="PRESENT",
+        antiplatelets=["Aspirine"],
+        antithrombotic_classes=["DOAC", "ANTIPLATELET"],
+        antithrombotic_combination_status="YES",
+    )
 
     response = client.post(
         "/api/prescriptions/clinical-rules/procedure-safety/evaluate",
         headers=auth_headers,
-        json=_payload(
-            patient.id,
-            antithrombotic_status="PRESENT",
-            antithrombotic_classes=["DOAC", "ANTIPLATELET"],
-            combination_therapy="YES",
-        ),
+        json=_payload(patient.id),
     )
     assert response.status_code == 200, response.text
     data = response.json()
