@@ -275,6 +275,49 @@ def evaluate_procedure_safety_background(
     )
 
 
+
+
+@prescription_router.get(
+    "/clinical-rules/procedure-safety/alert/{patient_id}",
+    response_model=ProcedureSafetyEvaluationOut,
+)
+def read_procedure_safety_alert(
+    patient_id: int,
+    presentation_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("prescriptions")),
+):
+    """Return only the generic practitioner alert derived from hidden backoffice context."""
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = current_user.get_employer_id()
+    context = db.query(PatientClinicalContext).filter(
+        PatientClinicalContext.patient_id == patient_id,
+        PatientClinicalContext.employer_id == employer_id,
+    ).first()
+
+    if context is None or getattr(context, "procedure_date", None) is None:
+        return ProcedureSafetyEvaluationOut(status="READY", alert_key=None, read_only=True)
+
+    payload = ProcedureSafetyEvaluationRequest(
+        patient_id=patient_id,
+        procedure_date=context.procedure_date,
+        procedure_bleeding_risk=getattr(context, "procedure_bleeding_risk", "UNKNOWN"),
+        procedure_osseous_risk=getattr(context, "procedure_osseous_risk", "UNKNOWN"),
+        procedure_is_implant=getattr(context, "procedure_is_implant", None),
+        ie_procedure_qualifies=(
+            getattr(context, "ie_procedure_qualifies", None)
+            if presentation_id
+            else False
+        ),
+        oral_route_possible=getattr(context, "oral_route_possible", None),
+        currently_taking_penicillin_or_amoxicillin=getattr(
+            context, "currently_taking_penicillin_or_amoxicillin", None
+        ),
+        presentation_id=presentation_id,
+    )
+    return evaluate_procedure_safety_background(payload, db=db, current_user=current_user)
+
+
 @actes_router.get("/catalog/search")
 def search_catalog_acts(
     q: str = "",
