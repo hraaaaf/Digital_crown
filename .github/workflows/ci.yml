@@ -131,14 +131,18 @@ jobs:
                 frontend/src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts|\
                 frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.ts|\
                 frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts|\
+                frontend/src/features/admin/DocumentStudio/DentalProcedureSafetyContext.ts|\
+                frontend/src/features/admin/DocumentStudio/DentalProcedureSafetyContext.test.ts|\
                 frontend/scripts/certify-ordonnance-composer.mjs|\
                 frontend/ordonnance-composer-fixture.html|\
                 backend/models.py|\
                 backend/services/prescription_service.py|\
+                backend/services/prescription_procedure_safety.py|\
                 backend/routers/prescriptions_core.py|\
                 backend/routers/medications.py|\
                 backend/core/schema_runtime.py|\
                 backend/tests/test_neo_ordonnance_reusables.py|\
+                backend/tests/test_prescription_procedure_safety.py|\
                 backend/tests/test_cust04_prescription_presets.py|\
                 alembic/versions/neo000000023_add_neo_rx_context_fields.py|\
                 alembic/versions/neo000000024_extend_reusable_prescription_preferences.py|\
@@ -320,6 +324,7 @@ jobs:
             src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts \
             src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts \
             src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts \
+            src/features/admin/DocumentStudio/DentalProcedureSafetyContext.test.ts \
             --maxWorkers=1 --fileParallelism=false
 
       - name: Neo-Ordonnance targeted build
