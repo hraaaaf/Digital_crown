@@ -26,7 +26,7 @@ async function analyses(){
 }
 
 for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
- const context=await browser.newContext({viewport,colorScheme:'light'}),page=await context.newPage();
+ const context=await browser.newContext({ storageState: workstationStorage,viewport,colorScheme:'light'}),page=await context.newPage();
  await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod')},{a:tokens.access_token,r:tokens.refresh_token});
  const pageErrors=[],http5xx=[]; page.on('pageerror',e=>pageErrors.push(String(e))); page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()})});
  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=radiology&radioTab=panoramic`,{waitUntil:'networkidle',timeout:90000});
