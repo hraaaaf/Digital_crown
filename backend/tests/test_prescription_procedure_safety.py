@@ -155,13 +155,16 @@ def test_combination_therapy_requires_prescriber_review():
     assert result.alert_key == "PRESCRIBER_REVIEW_RECOMMENDED"
 
 
-def test_ie_wrapper_reuses_existing_rule_and_treats_known_nonqualifying_as_silent():
-    ready = evaluate_ie_prophylaxis_background(_ie())
+def test_ie_wrapper_reuses_existing_rule_and_surfaces_applicable_prophylaxis_as_generic_review():
+    applicable = evaluate_ie_prophylaxis_background(_ie())
     not_qualifying = evaluate_ie_prophylaxis_background(
         _ie(dental_procedure_qualifies=False)
     )
-    assert ready.status == "READY"
+    assert applicable.status == "CLINICAL_REVIEW_REQUIRED"
+    assert applicable.alert_key == "CLINICAL_REVIEW_RECOMMENDED"
+    assert "IE_PROPHYLAXIS_REVIEW" in applicable.internal_codes
     assert not_qualifying.status == "READY"
+    assert not_qualifying.alert_key is None
     assert "DENTAL_PROCEDURE_NOT_QUALIFYING" in not_qualifying.internal_codes
 
 
@@ -207,7 +210,7 @@ def test_orchestrator_exposes_only_generic_alert_key_from_dominant_gate():
     assert combined.status == "PRESCRIBER_REVIEW_REQUIRED"
     assert combined.alert_key == "PRESCRIBER_REVIEW_RECOMMENDED"
     assert combined.ie is not None
-    assert combined.ie.status == "READY"
+    assert combined.ie.status == "CLINICAL_REVIEW_REQUIRED"
 
 
 
