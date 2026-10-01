@@ -5,6 +5,8 @@ on:
     paths:
       - "backend/**/*catalog*"
       - "backend/**/*prescription*"
+      - "!backend/services/prescription_service.py"
+      - "!backend/routers/prescriptions_core.py"
       - "frontend/**/*catalog*"
       - "frontend/scripts/certify-catalog-connected-browser.mjs"
       - "scripts/t2_runtime_server.py"
