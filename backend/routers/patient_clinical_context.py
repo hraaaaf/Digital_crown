@@ -10,6 +10,8 @@ from backend.routers.auth import require_permission
 from backend.schemas.patient_clinical_context import (
     PatientClinicalContextOut,
     PatientClinicalContextUpdate,
+    PatientProcedureSafetyContextOut,
+    PatientProcedureSafetyContextUpdate,
 )
 from backend.services.audit_service import audit_service
 from backend.services.neo_medication_evidence import resolve_medication_identity
@@ -37,16 +39,6 @@ def _empty_context(patient_id: int, employer_id: int) -> PatientClinicalContextO
         breastfeeding_status="UNKNOWN",
         current_medications_status="UNKNOWN",
         current_medications=None,
-        anticoagulant_status="UNKNOWN",
-        anticoagulants=None,
-        antiplatelet_status="UNKNOWN",
-        antiplatelets=None,
-        antithrombotic_classes=None,
-        antithrombotic_combination_status="UNKNOWN",
-        warfarin_inr=None,
-        warfarin_inr_checked_at=None,
-        warfarin_inr_current=None,
-        lmwh_dose_class="UNKNOWN",
         updated_at=None,
         updated_by_user_id=None,
     )
@@ -161,6 +153,105 @@ def update_patient_clinical_context(
         resource_type="PatientClinicalContext",
         resource_id=str(patient_id),
         details="Mise à jour du contexte clinique structuré de prescription",
+    )
+
+    db.commit()
+    db.refresh(context)
+    return context
+
+
+def _empty_procedure_safety_context(
+    patient_id: int,
+    employer_id: int,
+) -> PatientProcedureSafetyContextOut:
+    return PatientProcedureSafetyContextOut(
+        patient_id=patient_id,
+        employer_id=employer_id,
+        anticoagulant_status="UNKNOWN",
+        anticoagulants=None,
+        antiplatelet_status="UNKNOWN",
+        antiplatelets=None,
+        antithrombotic_classes=None,
+        antithrombotic_combination_status="UNKNOWN",
+        warfarin_inr=None,
+        warfarin_inr_checked_at=None,
+        warfarin_inr_current=None,
+        lmwh_dose_class="UNKNOWN",
+        updated_at=None,
+        updated_by_user_id=None,
+    )
+
+
+@router.get(
+    "/{patient_id}/procedure-safety-context",
+    response_model=PatientProcedureSafetyContextOut,
+)
+def read_patient_procedure_safety_context(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("prescriptions")),
+):
+    """Backoffice-only N4.3B context; not part of the practitioner-facing context payload."""
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = current_user.get_employer_id()
+    context = db.query(PatientClinicalContext).filter(
+        PatientClinicalContext.patient_id == patient_id,
+        PatientClinicalContext.employer_id == employer_id,
+    ).first()
+    if context is None:
+        return _empty_procedure_safety_context(patient_id, employer_id)
+    return context
+
+
+@router.put(
+    "/{patient_id}/procedure-safety-context",
+    response_model=PatientProcedureSafetyContextOut,
+)
+def update_patient_procedure_safety_context(
+    patient_id: int,
+    payload: PatientProcedureSafetyContextUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("prescriptions")),
+):
+    """Persist explicit antithrombotic facts without exposing them in the normal UI contract."""
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = current_user.get_employer_id()
+
+    context = db.query(PatientClinicalContext).filter(
+        PatientClinicalContext.patient_id == patient_id,
+    ).first()
+    if context is not None and context.employer_id != employer_id:
+        raise HTTPException(status_code=409, detail="Contexte clinique rattaché à un autre cabinet")
+
+    values = payload.model_dump(exclude_unset=True)
+    if context is None:
+        validated = PatientProcedureSafetyContextUpdate(**payload.model_dump())
+        context = PatientClinicalContext(
+            patient_id=patient_id,
+            employer_id=employer_id,
+            updated_by_user_id=current_user.id,
+            **validated.model_dump(),
+        )
+        db.add(context)
+    else:
+        merged = {
+            field: getattr(context, field)
+            for field in PatientProcedureSafetyContextUpdate.model_fields
+        }
+        merged.update(values)
+        validated = PatientProcedureSafetyContextUpdate(**merged)
+        for field in values:
+            setattr(context, field, getattr(validated, field))
+        context.updated_by_user_id = current_user.id
+
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="UPDATE",
+        resource_type="PatientProcedureSafetyContext",
+        resource_id=str(patient_id),
+        details="Mise à jour du contexte N4.3B backoffice",
     )
 
     db.commit()
