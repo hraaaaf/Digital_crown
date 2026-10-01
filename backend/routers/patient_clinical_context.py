@@ -186,6 +186,13 @@ def _empty_procedure_safety_context(
         mronj_concurrent_risk_therapy=None,
         active_oral_infection_or_inflammation="UNKNOWN",
         suspected_or_known_mronj="UNKNOWN",
+        procedure_date=None,
+        procedure_bleeding_risk="UNKNOWN",
+        procedure_osseous_risk="UNKNOWN",
+        procedure_is_implant=None,
+        ie_procedure_qualifies=None,
+        oral_route_possible=None,
+        currently_taking_penicillin_or_amoxicillin=None,
         updated_at=None,
         updated_by_user_id=None,
     )
