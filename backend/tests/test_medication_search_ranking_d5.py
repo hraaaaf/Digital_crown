@@ -1,4 +1,11 @@
-from backend.services import medication_dict
+import importlib.util
+from pathlib import Path
+
+MODULE = Path(__file__).resolve().parents[1] / "services" / "medication_dict.py"
+spec = importlib.util.spec_from_file_location("medication_dict_d5", MODULE)
+medication_dict = importlib.util.module_from_spec(spec)
+assert spec and spec.loader
+spec.loader.exec_module(medication_dict)
 
 
 def _current(row):
