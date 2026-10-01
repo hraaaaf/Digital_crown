@@ -43,6 +43,7 @@ jobs:
       frontend_needed: ${{ steps.scope.outputs.frontend_needed }}
       reuse_pr_frontend: ${{ steps.scope.outputs.reuse_pr_frontend }}
       neo_ordonnance_targeted: ${{ steps.scope.outputs.neo_ordonnance_targeted }}
+      m4_bridge_needed: ${{ steps.scope.outputs.m4_bridge_needed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,6 +66,7 @@ jobs:
           echo "frontend_needed=true" >> "$GITHUB_OUTPUT"
           echo "reuse_pr_frontend=false" >> "$GITHUB_OUTPUT"
           echo "neo_ordonnance_targeted=false" >> "$GITHUB_OUTPUT"
+          echo "m4_bridge_needed=false" >> "$GITHUB_OUTPUT"
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             if [[ -z "$PR_BASE_SHA" || -z "$PR_HEAD_SHA" ]]; then
@@ -81,7 +83,13 @@ jobs:
             frontend_tests=()
             backend_tests=()
             strict_test_only=true
+            m4_bridge_needed=false
             for file in "${changed[@]}"; do
+              case "$file" in
+                frontend/src/features/mobile/**|frontend/src/features/patients/**|frontend/src/features/panoramic/**|frontend/src/features/agenda/**|backend/routers/mobile_resource_bridge.py)
+                  m4_bridge_needed=true
+                  ;;
+              esac
               case "$file" in
                 frontend/src/*.test.ts|frontend/src/*.test.tsx|frontend/src/**/*.test.ts|frontend/src/**/*.test.tsx|frontend/src/*.spec.ts|frontend/src/*.spec.tsx|frontend/src/**/*.spec.ts|frontend/src/**/*.spec.tsx)
                   frontend_tests+=("${file#frontend/}")
@@ -99,6 +107,7 @@ jobs:
 
             printf 'changed_tests=%s\n' "$(IFS=,; echo "${frontend_tests[*]}")" >> "$GITHUB_OUTPUT"
             printf 'changed_backend_tests=%s\n' "$(IFS=,; echo "${backend_tests[*]}")" >> "$GITHUB_OUTPUT"
+            echo "m4_bridge_needed=$m4_bridge_needed" >> "$GITHUB_OUTPUT"
 
             neo_ordonnance_targeted=true
             for file in "${changed[@]}"; do
@@ -485,7 +494,7 @@ jobs:
 
   prod-gate:
     needs: classify-change
-    if: (github.event_name != 'workflow_dispatch' || inputs.backend_only != true) && needs.classify-change.outputs.test_only != 'true'
+    if: (github.event_name != 'workflow_dispatch' || inputs.backend_only != true) && needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.neo_ordonnance_targeted != 'true'
     name: Garde production (négatif)
     runs-on: ubuntu-latest
     steps:
@@ -517,7 +526,7 @@ jobs:
 
   m4a-e2e:
     needs: classify-change
-    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.m4_bridge_needed == 'true'
     name: M4-A Patient contextual bridge AFTER
     runs-on: ubuntu-latest
     steps:
@@ -541,7 +550,7 @@ jobs:
 
   m4b-e2e:
     needs: classify-change
-    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.m4_bridge_needed == 'true'
     name: M4-B Panoramic contextual bridge AFTER
     runs-on: ubuntu-latest
     steps:
@@ -565,7 +574,7 @@ jobs:
 
   m4c-e2e:
     needs: classify-change
-    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.m4_bridge_needed == 'true'
     name: M4-C Document contextual bridge AFTER
     runs-on: ubuntu-latest
     steps:
@@ -589,7 +598,7 @@ jobs:
 
   m4d-retired:
     needs: classify-change
-    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true'
+    if: github.event_name == 'pull_request' && needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.m4_bridge_needed == 'true'
     name: M4-D Appointment contextual bridge retired
     runs-on: ubuntu-latest
     steps:
