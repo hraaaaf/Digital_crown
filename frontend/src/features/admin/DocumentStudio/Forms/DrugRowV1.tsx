@@ -68,7 +68,6 @@ export interface DrugRowProps {
   onSearch: (id: number, field: string, val: string) => void;
   onKeyDown: (e: React.KeyboardEvent, id: number, field: string) => void;
   onApplySuggestion: (id: number, field: string, val: string) => void;
-  onFormeOpen: (e: React.MouseEvent<HTMLButtonElement>, drugId: number) => void;
   onForceAllergy: (id: number) => void;
   onToggleType: (id: number, type: 'MEDICAMENT' | 'EXAMEN') => void;
 }
