@@ -77,6 +77,7 @@ function Fixture() {
             onApplySuggestion={(id, field, value) => updateDrug(id, field as keyof DrugItem, value)}
             onForceAllergy={() => undefined}
             onToggleType={(id, type) => updateDrug(id, 'type', type)}
+            disableCatalogLookup
           />
         ))}
       </section>
