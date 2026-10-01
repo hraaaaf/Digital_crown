@@ -33,11 +33,27 @@ def _clean_optional_text(value: Optional[str]) -> Optional[str]:
     return cleaned or None
 
 
-class PatientClinicalContextUpdate(BaseModel):
-    """Full practitioner-entered durable patient context state.
+def _clean_string_list(value: Optional[List[str]], message: str) -> Optional[List[str]]:
+    if value is None:
+        return None
+    cleaned: List[str] = []
+    seen = set()
+    for item in value:
+        label = str(item).strip()
+        if not label:
+            raise ValueError(message)
+        key = label.casefold()
+        if key not in seen:
+            seen.add(key)
+            cleaned.append(label)
+    return cleaned
 
-    No field in this schema implies that a prescription rule is clinically ready.
-    Prescription-specific indication is intentionally owned by the ordonnance document.
+
+class PatientClinicalContextUpdate(BaseModel):
+    """Practitioner-facing durable patient context.
+
+    N4.3B antithrombotic procedure-safety facts are deliberately excluded from
+    this contract and live behind the dedicated backoffice contract below.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -55,6 +71,68 @@ class PatientClinicalContextUpdate(BaseModel):
     breastfeeding_status: BinaryFactStatus = "UNKNOWN"
     current_medications_status: CurrentMedicationsStatus = "UNKNOWN"
     current_medications: Optional[List[str]] = None
+
+    @field_validator("weight_kg")
+    @classmethod
+    def validate_weight(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("Le poids doit être une valeur finie strictement positive")
+        return value
+
+    @field_validator("medication_allergies")
+    @classmethod
+    def normalize_allergies(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return _clean_string_list(value, "Une allergie renseignée ne peut pas être vide")
+
+    @field_validator("current_medications")
+    @classmethod
+    def normalize_current_medications(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return _clean_string_list(value, "Un traitement en cours renseigné ne peut pas être vide")
+
+    @field_validator("renal_context_note", "hepatic_context_note", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        return _clean_optional_text(value)
+
+    @model_validator(mode="after")
+    def validate_state_consistency(self):
+        supplied = self.model_fields_set
+        allergies = self.medication_allergies or []
+        if {"medication_allergy_status", "medication_allergies"} <= supplied:
+            if self.medication_allergy_status == "PRESENT" and not allergies:
+                raise ValueError("Le statut PRESENT exige au moins une allergie médicamenteuse explicite")
+            if self.medication_allergy_status != "PRESENT" and allergies:
+                raise ValueError("Des allergies ne peuvent être listées que lorsque le statut est PRESENT")
+        if self.renal_context_status != "IMPAIRMENT_REPORTED" and self.renal_context_note:
+            raise ValueError("Une note rénale exige le statut IMPAIRMENT_REPORTED")
+        if self.hepatic_context_status != "IMPAIRMENT_REPORTED" and self.hepatic_context_note:
+            raise ValueError("Une note hépatique exige le statut IMPAIRMENT_REPORTED")
+
+        treatments = self.current_medications or []
+        if {"current_medications_status", "current_medications"} <= supplied:
+            if self.current_medications_status == "PRESENT" and not treatments:
+                raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
+            if self.current_medications_status != "PRESENT" and treatments:
+                raise ValueError("Des traitements actuels ne peuvent être listés que lorsque le statut est PRESENT")
+        return self
+
+
+class PatientClinicalContextOut(PatientClinicalContextUpdate):
+    patient_id: int
+    employer_id: int
+    updated_at: Optional[datetime] = None
+    updated_by_user_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+class PatientProcedureSafetyContextUpdate(BaseModel):
+    """Backoffice-only structured facts for N4.3B procedure-sensitive safety."""
+
+    model_config = ConfigDict(extra="forbid")
+
     anticoagulant_status: CurrentMedicationsStatus = "UNKNOWN"
     anticoagulants: Optional[List[str]] = None
     antiplatelet_status: CurrentMedicationsStatus = "UNKNOWN"
@@ -66,48 +144,10 @@ class PatientClinicalContextUpdate(BaseModel):
     warfarin_inr_current: Optional[bool] = None
     lmwh_dose_class: LMWHDoseClass = "UNKNOWN"
 
-    @field_validator("weight_kg")
+    @field_validator("anticoagulants", "antiplatelets")
     @classmethod
-    def validate_weight(cls, value: Optional[float]) -> Optional[float]:
-        if value is None:
-            return None
-        if not math.isfinite(value) or value <= 0:
-            raise ValueError("Le poids doit Ãªtre une valeur finie strictement positive")
-        return value
-
-    @field_validator("medication_allergies")
-    @classmethod
-    def normalize_allergies(cls, value: Optional[List[str]]) -> Optional[List[str]]:
-        if value is None:
-            return None
-        cleaned: List[str] = []
-        seen = set()
-        for item in value:
-            label = str(item).strip()
-            if not label:
-                raise ValueError("Une allergie renseignÃ©e ne peut pas Ãªtre vide")
-            key = label.casefold()
-            if key not in seen:
-                seen.add(key)
-                cleaned.append(label)
-        return cleaned
-
-    @field_validator("current_medications", "anticoagulants", "antiplatelets")
-    @classmethod
-    def normalize_current_medications(cls, value: Optional[List[str]]) -> Optional[List[str]]:
-        if value is None:
-            return None
-        cleaned: List[str] = []
-        seen = set()
-        for item in value:
-            label = str(item).strip()
-            if not label:
-                raise ValueError("Un traitement en cours renseign? ne peut pas ?tre vide")
-            key = label.casefold()
-            if key not in seen:
-                seen.add(key)
-                cleaned.append(label)
-        return cleaned
+    def normalize_agents(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return _clean_string_list(value, "Un traitement antithrombotique renseigné ne peut pas être vide")
 
     @field_validator("antithrombotic_classes")
     @classmethod
@@ -125,43 +165,18 @@ class PatientClinicalContextUpdate(BaseModel):
             raise ValueError("INR invalide")
         return value
 
-    @field_validator("renal_context_note", "hepatic_context_note", mode="before")
-    @classmethod
-    def normalize_optional_text(cls, value):
-        return _clean_optional_text(value)
-
     @model_validator(mode="after")
     def validate_state_consistency(self):
-        supplied = self.model_fields_set
-        allergies = self.medication_allergies or []
-        if {"medication_allergy_status", "medication_allergies"} <= supplied:
-            if self.medication_allergy_status == "PRESENT" and not allergies:
-                raise ValueError("Le statut PRESENT exige au moins une allergie m?dicamenteuse explicite")
-            if self.medication_allergy_status != "PRESENT" and allergies:
-                raise ValueError("Des allergies ne peuvent ?tre list?es que lorsque le statut est PRESENT")
-        if self.renal_context_status != "IMPAIRMENT_REPORTED" and self.renal_context_note:
-            raise ValueError("Une note r?nale exige le statut IMPAIRMENT_REPORTED")
-        if self.hepatic_context_status != "IMPAIRMENT_REPORTED" and self.hepatic_context_note:
-            raise ValueError("Une note h?patique exige le statut IMPAIRMENT_REPORTED")
-
-        treatments = self.current_medications or []
-        if {"current_medications_status", "current_medications"} <= supplied:
-            if self.current_medications_status == "PRESENT" and not treatments:
-                raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
-            if self.current_medications_status != "PRESENT" and treatments:
-                raise ValueError("Des traitements actuels ne peuvent ?tre list?s que lorsque le statut est PRESENT")
-
         for status_field, list_field in (
             ("anticoagulant_status", "anticoagulants"),
             ("antiplatelet_status", "antiplatelets"),
         ):
             status = getattr(self, status_field)
             values = getattr(self, list_field) or []
-            if {status_field, list_field} <= supplied:
-                if status == "PRESENT" and not values:
-                    raise ValueError(f"{status_field}=PRESENT exige une liste explicite")
-                if status != "PRESENT" and values:
-                    raise ValueError(f"{list_field} exige {status_field}=PRESENT")
+            if status == "PRESENT" and not values:
+                raise ValueError(f"{status_field}=PRESENT exige une liste explicite")
+            if status != "PRESENT" and values:
+                raise ValueError(f"{list_field} exige {status_field}=PRESENT")
 
         classes = self.antithrombotic_classes or []
         has_antithrombotic = (
@@ -189,11 +204,10 @@ class PatientClinicalContextUpdate(BaseModel):
         return self
 
 
-class PatientClinicalContextOut(PatientClinicalContextUpdate):
+class PatientProcedureSafetyContextOut(PatientProcedureSafetyContextUpdate):
     patient_id: int
     employer_id: int
     updated_at: Optional[datetime] = None
     updated_by_user_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
-
