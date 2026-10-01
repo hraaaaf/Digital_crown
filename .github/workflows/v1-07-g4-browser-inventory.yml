@@ -24,7 +24,6 @@ on:
       - "requirements.txt"
       - "frontend/package.json"
       - "frontend/package-lock.json"
-      - ".github/workflows/v1-07-g4-browser-inventory.yml"
   workflow_dispatch:
 
 concurrency:
