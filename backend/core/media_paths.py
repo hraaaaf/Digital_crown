@@ -53,3 +53,8 @@ def get_media_root() -> Path:
         return validate_media_root(Path(media_root_env), environment)
 
     return get_real_media_root()
+
+
+def get_imaging_root() -> Path:
+    """Mutable patient images live outside the immutable application release."""
+    return get_media_root() / "uploads"

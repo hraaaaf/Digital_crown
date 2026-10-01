@@ -833,7 +833,13 @@ async def serve_panoramic(
     db: Session = Depends(database.get_db),
 ):
     _assert_media_tenant(db, current_user.get_employer_id(), models.PanoramicAnalysis, "image_path", f"panoramic/{rel_path}", current_user)
-    return _serve_protected_file(os.path.join(UPLOAD_DIR, "panoramic"), rel_path)
+    from backend.core.media_paths import get_imaging_root
+    try:
+        return _serve_protected_file(str(get_imaging_root() / "panoramic"), rel_path)
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
+        return _serve_protected_file(os.path.join(UPLOAD_DIR, "panoramic"), rel_path)
 
 @app.get("/api/static/uploads/radios/{rel_path:path}", include_in_schema=False)
 @app.get("/static/uploads/radios/{rel_path:path}", include_in_schema=False)
@@ -843,7 +849,13 @@ async def serve_radios(
     db: Session = Depends(database.get_db),
 ):
     _assert_media_tenant(db, current_user.get_employer_id(), models.CephaloAnalysis, "image_original_path", f"radios/{rel_path}", current_user)
-    return _serve_protected_file(os.path.join(UPLOAD_DIR, "radios"), rel_path)
+    from backend.core.media_paths import get_imaging_root
+    try:
+        return _serve_protected_file(str(get_imaging_root() / "radios"), rel_path)
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
+        return _serve_protected_file(os.path.join(UPLOAD_DIR, "radios"), rel_path)
 
 # Documents patients archivés (ordonnances, notes…) — AUTH + tenant requis.
 @app.get("/api/static/archives/{rel_path:path}", include_in_schema=False)
