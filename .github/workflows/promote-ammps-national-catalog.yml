@@ -1,0 +1,115 @@
+name: Promote AMMPS National Catalog
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-search-intelligence
+    paths:
+      - 'scripts/promote_ammps_national_catalog.py'
+      - '.github/workflows/promote-ammps-national-catalog.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download certified D3 national artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36938365662
+          name: ammps-d3-national-certification
+          path: artifacts/d3-cert
+
+      - name: Promote national rows incrementally
+        run: |
+          mkdir -p artifacts/promotion
+          python scripts/promote_ammps_national_catalog.py \
+            --existing backend/data/medications_ma_ammps_current_2026.json \
+            --national-rows artifacts/d3-cert/national-rows.json \
+            --updated-at 01/10/2026 \
+            --out artifacts/promotion/candidate.json \
+            --diff artifacts/promotion/diff-first.json
+
+      - name: Prove first-pass invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          existing=json.loads(Path("backend/data/medications_ma_ammps_current_2026.json").read_text(encoding="utf-8"))
+          candidate=json.loads(Path("artifacts/promotion/candidate.json").read_text(encoding="utf-8"))
+          diff=json.loads(Path("artifacts/promotion/diff-first.json").read_text(encoding="utf-8"))
+          assert len(existing) == 401, len(existing)
+          assert len(candidate) == 9931, len(candidate)
+          assert diff["existing_count"] == 401
+          assert diff["incoming_unique_count"] == 9931
+          assert diff["final_count"] == 9931
+          assert diff["deleted_count"] == 0
+          ids=[r["regulatory_presentation_id"] for r in candidate]
+          assert len(ids) == len(set(ids)) == 9931
+          print({
+            "existing": len(existing),
+            "candidate": len(candidate),
+            "added": diff["added_count"],
+            "updated": diff["updated_count"],
+            "deleted": diff["deleted_count"],
+          })
+          PY
+
+      - name: Prove strict second-pass idempotence
+        run: |
+          python scripts/promote_ammps_national_catalog.py \
+            --existing artifacts/promotion/candidate.json \
+            --national-rows artifacts/d3-cert/national-rows.json \
+            --updated-at 01/10/2026 \
+            --out artifacts/promotion/candidate-second.json \
+            --diff artifacts/promotion/diff-second.json
+          cmp artifacts/promotion/candidate.json artifacts/promotion/candidate-second.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("artifacts/promotion/diff-second.json").read_text(encoding="utf-8"))
+          assert d["added_count"] == 0
+          assert d["updated_count"] == 0
+          assert d["deleted_count"] == 0
+          assert d["final_count"] == 9931
+          print(d)
+          PY
+
+      - name: Replace canonical catalog on D5 branch only
+        if: github.ref == 'refs/heads/feat/neo-medication-search-intelligence'
+        run: cp artifacts/promotion/candidate.json backend/data/medications_ma_ammps_current_2026.json
+
+      - name: Commit promoted catalog
+        if: github.ref == 'refs/heads/feat/neo-medication-search-intelligence'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/data/medications_ma_ammps_current_2026.json
+          if git diff --cached --quiet; then
+            echo "No catalog change to commit"
+          else
+            git commit -m "data(rx): promote certified AMMPS national catalog"
+            git push origin HEAD:feat/neo-medication-search-intelligence
+          fi
+
+      - name: Upload promotion proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: ammps-d5-national-promotion-proof
+          path: artifacts/promotion
+          retention-days: 14
