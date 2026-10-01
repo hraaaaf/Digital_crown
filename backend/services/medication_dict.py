@@ -240,6 +240,45 @@ def _matches_query(rec: Dict[str, Any], query: str) -> bool:
     return query in str(rec.get("nom", "")).upper() or query in str(rec.get("dci", "")).upper()
 
 
+def _search_rank(rec: Dict[str, Any], query: str) -> tuple:
+    """Deterministic lexical ranking for Neo medication search."""
+    name = str(rec.get("nom", "")).upper().strip()
+    dci = str(rec.get("dci", "")).upper().strip()
+    name_tokens = [t for t in re.split(r"[^A-Z0-9À-ÖØ-Ý]+", name) if t]
+    dci_tokens = [t for t in re.split(r"[^A-Z0-9À-ÖØ-Ý]+", dci) if t]
+
+    if name == query:
+        band = 0
+    elif name.startswith(query):
+        band = 1
+    elif any(token.startswith(query) for token in name_tokens):
+        band = 2
+    elif dci == query:
+        band = 3
+    elif dci.startswith(query):
+        band = 4
+    elif any(token.startswith(query) for token in dci_tokens):
+        band = 5
+    elif query in name:
+        band = 6
+    elif query in dci:
+        band = 7
+    else:
+        band = 99
+
+    return (
+        band,
+        len(name),
+        name,
+        dci,
+        str(rec.get("dosage", "")).upper(),
+        str(rec.get("unite", "")).upper(),
+        str(rec.get("forme", "")).upper(),
+        str(rec.get("presentation", "")).upper(),
+        str(rec.get("epi", "")).upper(),
+    )
+
+
 def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
     """Recherche documentaire historique par nom commercial ou DCI."""
     _load()
@@ -277,11 +316,17 @@ def search_unified(q: str, limit: int = 30) -> List[Dict[str, Any]]:
 
     bounded = max(1, min(limit, 100))
     ordered_records = [*_regulatory_records(), *_legacy_records()]
+    matching_records = [rec for rec in ordered_records if _matches_query(rec, query)]
+    matching_records.sort(
+        key=lambda rec: (
+            _search_rank(rec, query),
+            0 if _record_source(rec).get("id") == AMMPS_CURRENT_SOURCE["id"] else 1,
+        )
+    )
+
     hits: List[Dict[str, Any]] = []
     seen_identity: set[str] = set()
-    for rec in ordered_records:
-        if not _matches_query(rec, query):
-            continue
+    for rec in matching_records:
         identity = _canonical_presentation_key(rec)
         if identity in seen_identity:
             continue
