@@ -213,12 +213,13 @@ class PrescriptionService(LegacyPrescriptionService):
         return True
 
     def delete_doctor_preset(self, db: Session, doctor_id: int, act_code: str) -> bool:
-        """Delete the exact doctor preference row used by save/load."""
+        """Delete only the legacy PROTOCOL matching this doctor and act code."""
         normalized_act_code = self._normalize_preference_act_code(act_code)
         try:
             deleted = db.query(models.DoctorPrescriptionPreference).filter(
                 models.DoctorPrescriptionPreference.doctor_id == doctor_id,
                 models.DoctorPrescriptionPreference.act_code == normalized_act_code,
+                models.DoctorPrescriptionPreference.preference_type == "PROTOCOL",
             ).delete(synchronize_session=False)
             if not deleted:
                 db.rollback()
