@@ -26,7 +26,7 @@ for (const viewport of viewports) {
   // a documentary catalog lookup after mount, while this workflow intentionally
   // starts no backend. Keep the visual harness deterministic and self-contained
   // instead of letting an unrelated API failure/redirect unmount the fixture.
-  await page.route('**/api/medications/search**', route => route.fulfill({
+  await page.route('**/api/medications/neo/search**', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: '[]',
