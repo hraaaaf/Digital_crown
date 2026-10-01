@@ -22,6 +22,8 @@ from backend.routers.auth import get_current_user, require_permission
 from backend.schemas.prescription_clinical_rules import (
     ClinicalRuleEvaluationOut,
     IEProphylaxisEvaluationRequest,
+    ProcedureSafetyEvaluationOut,
+    ProcedureSafetyEvaluationRequest,
 )
 from backend.services import cabinet_catalog_store as catalog_store
 from backend.services import medication_dict
@@ -29,6 +31,10 @@ from backend.services.catalog_connected_truth import flatten_catalog_acts
 from backend.services.prescription_clinical_rules import (
     IEProphylaxisAdultOralAmoxicillinInput,
     evaluate_ie_prophylaxis_adult_oral_amoxicillin,
+)
+from backend.services.prescription_procedure_safety import (
+    AntithromboticProcedureSafetyInput,
+    orchestrate_procedure_safety,
 )
 from backend.utils.access_control import assert_patient_access
 from . import prescriptions_core as _core
@@ -138,6 +144,76 @@ def evaluate_ie_prophylaxis_rule(
         timing_max_minutes_before=result.timing_max_minutes_before,
         single_dose=result.single_dose,
         source_ids=list(result.source_ids),
+    )
+
+
+@prescription_router.post(
+    "/clinical-rules/procedure-safety/evaluate",
+    response_model=ProcedureSafetyEvaluationOut,
+)
+def evaluate_procedure_safety_background(
+    payload: ProcedureSafetyEvaluationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("prescriptions")),
+):
+    """Read-only N4.3B orchestration. No prescription or patient state is mutated."""
+    assert_patient_access(payload.patient_id, current_user, db)
+    employer_id = current_user.get_employer_id()
+
+    patient = db.query(Patient).filter(
+        Patient.id == payload.patient_id,
+        Patient.employer_id == employer_id,
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+
+    context = db.query(PatientClinicalContext).filter(
+        PatientClinicalContext.patient_id == payload.patient_id,
+        PatientClinicalContext.employer_id == employer_id,
+    ).first()
+
+    presentation = (
+        medication_dict.get_presentation(payload.presentation_id)
+        if payload.presentation_id
+        else None
+    )
+    active_ingredient_code = _amoxicillin_active_ingredient_code(presentation)
+
+    ie_input = IEProphylaxisAdultOralAmoxicillinInput(
+        age_years=_age_on_date(patient.date_naissance, payload.procedure_date),
+        cardiac_risk_category=(
+            context.ie_cardiac_risk_category if context is not None else "UNKNOWN"
+        ),
+        dental_procedure_qualifies=payload.ie_procedure_qualifies,
+        penicillin_allergy_status=(
+            context.penicillin_allergy_status if context is not None else "UNKNOWN"
+        ),
+        generic_medication_allergy_present=(
+            context is not None and context.medication_allergy_status == "PRESENT"
+        ),
+        oral_route_possible=payload.oral_route_possible,
+        currently_taking_penicillin_or_amoxicillin=payload.currently_taking_penicillin_or_amoxicillin,
+        selected_active_ingredient_code=active_ingredient_code,
+        selected_presentation_verified=presentation is not None,
+    )
+
+    result = orchestrate_procedure_safety(
+        AntithromboticProcedureSafetyInput(
+            procedure_bleeding_risk=payload.procedure_bleeding_risk,
+            antithrombotic_status=payload.antithrombotic_status,
+            antithrombotic_classes=tuple(payload.antithrombotic_classes),
+            combination_therapy=payload.combination_therapy,
+            warfarin_inr=payload.warfarin_inr,
+            warfarin_inr_current=payload.warfarin_inr_current,
+            lmwh_dose_class=payload.lmwh_dose_class,
+        ),
+        ie_input,
+    )
+
+    return ProcedureSafetyEvaluationOut(
+        status=result.status,
+        alert_key=result.alert_key,
+        read_only=True,
     )
 
 
