@@ -197,15 +197,37 @@ def evaluate_procedure_safety_background(
         selected_presentation_verified=presentation is not None,
     )
 
+    if context is None:
+        antithrombotic_status = "UNKNOWN"
+        antithrombotic_classes = ()
+        combination_therapy = "UNKNOWN"
+        warfarin_inr = None
+        warfarin_inr_current = None
+        lmwh_dose_class = "UNKNOWN"
+    else:
+        anticoagulant_status = getattr(context, "anticoagulant_status", "UNKNOWN")
+        antiplatelet_status = getattr(context, "antiplatelet_status", "UNKNOWN")
+        if "PRESENT" in {anticoagulant_status, antiplatelet_status}:
+            antithrombotic_status = "PRESENT"
+        elif anticoagulant_status == "NONE_REPORTED" and antiplatelet_status == "NONE_REPORTED":
+            antithrombotic_status = "NONE_REPORTED"
+        else:
+            antithrombotic_status = "UNKNOWN"
+        antithrombotic_classes = tuple(getattr(context, "antithrombotic_classes", None) or ())
+        combination_therapy = getattr(context, "antithrombotic_combination_status", "UNKNOWN")
+        warfarin_inr = getattr(context, "warfarin_inr", None)
+        warfarin_inr_current = getattr(context, "warfarin_inr_current", None)
+        lmwh_dose_class = getattr(context, "lmwh_dose_class", "UNKNOWN")
+
     result = orchestrate_procedure_safety(
         AntithromboticProcedureSafetyInput(
             procedure_bleeding_risk=payload.procedure_bleeding_risk,
-            antithrombotic_status=payload.antithrombotic_status,
-            antithrombotic_classes=tuple(payload.antithrombotic_classes),
-            combination_therapy=payload.combination_therapy,
-            warfarin_inr=payload.warfarin_inr,
-            warfarin_inr_current=payload.warfarin_inr_current,
-            lmwh_dose_class=payload.lmwh_dose_class,
+            antithrombotic_status=antithrombotic_status,
+            antithrombotic_classes=antithrombotic_classes,
+            combination_therapy=combination_therapy,
+            warfarin_inr=warfarin_inr,
+            warfarin_inr_current=warfarin_inr_current,
+            lmwh_dose_class=lmwh_dose_class,
         ),
         ie_input,
     )
