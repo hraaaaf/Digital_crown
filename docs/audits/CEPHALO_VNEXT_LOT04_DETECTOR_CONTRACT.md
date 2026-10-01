@@ -215,3 +215,25 @@ Absent asset → unavailable/no prediction; wrong size/hash → disabled; unread
 4. Treat heatmap maxima as model scores, not calibrated probabilities; do not invent a clinical threshold.
 5. Record interpolation/library/provider as candidate identity.
 6. Hash preprocessing/decoder source or immutable commit in the manifest.
+
+
+## Resolved dependency and ONNX interface freeze
+
+Frozen baseline requirements pin:
+- numpy==2.4.3
+- onnxruntime==1.25.0
+- opencv-python-headless==4.13.0.92
+
+These are the repository-declared runtime dependency versions for this baseline and must be captured in the benchmark manifest. A benchmark executed under different resolved versions is a different execution environment and must declare that difference.
+
+The current runtime additionally proves these ONNX interface invariants before enabling the engine:
+- exactly one model input;
+- exactly one model output;
+- CPUExecutionProvider is the only certified provider;
+- runtime feeds a contiguous float32 NCHW tensor produced by the frozen preprocessing;
+- decoder accepts batch=1 only and requires 38×1024×1024 heatmaps after batch removal.
+
+The repository does not currently hard-code the ONNX input/output symbolic names, declared ONNX element types, or session-reported static/dynamic shapes. Therefore those fields remain RUN_MANIFEST_REQUIRED: they must be captured from the loaded certified session at benchmark execution rather than invented from source code.
+
+### Reproducibility decision
+The LOT04 candidate identity is the tuple of model hash + model size + provider + dependency versions + preprocessing/decoder immutable source + output-index mapping + benchmark manifest. Matching model bytes alone is insufficient to claim the same evaluated candidate environment.
