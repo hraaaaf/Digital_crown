@@ -204,25 +204,34 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     !drug.catalogDci
     || presentation.dci.trim().toLocaleUpperCase() === drug.catalogDci.trim().toLocaleUpperCase()
   ));
+  const currentBrandRoot = drug.name.trim().split(/\s+/)[0]?.toLocaleUpperCase() || '';
+  const sameBrand = (presentation: CatalogPresentation) => (
+    Boolean(currentBrandRoot)
+    && presentation.nom.trim().toLocaleUpperCase().startsWith(currentBrandRoot)
+  );
+  const orderedPresentations = [
+    ...matchingPresentations.filter(sameBrand),
+    ...matchingPresentations.filter(presentation => !sameBrand(presentation)),
+  ];
 
   const doseOptions = Array.from(new Map(
-    matchingPresentations
+    orderedPresentations
       .map(presentation => [presentationStrength(presentation), presentation] as const)
       .filter(([strength]) => Boolean(strength)),
   ).entries()).map(([strength, presentation]) => ({
     value: strength,
     label: strength,
-    secondary: presentation.forme || undefined,
+    secondary: [presentation.nom, presentation.forme].filter(Boolean).join(' · ') || undefined,
   }));
 
   const formOptions = Array.from(new Map(
-    matchingPresentations
+    orderedPresentations
       .map(presentation => [presentation.forme?.trim(), presentation] as const)
       .filter(([forme]) => Boolean(forme)),
   ).entries()).map(([forme, presentation]) => ({
     value: forme,
     label: forme,
-    secondary: presentationStrength(presentation) || undefined,
+    secondary: [presentation.nom, presentationStrength(presentation)].filter(Boolean).join(' · ') || undefined,
   }));
 
   const amountOptionsForForm = PRESCRIPTION_AMOUNT_OPTIONS.filter(option => {
@@ -237,10 +246,13 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   });
 
   const relinkByDose = (value: string) => {
-    const exact = matchingPresentations.find(presentation => (
-      presentationStrength(presentation) === value
+    const exact = orderedPresentations.find(presentation => (
+      sameBrand(presentation)
+      && presentationStrength(presentation) === value
       && (!drug.forme || presentation.forme === drug.forme)
-    )) || matchingPresentations.find(presentation => presentationStrength(presentation) === value);
+    )) || orderedPresentations.find(presentation => (
+      sameBrand(presentation) && presentationStrength(presentation) === value
+    )) || orderedPresentations.find(presentation => presentationStrength(presentation) === value);
     if (exact) applyPresentationIdentity(exact, true);
     else {
       clearCatalogIdentity(true);
@@ -249,10 +261,13 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   };
 
   const relinkByForm = (value: string) => {
-    const exact = matchingPresentations.find(presentation => (
-      presentation.forme === value
+    const exact = orderedPresentations.find(presentation => (
+      sameBrand(presentation)
+      && presentation.forme === value
       && (!drug.dosage || presentationStrength(presentation) === drug.dosage)
-    )) || matchingPresentations.find(presentation => presentation.forme === value);
+    )) || orderedPresentations.find(presentation => (
+      sameBrand(presentation) && presentation.forme === value
+    )) || orderedPresentations.find(presentation => presentation.forme === value);
     if (exact) applyPresentationIdentity(exact, true);
     else {
       clearCatalogIdentity(true);
