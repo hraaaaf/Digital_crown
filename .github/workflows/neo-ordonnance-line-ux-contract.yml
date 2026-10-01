@@ -9,6 +9,8 @@ on:
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx'
       - '.github/workflows/neo-ordonnance-line-ux-contract.yml'
   workflow_dispatch:
 
@@ -29,4 +31,4 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
       - name: Run line customization contract tests
-        run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx
+        run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx
