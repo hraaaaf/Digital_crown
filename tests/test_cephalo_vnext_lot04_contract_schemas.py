@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-jsonschema = pytest.importorskip("jsonschema")
+try:\n    import jsonschema\nexcept ImportError:\n    jsonschema = None
 
 from scripts.validate_cephalo_vnext_lot04_contract import (Lot04ContractError, canonical_json_sha256, validate_acceptance_semantics, validate_manifest_semantics)
 
