@@ -14,21 +14,40 @@ ProcedureBleedingRisk = Literal[
     "LOW_POSTOP_BLEEDING_RISK",
     "HIGHER_POSTOP_BLEEDING_RISK",
 ]
+ProcedureOsseousRisk = Literal[
+    "UNKNOWN",
+    "NO_OSSEOUS_INJURY",
+    "DENTOALVEOLAR_OSSEOUS_INJURY",
+]
 AntithromboticStatus = Literal["UNKNOWN", "NONE_REPORTED", "PRESENT"]
 AntithromboticClass = Literal["VKA", "DOAC", "ANTIPLATELET", "LMWH", "OTHER"]
 CombinationStatus = Literal["UNKNOWN", "NO", "YES"]
 LMWHDoseClass = Literal["UNKNOWN", "PROPHYLACTIC", "TREATMENT"]
+MRONJAgentClass = Literal[
+    "UNKNOWN",
+    "BISPHOSPHONATE",
+    "DENOSUMAB",
+    "ROMOSOZUMAB",
+    "ANTIANGIOGENIC",
+    "OTHER",
+]
+MRONJIndication = Literal["UNKNOWN", "OSTEOPOROSIS_NONMALIGNANT", "MALIGNANCY", "OTHER"]
+MRONJRoute = Literal["UNKNOWN", "ORAL", "PARENTERAL", "OTHER"]
+BinaryFactStatus = Literal["UNKNOWN", "NO", "YES"]
 ProcedureSafetyStatus = Literal[
     "READY",
     "CONTEXT_REQUIRED",
     "CLINICAL_REVIEW_REQUIRED",
     "PRESCRIBER_REVIEW_REQUIRED",
+    "SPECIALIST_REVIEW_REQUIRED",
 ]
 
 
 SOURCE_SDCEP_ANTITHROMBOTICS_2022 = "SDCEP_ANTITHROMBOTICS_2022"
 SOURCE_AHA_2021 = "AHA_VGS_IE_2021"
 SOURCE_ADA_IE_PROPHYLAXIS = "ADA_IE_PROPHYLAXIS"
+SOURCE_AAOMS_MRONJ_2022 = "AAOMS_MRONJ_2022"
+SOURCE_ADA_MRONJ = "ADA_MRONJ"
 
 
 @dataclass(frozen=True)
@@ -40,6 +59,20 @@ class AntithromboticProcedureSafetyInput:
     warfarin_inr: Optional[float] = None
     warfarin_inr_current: Optional[bool] = None
     lmwh_dose_class: LMWHDoseClass = "UNKNOWN"
+
+
+@dataclass(frozen=True)
+class MRONJProcedureSafetyInput:
+    procedure_osseous_risk: ProcedureOsseousRisk
+    procedure_is_implant: Optional[bool]
+    medication_status: AntithromboticStatus
+    agent_class: MRONJAgentClass = "UNKNOWN"
+    indication: MRONJIndication = "UNKNOWN"
+    route: MRONJRoute = "UNKNOWN"
+    duration_months: Optional[int] = None
+    concurrent_risk_therapy: Tuple[str, ...] = ()
+    active_oral_infection_or_inflammation: BinaryFactStatus = "UNKNOWN"
+    suspected_or_known_mronj: BinaryFactStatus = "UNKNOWN"
 
 
 @dataclass(frozen=True)
@@ -56,6 +89,7 @@ class ProcedureSafetyOrchestration:
     alert_key: Optional[str]
     bleeding: ProcedureSafetyGateResult
     ie: Optional[ProcedureSafetyGateResult]
+    mronj: Optional[ProcedureSafetyGateResult]
 
 
 _SEVERITY = {
@@ -63,6 +97,7 @@ _SEVERITY = {
     "CONTEXT_REQUIRED": 1,
     "CLINICAL_REVIEW_REQUIRED": 2,
     "PRESCRIBER_REVIEW_REQUIRED": 3,
+    "SPECIALIST_REVIEW_REQUIRED": 4,
 }
 
 
@@ -83,12 +118,7 @@ def _result(
 def evaluate_antithrombotic_procedure_safety(
     data: AntithromboticProcedureSafetyInput,
 ) -> ProcedureSafetyGateResult:
-    """Bounded backoffice-only gate.
-
-    This gate never recommends interruption, dose omission, or timing changes.
-    It only returns an internal review state for the practitioner workflow.
-    """
-
+    """Bounded backoffice-only gate with no medication interruption advice."""
     invasive = data.procedure_bleeding_risk in {
         "LOW_POSTOP_BLEEDING_RISK",
         "HIGHER_POSTOP_BLEEDING_RISK",
@@ -193,6 +223,83 @@ def evaluate_antithrombotic_procedure_safety(
     )
 
 
+def evaluate_mronj_procedure_safety(
+    data: MRONJProcedureSafetyInput,
+) -> ProcedureSafetyGateResult:
+    """Prevention-only MRONJ gate.
+
+    It never diagnoses MRONJ, recommends a drug holiday, or uses CTX/bone-turnover
+    markers as a clearance tool.
+    """
+    sources = (SOURCE_AAOMS_MRONJ_2022, SOURCE_ADA_MRONJ)
+
+    if data.suspected_or_known_mronj == "YES":
+        return _result(
+            "SPECIALIST_REVIEW_REQUIRED",
+            "MRONJ_SUSPECTED_OR_KNOWN",
+            alert_key="SPECIALIST_REVIEW_RECOMMENDED",
+            sources=sources,
+        )
+
+    if data.procedure_osseous_risk == "NO_OSSEOUS_INJURY":
+        return _result("READY", sources=sources)
+
+    if data.medication_status == "NONE_REPORTED":
+        return _result("READY", sources=sources)
+
+    if data.procedure_osseous_risk == "UNKNOWN":
+        return _result(
+            "CONTEXT_REQUIRED",
+            "MRONJ_PROCEDURE_OSSEOUS_RISK_UNKNOWN",
+            alert_key="CONTEXT_REQUIRED",
+            sources=sources,
+        )
+
+    if data.medication_status == "UNKNOWN":
+        return _result(
+            "CONTEXT_REQUIRED",
+            "MRONJ_MEDICATION_STATUS_UNKNOWN",
+            alert_key="CONTEXT_REQUIRED",
+            sources=sources,
+        )
+
+    if data.agent_class == "UNKNOWN" or data.indication == "UNKNOWN":
+        return _result(
+            "CONTEXT_REQUIRED",
+            "MRONJ_MEDICATION_CONTEXT_INCOMPLETE",
+            alert_key="CONTEXT_REQUIRED",
+            sources=sources,
+        )
+
+    if data.indication == "MALIGNANCY":
+        code = (
+            "MRONJ_MALIGNANCY_IMPLANT_REVIEW"
+            if data.procedure_is_implant is True
+            else "MRONJ_MALIGNANCY_OSSEOUS_REVIEW"
+        )
+        return _result(
+            "SPECIALIST_REVIEW_REQUIRED",
+            code,
+            alert_key="SPECIALIST_REVIEW_RECOMMENDED",
+            sources=sources,
+        )
+
+    if data.indication == "OSTEOPOROSIS_NONMALIGNANT":
+        return _result(
+            "CLINICAL_REVIEW_REQUIRED",
+            "MRONJ_NONMALIGNANT_OSSEOUS_REVIEW",
+            alert_key="CLINICAL_REVIEW_RECOMMENDED",
+            sources=sources,
+        )
+
+    return _result(
+        "CLINICAL_REVIEW_REQUIRED",
+        "MRONJ_OTHER_INDICATION_OSSEOUS_REVIEW",
+        alert_key="CLINICAL_REVIEW_RECOMMENDED",
+        sources=sources,
+    )
+
+
 _IE_UNKNOWN_CODES = {
     "AGE_UNKNOWN",
     "CARDIAC_RISK_UNKNOWN",
@@ -212,7 +319,6 @@ def evaluate_ie_prophylaxis_background(
     data: IEProphylaxisAdultOralAmoxicillinInput,
 ) -> ProcedureSafetyGateResult:
     """Reuse the existing IE rule and translate it to background-only workflow states."""
-
     rule = evaluate_ie_prophylaxis_adult_oral_amoxicillin(data)
     sources = tuple(rule.source_ids) or (SOURCE_AHA_2021, SOURCE_ADA_IE_PROPHYLAXIS)
 
@@ -242,11 +348,17 @@ def evaluate_ie_prophylaxis_background(
 def orchestrate_procedure_safety(
     bleeding_input: AntithromboticProcedureSafetyInput,
     ie_input: Optional[IEProphylaxisAdultOralAmoxicillinInput] = None,
+    mronj_input: Optional[MRONJProcedureSafetyInput] = None,
 ) -> ProcedureSafetyOrchestration:
     bleeding = evaluate_antithrombotic_procedure_safety(bleeding_input)
     ie = evaluate_ie_prophylaxis_background(ie_input) if ie_input is not None else None
+    mronj = evaluate_mronj_procedure_safety(mronj_input) if mronj_input is not None else None
 
-    candidates = [bleeding] + ([ie] if ie is not None else [])
+    candidates = [bleeding]
+    if ie is not None:
+        candidates.append(ie)
+    if mronj is not None:
+        candidates.append(mronj)
     dominant = max(candidates, key=lambda item: _SEVERITY[item.status])
 
     return ProcedureSafetyOrchestration(
@@ -254,4 +366,5 @@ def orchestrate_procedure_safety(
         alert_key=dominant.alert_key,
         bleeding=bleeding,
         ie=ie,
+        mronj=mronj,
     )
