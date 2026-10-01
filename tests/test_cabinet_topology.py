@@ -69,3 +69,13 @@ def test_https_lan_contract_uses_canonical_cabinet_port(tmp_path: Path):
 def test_invalid_cabinet_port_fails_closed(port):
     with pytest.raises(RuntimeError, match="CABINET_PORT"):
         resolve_cabinet_network(_env(CABINET_PORT=port))
+
+
+def test_mobile_pairing_url_uses_canonical_network_contract():
+    source = Path("backend/routers/mobile_legacy.py").read_text(encoding="utf-8")
+    start = source.index("def get_lan_base_url")
+    end = source.index("def get_lan_frontend_url", start)
+    function_source = source[start:end]
+    assert "get_cabinet_base_url" in function_source
+    assert 'os.getenv("PORT"' not in function_source
+    assert "http://{_detect_lan_ip()}" not in function_source
