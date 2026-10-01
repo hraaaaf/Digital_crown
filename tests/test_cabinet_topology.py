@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+import backend.core.cabinet_topology as topology
 from backend.core.cabinet_topology import TOPOLOGY_ROLES, resolve_cabinet_network
 
 
@@ -93,3 +94,33 @@ def test_mobile_pairing_url_uses_canonical_network_contract():
     assert "get_cabinet_base_url" in function_source
     assert 'os.getenv("PORT"' not in function_source
     assert "http://{_detect_lan_ip()}" not in function_source
+
+
+def test_lan_discovery_does_not_depend_on_public_internet():
+    source = Path("backend/core/cabinet_topology.py").read_text(encoding="utf-8")
+    assert "8.8.8.8" not in source
+    assert "192.0.2.1" in source
+    assert "198.51.100.1" in source
+    assert "203.0.113.1" in source
+
+
+def test_lan_discovery_rejects_loopback_and_link_local():
+    assert topology._usable_lan_ipv4("127.0.0.1") is None
+    assert topology._usable_lan_ipv4("169.254.10.20") is None
+    assert topology._usable_lan_ipv4("0.0.0.0") is None
+    assert topology._usable_lan_ipv4("192.168.10.20") == "192.168.10.20"
+
+
+def test_wildcard_publication_fails_closed_when_discovery_fails(monkeypatch):
+    monkeypatch.setattr(topology, "detect_lan_ip", lambda: None)
+    contract = resolve_cabinet_network(
+        _env(
+            CABINET_HOST="0.0.0.0",
+            DIGITALCROWN_ENABLE_HTTPS="true",
+            DIGITALCROWN_TLS_CERT_FILE="cert.pem",
+            DIGITALCROWN_TLS_KEY_FILE="key.pem",
+        ),
+        validate_tls_files=False,
+    )
+    with pytest.raises(RuntimeError, match="aucune adresse LAN utilisable"):
+        _ = contract.base_url
