@@ -61,7 +61,7 @@ for (const viewport of viewports) {
       };
       const composer = el.querySelector('[data-ordonnance-prescription-composer]');
       const controls = composer
-        ? [...composer.querySelectorAll('select')].filter(visible)
+        ? [...composer.querySelectorAll('[data-composer-field]')].filter(visible)
         : [];
       const persistedLabel = composer
         ? [...composer.querySelectorAll('div')].find(node => node.textContent?.trim() === 'Phrase persistée')
