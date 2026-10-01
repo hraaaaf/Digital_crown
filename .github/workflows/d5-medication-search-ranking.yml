@@ -1,0 +1,36 @@
+name: D5 Medication Search Ranking
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-search-intelligence
+    paths:
+      - 'backend/services/medication_dict.py'
+      - 'backend/tests/test_medication_search_ranking_d5.py'
+      - '.github/workflows/d5-medication-search-ranking.yml'
+  workflow_dispatch:
+
+jobs:
+  ranking:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Run D5 lexical ranking tests
+        run: pytest -q backend/tests/test_medication_search_ranking_d5.py
+      - name: Observe national golden queries
+        run: |
+          python - <<'PY'
+          from backend.services import medication_dict
+          for q in ("DOL", "DOLIPRANE", "AMOX", "IBUPROFENE"):
+              results = medication_dict.search_unified(q, limit=10)
+              print(q, [r["nom"] for r in results[:10]])
+          dol = medication_dict.search_unified("DOL", limit=10)
+          assert dol and dol[0]["nom"].upper().startswith("DOL")
+          assert any(r["nom"].upper().startswith("DOLIPRANE") for r in dol[:5])
+          PY
