@@ -305,3 +305,17 @@ La prochaine action P1 ne peut être que l’un des gates séparés ci-dessus : 
 - La certification clinique/pharmacologique humaine reste un gate séparé.
 - Aucun statut `production ready` n'est déduit de cette certification visuelle/engineering.
 
+
+
+---
+
+## 14. Addendum Neo Ordonnance — 2026-10-01
+
+Le closeout historique P1 ne doit pas être interprété comme autorisation de simplifier l'UX praticien.
+
+Pour Neo Ordonnance, le contrat de compatibilité est désormais canonique dans :
+`docs/neo-ordonnance/NEO_ORDONNANCE_UX_COMPATIBILITY_ROADMAP.md`.
+
+Règle absolue : les gains Neo (catalogue national, provenance, safety, search intelligence) s'ajoutent à la personnalisation ligne par ligne pré-Neo ; ils ne la remplacent pas.
+
+Le sélecteur visuel 💊 Médicament / 🩻 Radio-Examen, la forme, le dosage, la posologie structurée et libre, la durée/limite, le moment/condition et NS sont des capacités de non-régression.
