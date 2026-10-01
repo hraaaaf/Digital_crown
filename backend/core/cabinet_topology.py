@@ -71,15 +71,40 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
-def detect_lan_ip() -> str | None:
-    """Best-effort local route discovery; never claims LAN reachability on failure."""
+def _usable_lan_ipv4(candidate: str) -> str | None:
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.connect(("8.8.8.8", 80))
-            candidate = sock.getsockname()[0]
         address = ipaddress.ip_address(candidate)
-        if address.version == 4 and not address.is_loopback and not address.is_unspecified:
-            return candidate
+    except ValueError:
+        return None
+    if address.version != 4 or address.is_loopback or address.is_unspecified or address.is_link_local:
+        return None
+    return candidate
+
+
+def detect_lan_ip() -> str | None:
+    """Best-effort LAN discovery without requiring Internet reachability.
+
+    UDP ``connect`` does not send application data; it asks the local routing
+    table which source address would be used. Private documentation/test-net
+    destinations keep discovery independent from public DNS or Internet hosts.
+    Hostname resolution is retained only as a local fallback. Failure remains
+    fail-closed: callers never publish an invented or loopback LAN address.
+    """
+    for destination in (("192.0.2.1", 9), ("198.51.100.1", 9), ("203.0.113.1", 9)):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.connect(destination)
+                candidate = _usable_lan_ipv4(sock.getsockname()[0])
+            if candidate:
+                return candidate
+        except OSError:
+            continue
+
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET, socket.SOCK_DGRAM):
+            candidate = _usable_lan_ipv4(info[4][0])
+            if candidate:
+                return candidate
     except (OSError, ValueError):
         pass
     return None
