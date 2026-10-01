@@ -46,6 +46,10 @@ def test_saved_prescription_keeps_indication_without_patient_data(db):
             "dosage": "1",
             "forme": "COMPRIME",
             "posologie": "x",
+            "catalogPresentationId": "ammps:test-1",
+            "catalogDci": "PARACETAMOL",
+            "catalogSourceId": "ammps-current",
+            "catalogMarketingStatusVerified": True,
             "patient_id": 999,
         }],
         label="Ordonnance post-op",
@@ -58,6 +62,10 @@ def test_saved_prescription_keeps_indication_without_patient_data(db):
     assert item["kind"] == "SAVED_PRESCRIPTION"
     assert item["indication"] == "Douleur postopératoire"
     assert item["is_favorite"] is True
+    assert item["drugs"][0]["catalogPresentationId"] == "ammps:test-1"
+    assert item["drugs"][0]["catalogDci"] == "PARACETAMOL"
+    assert item["drugs"][0]["catalogSourceId"] == "ammps-current"
+    assert item["drugs"][0]["catalogMarketingStatusVerified"] is True
     assert "patient_id" not in item["drugs"][0]
 
 
