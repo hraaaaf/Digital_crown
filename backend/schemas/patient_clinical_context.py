@@ -133,7 +133,12 @@ class PatientClinicalContextOut(PatientClinicalContextUpdate):
 
 
 class PatientProcedureSafetyContextUpdate(BaseModel):
-    """Backoffice-only structured facts for N4.3B procedure-sensitive safety."""
+    """Backoffice-only structured facts for N4.3B procedure-sensitive safety.
+
+    For MRONJ, mronj_medication_status=PRESENT means current OR previous
+    exposure to an at-risk medication; it must not be interpreted as current
+    medication use only.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
