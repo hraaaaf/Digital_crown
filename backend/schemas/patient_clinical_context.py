@@ -10,6 +10,9 @@ PenicillinAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
 OrganContextStatus = Literal["UNKNOWN", "NO_KNOWN_IMPAIRMENT", "IMPAIRMENT_REPORTED"]
 BinaryFactStatus = Literal["UNKNOWN", "NO", "YES"]
 CurrentMedicationsStatus = Literal["UNKNOWN", "NONE_REPORTED", "PRESENT"]
+AntithromboticClass = Literal["VKA", "DOAC", "ANTIPLATELET", "LMWH", "OTHER"]
+CombinationStatus = Literal["UNKNOWN", "NO", "YES"]
+LMWHDoseClass = Literal["UNKNOWN", "PROPHYLACTIC", "TREATMENT"]
 IECardiacRiskCategory = Literal[
     "UNKNOWN",
     "NONE_REPORTED",
@@ -52,6 +55,15 @@ class PatientClinicalContextUpdate(BaseModel):
     breastfeeding_status: BinaryFactStatus = "UNKNOWN"
     current_medications_status: CurrentMedicationsStatus = "UNKNOWN"
     current_medications: Optional[List[str]] = None
+    anticoagulant_status: CurrentMedicationsStatus = "UNKNOWN"
+    anticoagulants: Optional[List[str]] = None
+    antiplatelet_status: CurrentMedicationsStatus = "UNKNOWN"
+    antiplatelets: Optional[List[str]] = None
+    antithrombotic_classes: Optional[List[AntithromboticClass]] = None
+    antithrombotic_combination_status: CombinationStatus = "UNKNOWN"
+    warfarin_inr: Optional[float] = None
+    warfarin_inr_checked_at: Optional[datetime] = None
+    lmwh_dose_class: LMWHDoseClass = "UNKNOWN"
 
     @field_validator("weight_kg")
     @classmethod
@@ -79,7 +91,7 @@ class PatientClinicalContextUpdate(BaseModel):
                 cleaned.append(label)
         return cleaned
 
-    @field_validator("current_medications")
+    @field_validator("current_medications", "anticoagulants", "antiplatelets")
     @classmethod
     def normalize_current_medications(cls, value: Optional[List[str]]) -> Optional[List[str]]:
         if value is None:
@@ -95,6 +107,22 @@ class PatientClinicalContextUpdate(BaseModel):
                 seen.add(key)
                 cleaned.append(label)
         return cleaned
+
+    @field_validator("antithrombotic_classes")
+    @classmethod
+    def normalize_antithrombotic_classes(cls, value):
+        if value is None:
+            return None
+        return list(dict.fromkeys(value))
+
+    @field_validator("warfarin_inr")
+    @classmethod
+    def validate_warfarin_inr(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("INR invalide")
+        return value
 
     @field_validator("renal_context_note", "hepatic_context_note", mode="before")
     @classmethod
@@ -121,6 +149,40 @@ class PatientClinicalContextUpdate(BaseModel):
                 raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
             if self.current_medications_status != "PRESENT" and treatments:
                 raise ValueError("Des traitements actuels ne peuvent ?tre list?s que lorsque le statut est PRESENT")
+
+        for status_field, list_field in (
+            ("anticoagulant_status", "anticoagulants"),
+            ("antiplatelet_status", "antiplatelets"),
+        ):
+            status = getattr(self, status_field)
+            values = getattr(self, list_field) or []
+            if {status_field, list_field} <= supplied:
+                if status == "PRESENT" and not values:
+                    raise ValueError(f"{status_field}=PRESENT exige une liste explicite")
+                if status != "PRESENT" and values:
+                    raise ValueError(f"{list_field} exige {status_field}=PRESENT")
+
+        classes = self.antithrombotic_classes or []
+        has_antithrombotic = (
+            self.anticoagulant_status == "PRESENT"
+            or self.antiplatelet_status == "PRESENT"
+        )
+        if classes and not has_antithrombotic:
+            raise ValueError("Des classes antithrombotiques exigent un traitement antithrombotique PRESENT")
+        if self.warfarin_inr is not None and "VKA" not in classes:
+            raise ValueError("Un INR exige la classe VKA")
+        if self.warfarin_inr_checked_at is not None and self.warfarin_inr is None:
+            raise ValueError("La date INR exige une valeur INR")
+        if self.lmwh_dose_class != "UNKNOWN" and "LMWH" not in classes:
+            raise ValueError("La classe de dose HBPM exige LMWH")
+        if self.antithrombotic_combination_status == "YES" and not (
+            len(classes) > 1
+            or (
+                self.anticoagulant_status == "PRESENT"
+                and self.antiplatelet_status == "PRESENT"
+            )
+        ):
+            raise ValueError("Le statut combinaison YES exige une combinaison explicite")
         return self
 
 
