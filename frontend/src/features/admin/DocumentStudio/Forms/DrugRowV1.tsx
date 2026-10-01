@@ -99,6 +99,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   const [highlightedPresentation, setHighlightedPresentation] = useState(-1);
   const [nameSearchActive, setNameSearchActive] = useState(false);
   const [neoSafety, setNeoSafety] = useState<'idle' | 'checking' | 'ready' | 'blocked' | 'error'>('idle');
+  const [safetyRevision, setSafetyRevision] = useState(0);
 
   const fieldError = validationErrors.find(error => error.field === `drug_${idx}`);
   const isRadio = drug.type === 'EXAMEN';
@@ -118,6 +119,18 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     ? `Ce dosage n’est pas disponible parmi les présentations connues. Alternatives : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
     : null;
 
+
+  useEffect(() => {
+    if (!patientId) return;
+    const handleContextUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ patientId?: number | string }>).detail;
+      if (String(detail?.patientId ?? '') === String(patientId)) {
+        setSafetyRevision(value => value + 1);
+      }
+    };
+    window.addEventListener('digitalcrown:patient-clinical-context-updated', handleContextUpdated);
+    return () => window.removeEventListener('digitalcrown:patient-clinical-context-updated', handleContextUpdated);
+  }, [patientId]);
 
   useEffect(() => {
     if (isRadio || !patientId) {
@@ -143,7 +156,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [drug.catalogPresentationId, hasManualPresentationOverride, isRadio, patientId]);
+  }, [drug.catalogPresentationId, hasManualPresentationOverride, isRadio, patientId, safetyRevision]);
 
   useEffect(() => {
     if (isRadio || disableCatalogLookup) {
