@@ -151,6 +151,39 @@ describe('DrugRow — Prescription Intelligence V1', () => {
     expect(screen.queryByRole('alert')).not.toHaveTextContent(/Contexte patient à vérifier/i);
   });
 
+  it('réévalue N5 quand le contexte patient enregistré change', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/patients/42/neo-prescription-safety') {
+        return { data: { status: 'READY' } } as any;
+      }
+      return { data: [presentation] } as any;
+    });
+
+    renderDrugRow({
+      patientId: '42',
+      drug: {
+        ...baseDrug,
+        name: 'PARACETAMOL TEST 500 MG',
+        dosage: '500 MG',
+        forme: 'COMPRIME',
+        catalogPresentationId: 'cnops:test-500',
+        catalogDci: 'PARACETAMOL',
+      },
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === '/patients/42/neo-prescription-safety')).toHaveLength(1);
+    });
+
+    window.dispatchEvent(new CustomEvent('digitalcrown:patient-clinical-context-updated', {
+      detail: { patientId: 42 },
+    }));
+
+    await waitFor(() => {
+      expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === '/patients/42/neo-prescription-safety')).toHaveLength(2);
+    });
+  });
+
   it('demande confirmation locale après override manuel sans identité exacte', () => {
     renderDrugRow({
       patientId: '42',
