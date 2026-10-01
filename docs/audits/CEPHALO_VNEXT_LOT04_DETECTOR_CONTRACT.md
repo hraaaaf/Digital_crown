@@ -250,3 +250,42 @@ Structural JSON Schema validation is necessary but not sufficient. The determini
 - INSUFFICIENT_EVIDENCE must be traceable to an explicit insufficient/not-computable component.
 
 These rules prevent structurally valid JSON from becoming a semantically false certification record.
+
+
+## Final adversarial closeout reviews
+
+### Double-check — internal independent perspective 1: biometrics / ML validation
+Initial verdict: CHANGES_REQUIRED.
+Findings corrected:
+- MAJOR: semantic cross-field rules lived only inside tests rather than a canonical reusable validator.
+- MAJOR: acceptance record hashes were not cryptographically cross-checked against the supplied manifest/model.
+- MAJOR: "preregistered tolerances" were asserted but their quantitative values were absent from the machine-readable manifest.
+
+Corrections:
+- canonical harness validator: scripts/validate_cephalo_vnext_lot04_contract.py;
+- canonical JSON SHA-256 binding between manifest and acceptance record;
+- candidate model hash binding;
+- quantitative versioned landmark and clinical tolerances required in the manifest;
+- PASS is rejected when reported metrics exceed preregistered tolerances.
+
+Post-correction verdict: READY_FOR_GATE_REVIEW.
+Severe score: **9.4/10**.
+Residual: quantitative tolerance values in the schema tests are structural examples only; real clinical thresholds remain forbidden until human-reference reproducibility is available and preregistered before G1/G2 scoring.
+
+### Triple-check — internal independent perspective 2: reproducibility / fail-closed / migration
+Initial verdict: CHANGES_REQUIRED.
+Findings corrected:
+- MAJOR: module-level pytest.importorskip("jsonschema") could skip every LOT04 contract test when the optional dependency was absent, including dependency-free semantic tests.
+- MAJOR: overall PASS was not executable-linked to a non-empty untouched acceptance split and preregistered tolerances.
+- MAJOR: unexplained overall FAIL and duplicate decision identities were not fully constrained.
+
+Corrections:
+- semantic validator uses Python stdlib and always runs independently of jsonschema availability;
+- only structural JSON-Schema tests may skip when optional jsonschema is absent;
+- PASS requires non-empty acceptance split, observed evidence, human-reference uncertainty, all reported components PASS, and metrics within preregistered tolerances;
+- FAIL requires an explicit failing component; INSUFFICIENT_EVIDENCE requires an explicit insufficient/not-computable component;
+- duplicate case, landmark, clinical-measurement and tolerance identities are rejected by semantic validation where applicable.
+
+Post-correction verdict: READY_FOR_GATE_REVIEW.
+Severe score: **9.3/10**.
+Residual: exact-head CI must execute before closeout; G1/G2 anatomical performance remains deliberately unexecuted and uncertified.
