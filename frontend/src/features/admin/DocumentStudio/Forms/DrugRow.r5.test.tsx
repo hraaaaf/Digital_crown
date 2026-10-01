@@ -104,4 +104,70 @@ describe('DrugRow R5 progressive disclosure', () => {
       '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 5 jours.',
     );
   });
+  it('conserve les deux types de ligne avec leurs icônes médicament et radio/examen', () => {
+    const onToggleType = vi.fn();
+    render(
+      <DrugRow
+        drug={baseDrug}
+        idx={0}
+        drugsCount={1}
+        assessment={null}
+        validationErrors={[]}
+        forcedDrugs={[]}
+        activeSearchId={null}
+        suggestions={{ medications: [], dosages: [], posologies: [] }}
+        highlightedIdx={-1}
+        medChecks={{}}
+        onUpdateDrug={vi.fn()}
+        onRemoveDrug={vi.fn()}
+        onMove={vi.fn()}
+        onSearch={vi.fn()}
+        onKeyDown={vi.fn()}
+        onApplySuggestion={vi.fn()}
+        onForceAllergy={vi.fn()}
+        onToggleType={onToggleType}
+      />,
+    );
+
+    const medicationButton = screen.getByRole('button', { name: 'Type médicament' });
+    const examButton = screen.getByRole('button', { name: 'Type radio ou examen' });
+    expect(medicationButton.querySelector('svg')).toBeTruthy();
+    expect(examButton.querySelector('svg')).toBeTruthy();
+
+    fireEvent.click(examButton);
+    expect(onToggleType).toHaveBeenCalledWith(1, 'EXAMEN');
+  });
+
+  it('conserve tous les contrôles de personnalisation praticien sur une ligne médicament identifiée', () => {
+    renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 cp x 3 / jour pendant 7 jours',
+      non_substituable: false,
+    }));
+
+    expect(screen.getByText('GÉLULES')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('500MG')).toBeInTheDocument();
+    expect(screen.getByLabelText('Prise')).toBeInTheDocument();
+    expect(screen.getByLabelText('Rythme')).toBeInTheDocument();
+    expect(screen.getByLabelText('Durée ou limite')).toBeInTheDocument();
+    expect(screen.getByLabelText('Moment ou condition')).toBeInTheDocument();
+    expect(screen.getByLabelText('Posologie en texte libre')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /non substituable/i })).toBeInTheDocument();
+  });
+
+  it('garde une ligne radio/examen distincte sans composer médicament', () => {
+    renderRow({
+      ...baseDrug,
+      type: 'EXAMEN',
+      name: 'RADIO PANORAMIQUE',
+    });
+
+    expect(screen.getByPlaceholderText("DÉTAILS DE L'EXAMEN RADIOLOGIQUE...")).toBeInTheDocument();
+    expect(screen.queryByLabelText('Prise')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Rythme')).not.toBeInTheDocument();
+  });
+
 });
