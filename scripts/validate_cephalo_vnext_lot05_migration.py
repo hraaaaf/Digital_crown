@@ -1,6 +1,6 @@
 """Isolated LOT05 V1<->V2 migration proof harness. Not product runtime."""
 from __future__ import annotations
-import copy, hashlib, json
+import copy, hashlib, json\nfrom datetime import datetime
 from typing import Any, Mapping
 
 class Lot05MigrationError(ValueError): pass
@@ -21,7 +21,13 @@ def _domain(cid: str) -> str:
     if cid in _ANCHORS: return "CONSTRUCTION_ANCHOR"
     return "HARD"
 
-def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, height: int) -> dict[str, Any]:
+def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, height: int, migrated_at: str = "2026-10-01T00:00:00+00:00") -> dict[str, Any]:
+    try:
+        parsed_at=datetime.fromisoformat(migrated_at)
+    except (TypeError, ValueError) as exc:
+        raise Lot05MigrationError("Invalid migration timestamp") from exc
+    if parsed_at.tzinfo is None or parsed_at.utcoffset() is None:
+        raise Lot05MigrationError("Migration timestamp must be timezone-aware")
     source=copy.deepcopy(dict(v1))
     case_id=source.get("case_id")
     landmarks=source.get("landmarks")
@@ -52,7 +58,7 @@ def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, heig
       "current_landmark_refs":copy.deepcopy(refs),
       "coordinate_space":{"version":"V1_IMAGE_PIXEL_SPACE","unit":"px","source_width_px":width,"source_height_px":height,"calibration_ref":calibration_ref},
       "quality_metadata":{"model_id":None,"model_sha256":None,"raw_score":None,"score_semantics":"NOT_AVAILABLE","score_calibration_ref":None},
-      "migration":{"migration_version":"CEPHALO_V1_TO_V2_MIGRATION_V1","source_schema":"_evidence_graph_v1","source_sha256":sha256(source),"compatibility_class":"LOSSLESS_V1","opaque_legacy_payload":source}
+      "migration":{"migration_version":"CEPHALO_V1_TO_V2_MIGRATION_V1","source_schema":"_evidence_graph_v1","source_sha256":sha256(source),"migrated_at":migrated_at,"compatibility_class":"LOSSLESS_V1","opaque_legacy_payload":source}
     }
 
 def validate_v2_identity_registry(v2: Mapping[str, Any]) -> None:
