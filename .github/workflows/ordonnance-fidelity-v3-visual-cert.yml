@@ -15,6 +15,7 @@ on:
       - '!frontend/src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts'
       - '!frontend/src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts'
       - '!frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter*'
+      - '!frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel*'
       - 'frontend/scripts/certify-ordonnance-fidelity-v3.mjs'
       - 'frontend/scripts/capture-acig-autocomplete-proof.mjs'
   workflow_dispatch:
