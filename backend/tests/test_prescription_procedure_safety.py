@@ -53,6 +53,26 @@ def test_bleeding_gate_fails_closed_on_unknown_antithrombotic_context_for_invasi
     assert "ANTITHROMBOTIC_STATUS_UNKNOWN" in result.internal_codes
 
 
+def test_bleeding_gate_fails_closed_on_inconsistent_or_unknown_combination_context():
+    inconsistent = evaluate_antithrombotic_procedure_safety(
+        _bleeding(
+            antithrombotic_status="NONE_REPORTED",
+            antithrombotic_classes=("DOAC",),
+        )
+    )
+    unknown_combination = evaluate_antithrombotic_procedure_safety(
+        _bleeding(
+            antithrombotic_status="PRESENT",
+            antithrombotic_classes=("DOAC",),
+            combination_therapy="UNKNOWN",
+        )
+    )
+    assert inconsistent.status == "CONTEXT_REQUIRED"
+    assert "ANTITHROMBOTIC_CONTEXT_INCONSISTENT" in inconsistent.internal_codes
+    assert unknown_combination.status == "CONTEXT_REQUIRED"
+    assert "ANTITHROMBOTIC_COMBINATION_STATUS_UNKNOWN" in unknown_combination.internal_codes
+
+
 def test_vka_requires_current_inr_and_escalates_at_four_without_stop_instruction():
     missing = evaluate_antithrombotic_procedure_safety(
         _bleeding(
@@ -136,10 +156,27 @@ def test_ie_wrapper_fails_closed_on_unknown_and_requires_review_for_clinical_blo
     allergy = evaluate_ie_prophylaxis_background(
         _ie(penicillin_allergy_status="PRESENT")
     )
+    wrong_agent = evaluate_ie_prophylaxis_background(
+        _ie(selected_active_ingredient_code="AMOXICILLIN_CLAVULANATE")
+    )
     assert unknown.status == "CONTEXT_REQUIRED"
     assert unknown.alert_key == "CONTEXT_REQUIRED"
     assert allergy.status == "CLINICAL_REVIEW_REQUIRED"
     assert allergy.alert_key == "CLINICAL_REVIEW_RECOMMENDED"
+    assert wrong_agent.status == "CLINICAL_REVIEW_REQUIRED"
+
+
+def test_ie_wrapper_stays_silent_when_known_nonqualifying_fact_already_decides():
+    result = evaluate_ie_prophylaxis_background(
+        _ie(
+            cardiac_risk_category="UNKNOWN",
+            dental_procedure_qualifies=False,
+            selected_presentation_verified=False,
+        )
+    )
+    assert result.status == "READY"
+    assert result.alert_key is None
+    assert "DENTAL_PROCEDURE_NOT_QUALIFYING" in result.internal_codes
 
 
 def test_orchestrator_exposes_only_generic_alert_key_from_dominant_gate():
