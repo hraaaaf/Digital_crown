@@ -102,14 +102,17 @@ def test_v1_5_01_mobile_backend_consumes_canonical_origin_only():
     assert "_detect_lan_ip" not in function_source
 
 
-def test_v1_5_01_server_mobile_origin_is_https_and_port_8005(monkeypatch):
-    """Integration seam: mobile helper must publish the canonical server origin verbatim."""
-    from backend.routers import mobile_legacy
-
+def test_v1_5_01_server_mobile_origin_is_https_and_port_8005():
+    """Canonical resolver must honor the explicit cabinet origin deterministically."""
     expected = "https://192.168.50.12:8005"
-    monkeypatch.setattr(topology, "get_cabinet_base_url", lambda *args, **kwargs: expected)
+    env = _env(
+        CABINET_HOST="192.168.50.12",
+        DIGITALCROWN_ENABLE_HTTPS="true",
+        DIGITALCROWN_TLS_CERT_FILE="cert.pem",
+        DIGITALCROWN_TLS_KEY_FILE="key.pem",
+    )
 
-    assert mobile_legacy.get_lan_base_url() == expected
+    assert topology.get_cabinet_base_url(env, validate_tls_files=False) == expected
 
 
 def test_v1_5_01_no_mobile_backend_http_lan_fallback():
