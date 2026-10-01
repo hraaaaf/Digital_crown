@@ -138,6 +138,29 @@ CL-Detection/SRPose evidence inspected so far proves channels #37/#38 are named 
 9. Keep hard/soft tissue aliases separate.
 10. Do not approve any point based solely on model availability.
 
+## Occlusal-plane taxonomy
+
+Occlusal planes are versioned **constructions**, never generic landmarks:
+
+| Canonical construction | Intended use | Required evidence/state |
+|---|---|---|
+| `OCCLUSAL_PLANE_STEINER_1953_V1` | Steiner occlusal-plane-to-SN relationship | source-locked concept; exact reproducible anchor algorithm/golden fixture still required before runtime |
+| `OCCLUSAL_PLANE_WITS_FUNCTIONAL_V1` | Wits appraisal projections | SOURCE_LOCK_REQUIRED; must not inherit Steiner OP by alias |
+| `OCCLUSAL_PLANE_RICKETTS_<VERSION>` | any Ricketts-specific consumer | SOURCE_LOCK_REQUIRED; analysis/version must define its own dental points/construction |
+| `OCCLUSAL_PLANE_LEGACY_DC` | compatibility with historical `Occ_Ant/Occ_Post` | LEGACY_AMBIGUOUS until provenance is recovered |
+
+`Occ_Ant` and `Occ_Post` are compatibility anchors only. They do not become canonical anatomical landmarks and do not consume SRPose channel slots.
+
+## U6/L6 disposition
+
+Failure to recover an authoritative CL-Detection cusp/subpoint definition does **not** block the entire Cephalo 2.0 landmark atlas.
+
+- Preserve SRPose38 channels `U6`/`L6` as `L3_RESEARCH_LEGACY_MOLAR`.
+- They may support detector benchmarking/tracing experiments only where the task does not require a source-specific crown/cusp identity.
+- They cannot satisfy Steiner/Ricketts/McNamara source-specific molar dependencies.
+- Aariz `UMT/LMT` remain distinct source-locked cusp-tip candidates.
+- If future primary annotation documentation proves equivalence, promotion requires a versioned evidence decision and Gold Set validation; no in-place reinterpretation.
+
 ## Compatibility / migration contract
 
 LOT03 defines scientific identities but does **not** rename persisted/runtime IDs.
