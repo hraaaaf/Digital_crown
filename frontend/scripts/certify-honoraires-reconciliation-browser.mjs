@@ -16,6 +16,11 @@ if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.
 const tokens = await login.json();
 const headers = { Authorization: `Bearer ${tokens.access_token}` };
 
+const now = new Date();
+const certificationDate = now.toISOString().slice(0, 10);
+const certificationYear = now.getUTCFullYear();
+const certificationMonth = now.getUTCMonth() + 1;
+
 const suffix = Date.now().toString().slice(-6);
 const patientResp = await api.post('/api/patients/', {
   headers,
@@ -39,17 +44,17 @@ const gen = await api.post('/api/documents/generate', {
     payment_status: 'PAYE',
     data: {
       payments: [
-        { date: '2026-09-20', acte: 'Soin A certification', dent: '-', montant: 600, mode_reglement: 'ESPECES' },
-        { date: '2026-09-20', acte: 'Soin B certification', dent: '-', montant: 400, mode_reglement: 'ESPECES' },
+        { date: certificationDate, acte: 'Soin A certification', dent: '-', montant: 600, mode_reglement: 'ESPECES' },
+        { date: certificationDate, acte: 'Soin B certification', dent: '-', montant: 400, mode_reglement: 'ESPECES' },
       ],
-      doc_date: '2026-09-20',
+      doc_date: certificationDate,
       teeth_data: [],
     },
   },
 });
 if (!gen.ok()) throw new Error(`Honoraires generation failed: ${gen.status()} ${await gen.text()}`);
 
-const beforeApi = await api.get(`/api/accounting/honoraires?patient_id=${patient.id}&year=2026&month=9`, { headers });
+const beforeApi = await api.get(`/api/accounting/honoraires?patient_id=${patient.id}&year=${certificationYear}&month=${certificationMonth}`, { headers });
 if (!beforeApi.ok()) throw new Error(`Before accounting failed: ${beforeApi.status()}`);
 const beforeJson = await beforeApi.json();
 if (beforeJson.items.length !== 2) throw new Error(`Expected 2 derived Acte rows, got ${beforeJson.items.length}`);
@@ -81,7 +86,7 @@ await detailRow.waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
 await page.waitForTimeout(700);
 await page.screenshot({ path: path.join(outDir, 'after-delete.png'), fullPage: true });
 
-const afterApi = await api.get(`/api/accounting/honoraires?patient_id=${patient.id}&year=2026&month=9`, { headers });
+const afterApi = await api.get(`/api/accounting/honoraires?patient_id=${patient.id}&year=${certificationYear}&month=${certificationMonth}`, { headers });
 if (!afterApi.ok()) throw new Error(`After accounting failed: ${afterApi.status()}`);
 const afterJson = await afterApi.json();
 if (afterJson.items.length !== 0 || afterJson.total_amount !== 0 || afterJson.total_collected !== 0) {
