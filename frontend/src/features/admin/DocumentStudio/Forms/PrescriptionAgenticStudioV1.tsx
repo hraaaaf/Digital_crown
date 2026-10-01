@@ -12,6 +12,7 @@ import {
 import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
 import { PrescriptionQuickAccessBar } from './PrescriptionQuickAccessBar';
+import { ProcedureSafetyNotice } from './ProcedureSafetyNotice';
 import type { DrugItem } from './prescriptionTypes';
 
 export interface PrescriptionAgenticStudioProps {
@@ -186,6 +187,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </div>
         </div>
       </section>
+
+      <ProcedureSafetyNotice patientId={patientId} />
 
       <PrescriptionQuickAccessBar
         drugs={drugs}
