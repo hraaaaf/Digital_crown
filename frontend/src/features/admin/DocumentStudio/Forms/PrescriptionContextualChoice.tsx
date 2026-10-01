@@ -127,6 +127,7 @@ export function PrescriptionContextualChoice({
               </label>
               <input
                 autoFocus
+                aria-label="Valeur personnalisée"
                 value={draft}
                 onChange={event => setDraft(event.target.value)}
                 onKeyDown={event => {
