@@ -95,7 +95,9 @@ Therefore:
 
 ### Initial L1/L2/L3 disposition
 
-**L1 clinical candidates:** S,N,Or,Po_anatomic,A,B,Pog_hard,Me,Gn_anatomic,Go_analysis_specific,ANS,PNS,Ar,Co,U1/L1 incisal tips and apices, Prn,Sn,Ls,Li,Pog_soft — subject to per-channel validation and analysis-specific gates.
+**L1 clinical candidates:** S,N,Or,Po_anatomic,A,B,Pog_hard,Me,ANS,PNS,Ar,Co,U1/L1 incisal tips and apices, Prn,Sn,Ls,Li,Pog_soft — subject to per-channel validation and analysis-specific gates.
+
+**L1 versioned identities, never generic aliases:** `Gn_Aariz_midpoint`, `Gn_constructed_<analysis>`, `Go_Aariz_contour_midpoint`, `Go_constructed_<analysis>`, `Po_anatomic`, and any `Po_machine/ear_rod` variant. The current runtime IDs `Gn`, `Go`, `Po` are compatibility aliases only until a consumer binds an explicit scientific identity.
 
 **L2 tracing/construction candidates:** R, UPM, LPM, Cm, Ba, Ptm, G_soft, N_soft, Gn_soft, Me_soft, C_point where their definitions/provenance are locked.
 
@@ -105,8 +107,9 @@ Therefore:
 1. Confirm Aariz Pn ↔ DC Prn against the DC operational definition before alias promotion.
 2. Prove/deny Aariz LMT/UMT ↔ SRPose38 L6/U6; do not infer cusp tip from "molar".
 3. R/UPM/LPM definitions are now source-locked from Aariz; preserve R as L2 candidate and keep UPM/LPM conditional on an analysis-specific occlusal-plane contract.
-4. Resolve Go convention per analysis.
-5. Resolve Po anatomical vs machine/ear-rod use per analysis.
+4. Bind every Go consumer to an explicit versioned Go identity; no generic Go promotion.
+5. Bind every Po/FH consumer to `Po_anatomic` or an explicit machine/ear-rod variant; no generic Po promotion.
+5a. Bind every Gn consumer to an explicit anatomical or constructed definition; no generic Gn promotion.
 6. Define occlusal plane points/construction; assess whether UPM/LPM improve it.
 7. Classify all SRPose38-only channels L1/L2/L3 with explicit downstream utility.
 8. Keep D/Pt/PTM and anatomical/constructed Gn identities separate.
