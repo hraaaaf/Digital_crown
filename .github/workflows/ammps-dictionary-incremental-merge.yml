@@ -13,6 +13,9 @@ on:
       - '.github/workflows/ammps-dictionary-incremental-merge.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   d2-merge-proof:
     runs-on: ubuntu-latest
@@ -80,6 +83,22 @@ jobs:
           assert first["final_count"] >= first["existing_count"]
           print({"first": first, "second": second})
           PY
+
+      - name: Version validated candidate on D2 branch only
+        if: github.event_name == 'push' && github.ref_name == 'feat/neo-medication-dictionary-incremental-merge'
+        run: |
+          cp artifacts/ammps-dictionary-d2/medications_ma_ammps_current_2026.candidate.json \
+            backend/data/medications_ma_ammps_current_2026.json
+          if git diff --quiet -- backend/data/medications_ma_ammps_current_2026.json; then
+            echo "Candidate already versioned; no commit required."
+            exit 0
+          fi
+          test "$(git branch --show-current)" = "feat/neo-medication-dictionary-incremental-merge"
+          git config user.name "digital-crown-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/data/medications_ma_ammps_current_2026.json
+          git commit -m "data(rx-dictionary): apply validated incremental AMMPS candidate"
+          git push origin HEAD:feat/neo-medication-dictionary-incremental-merge
 
       - name: Upload D2 proof
         if: always()
