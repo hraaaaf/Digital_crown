@@ -103,14 +103,36 @@ Therefore:
 
 **L3 research/source-specific hold:** D_point, PT_point, Bo, Ls2, Li2, generic U6/L6 until exact semantics are proven. A point may move from L3 only through a versioned evidence decision.
 
+## Occlusal-plane source lock
+
+The atlas must not create one universal "occlusal plane".
+
+For **Steiner 1953**, the analysis uses an occlusal plane measured to SN. Source-derived descriptions place this as a bisecting occlusal construction through the posterior occlusal overlap (first-molar region) and the anterior/premolar occlusal region. Therefore:
+- `Occ_Ant` and `Occ_Post` are **constructed/manual plane anchors**, not detector landmarks;
+- Aariz UPM/LPM alone do not define Steiner OP;
+- Aariz UMT/LMT alone do not define Steiner OP;
+- a future implementation must version the construction as `OCCLUSAL_PLANE_STEINER_1953_V1` and test it independently;
+- Wits/functional occlusal plane and Ricketts/other occlusal-plane conventions require their own versioned contracts and must not silently reuse Steiner's construction.
+
+## Pn / Prn disposition
+
+Aariz `Pn` is published as Pronasale, the most prominent/anterior point of the nose. Digital Crown `Prn` is already intended as Pronasale. This is an **anatomical alias candidate**, but runtime promotion still requires confirming the DC operational definition/version and detector-channel behavior. Status becomes `ANATOMY_MATCH_RUNTIME_VALIDATION_REQUIRED`, not fully certified.
+
+## U6/L6 evidence boundary
+
+CL-Detection/SRPose evidence inspected so far proves channels #37/#38 are named `Upper Molar` and `Lower Molar`, and proves their channel order. It does **not** prove that either channel is specifically the mesiobuccal cusp tip used by Aariz UMT/LMT. Therefore:
+- `U6/L6 ↔ UMT/LMT` remains `SEMANTIC_HOLD`;
+- U6/L6 cannot be used as source-specific Steiner/Ricketts molar landmarks until the original annotation protocol or equivalent authoritative definition is found;
+- detector output availability is not anatomical certification.
+
 ## Decisions requiring evidence before gate
-1. Confirm Aariz Pn ↔ DC Prn against the DC operational definition before alias promotion.
-2. Prove/deny Aariz LMT/UMT ↔ SRPose38 L6/U6; do not infer cusp tip from "molar".
+1. Pn↔Prn is anatomy-compatible; confirm runtime/DC operational version before production alias migration.
+2. UMT/LMT↔U6/L6 remains SEMANTIC_HOLD unless an authoritative CL-Detection annotation definition is recovered; do not infer cusp tip from "molar".
 3. R/UPM/LPM definitions are now source-locked from Aariz; preserve R as L2 candidate and keep UPM/LPM conditional on an analysis-specific occlusal-plane contract.
 4. Bind every Go consumer to an explicit versioned Go identity; no generic Go promotion.
 5. Bind every Po/FH consumer to `Po_anatomic` or an explicit machine/ear-rod variant; no generic Po promotion.
 5a. Bind every Gn consumer to an explicit anatomical or constructed definition; no generic Gn promotion.
-6. Define occlusal plane points/construction; assess whether UPM/LPM improve it.
+6. Steiner OP is now version-scoped as a bisecting occlusal construction; materialize exact construction/golden fixtures later. Define separate contracts for Wits/functional and any Ricketts occlusal plane before use.
 7. Classify all SRPose38-only channels L1/L2/L3 with explicit downstream utility.
 8. Keep D/Pt/PTM and anatomical/constructed Gn identities separate.
 9. Keep hard/soft tissue aliases separate.
