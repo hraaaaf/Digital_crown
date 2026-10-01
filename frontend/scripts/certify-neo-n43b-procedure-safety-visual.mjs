@@ -88,6 +88,29 @@ for (const viewport of viewports) {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
 
+  const workstationState = {
+    workstationId: 'neo-n43b-visual-proof',
+    defaultExperience: 'cabinet',
+    stationLocked: false,
+    stationEscapeAuthorized: false,
+    stationEscapeExpiresAt: null,
+    enrollmentRequired: false,
+    authenticated: true,
+    pinConfigured: true,
+    canManage: true,
+    canConfigurePin: true,
+  };
+  await page.route('**/api/workstation/bootstrap', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(workstationState),
+  }));
+  await page.route('**/api/workstation/state', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(workstationState),
+  }));
+
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=ordonnance`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
 
