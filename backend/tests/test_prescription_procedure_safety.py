@@ -97,6 +97,20 @@ def test_vka_requires_current_inr_and_escalates_at_four_without_stop_instruction
         assert prohibited not in rendered
 
 
+def test_vka_invalid_inr_values_fail_closed():
+    for value in (float("nan"), float("inf"), 0.0, -1.0):
+        result = evaluate_antithrombotic_procedure_safety(
+            _bleeding(
+                antithrombotic_status="PRESENT",
+                antithrombotic_classes=("VKA",),
+                warfarin_inr=value,
+                warfarin_inr_current=True,
+            )
+        )
+        assert result.status == "CONTEXT_REQUIRED"
+        assert "VKA_INR_CURRENT_VALUE_REQUIRED" in result.internal_codes
+
+
 def test_doac_is_ready_for_low_risk_and_review_only_for_higher_risk():
     low = evaluate_antithrombotic_procedure_safety(
         _bleeding(
