@@ -345,7 +345,12 @@ def evaluate_ie_prophylaxis_background(
     sources = tuple(rule.source_ids) or (SOURCE_AHA_2021, SOURCE_ADA_IE_PROPHYLAXIS)
 
     if rule.status == "READY":
-        return _result("READY", sources=sources)
+        return _result(
+            "CLINICAL_REVIEW_REQUIRED",
+            "IE_PROPHYLAXIS_REVIEW",
+            alert_key="CLINICAL_REVIEW_RECOMMENDED",
+            sources=sources,
+        )
 
     blockers = set(rule.blockers)
     if blockers & _IE_NONQUALIFYING_CODES:
