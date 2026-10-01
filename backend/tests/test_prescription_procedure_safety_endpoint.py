@@ -393,3 +393,38 @@ def test_generic_alert_endpoint_enforces_patient_tenant_isolation(
         headers=auth_headers,
     )
     assert response.status_code in {403, 404}
+
+
+
+def test_generic_alert_endpoint_keeps_ie_review_active_without_selected_presentation(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id, "ALERT-IE")
+    _context(
+        db,
+        patient.id,
+        dentiste.id,
+        dentiste.id,
+        procedure_date=datetime(2026, 10, 1).date(),
+        procedure_bleeding_risk="UNLIKELY_TO_CAUSE_BLEEDING",
+        procedure_osseous_risk="NO_OSSEOUS_INJURY",
+        procedure_is_implant=False,
+        ie_procedure_qualifies=True,
+        oral_route_possible=True,
+        currently_taking_penicillin_or_amoxicillin=False,
+    )
+
+    response = client.get(
+        f"/api/prescriptions/clinical-rules/procedure-safety/alert/{patient.id}",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data == {
+        "status": "CONTEXT_REQUIRED",
+        "alert_key": "CONTEXT_REQUIRED",
+        "read_only": True,
+    }
+    rendered = str(data).lower()
+    for prohibited in ("endocard", "amoxic", "aha", "ada", "blocker", "source"):
+        assert prohibited not in rendered
