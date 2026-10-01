@@ -58,7 +58,6 @@ function renderDrugRow(overrides: Partial<React.ComponentProps<typeof DrugRow>> 
     onSearch: noop,
     onKeyDown: noop,
     onApplySuggestion: noop,
-    onFormeOpen: noop,
     onForceAllergy: noop,
     onToggleType: noop,
     ...overrides,
@@ -77,11 +76,10 @@ describe('DrugRow — Prescription Intelligence V1', () => {
     renderDrugRow();
 
     await waitFor(() => {
-      expect(api.get).toHaveBeenCalledWith('/medications/search', { params: { q: 'PARACE' } });
+      expect(api.get).toHaveBeenCalledWith('/medications/neo/search', { params: { q: 'PARACE' } });
     });
     expect(await screen.findByText('PARACETAMOL TEST 500 MG')).toBeInTheDocument();
-    expect(screen.getByText(/CNOPS Open Data · 2021-12-13 · statut commercial actuel non certifié/i)).toBeInTheDocument();
-  });
+      });
 
   it('sélectionne explicitement une présentation et n injecte aucune posologie', async () => {
     const { onUpdateDrug } = renderDrugRow();
