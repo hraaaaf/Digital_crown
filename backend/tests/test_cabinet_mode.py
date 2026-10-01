@@ -97,14 +97,15 @@ class TestRunPyHostResolution:
         _, port, _, _, _ = self._resolve({"CABINET_PORT": "9000"})
         assert port == 9000
 
-    def test_run_py_source_uses_env_vars(self):
-        """Vérifie que run.py garde le contrat réseau fail-closed."""
+    def test_run_py_source_delegates_to_canonical_network_contract(self):
+        """Le launcher ne doit plus dupliquer les variables/invariants du resolver canonique."""
         import pathlib
         source = (pathlib.Path(__file__).parent.parent.parent / "run.py").read_text(encoding="utf-8")
-        assert "CABINET_HOST" in source
-        assert "CABINET_PORT" in source
+        assert "resolve_cabinet_network" in source
         assert "_resolve_runtime_network" in source
-        assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in source
+        assert "contract.host" in source
+        assert "contract.port" in source
+        assert "contract.https_enabled" in source
 
 
 class TestSpecNoSecrets:
@@ -122,11 +123,9 @@ class TestEnvLoaderCabinetCandidates:
         explicit.write_text("DATABASE_URL=postgresql://from-explicit/db\n")
         monkeypatch.setenv("DIGITALCROWN_ENV_FILE", str(explicit))
         monkeypatch.delenv("DATABASE_URL", raising=False)
-
         from backend.env_loader import load_backend_env
         with patch("backend.env_loader.BASE_DIR", tmp_path / "nonexistent"):
             loaded = load_backend_env(override=True)
-
         assert loaded == explicit
         assert os.environ["DATABASE_URL"] == "postgresql://from-explicit/db"
 
@@ -139,13 +138,11 @@ class TestEnvLoaderCabinetCandidates:
         monkeypatch.setenv("APPDATA", str(appdata))
         monkeypatch.delenv("DIGITALCROWN_ENV_FILE", raising=False)
         monkeypatch.delenv("SECRET_KEY", raising=False)
-
         from backend.env_loader import load_backend_env
         with (
             patch("backend.env_loader.BASE_DIR", tmp_path / "empty_frozen_dir"),
             patch("backend.env_loader._appdata_env_path", return_value=appdata_env),
         ):
             loaded = load_backend_env(override=True)
-
         assert loaded == appdata_env
         assert os.environ["SECRET_KEY"] == "from-appdata-install"
