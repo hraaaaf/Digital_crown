@@ -132,7 +132,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     setCatalogError(false);
     const timer = window.setTimeout(async () => {
       try {
-        const response = await api.get('/medications/search', { params: { q: query } });
+        const response = await api.get('/medications/neo/search', { params: { q: query } });
         if (cancelled) return;
         setCatalogResults(Array.isArray(response.data) ? response.data : []);
         setHighlightedPresentation(-1);
