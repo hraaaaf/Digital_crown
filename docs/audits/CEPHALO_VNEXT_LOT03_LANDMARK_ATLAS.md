@@ -116,6 +116,18 @@ Therefore:
 9. Keep hard/soft tissue aliases separate.
 10. Do not approve any point based solely on model availability.
 
+## Compatibility / migration contract
+
+LOT03 defines scientific identities but does **not** rename persisted/runtime IDs.
+
+- Existing `Gn`, `Go`, `Po`, `U6`, `L6` remain legacy compatibility aliases until LOT12 migration.
+- New scientific consumers bind to versioned canonical identities; they do not reinterpret old stored coordinates in place.
+- `Occ_Ant`/`Occ_Post` remain non-detector/derived-or-manual compatibility IDs until their construction is source-locked. They must never occupy SRPose38 channel indices.
+- A future alias migration must preserve original ID, coordinate, provenance, calibration, manual-adjustment state and analysis/report semantics in G3 fixtures.
+- If an old generic ID cannot be disambiguated retrospectively, it remains `LEGACY_AMBIGUOUS`; it is not relabeled as a more specific anatomical identity.
+- No historical patient result is silently recomputed because a canonical landmark definition changes.
+- The detector output contract stays 38 channels unless a separately benchmarked detector architecture explicitly changes it.
+
 ## Gate
 `CEPH_LANDMARK_SET_APPROVED` requires exact definitions and evidence for all L1/L2 points, explicit L3 disposition, and reviewed mapping to the LOT01/LOT02 contracts.
 
