@@ -9,25 +9,6 @@ export type ProcedureSafetyAlertKey =
   | 'SPECIALIST_REVIEW_RECOMMENDED'
   | 'SAFETY_CHECK_UNAVAILABLE';
 
-export type ProcedureSafetyEvaluationInput = {
-  patientId: string | number;
-  procedureDate: string;
-  procedureBleedingRisk:
-    | 'UNKNOWN'
-    | 'UNLIKELY_TO_CAUSE_BLEEDING'
-    | 'LOW_POSTOP_BLEEDING_RISK'
-    | 'HIGHER_POSTOP_BLEEDING_RISK';
-  procedureOsseousRisk:
-    | 'UNKNOWN'
-    | 'NO_OSSEOUS_INJURY'
-    | 'DENTOALVEOLAR_OSSEOUS_INJURY';
-  procedureIsImplant?: boolean | null;
-  ieProcedureQualifies?: boolean | null;
-  oralRoutePossible?: boolean | null;
-  currentlyTakingPenicillinOrAmoxicillin?: boolean | null;
-  presentationId?: string | null;
-};
-
 type EvaluationResponse = {
   status?: string;
   alert_key?: ProcedureSafetyAlertKey | null;
@@ -42,59 +23,63 @@ const MESSAGE_BY_KEY: Record<ProcedureSafetyAlertKey, string> = {
   SAFETY_CHECK_UNAVAILABLE: 'Vérification clinique momentanément indisponible.',
 };
 
-const EVENT_NAME = 'digitalcrown:procedure-safety-evaluate';
-
-export function dispatchProcedureSafetyEvaluation(input: ProcedureSafetyEvaluationInput) {
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: input }));
-}
-
-export function ProcedureSafetyNotice({ patientId }: { patientId: string }) {
+export function ProcedureSafetyNotice({
+  patientId,
+  presentationId,
+}: {
+  patientId: string;
+  presentationId?: string | null;
+}) {
   const [alertKey, setAlertKey] = React.useState<ProcedureSafetyAlertKey | null>(null);
+  const [revision, setRevision] = React.useState(0);
 
   React.useEffect(() => {
     setAlertKey(null);
   }, [patientId]);
 
   React.useEffect(() => {
-    let requestRevision = 0;
-
-    const handleEvaluate = (event: Event) => {
-      const detail = (event as CustomEvent<ProcedureSafetyEvaluationInput>).detail;
-      if (!detail || String(detail.patientId) !== String(patientId)) return;
-      if (!detail.procedureDate) return;
-
-      const revision = ++requestRevision;
-      setAlertKey(null);
-      void api.post('/prescriptions/clinical-rules/procedure-safety/evaluate', {
-        patient_id: Number(detail.patientId),
-        procedure_date: detail.procedureDate,
-        procedure_bleeding_risk: detail.procedureBleedingRisk,
-        procedure_osseous_risk: detail.procedureOsseousRisk,
-        procedure_is_implant: detail.procedureIsImplant ?? null,
-        ie_procedure_qualifies: detail.ieProcedureQualifies ?? null,
-        oral_route_possible: detail.oralRoutePossible ?? null,
-        currently_taking_penicillin_or_amoxicillin: detail.currentlyTakingPenicillinOrAmoxicillin ?? null,
-        presentation_id: detail.presentationId ?? null,
-      }).then(response => {
-        if (revision !== requestRevision) return;
-        const data = response.data as EvaluationResponse;
-        if (data?.read_only !== true) {
-          setAlertKey('SAFETY_CHECK_UNAVAILABLE');
-          return;
-        }
-        const key = data?.alert_key ?? null;
-        setAlertKey(key && key in MESSAGE_BY_KEY ? key : null);
-      }).catch(() => {
-        if (revision === requestRevision) setAlertKey('SAFETY_CHECK_UNAVAILABLE');
-      });
+    const refresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ patientId?: number | string }>).detail;
+      if (String(detail?.patientId ?? '') === String(patientId)) {
+        setRevision(value => value + 1);
+      }
     };
-
-    window.addEventListener(EVENT_NAME, handleEvaluate);
+    window.addEventListener('digitalcrown:patient-clinical-context-updated', refresh);
+    window.addEventListener('digitalcrown:procedure-safety-context-updated', refresh);
     return () => {
-      requestRevision += 1;
-      window.removeEventListener(EVENT_NAME, handleEvaluate);
+      window.removeEventListener('digitalcrown:patient-clinical-context-updated', refresh);
+      window.removeEventListener('digitalcrown:procedure-safety-context-updated', refresh);
     };
   }, [patientId]);
+
+  React.useEffect(() => {
+    if (!patientId || patientId === '0') {
+      setAlertKey(null);
+      return;
+    }
+
+    let cancelled = false;
+    setAlertKey(null);
+
+    void api.get('/prescriptions/clinical-rules/procedure-safety/alert/' + patientId, {
+      params: presentationId ? { presentation_id: presentationId } : {},
+    }).then(response => {
+      if (cancelled) return;
+      const data = response.data as EvaluationResponse;
+      if (data?.read_only !== true) {
+        setAlertKey('SAFETY_CHECK_UNAVAILABLE');
+        return;
+      }
+      const key = data?.alert_key ?? null;
+      setAlertKey(key && key in MESSAGE_BY_KEY ? key : null);
+    }).catch(() => {
+      if (!cancelled) setAlertKey('SAFETY_CHECK_UNAVAILABLE');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId, presentationId, revision]);
 
   if (!alertKey) return null;
 
