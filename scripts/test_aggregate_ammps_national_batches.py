@@ -15,6 +15,11 @@ spec.loader.exec_module(mod)
 def write_batch(root: Path, name: str, page: int, rid: str):
     d = root / name
     d.mkdir()
+    raw = d / "raw"
+    raw.mkdir()
+    (raw / f"page-{page}.html").write_text(
+        '<div class="medicament-card"></div>', encoding="utf-8"
+    )
     (d / "manifest.json").write_text(json.dumps({
         "reported_total": 2,
         "updated_at": "01/10/2026",
@@ -38,7 +43,9 @@ with tempfile.TemporaryDirectory() as td:
     b2 = write_batch(root, "b2", 2, "ammps-reg:b")
     result, rows = mod.aggregate([b1, b2], 2, "01/10/2026", 2)
     assert result["covered_pages"] == 2
+    assert result["source_row_count"] == 2
     assert result["unique_presentations"] == 2
+    assert result["source_duplicate_count"] == 0
     assert result["missing_pages"] == []
     assert len(rows) == 2
 
