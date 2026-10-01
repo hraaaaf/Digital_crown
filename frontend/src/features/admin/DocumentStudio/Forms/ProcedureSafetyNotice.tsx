@@ -6,7 +6,8 @@ export type ProcedureSafetyAlertKey =
   | 'CONTEXT_REQUIRED'
   | 'CLINICAL_REVIEW_RECOMMENDED'
   | 'PRESCRIBER_REVIEW_RECOMMENDED'
-  | 'SPECIALIST_REVIEW_RECOMMENDED';
+  | 'SPECIALIST_REVIEW_RECOMMENDED'
+  | 'SAFETY_CHECK_UNAVAILABLE';
 
 export type ProcedureSafetyEvaluationInput = {
   patientId: string | number;
@@ -38,6 +39,7 @@ const MESSAGE_BY_KEY: Record<ProcedureSafetyAlertKey, string> = {
   CLINICAL_REVIEW_RECOMMENDED: 'Vérification clinique conseillée avant validation.',
   PRESCRIBER_REVIEW_RECOMMENDED: 'Avis prescripteur recommandé.',
   SPECIALIST_REVIEW_RECOMMENDED: 'Avis spécialisé recommandé.',
+  SAFETY_CHECK_UNAVAILABLE: 'Vérification clinique momentanément indisponible.',
 };
 
 const EVENT_NAME = 'digitalcrown:procedure-safety-evaluate';
@@ -62,6 +64,7 @@ export function ProcedureSafetyNotice({ patientId }: { patientId: string }) {
       if (!detail.procedureDate) return;
 
       const revision = ++requestRevision;
+      setAlertKey(null);
       void api.post('/prescriptions/clinical-rules/procedure-safety/evaluate', {
         patient_id: Number(detail.patientId),
         procedure_date: detail.procedureDate,
@@ -76,13 +79,13 @@ export function ProcedureSafetyNotice({ patientId }: { patientId: string }) {
         if (revision !== requestRevision) return;
         const data = response.data as EvaluationResponse;
         if (data?.read_only !== true) {
-          setAlertKey(null);
+          setAlertKey('SAFETY_CHECK_UNAVAILABLE');
           return;
         }
         const key = data?.alert_key ?? null;
         setAlertKey(key && key in MESSAGE_BY_KEY ? key : null);
       }).catch(() => {
-        if (revision === requestRevision) setAlertKey(null);
+        if (revision === requestRevision) setAlertKey('SAFETY_CHECK_UNAVAILABLE');
       });
     };
 
