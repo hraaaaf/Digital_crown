@@ -10,6 +10,7 @@ export type ContextualChoiceOption = {
 
 export function PrescriptionContextualChoice({
   ariaLabel,
+  dataField,
   value,
   placeholder,
   options,
@@ -19,6 +20,7 @@ export function PrescriptionContextualChoice({
   disabled = false,
 }: {
   ariaLabel: string;
+  dataField?: string;
   value: string;
   placeholder: string;
   options: ContextualChoiceOption[];
@@ -61,6 +63,7 @@ export function PrescriptionContextualChoice({
         type="button"
         aria-label={ariaLabel}
         aria-expanded={open}
+        data-composer-field={dataField}
         disabled={disabled}
         onClick={() => setOpen(current => !current)}
         className={cn(
