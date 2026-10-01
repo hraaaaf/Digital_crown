@@ -54,12 +54,12 @@ const PROCEDURE_CONTEXT: Record<CanonicalDentalProcedure, DentalProcedureSafetyC
   },
   BASIC_PERIODONTAL_EXAM: {
     bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
-    ieProcedureQualifies: false,
+    ieProcedureQualifies: null,
     osseousRisk: 'NO_OSSEOUS_INJURY',
   },
   SUPRAGINGIVAL_DEBRIDEMENT: {
     bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
-    ieProcedureQualifies: false,
+    ieProcedureQualifies: null,
     osseousRisk: 'NO_OSSEOUS_INJURY',
   },
   SUPRAGINGIVAL_RESTORATION: {
@@ -69,7 +69,7 @@ const PROCEDURE_CONTEXT: Record<CanonicalDentalProcedure, DentalProcedureSafetyC
   },
   ORTHOGRADE_ENDODONTICS: {
     bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
-    ieProcedureQualifies: false,
+    ieProcedureQualifies: null,
     osseousRisk: 'NO_OSSEOUS_INJURY',
   },
   IMPRESSION_OR_PROSTHETIC_PROCEDURE: {
