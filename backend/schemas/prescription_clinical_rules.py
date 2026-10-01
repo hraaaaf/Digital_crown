@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class IEProphylaxisEvaluationRequest(BaseModel):
@@ -58,7 +58,7 @@ class ProcedureSafetyEvaluationRequest(BaseModel):
     procedure_bleeding_risk: ProcedureBleedingRisk = "UNKNOWN"
     ie_procedure_qualifies: Optional[bool] = None
     antithrombotic_status: AntithromboticStatus = "UNKNOWN"
-    antithrombotic_classes: List[AntithromboticClass] = []
+    antithrombotic_classes: List[AntithromboticClass] = Field(default_factory=list)
     combination_therapy: CombinationStatus = "UNKNOWN"
     warfarin_inr: Optional[float] = None
     warfarin_inr_current: Optional[bool] = None
