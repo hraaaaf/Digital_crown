@@ -25,6 +25,12 @@ const login = await api.post('/api/auth/login', {
 });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
+const workstationEnroll = await api.post('/api/workstation/enroll', {
+  data: { accountPassword: process.env.T2_PASSWORD },
+  headers: { Authorization: `Bearer ${tokens.access_token}` },
+});
+if (!workstationEnroll.ok()) throw new Error(`Workstation enrollment failed: ${workstationEnroll.status()} ${await workstationEnroll.text()}`);
+const workstationStorage = await api.storageState();
 const patients = await api.get('/api/patients', {
   headers: { Authorization: `Bearer ${tokens.access_token}` },
 });
@@ -34,7 +40,7 @@ const patient = patientList.find((candidate) => candidate.numero_dossier === 'T2
 if (!patient) throw new Error('T2 certification patient not found');
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+const context = await browser.newContext({ storageState: workstationStorage, viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
 
 await context.addInitScript(({ access, refresh }) => {
   localStorage.setItem('token', access);
