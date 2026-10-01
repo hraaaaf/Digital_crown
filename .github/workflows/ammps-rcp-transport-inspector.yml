@@ -1,0 +1,37 @@
+name: AMMPS RCP Transport Inspector
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-rcp-clinical
+    paths:
+      - 'scripts/inspect_ammps_rcp_transport.py'
+      - '.github/workflows/ammps-rcp-transport-inspector.yml'
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.12.3
+      - name: Inspect AMOXICILLINE SP 1 G box 12 RCP control
+        run: |
+          mkdir -p artifacts/d4-rcp-inspector
+          python scripts/inspect_ammps_rcp_transport.py \
+            --query AMOXICILLINE \
+            --presentation-id ammps-reg:6fd268f476e7efe0c11f0c4b \
+            --out artifacts/d4-rcp-inspector/amoxicilline-sp-1g-box12.json
+      - name: Upload inspector proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ammps-d4-rcp-inspector
+          path: artifacts/d4-rcp-inspector
+          if-no-files-found: warn
+          retention-days: 14
