@@ -3,7 +3,6 @@ name: Settings R11 TemplateBuilder Dependency Audit
 on:
   pull_request:
     paths:
-      - ".github/workflows/settings-r11-templatebuilder-audit.yml"
       - "docs/settings/R11_TEMPLATEBUILDER_ORPHAN_CLEANUP_GOAL.md"
       - "frontend/src/features/admin/TemplateBuilder.tsx"
       - "frontend/src/App.tsx"
@@ -13,11 +12,12 @@ on:
       - "frontend/src/features/admin/DocumentHub.tsx"
       - "frontend/src/services/templateApi.ts"
       - "backend/main.py"
-      - "backend/models.py"
       - "backend/routers/templates.py"
       - "backend/services/template_engine.py"
       - "backend/services/document_factory.py"
       - "backend/tests/test_template_engine.py"
+
+  workflow_dispatch:
 
 permissions:
   contents: read
