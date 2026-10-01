@@ -21,6 +21,12 @@ const login = await api.post('/api/auth/login', {
 });
 if (!login.ok()) throw new Error(`C4 login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
+const workstationEnroll = await api.post('/api/workstation/enroll', {
+  data: { accountPassword: process.env.T2_PASSWORD },
+  headers: { Authorization: `Bearer ${tokens.access_token}` },
+});
+if (!workstationEnroll.ok()) throw new Error(`Workstation enrollment failed: ${workstationEnroll.status()} ${await workstationEnroll.text()}`);
+const workstationStorage = await api.storageState();
 const headers = { Authorization: `Bearer ${tokens.access_token}` };
 
 const patients = await api.get('/api/patients', { headers });
@@ -78,7 +84,7 @@ async function capture(page, viewport, surface, ready) {
 }
 
 for (const viewport of viewports) {
-  const context = await browser.newContext({ viewport, colorScheme: 'light' });
+  const context = await browser.newContext({ storageState: workstationStorage, viewport, colorScheme: 'light' });
   const page = await context.newPage();
   await seedAuth(page);
   const pageErrors = [];
