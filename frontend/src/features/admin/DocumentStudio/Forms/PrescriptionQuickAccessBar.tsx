@@ -63,6 +63,12 @@ const hydrateReusable = (incoming: Array<Partial<DrugItem>>, current: DrugItem[]
     type: drug.type === 'EXAMEN' ? 'EXAMEN' as const : 'MEDICAMENT' as const,
     quantite: drug.quantite ?? undefined,
     non_substituable: Boolean(drug.non_substituable),
+    catalogPresentationId: drug.catalogPresentationId,
+    catalogDci: drug.catalogDci,
+    catalogSourceId: drug.catalogSourceId,
+    catalogSourceLabel: drug.catalogSourceLabel,
+    catalogSnapshotDate: drug.catalogSnapshotDate,
+    catalogMarketingStatusVerified: drug.catalogMarketingStatusVerified,
   }));
   return [...occupied, ...added];
 };
@@ -271,6 +277,12 @@ export function PrescriptionQuickAccessBar({
           type: drug.type || 'MEDICAMENT',
           quantite: drug.quantite ?? null,
           non_substituable: Boolean(drug.non_substituable),
+          catalogPresentationId: drug.catalogPresentationId ?? null,
+          catalogDci: drug.catalogDci ?? null,
+          catalogSourceId: drug.catalogSourceId ?? null,
+          catalogSourceLabel: drug.catalogSourceLabel ?? null,
+          catalogSnapshotDate: drug.catalogSnapshotDate ?? null,
+          catalogMarketingStatusVerified: drug.catalogMarketingStatusVerified ?? null,
         })),
       });
       setSaveKind(null);
