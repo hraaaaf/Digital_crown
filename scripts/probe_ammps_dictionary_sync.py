@@ -223,6 +223,11 @@ def main() -> int:
     response.raise_for_status()
     rows, page_meta = parse_page(response.text, response.url)
 
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    html_path = out.with_suffix(".html")
+    html_path.write_text(response.text, encoding="utf-8")
+
     existing = load_existing()
     existing_by_id = {existing_id(row): row for row in existing}
     exact_existing = [existing_by_id[row["regulatory_presentation_id"]] for row in rows if row["regulatory_presentation_id"] in existing_by_id]
@@ -250,8 +255,6 @@ def main() -> int:
             **probe_rcp(first.get("rcp_url") if first else None),
         }
 
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(json.dumps({
