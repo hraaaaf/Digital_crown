@@ -2,7 +2,7 @@
 
 Date: 2026-10-01  
 Branch: `feat/neo-n4-3b-procedure-safety`  
-Status: evidence/contract only — no runtime clinical implementation in this commit.
+Status: evidence-backed contract + bounded backoffice runtime for procedure taxonomy, antithrombotic bleeding review and IE orchestration. MRONJ runtime remains pending.
 
 ## Goal
 
@@ -285,11 +285,18 @@ No N4.3B state should claim that treatment is globally “safe”.
 - AAOMS states its MRONJ paper is informational and not a substitute for individual clinical judgement.
 - Clinical release still requires qualified dental/pharmacology review and Morocco-specific validation where applicable.
 
-## Next implementation slice
+## Implementation status
 
-1. Add `DentalProcedureSafetyContext` and deterministic procedure taxonomy.
-2. Extend Neo structured medication context so anticoagulant/antiplatelet information is no longer discarded.
-3. Wire IE procedure eligibility into the existing IE rule — no duplicate IE logic.
-4. Add a bounded bleeding gate with no autonomous medication interruption.
-5. Add a bounded MRONJ prevention gate with no drug-holiday or CTX recommendation.
-6. Add positive/negative/UNKNOWN tests for every branch before UI wiring.
+Completed in the current N4.3B branch:
+1. `DentalProcedureSafetyContext` + deterministic procedure taxonomy;
+2. durable backoffice-only antithrombotic patient facts;
+3. IE procedure eligibility wired through the existing IE rule, with no duplicate dosing logic;
+4. bounded bleeding gate with no autonomous medication interruption;
+5. read-only backoffice endpoint exposing only generic workflow status/alert key;
+6. positive/negative/UNKNOWN and tenant-isolation tests for this slice.
+
+Still pending:
+1. bounded MRONJ prevention gate with no drug-holiday or CTX recommendation;
+2. MRONJ-specific backoffice structured facts and tests;
+3. final N4.3B integration review after the MRONJ slice;
+4. only then, subtle practitioner notification wiring if product validation keeps that surface.
