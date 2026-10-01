@@ -21,6 +21,7 @@ from backend.services.sota_vision_service import sota_vision_engine
 
 # Configuration
 from backend.config import settings
+from backend.core.media_paths import get_imaging_root
 import os
 import shutil
 
@@ -32,7 +33,7 @@ router = APIRouter(
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RADIO_DIR = os.path.join(BASE_DIR, "static", "uploads", "radios")
+RADIO_DIR = str(get_imaging_root() / "radios")
 os.makedirs(RADIO_DIR, exist_ok=True)
 
 
@@ -58,7 +59,7 @@ async def upload_radio(patient_id: int, background_tasks: BackgroundTasks, file:
     if file.size and file.size > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 10 Mo)")
         
-    RADIO_DIR = os.path.join(BASE_DIR, "static", "uploads", "radios")
+    RADIO_DIR = str(get_imaging_root() / "radios")
     os.makedirs(RADIO_DIR, exist_ok=True)
     
     ext = os.path.splitext(file.filename)[1] or ".jpg"
@@ -131,7 +132,7 @@ async def upload_panoramic(patient_id: int, background_tasks: BackgroundTasks, f
     if file.size and file.size > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 10 Mo)")
         
-    PANORAMIC_DIR = os.path.join(BASE_DIR, "static", "uploads", "panoramic")
+    PANORAMIC_DIR = str(get_imaging_root() / "panoramic")
     os.makedirs(PANORAMIC_DIR, exist_ok=True)
     
     ext = os.path.splitext(file.filename)[1] or ".jpg"
