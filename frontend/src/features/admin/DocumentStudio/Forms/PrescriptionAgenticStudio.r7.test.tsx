@@ -17,8 +17,48 @@ vi.mock('../../../../services/api', () => ({
 }));
 
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
+import { dispatchProcedureSafetyEvaluation } from './ProcedureSafetyNotice';
 
 describe('PrescriptionAgenticStudio practitioner copy', () => {
+  it('reste silencieux sans contexte procédural et n affiche qu une alerte générique après signal structuré', async () => {
+    const { api } = await import('../../../../services/api');
+    vi.mocked(api.post).mockResolvedValueOnce({
+      data: {
+        status: 'SPECIALIST_REVIEW_REQUIRED',
+        alert_key: 'SPECIALIST_REVIEW_RECOMMENDED',
+        read_only: true,
+      },
+    } as any);
+
+    render(
+      <PrescriptionAgenticStudio
+        patientId="42"
+        drugs={[]}
+        setDrugs={vi.fn()}
+        prescriptionIndication=""
+        onPrescriptionIndicationChange={vi.fn()}
+        onUpdateDrug={vi.fn()}
+        onRemoveDrug={vi.fn()}
+        onAddDrug={vi.fn()}
+        validationErrors={[]}
+      />,
+    );
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    dispatchProcedureSafetyEvaluation({
+      patientId: 42,
+      procedureDate: '2026-10-01',
+      procedureBleedingRisk: 'HIGHER_POSTOP_BLEEDING_RISK',
+      procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
+      procedureIsImplant: true,
+    });
+
+    expect(await screen.findByText('Avis spécialisé recommandé.')).toBeInTheDocument();
+    expect(screen.queryByText(/MRONJ|endocard|anticoag|CTX|drug holiday|bisphosph|denosumab/i)).not.toBeInTheDocument();
+  });
+
+
   it('conserve les statuts internes sans afficher les bandeaux techniques', () => {
     const { container } = render(
       <PrescriptionAgenticStudio
