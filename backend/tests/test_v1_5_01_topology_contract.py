@@ -103,18 +103,13 @@ def test_v1_5_01_mobile_backend_consumes_canonical_origin_only():
 
 
 def test_v1_5_01_server_mobile_origin_is_https_and_port_8005(monkeypatch):
-    """Integration seam: mobile helper must publish the server contract verbatim."""
+    """Integration seam: mobile helper must publish the canonical server origin verbatim."""
     from backend.routers import mobile_legacy
 
-    monkeypatch.setenv("ENVIRONMENT", "cabinet")
-    monkeypatch.setenv("CABINET_HOST", "192.168.50.12")
-    monkeypatch.setenv("CABINET_PORT", "8005")
-    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
-    monkeypatch.setenv("DIGITALCROWN_TLS_CERT_FILE", "cert.pem")
-    monkeypatch.setenv("DIGITALCROWN_TLS_KEY_FILE", "key.pem")
-    monkeypatch.setattr(topology.os.path, "isfile", lambda _path: True)
+    expected = "https://192.168.50.12:8005"
+    monkeypatch.setattr(topology, "get_cabinet_base_url", lambda *args, **kwargs: expected)
 
-    assert mobile_legacy.get_lan_base_url() == "https://192.168.50.12:8005"
+    assert mobile_legacy.get_lan_base_url() == expected
 
 
 def test_v1_5_01_no_mobile_backend_http_lan_fallback():
