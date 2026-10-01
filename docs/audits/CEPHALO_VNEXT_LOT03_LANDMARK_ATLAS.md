@@ -75,10 +75,36 @@ Three layers:
 
 Aariz labels may enter L1/L2 only after definition compatibility is proven. SRPose38-only labels follow the same rule.
 
+## Source-lock findings
+
+Aariz's published data descriptor resolves the three previously vague Aariz-only labels:
+- `R` = most convex point on the exterior border of the ramus along the vertical.
+- `UPM` = buccal cusp tip of the upper second premolar.
+- `LPM` = buccal cusp tip of the lower second premolar.
+- `UMT`/`LMT` = mesiobuccal cusp tip of the upper/lower first molar.
+- Aariz `Po` is explicitly **anatomic porion**, at the upper contour of the external auditory canal.
+- Aariz `Go` is the midpoint of the contour connecting ramus and mandibular body; this is not proof of equivalence to every constructed/source-specific Gonion.
+- Aariz `Gn` is a midpoint-type anatomical chin definition and must not be substituted for a source-specific constructed Gn.
+
+Therefore:
+- `UMT/LMT ↔ SRPose U6/L6` stays **SEMANTIC_HOLD** until the SRPose/CL-Detection molar channel is proven to be the mesiobuccal cusp tip.
+- `Po_Aariz ↔ Po_anatomic` is anatomically compatible in definition, but detector validation is still required. Machine/ear-rod Porion remains a distinct entity; published work demonstrates measurable PoA/PoM differences.
+- `Go_Aariz ↔ Go` remains analysis-sensitive because published cephalometric conventions include contour and constructed/intersection variants.
+- `R` is useful for tracing/ramus morphology but no approved LOT01 clinical measurement currently requires it; initial disposition = L2_TRACING_CANDIDATE.
+- `UPM/LPM` are source-locked cusp landmarks and useful candidates for an occlusal-plane construction, but the **analysis-specific occlusal plane itself remains SOURCE_LOCK_REQUIRED**. The existence of premolar contacts/cusps does not authorize one universal occlusal-plane definition.
+
+### Initial L1/L2/L3 disposition
+
+**L1 clinical candidates:** S,N,Or,Po_anatomic,A,B,Pog_hard,Me,Gn_anatomic,Go_analysis_specific,ANS,PNS,Ar,Co,U1/L1 incisal tips and apices, Prn,Sn,Ls,Li,Pog_soft — subject to per-channel validation and analysis-specific gates.
+
+**L2 tracing/construction candidates:** R, UPM, LPM, Cm, Ba, Ptm, G_soft, N_soft, Gn_soft, Me_soft, C_point where their definitions/provenance are locked.
+
+**L3 research/source-specific hold:** D_point, PT_point, Bo, Ls2, Li2, generic U6/L6 until exact semantics are proven. A point may move from L3 only through a versioned evidence decision.
+
 ## Decisions requiring evidence before gate
-1. Prove/deny Aariz Pn ↔ DC Prn.
+1. Confirm Aariz Pn ↔ DC Prn against the DC operational definition before alias promotion.
 2. Prove/deny Aariz LMT/UMT ↔ SRPose38 L6/U6; do not infer cusp tip from "molar".
-3. Source-lock Aariz R, UPM, LPM and decide their clinical/tracing value.
+3. R/UPM/LPM definitions are now source-locked from Aariz; preserve R as L2 candidate and keep UPM/LPM conditional on an analysis-specific occlusal-plane contract.
 4. Resolve Go convention per analysis.
 5. Resolve Po anatomical vs machine/ear-rod use per analysis.
 6. Define occlusal plane points/construction; assess whether UPM/LPM improve it.
