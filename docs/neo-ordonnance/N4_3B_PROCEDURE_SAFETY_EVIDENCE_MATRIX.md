@@ -176,7 +176,8 @@ Add only:
 1. structured procedure eligibility derived from a bounded procedure taxonomy;
 2. an adapter/orchestrator that feeds the existing rule;
 3. tests proving no prophylaxis recommendation when cardiac risk or procedure eligibility is UNKNOWN/non-qualifying;
-4. practitioner-facing wording without internal blocker codes.
+4. practitioner-facing wording without internal blocker codes;
+5. when the existing IE rule is actually applicable, translate that result into a generic clinical-review alert rather than silence.
 
 The existing rule is adult-only. Pediatric IE prophylaxis remains out of scope unless separately sourced and implemented.
 
