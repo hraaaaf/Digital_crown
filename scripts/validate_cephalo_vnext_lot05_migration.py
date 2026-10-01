@@ -30,9 +30,12 @@ def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, heig
     if len(current_ids)!=len(set(current_ids)): raise Lot05MigrationError("Multiple current refs for one landmark")
     registry=[]
     for cid in sorted(set(item["landmark_id"] for item in landmarks)):
-        registry.append({"canonical_id":cid,"aliases":[],"identity_version":"V1_RUNTIME_ID_PRESERVED","semantic_status":"LEGACY_AMBIGUOUS","tissue_domain":"CONSTRUCTION_ANCHOR" if cid in {"Occ_Ant","Occ_Post"} else "HARD","analysis_scope":None})
+        registry.append({"canonical_id":cid,"aliases":[],"identity_version":"V1_RUNTIME_ID_PRESERVED","semantic_status":"LEGACY_AMBIGUOUS","tissue_domain":_domain(cid),"analysis_scope":None})
     calibration=[s for s in source.get("sources",[]) if isinstance(s,dict) and s.get("kind")=="calibration"]
-    calibration_ref=calibration[0].get("evidence_id") if len(calibration)==1 else None
+    if len(calibration)>1: raise Lot05MigrationError("Multiple calibration sources are ambiguous")
+    calibration_ref=calibration[0].get("evidence_id") if calibration else None
+    source_patient_ids={s.get("patient_id") for s in source.get("sources",[]) if isinstance(s,dict) and isinstance(s.get("patient_id"),int)}
+    if source_patient_ids and source_patient_ids != {patient_id}: raise Lot05MigrationError("Patient identity mismatch")
     return {
       "schema_version":"CEPHALO_CANONICAL_SCHEMA_V2","case_id":case_id,"patient_id":patient_id,
       "evidence_graph_version":"_evidence_graph_v1","landmark_registry":registry,
