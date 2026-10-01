@@ -28,7 +28,7 @@ def write_batch(root: Path, name: str, page: int, rid: str):
         "end_page": page,
         "page_count": 1,
         "parsed_unique_count": 1,
-        "pages": [{"page": page, "http_status": 200}],
+        "pages": [{"page": page, "http_status": 200, "parsed_count": 1, "duplicate_ids_within_batch": 0}],
     }), encoding="utf-8")
     (d / "rows.json").write_text(json.dumps([{
         "regulatory_presentation_id": rid,
