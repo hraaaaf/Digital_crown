@@ -420,7 +420,6 @@ export function PatientPhotoEditor({
 
       {crop && createPortal(
         <div
-        <div
           ref={cropDialogRef}
           tabIndex={-1}
           onKeyDown={event => trapDialogKey(event, () => { closeCrop(); returnFocus(); })}
