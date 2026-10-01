@@ -2,7 +2,8 @@
 
 Status: CANDIDATE — documentation only, no runtime change
 Baseline: master 71efbb62db60fbb2152c7f70e263b500a44f2c80
-Gate target: CEPH_SCIENTIFIC_CONTRACT_LOCKED
+Gate target: CEPH_SCIENTIFIC_CONTRACT_APPROVED
+Internal contract state: LOCKED after evidence/review; canonical roadmap gate: APPROVED
 
 ## Goal / Success / Proof
 
@@ -98,9 +99,17 @@ A landmark can become AUTO_VALIDATED only when all are proven:
 
 ## Gate decision
 
-LOT01 may reach CEPH_SCIENTIFIC_CONTRACT_LOCKED only after adversarial review confirms:
+LOT01 may reach CEPH_SCIENTIFIC_CONTRACT_APPROVED only after adversarial review and exact-HEAD CI confirm:
 - no hidden equivalence between Pt/PTM, anatomical/constructed Gn, hard/soft Pog, generic/source-specific molars, or Tweed/Ricketts mandibular/Frankfort variants;
 - all legacy norms remain explicitly versioned and non-authoritative unless proven;
 - Aariz is used as benchmark evidence rather than silently redefining the Digital Crown landmark ontology.
+
+Exact-HEAD evidence for the documentation candidate:
+- CI run 36932558516: SUCCESS
+- Agenda A5 Visual Evidence run 36932558570: SUCCESS
+- T2 Runtime Browser Certification run 36932558489: SUCCESS
+- PR Merge Summary / M6-I: SKIPPED by workflow applicability, not failures
+
+Decision: scientific contract state LOCKED and canonical LOT01 gate `CEPH_SCIENTIFIC_CONTRACT_APPROVED` granted on isolated documentation branch. This does **not** authorize merge to master.
 
 No runtime, DB, patient, report, detector or UI mutation is authorized by this document.
