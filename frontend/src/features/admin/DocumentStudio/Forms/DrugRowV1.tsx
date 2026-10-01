@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -75,11 +75,6 @@ export interface DrugRowProps {
 const presentationStrength = (presentation: CatalogPresentation): string =>
   [presentation.dosage, presentation.unite].filter(Boolean).join(' ').trim();
 
-const catalogSourceShortLabel = (source: CatalogSource): string => {
-  if (source.id.startsWith('ammps-')) return 'AMMPS';
-  if (source.id === 'cnops-open-data-medications') return 'CNOPS Open Data';
-  return source.label || 'Référentiel documentaire';
-};
 
 const fmtMg = (mg: number) => (mg < 1000 ? `${mg}mg` : `${mg / 1000}g`);
 
@@ -87,7 +82,6 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   drug,
   idx,
   drugsCount,
-  assessment,
   validationErrors,
   medChecks,
   onUpdateDrug,
