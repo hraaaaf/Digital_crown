@@ -96,7 +96,7 @@ class TestSendEmail:
         r = client.post(f"/api/accounting/send-email/doc_{doc.id}", headers=auth_headers)
         assert r.status_code == 422
 
-    def test_send_email_success(self, client, db, auth_headers, dentiste):
+    def test_send_email_success(self, client, db, auth_headers, dentiste, tmp_path):
         from backend import models
 
         pat = models.Patient(
@@ -113,10 +113,22 @@ class TestSendEmail:
         db.refresh(pat)
 
         doc = _seed_doc_archive(db, pat.id, dentiste.id)
-        with patch("backend.services.email_service.email_service.send_email", return_value=True):
+        pdf_path = tmp_path / doc.filename
+        pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+        doc.file_path = str(pdf_path)
+        db.commit()
+
+        with patch("backend.services.email_service.email_service.send_email", return_value=True) as send_email:
             r = client.post(f"/api/accounting/send-email/doc_{doc.id}", headers=auth_headers)
+
         assert r.status_code == 200
         assert r.json()["status"] == "success"
+        send_email.assert_called_once()
+        attachments = send_email.call_args.kwargs["attachments"]
+        assert len(attachments) == 1
+        assert attachments[0][0] == doc.filename
+        assert attachments[0][1].startswith(b"%PDF-1.4")
+        assert attachments[0][2] == "application/pdf"
 
     def test_send_email_invalid_id_returns_400(self, client, auth_headers):
         r = client.post("/api/accounting/send-email/invalid_id", headers=auth_headers)
