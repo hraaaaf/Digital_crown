@@ -53,8 +53,16 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
 ):
     patient = _patient(db, dentiste.id)
 
-    saved = client.put(
+    visible_before = client.get(
         f"/api/patients/{patient.id}/clinical-context",
+        headers=auth_headers,
+    )
+    assert visible_before.status_code == 200, visible_before.text
+    assert "anticoagulant_status" not in visible_before.json()
+    assert "antithrombotic_classes" not in visible_before.json()
+
+    saved = client.put(
+        f"/api/patients/{patient.id}/procedure-safety-context",
         headers=auth_headers,
         json=_hidden_context_payload(),
     )
@@ -71,11 +79,18 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
         json={"weight_kg": 72.0},
     )
     assert partial.status_code == 200, partial.text
-    persisted = partial.json()
-    assert persisted["weight_kg"] == 72.0
-    assert persisted["anticoagulant_status"] == "PRESENT"
-    assert persisted["anticoagulants"] == ["Rivaroxaban"]
-    assert persisted["antithrombotic_classes"] == ["DOAC"]
+    assert "anticoagulant_status" not in partial.json()
+    assert "antithrombotic_classes" not in partial.json()
+
+    persisted = client.get(
+        f"/api/patients/{patient.id}/procedure-safety-context",
+        headers=auth_headers,
+    )
+    assert persisted.status_code == 200, persisted.text
+    hidden = persisted.json()
+    assert hidden["anticoagulant_status"] == "PRESENT"
+    assert hidden["anticoagulants"] == ["Rivaroxaban"]
+    assert hidden["antithrombotic_classes"] == ["DOAC"]
 
 
 def test_n43b_context_rejects_implicit_or_inconsistent_antithrombotic_facts():
