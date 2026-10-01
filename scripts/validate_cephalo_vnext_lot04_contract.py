@@ -53,6 +53,15 @@ def validate_acceptance_semantics(record: Mapping[str, Any], manifest: Mapping[s
     landmark_decisions = [item["decision"] for item in landmarks]
     clinical_decisions = [item["decision"] for item in clinical]
 
+    policy = manifest["acceptance_policy"]
+    landmark_tolerances = {item["landmark_id"]: item for item in policy["landmark_tolerances"]}
+    clinical_tolerances = {item["measurement_id"]: item for item in policy["clinical_tolerances"]}
+
+    if len(landmark_tolerances) != len(policy["landmark_tolerances"]):
+        raise Lot04ContractError("duplicate landmark tolerance")
+    if len(clinical_tolerances) != len(policy["clinical_tolerances"]):
+        raise Lot04ContractError("duplicate clinical tolerance")
+
     if overall == "PASS":
         if not manifest["dataset"]["acceptance_case_ids"]:
             raise Lot04ContractError("overall PASS requires a non-empty untouched acceptance split")
@@ -64,6 +73,22 @@ def validate_acceptance_semantics(record: Mapping[str, Any], manifest: Mapping[s
             raise Lot04ContractError("overall PASS requires human-reference uncertainty")
         if any(decision != "PASS" for decision in clinical_decisions):
             raise Lot04ContractError("overall PASS cannot hide a non-passing clinical measurement")
+        for item in landmarks:
+            tolerance = landmark_tolerances.get(item["landmark_id"])
+            if tolerance is None:
+                raise Lot04ContractError("overall PASS requires preregistered tolerance for every landmark")
+            if item.get("tolerance_version") != policy["tolerance_version"]:
+                raise Lot04ContractError("landmark tolerance_version mismatch")
+            if item.get("median_mm") is None or item.get("p95_mm") is None:
+                raise Lot04ContractError("overall PASS requires quantitative landmark metrics")
+            if item["median_mm"] > tolerance["max_median_mm"] or item["p95_mm"] > tolerance["max_p95_mm"] or item["failure_rate"] > tolerance["max_failure_rate"]:
+                raise Lot04ContractError("landmark PASS exceeds preregistered tolerance")
+        for item in clinical:
+            tolerance = clinical_tolerances.get(item["measurement_id"])
+            if tolerance is None:
+                raise Lot04ContractError("overall PASS requires preregistered tolerance for every clinical measurement")
+            if item.get("absolute_error") is None or item["absolute_error"] > tolerance["max_absolute_error"]:
+                raise Lot04ContractError("clinical PASS exceeds preregistered tolerance")
 
     if overall == "FAIL":
         if "FAIL" not in landmark_decisions and "FAIL" not in clinical_decisions:
