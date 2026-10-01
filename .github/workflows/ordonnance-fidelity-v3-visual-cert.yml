@@ -17,7 +17,6 @@ on:
       - '!frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter*'
       - 'frontend/scripts/certify-ordonnance-fidelity-v3.mjs'
       - 'frontend/scripts/capture-acig-autocomplete-proof.mjs'
-      - '.github/workflows/ordonnance-fidelity-v3-visual-cert.yml'
   workflow_dispatch:
 
 concurrency:
