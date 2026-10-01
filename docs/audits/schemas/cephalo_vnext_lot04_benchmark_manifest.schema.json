@@ -4,59 +4,401 @@
   "title": "Cephalo vNext LOT04 Benchmark Manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version","candidate","environment","onnx_interface","preprocessing","dataset","metrics","acceptance_policy"],
+  "required": [
+    "schema_version",
+    "candidate",
+    "environment",
+    "onnx_interface",
+    "preprocessing",
+    "dataset",
+    "metrics",
+    "acceptance_policy"
+  ],
   "properties": {
-    "schema_version": {"const":"CEPHALO_LOT04_BENCHMARK_MANIFEST_V1"},
+    "schema_version": {
+      "const": "CEPHALO_LOT04_BENCHMARK_MANIFEST_V1"
+    },
     "candidate": {
-      "type":"object","additionalProperties":false,
-      "required":["model_name","model_sha256","model_size_bytes","checkpoint_sha256","source_commit","preprocessing_commit","provider","output_count","index_mapping_version"],
-      "properties":{
-        "model_name":{"type":"string","minLength":1},
-        "model_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
-        "model_size_bytes":{"type":"integer","minimum":1},
-        "checkpoint_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
-        "source_commit":{"type":"string","pattern":"^[a-f0-9]{40}$"},
-        "preprocessing_commit":{"type":"string","pattern":"^[a-f0-9]{40}$"},
-        "provider":{"const":"CPUExecutionProvider"},
-        "output_count":{"const":38},
-        "index_mapping_version":{"type":"string","minLength":1}
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_name",
+        "model_sha256",
+        "model_size_bytes",
+        "checkpoint_sha256",
+        "source_commit",
+        "preprocessing_commit",
+        "provider",
+        "output_count",
+        "index_mapping_version"
+      ],
+      "properties": {
+        "model_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "model_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "checkpoint_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "preprocessing_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "provider": {
+          "const": "CPUExecutionProvider"
+        },
+        "output_count": {
+          "const": 38
+        },
+        "index_mapping_version": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "environment":{
-      "type":"object","additionalProperties":false,
-      "required":["python","numpy","onnxruntime","opencv"],
-      "properties":{"python":{"type":"string","minLength":1},"numpy":{"type":"string","minLength":1},"onnxruntime":{"type":"string","minLength":1},"opencv":{"type":"string","minLength":1}}
-    },
-    "onnx_interface":{
-      "type":"object","additionalProperties":false,
-      "required":["input_name","input_dtype","input_shape","output_name","output_dtype","output_shape"],
-      "properties":{
-        "input_name":{"type":"string","minLength":1},"input_dtype":{"type":"string","minLength":1},
-        "input_shape":{"type":"array","minItems":4,"maxItems":4},
-        "output_name":{"type":"string","minLength":1},"output_dtype":{"type":"string","minLength":1},
-        "output_shape":{"type":"array","minItems":4,"maxItems":4}
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python",
+        "numpy",
+        "onnxruntime",
+        "opencv"
+      ],
+      "properties": {
+        "python": {
+          "type": "string",
+          "minLength": 1
+        },
+        "numpy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "onnxruntime": {
+          "type": "string",
+          "minLength": 1
+        },
+        "opencv": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "preprocessing":{
-      "type":"object","additionalProperties":false,
-      "required":["input_size","bbox_padding","interpolation","color_conversion","mean","std","tta_embedded_in_onnx","darkpose_blur_kernel"],
-      "properties":{
-        "input_size":{"const":[1024,1024]},"bbox_padding":{"const":1.25},"interpolation":{"const":"cv2.INTER_LINEAR"},
-        "color_conversion":{"const":"BGR_TO_RGB"},"mean":{"const":[121.25,121.25,121.25]},"std":{"const":[76.5,76.5,76.5]},
-        "tta_embedded_in_onnx":{"const":true},"darkpose_blur_kernel":{"const":11}
+    "onnx_interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_name",
+        "input_dtype",
+        "input_shape",
+        "output_name",
+        "output_dtype",
+        "output_shape"
+      ],
+      "properties": {
+        "input_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_dtype": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_shape": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "output_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output_dtype": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output_shape": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4
+        }
       }
     },
-    "dataset":{
-      "type":"object","additionalProperties":false,
-      "required":["manifest_frozen_before_scoring","cases","development_case_ids","acceptance_case_ids"],
-      "properties":{
-        "manifest_frozen_before_scoring":{"const":true},
-        "cases":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["case_id","sha256","layer","calibration_provenance"],"properties":{"case_id":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"layer":{"enum":["G0","G1","G2","G3"]},"calibration_provenance":{"type":["string","null"]}}}},
-        "development_case_ids":{"type":"array","uniqueItems":true,"items":{"type":"string"}},
-        "acceptance_case_ids":{"type":"array","uniqueItems":true,"items":{"type":"string"}}
+    "preprocessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_size",
+        "bbox_padding",
+        "interpolation",
+        "color_conversion",
+        "mean",
+        "std",
+        "tta_embedded_in_onnx",
+        "darkpose_blur_kernel"
+      ],
+      "properties": {
+        "input_size": {
+          "const": [
+            1024,
+            1024
+          ]
+        },
+        "bbox_padding": {
+          "const": 1.25
+        },
+        "interpolation": {
+          "const": "cv2.INTER_LINEAR"
+        },
+        "color_conversion": {
+          "const": "BGR_TO_RGB"
+        },
+        "mean": {
+          "const": [
+            121.25,
+            121.25,
+            121.25
+          ]
+        },
+        "std": {
+          "const": [
+            76.5,
+            76.5,
+            76.5
+          ]
+        },
+        "tta_embedded_in_onnx": {
+          "const": true
+        },
+        "darkpose_blur_kernel": {
+          "const": 11
+        }
       }
     },
-    "metrics":{"type":"object","additionalProperties":false,"required":["per_landmark_mm","directional_xy","robust_percentiles","failure_rate","sdr_secondary","clinical_propagation"],"properties":{"per_landmark_mm":{"const":true},"directional_xy":{"const":true},"robust_percentiles":{"const":true},"failure_rate":{"const":true},"sdr_secondary":{"const":true},"clinical_propagation":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["SNA","SNB","ANB","FMA","IMPA","FMIA","SN-GoGn","Co-A","Co-Gn","SOFT_TISSUE_ENABLED"]}}}},
-    "acceptance_policy":{"type":"object","additionalProperties":false,"required":["preregistered","universal_2mm_gate","human_reference_uncertainty_required","landmark_specific","aggregate_regression_masking_forbidden"],"properties":{"preregistered":{"const":true},"universal_2mm_gate":{"const":false},"human_reference_uncertainty_required":{"const":true},"landmark_specific":{"const":true},"aggregate_regression_masking_forbidden":{"const":true}}}
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_frozen_before_scoring",
+        "cases",
+        "development_case_ids",
+        "acceptance_case_ids"
+      ],
+      "properties": {
+        "manifest_frozen_before_scoring": {
+          "const": true
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "sha256",
+              "layer",
+              "calibration_provenance"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "layer": {
+                "enum": [
+                  "G0",
+                  "G1",
+                  "G2",
+                  "G3"
+                ]
+              },
+              "calibration_provenance": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "development_case_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptance_case_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "per_landmark_mm",
+        "directional_xy",
+        "robust_percentiles",
+        "failure_rate",
+        "sdr_secondary",
+        "clinical_propagation"
+      ],
+      "properties": {
+        "per_landmark_mm": {
+          "const": true
+        },
+        "directional_xy": {
+          "const": true
+        },
+        "robust_percentiles": {
+          "const": true
+        },
+        "failure_rate": {
+          "const": true
+        },
+        "sdr_secondary": {
+          "const": true
+        },
+        "clinical_propagation": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "SNA",
+              "SNB",
+              "ANB",
+              "FMA",
+              "IMPA",
+              "FMIA",
+              "SN-GoGn",
+              "Co-A",
+              "Co-Gn",
+              "SOFT_TISSUE_ENABLED"
+            ]
+          }
+        }
+      }
+    },
+    "acceptance_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preregistered",
+        "universal_2mm_gate",
+        "human_reference_uncertainty_required",
+        "landmark_specific",
+        "aggregate_regression_masking_forbidden",
+        "tolerance_version",
+        "landmark_tolerances",
+        "clinical_tolerances"
+      ],
+      "properties": {
+        "preregistered": {
+          "const": true
+        },
+        "universal_2mm_gate": {
+          "const": false
+        },
+        "human_reference_uncertainty_required": {
+          "const": true
+        },
+        "landmark_specific": {
+          "const": true
+        },
+        "aggregate_regression_masking_forbidden": {
+          "const": true
+        },
+        "tolerance_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "landmark_tolerances": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "landmark_id",
+              "max_median_mm",
+              "max_p95_mm",
+              "max_failure_rate"
+            ],
+            "properties": {
+              "landmark_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "max_median_mm": {
+                "type": "number",
+                "minimum": 0
+              },
+              "max_p95_mm": {
+                "type": "number",
+                "minimum": 0
+              },
+              "max_failure_rate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "clinical_tolerances": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "measurement_id",
+              "max_absolute_error",
+              "unit"
+            ],
+            "properties": {
+              "measurement_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "max_absolute_error": {
+                "type": "number",
+                "minimum": 0
+              },
+              "unit": {
+                "enum": [
+                  "deg",
+                  "mm"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
