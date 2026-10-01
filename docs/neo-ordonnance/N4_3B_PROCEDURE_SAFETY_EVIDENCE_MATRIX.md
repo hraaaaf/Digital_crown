@@ -305,10 +305,11 @@ Completed MRONJ slice:
 
 Completed notification slice:
 1. practitioner-facing surface is limited to short generic messages derived from `alert_key` only;
-2. no notification renders until an explicit structured procedure context is dispatched by backoffice logic;
-3. no free-text inference is used to synthesize procedure context;
-4. READY/null, backend errors and non-read-only responses stay silent;
-5. no score, source, MRONJ/IE/antithrombotic terminology or internal blocker code is exposed.
+2. hidden structured procedure context is persisted server-side and never exposed through the normal practitioner clinical-context API;
+3. the practitioner client reads only a generic read-only alert endpoint and never receives hidden procedure/MRONJ/antithrombotic facts;
+4. no free-text inference is used to synthesize procedure context;
+5. READY/null stays silent, while an unavailable safety check fails closed with a generic nontechnical notice;
+6. no score, source, MRONJ/IE/antithrombotic terminology or internal blocker code is exposed.
 
 Still pending:
 1. exact-head CI for the notification slice;
