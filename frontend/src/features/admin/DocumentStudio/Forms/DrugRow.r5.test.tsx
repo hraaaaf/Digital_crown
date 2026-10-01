@@ -58,10 +58,10 @@ describe('DrugRow R5 progressive disclosure', () => {
     renderRow(baseDrug);
 
     expect(screen.getByPlaceholderText('NOM OU DCI DU MÉDICAMENT...')).toBeInTheDocument();
-    expect(screen.queryByText('Dose')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dose' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Prise')).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Ex. 1 gélule × 3/jour pendant 7 jours')).not.toBeInTheDocument();
-    expect(screen.getByText(/Recherchez un médicament puis choisissez explicitement sa présentation/)).toBeInTheDocument();
+    expect(screen.getByText(/Commencez par choisir le médicament/)).toBeInTheDocument();
   });
 
   it('affiche le Prescription Composer dès qu’un médicament est identifié', () => {
@@ -73,13 +73,12 @@ describe('DrugRow R5 progressive disclosure', () => {
       posologie: '1 cp x 3 / jour pendant 7 jours',
     }));
 
-    expect(screen.getByText('Dose')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('500MG')).toBeInTheDocument();
-    expect(screen.getByText('GÉLULES')).toBeInTheDocument();
-    expect(screen.getByLabelText('Prise')).toHaveValue('1 comprimé');
-    expect(screen.getByLabelText('Rythme')).toHaveValue('3 fois par jour');
-    expect(screen.getByLabelText('Durée ou limite')).toHaveValue('7 jours');
-    expect(screen.getByLabelText('Moment ou condition')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Dose' })).toHaveTextContent('500MG');
+    expect(screen.getByRole('button', { name: 'Forme' })).toHaveTextContent('GÉLULES');
+    expect(screen.getByLabelText('Prise')).toHaveTextContent('1 comprimé');
+    expect(screen.getByLabelText('Rythme')).toHaveTextContent('3 fois par jour');
+    expect(screen.getByLabelText('Durée ou limite')).toHaveTextContent('7 jours');
+    expect(screen.getByLabelText('Moment ou condition')).toHaveTextContent('Moment ou condition');
     expect(screen.getByLabelText('Posologie en texte libre')).toBeInTheDocument();
   });
 
@@ -92,12 +91,13 @@ describe('DrugRow R5 progressive disclosure', () => {
       posologie: '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 3 jours.',
     }));
 
-    expect(screen.getByLabelText('Prise')).toHaveValue('1 comprimé');
-    expect(screen.getByLabelText('Rythme')).toHaveValue('si douleur');
-    expect(screen.getByLabelText('Durée ou limite')).toHaveValue('max 3/jour');
-    expect(screen.getByLabelText('Moment ou condition')).toHaveValue('3 jours');
+    expect(screen.getByLabelText('Prise')).toHaveTextContent('1 comprimé');
+    expect(screen.getByLabelText('Rythme')).toHaveTextContent('si douleur');
+    expect(screen.getByLabelText('Durée ou limite')).toHaveTextContent('max 3/jour');
+    expect(screen.getByLabelText('Moment ou condition')).toHaveTextContent('3 jours');
 
-    fireEvent.change(screen.getByLabelText('Moment ou condition'), { target: { value: '5 jours' } });
+    fireEvent.click(screen.getByLabelText('Moment ou condition'));
+    fireEvent.click(screen.getByRole('menuitem', { name: '5 jours' }));
     expect(onUpdateDrug).toHaveBeenLastCalledWith(
       1,
       'posologie',
@@ -148,8 +148,8 @@ describe('DrugRow R5 progressive disclosure', () => {
       non_substituable: false,
     }));
 
-    expect(screen.getByText('GÉLULES')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('500MG')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Forme' })).toHaveTextContent('GÉLULES');
+    expect(screen.getByRole('button', { name: 'Dose' })).toHaveTextContent('500MG');
     expect(screen.getByLabelText('Prise')).toBeInTheDocument();
     expect(screen.getByLabelText('Rythme')).toBeInTheDocument();
     expect(screen.getByLabelText('Durée ou limite')).toBeInTheDocument();
