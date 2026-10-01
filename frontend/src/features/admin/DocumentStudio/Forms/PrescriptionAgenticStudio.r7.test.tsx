@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import type { DrugItem } from './prescriptionTypes';
@@ -46,12 +46,14 @@ describe('PrescriptionAgenticStudio practitioner copy', () => {
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    dispatchProcedureSafetyEvaluation({
-      patientId: 42,
-      procedureDate: '2026-10-01',
-      procedureBleedingRisk: 'HIGHER_POSTOP_BLEEDING_RISK',
-      procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
-      procedureIsImplant: true,
+    act(() => {
+      dispatchProcedureSafetyEvaluation({
+        patientId: 42,
+        procedureDate: '2026-10-01',
+        procedureBleedingRisk: 'HIGHER_POSTOP_BLEEDING_RISK',
+        procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
+        procedureIsImplant: true,
+      });
     });
 
     expect(await screen.findByText('Avis spécialisé recommandé.')).toBeInTheDocument();
