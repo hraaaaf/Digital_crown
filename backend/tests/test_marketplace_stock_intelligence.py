@@ -1,10 +1,27 @@
 from datetime import datetime
 
+import pytest
+
 from backend import database, models
 from backend.config import settings
 from backend.main import app
 from backend.models_marketplace_receipts import PartnerOrderReceipt
 from backend.models_marketplace_stock import MarketplaceStockLot, MarketplaceStockMovement
+
+
+@pytest.fixture(autouse=True)
+def _reference_stock_clock(monkeypatch):
+    from backend.routers import partner_stock, partner_stock_safety
+
+    class ReferenceDatetime(datetime):
+        @classmethod
+        def utcnow(cls):
+            return cls(2026, 9, 1, 12)
+
+    # Expiry fixtures describe stock available before October 2026. Keep their
+    # reference clock fixed so FEFO is tested independently of the calendar.
+    monkeypatch.setattr(partner_stock, "datetime", ReferenceDatetime)
+    monkeypatch.setattr(partner_stock_safety, "datetime", ReferenceDatetime)
 
 
 def _override_db(db):
