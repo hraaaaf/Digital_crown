@@ -86,7 +86,7 @@ describe('Neo prescription quick access', () => {
 
   it('lets the practitioner update the explicitly applied protocol source', async () => {
     const Harness = () => {
-      const [drugs, setDrugs] = React.useState([emptyLine]);
+      const [drugs, setDrugs] = React.useState<import('./prescriptionTypes').DrugItem[]>([emptyLine]);
       return <PrescriptionQuickAccessBar drugs={drugs} setDrugs={setDrugs} prescriptionIndication="" />;
     };
     render(<Harness />);
