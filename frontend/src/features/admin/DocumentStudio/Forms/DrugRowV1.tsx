@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
   CalendarDays,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -11,7 +10,6 @@ import {
   Microscope,
   Pill,
   Search,
-  ShieldAlert,
   Trash2,
   Utensils,
 } from 'lucide-react';
@@ -117,13 +115,8 @@ export const DrugRow: React.FC<DrugRowProps> = ({
     : `Médicament ${String(idx + 1).padStart(2, '0')}`;
 
   const nationalMsg = medCheck && medCheck.known && medCheck.exists === false && medCheck.available_mg?.length
-    ? `Dosage absent du snapshot documentaire${medCheck.dci ? ` (${medCheck.dci})` : ''} — valeurs connues : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
+    ? `Ce dosage n’est pas disponible parmi les présentations connues. Alternatives : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
     : null;
-
-  const missingClinicalContext = useMemo(() => {
-    const missing = assessment?.evaluation?.missing_fields;
-    return Array.isArray(missing) ? missing.filter(Boolean) : [];
-  }, [assessment]);
 
   useEffect(() => {
     if (isRadio || hasCatalogPresentation) {
@@ -288,11 +281,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
             <div className="relative min-w-0 flex-1">
               <div className="mb-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">
                 {cardLabel}
-                {!isRadio && hasCatalogPresentation && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] tracking-normal text-emerald-700">
-                    <CheckCircle2 size={9} /> Présentation identifiée
-                  </span>
-                )}
+
               </div>
               <div className="relative">
                 {!isRadio && <Search size={14} className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-text-muted/70" />}
@@ -320,7 +309,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                     className="absolute left-0 right-0 top-full z-[100] mt-2 max-h-[340px] overflow-y-auto rounded-2xl border border-border-main bg-card py-2 shadow-2xl"
                   >
                     <div className="border-b border-border-main px-4 pb-2 pt-1 text-[8px] font-bold text-text-muted sm:px-5">
-                      Référentiels documentaires marocains · provenance indiquée par présentation
+                      Présentations disponibles
                     </div>
                     {catalogResults.map((presentation, index) => (
                       <button
@@ -344,9 +333,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                           <span className="mt-0.5 block truncate text-[9px] font-semibold text-text-muted">
                             {presentation.dci || 'DCI non renseignée'}
                           </span>
-                          <span className="mt-0.5 block truncate text-[8px] font-bold text-text-muted/80">
-                            {catalogSourceShortLabel(presentation.source)} · {presentation.source.snapshot_date || 'date non renseignée'} · statut commercial actuel {presentation.source.current_marketing_status_verified ? 'vérifié' : 'non certifié'}
-                          </span>
+
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           <span className="text-right">
@@ -403,7 +390,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
           {!isRadio && catalogError && (
             <div className="mt-2 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50/70 px-3 py-2 text-[10px] font-semibold text-red-700" role="status">
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
-              Référentiel médicament indisponible. Aucune suggestion locale n’est substituée.
+              Recherche médicament indisponible pour le moment.
             </div>
           )}
 
@@ -415,26 +402,10 @@ export const DrugRow: React.FC<DrugRowProps> = ({
 
           {!isRadio && hasIdentity && (
             <div className="mt-3 min-w-0 space-y-3">
-              {hasCatalogPresentation ? (
-                <div
-                  data-selected-medication-presentation
-                  className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/55 px-3 py-2 text-emerald-800"
-                >
-                  <div className="min-w-0">
-                    <div className="text-[9px] font-black uppercase tracking-wide">Présentation sélectionnée explicitement</div>
-                    <div className="mt-0.5 text-[10px] font-semibold">
-                      {drug.catalogDci || 'DCI non renseignée'} · {drug.forme || 'forme non renseignée'} · {drug.dosage || 'dosage non renseigné'}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right text-[8px] font-bold opacity-80">
-                    <div>{drug.catalogSourceLabel || 'Référentiel documentaire'}</div>
-                    <div>Snapshot {drug.catalogSnapshotDate || 'date non renseignée'} · disponibilité actuelle non certifiée</div>
-                  </div>
-                </div>
-              ) : (
+              {!hasCatalogPresentation && (
                 <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800">
-                  <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                  Présentation non liée au référentiel : aucune suggestion clinique ne peut être activée.
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  Choisissez une présentation pour compléter automatiquement la ligne.
                 </div>
               )}
 
@@ -487,20 +458,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 </div>
               )}
 
-              <div
-                data-clinical-suggestion-status="blocked"
-                className="flex items-start gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 text-[10px] font-semibold text-slate-600"
-              >
-                <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                <div>
-                  <span className="font-black">Suggestion clinique indisponible.</span>{' '}
-                  {missingClinicalContext.length > 0
-                    ? `Contexte patient incomplet : ${missingClinicalContext.join(', ')}.`
-                    : 'Aucune règle de dose V1 certifiée pour cette présentation.'}
-                  {' '}La posologie reste une saisie et une validation explicites du praticien.
-                </div>
-              </div>
-
+              <div data-clinical-suggestion-status="blocked" hidden />
               <div
                 data-ordonnance-prescription-composer
                 className="rounded-2xl border border-border-main bg-glass-bg/70 p-2.5 shadow-sm backdrop-blur-xl sm:p-3"
