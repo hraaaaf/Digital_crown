@@ -856,7 +856,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     onSearch={handleSearch}
                     onKeyDown={handleKeyDown}
                     onApplySuggestion={(id, field, val) => { void applySuggestion(id, field, val); }}
-                    onFormeOpen={handleFormeOpen}
                     onForceAllergy={id => setForcedDrugs(prev => [...prev, id])}
                     onToggleType={(id, type) =>
                       setDrugs(drugs.map(d => d.id === id
