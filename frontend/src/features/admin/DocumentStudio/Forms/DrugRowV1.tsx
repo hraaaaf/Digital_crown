@@ -98,7 +98,8 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   const [catalogError, setCatalogError] = useState(false);
   const [highlightedPresentation, setHighlightedPresentation] = useState(-1);
   const [nameSearchActive, setNameSearchActive] = useState(false);
-  const [neoSafety, setNeoSafety] = useState<'idle' | 'checking' | 'ready' | 'blocked' | 'error'>('idle');
+  const [neoSafety, setNeoSafety] = useState<'idle' | 'checking' | 'ready' | 'warning' | 'blocked' | 'error'>('idle');
+  const [neoSafetyMessage, setNeoSafetyMessage] = useState<string | null>(null);
   const [safetyRevision, setSafetyRevision] = useState(0);
 
   const fieldError = validationErrors.find(error => error.field === `drug_${idx}`);
@@ -135,22 +136,57 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   useEffect(() => {
     if (isRadio || !patientId) {
       setNeoSafety('idle');
+      setNeoSafetyMessage(null);
       return;
     }
     if (!drug.catalogPresentationId) {
       setNeoSafety(hasManualPresentationOverride ? 'blocked' : 'idle');
+      setNeoSafetyMessage(hasManualPresentationOverride ? 'Présentation à confirmer avant validation.' : null);
       return;
     }
 
     let cancelled = false;
     setNeoSafety('checking');
+    setNeoSafetyMessage(null);
     void api.get(`/patients/${patientId}/neo-prescription-safety`, {
       params: { presentation_id: drug.catalogPresentationId },
     }).then(response => {
       if (cancelled) return;
-      setNeoSafety(response.data?.status === 'READY' ? 'ready' : 'blocked');
+      const blockers = Array.isArray(response.data?.blockers) ? response.data.blockers.map(String) : [];
+      const warnings = Array.isArray(response.data?.warnings) ? response.data.warnings.map(String) : [];
+      if (response.data?.status === 'READY') {
+        if (warnings.length) {
+          setNeoSafety('warning');
+          setNeoSafetyMessage('Point clinique à vérifier avant validation.');
+        } else {
+          setNeoSafety('ready');
+          setNeoSafetyMessage(null);
+        }
+        return;
+      }
+      const identityIssue = blockers.some(code => (
+        code === 'MEDICATION_IDENTITY_UNRESOLVED'
+        || code === 'CURRENT_MARKETING_STATUS_NOT_VERIFIED'
+      ));
+      const contextIssue = blockers.some(code => (
+        code.endsWith('_UNKNOWN')
+        || code.endsWith('_INVALID')
+        || code.includes('_WITHOUT_VALID_LIST')
+        || code.includes('_LIST_STATUS_MISMATCH')
+      ));
+      setNeoSafety('blocked');
+      setNeoSafetyMessage(
+        identityIssue
+          ? 'Présentation à confirmer avant validation.'
+          : contextIssue
+            ? 'Contexte patient incomplet avant validation.'
+            : 'Vérification clinique requise avant validation.',
+      );
     }).catch(() => {
-      if (!cancelled) setNeoSafety('error');
+      if (!cancelled) {
+        setNeoSafety('error');
+        setNeoSafetyMessage('Vérification clinique momentanément indisponible.');
+      }
     });
 
     return () => {
@@ -507,16 +543,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
             </div>
           </div>
 
-          {!isRadio && patientId && neoSafety === 'blocked' && (
-            <p role="alert" className="mt-1 text-[10px] font-bold text-amber-700">
-              {hasManualPresentationOverride
-                ? 'Présentation à confirmer avant validation.'
-                : 'Contexte patient à vérifier avant validation.'}
-            </p>
-          )}
-          {!isRadio && patientId && neoSafety === 'error' && (
-            <p role="alert" className="mt-1 text-[10px] font-bold text-amber-700">
-              Vérification clinique momentanément indisponible.
+          {!isRadio && patientId && ['blocked', 'warning', 'error'].includes(neoSafety) && neoSafetyMessage && (
+            <p role="alert" aria-live="polite" className="mt-1 text-[10px] font-bold text-amber-700">
+              {neoSafetyMessage}
             </p>
           )}
           {!isRadio && !hasCatalogPresentation && catalogSearching && (
