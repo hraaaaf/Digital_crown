@@ -303,7 +303,14 @@ Completed MRONJ slice:
 5. suspected/known MRONJ exits the prevention gate into specialist review rather than a treatment algorithm;
 6. endpoint remains read-only and exposes only generic workflow status/alert keys.
 
+Completed notification slice:
+1. practitioner-facing surface is limited to short generic messages derived from `alert_key` only;
+2. no notification renders until an explicit structured procedure context is dispatched by backoffice logic;
+3. no free-text inference is used to synthesize procedure context;
+4. READY/null, backend errors and non-read-only responses stay silent;
+5. no score, source, MRONJ/IE/antithrombotic terminology or internal blocker code is exposed.
+
 Still pending:
-1. final N4.3B exact-head CI/Alembic and adversarial review;
-2. subtle practitioner notification wiring only if product validation keeps that surface;
+1. exact-head CI for the notification slice;
+2. final N4.3B adversarial closeout review;
 3. no integration to master until the entire Neo-Ordonnance chantier closes.
