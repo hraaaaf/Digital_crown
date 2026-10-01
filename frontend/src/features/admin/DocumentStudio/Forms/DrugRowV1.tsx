@@ -164,11 +164,11 @@ export const DrugRow: React.FC<DrugRowProps> = ({
         }
         return;
       }
-      const identityIssue = blockers.some(code => (
+      const identityIssue = blockers.some((code: string) => (
         code === 'MEDICATION_IDENTITY_UNRESOLVED'
         || code === 'CURRENT_MARKETING_STATUS_NOT_VERIFIED'
       ));
-      const contextIssue = blockers.some(code => (
+      const contextIssue = blockers.some((code: string) => (
         code.endsWith('_UNKNOWN')
         || code.endsWith('_INVALID')
         || code.includes('_WITHOUT_VALID_LIST')
