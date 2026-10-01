@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+import backend.core.cabinet_topology as topology
 from backend.core.cabinet_topology import TOPOLOGY_ROLES, resolve_cabinet_network
 from backend.tests.test_mobile_auth_security_contract import *  # noqa: F401,F403
 from backend.tests.test_mobile_https_runtime_contract import *  # noqa: F401,F403
@@ -59,3 +60,33 @@ def test_v1_5_01_https_uses_canonical_mobile_origin(tmp_path: Path):
     assert contract.base_url == "https://192.168.1.20:8005"
     assert contract.lan_exposed is True
     assert contract.tls_ready is True
+
+
+def test_v1_5_01_lan_discovery_has_no_public_internet_dependency():
+    source = Path("backend/core/cabinet_topology.py").read_text(encoding="utf-8")
+    assert "8.8.8.8" not in source
+    assert "192.0.2.1" in source
+    assert "198.51.100.1" in source
+    assert "203.0.113.1" in source
+
+
+def test_v1_5_01_lan_address_filter_rejects_unsafe_candidates():
+    assert topology._usable_lan_ipv4("127.0.0.1") is None
+    assert topology._usable_lan_ipv4("169.254.1.5") is None
+    assert topology._usable_lan_ipv4("0.0.0.0") is None
+    assert topology._usable_lan_ipv4("10.20.30.40") == "10.20.30.40"
+
+
+def test_v1_5_01_wildcard_url_fails_closed_without_detected_lan(monkeypatch):
+    monkeypatch.setattr(topology, "detect_lan_ip", lambda: None)
+    contract = resolve_cabinet_network(
+        _env(
+            CABINET_HOST="0.0.0.0",
+            DIGITALCROWN_ENABLE_HTTPS="true",
+            DIGITALCROWN_TLS_CERT_FILE="cert.pem",
+            DIGITALCROWN_TLS_KEY_FILE="key.pem",
+        ),
+        validate_tls_files=False,
+    )
+    with pytest.raises(RuntimeError, match="aucune adresse LAN utilisable"):
+        _ = contract.base_url
