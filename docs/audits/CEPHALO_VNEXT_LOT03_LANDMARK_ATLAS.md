@@ -179,3 +179,29 @@ LOT03 defines scientific identities but does **not** rename persisted/runtime ID
 Current gate state: **HOLD**. Remaining blockers are not U6/L6 (now explicit L3), but unresolved L1/L2 identity/provenance items: runtime/DC operational confirmation for Pn↔Prn, exact analysis binding for Go/Gn/Po consumers, and exact reproducible anchor algorithm/golden fixture for each occlusal-plane construction that will be promoted.
 
 No runtime/schema/model/master mutation is authorized.
+
+
+## Observed consumer audit — master baseline
+
+Direct file inspection on master (not code-search inference) shows:
+- `backend/services/cephalo_engine.py` aliases `Prn` to `Pronasale`/`Nose_Tip`; consumes `Prn` with `Pog_soft`, `Po`, `Or` for soft-tissue lip relationships.
+- `backend/services/cephalo_engine.py` consumes generic `Po`/`Or` in Frankfort-derived FMA, U1-FH and multiple CRANIOM projections; generic `Go`/`Me` in IMPA/FMA.
+- `backend/services/cephalo_tweed_merrifield_geometry.py` explicitly defines FMA as Go→Me vs Po→Or, confirming the current DC Tweed contract is an anatomical-Frankfort / Go-Me variant rather than a silent historical ear-rod construction.
+- `backend/services/cephalo_steiner_geometry.py` uses Go-Gn for Steiner mandibular-plane geometry.
+- `backend/services/cephalo_ricketts_geometry.py` explicitly constructs a clinical Gn as the intersection of N-Pog and Go-Me and separately uses Po→Or for anatomical Frankfort. Therefore Ricketts constructed Gn is proven non-equivalent to generic runtime `Gn`.
+- `backend/data/cephalometry/measurement_definitions.yaml` binds McNamara Co-Gn and related measures to generic `Gn`; this consumer therefore requires an explicit canonical identity decision before Cephalo 2.0 promotion.
+- Wits requires `Occ_Ant`, `Occ_Post`, A and B, but the registry already marks it quarantined because `Occ_Ant/Occ_Post` provenance is unverified and notes zero active clinical consumers.
+- Frontend tracing reads `Prn`/`Nose_Tip`, generic `Po`, `Go`, `Gn`, and draws Wits only from `Occ_Post→Occ_Ant`; this is a visualization consumer, not anatomical validation.
+
+### LOT03 consequences
+
+1. `Pn_Aariz ↔ Prn_DC` is supported at the alias/name-consumer level: DC already treats Prn/Pronasale/Nose_Tip as synonyms. It remains detector-validation scoped, not a blocker to ontology definition.
+2. `Po` cannot be globally promoted as one universal scientific identity because many legacy consumers assume generic Po; new Cephalo 2.0 consumers must bind `Po_anatomic` explicitly while legacy consumers remain compatibility aliases until LOT12.
+3. `Go` likewise remains compatibility-generic; Tweed/DC Go-Me and source-specific/constructed Gonion contracts must stay versioned.
+4. `Gn` must split canonically: anatomical/runtime Gn for McNamara candidate use vs constructed Ricketts Gn. Generic Gn is not allowed in new cross-analysis APIs.
+5. Wits `Occ_Ant/Occ_Post` is already correctly quarantined and has zero active clinical consumers; unresolved exact Wits plane construction therefore does not block approval of the landmark ontology, provided Wits remains fail-closed.
+6. Frontend drawing behavior does not upgrade any scientific identity.
+
+### Revised gate interpretation
+
+`CEPH_LANDMARK_SET_APPROVED` can be granted for the **ontology/identity contract** while preserving explicit HOLD/BLOCKED states for analysis-specific constructions and detector validation. Approval does not activate Wits, rebind legacy measurements, or certify detector channels.
