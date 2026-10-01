@@ -19,6 +19,7 @@ on:
       - "!frontend/src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts"
       - "!frontend/src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts"
       - "!frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter*"
+      - "!frontend/src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel*"
       - "frontend/scripts/inventory-v1-07-g4-browser-controls.mjs"
       - "scripts/t2_runtime_server.py"
       - "requirements.txt"
