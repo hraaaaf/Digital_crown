@@ -64,88 +64,67 @@ def official_url(value: str | None) -> str | None:
     return absolute
 
 
-def group_after_heading(heading):
-    nodes = []
-    for sibling in heading.next_siblings:
-        if getattr(sibling, "name", None) in {"h1", "h2", "h3", "h4", "h5"}:
-            break
-        nodes.append(sibling)
-    return nodes
+def _modal_fields(modal) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    if modal is None:
+        return fields
+    for item in modal.select(".ammps-modal-item"):
+        label = item.select_one(".ammps-modal-label")
+        value = item.select_one(".ammps-modal-value")
+        if not label or not value:
+            continue
+        fields[norm(label.get_text(" ", strip=True))] = norm(value.get_text(" ", strip=True))
+    return fields
 
 
-def group_text(nodes) -> str:
-    bits = []
-    for node in nodes:
-        if hasattr(node, "get_text"):
-            bits.append(node.get_text(" ", strip=True))
-        else:
-            bits.append(str(node))
-    return norm(" ".join(bits))
-
-
-def extract_label(text: str, label: str) -> str:
-    # Capture from this label until the next known label or RCP marker.
-    next_labels = [re.escape(x) for x in LABELS if x != label]
-    stopper = "|".join(next_labels + [re.escape("Télécharger RCP")])
-    m = re.search(
-        rf"{re.escape(label)}\s*:?[\s]+(.+?)(?=\s+(?:{stopper})\s*:?[\s]+|$)",
-        text,
-        flags=re.I,
-    )
-    return norm(m.group(1)) if m else ""
-
-
-def presentation_id(row: dict) -> str:
-    identity = "|".join(
-        norm(str(row.get(k) or "")).upper()
-        for k in ("nom", "dci", "dosage", "unite", "forme", "presentation", "epi")
-    )
-    return "ammps-reg:" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
+def _next_page_url(soup: BeautifulSoup, current_url: str) -> str | None:
+    link = soup.select_one('a.page-link[rel="next"]')
+    if not link:
+        return None
+    return official_url(link.get("href"))
 
 
 def parse_page(html: str, source_url: str) -> tuple[list[dict], dict]:
     soup = BeautifulSoup(html, "html.parser")
     body_text = norm(soup.get_text(" ", strip=True))
-    total_m = re.search(r"(\d[\d\s]*)\s+médicament\(s\) trouvé\(s\)", body_text, flags=re.I)
-    updated_m = re.search(r"Base de données mise à jour le\s+(\d{2}/\d{2}/\d{4})", body_text, flags=re.I)
+    total_m = re.search(r"(\\d[\\d\\s]*)\\s+médicament\\(s\\) trouvé\\(s\\)", body_text, flags=re.I)
+    updated_m = re.search(r"Base de données mise à jour le\\s+(\\d{2}/\\d{2}/\\d{4})", body_text, flags=re.I)
 
     rows: list[dict] = []
     seen: set[str] = set()
-    headings = soup.find_all(["h3", "h4", "h5"])
-    for heading in headings:
-        name = norm(heading.get_text(" ", strip=True))
-        if not name:
+    for card in soup.select(".medicament-card"):
+        title = card.select_one(".medicament-title")
+        if not title:
             continue
-        nodes = group_after_heading(heading)
-        text = group_text(nodes)
-        if "Substance active" not in text or "Présentation" not in text:
-            continue
+        name = norm(title.get_text(" ", strip=True))
+        target = norm(card.get("data-bs-target"))
+        modal = soup.select_one(target) if target.startswith("#") else None
+        fields = _modal_fields(modal)
 
-        dci = extract_label(text, "Substance active")
-        epi = extract_label(text, "EPI")
-        dosage_raw = extract_label(text, "Dosage")
-        forme = extract_label(text, "Forme")
-        presentation = extract_label(text, "Présentation")
-        market_status = extract_label(text, "Statut commercialisation")
-        ppv = extract_label(text, "PPV")
-        ph = extract_label(text, "PH")
-
-        if not (dci and dosage_raw and forme and presentation):
+        dci = fields.get("Substance active", "")
+        epi = fields.get("EPI", "")
+        dosage_raw = fields.get("Dosage", "")
+        forme = fields.get("Forme", "")
+        presentation = fields.get("Présentation", "")
+        market_status = fields.get("Statut commercialisation", "")
+        ppv = fields.get("PPV", "")
+        ph = fields.get("PH", "")
+        if not (name and dci and dosage_raw and forme and presentation):
             continue
 
-        # The AMMPS page renders both summary and expanded content. Keep only
-        # the richer/detail occurrence (EPI/status) when duplicates exist.
         dosage, unite = split_dosage(dosage_raw)
-        links = []
-        for node in nodes:
-            if hasattr(node, "find_all"):
-                links.extend(node.find_all("a", href=True))
-        rcp_link = None
-        for link in links:
-            if "RCP" in norm(link.get_text(" ", strip=True)).upper():
-                rcp_link = official_url(link.get("href"))
-                if rcp_link:
-                    break
+        rcp_url = None
+        rcp_link_observed = False
+        if modal is not None:
+            for link in modal.select("a"):
+                if "RCP" not in norm(link.get_text(" ", strip=True)).upper():
+                    continue
+                rcp_link_observed = True
+                href = norm(link.get("href"))
+                if href and href.lower() not in {"javascript:void(0)", "#"} and link.get("aria-disabled") != "true":
+                    rcp_url = official_url(href)
+                    if rcp_url:
+                        break
 
         row = {
             "nom": name,
@@ -159,8 +138,8 @@ def parse_page(html: str, source_url: str) -> tuple[list[dict], dict]:
             "ppv": ppv,
             "ph": ph,
             "source_page_url": source_url,
-            "rcp_link_observed": bool("Télécharger RCP" in text or rcp_link),
-            "rcp_url": rcp_link,
+            "rcp_link_observed": rcp_link_observed,
+            "rcp_url": rcp_url,
         }
         row["regulatory_presentation_id"] = presentation_id(row)
         key = row["regulatory_presentation_id"]
@@ -169,9 +148,54 @@ def parse_page(html: str, source_url: str) -> tuple[list[dict], dict]:
             rows.append(row)
 
     return rows, {
-        "reported_total": int(re.sub(r"\s+", "", total_m.group(1))) if total_m else None,
+        "reported_total": int(re.sub(r"\\s+", "", total_m.group(1))) if total_m else None,
         "updated_at": updated_m.group(1) if updated_m else None,
-        "heading_count": len(headings),
+        "card_count": len(soup.select(".medicament-card")),
+        "next_page_url": _next_page_url(soup, source_url),
+    }
+
+
+def fetch_query_pages(query: str, raw_dir: Path) -> tuple[list[dict], dict]:
+    all_rows: list[dict] = []
+    seen_ids: set[str] = set()
+    page_url = SEARCH_URL
+    params = {"search": query}
+    page_no = 1
+    first_meta: dict = {}
+    visited: set[str] = set()
+
+    while page_url:
+        response = requests.get(
+            page_url,
+            params=params,
+            timeout=30,
+            headers={"User-Agent": "DigitalCrown-AMMPS-Probe/1.0"},
+        )
+        response.raise_for_status()
+        params = None
+        canonical_url = response.url
+        if canonical_url in visited:
+            raise RuntimeError(f"Pagination loop detected at {canonical_url}")
+        visited.add(canonical_url)
+
+        raw_path = raw_dir / f"page-{page_no}.html"
+        raw_path.write_text(response.text, encoding="utf-8")
+        rows, meta = parse_page(response.text, canonical_url)
+        if page_no == 1:
+            first_meta = dict(meta)
+        for row in rows:
+            rid = row["regulatory_presentation_id"]
+            if rid not in seen_ids:
+                seen_ids.add(rid)
+                all_rows.append(row)
+        page_url = meta.get("next_page_url")
+        page_no += 1
+
+    return all_rows, {
+        "reported_total": first_meta.get("reported_total"),
+        "updated_at": first_meta.get("updated_at"),
+        "pages_fetched": page_no - 1,
+        "parsed_unique": len(all_rows),
     }
 
 
@@ -214,19 +238,12 @@ def main() -> int:
     parser.add_argument("--probe-one-rcp", action="store_true")
     args = parser.parse_args()
 
-    response = requests.get(
-        SEARCH_URL,
-        params={"search": args.query},
-        timeout=30,
-        headers={"User-Agent": "DigitalCrown-AMMPS-Probe/1.0"},
-    )
-    response.raise_for_status()
-    rows, page_meta = parse_page(response.text, response.url)
-
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    html_path = out.with_suffix(".html")
-    html_path.write_text(response.text, encoding="utf-8")
+    raw_dir = out.parent / (out.stem + "-raw")
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    rows, page_meta = fetch_query_pages(args.query, raw_dir)
 
     existing = load_existing()
     existing_by_id = {existing_id(row): row for row in existing}
@@ -235,8 +252,8 @@ def main() -> int:
 
     report = {
         "query": args.query,
-        "source_url": response.url,
-        "source_http_status": response.status_code,
+        "source_url": SEARCH_URL,
+        "source_http_status": 200,
         "page_meta": page_meta,
         "existing_dictionary_count": len(existing),
         "parsed_count": len(rows),
