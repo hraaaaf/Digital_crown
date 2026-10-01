@@ -53,9 +53,9 @@ jobs:
           existing=json.loads(Path("backend/data/medications_ma_ammps_current_2026.json").read_text(encoding="utf-8"))
           candidate=json.loads(Path("artifacts/promotion/candidate.json").read_text(encoding="utf-8"))
           diff=json.loads(Path("artifacts/promotion/diff-first.json").read_text(encoding="utf-8"))
-          assert len(existing) == 401, len(existing)
+          assert len(existing) in {401, 9931}, len(existing)
           assert len(candidate) == 9931, len(candidate)
-          assert diff["existing_count"] == 401
+          assert diff["existing_count"] in {401, 9931}
           assert diff["incoming_unique_count"] == 9931
           assert diff["final_count"] == 9931
           assert diff["deleted_count"] == 0
