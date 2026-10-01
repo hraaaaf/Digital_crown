@@ -1,0 +1,115 @@
+name: V1.5-02 Patient Photo Visual Evidence
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/patients/EditPatientForm.tsx"
+      - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
+      - "frontend/src/features/patients/components/PatientPhotoEditor.test.tsx"
+      - "frontend/scripts/capture-v15-02-patient-photo-before.mjs"
+      - "frontend/scripts/capture-v15-02-patient-photo-after.mjs"
+      - ".github/workflows/v15-02-patient-photo-visual.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: v15-02-photo-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    name: V1.5-02 Patient Photo Visual Matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v15-02-photo-visual-secret-long-enough
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate isolated runtime credential
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-v15-02.txt
+          pip install -r /tmp/requirements-v15-02.txt
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start isolated backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/v15-02-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v15-02-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/v15-02-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v15-02-frontend.log
+          exit 1
+
+      - name: Capture BEFORE
+        if: hashFiles('frontend/scripts/capture-v15-02-patient-photo-before.mjs') != ''
+        working-directory: frontend
+        run: node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-patient-photo-before.mjs
+
+      - name: Capture AFTER
+        if: hashFiles('frontend/scripts/capture-v15-02-patient-photo-after.mjs') != ''
+        working-directory: frontend
+        run: node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-patient-photo-after.mjs
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-02-patient-photo-visual
+          path: |
+            artifacts/v15-02-photo-before
+            artifacts/v15-02-photo-after
+          if-no-files-found: error
+          retention-days: 14
