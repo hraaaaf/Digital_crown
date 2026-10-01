@@ -16,6 +16,59 @@ from backend.utils.access_control import assert_patient_access
 
 router = APIRouter(tags=["Patients"])
 
+PATIENT_PROFILE_PHOTO_SOURCE_REF = "PATIENT_PROFILE_PHOTO"
+PATIENT_PROFILE_PHOTO_MAX_BYTES = 12 * 1024 * 1024
+
+
+def _patient_profile_photo_url(patient_id: int) -> str:
+    return f"/api/patients/{int(patient_id)}/photo"
+
+
+def _patient_profile_photo_asset(db: Session, *, employer_id: int, patient_id: int):
+    from backend.models_media_core import ClinicalAsset
+
+    return (
+        db.query(ClinicalAsset)
+        .filter(
+            ClinicalAsset.employer_id == int(employer_id),
+            ClinicalAsset.patient_id == int(patient_id),
+            ClinicalAsset.asset_type == "PHOTO",
+            ClinicalAsset.source_ref == PATIENT_PROFILE_PHOTO_SOURCE_REF,
+            ClinicalAsset.storage_key.isnot(None),
+            ClinicalAsset.storage_format.isnot(None),
+            ClinicalAsset.stored_at.isnot(None),
+            ClinicalAsset.sha256.isnot(None),
+            ClinicalAsset.byte_size.isnot(None),
+        )
+        .order_by(ClinicalAsset.id.desc())
+        .first()
+    )
+
+
+def _patient_profile_photo_delivery_asset(db: Session, profile_asset):
+    from backend.models_media_core import ClinicalAsset
+
+    thumbnail = (
+        db.query(ClinicalAsset)
+        .filter(
+            ClinicalAsset.employer_id == profile_asset.employer_id,
+            ClinicalAsset.patient_id == profile_asset.patient_id,
+            ClinicalAsset.parent_asset_id == profile_asset.id,
+            ClinicalAsset.source_kind == "DERIVED",
+            ClinicalAsset.source_ref == "C3_THUMBNAIL_V1",
+            ClinicalAsset.mime_type == "image/jpeg",
+            ClinicalAsset.storage_key.isnot(None),
+            ClinicalAsset.storage_format.isnot(None),
+            ClinicalAsset.stored_at.isnot(None),
+            ClinicalAsset.sha256.isnot(None),
+            ClinicalAsset.byte_size.isnot(None),
+        )
+        .order_by(ClinicalAsset.id.desc())
+        .first()
+    )
+    return thumbnail or profile_asset
+
+
 # --- HELPERS ---
 
 def check_duplicate_patient(
@@ -149,11 +202,18 @@ from backend.services.audit_service import audit_service
     description="Crée un nouveau dossier patient avec détection de doublons (nom + prénom + date naissance). Passer `force_create=true` pour ignorer l'alerte doublon.")
 def create_patient(patient: schemas.PatientCreate, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     employer_id = current_user.get_employer_id()
+    if "photo_url" in getattr(patient, "model_fields_set", set()) and patient.photo_url is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="La photo patient doit être gérée via /patients/{patient_id}/photo.",
+        )
     existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance, employer_id)
     if existing and not force_create:
         raise HTTPException(status_code=409, detail={"message": "Doublon détecté", "existing_patient": {"id": existing.id}})
     
     patient_data = patient.model_dump() if hasattr(patient, 'model_dump') else patient.dict()
+    # photo_url is server-managed; even an omitted Pydantic default must not be treated as writable.
+    patient_data.pop('photo_url', None)
     is_ortho_active = patient_data.pop('is_ortho_active', False)
     
     patient_data['nom'] = patient_data['nom'].upper().strip()
@@ -280,6 +340,148 @@ def read_patient(patient_id: int, db: Session = Depends(database.get_db), curren
     if not patient or patient.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Patient introuvable")
     return patient
+
+
+@router.get("/{patient_id}/photo")
+def read_patient_profile_photo(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """Serve the current profile photo through authenticated patient scope only."""
+    assert_patient_access(patient_id, current_user, db)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient or patient.deleted_at is not None or not patient.photo_url:
+        raise HTTPException(status_code=404, detail="Photo patient introuvable")
+
+    employer_id = int(current_user.get_employer_id())
+    asset = _patient_profile_photo_asset(db, employer_id=employer_id, patient_id=patient_id)
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Photo patient introuvable")
+
+    delivery_asset = _patient_profile_photo_delivery_asset(db, asset)
+    from backend.services.clinical_asset_storage import (
+        ClinicalAssetStorageError,
+        read_clinical_asset_bytes,
+    )
+
+    try:
+        content = read_clinical_asset_bytes(
+            db,
+            employer_id=employer_id,
+            patient_id=patient_id,
+            asset_id=delivery_asset.id,
+        )
+    except ClinicalAssetStorageError as exc:
+        raise HTTPException(status_code=503, detail="Stockage photo patient indisponible") from exc
+
+    return Response(
+        content=content,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "private, no-store",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": "inline",
+        },
+    )
+
+
+@router.post("/{patient_id}/photo")
+async def replace_patient_profile_photo(
+    patient_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """Replace the canonical patient profile photo using the encrypted Media Core."""
+    assert_patient_access(patient_id, current_user, db)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient or patient.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+
+    employer_id = int(current_user.get_employer_id())
+    try:
+        raw = await file.read(PATIENT_PROFILE_PHOTO_MAX_BYTES + 1)
+        if len(raw) > PATIENT_PROFILE_PHOTO_MAX_BYTES:
+            raise HTTPException(status_code=413, detail="La photo patient dépasse la limite de 12 MiB.")
+
+        from backend.services.clinical_photo_normalization import normalize_clinical_photo
+        from backend.services.clinical_asset_ingestion import (
+            ClinicalAssetIngestionError,
+            ingest_clinical_asset_bytes,
+        )
+        from backend.services.clinical_asset_service import ClinicalAssetInvariantError
+        from backend.services.clinical_asset_storage import ClinicalAssetStorageError
+
+        normalized = normalize_clinical_photo(raw)
+        result = ingest_clinical_asset_bytes(
+            db,
+            employer_id=employer_id,
+            patient_id=patient_id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+            content=normalized,
+            original_filename="patient-profile.jpg",
+            claimed_mime_type="image/jpeg",
+            source_ref=PATIENT_PROFILE_PHOTO_SOURCE_REF,
+            created_by=current_user.id,
+            provenance_json={"ingestion_channel": "PATIENT_PROFILE"},
+        )
+
+        patient.photo_url = _patient_profile_photo_url(patient_id)
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=employer_id,
+            action="PATIENT_PROFILE_PHOTO_REPLACED",
+            resource_type="Patient",
+            resource_id=str(patient_id),
+            details=f"profile_asset_id={result.asset.id}",
+        )
+        db.commit()
+        return {
+            "photo_url": patient.photo_url,
+            "asset_id": result.asset.id,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except (ClinicalAssetIngestionError, ClinicalAssetInvariantError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ClinicalAssetStorageError, OSError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Stockage photo patient indisponible") from exc
+    finally:
+        await file.close()
+
+
+@router.delete("/{patient_id}/photo", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient_profile_photo(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """Remove the active profile-photo binding; encrypted historical media remains auditable."""
+    assert_patient_access(patient_id, current_user, db)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient or patient.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+
+    if patient.photo_url:
+        patient.photo_url = None
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="PATIENT_PROFILE_PHOTO_REMOVED",
+            resource_type="Patient",
+            resource_id=str(patient_id),
+            details="Canonical profile-photo binding removed.",
+        )
+        db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @router.get("/{patient_id}/score")
 def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
@@ -1124,6 +1326,11 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
     db_patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     
     update_data = patient_update.model_dump(exclude_unset=True) if hasattr(patient_update, 'model_dump') else patient_update.dict(exclude_unset=True)
+    if 'photo_url' in update_data:
+        raise HTTPException(
+            status_code=422,
+            detail="La photo patient doit être gérée via /patients/{patient_id}/photo.",
+        )
     
     # Check duplicates if name/date changed
     new_nom = update_data.get('nom', db_patient.nom).upper().strip()
