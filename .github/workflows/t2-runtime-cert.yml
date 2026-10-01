@@ -4,6 +4,12 @@ on:
   pull_request:
     paths-ignore:
       - 'frontend/src/features/mobile/**'
+      - 'backend/models.py'
+      - 'backend/services/prescription_service.py'
+      - 'backend/routers/prescriptions_core.py'
+      - 'backend/routers/medications.py'
+      - 'backend/core/schema_runtime.py'
+      - '.github/workflows/**'
       - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.tsx'
