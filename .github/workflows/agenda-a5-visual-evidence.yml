@@ -8,7 +8,6 @@ on:
       - 'frontend/src/services/**/*appointment*'
       - 'backend/**/*appointment*'
       - 'backend/**/*agenda*'
-      - '.github/workflows/agenda-a5-visual-evidence.yml'
   workflow_dispatch:
 permissions:
   contents: read
