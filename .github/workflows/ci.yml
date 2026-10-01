@@ -133,6 +133,8 @@ jobs:
                 frontend/src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts|\
                 frontend/src/features/admin/DocumentStudio/DentalProcedureSafetyContext.ts|\
                 frontend/src/features/admin/DocumentStudio/DentalProcedureSafetyContext.test.ts|\
+                frontend/src/features/admin/DocumentStudio/Forms/ProcedureSafetyNotice.tsx|\
+                frontend/src/features/admin/DocumentStudio/Forms/ProcedureSafetyNotice.test.tsx|\
                 frontend/scripts/certify-ordonnance-composer.mjs|\
                 frontend/ordonnance-composer-fixture.html|\
                 backend/models.py|\
@@ -333,6 +335,7 @@ jobs:
             src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts \
             src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts \
             src/features/admin/DocumentStudio/DentalProcedureSafetyContext.test.ts \
+            src/features/admin/DocumentStudio/Forms/ProcedureSafetyNotice.test.tsx \
             --maxWorkers=1 --fileParallelism=false
 
       - name: Neo-Ordonnance targeted build
