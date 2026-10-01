@@ -174,9 +174,9 @@ LOT03 defines scientific identities but does **not** rename persisted/runtime ID
 - The detector output contract stays 38 channels unless a separately benchmarked detector architecture explicitly changes it.
 
 ## Gate
-`CEPH_LANDMARK_SET_APPROVED` requires exact definitions and evidence for all L1/L2 points, explicit L3 disposition, and reviewed mapping to the LOT01/LOT02 contracts.
+`CEPH_LANDMARK_SET_APPROVED` approves the **canonical landmark ontology and identity/disposition contract**. It requires: source-backed definitions for identities promoted as canonical anatomy; explicit separation of non-equivalent identities; an explicit L1/L2/L3/HOLD disposition for every mapped point; consumer bindings/legacy ambiguity documented; and reviewed mapping to LOT01/LOT02. It does **not** certify detector accuracy, activate a quarantined analysis, or certify a derived construction whose exact algorithm belongs to a later implementation/validation lot.
 
-Current gate state: **HOLD**. Remaining blockers are not U6/L6 (now explicit L3), but unresolved L1/L2 identity/provenance items: runtime/DC operational confirmation for Pn↔Prn, exact analysis binding for Go/Gn/Po consumers, and exact reproducible anchor algorithm/golden fixture for each occlusal-plane construction that will be promoted.
+Current gate state: **CANDIDATE_FOR_FINAL_REVIEW**. Pn↔Prn is operationally confirmed as an existing DC alias but still requires detector validation; Go/Gn/Po legacy consumers are now inventoried and constrained to explicit future identities; Wits remains quarantined and therefore its unresolved exact plane algorithm is not promoted by this gate. These are downstream validation/migration obligations, not unresolved ontology identities.
 
 No runtime/schema/model/master mutation is authorized.
 
@@ -204,4 +204,10 @@ Direct file inspection on master (not code-search inference) shows:
 
 ### Revised gate interpretation
 
-`CEPH_LANDMARK_SET_APPROVED` can be granted for the **ontology/identity contract** while preserving explicit HOLD/BLOCKED states for analysis-specific constructions and detector validation. Approval does not activate Wits, rebind legacy measurements, or certify detector channels.
+`CEPH_LANDMARK_SET_APPROVED` can be granted only for the **ontology/identity contract** while preserving explicit HOLD/BLOCKED states for analysis-specific constructions and detector validation. Approval does not activate Wits, rebind legacy measurements, certify detector channels, or authorize runtime/schema/model/master mutation.
+
+### Review invariants
+- A canonical ontology identity may be approved while a detector mapping to that identity remains `VALIDATION_REQUIRED`.
+- A source-specific construction may remain `BLOCKED` without blocking the ontology if no approved active consumer requires it.
+- A legacy generic ID is never silently upgraded to a canonical identity.
+- Any future promotion that changes these dispositions requires a new evidence/version decision; LOT03 approval is not blanket permission.
