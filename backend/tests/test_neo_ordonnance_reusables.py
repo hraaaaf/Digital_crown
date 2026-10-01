@@ -118,3 +118,31 @@ def test_same_label_protocol_and_saved_prescription_do_not_overwrite_each_other(
     by_kind = {row["kind"]: row for row in rows}
     assert by_kind["PROTOCOL"]["drugs"][0]["name"] == "PROTO"
     assert by_kind["SAVED_PRESCRIPTION"]["drugs"][0]["name"] == "SAVED"
+
+
+def test_legacy_delete_removes_protocol_only_and_preserves_homonymous_saved_prescription(db):
+    doctor = _doctor(db, "neo-reusable-delete-scope@cabinet.test")
+    prescription_service.learn_habit(
+        db,
+        doctor.id,
+        "Post-op",
+        [{"name": "PROTO", "dosage": "1", "forme": "COMPRIME", "posologie": "p"}],
+        label="Post-op",
+        preference_type="PROTOCOL",
+    )
+    prescription_service.learn_habit(
+        db,
+        doctor.id,
+        "Post-op",
+        [{"name": "SAVED", "dosage": "2", "forme": "GELULE", "posologie": "s"}],
+        label="Post-op",
+        preference_type="SAVED_PRESCRIPTION",
+        indication="Indication sauvegardée",
+    )
+
+    assert prescription_service.delete_doctor_preset(db, doctor.id, "Post-op") is True
+
+    rows = prescription_service.get_doctor_presets(db, doctor.id)
+    assert len(rows) == 1
+    assert rows[0]["kind"] == "SAVED_PRESCRIPTION"
+    assert rows[0]["drugs"][0]["name"] == "SAVED"
