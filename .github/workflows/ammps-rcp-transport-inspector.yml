@@ -30,6 +30,13 @@ jobs:
             --query AMOXICILLINE \
             --presentation-id ammps-reg:6fd268f476e7efe0c11f0c4b \
             --out artifacts/d4-rcp-inspector/amoxicilline-sp-1g-box12.json
+
+      - name: Inspect ADFENE 200 MG box 20 RCP control
+        run: |
+          python scripts/inspect_ammps_rcp_transport.py \
+            --query IBUPROFENE \
+            --presentation-id ammps-reg:9f2b22012b79519f39aed12e \
+            --out artifacts/d4-rcp-inspector/adfene-200mg-box20.json
       - name: Upload inspector proof
         if: always()
         uses: actions/upload-artifact@v4
