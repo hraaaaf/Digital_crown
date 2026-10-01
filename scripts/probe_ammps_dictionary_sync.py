@@ -64,6 +64,14 @@ def official_url(value: str | None) -> str | None:
     return absolute
 
 
+def presentation_id(row: dict) -> str:
+    identity = "|".join(
+        norm(str(row.get(k) or "")).upper()
+        for k in ("nom", "dci", "dosage", "unite", "forme", "presentation", "epi")
+    )
+    return "ammps-reg:" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
+
+
 def _modal_fields(modal) -> dict[str, str]:
     fields: dict[str, str] = {}
     if modal is None:
