@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from backend import models
-from backend.schemas.patient_clinical_context import PatientClinicalContextUpdate
+from backend.schemas.patient_clinical_context import PatientProcedureSafetyContextUpdate
 
 
 def _patient(db, employer_id: int):
@@ -38,7 +38,7 @@ def _hidden_context_payload():
 
 
 def test_n43b_antithrombotic_context_defaults_fail_closed():
-    payload = PatientClinicalContextUpdate()
+    payload = PatientProcedureSafetyContextUpdate()
     assert payload.anticoagulant_status == "UNKNOWN"
     assert payload.antiplatelet_status == "UNKNOWN"
     assert payload.antithrombotic_classes is None
@@ -46,6 +46,18 @@ def test_n43b_antithrombotic_context_defaults_fail_closed():
     assert payload.warfarin_inr is None
     assert payload.warfarin_inr_current is None
     assert payload.lmwh_dose_class == "UNKNOWN"
+
+
+def test_practitioner_context_api_rejects_hidden_n43b_fields(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id)
+    response = client.put(
+        f"/api/patients/{patient.id}/clinical-context",
+        headers=auth_headers,
+        json={"anticoagulant_status": "PRESENT", "anticoagulants": ["Rivaroxaban"]},
+    )
+    assert response.status_code == 422
 
 
 def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
@@ -95,13 +107,13 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
 
 def test_n43b_context_rejects_implicit_or_inconsistent_antithrombotic_facts():
     with pytest.raises(ValidationError):
-        PatientClinicalContextUpdate(
+        PatientProcedureSafetyContextUpdate(
             anticoagulant_status="NONE_REPORTED",
             anticoagulants=["Rivaroxaban"],
         )
 
     with pytest.raises(ValidationError):
-        PatientClinicalContextUpdate(
+        PatientProcedureSafetyContextUpdate(
             anticoagulant_status="PRESENT",
             anticoagulants=["Warfarine"],
             antithrombotic_classes=["VKA"],
@@ -109,7 +121,7 @@ def test_n43b_context_rejects_implicit_or_inconsistent_antithrombotic_facts():
         )
 
     with pytest.raises(ValidationError):
-        PatientClinicalContextUpdate(
+        PatientProcedureSafetyContextUpdate(
             anticoagulant_status="PRESENT",
             anticoagulants=["Enoxaparine"],
             antithrombotic_classes=["LMWH"],
