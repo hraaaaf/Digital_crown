@@ -25,12 +25,53 @@ jobs:
       - name: Install probe dependencies
         run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.12.3
 
-      - name: Probe official AMMPS DOLIPRANE and one RCP transport
+      - name: Probe official AMMPS representative medication queries
         run: |
           python scripts/probe_ammps_dictionary_sync.py \
             --query DOLIPRANE \
             --probe-one-rcp \
             --out artifacts/ammps-dictionary-pilot/doliprane-probe.json
+          python scripts/probe_ammps_dictionary_sync.py \
+            --query AMOXICILLINE \
+            --probe-one-rcp \
+            --out artifacts/ammps-dictionary-pilot/amoxicilline-probe.json
+          python scripts/probe_ammps_dictionary_sync.py \
+            --query IBUPROFENE \
+            --probe-one-rcp \
+            --out artifacts/ammps-dictionary-pilot/ibuprofene-probe.json
+          python scripts/probe_ammps_dictionary_sync.py \
+            --query CLAMOXYL \
+            --probe-one-rcp \
+            --out artifacts/ammps-dictionary-pilot/clamoxyl-probe.json
+
+      - name: Validate pilot extraction invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/ammps-dictionary-pilot")
+          expected_min = {
+              "doliprane-probe.json": 18,
+              "amoxicilline-probe.json": 1,
+              "ibuprofene-probe.json": 1,
+              "clamoxyl-probe.json": 1,
+          }
+          seen_ids = set()
+          for name, minimum in expected_min.items():
+              report = json.loads((root / name).read_text(encoding="utf-8"))
+              rows = report["rows"]
+              assert len(rows) >= minimum, (name, len(rows))
+              assert report["mutated_dictionary"] is False
+              for row in rows:
+                  rid = row["regulatory_presentation_id"]
+                  assert rid.startswith("ammps-reg:")
+                  assert rid not in seen_ids or name != "doliprane-probe.json"
+                  seen_ids.add(rid)
+                  for field in ("nom", "dci", "dosage", "forme", "presentation", "source_page_url"):
+                      assert str(row.get(field) or "").strip(), (name, field, row)
+          print({"validated_reports": len(expected_min), "unique_ids": len(seen_ids)})
+          PY
 
       - name: Upload pilot evidence
         if: always()
