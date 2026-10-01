@@ -2,6 +2,7 @@ from sqlalchemy import func, or_, and_
 from typing import Optional, List, Dict
 from fastapi.responses import FileResponse, StreamingResponse
 import os, csv, io
+from pathlib import Path
 from backend.services.generators.report_gen import ReportGenerator
 from backend.services.accounting_service import accounting_service
 from fastapi import APIRouter, Depends, HTTPException, status, Body
@@ -12,8 +13,29 @@ from datetime import datetime, timedelta
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
+from backend.core.media_paths import get_media_root
 
 router = APIRouter(tags=["Accounting & Payments"])
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+def _parse_typed_item_id(item_id: str) -> tuple[str, int]:
+    raw = str(item_id or "").strip()
+    prefix, sep, numeric = raw.partition("_")
+    if not sep or prefix not in {"doc", "acte"} or not numeric.isdigit():
+        raise HTTPException(status_code=400, detail="Identifiant comptable invalide")
+    return prefix, int(numeric)
+
+
+def _resolve_archive_file_path(doc: models.DocumentArchive) -> Path:
+    raw = str(doc.file_path or "").strip()
+    if not raw:
+        raise HTTPException(status_code=404, detail="Fichier PDF introuvable")
+    if raw.startswith("static/archives/") or raw.startswith("static/documents/"):
+        return get_media_root() / raw.replace("static/", "", 1)
+    path = Path(raw)
+    return path if path.is_absolute() else (_BACKEND_DIR / path)
 
 
 def _document_business_datetime(doc: models.DocumentArchive) -> datetime:
@@ -271,7 +293,7 @@ def get_accounting_honoraires(
             "date": acte.date_debut,
             "title": display_title,
             "amount": acte.montant,
-            "file_url": "",
+            "file_url": f"documents/{acte.document_archive_id}/download" if acte.document_archive_id else "",
             "payment_status": acte.statut_paiement or "EN_ATTENTE",
             "validated_by": acte.validated_by,
             "is_collected": acte.is_collected
@@ -336,9 +358,10 @@ async def mark_as_paid(
             raise HTTPException(status_code=422, detail="Mode de paiement explicite invalide")
         
         now = datetime.now()
+        item_type, numeric_id = _parse_typed_item_id(item_id)
         
-        if item_id.startswith("doc_"):
-            doc_id = int(item_id.split("_")[1])
+        if item_type == "doc":
+            doc_id = numeric_id
             doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
             if not doc: raise HTTPException(status_code=404, detail="Document non trouvé")
             assert_patient_access(doc.patient_id, user, db)
@@ -359,8 +382,8 @@ async def mark_as_paid(
             )
             db.add(payment_obj)
             
-        elif item_id.startswith("acte_"):
-            acte_id = int(item_id.split("_")[1])
+        elif item_type == "acte":
+            acte_id = numeric_id
             acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
             if not acte: raise HTTPException(status_code=404, detail="Acte non trouvé")
             assert_patient_access(acte.patient_id, user, db)
@@ -536,24 +559,23 @@ def send_honoraire_by_email(
     from backend.services.email_service import email_service
 
     patient = None
-    doc_id = None
+    doc = None
+    item_type, numeric_id = _parse_typed_item_id(item_id)
 
-    if item_id.startswith("doc_"):
-        doc_id = int(item_id.split("_")[1])
-        doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+    if item_type == "doc":
+        doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == numeric_id).first()
         if not doc:
             raise HTTPException(status_code=404, detail="Document introuvable")
         assert_patient_access(doc.patient_id, current_user, db)
         patient = doc.patient
-    elif item_id.startswith("acte_"):
-        acte_id = int(item_id.split("_")[1])
-        acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+    elif item_type == "acte":
+        acte = db.query(models.Acte).filter(models.Acte.id == numeric_id).first()
         if not acte:
             raise HTTPException(status_code=404, detail="Acte introuvable")
         assert_patient_access(acte.patient_id, current_user, db)
         patient = acte.patient
-    else:
-        raise HTTPException(status_code=400, detail="Identifiant invalide")
+        if acte.document_archive_id:
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == acte.document_archive_id).first()
 
     if not patient or not patient.email:
         raise HTTPException(status_code=422, detail="Ce patient n'a pas d'adresse email renseignée")
@@ -572,7 +594,20 @@ def send_honoraire_by_email(
         "<p>Cordialement.</p>"
     )
 
-    sent = email_service.send_email(patient.email, subject, text, html)
+    if not doc:
+        raise HTTPException(status_code=409, detail="Aucun PDF archivé n'est lié à cet élément")
+    pdf_path = _resolve_archive_file_path(doc)
+    if not pdf_path.exists() or not pdf_path.is_file():
+        raise HTTPException(status_code=404, detail="Le PDF archivé est introuvable sur ce poste")
+
+    attachment_name = doc.original_filename or doc.filename or f"note_{doc.id}.pdf"
+    sent = email_service.send_email(
+        patient.email,
+        subject,
+        text,
+        html,
+        attachments=[(attachment_name, pdf_path.read_bytes(), "application/pdf")],
+    )
     if not sent:
         raise HTTPException(status_code=500, detail="Échec de l'envoi de l'email")
     return {"status": "success", "message": f"Email envoyé à {patient.email}"}
@@ -630,10 +665,10 @@ def send_relance(
     """Envoie une relance de paiement par email au patient."""
     from backend.services.email_service import email_service
 
-    if not item_id.startswith("doc_"):
+    item_type, doc_id = _parse_typed_item_id(item_id)
+    if item_type != "doc":
         raise HTTPException(status_code=400, detail="Relances disponibles uniquement pour les notes d'honoraires")
 
-    doc_id = int(item_id.split("_")[1])
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document introuvable")
