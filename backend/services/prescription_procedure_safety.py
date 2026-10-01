@@ -233,6 +233,14 @@ def evaluate_mronj_procedure_safety(
     """
     sources = (SOURCE_AAOMS_MRONJ_2022, SOURCE_ADA_MRONJ)
 
+    if data.suspected_or_known_mronj == "YES":
+        return _result(
+            "SPECIALIST_REVIEW_REQUIRED",
+            "MRONJ_SUSPECTED_OR_KNOWN",
+            alert_key="SPECIALIST_REVIEW_RECOMMENDED",
+            sources=sources,
+        )
+
     if data.procedure_is_implant is True and data.procedure_osseous_risk != "DENTOALVEOLAR_OSSEOUS_INJURY":
         return _result(
             "CONTEXT_REQUIRED",
@@ -252,14 +260,6 @@ def evaluate_mronj_procedure_safety(
             "CONTEXT_REQUIRED",
             "MRONJ_MEDICATION_CONTEXT_INCONSISTENT",
             alert_key="CONTEXT_REQUIRED",
-            sources=sources,
-        )
-
-    if data.suspected_or_known_mronj == "YES":
-        return _result(
-            "SPECIALIST_REVIEW_REQUIRED",
-            "MRONJ_SUSPECTED_OR_KNOWN",
-            alert_key="SPECIALIST_REVIEW_RECOMMENDED",
             sources=sources,
         )
 
