@@ -2,6 +2,28 @@
 
 > Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
+# Etat canonique manuel - 2026-10-01
+
+## V1.5-01 — Cabinet topology & workstation roles — CLOSED
+
+- PR topology/workstation harness: #734 — MERGED
+- merge commit #734: `a37367dcc3283ef2cb89fd79f736b387171ed89d`
+- follow-up deterministic Honoraires harness: PR #738 — MERGED
+- exact candidate head #738: `5de868634a2335bce13a306b70124a58d33f99d9`
+- final merge commit: `b7c6d25b99e1de2b5a8e937f0909ba02b040f99e`
+- T2 PR certification #5948 / run `36894203496`: **SUCCESS** end-to-end
+- PR CI #7129 / run `36894203439`: **SUCCESS**
+- post-merge master CI #7132 / run `36912825476`: **SUCCESS**
+- post-merge Cabinet Upgrade PostgreSQL #1091 / run `36912825240`: **SUCCESS**
+- deterministic Honoraires period: fixed September 2026 fixture + explicit Accounting UI period selection; no UTC/local month rollover dependency
+- WorkstationModeGate/auth: unchanged by the hardening follow-up
+- production runtime: unchanged by PR #738
+- double-check internal review: **9.7/10**
+- triple-check adversarial internal review: **9.6/10**
+- Vercel: **NOT AUTHORIZED / NOT REQUIRED**
+
+**Next exact:** open **V1.5-02 — Patient Identity & Photo**.
+
 # Etat canonique manuel - 2026-09-30
 
 ## V1.5-00 — Hub & Dispatcher — CLOSED
