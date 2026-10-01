@@ -713,6 +713,20 @@ async def api_health_check():
     return JSONResponse(status_code=200 if db_status == "ok" else 503, content=payload)
 
 
+@app.get("/api/health/topology", include_in_schema=False)
+async def api_health_topology():
+    """Diagnostic installateur non-secret du transport et des rôles topologiques."""
+    from backend.core.cabinet_topology import resolve_cabinet_network
+
+    try:
+        return {"status": "ok", **resolve_cabinet_network().diagnostics()}
+    except RuntimeError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "detail": str(exc)},
+        )
+
+
 @app.get("/api/health/db", include_in_schema=False)
 async def api_health_db():
     """Vérifie uniquement la connexion DB (SELECT 1)."""

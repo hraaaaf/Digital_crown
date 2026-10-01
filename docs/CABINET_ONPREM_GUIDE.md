@@ -82,7 +82,7 @@ terminal visible et sans droits admin :
 - Installe par utilisateur courant (`%LOCALAPPDATA%\Programs\DigitalCrown`)
 - `run.py::_first_boot_bootstrap()` génère `%APPDATA%/DigitalCrown/.env` au
   tout premier lancement (`ENVIRONMENT=cabinet`, `SECRET_KEY`,
-  `CABINET_MASTER_KEY_HEX`, `ALLOWED_ORIGINS` avec IP LAN auto-détectée) —
+  `CABINET_MASTER_KEY_HEX`, `ALLOWED_ORIGINS` loopback et `CABINET_HOST=127.0.0.1`) —
   aucun secret à générer/coller à la main
 - Enregistre une tâche planifiée au logon (pas de service SYSTEM)
 - Lance l'app et ouvre le navigateur automatiquement en fin d'installation
@@ -108,10 +108,10 @@ terminal visible) — les logs vont dans `%APPDATA%/DigitalCrown/logs/`.
 
 ### État des anciennes limites (corrigées)
 
-1. **Bind LAN** : ✅ corrigé — `run.py::_resolve_host_port()` bind sur
-   `0.0.0.0` automatiquement dès que `ENVIRONMENT=cabinet` (nécessaire pour
-   la PWA mobile / appairage QR). Restreindre l'accès au sous-réseau du
-   cabinet reste à faire via le pare-feu Windows.
+1. **Bind LAN** : fail-closed — le premier boot reste sur `127.0.0.1`. Un bind
+   LAN doit être demandé explicitement via `CABINET_HOST` et, en mode
+   `cabinet`/`production`, exige HTTPS avec certificat + clé TLS valides. La
+   PWA mobile/appairage QR consomme le même contrat réseau canonique.
 2. **`backend/.env` embarqué dans l'EXE** : ✅ non applicable — l'EXE
    n'embarque plus aucun `.env` du tout (`DigitalCrown.spec`, section
    `datas`) ; la config réelle vit exclusivement dans `%APPDATA%`, générée
@@ -168,7 +168,11 @@ DigitalCrown AppEnvironmentExtra ...`).
 | `SECRET_KEY` | généré (64 hex) | `python -c "import secrets;print(secrets.token_hex(32))"` — sert aussi aux JWT (pas de JWT_SECRET séparé dans ce codebase) |
 | `DATABASE_URL` | absent (SQLite) ou `postgresql://...` local | |
 | `CABINET_MASTER_KEY_HEX` | généré (64 hex) | Chiffre DB SQLCipher + backups |
-| `ALLOWED_ORIGINS` | `http://localhost:8005,http://<IP_LAN>:8005` | Jamais `*` |
+| `CABINET_HOST` | `127.0.0.1` par défaut ; adresse LAN ou `0.0.0.0` seulement si HTTPS configuré | Aucun bind LAN automatique |
+| `CABINET_PORT` | `8005` par défaut | Autorité unique du port backend ; `PORT` n’est pas utilisé par le contrat cabinet |
+| `DIGITALCROWN_ENABLE_HTTPS` | `false` en loopback ; `true` obligatoire pour LAN en cabinet/production | Fail-closed |
+| `DIGITALCROWN_TLS_CERT_FILE` / `DIGITALCROWN_TLS_KEY_FILE` | chemins locaux | Obligatoires quand HTTPS est activé |
+| `ALLOWED_ORIGINS` | origine(s) correspondant au transport réellement configuré | Jamais `*` |
 | `TELEMETRY_ENABLED` | `false` | Opt-in explicite uniquement |
 | `CLOUD_AI_ENABLED` | `false` | IA locale (Ollama) par défaut |
 | `SUPERADMIN_EMAIL` | email support Digital Crown | |
@@ -324,9 +328,10 @@ par le recheck manuel.
 
 ## 8. Ce qui reste à faire avant le premier pilote
 
-1. ✅ **Bind LAN** — `ENVIRONMENT=cabinet` bind sur `0.0.0.0` automatiquement
-   (`run.py`). Règle pare-feu Windows (restreindre au sous-réseau cabinet)
-   toujours à faire manuellement à l'installation.
+1. 🟡 **Bind LAN explicite** — le runtime démarre loopback-only. L’installateur
+   doit configurer explicitement `CABINET_HOST` + HTTPS/certificat pour exposer
+   le serveur au LAN, puis vérifier `/api/health/topology`. La règle pare-feu
+   Windows reste une étape d’installation à valider sur le poste pilote.
 2. ✅ **Mode `ENVIRONMENT=cabinet`** — existe et tranché : production-like
    (DEBUG interdit, pas de CORS wildcard) mais autorise SQLite/SQLCipher
    (`validate_environment_invariants()`, `backend/main.py`).
