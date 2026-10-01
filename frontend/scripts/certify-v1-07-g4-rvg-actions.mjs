@@ -11,7 +11,7 @@ const patients=await api.get('/api/patients',{headers}); const patient=(await pa
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEANmpCD8ongcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfUJxAYTIfIvQAAAAAElFTkSuQmCC','base64');
 const browser=await chromium.launch({headless:true}); const evidence=[];
 for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
- const context=await browser.newContext({viewport,acceptDownloads:true}); const page=await context.newPage();
+ const context=await browser.newContext({ storageState: workstationStorage,viewport,acceptDownloads:true}); const page=await context.newPage();
  await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod')},{a:tokens.access_token,r:tokens.refresh_token});
  const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=radiology&radioTab=rvg`,{waitUntil:'networkidle',timeout:90000});
