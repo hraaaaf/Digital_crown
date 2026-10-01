@@ -168,3 +168,50 @@ Residual: the preprocessing implementation is not yet fully enumerated from exec
 **CEPH_DETECTOR_CONTRACT_APPROVED** for the benchmark/protocol contract only.
 
 This approval freezes how detector candidates must be identified and evaluated. It does not certify SRPose38 anatomical performance, does not claim G1/G2 passed, and does not authorize model/runtime/master mutation.
+
+
+## Executable preprocessing/decoder manifest — observed baseline
+
+Evidence: direct inspection of frozen master implementation: backend/services/srpose38_pipeline.py, sota_vision_service.py, scientific_assets.json and parity tests.
+
+### Asset/runtime
+- asset: backend/ai_models/srpose38-tta-1024.onnx; size 267484931 bytes; SHA-256 a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb
+- CPUExecutionProvider only; DirectML explicitly uncertified
+- ONNX: exactly 1 input, 1 output; decoder batch contract = 1
+
+### Image decode and geometry
+- cv2.imread(..., cv2.IMREAD_COLOR) → BGR H×W×3; unreadable image = hard error
+- input 1024×1024; full-image center = [W/2,H/2]; scale = [W,H]×1.25; aspect forced 1:1
+- affine rotation 0, shift 0; cv2.getAffineTransform + cv2.warpAffine INTER_LINEAR
+- certified 1935×2400 fixture: center [967.5,1200], scale [3000,3000], mapped center [512,512]
+- UNFROZEN: resolved OpenCV version must be recorded by benchmark environment
+
+### Color/tensor
+- BGR→RGB; float32
+- mean [121.25,121.25,121.25]; std [76.5,76.5,76.5]
+- (RGB-mean)/std; HWC→CHW; batch dimension; contiguous NCHW float32
+
+### TTA
+Runtime applies no second horizontal flip. The certified ONNX is documented as embedding horizontal-flip TTA. A runtime flip would define a new candidate.
+
+### Heatmap/decoder
+- expected 38×1024×1024 after optional single batch removal; wrong shape or non-finite heatmaps = hard error
+- initial coordinate = channel argmax; score = channel maximum; non-positive maximum marks initial [-1,-1]
+- DarkPose: float32 copy; 11×11 Gaussian blur preserving nonzero maximum; clamp ≥1e-10; log; derivative/Hessian subpixel refinement for valid interior point and nonzero determinant
+- no validated clinical confidence threshold exists in this decoder
+
+### Inverse mapping
+original = keypoint / input_size * scale + center - 0.5 * scale
+
+Final output must be exactly 38×2 finite coordinates; IDs are assigned by frozen index 0..37.
+
+### Observed fail-closed boundaries
+Absent asset → unavailable/no prediction; wrong size/hash → disabled; unreadable image → error; invalid batch/heatmap shape/non-finite heatmaps → error; invalid final count/non-finite points → error. Persisted automatic evidence separately requires the exact set of 38 operational IDs.
+
+### Newly identified benchmark obligations
+1. Freeze resolved OpenCV, NumPy and ONNX Runtime versions in every benchmark manifest.
+2. Record loaded ONNX input/output names, dtypes and tensor shapes.
+3. Report out-of-image finite coordinates explicitly: the current decoder checks finiteness but does not itself reject every finite coordinate outside the source image.
+4. Treat heatmap maxima as model scores, not calibrated probabilities; do not invent a clinical threshold.
+5. Record interpolation/library/provider as candidate identity.
+6. Hash preprocessing/decoder source or immutable commit in the manifest.
