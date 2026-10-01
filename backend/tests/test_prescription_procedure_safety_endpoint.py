@@ -305,3 +305,91 @@ def test_background_endpoint_does_not_diagnose_known_or_suspected_mronj(
         "alert_key": "SPECIALIST_REVIEW_RECOMMENDED",
         "read_only": True,
     }
+
+
+
+def test_generic_alert_endpoint_is_silent_without_hidden_procedure_context(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id, "ALERT-NONE")
+    _context(db, patient.id, dentiste.id, dentiste.id)
+
+    response = client.get(
+        f"/api/prescriptions/clinical-rules/procedure-safety/alert/{patient.id}",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "status": "READY",
+        "alert_key": None,
+        "read_only": True,
+    }
+
+
+def test_generic_alert_endpoint_uses_hidden_context_but_exposes_only_generic_specialist_alert(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id, "ALERT-MRONJ")
+    _context(
+        db,
+        patient.id,
+        dentiste.id,
+        dentiste.id,
+        procedure_date=datetime(2026, 10, 1).date(),
+        procedure_bleeding_risk="HIGHER_POSTOP_BLEEDING_RISK",
+        procedure_osseous_risk="DENTOALVEOLAR_OSSEOUS_INJURY",
+        procedure_is_implant=True,
+        ie_procedure_qualifies=False,
+        mronj_medication_status="PRESENT",
+        mronj_agents=["Zoledronate"],
+        mronj_agent_class="BISPHOSPHONATE",
+        mronj_indication="MALIGNANCY",
+        mronj_route="PARENTERAL",
+        mronj_concurrent_risk_therapy=["CHEMOTHERAPY"],
+    )
+
+    response = client.get(
+        f"/api/prescriptions/clinical-rules/procedure-safety/alert/{patient.id}",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data == {
+        "status": "SPECIALIST_REVIEW_REQUIRED",
+        "alert_key": "SPECIALIST_REVIEW_RECOMMENDED",
+        "read_only": True,
+    }
+    rendered = str(data).lower()
+    for prohibited in (
+        "mronj",
+        "zoledronate",
+        "bisphosphonate",
+        "chemotherapy",
+        "ctx",
+        "source",
+        "blocker",
+    ):
+        assert prohibited not in rendered
+
+
+def test_generic_alert_endpoint_enforces_patient_tenant_isolation(
+    client, db, dentiste, auth_headers
+):
+    other = models.User(
+        email="n43b-alert-other@cabinet.ma",
+        hashed_password="not-used",
+        role="DENTISTE",
+        nom_complet="Dr Other Alert",
+        is_active=True,
+        is_licensed=True,
+    )
+    db.add(other)
+    db.commit()
+    db.refresh(other)
+    foreign_patient = _patient(db, other.id, "ALERT-FOREIGN")
+
+    response = client.get(
+        f"/api/prescriptions/clinical-rules/procedure-safety/alert/{foreign_patient.id}",
+        headers=auth_headers,
+    )
+    assert response.status_code in {403, 404}
