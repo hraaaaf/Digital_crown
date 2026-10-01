@@ -34,6 +34,15 @@ def _hidden_context_payload():
         "warfarin_inr_checked_at": None,
         "warfarin_inr_current": None,
         "lmwh_dose_class": "UNKNOWN",
+        "mronj_medication_status": "PRESENT",
+        "mronj_agents": ["Denosumab"],
+        "mronj_agent_class": "DENOSUMAB",
+        "mronj_indication": "OSTEOPOROSIS_NONMALIGNANT",
+        "mronj_route": "PARENTERAL",
+        "mronj_duration_months": 24,
+        "mronj_concurrent_risk_therapy": [],
+        "active_oral_infection_or_inflammation": "NO",
+        "suspected_or_known_mronj": "NO",
     }
 
 
@@ -46,6 +55,10 @@ def test_n43b_antithrombotic_context_defaults_fail_closed():
     assert payload.warfarin_inr is None
     assert payload.warfarin_inr_current is None
     assert payload.lmwh_dose_class == "UNKNOWN"
+    assert payload.mronj_medication_status == "UNKNOWN"
+    assert payload.mronj_agent_class == "UNKNOWN"
+    assert payload.mronj_indication == "UNKNOWN"
+    assert payload.suspected_or_known_mronj == "UNKNOWN"
 
 
 def test_practitioner_context_api_rejects_hidden_n43b_fields(
@@ -84,6 +97,9 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
     assert data["anticoagulants"] == ["Rivaroxaban"]
     assert data["antithrombotic_classes"] == ["DOAC"]
     assert data["antithrombotic_combination_status"] == "NO"
+    assert data["mronj_medication_status"] == "PRESENT"
+    assert data["mronj_agents"] == ["Denosumab"]
+    assert data["mronj_indication"] == "OSTEOPOROSIS_NONMALIGNANT"
 
     partial = client.put(
         f"/api/patients/{patient.id}/clinical-context",
@@ -103,6 +119,8 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
     assert hidden["anticoagulant_status"] == "PRESENT"
     assert hidden["anticoagulants"] == ["Rivaroxaban"]
     assert hidden["antithrombotic_classes"] == ["DOAC"]
+    assert hidden["mronj_medication_status"] == "PRESENT"
+    assert hidden["mronj_agents"] == ["Denosumab"]
 
 
 def test_n43b_context_rejects_implicit_or_inconsistent_antithrombotic_facts():
@@ -127,4 +145,44 @@ def test_n43b_context_rejects_implicit_or_inconsistent_antithrombotic_facts():
             antithrombotic_classes=["LMWH"],
             lmwh_dose_class="TREATMENT",
             antithrombotic_combination_status="YES",
+        )
+
+
+
+def test_practitioner_context_api_rejects_hidden_mronj_fields(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id)
+    response = client.put(
+        f"/api/patients/{patient.id}/clinical-context",
+        headers=auth_headers,
+        json={
+            "mronj_medication_status": "PRESENT",
+            "mronj_agents": ["Denosumab"],
+            "mronj_indication": "OSTEOPOROSIS_NONMALIGNANT",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_n43b_context_rejects_inconsistent_mronj_facts():
+    with pytest.raises(ValidationError):
+        PatientProcedureSafetyContextUpdate(
+            mronj_medication_status="NONE_REPORTED",
+            mronj_agents=["Denosumab"],
+        )
+
+    with pytest.raises(ValidationError):
+        PatientProcedureSafetyContextUpdate(
+            mronj_medication_status="PRESENT",
+            mronj_agents=["Denosumab"],
+            mronj_agent_class="DENOSUMAB",
+            mronj_indication="OSTEOPOROSIS_NONMALIGNANT",
+            mronj_duration_months=-1,
+        )
+
+    with pytest.raises(ValidationError):
+        PatientProcedureSafetyContextUpdate(
+            mronj_medication_status="NONE_REPORTED",
+            mronj_agent_class="DENOSUMAB",
         )
