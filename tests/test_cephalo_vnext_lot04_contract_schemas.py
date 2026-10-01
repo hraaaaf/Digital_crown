@@ -34,7 +34,7 @@ def valid_manifest():
         "preprocessing": {"input_size":[1024,1024],"bbox_padding":1.25,"interpolation":"cv2.INTER_LINEAR","color_conversion":"BGR_TO_RGB","mean":[121.25,121.25,121.25],"std":[76.5,76.5,76.5],"tta_embedded_in_onnx":True,"darkpose_blur_kernel":11},
         "dataset": {"manifest_frozen_before_scoring":True,"cases":[{"case_id":"G0-fixture","sha256":"0"*64,"layer":"G0","calibration_provenance":None}],"development_case_ids":["G0-fixture"],"acceptance_case_ids":[]},
         "metrics": {"per_landmark_mm":True,"directional_xy":True,"robust_percentiles":True,"failure_rate":True,"sdr_secondary":True,"clinical_propagation":["SNA","SNB","ANB","FMA","IMPA","FMIA","SN-GoGn","Co-A","Co-Gn"]},
-        "acceptance_policy": {"preregistered":True,"universal_2mm_gate":False,"human_reference_uncertainty_required":True,"landmark_specific":True,"aggregate_regression_masking_forbidden":True},
+        "acceptance_policy": {"preregistered":True,"universal_2mm_gate":False,"human_reference_uncertainty_required":True,"landmark_specific":True,"aggregate_regression_masking_forbidden":True,"tolerance_version":"PRE_REGISTERED_V1","landmark_tolerances":[{"landmark_id":"S","max_median_mm":1.0,"max_p95_mm":2.0,"max_failure_rate":0.01}],"clinical_tolerances":[{"measurement_id":"SNA","max_absolute_error":1.0,"unit":"deg"}]},
     }
 
 
