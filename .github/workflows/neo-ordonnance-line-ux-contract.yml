@@ -1,0 +1,32 @@
+name: Neo Ordonnance Line UX Contract
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-search-intelligence
+    paths:
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
+      - '.github/workflows/neo-ordonnance-line-ux-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  line-ux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Run line customization contract tests
+        run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx
