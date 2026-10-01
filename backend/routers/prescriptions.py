@@ -304,11 +304,7 @@ def read_procedure_safety_alert(
         procedure_bleeding_risk=getattr(context, "procedure_bleeding_risk", "UNKNOWN"),
         procedure_osseous_risk=getattr(context, "procedure_osseous_risk", "UNKNOWN"),
         procedure_is_implant=getattr(context, "procedure_is_implant", None),
-        ie_procedure_qualifies=(
-            getattr(context, "ie_procedure_qualifies", None)
-            if presentation_id
-            else False
-        ),
+        ie_procedure_qualifies=getattr(context, "ie_procedure_qualifies", None),
         oral_route_possible=getattr(context, "oral_route_possible", None),
         currently_taking_penicillin_or_amoxicillin=getattr(
             context, "currently_taking_penicillin_or_amoxicillin", None
