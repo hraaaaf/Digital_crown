@@ -131,6 +131,36 @@ describe('PatientClinicalContextPanel C2', () => {
     expect(screen.queryByRole('button', { name: /Enregistrer le contexte/i })).not.toBeInTheDocument();
   });
 
+  it('garde les faits N4.3B antithrombotiques invisibles et hors du payload praticien', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        ...emptyContext,
+        anticoagulant_status: 'PRESENT',
+        anticoagulants: ['Rivaroxaban'],
+        antiplatelet_status: 'NONE_REPORTED',
+        antiplatelets: null,
+        antithrombotic_classes: ['DOAC'],
+        antithrombotic_combination_status: 'NO',
+      },
+    } as any);
+
+    render(<PatientClinicalContextPanel patientId={42} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Renseigner/i }));
+
+    expect(screen.queryByText(/Rivaroxaban/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/anticoagul/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/antiagr/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer le contexte/i }));
+    await waitFor(() => expect(api.put).toHaveBeenCalled());
+    const [, payload] = vi.mocked(api.put).mock.calls[0];
+    expect(payload).not.toHaveProperty('anticoagulant_status');
+    expect(payload).not.toHaveProperty('anticoagulants');
+    expect(payload).not.toHaveProperty('antiplatelet_status');
+    expect(payload).not.toHaveProperty('antiplatelets');
+    expect(payload).not.toHaveProperty('antithrombotic_classes');
+  });
+
   it('ne persiste pas une note d organe après retour à un statut non atteint', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
