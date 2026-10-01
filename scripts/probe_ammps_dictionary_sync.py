@@ -95,8 +95,8 @@ def _next_page_url(soup: BeautifulSoup, current_url: str) -> str | None:
 def parse_page(html: str, source_url: str) -> tuple[list[dict], dict]:
     soup = BeautifulSoup(html, "html.parser")
     body_text = norm(soup.get_text(" ", strip=True))
-    total_m = re.search(r"(\\d[\\d\\s]*)\\s+médicament\\(s\\) trouvé\\(s\\)", body_text, flags=re.I)
-    updated_m = re.search(r"Base de données mise à jour le\\s+(\\d{2}/\\d{2}/\\d{4})", body_text, flags=re.I)
+    total_m = re.search(r"(\d[\d\s]*)\s+médicament\(s\) trouvé\(s\)", body_text, flags=re.I)
+    updated_m = re.search(r"Base de données mise à jour le\s+(\d{2}/\d{2}/\d{4})", body_text, flags=re.I)
 
     rows: list[dict] = []
     seen: set[str] = set()
@@ -156,7 +156,7 @@ def parse_page(html: str, source_url: str) -> tuple[list[dict], dict]:
             rows.append(row)
 
     return rows, {
-        "reported_total": int(re.sub(r"\\s+", "", total_m.group(1))) if total_m else None,
+        "reported_total": int(re.sub(r"\s+", "", total_m.group(1))) if total_m else None,
         "updated_at": updated_m.group(1) if updated_m else None,
         "card_count": len(soup.select(".medicament-card")),
         "next_page_url": _next_page_url(soup, source_url),
