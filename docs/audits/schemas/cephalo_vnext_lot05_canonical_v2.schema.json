@@ -221,7 +221,8 @@
         "migration_version",
         "source_schema",
         "source_sha256",
-        "compatibility_class"
+        "compatibility_class",
+        "migrated_at"
       ],
       "properties": {
         "migration_version": {
@@ -247,6 +248,10 @@
             "object",
             "null"
           ]
+        },
+        "migrated_at": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     }
