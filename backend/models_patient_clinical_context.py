@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
 
 from backend.models_base import Base
 
@@ -47,6 +47,7 @@ class PatientClinicalContext(Base):
     antithrombotic_combination_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     warfarin_inr = Column(Float, nullable=True)
     warfarin_inr_checked_at = Column(DateTime, nullable=True)
+    warfarin_inr_current = Column(Boolean, nullable=True)
     lmwh_dose_class = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
 
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
