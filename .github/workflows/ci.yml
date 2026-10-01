@@ -136,19 +136,24 @@ jobs:
                 frontend/scripts/certify-ordonnance-composer.mjs|\
                 frontend/ordonnance-composer-fixture.html|\
                 backend/models.py|\
+                backend/models_patient_clinical_context.py|\
                 backend/services/prescription_service.py|\
                 backend/services/prescription_procedure_safety.py|\
                 backend/routers/prescriptions.py|\
                 backend/routers/prescriptions_core.py|\
+                backend/routers/patient_clinical_context.py|\
                 backend/schemas/prescription_clinical_rules.py|\
+                backend/schemas/patient_clinical_context.py|\
                 backend/routers/medications.py|\
                 backend/core/schema_runtime.py|\
                 backend/tests/test_neo_ordonnance_reusables.py|\
                 backend/tests/test_prescription_procedure_safety.py|\
                 backend/tests/test_prescription_procedure_safety_endpoint.py|\
+                backend/tests/test_patient_clinical_context_n43b.py|\
                 backend/tests/test_cust04_prescription_presets.py|\
                 alembic/versions/neo000000023_add_neo_rx_context_fields.py|\
                 alembic/versions/neo000000024_extend_reusable_prescription_preferences.py|\
+                alembic/versions/neo000000025_add_procedure_safety_context.py|\
                 docs/neo-ordonnance/*|\
                 .github/workflows/ordonnance-composer-visual-cert.yml|\
                 .github/workflows/agenda-a5-visual-evidence.yml|\
