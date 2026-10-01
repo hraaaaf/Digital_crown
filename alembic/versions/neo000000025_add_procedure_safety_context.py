@@ -36,9 +36,45 @@ def upgrade():
         "patient_clinical_contexts",
         sa.Column("lmwh_dose_class", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
     )
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("mronj_medication_status", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
+    )
+    op.add_column("patient_clinical_contexts", sa.Column("mronj_agents", sa.JSON(), nullable=True))
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("mronj_agent_class", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
+    )
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("mronj_indication", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
+    )
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("mronj_route", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
+    )
+    op.add_column("patient_clinical_contexts", sa.Column("mronj_duration_months", sa.Integer(), nullable=True))
+    op.add_column("patient_clinical_contexts", sa.Column("mronj_concurrent_risk_therapy", sa.JSON(), nullable=True))
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("active_oral_infection_or_inflammation", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
+    )
+    op.add_column(
+        "patient_clinical_contexts",
+        sa.Column("suspected_or_known_mronj", sa.String(length=32), nullable=False, server_default="UNKNOWN"),
+    )
 
 
 def downgrade():
+    op.drop_column("patient_clinical_contexts", "suspected_or_known_mronj")
+    op.drop_column("patient_clinical_contexts", "active_oral_infection_or_inflammation")
+    op.drop_column("patient_clinical_contexts", "mronj_concurrent_risk_therapy")
+    op.drop_column("patient_clinical_contexts", "mronj_duration_months")
+    op.drop_column("patient_clinical_contexts", "mronj_route")
+    op.drop_column("patient_clinical_contexts", "mronj_indication")
+    op.drop_column("patient_clinical_contexts", "mronj_agent_class")
+    op.drop_column("patient_clinical_contexts", "mronj_agents")
+    op.drop_column("patient_clinical_contexts", "mronj_medication_status")
     op.drop_column("patient_clinical_contexts", "lmwh_dose_class")
     op.drop_column("patient_clinical_contexts", "warfarin_inr_current")
     op.drop_column("patient_clinical_contexts", "warfarin_inr_checked_at")
