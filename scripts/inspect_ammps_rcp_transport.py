@@ -99,22 +99,48 @@ def main() -> int:
     ap.add_argument("--query", default="AMOXICILLINE")
     ap.add_argument("--presentation-id", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--max-pages", type=int, default=50)
     args = ap.parse_args()
 
-    r = requests.get(
-        SEARCH_URL,
-        params={"search": args.query},
-        timeout=30,
-        headers={"User-Agent": "DigitalCrown-AMMPS-D4-Inspector/1.0"},
-    )
-    r.raise_for_status()
-    result = inspect(r.text, r.url, args.presentation_id)
+    session = requests.Session()
+    headers = {"User-Agent": "DigitalCrown-AMMPS-D4-Inspector/1.0"}
+    result = None
+    pages_checked = 0
+    for page in range(1, args.max_pages + 1):
+        r = session.get(
+            SEARCH_URL,
+            params={"search": args.query, "page": page},
+            timeout=30,
+            headers=headers,
+        )
+        r.raise_for_status()
+        pages_checked += 1
+        candidate = inspect(r.text, r.url, args.presentation_id)
+        if candidate["matched"]:
+            result = candidate
+            break
+
+        soup = BeautifulSoup(r.text, "html.parser")
+        if not soup.select(".medicament-card"):
+            break
+
+    if result is None:
+        result = {
+            "source_url": SEARCH_URL,
+            "presentation_id": args.presentation_id,
+            "matched": False,
+            "controls": [],
+            "scripts": [],
+        }
+
+    result["pages_checked"] = pages_checked
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
         "matched": result["matched"],
         "control_count": len(result["controls"]),
         "script_hits": len(result["scripts"]),
+        "pages_checked": pages_checked,
         "source_url": result["source_url"],
     }, ensure_ascii=False, indent=2))
     return 0 if result["matched"] and result["controls"] else 2
