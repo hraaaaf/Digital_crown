@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import type { DrugItem } from './prescriptionTypes';
@@ -17,12 +17,11 @@ vi.mock('../../../../services/api', () => ({
 }));
 
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
-import { dispatchProcedureSafetyEvaluation } from './ProcedureSafetyNotice';
 
 describe('PrescriptionAgenticStudio practitioner copy', () => {
-  it('reste silencieux sans contexte procédural et n affiche qu une alerte générique après signal structuré', async () => {
+  it('affiche uniquement l alerte générique fournie par le backend caché', async () => {
     const { api } = await import('../../../../services/api');
-    vi.mocked(api.post).mockResolvedValueOnce({
+    vi.mocked(api.get).mockResolvedValueOnce({
       data: {
         status: 'SPECIALIST_REVIEW_REQUIRED',
         alert_key: 'SPECIALIST_REVIEW_RECOMMENDED',
@@ -43,18 +42,6 @@ describe('PrescriptionAgenticStudio practitioner copy', () => {
         validationErrors={[]}
       />,
     );
-
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-
-    act(() => {
-      dispatchProcedureSafetyEvaluation({
-        patientId: 42,
-        procedureDate: '2026-10-01',
-        procedureBleedingRisk: 'HIGHER_POSTOP_BLEEDING_RISK',
-        procedureOsseousRisk: 'DENTOALVEOLAR_OSSEOUS_INJURY',
-        procedureIsImplant: true,
-      });
-    });
 
     expect(await screen.findByText('Avis spécialisé recommandé.')).toBeInTheDocument();
     expect(screen.queryByText(/MRONJ|endocard|anticoag|CTX|drug holiday|bisphosph|denosumab/i)).not.toBeInTheDocument();
