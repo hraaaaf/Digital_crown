@@ -160,7 +160,7 @@ export function PrescriptionQuickAccessBar({
     setLoading(true);
     const timer = window.setTimeout(async () => {
       try {
-        const response = await api.get('/medications/search', { params: { q: value } });
+        const response = await api.get('/medications/neo/search', { params: { q: value } });
         if (!cancelled) setCatalog(Array.isArray(response.data) ? response.data.slice(0, 6) : []);
       } catch {
         if (!cancelled) setCatalog([]);
