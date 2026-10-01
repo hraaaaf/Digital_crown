@@ -1,0 +1,49 @@
+import copy
+import pytest
+from scripts.validate_cephalo_vnext_lot05_migration import Lot05MigrationError, migrate_v1_to_v2, roundtrip_v2_to_v1
+
+def v1():
+    return {"schema_version":"CEPHALO_EVIDENCE_V1","case_id":"case:1","revision":3,
+      "sources":[{"evidence_id":"source:image","kind":"lateral_ceph"},{"evidence_id":"cal:1","kind":"calibration","ratio":0.1}],
+      "landmarks":[
+        {"evidence_id":"lm:auto:A","landmark_id":"A","x":10.0,"y":20.0,"origin":"SRPOSE38_AUTO"},
+        {"evidence_id":"lm:auto:B","landmark_id":"B","x":30.0,"y":40.0,"origin":"SRPOSE38_AUTO"},
+        {"evidence_id":"lm:r3:A","landmark_id":"A","x":11.0,"y":21.0,"origin":"MANUAL_CORRECTED","original_auto_x":10.0,"original_auto_y":20.0,"validated_by":"99","validated_at":"2026-09-10T15:35:00+00:00"}],
+      "current_landmark_refs":["lm:r3:A"],
+      "measurements":[{"measurement_id":"SNA","value":81.0}],
+      "calibration_status":"clinician_confirmed","unknown_legacy":{"keep":True}}
+
+def test_lossless_roundtrip_preserves_v1_exactly():
+    source=v1(); v2=migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+    assert roundtrip_v2_to_v1(v2)==source
+
+def test_current_refs_and_correction_lineage_preserved():
+    source=v1(); v2=migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+    assert v2["current_landmark_refs"]==["lm:r3:A"]
+    restored=roundtrip_v2_to_v1(v2)
+    corrected=next(x for x in restored["landmarks"] if x["evidence_id"]=="lm:r3:A")
+    assert corrected["origin"]=="MANUAL_CORRECTED"
+    assert corrected["original_auto_x"]==10.0 and corrected["validated_by"]=="99"
+    assert "lm:auto:B" not in restored["current_landmark_refs"]
+
+def test_calibration_and_measurements_are_not_recomputed():
+    source=v1(); v2=migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+    assert v2["coordinate_space"]["calibration_ref"]=="cal:1"
+    restored=roundtrip_v2_to_v1(v2)
+    assert restored["measurements"]==source["measurements"]
+    assert restored["calibration_status"]=="clinician_confirmed"
+
+def test_unknown_legacy_data_is_losslessly_preserved():
+    source=v1(); restored=roundtrip_v2_to_v1(migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400))
+    assert restored["unknown_legacy"]=={"keep":True}
+
+def test_missing_or_unknown_current_refs_fail_closed():
+    source=v1(); source.pop("current_landmark_refs")
+    with pytest.raises(Lot05MigrationError): migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+    source=v1(); source["current_landmark_refs"]=["does:not:exist"]
+    with pytest.raises(Lot05MigrationError): migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+
+def test_roundtrip_detects_tampering():
+    v2=migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400)
+    v2["migration"]["opaque_legacy_payload"]["revision"]=999
+    with pytest.raises(Lot05MigrationError): roundtrip_v2_to_v1(v2)
