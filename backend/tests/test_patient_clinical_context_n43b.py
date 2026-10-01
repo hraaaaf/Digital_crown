@@ -85,6 +85,8 @@ def test_n43b_hidden_context_roundtrip_and_partial_update_preserves_it(
     assert visible_before.status_code == 200, visible_before.text
     assert "anticoagulant_status" not in visible_before.json()
     assert "antithrombotic_classes" not in visible_before.json()
+    assert "mronj_medication_status" not in visible_before.json()
+    assert "mronj_indication" not in visible_before.json()
 
     saved = client.put(
         f"/api/patients/{patient.id}/procedure-safety-context",
