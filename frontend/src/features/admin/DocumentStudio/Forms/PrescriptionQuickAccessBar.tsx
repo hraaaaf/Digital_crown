@@ -115,7 +115,7 @@ export function PrescriptionQuickAccessBar({
   drugs: DrugItem[];
   setDrugs: (drugs: DrugItem[]) => void;
   prescriptionIndication: string;
-  onPrescriptionIndicationChange: (value: string) => void;
+  onPrescriptionIndicationChange?: (value: string) => void;
 }) {
   const [section, setSection] = React.useState<QuickSection>('FAVORITES');
   const [query, setQuery] = React.useState('');
@@ -192,7 +192,7 @@ export function PrescriptionQuickAccessBar({
   const applyReusable = async (row: ReusablePrescription) => {
     setDrugs(hydrateReusable(row.drugs || [], drugs));
     if (row.kind === 'SAVED_PRESCRIPTION' && row.indication) {
-      onPrescriptionIndicationChange(row.indication);
+      onPrescriptionIndicationChange?.(row.indication);
     }
     setAppliedReusable(row);
     setQuery('');
