@@ -1,0 +1,91 @@
+name: AMMPS Dictionary Incremental Merge
+
+on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-incremental-merge
+    paths:
+      - 'scripts/probe_ammps_dictionary_sync.py'
+      - 'scripts/test_probe_ammps_dictionary_sync.py'
+      - 'scripts/merge_ammps_dictionary_incremental.py'
+      - 'scripts/test_merge_ammps_dictionary_incremental.py'
+      - 'backend/data/medications_ma_ammps_current_2026.json'
+      - '.github/workflows/ammps-dictionary-incremental-merge.yml'
+  workflow_dispatch:
+
+jobs:
+  d2-merge-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact HEAD
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.12.3
+
+      - name: Run deterministic parser tests
+        run: python scripts/test_probe_ammps_dictionary_sync.py
+
+      - name: Run deterministic merge tests
+        run: python scripts/test_merge_ammps_dictionary_incremental.py
+
+      - name: Acquire representative live AMMPS reports
+        run: |
+          mkdir -p artifacts/ammps-dictionary-d2/reports
+          python scripts/probe_ammps_dictionary_sync.py --query DOLIPRANE --out artifacts/ammps-dictionary-d2/reports/doliprane.json
+          python scripts/probe_ammps_dictionary_sync.py --query AMOXICILLINE --out artifacts/ammps-dictionary-d2/reports/amoxicilline.json
+          python scripts/probe_ammps_dictionary_sync.py --query IBUPROFENE --out artifacts/ammps-dictionary-d2/reports/ibuprofene.json
+          python scripts/probe_ammps_dictionary_sync.py --query CLAMOXYL --out artifacts/ammps-dictionary-d2/reports/clamoxyl.json
+
+      - name: Build incremental candidate and diff
+        run: |
+          python scripts/merge_ammps_dictionary_incremental.py \
+            --existing backend/data/medications_ma_ammps_current_2026.json \
+            --report artifacts/ammps-dictionary-d2/reports/doliprane.json \
+            --report artifacts/ammps-dictionary-d2/reports/amoxicilline.json \
+            --report artifacts/ammps-dictionary-d2/reports/ibuprofene.json \
+            --report artifacts/ammps-dictionary-d2/reports/clamoxyl.json \
+            --out artifacts/ammps-dictionary-d2/medications_ma_ammps_current_2026.candidate.json \
+            --diff artifacts/ammps-dictionary-d2/diff-first.json
+
+      - name: Prove second-pass idempotence
+        run: |
+          python scripts/merge_ammps_dictionary_incremental.py \
+            --existing artifacts/ammps-dictionary-d2/medications_ma_ammps_current_2026.candidate.json \
+            --report artifacts/ammps-dictionary-d2/reports/doliprane.json \
+            --report artifacts/ammps-dictionary-d2/reports/amoxicilline.json \
+            --report artifacts/ammps-dictionary-d2/reports/ibuprofene.json \
+            --report artifacts/ammps-dictionary-d2/reports/clamoxyl.json \
+            --out artifacts/ammps-dictionary-d2/medications_ma_ammps_current_2026.second-pass.json \
+            --diff artifacts/ammps-dictionary-d2/diff-second.json
+          cmp \
+            artifacts/ammps-dictionary-d2/medications_ma_ammps_current_2026.candidate.json \
+            artifacts/ammps-dictionary-d2/medications_ma_ammps_current_2026.second-pass.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("artifacts/ammps-dictionary-d2")
+          first = json.loads((root / "diff-first.json").read_text(encoding="utf-8"))
+          second = json.loads((root / "diff-second.json").read_text(encoding="utf-8"))
+          assert first["deleted_count"] == 0
+          assert second["added_count"] == 0
+          assert second["updated_count"] == 0
+          assert second["deleted_count"] == 0
+          assert first["final_count"] >= first["existing_count"]
+          print({"first": first, "second": second})
+          PY
+
+      - name: Upload D2 proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ammps-dictionary-d2-proof
+          path: artifacts/ammps-dictionary-d2
+          if-no-files-found: warn
+          retention-days: 14
