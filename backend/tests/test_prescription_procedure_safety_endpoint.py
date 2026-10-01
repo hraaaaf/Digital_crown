@@ -30,6 +30,15 @@ def _context(db, patient_id: int, employer_id: int, user_id: int, **overrides):
         warfarin_inr=None,
         warfarin_inr_current=None,
         lmwh_dose_class="UNKNOWN",
+        mronj_medication_status="NONE_REPORTED",
+        mronj_agents=None,
+        mronj_agent_class="UNKNOWN",
+        mronj_indication="UNKNOWN",
+        mronj_route="UNKNOWN",
+        mronj_duration_months=None,
+        mronj_concurrent_risk_therapy=None,
+        active_oral_infection_or_inflammation="NO",
+        suspected_or_known_mronj="NO",
     )
     values.update(overrides)
     context = PatientClinicalContext(
@@ -55,6 +64,8 @@ def _payload(patient_id: int, **overrides):
         "patient_id": patient_id,
         "procedure_date": "2026-10-01",
         "procedure_bleeding_risk": "LOW_POSTOP_BLEEDING_RISK",
+        "procedure_osseous_risk": "NO_OSSEOUS_INJURY",
+        "procedure_is_implant": False,
         "ie_procedure_qualifies": False,
         "oral_route_possible": None,
         "currently_taking_penicillin_or_amoxicillin": None,
@@ -197,3 +208,100 @@ def test_background_endpoint_enforces_patient_tenant_isolation(
         json=_payload(foreign_patient.id),
     )
     assert response.status_code in {403, 404}
+
+
+
+def test_background_endpoint_surfaces_only_generic_nonmalignant_mronj_review(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id, "MRONJ-OSTEO")
+    _context(
+        db,
+        patient.id,
+        dentiste.id,
+        dentiste.id,
+        mronj_medication_status="PRESENT",
+        mronj_agents=["Denosumab"],
+        mronj_agent_class="DENOSUMAB",
+        mronj_indication="OSTEOPOROSIS_NONMALIGNANT",
+        mronj_route="PARENTERAL",
+        mronj_duration_months=24,
+    )
+
+    response = client.post(
+        "/api/prescriptions/clinical-rules/procedure-safety/evaluate",
+        headers=auth_headers,
+        json=_payload(
+            patient.id,
+            procedure_osseous_risk="DENTOALVEOLAR_OSSEOUS_INJURY",
+        ),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "status": "CLINICAL_REVIEW_REQUIRED",
+        "alert_key": "CLINICAL_REVIEW_RECOMMENDED",
+        "read_only": True,
+    }
+
+
+def test_background_endpoint_surfaces_only_generic_malignancy_implant_specialist_review(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id, "MRONJ-CANCER")
+    _context(
+        db,
+        patient.id,
+        dentiste.id,
+        dentiste.id,
+        mronj_medication_status="PRESENT",
+        mronj_agents=["Zoledronate"],
+        mronj_agent_class="BISPHOSPHONATE",
+        mronj_indication="MALIGNANCY",
+        mronj_route="PARENTERAL",
+        mronj_concurrent_risk_therapy=["CHEMOTHERAPY"],
+    )
+
+    response = client.post(
+        "/api/prescriptions/clinical-rules/procedure-safety/evaluate",
+        headers=auth_headers,
+        json=_payload(
+            patient.id,
+            procedure_osseous_risk="DENTOALVEOLAR_OSSEOUS_INJURY",
+            procedure_is_implant=True,
+        ),
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data == {
+        "status": "SPECIALIST_REVIEW_REQUIRED",
+        "alert_key": "SPECIALIST_REVIEW_RECOMMENDED",
+        "read_only": True,
+    }
+    rendered = str(data).lower()
+    for prohibited in ("mronj", "ctx", "drug holiday", "bisphosphonate", "denosumab"):
+        assert prohibited not in rendered
+
+
+def test_background_endpoint_does_not_diagnose_known_or_suspected_mronj(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste.id, "MRONJ-SUSPECT")
+    _context(
+        db,
+        patient.id,
+        dentiste.id,
+        dentiste.id,
+        suspected_or_known_mronj="YES",
+    )
+
+    response = client.post(
+        "/api/prescriptions/clinical-rules/procedure-safety/evaluate",
+        headers=auth_headers,
+        json=_payload(patient.id),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "status": "SPECIALIST_REVIEW_REQUIRED",
+        "alert_key": "SPECIALIST_REVIEW_RECOMMENDED",
+        "read_only": True,
+    }
