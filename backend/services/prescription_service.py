@@ -82,6 +82,12 @@ class PrescriptionService(LegacyPrescriptionService):
                 "type": d.get("type", "MEDICAMENT"),
                 "quantite": d.get("quantite"),
                 "non_substituable": bool(d.get("non_substituable", False)),
+                "catalogPresentationId": d.get("catalogPresentationId"),
+                "catalogDci": d.get("catalogDci"),
+                "catalogSourceId": d.get("catalogSourceId"),
+                "catalogSourceLabel": d.get("catalogSourceLabel"),
+                "catalogSnapshotDate": d.get("catalogSnapshotDate"),
+                "catalogMarketingStatusVerified": d.get("catalogMarketingStatusVerified"),
             }
             for d in drugs
         ]
