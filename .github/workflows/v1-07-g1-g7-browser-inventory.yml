@@ -18,7 +18,6 @@ on:
       - "scripts/t2_runtime_server.py"
       - "requirements.txt"
       - "frontend/package*.json"
-      - ".github/workflows/v1-07-g1-g7-browser-inventory.yml"
   workflow_dispatch:
 concurrency:
   group: v1-07-g1-g7-browser-inventory-${{ github.ref }}
