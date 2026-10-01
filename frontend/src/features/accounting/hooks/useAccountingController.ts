@@ -13,6 +13,9 @@ export const useAccountingController = () => {
   const [exportingCsv, setExportingCsv] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<Record<string, string>>({});
+  const setPaymentMethod = (id: string | number, method: string) => {
+    setPaymentMethods(prev => ({ ...prev, [String(id)]: method }));
+  };
   const [overdueData, setOverdueData] = useState<any>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: 'title' | 'amount' } | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
@@ -344,7 +347,7 @@ export const useAccountingController = () => {
     exportingCsv,
     sendingEmail,
     paymentMethods,
-    setPaymentMethods,
+    setPaymentMethod,
     overdueData,
     editingCell,
     editingValue,
