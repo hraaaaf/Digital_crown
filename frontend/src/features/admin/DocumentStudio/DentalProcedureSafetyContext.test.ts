@@ -25,7 +25,15 @@ describe('DentalProcedureSafetyContext', () => {
     });
   });
 
-  it('does not mark a routine orthodontic adjustment as procedure-sensitive', () => {
+  it('keeps IE eligibility unknown for ambiguous periodontal screening', () => {
+    expect(dentalProcedureSafetyContext('BASIC_PERIODONTAL_EXAM')).toEqual({
+      bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
+      ieProcedureQualifies: null,
+      osseousRisk: 'NO_OSSEOUS_INJURY',
+    });
+  });
+
+  it('uses explicit AHA exclusion for routine orthodontic adjustment', () => {
     expect(dentalProcedureSafetyContext('ORTHODONTIC_APPLIANCE_ADJUSTMENT')).toEqual({
       bleedingRisk: 'UNLIKELY_TO_CAUSE_BLEEDING',
       ieProcedureQualifies: false,
