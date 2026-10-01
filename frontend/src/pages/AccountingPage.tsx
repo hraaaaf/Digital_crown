@@ -49,6 +49,8 @@ export const AccountingPage = () => {
     exporting,
     exportingCsv,
     sendingEmail,
+    paymentMethods,
+    setPaymentMethod,
     overdueData,
     editingCell,
     editingValue,
@@ -529,24 +531,48 @@ export const AccountingPage = () => {
                         </td>
                         <td className="px-8 py-5">
                           {!hasMultiple && (
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex flex-wrap items-center justify-center gap-2">
                               {(!group.notes[0].is_collected) && (
-                                <button onClick={e => { e.stopPropagation(); handleEncaisser(group.notes[0].id); }} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100" title="Encaisser">
-                                  <Check size={16} />
-                                </button>
+                                <>
+                                  <select
+                                    value={paymentMethods[String(group.notes[0].id)] || ''}
+                                    onChange={e => setPaymentMethod(group.notes[0].id, e.target.value)}
+                                    onClick={e => e.stopPropagation()}
+                                    className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-700"
+                                    aria-label={`Mode de paiement pour ${group.patient_name}`}
+                                  >
+                                    <option value="">Mode…</option>
+                                    <option value="ESPECES">Espèces</option>
+                                    <option value="CARTE">Carte</option>
+                                    <option value="VIREMENT">Virement</option>
+                                    <option value="CHEQUE">Chèque</option>
+                                  </select>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); handleEncaisser(group.notes[0].id, paymentMethods[String(group.notes[0].id)]); }}
+                                    disabled={!paymentMethods[String(group.notes[0].id)]}
+                                    className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Encaisser"
+                                  >
+                                    <Check size={16} />
+                                  </button>
+                                </>
                               )}
-                              <button onClick={e => { e.stopPropagation(); handleSendEmail(group.notes[0].id); }} disabled={sendingEmail === String(group.notes[0].id)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50" title="Envoyer par email">
-                                {sendingEmail === String(group.notes[0].id) ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-                              </button>
-                              <button onClick={() => handleViewDocument(group.notes[0].file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
-                                <Eye size={16} />
-                              </button>
+                              {group.notes[0].file_url && (
+                                <>
+                                  <button onClick={e => { e.stopPropagation(); handleSendEmail(group.notes[0].id); }} disabled={sendingEmail === String(group.notes[0].id)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50" title="Envoyer par email">
+                                    {sendingEmail === String(group.notes[0].id) ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                                  </button>
+                                  <button onClick={() => handleViewDocument(group.notes[0].file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
+                                    <Eye size={16} />
+                                  </button>
+                                  <button onClick={() => handleDownloadDocument(group.notes[0].file_url, `Note_${group.patient_name}_${group.notes[0].id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
+                                    <Download size={16} />
+                                  </button>
+                                </>
+                              )}
                               <Link to={`/patients/${group.patient_id}?tab=admin`} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100" title="Gérer Patient / Assurance" onClick={e => e.stopPropagation()}>
                                 <Edit size={16} />
                               </Link>
-                              <button onClick={() => handleDownloadDocument(group.notes[0].file_url, `Note_${group.patient_name}_${group.notes[0].id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
-                                <Download size={16} />
-                              </button>
                               <button onClick={e => { e.stopPropagation(); handleDelete(getHonoraireTrashTarget(group.notes[0])); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
                                 <Trash2 size={16} />
                               </button>
@@ -606,21 +632,44 @@ export const AccountingPage = () => {
                              {getStatusBadge(note)}
                           </td>
                           <td className="px-8 py-3">
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex flex-wrap items-center justify-center gap-2">
                               {note.payment_status !== 'PAYE' && (
-                                <button onClick={() => handleEncaisser(note.id)} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100" title="Encaisser">
-                                  <Check size={14} />
-                                </button>
+                                <>
+                                  <select
+                                    value={paymentMethods[String(note.id)] || ''}
+                                    onChange={e => setPaymentMethod(note.id, e.target.value)}
+                                    className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-700"
+                                    aria-label={`Mode de paiement pour ${group.patient_name}`}
+                                  >
+                                    <option value="">Mode…</option>
+                                    <option value="ESPECES">Espèces</option>
+                                    <option value="CARTE">Carte</option>
+                                    <option value="VIREMENT">Virement</option>
+                                    <option value="CHEQUE">Chèque</option>
+                                  </select>
+                                  <button
+                                    onClick={() => handleEncaisser(note.id, paymentMethods[String(note.id)])}
+                                    disabled={!paymentMethods[String(note.id)]}
+                                    className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Encaisser"
+                                  >
+                                    <Check size={14} />
+                                  </button>
+                                </>
                               )}
-                              <button onClick={() => handleSendEmail(note.id)} disabled={sendingEmail === String(note.id)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50" title="Envoyer par email">
-                                {sendingEmail === String(note.id) ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                              </button>
-                              <button onClick={() => handleViewDocument(note.file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
-                                <Eye size={14} />
-                              </button>
-                              <button onClick={() => handleDownloadDocument(note.file_url, `Note_${group.patient_name}_${note.id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
-                                <Download size={14} />
-                              </button>
+                              {note.file_url && (
+                                <>
+                                  <button onClick={() => handleSendEmail(note.id)} disabled={sendingEmail === String(note.id)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50" title="Envoyer par email">
+                                    {sendingEmail === String(note.id) ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                                  </button>
+                                  <button onClick={() => handleViewDocument(note.file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
+                                    <Eye size={14} />
+                                  </button>
+                                  <button onClick={() => handleDownloadDocument(note.file_url, `Note_${group.patient_name}_${note.id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
+                                    <Download size={14} />
+                                  </button>
+                                </>
+                              )}
                               <button onClick={() => handleDelete(getHonoraireTrashTarget(note))} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
                                 <Trash2 size={14} />
                               </button>
@@ -656,6 +705,8 @@ export const AccountingPage = () => {
           treasuryStatusFilter={treasuryStatusFilter}
           setTreasuryStatusFilter={setTreasuryStatusFilter}
           sendingEmail={sendingEmail}
+          paymentMethods={paymentMethods}
+          setPaymentMethod={setPaymentMethod}
           handleRelance={handleRelance}
           handlePatientClick={handlePatientClick}
           handleSendEmail={handleSendEmail}
