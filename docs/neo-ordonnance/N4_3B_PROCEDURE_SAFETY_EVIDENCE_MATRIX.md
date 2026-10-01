@@ -203,7 +203,7 @@ ADA similarly states that routine treatment should not automatically be modified
 
 ### Required structured inputs
 
-- `mronj_medication_status`: UNKNOWN | NONE_REPORTED | PRESENT
+- `mronj_medication_status`: UNKNOWN | NONE_REPORTED | PRESENT — `PRESENT` means current **or previous** exposure to an at-risk agent, consistent with the AAOMS case/risk framing.
 - `mronj_agent_class`: BISPHOSPHONATE | DENOSUMAB | ROMOSOZUMAB | ANTIANGIOGENIC | OTHER | UNKNOWN
 - `mronj_indication`: OSTEOPOROSIS_NONMALIGNANT | MALIGNANCY | OTHER | UNKNOWN
 - `mronj_route`: ORAL | PARENTERAL | UNKNOWN
