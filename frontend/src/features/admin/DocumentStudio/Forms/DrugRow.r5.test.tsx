@@ -36,7 +36,6 @@ function renderRow(drug: DrugItem) {
       onSearch={vi.fn()}
       onKeyDown={vi.fn()}
       onApplySuggestion={vi.fn()}
-      onFormeOpen={vi.fn()}
       onForceAllergy={vi.fn()}
       onToggleType={vi.fn()}
     />,
