@@ -1,0 +1,66 @@
+name: Neo temporary TS7006 fix
+
+on:
+  push:
+    branches:
+      - feat/neo-ordonnance-github
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/neo-ordonnance-github
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Apply exact TS7006 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx')
+          s = p.read_text()
+          old = 'blockers.some(code => ('
+          new = 'blockers.some((code: string) => ('
+          if s.count(old) != 2:
+              raise SystemExit(f'Expected exactly 2 TS7006 targets, found {s.count(old)}')
+          s = s.replace(old, new)
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx
+      - name: Verify targeted Neo tests and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npx vitest run \
+            src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.test.tsx \
+            src/features/admin/DocumentStudio/Forms/PrescriptionComposer.test.ts \
+            src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx \
+            src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.r7.test.tsx \
+            src/features/admin/DocumentStudio/Forms/PatientClinicalContextPanel.test.tsx \
+            src/features/admin/DocumentStudio/PrescriptionPerfectV2.ux.test.ts \
+            src/features/admin/DocumentStudio/OrdonnanceFidelityV3.u2.test.ts \
+            src/features/admin/DocumentStudio/NeoPrescriptionContextAdapter.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+          npm run build
+      - name: Commit verified fix and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/neo-temp-ts7006-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx .github/workflows/neo-temp-ts7006-fix.yml
+          git commit -m 'fix(neo): type safety blocker codes'
+          git push origin HEAD:feat/neo-ordonnance-github
