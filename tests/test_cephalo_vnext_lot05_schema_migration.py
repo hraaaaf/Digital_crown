@@ -69,3 +69,15 @@ def test_multiple_calibrations_and_patient_mismatch_fail_closed():
 def test_invalid_dimensions_fail_closed():
     for width,height in [(0,2400),(1935,0),(-1,2400)]:
         with pytest.raises(Lot05MigrationError): migrate_v1_to_v2(v1(),patient_id=7,width=width,height=height)
+
+
+def test_alias_cannot_shadow_canonical_identity():
+    v2=migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400)
+    v2["landmark_registry"][0]["aliases"]=[v2["landmark_registry"][1]["canonical_id"]]
+    with pytest.raises(Lot05MigrationError): roundtrip_v2_to_v1(v2)
+
+def test_duplicate_alias_fails_closed():
+    v2=migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400)
+    v2["landmark_registry"][0]["aliases"]=["legacy-x"]
+    v2["landmark_registry"][1]["aliases"]=["legacy-x"]
+    with pytest.raises(Lot05MigrationError): roundtrip_v2_to_v1(v2)
