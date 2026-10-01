@@ -1,4 +1,5 @@
 name: AMMPS Dictionary Incremental Merge
+# exact-head certification trigger
 
 on:
   push:
