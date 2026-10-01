@@ -11,11 +11,13 @@ interface TreasuryPanelProps {
   treasuryStatusFilter: string;
   setTreasuryStatusFilter: (value: string) => void;
   sendingEmail: string | null;
+  paymentMethods: Record<string, string>;
+  setPaymentMethod: (itemId: string | number, method: string) => void;
   handleRelance: (itemId: string) => void | Promise<void>;
   handlePatientClick: (patientId: number) => void;
   handleSendEmail: (itemId: string | number) => void | Promise<void>;
   handleViewDocument: (url: string) => void | Promise<void>;
-  handleEncaisser: (id: string | number) => void | Promise<void>;
+  handleEncaisser: (id: string | number, paymentMethod?: string) => void | Promise<void>;
 }
 
 export const TreasuryPanel = ({
@@ -27,6 +29,8 @@ export const TreasuryPanel = ({
   treasuryStatusFilter,
   setTreasuryStatusFilter,
   sendingEmail,
+  paymentMethods,
+  setPaymentMethod,
   handleRelance,
   handlePatientClick,
   handleSendEmail,
@@ -186,25 +190,46 @@ export const TreasuryPanel = ({
                     </span>
                   </td>
                   <td className="px-8 py-5">
-                    <div className="flex justify-center gap-2">
-                       <button
-                          onClick={() => handleSendEmail(`doc_${item.id}`)}
-                          disabled={sendingEmail === `doc_${item.id}`}
-                          className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50"
-                          title="Envoyer par email"
+                    <div className="flex flex-wrap justify-center gap-2">
+                       {item.file_url ? (
+                         <>
+                           <button
+                              onClick={() => handleSendEmail(item.id)}
+                              disabled={sendingEmail === String(item.id)}
+                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50"
+                              title="Envoyer la note par email"
+                           >
+                              {sendingEmail === String(item.id) ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                           </button>
+                           <button
+                              onClick={() => handleViewDocument(item.file_url)}
+                              className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
+                              title="Voir la note"
+                           >
+                              <Receipt size={14} />
+                           </button>
+                         </>
+                       ) : (
+                         <span className="px-2 py-2 text-[9px] font-bold text-slate-400" title="Aucun PDF archivé pour cet acte">
+                           PDF indisponible
+                         </span>
+                       )}
+                       <select
+                         value={paymentMethods[String(item.id)] || ''}
+                         onChange={(e) => setPaymentMethod(item.id, e.target.value)}
+                         className="px-2 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-bold text-slate-700"
+                         aria-label={`Mode de paiement pour ${item.patient_name}`}
                        >
-                          {sendingEmail === `doc_${item.id}` ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                       </button>
+                         <option value="">Mode…</option>
+                         <option value="ESPECES">Espèces</option>
+                         <option value="CARTE">Carte</option>
+                         <option value="VIREMENT">Virement</option>
+                         <option value="CHEQUE">Chèque</option>
+                       </select>
                        <button
-                          onClick={() => handleViewDocument(`documents/${item.id}/download`)}
-                          className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
-                          title="Voir la note"
-                       >
-                          <Receipt size={14} />
-                       </button>
-                       <button
-                          onClick={() => handleEncaisser(item.id)}
-                          className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all"
+                          onClick={() => handleEncaisser(item.id, paymentMethods[String(item.id)])}
+                          disabled={!paymentMethods[String(item.id)]}
+                          className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                        >
                           Encaisser
                        </button>
