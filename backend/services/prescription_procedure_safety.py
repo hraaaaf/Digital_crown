@@ -233,6 +233,28 @@ def evaluate_mronj_procedure_safety(
     """
     sources = (SOURCE_AAOMS_MRONJ_2022, SOURCE_ADA_MRONJ)
 
+    if data.procedure_is_implant is True and data.procedure_osseous_risk != "DENTOALVEOLAR_OSSEOUS_INJURY":
+        return _result(
+            "CONTEXT_REQUIRED",
+            "MRONJ_IMPLANT_OSSEOUS_CONTEXT_INCONSISTENT",
+            alert_key="CONTEXT_REQUIRED",
+            sources=sources,
+        )
+
+    if data.medication_status == "NONE_REPORTED" and (
+        data.agent_class != "UNKNOWN"
+        or data.indication != "UNKNOWN"
+        or data.route != "UNKNOWN"
+        or data.duration_months is not None
+        or data.concurrent_risk_therapy
+    ):
+        return _result(
+            "CONTEXT_REQUIRED",
+            "MRONJ_MEDICATION_CONTEXT_INCONSISTENT",
+            alert_key="CONTEXT_REQUIRED",
+            sources=sources,
+        )
+
     if data.suspected_or_known_mronj == "YES":
         return _result(
             "SPECIALIST_REVIEW_REQUIRED",
