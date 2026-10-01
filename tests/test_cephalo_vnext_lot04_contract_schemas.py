@@ -123,3 +123,20 @@ def test_acceptance_semantics_forbids_unexplained_fail():
     record["landmarks"][0]["n"] = 10
     record["landmarks"][0]["human_reference_uncertainty_mm"] = 0.5
     with pytest.raises(Lot04ContractError): validate_acceptance_semantics(record, manifest)
+
+
+def test_acceptance_semantics_binds_pass_to_preregistered_tolerances():
+    manifest = valid_manifest()
+    manifest["dataset"]["cases"].append({"case_id":"G1-accept","sha256":"4"*64,"layer":"G1","calibration_provenance":"manual"})
+    manifest["dataset"]["acceptance_case_ids"] = ["G1-accept"]
+    record = {
+        "manifest_sha256": canonical_json_sha256(manifest),
+        "candidate_model_sha256": manifest["candidate"]["model_sha256"],
+        "landmarks": [{"landmark_id":"S","n":10,"median_mm":1.1,"p95_mm":1.5,"failure_rate":0.0,"human_reference_uncertainty_mm":0.5,"tolerance_version":"PRE_REGISTERED_V1","decision":"PASS"}],
+        "clinical_measurements": [{"measurement_id":"SNA","absolute_error":0.5,"decision":"PASS"}],
+        "overall_decision":"PASS",
+    }
+    with pytest.raises(Lot04ContractError):
+        validate_acceptance_semantics(record, manifest)
+    record["landmarks"][0]["median_mm"] = 0.9
+    validate_acceptance_semantics(record, manifest)
