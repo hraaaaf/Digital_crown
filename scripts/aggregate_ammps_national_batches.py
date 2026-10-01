@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from bs4 import BeautifulSoup
+
 
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -16,6 +18,8 @@ def aggregate(batch_dirs: list[Path], expected_total: int, expected_updated_at: 
     page_map: dict[int, dict] = {}
     row_map: dict[str, dict] = {}
     conflicts: list[str] = []
+    source_duplicate_pages: list[dict] = []
+    source_row_count = 0
     batch_summaries: list[dict] = []
 
     for d in batch_dirs:
@@ -33,6 +37,24 @@ def aggregate(batch_dirs: list[Path], expected_total: int, expected_updated_at: 
             if n in page_map:
                 raise AssertionError(f"duplicate page checkpoint: {n}")
             page_map[n] = p
+
+            raw_path = d / "raw" / f"page-{n}.html"
+            if not raw_path.exists():
+                raise AssertionError(f"{d}: missing raw HTML for page {n}")
+            raw_html = raw_path.read_text(encoding="utf-8")
+            raw_cards = len(BeautifulSoup(raw_html, "html.parser").select(".medicament-card"))
+            source_row_count += raw_cards
+            parsed_count = int(p["parsed_count"])
+            cross_batch_dup = int(p.get("duplicate_ids_within_batch", 0))
+            duplicate_count = raw_cards - parsed_count + cross_batch_dup
+            if duplicate_count > 0:
+                source_duplicate_pages.append({
+                    "page": n,
+                    "raw_cards": raw_cards,
+                    "parsed_count": parsed_count,
+                    "duplicate_ids_within_batch": cross_batch_dup,
+                    "source_duplicate_count": duplicate_count,
+                })
 
         for row in rows:
             rid = row["regulatory_presentation_id"]
@@ -65,16 +87,23 @@ def aggregate(batch_dirs: list[Path], expected_total: int, expected_updated_at: 
         "covered_pages": len(actual_page_set),
         "missing_pages": missing_pages,
         "extra_pages": extra_pages,
+        "source_row_count": source_row_count,
         "unique_presentations": len(row_map),
+        "source_duplicate_count": source_row_count - len(row_map),
+        "source_duplicate_pages": sorted(source_duplicate_pages, key=lambda x: x["page"]),
         "conflicting_ids": sorted(set(conflicts)),
         "batch_count": len(batch_dirs),
         "batches": sorted(batch_summaries, key=lambda x: x["start_page"]),
     }
     if missing_pages or extra_pages or conflicts:
         raise AssertionError(json.dumps(result, ensure_ascii=False, indent=2))
-    if len(row_map) != expected_total:
+    if source_row_count != expected_total:
         raise AssertionError(
-            f"global unique coverage mismatch: {len(row_map)} != {expected_total}"
+            f"source row coverage mismatch: {source_row_count} != {expected_total}"
+        )
+    if len(row_map) > expected_total:
+        raise AssertionError(
+            f"unique presentations exceed source rows: {len(row_map)} > {expected_total}"
         )
     return result, sorted(
         row_map.values(),
