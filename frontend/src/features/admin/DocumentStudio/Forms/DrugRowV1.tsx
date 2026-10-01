@@ -71,6 +71,7 @@ export interface DrugRowProps {
   onForceAllergy: (id: number) => void;
   onToggleType: (id: number, type: 'MEDICAMENT' | 'EXAMEN') => void;
   disableCatalogLookup?: boolean;
+  patientId?: string;
 }
 
 const presentationStrength = (presentation: CatalogPresentation): string =>
@@ -90,12 +91,14 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   onMove,
   onToggleType,
   disableCatalogLookup = false,
+  patientId,
 }) => {
   const [catalogResults, setCatalogResults] = useState<CatalogPresentation[]>([]);
   const [catalogSearching, setCatalogSearching] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
   const [highlightedPresentation, setHighlightedPresentation] = useState(-1);
   const [nameSearchActive, setNameSearchActive] = useState(false);
+  const [neoSafety, setNeoSafety] = useState<'idle' | 'checking' | 'ready' | 'blocked' | 'error'>('idle');
 
   const fieldError = validationErrors.find(error => error.field === `drug_${idx}`);
   const isRadio = drug.type === 'EXAMEN';
@@ -114,6 +117,33 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   const nationalMsg = medCheck && medCheck.known && medCheck.exists === false && medCheck.available_mg?.length
     ? `Ce dosage n’est pas disponible parmi les présentations connues. Alternatives : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
     : null;
+
+
+  useEffect(() => {
+    if (isRadio || !patientId) {
+      setNeoSafety('idle');
+      return;
+    }
+    if (!drug.catalogPresentationId) {
+      setNeoSafety(hasManualPresentationOverride ? 'blocked' : 'idle');
+      return;
+    }
+
+    let cancelled = false;
+    setNeoSafety('checking');
+    void api.get(`/patients/${patientId}/neo-prescription-safety`, {
+      params: { presentation_id: drug.catalogPresentationId },
+    }).then(response => {
+      if (cancelled) return;
+      setNeoSafety(response.data?.status === 'READY' ? 'ready' : 'blocked');
+    }).catch(() => {
+      if (!cancelled) setNeoSafety('error');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [drug.catalogPresentationId, hasManualPresentationOverride, isRadio, patientId]);
 
   useEffect(() => {
     if (isRadio || disableCatalogLookup) {
@@ -464,6 +494,18 @@ export const DrugRow: React.FC<DrugRowProps> = ({
             </div>
           </div>
 
+          {!isRadio && patientId && neoSafety === 'blocked' && (
+            <p role="alert" className="mt-1 text-[10px] font-bold text-amber-700">
+              {hasManualPresentationOverride
+                ? 'Présentation à confirmer avant validation.'
+                : 'Contexte patient à vérifier avant validation.'}
+            </p>
+          )}
+          {!isRadio && patientId && neoSafety === 'error' && (
+            <p role="alert" className="mt-1 text-[10px] font-bold text-amber-700">
+              Vérification clinique momentanément indisponible.
+            </p>
+          )}
           {!isRadio && !hasCatalogPresentation && catalogSearching && (
             <p className="mt-1 text-[9px] font-semibold text-text-muted">Recherche des présentations…</p>
           )}
