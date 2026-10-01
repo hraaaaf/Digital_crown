@@ -57,7 +57,7 @@ describe('ProcedureSafetyNotice', () => {
 
   it('maps exposed keys to short nontechnical wording only', async () => {
     const cases = [
-      ['CONTEXT_REQUIRED', 'Contexte patient à compléter.'],
+      ['CONTEXT_REQUIRED', 'Contexte clinique à compléter.'],
       ['PRESCRIBER_REVIEW_RECOMMENDED', 'Avis prescripteur recommandé.'],
       ['SPECIALIST_REVIEW_RECOMMENDED', 'Avis spécialisé recommandé.'],
     ] as const;
