@@ -63,6 +63,7 @@ class PatientClinicalContextUpdate(BaseModel):
     antithrombotic_combination_status: CombinationStatus = "UNKNOWN"
     warfarin_inr: Optional[float] = None
     warfarin_inr_checked_at: Optional[datetime] = None
+    warfarin_inr_current: Optional[bool] = None
     lmwh_dose_class: LMWHDoseClass = "UNKNOWN"
 
     @field_validator("weight_kg")
@@ -173,6 +174,8 @@ class PatientClinicalContextUpdate(BaseModel):
             raise ValueError("Un INR exige la classe VKA")
         if self.warfarin_inr_checked_at is not None and self.warfarin_inr is None:
             raise ValueError("La date INR exige une valeur INR")
+        if self.warfarin_inr_current is not None and self.warfarin_inr is None:
+            raise ValueError("Le statut de validité INR exige une valeur INR")
         if self.lmwh_dose_class != "UNKNOWN" and "LMWH" not in classes:
             raise ValueError("La classe de dose HBPM exige LMWH")
         if self.antithrombotic_combination_status == "YES" and not (
