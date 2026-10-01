@@ -37,7 +37,7 @@ const browser=await chromium.launch({headless:true});
 const evidence=[];
 
 for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
-  const context=await browser.newContext({viewport,colorScheme:'light'});
+  const context=await browser.newContext({ storageState: workstationStorage,viewport,colorScheme:'light'});
   const page=await context.newPage();
   await page.addInitScript(({a,r})=>{
     localStorage.setItem('token',a);
