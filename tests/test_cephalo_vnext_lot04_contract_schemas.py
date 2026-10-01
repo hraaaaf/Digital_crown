@@ -5,6 +5,8 @@ import pytest
 
 jsonschema = pytest.importorskip("jsonschema")
 
+from scripts.validate_cephalo_vnext_lot04_contract import (Lot04ContractError, canonical_json_sha256, validate_acceptance_semantics, validate_manifest_semantics)
+
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = ROOT / "docs" / "audits" / "schemas"
 
@@ -65,73 +67,59 @@ def test_acceptance_record_requires_explicit_decision():
         jsonschema.validate(payload, schema)
 
 
-def validate_manifest_semantics(payload):
-    cases = payload["dataset"]["cases"]
-    case_ids = [case["case_id"] for case in cases]
-    if len(case_ids) != len(set(case_ids)):
-        raise ValueError("duplicate case_id")
-    known = set(case_ids)
-    development = set(payload["dataset"]["development_case_ids"])
-    acceptance = set(payload["dataset"]["acceptance_case_ids"])
-    if not development <= known or not acceptance <= known:
-        raise ValueError("split references unknown case_id")
-    if development & acceptance:
-        raise ValueError("development and acceptance splits must be disjoint")
 
-
-def validate_acceptance_semantics(payload):
-    landmarks = payload["landmarks"]
-    if len({item["landmark_id"] for item in landmarks}) != len(landmarks):
-        raise ValueError("duplicate landmark decision")
-    if payload["overall_decision"] == "PASS":
-        if any(item["decision"] != "PASS" for item in landmarks):
-            raise ValueError("overall PASS requires every reported landmark to PASS")
-        if any(item["n"] <= 0 for item in landmarks):
-            raise ValueError("overall PASS requires observed landmark evidence")
-        if any(item["human_reference_uncertainty_mm"] is None for item in landmarks):
-            raise ValueError("overall PASS requires human-reference uncertainty")
-        if any(item["decision"] in {"FAIL", "INSUFFICIENT_EVIDENCE", "NOT_COMPUTABLE"} for item in payload["clinical_measurements"]):
-            raise ValueError("overall PASS cannot hide a non-passing clinical measurement")
-    if payload["overall_decision"] == "INSUFFICIENT_EVIDENCE":
-        if not any(item["decision"] == "INSUFFICIENT_EVIDENCE" for item in landmarks) and not any(
-            item["decision"] in {"INSUFFICIENT_EVIDENCE", "NOT_COMPUTABLE"} for item in payload["clinical_measurements"]
-        ):
-            raise ValueError("insufficient-evidence decision needs an explicit insufficient component")
-
-
-def test_manifest_semantics_reject_split_overlap_and_unknown_ids():
+def test_manifest_semantics_reject_overlap_unknown_and_duplicate():
     payload = valid_manifest()
     payload["dataset"]["acceptance_case_ids"] = ["G0-fixture"]
-    with pytest.raises(ValueError):
-        validate_manifest_semantics(payload)
+    with pytest.raises(Lot04ContractError): validate_manifest_semantics(payload)
     payload = valid_manifest()
     payload["dataset"]["acceptance_case_ids"] = ["UNKNOWN"]
-    with pytest.raises(ValueError):
-        validate_manifest_semantics(payload)
-
-
-def test_manifest_semantics_reject_duplicate_case_ids():
+    with pytest.raises(Lot04ContractError): validate_manifest_semantics(payload)
     payload = valid_manifest()
     payload["dataset"]["cases"].append(dict(payload["dataset"]["cases"][0]))
-    with pytest.raises(ValueError):
-        validate_manifest_semantics(payload)
+    with pytest.raises(Lot04ContractError): validate_manifest_semantics(payload)
 
 
-def test_acceptance_semantics_forbids_false_pass():
-    payload = {
+def acceptance_for(manifest, overall="INSUFFICIENT_EVIDENCE"):
+    return {
+        "manifest_sha256": canonical_json_sha256(manifest),
+        "candidate_model_sha256": manifest["candidate"]["model_sha256"],
         "landmarks": [{"landmark_id":"S","n":0,"human_reference_uncertainty_mm":None,"decision":"INSUFFICIENT_EVIDENCE"}],
         "clinical_measurements": [],
-        "overall_decision": "PASS",
+        "overall_decision": overall,
     }
-    with pytest.raises(ValueError):
-        validate_acceptance_semantics(payload)
+
+
+def test_acceptance_semantics_links_manifest_and_model_hashes():
+    manifest = valid_manifest()
+    record = acceptance_for(manifest)
+    validate_acceptance_semantics(record, manifest)
+    record["manifest_sha256"] = "f"*64
+    with pytest.raises(Lot04ContractError): validate_acceptance_semantics(record, manifest)
+    record = acceptance_for(manifest)
+    record["candidate_model_sha256"] = "e"*64
+    with pytest.raises(Lot04ContractError): validate_acceptance_semantics(record, manifest)
+
+
+def test_acceptance_semantics_forbids_false_pass_and_empty_acceptance_split():
+    manifest = valid_manifest()
+    record = acceptance_for(manifest, "PASS")
+    with pytest.raises(Lot04ContractError): validate_acceptance_semantics(record, manifest)
 
 
 def test_acceptance_semantics_forbids_pass_hiding_clinical_failure():
-    payload = {
-        "landmarks": [{"landmark_id":"S","n":10,"human_reference_uncertainty_mm":0.5,"decision":"PASS"}],
-        "clinical_measurements": [{"measurement_id":"SNA","decision":"FAIL"}],
-        "overall_decision": "PASS",
-    }
-    with pytest.raises(ValueError):
-        validate_acceptance_semantics(payload)
+    manifest = valid_manifest()
+    manifest["dataset"]["acceptance_case_ids"] = []
+    record = acceptance_for(manifest, "PASS")
+    record["landmarks"] = [{"landmark_id":"S","n":10,"human_reference_uncertainty_mm":0.5,"decision":"PASS"}]
+    record["clinical_measurements"] = [{"measurement_id":"SNA","decision":"FAIL"}]
+    with pytest.raises(Lot04ContractError): validate_acceptance_semantics(record, manifest)
+
+
+def test_acceptance_semantics_forbids_unexplained_fail():
+    manifest = valid_manifest()
+    record = acceptance_for(manifest, "FAIL")
+    record["landmarks"][0]["decision"] = "PASS"
+    record["landmarks"][0]["n"] = 10
+    record["landmarks"][0]["human_reference_uncertainty_mm"] = 0.5
+    with pytest.raises(Lot04ContractError): validate_acceptance_semantics(record, manifest)
