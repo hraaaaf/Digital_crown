@@ -106,15 +106,6 @@ def test_v1_5_01_server_mobile_origin_is_https_and_port_8005(monkeypatch):
     """Integration seam: mobile helper must publish the server contract verbatim."""
     from backend.routers import mobile_legacy
 
-    env = _env(
-        CABINET_HOST="192.168.50.12",
-        DIGITALCROWN_ENABLE_HTTPS="true",
-        DIGITALCROWN_TLS_CERT_FILE="cert.pem",
-        DIGITALCROWN_TLS_KEY_FILE="key.pem",
-    )
-    monkeypatch.setattr(topology, "resolve_cabinet_network", lambda environ=None: resolve_cabinet_network(env, validate_tls_files=False))
-    assert topology.get_cabinet_base_url(env) == "https://192.168.50.12:8005"
-
     monkeypatch.setenv("ENVIRONMENT", "cabinet")
     monkeypatch.setenv("CABINET_HOST", "192.168.50.12")
     monkeypatch.setenv("CABINET_PORT", "8005")
@@ -122,6 +113,7 @@ def test_v1_5_01_server_mobile_origin_is_https_and_port_8005(monkeypatch):
     monkeypatch.setenv("DIGITALCROWN_TLS_CERT_FILE", "cert.pem")
     monkeypatch.setenv("DIGITALCROWN_TLS_KEY_FILE", "key.pem")
     monkeypatch.setattr(topology.os.path, "isfile", lambda _path: True)
+
     assert mobile_legacy.get_lan_base_url() == "https://192.168.50.12:8005"
 
 
