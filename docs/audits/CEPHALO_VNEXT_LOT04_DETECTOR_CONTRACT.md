@@ -237,3 +237,16 @@ The repository does not currently hard-code the ONNX input/output symbolic names
 
 ### Reproducibility decision
 The LOT04 candidate identity is the tuple of model hash + model size + provider + dependency versions + preprocessing/decoder immutable source + output-index mapping + benchmark manifest. Matching model bytes alone is insufficient to claim the same evaluated candidate environment.
+
+
+## Cross-field semantic invariants
+Structural JSON Schema validation is necessary but not sufficient. The deterministic validation layer additionally requires:
+- every case_id unique;
+- every development/acceptance split ID exists in cases;
+- development and acceptance splits are disjoint;
+- landmark decisions are unique by landmark_id;
+- overall PASS requires positive observed evidence for every reported landmark and recorded human-reference uncertainty;
+- overall PASS cannot hide FAIL, INSUFFICIENT_EVIDENCE or NOT_COMPUTABLE in a reported clinical measurement;
+- INSUFFICIENT_EVIDENCE must be traceable to an explicit insufficient/not-computable component.
+
+These rules prevent structurally valid JSON from becoming a semantically false certification record.
