@@ -217,7 +217,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         </div>
       </section>
 
-      <PrescriptionQuickAccessBar drugs={drugs} setDrugs={setDrugs} prescriptionIndication={prescriptionIndication} />
+      <PrescriptionQuickAccessBar
+        drugs={drugs}
+        setDrugs={setDrugs}
+        prescriptionIndication={prescriptionIndication}
+        onPrescriptionIndicationChange={onPrescriptionIndicationChange}
+      />
 
       <div className="space-y-3">
         {drugs.map((drug, idx) => (
