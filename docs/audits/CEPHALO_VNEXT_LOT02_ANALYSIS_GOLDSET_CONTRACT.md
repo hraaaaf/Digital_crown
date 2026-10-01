@@ -43,6 +43,14 @@ Clinical propagation: signed/absolute error for each angle/distance, reference-p
 
 Reproducibility: inter/intra-annotator agreement on a defined subset, repeatable calibration, versioned tolerance policy, exact model/checkpoint/preprocessing provenance.
 
+Ground-truth qualification is mandatory before model scoring:
+- at least two independent qualified annotators on the validation subset;
+- adjudication rules declared before model comparison;
+- inter-annotator landmark disagreement reported per landmark in calibrated mm and by X/Y direction;
+- intra-annotator repeatability measured on a predeclared subset;
+- measurement-level agreement reported for sentinel outputs (at minimum SNA, SNB, ANB, FMA/IMPA/FMIA, SN-GoGn, Co-A, Co-Gn and soft-tissue measures when enabled);
+- AI acceptance cannot be materially tighter than the demonstrated uncertainty of its human reference without explicit justification.
+
 ## E. Acceptance policy
 No universal 2 mm threshold is the sole clinical gate.
 
@@ -51,7 +59,15 @@ Landmarks are tiered:
 - TIER_B_MEASUREMENT — directly drives clinical measures.
 - TIER_C_TRACING — mainly tracing/visualization.
 
-Thresholds are declared before benchmark execution and account for downstream sensitivity. A point may pass for tracing while remaining blocked for a sensitive measurement.
+Thresholds are declared and versioned **before looking at candidate-model benchmark results** and account for downstream sensitivity. A point may pass for tracing while remaining blocked for a sensitive measurement.
+
+Tolerance policy is analysis-aware, not a single inherited 2 mm rule:
+- landmark localisation thresholds are per-landmark/per-tier and calibrated in mm;
+- angular and linear measurement tolerances are separately predeclared;
+- systematic bias and limits of agreement are assessed, not only mean absolute error;
+- thresholds must be justified from human-reference reproducibility plus downstream clinical sensitivity;
+- no threshold is retrofitted to make a candidate detector pass;
+- if evidence is insufficient to set a defensible clinical tolerance, the item remains RESEARCH_ONLY / BLOCKED rather than receiving an arbitrary number.
 
 A measurement is promoted only if its landmark identities are locked, G0 geometry is exact, calibrated landmark + downstream errors are reported, failures are fail-closed, human correction exists, analysis/norm versions are explicit, and G3 compatibility passes before LOT12.
 
@@ -59,6 +75,8 @@ A measurement is promoted only if its landmark identities are locked, G0 geometr
 Geometric truth and normative truth are separate. LEGACY_UNVALIDATED remains untrusted for new claims. Aariz supplies no DC norms. Historical author values remain contextual until population/age/sex/scaling applicability is locked. Conflicts remain HOLD, never averaged.
 
 ## Gate
-CEPH_GOLDSET_CONTRACT_LOCKED requires LOT01 locked, reviewed coverage, accepted G0-G3, reviewed metric/tolerance policy and zero runtime/master mutation.
+CEPH_GOLDSET_CONTRACT_LOCKED requires LOT01 locked, reviewed coverage, accepted G0-G3, reviewed metric/tolerance policy, a pre-registered ground-truth/adjudication protocol, and zero runtime/master mutation.
+
+Before any benchmark run, a machine-readable validation manifest must freeze: case IDs/hashes, split membership, landmark-definition versions, analysis versions, calibration provenance, annotator roles, adjudication rule, metrics, tolerance-policy version, candidate model/checkpoint IDs and preprocessing version. Benchmark outputs must be write-once/versioned evidence and must never mutate this manifest.
 
 This document authorizes no model training, patient export, runtime change, merge to master or deployment.
