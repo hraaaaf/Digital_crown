@@ -333,3 +333,27 @@ def test_orchestrator_lets_mronj_specialist_review_dominate_other_gates():
     assert combined.status == "SPECIALIST_REVIEW_REQUIRED"
     assert combined.alert_key == "SPECIALIST_REVIEW_RECOMMENDED"
     assert combined.mronj is not None
+
+
+
+def test_mronj_gate_fails_closed_on_inconsistent_implant_or_medication_context():
+    inconsistent_implant = evaluate_mronj_procedure_safety(
+        _mronj(
+            procedure_osseous_risk="NO_OSSEOUS_INJURY",
+            procedure_is_implant=True,
+            medication_status="PRESENT",
+            agent_class="DENOSUMAB",
+            indication="MALIGNANCY",
+        )
+    )
+    inconsistent_medication = evaluate_mronj_procedure_safety(
+        _mronj(
+            medication_status="NONE_REPORTED",
+            agent_class="DENOSUMAB",
+            indication="MALIGNANCY",
+        )
+    )
+    assert inconsistent_implant.status == "CONTEXT_REQUIRED"
+    assert "MRONJ_IMPLANT_OSSEOUS_CONTEXT_INCONSISTENT" in inconsistent_implant.internal_codes
+    assert inconsistent_medication.status == "CONTEXT_REQUIRED"
+    assert "MRONJ_MEDICATION_CONTEXT_INCONSISTENT" in inconsistent_medication.internal_codes
