@@ -47,3 +47,25 @@ def test_roundtrip_detects_tampering():
     v2=migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400)
     v2["migration"]["opaque_legacy_payload"]["revision"]=999
     with pytest.raises(Lot05MigrationError): roundtrip_v2_to_v1(v2)
+
+
+def test_semantic_domains_are_not_silently_flattened_to_hard_tissue():
+    source=v1()
+    source["landmarks"].extend([
+      {"evidence_id":"lm:soft","landmark_id":"Pog_soft","x":1.0,"y":2.0,"origin":"MANUAL"},
+      {"evidence_id":"lm:dental","landmark_id":"U1_apex","x":3.0,"y":4.0,"origin":"MANUAL"},
+      {"evidence_id":"lm:occ","landmark_id":"Occ_Ant","x":5.0,"y":6.0,"origin":"MANUAL"}])
+    reg={x["canonical_id"]:x for x in migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)["landmark_registry"]}
+    assert reg["Pog_soft"]["tissue_domain"]=="SOFT"
+    assert reg["U1_apex"]["tissue_domain"]=="DENTAL"
+    assert reg["Occ_Ant"]["tissue_domain"]=="CONSTRUCTION_ANCHOR"
+
+def test_multiple_calibrations_and_patient_mismatch_fail_closed():
+    source=v1(); source["sources"].append({"evidence_id":"cal:2","kind":"calibration"})
+    with pytest.raises(Lot05MigrationError): migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+    source=v1(); source["sources"][0]["patient_id"]=8
+    with pytest.raises(Lot05MigrationError): migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+
+def test_invalid_dimensions_fail_closed():
+    for width,height in [(0,2400),(1935,0),(-1,2400)]:
+        with pytest.raises(Lot05MigrationError): migrate_v1_to_v2(v1(),patient_id=7,width=width,height=height)
