@@ -22,6 +22,9 @@ _BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 def _parse_typed_item_id(item_id: str) -> tuple[str, int]:
     raw = str(item_id or "").strip()
+    if raw.isdigit():
+        # Compatibilité avec les anciens appels qui adressaient directement un DocumentArchive.
+        return "doc", int(raw)
     prefix, sep, numeric = raw.partition("_")
     if not sep or prefix not in {"doc", "acte"} or not numeric.isdigit():
         raise HTTPException(status_code=400, detail="Identifiant comptable invalide")
@@ -365,6 +368,8 @@ async def mark_as_paid(
             doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
             if not doc: raise HTTPException(status_code=404, detail="Document non trouvé")
             assert_patient_access(doc.patient_id, user, db)
+            if doc.is_collected:
+                raise HTTPException(status_code=409, detail="Cet élément est déjà encaissé")
             from backend.utils.accounting_utils import extract_amount_from_clinical_data
 
             doc.payment_status = models.PaiementStatut.PAYE
@@ -387,6 +392,8 @@ async def mark_as_paid(
             acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
             if not acte: raise HTTPException(status_code=404, detail="Acte non trouvé")
             assert_patient_access(acte.patient_id, user, db)
+            if acte.is_collected:
+                raise HTTPException(status_code=409, detail="Cet élément est déjà encaissé")
             acte.statut_paiement = models.PaiementStatut.PAYE
             acte.is_collected = True
             acte.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
@@ -396,6 +403,7 @@ async def mark_as_paid(
                 amount=acte.montant,
                 payment_method=method_enum,
                 payment_date=now,
+                acte_id=acte.id,
                 notes=f"Lien Acte ID: {acte.id}",
                 validated_by=acte.validated_by
             )
