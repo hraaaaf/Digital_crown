@@ -13,6 +13,8 @@ describe('NeoPrescriptionContextAdapter', () => {
       hepatic_context_status: 'UNKNOWN',
       pregnancy_status: 'UNKNOWN',
       breastfeeding_status: 'UNKNOWN',
+      anticoagulant_status: 'UNKNOWN',
+      antiplatelet_status: 'UNKNOWN',
     }, 8)).toEqual({
       ageYears: 8,
       weightKg: 24,
@@ -26,7 +28,19 @@ describe('NeoPrescriptionContextAdapter', () => {
     });
   });
 
-  it('maps explicit patient facts without free-text inference', () => {
+  it('does not infer antithrombotic therapy from generic current-medication text', () => {
+    const mapped = adaptNeoContextToPharmacology({
+      current_medications_status: 'PRESENT',
+      current_medications: ['Xarelto 20 mg', 'Aspirine 75 mg'],
+      anticoagulant_status: 'UNKNOWN',
+      antiplatelet_status: 'UNKNOWN',
+    }, 35);
+
+    expect(mapped.anticoagulant).toBeNull();
+    expect(mapped.antiplatelet).toBeNull();
+  });
+
+  it('maps explicit structured antithrombotic facts without free-text inference', () => {
     const mapped = adaptNeoContextToPharmacology({
       medication_allergy_status: 'PRESENT',
       medication_allergies: ['Latex', 'Drug X'],
@@ -36,7 +50,11 @@ describe('NeoPrescriptionContextAdapter', () => {
       pregnancy_status: 'NO',
       breastfeeding_status: 'YES',
       current_medications_status: 'PRESENT',
-      current_medications: ['Xarelto 20 mg'],
+      current_medications: ['Xarelto 20 mg', 'Aspirine 75 mg'],
+      anticoagulant_status: 'PRESENT',
+      anticoagulants: ['Rivaroxaban'],
+      antiplatelet_status: 'PRESENT',
+      antiplatelets: ['Aspirine faible dose'],
     }, 35);
 
     expect(mapped.allergies).toEqual(['Latex', 'Drug X', 'PENICILLIN_REPORTED']);
@@ -44,7 +62,19 @@ describe('NeoPrescriptionContextAdapter', () => {
     expect(mapped.hepaticImpairment).toBe(true);
     expect(mapped.pregnancy).toBe(false);
     expect(mapped.breastfeeding).toBe(true);
-    expect(mapped.anticoagulant).toBeNull();
-    expect(mapped.antiplatelet).toBeNull();
+    expect(mapped.anticoagulant).toBe('Rivaroxaban');
+    expect(mapped.antiplatelet).toBe('Aspirine faible dose');
+  });
+
+  it('normalizes and deduplicates explicit antithrombotic lists only', () => {
+    const mapped = adaptNeoContextToPharmacology({
+      anticoagulant_status: 'PRESENT',
+      anticoagulants: [' Warfarine ', 'Warfarine', ''],
+      antiplatelet_status: 'PRESENT',
+      antiplatelets: ['Clopidogrel', ' Aspirine '],
+    });
+
+    expect(mapped.anticoagulant).toBe('Warfarine');
+    expect(mapped.antiplatelet).toBe('Clopidogrel; Aspirine');
   });
 });

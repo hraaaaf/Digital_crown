@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
 
 from backend.models_base import Base
 
@@ -36,6 +36,41 @@ class PatientClinicalContext(Base):
     breastfeeding_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     current_medications_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
     current_medications = Column(JSON, nullable=True)
+
+    # N4.3B backoffice-only antithrombotic facts. These remain explicit patient facts;
+    # no drug class is inferred from free-text medication names.
+    anticoagulant_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    anticoagulants = Column(JSON, nullable=True)
+    antiplatelet_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    antiplatelets = Column(JSON, nullable=True)
+    antithrombotic_classes = Column(JSON, nullable=True)
+    antithrombotic_combination_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    warfarin_inr = Column(Float, nullable=True)
+    warfarin_inr_checked_at = Column(DateTime, nullable=True)
+    warfarin_inr_current = Column(Boolean, nullable=True)
+    lmwh_dose_class = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+
+    # N4.3B MRONJ prevention facts remain backoffice-only. No diagnostic staging
+    # or CTX-based risk score is persisted here.
+    mronj_medication_status = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    mronj_agents = Column(JSON, nullable=True)
+    mronj_agent_class = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    mronj_indication = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    mronj_route = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    mronj_duration_months = Column(Integer, nullable=True)
+    mronj_concurrent_risk_therapy = Column(JSON, nullable=True)
+    active_oral_infection_or_inflammation = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    suspected_or_known_mronj = Column(String(32), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+
+    # Hidden procedure facts that drive the practitioner notification. They are
+    # persisted server-side and are never exposed by the normal clinical-context API.
+    procedure_date = Column(Date, nullable=True)
+    procedure_bleeding_risk = Column(String(48), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    procedure_osseous_risk = Column(String(48), nullable=False, default="UNKNOWN", server_default="UNKNOWN")
+    procedure_is_implant = Column(Boolean, nullable=True)
+    ie_procedure_qualifies = Column(Boolean, nullable=True)
+    oral_route_possible = Column(Boolean, nullable=True)
+    currently_taking_penicillin_or_amoxicillin = Column(Boolean, nullable=True)
 
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

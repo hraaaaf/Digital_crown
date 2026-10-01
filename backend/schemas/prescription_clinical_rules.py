@@ -28,3 +28,51 @@ class ClinicalRuleEvaluationOut(BaseModel):
     timing_max_minutes_before: Optional[int] = None
     single_dose: Optional[bool] = None
     source_ids: List[str]
+
+
+ProcedureBleedingRisk = Literal[
+    "UNKNOWN",
+    "UNLIKELY_TO_CAUSE_BLEEDING",
+    "LOW_POSTOP_BLEEDING_RISK",
+    "HIGHER_POSTOP_BLEEDING_RISK",
+]
+AntithromboticStatus = Literal["UNKNOWN", "NONE_REPORTED", "PRESENT"]
+AntithromboticClass = Literal["VKA", "DOAC", "ANTIPLATELET", "LMWH", "OTHER"]
+CombinationStatus = Literal["UNKNOWN", "NO", "YES"]
+LMWHDoseClass = Literal["UNKNOWN", "PROPHYLACTIC", "TREATMENT"]
+ProcedureOsseousRisk = Literal[
+    "UNKNOWN",
+    "NO_OSSEOUS_INJURY",
+    "DENTOALVEOLAR_OSSEOUS_INJURY",
+]
+ProcedureSafetyStatus = Literal[
+    "READY",
+    "CONTEXT_REQUIRED",
+    "CLINICAL_REVIEW_REQUIRED",
+    "PRESCRIBER_REVIEW_REQUIRED",
+    "SPECIALIST_REVIEW_REQUIRED",
+]
+
+
+class ProcedureSafetyEvaluationRequest(BaseModel):
+    """Explicit request-scoped procedure/antithrombotic facts for background evaluation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    patient_id: int
+    procedure_date: date
+    procedure_bleeding_risk: ProcedureBleedingRisk = "UNKNOWN"
+    procedure_osseous_risk: ProcedureOsseousRisk = "UNKNOWN"
+    procedure_is_implant: Optional[bool] = None
+    ie_procedure_qualifies: Optional[bool] = None
+    oral_route_possible: Optional[bool] = None
+    currently_taking_penicillin_or_amoxicillin: Optional[bool] = None
+    presentation_id: Optional[str] = None
+
+
+class ProcedureSafetyEvaluationOut(BaseModel):
+    """Minimal background-only surface. Internal clinical codes stay server-side."""
+
+    status: ProcedureSafetyStatus
+    alert_key: Optional[str] = None
+    read_only: bool = True

@@ -12,6 +12,7 @@ import {
 import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
 import { PrescriptionQuickAccessBar } from './PrescriptionQuickAccessBar';
+import { ProcedureSafetyNotice } from './ProcedureSafetyNotice';
 import type { DrugItem } from './prescriptionTypes';
 
 export interface PrescriptionAgenticStudioProps {
@@ -76,6 +77,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     [drugs, prescriptionIndication],
   );
   const activeLineCount = drugs.filter(drug => drug.name.trim()).length;
+  const iePresentationId = useMemo(() => (
+    drugs.find(drug => (
+      Boolean(drug.catalogPresentationId)
+      && ['AMOXICILLINE', 'AMOXICILLIN'].includes((drug.catalogDci || '').trim().toUpperCase())
+    ))?.catalogPresentationId || null
+  ), [drugs]);
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -186,6 +193,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </div>
         </div>
       </section>
+
+      <ProcedureSafetyNotice patientId={patientId} presentationId={iePresentationId} />
 
       <PrescriptionQuickAccessBar
         drugs={drugs}

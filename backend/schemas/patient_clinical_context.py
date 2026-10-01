@@ -1,5 +1,5 @@
 import math
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
@@ -10,6 +10,15 @@ PenicillinAllergyStatus = Literal["UNKNOWN", "NONE_KNOWN", "PRESENT"]
 OrganContextStatus = Literal["UNKNOWN", "NO_KNOWN_IMPAIRMENT", "IMPAIRMENT_REPORTED"]
 BinaryFactStatus = Literal["UNKNOWN", "NO", "YES"]
 CurrentMedicationsStatus = Literal["UNKNOWN", "NONE_REPORTED", "PRESENT"]
+AntithromboticClass = Literal["VKA", "DOAC", "ANTIPLATELET", "LMWH", "OTHER"]
+CombinationStatus = Literal["UNKNOWN", "NO", "YES"]
+LMWHDoseClass = Literal["UNKNOWN", "PROPHYLACTIC", "TREATMENT"]
+MRONJAgentClass = Literal["UNKNOWN", "BISPHOSPHONATE", "DENOSUMAB", "ROMOSOZUMAB", "ANTIANGIOGENIC", "OTHER"]
+MRONJIndication = Literal["UNKNOWN", "OSTEOPOROSIS_NONMALIGNANT", "MALIGNANCY", "OTHER"]
+MRONJRoute = Literal["UNKNOWN", "ORAL", "PARENTERAL", "OTHER"]
+MRONJConcurrentRiskTherapy = Literal["CHEMOTHERAPY", "STEROID", "ANTIANGIOGENIC", "IMMUNOMODULATOR", "OTHER"]
+ProcedureBleedingRisk = Literal["UNKNOWN", "UNLIKELY_TO_CAUSE_BLEEDING", "LOW_POSTOP_BLEEDING_RISK", "HIGHER_POSTOP_BLEEDING_RISK"]
+ProcedureOsseousRisk = Literal["UNKNOWN", "NO_OSSEOUS_INJURY", "DENTOALVEOLAR_OSSEOUS_INJURY"]
 IECardiacRiskCategory = Literal[
     "UNKNOWN",
     "NONE_REPORTED",
@@ -30,11 +39,27 @@ def _clean_optional_text(value: Optional[str]) -> Optional[str]:
     return cleaned or None
 
 
-class PatientClinicalContextUpdate(BaseModel):
-    """Full practitioner-entered durable patient context state.
+def _clean_string_list(value: Optional[List[str]], message: str) -> Optional[List[str]]:
+    if value is None:
+        return None
+    cleaned: List[str] = []
+    seen = set()
+    for item in value:
+        label = str(item).strip()
+        if not label:
+            raise ValueError(message)
+        key = label.casefold()
+        if key not in seen:
+            seen.add(key)
+            cleaned.append(label)
+    return cleaned
 
-    No field in this schema implies that a prescription rule is clinically ready.
-    Prescription-specific indication is intentionally owned by the ordonnance document.
+
+class PatientClinicalContextUpdate(BaseModel):
+    """Practitioner-facing durable patient context.
+
+    N4.3B antithrombotic procedure-safety facts are deliberately excluded from
+    this contract and live behind the dedicated backoffice contract below.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -59,42 +84,18 @@ class PatientClinicalContextUpdate(BaseModel):
         if value is None:
             return None
         if not math.isfinite(value) or value <= 0:
-            raise ValueError("Le poids doit Ãªtre une valeur finie strictement positive")
+            raise ValueError("Le poids doit être une valeur finie strictement positive")
         return value
 
     @field_validator("medication_allergies")
     @classmethod
     def normalize_allergies(cls, value: Optional[List[str]]) -> Optional[List[str]]:
-        if value is None:
-            return None
-        cleaned: List[str] = []
-        seen = set()
-        for item in value:
-            label = str(item).strip()
-            if not label:
-                raise ValueError("Une allergie renseignÃ©e ne peut pas Ãªtre vide")
-            key = label.casefold()
-            if key not in seen:
-                seen.add(key)
-                cleaned.append(label)
-        return cleaned
+        return _clean_string_list(value, "Une allergie renseignée ne peut pas être vide")
 
     @field_validator("current_medications")
     @classmethod
     def normalize_current_medications(cls, value: Optional[List[str]]) -> Optional[List[str]]:
-        if value is None:
-            return None
-        cleaned: List[str] = []
-        seen = set()
-        for item in value:
-            label = str(item).strip()
-            if not label:
-                raise ValueError("Un traitement en cours renseign? ne peut pas ?tre vide")
-            key = label.casefold()
-            if key not in seen:
-                seen.add(key)
-                cleaned.append(label)
-        return cleaned
+        return _clean_string_list(value, "Un traitement en cours renseigné ne peut pas être vide")
 
     @field_validator("renal_context_note", "hepatic_context_note", mode="before")
     @classmethod
@@ -107,20 +108,20 @@ class PatientClinicalContextUpdate(BaseModel):
         allergies = self.medication_allergies or []
         if {"medication_allergy_status", "medication_allergies"} <= supplied:
             if self.medication_allergy_status == "PRESENT" and not allergies:
-                raise ValueError("Le statut PRESENT exige au moins une allergie m?dicamenteuse explicite")
+                raise ValueError("Le statut PRESENT exige au moins une allergie médicamenteuse explicite")
             if self.medication_allergy_status != "PRESENT" and allergies:
-                raise ValueError("Des allergies ne peuvent ?tre list?es que lorsque le statut est PRESENT")
+                raise ValueError("Des allergies ne peuvent être listées que lorsque le statut est PRESENT")
         if self.renal_context_status != "IMPAIRMENT_REPORTED" and self.renal_context_note:
-            raise ValueError("Une note r?nale exige le statut IMPAIRMENT_REPORTED")
+            raise ValueError("Une note rénale exige le statut IMPAIRMENT_REPORTED")
         if self.hepatic_context_status != "IMPAIRMENT_REPORTED" and self.hepatic_context_note:
-            raise ValueError("Une note h?patique exige le statut IMPAIRMENT_REPORTED")
+            raise ValueError("Une note hépatique exige le statut IMPAIRMENT_REPORTED")
 
         treatments = self.current_medications or []
         if {"current_medications_status", "current_medications"} <= supplied:
             if self.current_medications_status == "PRESENT" and not treatments:
                 raise ValueError("Le statut PRESENT exige au moins un traitement actuel explicite")
             if self.current_medications_status != "PRESENT" and treatments:
-                raise ValueError("Des traitements actuels ne peuvent ?tre list?s que lorsque le statut est PRESENT")
+                raise ValueError("Des traitements actuels ne peuvent être listés que lorsque le statut est PRESENT")
         return self
 
 
@@ -132,3 +133,133 @@ class PatientClinicalContextOut(PatientClinicalContextUpdate):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
+
+class PatientProcedureSafetyContextUpdate(BaseModel):
+    """Backoffice-only structured facts for N4.3B procedure-sensitive safety.
+
+    For MRONJ, mronj_medication_status=PRESENT means current OR previous
+    exposure to an at-risk medication; it must not be interpreted as current
+    medication use only.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    anticoagulant_status: CurrentMedicationsStatus = "UNKNOWN"
+    anticoagulants: Optional[List[str]] = None
+    antiplatelet_status: CurrentMedicationsStatus = "UNKNOWN"
+    antiplatelets: Optional[List[str]] = None
+    antithrombotic_classes: Optional[List[AntithromboticClass]] = None
+    antithrombotic_combination_status: CombinationStatus = "UNKNOWN"
+    warfarin_inr: Optional[float] = None
+    warfarin_inr_checked_at: Optional[datetime] = None
+    warfarin_inr_current: Optional[bool] = None
+    lmwh_dose_class: LMWHDoseClass = "UNKNOWN"
+
+    mronj_medication_status: CurrentMedicationsStatus = "UNKNOWN"
+    mronj_agents: Optional[List[str]] = None
+    mronj_agent_class: MRONJAgentClass = "UNKNOWN"
+    mronj_indication: MRONJIndication = "UNKNOWN"
+    mronj_route: MRONJRoute = "UNKNOWN"
+    mronj_duration_months: Optional[int] = None
+    mronj_concurrent_risk_therapy: Optional[List[MRONJConcurrentRiskTherapy]] = None
+    active_oral_infection_or_inflammation: BinaryFactStatus = "UNKNOWN"
+    suspected_or_known_mronj: BinaryFactStatus = "UNKNOWN"
+
+    procedure_date: Optional[date] = None
+    procedure_bleeding_risk: ProcedureBleedingRisk = "UNKNOWN"
+    procedure_osseous_risk: ProcedureOsseousRisk = "UNKNOWN"
+    procedure_is_implant: Optional[bool] = None
+    ie_procedure_qualifies: Optional[bool] = None
+    oral_route_possible: Optional[bool] = None
+    currently_taking_penicillin_or_amoxicillin: Optional[bool] = None
+
+    @field_validator("anticoagulants", "antiplatelets", "mronj_agents")
+    @classmethod
+    def normalize_agents(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return _clean_string_list(value, "Un traitement antithrombotique renseigné ne peut pas être vide")
+
+    @field_validator("antithrombotic_classes", "mronj_concurrent_risk_therapy")
+    @classmethod
+    def normalize_enum_lists(cls, value):
+        if value is None:
+            return None
+        return list(dict.fromkeys(value))
+
+    @field_validator("mronj_duration_months")
+    @classmethod
+    def validate_mronj_duration(cls, value: Optional[int]) -> Optional[int]:
+        if value is None:
+            return None
+        if value < 0:
+            raise ValueError("Durée MRONJ invalide")
+        return value
+
+    @field_validator("warfarin_inr")
+    @classmethod
+    def validate_warfarin_inr(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("INR invalide")
+        return value
+
+    @model_validator(mode="after")
+    def validate_state_consistency(self):
+        for status_field, list_field in (
+            ("anticoagulant_status", "anticoagulants"),
+            ("antiplatelet_status", "antiplatelets"),
+        ):
+            status = getattr(self, status_field)
+            values = getattr(self, list_field) or []
+            if status == "PRESENT" and not values:
+                raise ValueError(f"{status_field}=PRESENT exige une liste explicite")
+            if status != "PRESENT" and values:
+                raise ValueError(f"{list_field} exige {status_field}=PRESENT")
+
+        classes = self.antithrombotic_classes or []
+        has_antithrombotic = (
+            self.anticoagulant_status == "PRESENT"
+            or self.antiplatelet_status == "PRESENT"
+        )
+        if classes and not has_antithrombotic:
+            raise ValueError("Des classes antithrombotiques exigent un traitement antithrombotique PRESENT")
+        if self.warfarin_inr is not None and "VKA" not in classes:
+            raise ValueError("Un INR exige la classe VKA")
+        if self.warfarin_inr_checked_at is not None and self.warfarin_inr is None:
+            raise ValueError("La date INR exige une valeur INR")
+        if self.warfarin_inr_current is not None and self.warfarin_inr is None:
+            raise ValueError("Le statut de validité INR exige une valeur INR")
+        if self.lmwh_dose_class != "UNKNOWN" and "LMWH" not in classes:
+            raise ValueError("La classe de dose HBPM exige LMWH")
+        if self.antithrombotic_combination_status == "YES" and not (
+            len(classes) > 1
+            or (
+                self.anticoagulant_status == "PRESENT"
+                and self.antiplatelet_status == "PRESENT"
+            )
+        ):
+            raise ValueError("Le statut combinaison YES exige une combinaison explicite")
+
+        mronj_agents = self.mronj_agents or []
+        if self.mronj_medication_status == "PRESENT" and not mronj_agents:
+            raise ValueError("Le statut MRONJ PRESENT exige au moins un agent explicite")
+        if self.mronj_medication_status != "PRESENT" and mronj_agents:
+            raise ValueError("Les agents MRONJ exigent le statut PRESENT")
+        if self.mronj_medication_status != "PRESENT":
+            if self.mronj_agent_class != "UNKNOWN" or self.mronj_indication != "UNKNOWN" or self.mronj_route != "UNKNOWN":
+                raise ValueError("Les détails MRONJ exigent le statut PRESENT")
+            if self.mronj_duration_months is not None or self.mronj_concurrent_risk_therapy:
+                raise ValueError("Les facteurs MRONJ exigent le statut PRESENT")
+
+        if self.procedure_is_implant is True and self.procedure_osseous_risk != "DENTOALVEOLAR_OSSEOUS_INJURY":
+            raise ValueError("Un implant exige un contexte procédural avec atteinte osseuse")
+        return self
+
+
+class PatientProcedureSafetyContextOut(PatientProcedureSafetyContextUpdate):
+    patient_id: int
+    employer_id: int
+    updated_at: Optional[datetime] = None
+    updated_by_user_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")

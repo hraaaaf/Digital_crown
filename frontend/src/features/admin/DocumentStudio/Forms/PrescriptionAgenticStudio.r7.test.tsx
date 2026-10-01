@@ -19,6 +19,39 @@ vi.mock('../../../../services/api', () => ({
 import { PrescriptionAgenticStudio } from './PrescriptionAgenticStudio';
 
 describe('PrescriptionAgenticStudio practitioner copy', () => {
+  it('affiche uniquement l alerte générique fournie par le backend caché', async () => {
+    const { api } = await import('../../../../services/api');
+    vi.mocked(api.get).mockImplementation(async (url: string) => (
+      url.includes('/procedure-safety/alert/')
+        ? {
+            data: {
+              status: 'SPECIALIST_REVIEW_REQUIRED',
+              alert_key: 'SPECIALIST_REVIEW_RECOMMENDED',
+              read_only: true,
+            },
+          } as any
+        : { data: [] } as any
+    ));
+
+    render(
+      <PrescriptionAgenticStudio
+        patientId="42"
+        drugs={[]}
+        setDrugs={vi.fn()}
+        prescriptionIndication=""
+        onPrescriptionIndicationChange={vi.fn()}
+        onUpdateDrug={vi.fn()}
+        onRemoveDrug={vi.fn()}
+        onAddDrug={vi.fn()}
+        validationErrors={[]}
+      />,
+    );
+
+    expect(await screen.findByText('Avis spécialisé recommandé.')).toBeInTheDocument();
+    expect(screen.queryByText(/MRONJ|endocard|anticoag|CTX|drug holiday|bisphosph|denosumab/i)).not.toBeInTheDocument();
+  });
+
+
   it('conserve les statuts internes sans afficher les bandeaux techniques', () => {
     const { container } = render(
       <PrescriptionAgenticStudio

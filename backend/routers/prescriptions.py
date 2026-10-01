@@ -22,6 +22,8 @@ from backend.routers.auth import get_current_user, require_permission
 from backend.schemas.prescription_clinical_rules import (
     ClinicalRuleEvaluationOut,
     IEProphylaxisEvaluationRequest,
+    ProcedureSafetyEvaluationOut,
+    ProcedureSafetyEvaluationRequest,
 )
 from backend.services import cabinet_catalog_store as catalog_store
 from backend.services import medication_dict
@@ -29,6 +31,11 @@ from backend.services.catalog_connected_truth import flatten_catalog_acts
 from backend.services.prescription_clinical_rules import (
     IEProphylaxisAdultOralAmoxicillinInput,
     evaluate_ie_prophylaxis_adult_oral_amoxicillin,
+)
+from backend.services.prescription_procedure_safety import (
+    AntithromboticProcedureSafetyInput,
+    MRONJProcedureSafetyInput,
+    orchestrate_procedure_safety,
 )
 from backend.utils.access_control import assert_patient_access
 from . import prescriptions_core as _core
@@ -139,6 +146,172 @@ def evaluate_ie_prophylaxis_rule(
         single_dose=result.single_dose,
         source_ids=list(result.source_ids),
     )
+
+
+@prescription_router.post(
+    "/clinical-rules/procedure-safety/evaluate",
+    response_model=ProcedureSafetyEvaluationOut,
+)
+def evaluate_procedure_safety_background(
+    payload: ProcedureSafetyEvaluationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("prescriptions")),
+):
+    """Read-only N4.3B orchestration. No prescription or patient state is mutated."""
+    assert_patient_access(payload.patient_id, current_user, db)
+    employer_id = current_user.get_employer_id()
+
+    patient = db.query(Patient).filter(
+        Patient.id == payload.patient_id,
+        Patient.employer_id == employer_id,
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+
+    context = db.query(PatientClinicalContext).filter(
+        PatientClinicalContext.patient_id == payload.patient_id,
+        PatientClinicalContext.employer_id == employer_id,
+    ).first()
+
+    presentation = (
+        medication_dict.get_presentation(payload.presentation_id)
+        if payload.presentation_id
+        else None
+    )
+    active_ingredient_code = _amoxicillin_active_ingredient_code(presentation)
+
+    ie_input = IEProphylaxisAdultOralAmoxicillinInput(
+        age_years=_age_on_date(patient.date_naissance, payload.procedure_date),
+        cardiac_risk_category=(
+            context.ie_cardiac_risk_category if context is not None else "UNKNOWN"
+        ),
+        dental_procedure_qualifies=payload.ie_procedure_qualifies,
+        penicillin_allergy_status=(
+            context.penicillin_allergy_status if context is not None else "UNKNOWN"
+        ),
+        generic_medication_allergy_present=(
+            context is not None and context.medication_allergy_status == "PRESENT"
+        ),
+        oral_route_possible=payload.oral_route_possible,
+        currently_taking_penicillin_or_amoxicillin=payload.currently_taking_penicillin_or_amoxicillin,
+        selected_active_ingredient_code=active_ingredient_code,
+        selected_presentation_verified=presentation is not None,
+    )
+
+    if context is None:
+        antithrombotic_status = "UNKNOWN"
+        antithrombotic_classes = ()
+        combination_therapy = "UNKNOWN"
+        warfarin_inr = None
+        warfarin_inr_current = None
+        lmwh_dose_class = "UNKNOWN"
+    else:
+        anticoagulant_status = getattr(context, "anticoagulant_status", "UNKNOWN")
+        antiplatelet_status = getattr(context, "antiplatelet_status", "UNKNOWN")
+        if "PRESENT" in {anticoagulant_status, antiplatelet_status}:
+            antithrombotic_status = "PRESENT"
+        elif anticoagulant_status == "NONE_REPORTED" and antiplatelet_status == "NONE_REPORTED":
+            antithrombotic_status = "NONE_REPORTED"
+        else:
+            antithrombotic_status = "UNKNOWN"
+        antithrombotic_classes = tuple(getattr(context, "antithrombotic_classes", None) or ())
+        combination_therapy = getattr(context, "antithrombotic_combination_status", "UNKNOWN")
+        warfarin_inr = getattr(context, "warfarin_inr", None)
+        warfarin_inr_current = getattr(context, "warfarin_inr_current", None)
+        lmwh_dose_class = getattr(context, "lmwh_dose_class", "UNKNOWN")
+
+    if context is None:
+        mronj_medication_status = "UNKNOWN"
+        mronj_agent_class = "UNKNOWN"
+        mronj_indication = "UNKNOWN"
+        mronj_route = "UNKNOWN"
+        mronj_duration_months = None
+        mronj_concurrent_risk_therapy = ()
+        active_oral_infection_or_inflammation = "UNKNOWN"
+        suspected_or_known_mronj = "UNKNOWN"
+    else:
+        mronj_medication_status = getattr(context, "mronj_medication_status", "UNKNOWN")
+        mronj_agent_class = getattr(context, "mronj_agent_class", "UNKNOWN")
+        mronj_indication = getattr(context, "mronj_indication", "UNKNOWN")
+        mronj_route = getattr(context, "mronj_route", "UNKNOWN")
+        mronj_duration_months = getattr(context, "mronj_duration_months", None)
+        mronj_concurrent_risk_therapy = tuple(
+            getattr(context, "mronj_concurrent_risk_therapy", None) or ()
+        )
+        active_oral_infection_or_inflammation = getattr(
+            context, "active_oral_infection_or_inflammation", "UNKNOWN"
+        )
+        suspected_or_known_mronj = getattr(context, "suspected_or_known_mronj", "UNKNOWN")
+
+    result = orchestrate_procedure_safety(
+        AntithromboticProcedureSafetyInput(
+            procedure_bleeding_risk=payload.procedure_bleeding_risk,
+            antithrombotic_status=antithrombotic_status,
+            antithrombotic_classes=antithrombotic_classes,
+            combination_therapy=combination_therapy,
+            warfarin_inr=warfarin_inr,
+            warfarin_inr_current=warfarin_inr_current,
+            lmwh_dose_class=lmwh_dose_class,
+        ),
+        ie_input,
+        MRONJProcedureSafetyInput(
+            procedure_osseous_risk=payload.procedure_osseous_risk,
+            procedure_is_implant=payload.procedure_is_implant,
+            medication_status=mronj_medication_status,
+            agent_class=mronj_agent_class,
+            indication=mronj_indication,
+            route=mronj_route,
+            duration_months=mronj_duration_months,
+            concurrent_risk_therapy=mronj_concurrent_risk_therapy,
+            active_oral_infection_or_inflammation=active_oral_infection_or_inflammation,
+            suspected_or_known_mronj=suspected_or_known_mronj,
+        ),
+    )
+
+    return ProcedureSafetyEvaluationOut(
+        status=result.status,
+        alert_key=result.alert_key,
+        read_only=True,
+    )
+
+
+
+
+@prescription_router.get(
+    "/clinical-rules/procedure-safety/alert/{patient_id}",
+    response_model=ProcedureSafetyEvaluationOut,
+)
+def read_procedure_safety_alert(
+    patient_id: int,
+    presentation_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("prescriptions")),
+):
+    """Return only the generic practitioner alert derived from hidden backoffice context."""
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = current_user.get_employer_id()
+    context = db.query(PatientClinicalContext).filter(
+        PatientClinicalContext.patient_id == patient_id,
+        PatientClinicalContext.employer_id == employer_id,
+    ).first()
+
+    if context is None or getattr(context, "procedure_date", None) is None:
+        return ProcedureSafetyEvaluationOut(status="READY", alert_key=None, read_only=True)
+
+    payload = ProcedureSafetyEvaluationRequest(
+        patient_id=patient_id,
+        procedure_date=context.procedure_date,
+        procedure_bleeding_risk=getattr(context, "procedure_bleeding_risk", "UNKNOWN"),
+        procedure_osseous_risk=getattr(context, "procedure_osseous_risk", "UNKNOWN"),
+        procedure_is_implant=getattr(context, "procedure_is_implant", None),
+        ie_procedure_qualifies=getattr(context, "ie_procedure_qualifies", None),
+        oral_route_possible=getattr(context, "oral_route_possible", None),
+        currently_taking_penicillin_or_amoxicillin=getattr(
+            context, "currently_taking_penicillin_or_amoxicillin", None
+        ),
+        presentation_id=presentation_id,
+    )
+    return evaluate_procedure_safety_background(payload, db=db, current_user=current_user)
 
 
 @actes_router.get("/catalog/search")
