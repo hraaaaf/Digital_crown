@@ -28,8 +28,6 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Keep every post-merge default-branch regression alive. Superseded PR/feature
-  # runs may still be cancelled to avoid wasting CI capacity.
   cancel-in-progress: ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')) }}
 
 jobs:
@@ -46,7 +44,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - id: scope
         name: Classify targeted tests and reusable merge evidence
         shell: bash
@@ -69,7 +66,6 @@ jobs:
               echo "Full CI: missing PR base/head SHA."
               exit 0
             fi
-
             mapfile -t changed < <(git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA")
             if [[ "${#changed[@]}" -eq 0 ]]; then
               echo "Full CI: empty PR delta."
@@ -79,13 +75,19 @@ jobs:
             frontend_tests=()
             backend_tests=()
             strict_test_only=true
+            frontend_changed=false
             for file in "${changed[@]}"; do
               case "$file" in
                 frontend/src/*.test.ts|frontend/src/*.test.tsx|frontend/src/**/*.test.ts|frontend/src/**/*.test.tsx|frontend/src/*.spec.ts|frontend/src/*.spec.tsx|frontend/src/**/*.spec.ts|frontend/src/**/*.spec.tsx)
                   frontend_tests+=("${file#frontend/}")
+                  frontend_changed=true
                   ;;
                 backend/tests/*.py|backend/tests/**/*.py)
                   backend_tests+=("$file")
+                  ;;
+                frontend/*|frontend/**/*|package.json|package-lock.json)
+                  frontend_changed=true
+                  strict_test_only=false
                   ;;
                 .github/workflows/ci.yml)
                   ;;
@@ -97,12 +99,12 @@ jobs:
 
             printf 'changed_tests=%s\n' "$(IFS=,; echo "${frontend_tests[*]}")" >> "$GITHUB_OUTPUT"
             printf 'changed_backend_tests=%s\n' "$(IFS=,; echo "${backend_tests[*]}")" >> "$GITHUB_OUTPUT"
-
+            if [[ "$frontend_changed" == "false" ]]; then
+              echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
+              echo "PR fast-path: delta contains no frontend surface change."
+            fi
             if [[ "$strict_test_only" == "true" ]]; then
               echo "test_only=true" >> "$GITHUB_OUTPUT"
-              if [[ "${#frontend_tests[@]}" -eq 0 ]]; then
-                echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
-              fi
               echo "Targeted PR CI: only tests/workflow changed."
             fi
             exit 0
@@ -120,22 +122,16 @@ jobs:
                 frontend_changed=false
                 for file in "${merged_files[@]}"; do
                   case "$file" in
-                    frontend/*|frontend/**/*) frontend_changed=true ;;
+                    frontend/*|frontend/**/*|package.json|package-lock.json) frontend_changed=true ;;
                   esac
                 done
-
                 if [[ "$frontend_changed" == "false" ]]; then
                   echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
                   echo "reuse_pr_frontend=true" >> "$GITHUB_OUTPUT"
                   echo "Post-merge fast-path: merge contains no frontend change."
                   exit 0
                 fi
-
-                checks="$(curl -fsSL \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer $GH_TOKEN" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${pr_head}/check-runs?per_page=100" || true)"
+                checks="$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${pr_head}/check-runs?per_page=100" || true)"
                 if [[ -n "$checks" ]] && jq -e 'any(.check_runs[]; .name == "Frontend (tests & build)" and .conclusion == "success")' <<< "$checks" >/dev/null; then
                   echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
                   echo "reuse_pr_frontend=true" >> "$GITHUB_OUTPUT"
@@ -146,6 +142,7 @@ jobs:
               fi
             fi
           fi
+
   backend-targeted:
     needs: classify-change
     if: github.event_name == 'pull_request' && needs.classify-change.outputs.changed_backend_tests != ''
@@ -178,8 +175,7 @@ jobs:
           IFS=',' read -ra files <<< "$CHANGED_BACKEND_TESTS"
           test "${#files[@]}" -gt 0
           python -m pytest "${files[@]}" -q
-  # Generic full backend regression is intentionally post-merge.
-  # PRs keep targeted lot checks plus frontend/build and the lightweight prod gate.
+
   test:
     if: >-
       github.event_name == 'workflow_dispatch' ||
@@ -195,12 +191,10 @@ jobs:
       CLOUD_AI_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -208,10 +202,8 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
           pip install -r /tmp/requirements-ci.txt
           python -m pip check
-
       - name: Prod safety check (config hardening)
         run: python scripts/prod_safety_check.py
-
       - name: Full backend regression suite (DB / patients / documents included)
         run: python -m pytest backend/tests -q
 
@@ -227,17 +219,14 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
       - name: Fast-path — run only changed test files
         if: needs.classify-change.outputs.test_only == 'true'
         shell: bash
@@ -245,173 +234,12 @@ jobs:
           CHANGED_TESTS: ${{ needs.classify-change.outputs.changed_tests }}
         run: |
           set -euo pipefail
-          if [[ -z "$CHANGED_TESTS" ]]; then
-            echo "No product test changed; CI workflow-only fast-path."
-            exit 0
-          fi
+          if [[ -z "$CHANGED_TESTS" ]]; then exit 0; fi
           IFS=',' read -ra files <<< "$CHANGED_TESTS"
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 1/12 isolated files
+          for file in "${files[@]}"; do npx vitest run "$file" --maxWorkers=1 --fileParallelism=false; done
+      - name: Test suite
         if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=1/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 2/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=2/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 3/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=3/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 4/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=4/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 5/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=5/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 6/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=6/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 7/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=7/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 8/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=8/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 9/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=9/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 10/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=10/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 11/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=11/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
-      - name: Test suite — shard 12/12 isolated files
-        if: needs.classify-change.outputs.test_only != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(npx vitest list --filesOnly --shard=12/12)
-          test "${#files[@]}" -gt 0
-          for file in "${files[@]}"; do
-            echo "::group::vitest $file"
-            npx vitest run "$file" --maxWorkers=1 --fileParallelism=false
-            echo "::endgroup::"
-          done
-
+        run: npx vitest run --maxWorkers=1 --fileParallelism=false
       - name: Build
         if: needs.classify-change.outputs.test_only != 'true'
         run: npm run build
@@ -423,17 +251,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pydantic-settings==2.2.1
-
       - name: Le garde DOIT refuser une config prod non durcie
         env:
           ENVIRONMENT: production
@@ -441,12 +266,7 @@ jobs:
           DEBUG: "true"
           DATABASE_URL: "sqlite:///./x.db"
         run: |
-          if python scripts/prod_safety_check.py; then
-            echo "::error::Le prod safety check a accepté une config production non durcie."
-            exit 1
-          else
-            echo "OK : le garde a bien refusé la config production non durcie."
-          fi
+          if python scripts/prod_safety_check.py; then exit 1; else echo "OK"; fi
 
   m4a-e2e:
     needs: classify-change
@@ -454,13 +274,10 @@ jobs:
     name: M4-A Patient contextual bridge AFTER
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Assert Pocket patient bridge retirement contract
-        run: |
+      - run: |
           python - <<'PY'
           from pathlib import Path
           patient = Path('frontend/src/features/patients/PatientDetailsInner.tsx').read_text()
@@ -469,7 +286,6 @@ jobs:
           assert 'Ouvrir sur mobile' not in patient
           assert 'resource_type == "patient"' in router
           assert "@router.post('/resource-context'" in router
-          print('Pocket patient desktop CTA absent; secured internal patient context preserved')
           PY
 
   m4b-e2e:
@@ -478,13 +294,10 @@ jobs:
     name: M4-B Panoramic contextual bridge AFTER
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Assert Pocket panoramic bridge retirement contract
-        run: |
+      - run: |
           python - <<'PY'
           from pathlib import Path
           panoramic = Path('frontend/src/features/panoramic/PanoramicHistory.tsx').read_text()
@@ -493,7 +306,6 @@ jobs:
           assert 'Ouvrir sur mobile' not in panoramic
           assert 'resource_type == "panoramic"' in router
           assert "@router.post('/resource-context-media'" in router
-          print('Pocket panoramic desktop CTA absent; secured internal panoramic context preserved')
           PY
 
   m4c-e2e:
@@ -502,13 +314,10 @@ jobs:
     name: M4-C Document contextual bridge AFTER
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Assert Pocket document bridge retirement contract
-        run: |
+      - run: |
           python - <<'PY'
           from pathlib import Path
           documents = Path('frontend/src/features/patients/PatientDocuments.tsx').read_text()
@@ -517,7 +326,6 @@ jobs:
           assert 'Ouvrir sur mobile' not in documents
           assert 'resource_type == "document"' in router
           assert "@router.post('/resource-context-media'" in router
-          print('Pocket document desktop CTA absent; secured internal document context preserved')
           PY
 
   m4d-retired:
@@ -526,13 +334,10 @@ jobs:
     name: M4-D Appointment contextual bridge retired
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Assert Pocket appointment bridge retirement contract
-        run: |
+      - run: |
           python - <<'PY'
           from pathlib import Path
           agenda = Path('frontend/src/features/agenda/AgendaModal.tsx').read_text()
@@ -541,5 +346,4 @@ jobs:
           assert 'data-m4d-bridge-slot' not in agenda
           assert 'resource_type == "appointment"' in router
           assert "@router.post('/resource-context'" in router
-          print('Pocket appointment desktop CTA absent; secured internal appointment context preserved')
           PY
