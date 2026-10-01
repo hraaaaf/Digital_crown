@@ -34,6 +34,7 @@ from backend.services.prescription_clinical_rules import (
 )
 from backend.services.prescription_procedure_safety import (
     AntithromboticProcedureSafetyInput,
+    MRONJProcedureSafetyInput,
     orchestrate_procedure_safety,
 )
 from backend.utils.access_control import assert_patient_access
@@ -219,6 +220,29 @@ def evaluate_procedure_safety_background(
         warfarin_inr_current = getattr(context, "warfarin_inr_current", None)
         lmwh_dose_class = getattr(context, "lmwh_dose_class", "UNKNOWN")
 
+    if context is None:
+        mronj_medication_status = "UNKNOWN"
+        mronj_agent_class = "UNKNOWN"
+        mronj_indication = "UNKNOWN"
+        mronj_route = "UNKNOWN"
+        mronj_duration_months = None
+        mronj_concurrent_risk_therapy = ()
+        active_oral_infection_or_inflammation = "UNKNOWN"
+        suspected_or_known_mronj = "UNKNOWN"
+    else:
+        mronj_medication_status = getattr(context, "mronj_medication_status", "UNKNOWN")
+        mronj_agent_class = getattr(context, "mronj_agent_class", "UNKNOWN")
+        mronj_indication = getattr(context, "mronj_indication", "UNKNOWN")
+        mronj_route = getattr(context, "mronj_route", "UNKNOWN")
+        mronj_duration_months = getattr(context, "mronj_duration_months", None)
+        mronj_concurrent_risk_therapy = tuple(
+            getattr(context, "mronj_concurrent_risk_therapy", None) or ()
+        )
+        active_oral_infection_or_inflammation = getattr(
+            context, "active_oral_infection_or_inflammation", "UNKNOWN"
+        )
+        suspected_or_known_mronj = getattr(context, "suspected_or_known_mronj", "UNKNOWN")
+
     result = orchestrate_procedure_safety(
         AntithromboticProcedureSafetyInput(
             procedure_bleeding_risk=payload.procedure_bleeding_risk,
@@ -230,6 +254,18 @@ def evaluate_procedure_safety_background(
             lmwh_dose_class=lmwh_dose_class,
         ),
         ie_input,
+        MRONJProcedureSafetyInput(
+            procedure_osseous_risk=payload.procedure_osseous_risk,
+            procedure_is_implant=payload.procedure_is_implant,
+            medication_status=mronj_medication_status,
+            agent_class=mronj_agent_class,
+            indication=mronj_indication,
+            route=mronj_route,
+            duration_months=mronj_duration_months,
+            concurrent_risk_therapy=mronj_concurrent_risk_therapy,
+            active_oral_infection_or_inflammation=active_oral_infection_or_inflammation,
+            suspected_or_known_mronj=suspected_or_known_mronj,
+        ),
     )
 
     return ProcedureSafetyEvaluationOut(
