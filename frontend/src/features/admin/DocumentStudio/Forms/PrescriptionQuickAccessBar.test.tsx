@@ -320,7 +320,7 @@ describe('Neo prescription quick access', () => {
     });
 
     const setDrugs = vi.fn();
-    const { rerender } = render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
     const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
     fireEvent.change(input, { target: { value: 'doliprane 1g' } });
     fireEvent.click(await screen.findByText('DOLIPRANE'));
@@ -393,20 +393,20 @@ describe('Neo prescription quick access', () => {
     });
 
     const setDrugs = vi.fn();
-    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    const view = render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
     const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
     fireEvent.change(input, { target: { value: 'doliprane' } });
     fireEvent.click(await screen.findByText('DOLIPRANE'));
 
     const immediate = setDrugs.mock.calls[0][0];
-    resolveHabit?.({ data: { preferred_posology: 'habitude historique' } });
-    await waitFor(() => expect(setDrugs).toHaveBeenCalledTimes(2));
-    const enrich = setDrugs.mock.calls[1][0] as (current: typeof immediate) => typeof immediate;
     const practitionerEdited = immediate.map((drug: typeof emptyLine & { catalogPresentationId?: string }) => ({
       ...drug,
       posologie: drug.catalogPresentationId === 'dol-race' ? 'choix praticien' : drug.posologie,
     }));
-    expect(enrich(practitionerEdited)[0].posologie).toBe('choix praticien');
+    view.rerender(<PrescriptionQuickAccessBar drugs={practitionerEdited} setDrugs={setDrugs} prescriptionIndication="" />);
+    resolveHabit?.({ data: { preferred_posology: 'habitude historique' } });
+    await waitFor(() => expect(setDrugs).toHaveBeenCalledTimes(2));
+    expect(setDrugs.mock.calls[1][0][0].posologie).toBe('choix praticien');
   });
 
 });
