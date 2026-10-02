@@ -73,7 +73,7 @@ export function PrescriptionContextualChoice({
         )}
       >
         {icon}
-        <span className="min-w-0 flex-1 whitespace-normal break-words text-[10px] font-black leading-snug text-text-main">
+        <span className="min-w-0 flex-1 whitespace-normal break-words text-[9px] font-black leading-snug text-text-main sm:text-[10px]">
           {value || placeholder}
         </span>
         <ChevronDown size={13} className="shrink-0 text-text-muted" />
