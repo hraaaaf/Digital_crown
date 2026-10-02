@@ -306,3 +306,11 @@ def test_unknown_landmark_identity_fails_closed_instead_of_becoming_canonical():
     source["landmarks"].append({"evidence_id": "lm:unknown", "landmark_id": "UNKNOWN_LEGACY_POINT", "x": 1.0, "y": 2.0, "source_image_ref": "source:image", "origin": "MANUAL", "evidence_refs": ["source:image"], "evidence_status": "OBSERVED", "availability_status": "AVAILABLE"})
     with pytest.raises(Lot05MigrationError):
         migrate(source)
+
+
+@pytest.mark.parametrize("field", ["source_image_ref", "evidence_refs"])
+def test_landmark_source_references_must_resolve(field):
+    source = v1()
+    source["landmarks"][0][field] = "source:missing" if field == "source_image_ref" else ["source:missing"]
+    with pytest.raises(Lot05MigrationError):
+        migrate(source)
