@@ -107,6 +107,7 @@ export function PatientAvatar({
     let cancelled = false;
 
     if (!canReadPatientMedia) {
+      patientDirectoryCacheOwnerKey = null;
       setResolvedPhotoUrl(null);
       return () => { cancelled = true; };
     }
