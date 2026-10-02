@@ -254,12 +254,20 @@ def test_runtime_chain_projects_only_safe_canonical_measurements_and_reports_blo
     assert "DOWNS_Y_AXIS_DEG_V1" in projected["scientific_read_path"]["unmapped_method_ids"]
     assert "MERRIFIELD_Z_ANGLE_DEG_V1" in projected["scientific_read_path"]["unmapped_method_ids"]
 
-def test_runtime_chain_does_not_promote_divergent_blocked_legacy_methods():
+def test_runtime_chain_does_not_promote_divergent_blocked_frankfort_dependent_tweed_methods():
     angles = _angles()
     payload = angles[EVIDENCE_GRAPH_KEY]
-    tweed = next(item for item in payload["measurements"] if item["method_id"] == "TWEED_IMPA_DEG_V1")
-    tweed["value"] = float(tweed["value"]) + 1.0
+    tweed_fma = next(
+        item for item in payload["measurements"]
+        if item["method_id"] == "TWEED_FMA_DEG_V1"
+    )
+    tweed_fma["value"] = float(tweed_fma["value"]) + 1.0
     projected = project_runtime_chain_read_path(angles, patient_id=7)
-    canonical_ids={item["canonical_measurement_id"] for item in projected["scientific_read_path"]["canonical_measurements"]}
-    assert "M_IMPA_GOME_DEG_V1" not in canonical_ids
+    canonical_ids = {
+        item["canonical_measurement_id"]
+        for item in projected["scientific_read_path"]["canonical_measurements"]
+    }
+    assert "M_FH_GOME_DEG_V1" not in canonical_ids
+    blocked = projected["scientific_read_path"]["canonical_blocked_method_ids"]
+    assert "TWEED_FMA_DEG_V1" in blocked
     assert "TWEED_IMPA_DEG_V1" in projected["scientific_read_path"]["blocked_method_ids"]
