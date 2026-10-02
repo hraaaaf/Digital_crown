@@ -89,6 +89,13 @@ def load_model_module(candidate_repo:Path):
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module
 
+def ensure_rgb(image:np.ndarray)->np.ndarray:
+    if image.ndim==2:
+        return np.repeat(image[:,:,None],3,axis=2)
+    if image.ndim==3 and image.shape[2]==3:
+        return image
+    raise ValueError(f"unsupported image shape {image.shape}")
+
 def load_candidate(candidate_repo:Path,weights:Path):
     if weights.stat().st_size!=WEIGHT_SIZE:raise SystemExit("candidate weight size mismatch")
     if sha256_file(weights)!=WEIGHT_SHA256:raise SystemExit("candidate weight sha256 mismatch")
@@ -136,7 +143,7 @@ def manifest_cmd(a):
       },
       "preprocessing":{
         "input_size":[512,512],"resize_impl":"skimage.transform.resize","preserve_range":False,
-        "channel_order":"RGB_HWC_TO_CHW","normalization":"NONE_BEYOND_SKIMAGE_PRESERVE_RANGE_FALSE",
+        "channel_order":"RGB_HWC_TO_CHW","image_channel_policy":"2D_GRAYSCALE_REPLICATE_TO_3_IDENTICAL_CHANNELS; RGB_UNCHANGED","normalization":"NONE_BEYOND_SKIMAGE_PRESERVE_RANGE_FALSE",
         "decoder":"per-channel global max; all tied maxima averaged; x/y rescaled from 512x512 to original dimensions",
       },
       "dataset":{
@@ -151,7 +158,7 @@ def manifest_cmd(a):
                  "sdr_secondary":True,"clinical_propagation":list(SENTINELS),
                  "device_stratification":True},
       "acceptance_policy":{
-        "policy_id":policy["policy_id"],"policy_sha256":sha256_file(a.tolerance_policy),
+        "policy_id":policy["policy_id"],"tolerance_version":policy["policy_id"],"policy_sha256":sha256_file(a.tolerance_policy),
         "landmark_tolerances":policy["landmark_tolerances"],"clinical_tolerances":policy["clinical_tolerances"],
         "device_stratified_policy":policy["device_stratified_policy"],
       },
@@ -222,7 +229,7 @@ def score_cmd(a):
     for cid in sorted(acceptance):
         case=cases[cid];row=cal[cid];scale=float(row["pixel_size"])
         path=a.dataset_root/case["image"]["path"];image=sk_io.imread(str(path))
-        if image.ndim!=3 or image.shape[2]!=3:raise SystemExit(f"candidate expects RGB image: {cid} shape={image.shape}")
+        image=ensure_rgb(image)
         h,w=image.shape[:2]
         resized=transform.resize(image,(512,512),mode="constant",preserve_range=False)
         tensor=torch.from_numpy(np.transpose(resized,(2,0,1))[None,:,:,:]).float()
