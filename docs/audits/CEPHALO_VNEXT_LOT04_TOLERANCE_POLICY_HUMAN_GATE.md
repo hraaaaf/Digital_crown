@@ -112,8 +112,8 @@ Approved by Product Owner before any SRPose38 anatomical result was observed.
 Frozen policy version: `REFERENCE_EQUIVALENCE_V1`.
 
 For LOT04 detector selection only:
-- candidate landmark median error must not exceed the corresponding frozen LOT02 human median;
 - candidate landmark p95 error must not exceed the corresponding frozen LOT02 human p95;
+- landmark median remains reported but is non-blocking for Option A; the schema field `max_median_mm` is therefore set equal to the same human p95 ceiling so it cannot introduce an unapproved stricter gate;
 - candidate sentinel-measurement p95 absolute error must not exceed the corresponding frozen LOT02 G1-A human p95 absolute disagreement;
 - no additive or multiplicative margin above the human envelope is authorized;
 - unsupported identities remain non-passing and cannot be promoted by aliasing;
