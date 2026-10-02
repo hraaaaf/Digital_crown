@@ -17,6 +17,7 @@ on:
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx'
       - 'frontend/src/features/admin/DocumentStudio/DocumentGeneration.g4Interactive.test.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/DocumentEditConsistency.regression.test.ts'
       - '.github/workflows/neo-ordonnance-d6-quantity.yml'
       - '.github/workflows/ordonnance-composer-visual-cert.yml'
   workflow_dispatch:
@@ -56,7 +57,7 @@ jobs:
 
       - name: Frontend quantity contracts
         working-directory: frontend
-        run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx src/features/admin/DocumentStudio/DocumentGeneration.g4Interactive.test.tsx
+        run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx src/features/admin/DocumentStudio/DocumentGeneration.g4Interactive.test.tsx src/features/admin/DocumentStudio/DocumentEditConsistency.regression.test.ts
 
       - name: Build frontend
         working-directory: frontend
