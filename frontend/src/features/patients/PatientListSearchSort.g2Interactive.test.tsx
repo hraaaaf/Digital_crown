@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PatientList } from './PatientList';
 
 vi.mock('../../services/api', () => ({
+  API_BASE: 'http://127.0.0.1:8005',
   api: { get: vi.fn().mockResolvedValue({ data: [] }), delete: vi.fn() },
 }));
 
