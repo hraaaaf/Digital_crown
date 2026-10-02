@@ -445,7 +445,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 <input
                   type="text"
                   className={cn(
-                    'min-h-11 w-full min-w-0 border-none bg-transparent py-1 text-base font-black uppercase tracking-tight text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0 sm:text-lg',
+                    'min-h-11 w-full min-w-0 border-none bg-transparent py-1 text-sm font-black uppercase tracking-tight text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0 sm:text-base',
                     !isRadio && 'pl-5',
                   )}
                   placeholder={isRadio ? "DÉTAILS DE L'EXAMEN RADIOLOGIQUE..." : 'NOM OU DCI DU MÉDICAMENT...'}
@@ -567,10 +567,10 @@ export const DrugRow: React.FC<DrugRowProps> = ({
           {!isRadio && hasIdentity && (
             <div className="mt-3 min-w-0 space-y-3">
               {!hasCatalogPresentation && !hasManualPresentationOverride && (
-                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/65 px-3 py-2 text-[10px] font-semibold text-amber-800">
-                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                  Choisissez le médicament pour compléter la ligne.
-                </div>
+                <p className="flex items-start gap-1.5 px-0.5 text-[10px] font-semibold leading-relaxed text-amber-700">
+                  <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                  Confirmez la présentation (forme et dosage) pour vérifier le médicament.
+                </p>
               )}
 
               <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-[minmax(9rem,1fr)_minmax(8rem,0.8fr)_auto]">
@@ -623,13 +623,13 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 className="rounded-2xl border border-border-main bg-glass-bg/70 p-2.5 shadow-sm backdrop-blur-xl sm:p-3"
               >
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-0.5">
-                  <span className="text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">Prescription structurée · saisie praticien</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">Posologie</span>
                   {hasCustomPosology && (
                     <span className="text-[8px] font-bold text-text-muted">Texte libre actif · un choix reconstruit la phrase</span>
                   )}
                 </div>
 
-                <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4">
+                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   <PrescriptionContextualChoice
                     ariaLabel="Prise"
                     value={composer.amount}
@@ -668,15 +668,8 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                   />
                 </div>
 
-                <div className="mt-2 rounded-xl border border-border-main/80 bg-card/75 px-3 py-2">
-                  <div className="text-[8px] font-black uppercase tracking-[0.14em] text-text-muted">Phrase persistée</div>
-                  <div className="mt-1 text-[10px] font-bold leading-relaxed text-text-main">
-                    {drug.posologie.trim() || 'Aucune posologie saisie.'}
-                  </div>
-                </div>
-
                 <label className="mt-2 block">
-                  <span className="sr-only">Posologie en texte libre</span>
+                  <span className="mb-1 block text-[9px] font-bold text-text-muted">Posologie complète</span>
                   <textarea
                     aria-label="Posologie en texte libre"
                     value={drug.posologie}
