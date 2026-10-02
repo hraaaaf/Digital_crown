@@ -28,6 +28,12 @@ The published frozen SRPose38 checkpoint provenance points to CL-Detection2023 t
 This supports Aariz as external evaluation material for the frozen published checkpoint, but does not prove absence of undisclosed author activity.
 Any Digital Crown use of Aariz for tuning preprocessing, mapping, thresholds, checkpoint selection or post-processing would invalidate untouched status for the affected subset.
 
+## Frozen split and immutable reference bindings
+- Development: Aariz `train` + `valid` (850 cases).
+- Untouched acceptance: Aariz `test` (150 cases).
+- The benchmark manifest must cryptographically bind the LOT02 source manifest, QC/reference artifact, calibration CSV, per-landmark human agreement artifact, sentinel-measurement agreement artifact, and `REFERENCE_EQUIVALENCE_V1` policy in addition to every image hash.
+- Any binding drift after manifest freeze invalidates scoring and requires a new manifest before inference.
+
 ## Required execution artifacts
 1. Concrete `CEPHALO_LOT04_BENCHMARK_MANIFEST_V1` generated before scoring.
 2. Captured ONNX runtime interface and exact resolved dependency versions.
