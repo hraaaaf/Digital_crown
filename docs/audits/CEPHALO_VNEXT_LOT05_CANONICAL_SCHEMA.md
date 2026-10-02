@@ -81,10 +81,10 @@ Migration is deterministic and lossless with respect to known V1 evidence:
 10. round-trip back to V1 must reproduce the canonicalized source snapshot for supported V1 records.
 
 ## Compatibility classes
-- `LOSSLESS_V1`: fully representable and round-trippable.
-- `FAIL_CLOSED_AMBIGUOUS`: migration cannot prove active evidence/identity.
-- `OPAQUE_LEGACY_PRESERVED`: unknown non-clinical fields retained without interpretation.
-- `V2_NATIVE`: created under V2 and not claimed to downgrade losslessly unless explicitly supported.
+- `LOSSLESS_V1` is the only compatibility class accepted by the LOT05 executable migration schema.
+- `FAIL_CLOSED_AMBIGUOUS` is an outcome concept: ambiguous V1 raises an error and no V2 artifact is emitted.
+- `OPAQUE_LEGACY_PRESERVED` describes preservation inside a `LOSSLESS_V1` artifact; it is not a separate accepted artifact class in LOT05.
+- `V2_NATIVE` is reserved for a future dedicated native-creation contract and is not machine-valid under the V1→V2 migration gate.
 
 ## Required verification
 Gate `CEPH_SCHEMA_V2_VERIFIED` requires executable fixtures proving:
