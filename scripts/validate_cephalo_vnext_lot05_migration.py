@@ -46,6 +46,7 @@ def migrate_v1_to_v2(v1:Mapping[str,Any],*,patient_id:int,width:int,height:int,m
         origin=item.get("origin")
         if origin=="SRPOSE38_AUTO":
             if not all(isinstance(item.get(k),str) and item[k] for k in ("model_id","model_sha256","pipeline_version")): raise Lot05MigrationError("Automatic landmark lacks model provenance")
+            if len(item["model_sha256"]) != 64 or any(ch not in "0123456789abcdefABCDEF" for ch in item["model_sha256"]): raise Lot05MigrationError("Automatic landmark model_sha256 is invalid")
         elif origin=="MANUAL_CORRECTED":
             if not _finite(item.get("original_auto_x")) or not _finite(item.get("original_auto_y")): raise Lot05MigrationError("Correction lacks original automatic coordinates")
             if not isinstance(item.get("validated_by"),str) or not item["validated_by"]: raise Lot05MigrationError("Correction lacks validator")
