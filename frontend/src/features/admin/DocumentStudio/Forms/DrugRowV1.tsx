@@ -602,15 +602,19 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                     step="1"
                     inputMode="numeric"
                     aria-label="Quantité à délivrer"
-                    value={drug.quantite ?? ''}
+                    value={drug.quantiteExplicit ? (drug.quantite ?? '') : ''}
                     onChange={event => {
                       const raw = event.target.value;
                       if (!raw) {
                         onUpdateDrug(drug.id, 'quantite', undefined);
+                        onUpdateDrug(drug.id, 'quantiteExplicit', false);
                         return;
                       }
                       const next = Math.max(1, Math.trunc(Number(raw)));
-                      if (Number.isFinite(next)) onUpdateDrug(drug.id, 'quantite', next);
+                      if (Number.isFinite(next)) {
+                        onUpdateDrug(drug.id, 'quantite', next);
+                        onUpdateDrug(drug.id, 'quantiteExplicit', true);
+                      }
                     }}
                     className="min-w-0 w-full border-none bg-transparent text-right text-[11px] font-black text-text-main outline-none focus:ring-0"
                   />
