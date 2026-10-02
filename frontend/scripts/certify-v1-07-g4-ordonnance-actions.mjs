@@ -192,9 +192,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await legal.getAttribute('aria-checked') === legalBefore) throw new Error('Legal annotations toggle failed');
   actions.push('indication-legal');
 
-  const contextToggle = page.getByRole('button', { name: 'Renseigner', exact: true });
-  await contextToggle.click();
-  await page.getByLabel('Poids explicite en kilogrammes').fill('70');
+  const weightField = page.getByLabel('Poids explicite en kilogrammes');
+  if (!(await weightField.isVisible().catch(() => false))) {
+    const contextToggle = page.getByRole('button', { name: 'Renseigner', exact: true });
+    if (!(await contextToggle.isVisible().catch(() => false))) {
+      throw new Error('Clinical context is neither expanded nor exposable through the legacy Renseigner control');
+    }
+    await contextToggle.click();
+    await weightField.waitFor({ state: 'visible', timeout: 10000 });
+  }
+  await weightField.fill('70');
   await page.getByLabel('Statut des allergies médicamenteuses').selectOption('NONE_KNOWN');
   await page.getByLabel('Statut allergie pénicilline ou amoxicilline').selectOption('NONE_KNOWN');
   await page.getByLabel('Catégorie cardiaque endocardite infectieuse').selectOption('PROSTHETIC_CARDIAC_VALVE');
