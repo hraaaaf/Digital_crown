@@ -163,6 +163,57 @@ class PrescriptionService(LegacyPrescriptionService):
             "frequent_medications": frequent,
         }
 
+    def get_medication_details(
+        self,
+        db: Session,
+        doctor_id: int,
+        med_name: str,
+        dosage: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return deterministic doctor-scoped details for the selected medication.
+
+        The optional dosage narrows preference ranking to the exact presentation
+        strength selected by the practitioner. No global clinical posology is
+        synthesized: preferred_posology is emitted only from this doctor's habits.
+        """
+        normalized_name = (med_name or "").strip().upper()
+        normalized_dosage = (dosage or "").strip().upper()
+
+        habits = (
+            db.query(models.DoctorMedicationHabit)
+            .filter(
+                models.DoctorMedicationHabit.doctor_id == doctor_id,
+                models.DoctorMedicationHabit.medication_name == normalized_name,
+            )
+            .order_by(
+                models.DoctorMedicationHabit.usage_count.desc(),
+                models.DoctorMedicationHabit.last_used.desc(),
+                models.DoctorMedicationHabit.id.desc(),
+            )
+            .all()
+        )
+
+        def norm(value: Optional[str]) -> str:
+            return " ".join((value or "").strip().upper().split())
+
+        exact = [habit for habit in habits if normalized_dosage and norm(habit.dosage) == normalized_dosage]
+        ranked = [*exact, *[habit for habit in habits if habit not in exact]]
+
+        def unique(values):
+            return list(dict.fromkeys(value for value in values if value))
+
+        dosages = unique([habit.dosage for habit in ranked])[:5]
+        posologies = unique([habit.posologie for habit in ranked])[:5]
+        preferred = next((habit for habit in exact if habit.posologie), None)
+
+        return {
+            "dosages": dosages,
+            "posologies": posologies,
+            "preferred_posology": preferred.posologie if preferred else None,
+            "preferred_dosage": preferred.dosage if preferred else None,
+            "preference_source": "DOCTOR_HABIT" if preferred else None,
+        }
+
     def get_doctor_presets(self, db: Session, doctor_id: int) -> List[Dict[str, Any]]:
         """Return doctor-scoped reusable prescription objects with Neo metadata."""
         presets = db.query(models.DoctorPrescriptionPreference).filter(
