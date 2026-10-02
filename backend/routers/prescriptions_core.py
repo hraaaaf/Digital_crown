@@ -73,8 +73,8 @@ def get_medication_habits(q: str = "", db: Session = Depends(database.get_db), c
     return prescription_service.get_personalized_suggestions(db, current_user.id, q)
 
 @prescription_router.get("/habits/details")
-def get_medication_habit_details(med_name: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
-    return prescription_service.get_medication_details(db, current_user.id, med_name)
+def get_medication_habit_details(med_name: str, dosage: str = "", db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
+    return prescription_service.get_medication_details(db, current_user.id, med_name, dosage)
 
 @prescription_router.get("/habits/presets")
 def get_prescription_presets(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
