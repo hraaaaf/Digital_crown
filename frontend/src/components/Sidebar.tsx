@@ -13,6 +13,7 @@ import {
   Store,
   PanelLeftClose,
   PanelLeftOpen,
+  Crown,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
@@ -270,8 +271,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             to="/dashboard" 
             className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar" aria-label="Digital Crown — Tableau de bord"
           >
-            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm" aria-hidden="true">
-              <img src={Logo} alt="" className="h-8 w-8 object-contain" style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }} />
+            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 text-primary shadow-sm" aria-hidden="true">
+              <Crown size={22} strokeWidth={1.8} />
             </span>
             <img 
               src={Logo} 
