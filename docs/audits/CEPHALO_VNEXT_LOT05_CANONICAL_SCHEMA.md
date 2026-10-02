@@ -1,8 +1,8 @@
 # Cephalo vNext — LOT05 Canonical Extended Schema
 
-Status: DRAFT — isolated schema/migration contract; no product activation
+Status: VERIFIED — isolated schema/migration contract; no product activation
 Parent: LOT04 HEAD ddb6178babebf31510bf815f0c4a692faeb1bd3a
-Canonical gate: CEPH_SCHEMA_V2_VERIFIED
+Canonical gate: CEPH_SCHEMA_V2_VERIFIED — satisfied on evidence HEAD 9a53b755b692c530de6b27cb27aaff7b6647f1de
 
 ## Goal
 Define a versioned Cephalo 2.0 envelope that extends the existing typed evidence graph without breaking or silently reinterpreting V1 patient records.
@@ -101,3 +101,12 @@ Gate `CEPH_SCHEMA_V2_VERIFIED` requires executable fixtures proving:
 
 ## Non-goals
 LOT05 does not activate V2 persistence/read-path, migrate the database, replace runtime models, execute G1/G2, or modify master. Product integration remains LOT12.
+
+## Verification record
+- Evidence HEAD: `9a53b755b692c530de6b27cb27aaff7b6647f1de`.
+- CI #7276: SUCCESS; Backend targeted PR tests: 51/51 PASS.
+- Agenda A5 #2095: SUCCESS.
+- T2 Runtime Browser #6093: SUCCESS, including `Certify G4 Cephalo browser actions`.
+- Adversarial convergence: two clean perspectives on the evidence HEAD plus a separate clean confirmation pass; 0 BLOCKER, 0 MAJOR, 0 untreated significant debt demonstrated within LOT05 scope.
+- Severe scores: anatomy/identity 9.5/10; migration/schema/forensics 9.4/10; confirmation 9.4/10.
+- This gate does not activate V2 in product runtime and does not merge to master.
