@@ -18,7 +18,7 @@ const exactHead = process.env.GITHUB_SHA || 'local';
 const captures = [];
 
 for (const viewport of viewports) {
-  const context = await browser.newContext({ viewport, colorScheme: 'dark', reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
@@ -41,7 +41,6 @@ for (const viewport of viewports) {
   await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
   const cards = page.locator('[data-ordonnance-drug-card]');
   await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.waitForTimeout(180);
 
   const cardCount = await cards.count();
@@ -89,7 +88,18 @@ for (const viewport of viewports) {
   }
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
-  captures.push({ viewport, scenes, horizontalOverflow: overflow, pageErrors });
+  const resolvedTheme = await page.evaluate(() => {
+    const root = document.documentElement;
+    const style = getComputedStyle(root);
+    return {
+      dataTheme: root.getAttribute('data-theme'),
+      background: style.getPropertyValue('--bg-medical-pearl').trim(),
+      card: style.getPropertyValue('--card-bg').trim(),
+      textMain: style.getPropertyValue('--text-main').trim(),
+      primary: style.getPropertyValue('--primary').trim(),
+    };
+  });
+  captures.push({ viewport, themeMode: 'tokens-default', resolvedTheme, scenes, horizontalOverflow: overflow, pageErrors });
   await context.close();
 }
 
@@ -115,7 +125,7 @@ for (const capture of captures) {
 
 // 200% text scaling certification on the narrowest viewport.
 {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark', reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
@@ -123,7 +133,7 @@ for (const capture of captures) {
   await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'attached', timeout: 20000 });
   await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
-  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; document.documentElement.setAttribute('data-theme', 'dark'); });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   await page.waitForTimeout(180);
   const cards = page.locator('[data-ordonnance-drug-card]');
   const cardCount = await cards.count();
@@ -131,7 +141,18 @@ for (const capture of captures) {
   const controls = await page.locator('[data-ordonnance-prescription-composer] button').evaluateAll(nodes => nodes.filter(node => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; }).map(node => node.getBoundingClientRect().height));
   const shot = 'ordonnance-composer-390x844-text-200.png';
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
-  captures.push({ viewport: { width: 390, height: 844 }, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, pageErrors });
+  const resolvedTheme = await page.evaluate(() => {
+    const root = document.documentElement;
+    const style = getComputedStyle(root);
+    return {
+      dataTheme: root.getAttribute('data-theme'),
+      background: style.getPropertyValue('--bg-medical-pearl').trim(),
+      card: style.getPropertyValue('--card-bg').trim(),
+      textMain: style.getPropertyValue('--text-main').trim(),
+      primary: style.getPropertyValue('--primary').trim(),
+    };
+  });
+  captures.push({ viewport: { width: 390, height: 844 }, themeMode: 'tokens-default', resolvedTheme, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, pageErrors });
   if (cardCount !== 2) failures.push(`390-text200: expected 2 cards, got ${cardCount}`);
   if (overflow) failures.push('390-text200: horizontal overflow');
   if (controls.length && Math.min(...controls) < 43.5) failures.push(`390-text200: control height ${Math.min(...controls)}`);
