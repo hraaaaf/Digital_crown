@@ -54,6 +54,36 @@ async function selectExactAmoxicillin(page) {
   throw new Error('Exact amoxicillin presentation missing');
 }
 
+
+async function openContextualChoice(page, label) {
+  const trigger = page.getByRole('button', { name: label, exact: true }).first();
+  await trigger.click();
+  const menu = page.getByRole('menu').first();
+  await menu.waitFor({ state: 'visible', timeout: 10000 });
+  return { trigger, menu };
+}
+
+async function applyManualContextualChoice(page, label, value) {
+  const { trigger, menu } = await openContextualChoice(page, label);
+  await menu.getByRole('menuitem', { name: /Modifier manuellement/i }).click();
+  const input = page.getByLabel('Valeur personnalisée');
+  await input.fill(value);
+  await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
+  if (!(await trigger.innerText()).includes(value)) {
+    throw new Error(`Manual contextual choice not applied: ${label} -> ${value}`);
+  }
+}
+
+async function selectFirstContextualOption(page, label) {
+  const { trigger, menu } = await openContextualChoice(page, label);
+  const options = menu.getByRole('menuitem').filter({ hasNotText: 'Modifier manuellement' });
+  if (await options.count() < 1) throw new Error(`No contextual option available: ${label}`);
+  await options.first().click();
+  const value = (await trigger.innerText()).trim();
+  if (!value || value === label) throw new Error(`Contextual choice did not update: ${label}`);
+  return value;
+}
+
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
   const context = await browser.newContext({ viewport, colorScheme: 'light' });
   const page = await context.newPage();
@@ -66,22 +96,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     if (response.status() >= 500) http5xx.push({ url: response.url(), status: response.status() });
   });
 
-  await page.route('**/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate', async route => {
-    if (route.request().method() !== 'POST') return route.continue();
+  let procedureSafetyRequests = 0;
+  await page.route('**/api/prescriptions/clinical-rules/procedure-safety/alert/**', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    procedureSafetyRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        status: 'READY',
-        rule_id: 'IE_PROPHYLAXIS_ADULT_ORAL_AMOXICILLIN',
-        rule_version: 'g4-browser-action',
-        blockers: [],
-        active_ingredient_code: 'AMOXICILLIN',
-        total_dose_mg: 2000,
-        timing_min_minutes_before: 30,
-        timing_max_minutes_before: 60,
-        single_dose: true,
-        source_ids: ['G4_BROWSER_FIXTURE'],
+        status: 'BLOCKED',
+        alert_key: 'CONTEXT_REQUIRED',
+        read_only: true,
       }),
     });
   });
@@ -128,30 +153,24 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const name = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...').first();
   await name.fill('G4 MANUAL');
   await page.waitForTimeout(700);
-  const formTrigger = page.getByTitle('Choisir la forme manuellement').first();
-  await formTrigger.click();
-  const menu = page.getByRole('menu', { name: 'Choisir la forme' });
-  await menu.waitFor({ state: 'visible', timeout: 10000 });
-  const options = menu.getByRole('menuitemradio');
-  if (await options.count() !== 11) throw new Error('Manual form chooser does not expose 11 canonical forms');
-  const heights = await options.evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
-  if (Math.min(...heights) < 43.5) throw new Error('Manual form chooser touch target below 44px');
+  const { trigger: formTrigger, menu: formMenu } = await openContextualChoice(page, 'Forme');
+  const formTriggerHeight = await formTrigger.evaluate(node => node.getBoundingClientRect().height);
+  if (formTriggerHeight < 43.5) throw new Error('Form contextual trigger touch target below 44px');
   const openScene = await snapshot(page, viewport, 'forme-open');
-  await menu.getByRole('menuitemradio', { name: 'COMPRIMÉS', exact: true }).click();
+  await formMenu.getByRole('menuitem', { name: /Modifier manuellement/i }).click();
+  await page.getByLabel('Valeur personnalisée').fill('COMPRIMÉS');
+  await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
   if (!/COMPRIMÉS/.test(await formTrigger.innerText())) throw new Error('Manual form selection not applied');
   actions.push('manual-form');
 
-  const dose = page.getByLabel('Dose').first();
-  await dose.fill('500 MG');
+  await applyManualContextualChoice(page, 'Dose', '500 MG');
   const ns = page.getByTitle('Non substituable').first();
   const nsBefore = await ns.getAttribute('aria-pressed');
   await ns.click();
   if (await ns.getAttribute('aria-pressed') === nsBefore) throw new Error('NS toggle failed');
 
   for (const label of ['Prise', 'Rythme', 'Durée ou limite', 'Moment ou condition']) {
-    const select = page.getByLabel(label).first();
-    await select.selectOption({ index: 1 });
-    if (!(await select.inputValue())) throw new Error(`Structured posology field failed: ${label}`);
+    await selectFirstContextualOption(page, label);
   }
   const freePosology = page.getByLabel('Posologie en texte libre').first();
   await freePosology.fill('Saisie praticien G4');
@@ -168,38 +187,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await legal.getAttribute('aria-checked') === legalBefore) throw new Error('Legal annotations toggle failed');
   actions.push('indication-legal');
 
-  const contextToggle = page.getByRole('button', { name: 'Renseigner', exact: true });
-  await contextToggle.click();
-  await page.getByLabel('Poids explicite en kilogrammes').fill('70');
-  await page.getByLabel('Statut des allergies médicamenteuses').selectOption('NONE_KNOWN');
-  await page.getByLabel('Statut allergie pénicilline ou amoxicilline').selectOption('NONE_KNOWN');
-  await page.getByLabel('Catégorie cardiaque endocardite infectieuse').selectOption('PROSTHETIC_CARDIAC_VALVE');
-  await page.getByLabel('Statut du contexte rénal').selectOption('NO_KNOWN_IMPAIRMENT');
-  await page.getByLabel('Statut du contexte hépatique').selectOption('NO_KNOWN_IMPAIRMENT');
-  await page.getByRole('button', { name: 'Enregistrer le contexte', exact: true }).click();
-  await page.getByText('Contexte enregistré', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
-  actions.push('clinical-context-save');
-
-  const contextReduce = page.getByRole('button', { name: 'Réduire', exact: true }).first();
-  if (await contextReduce.isVisible().catch(() => false)) {
-    await contextReduce.click();
-  } else {
-    const weightField = page.getByLabel('Poids explicite en kilogrammes');
-    if (await weightField.isVisible().catch(() => false)) {
-      throw new Error('Clinical context stayed expanded without a visible collapse control after save');
-    }
-  }
   await selectExactAmoxicillin(page);
-  const ie = page.locator('[data-ie-prophylaxis-rule="c2"]');
-  await ie.getByRole('button', { name: 'Évaluer', exact: true }).click();
-  await page.getByLabel('Date prévue du geste').fill('2026-10-01');
-  await page.getByLabel('Geste avec manipulation gingivale périapicale ou perforation muqueuse').selectOption('yes');
-  await page.getByLabel('Voie orale possible').selectOption('yes');
-  await page.getByLabel('Prise actuelle de pénicilline ou amoxicilline').selectOption('no');
-  await page.getByRole('button', { name: 'Vérifier la prophylaxie', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('[data-ie-prophylaxis-rule="c2"]')?.getAttribute('data-rule-result') === 'READY', undefined, { timeout: 10000 });
-  if ((await ie.getAttribute('data-rule-result')) !== 'READY') throw new Error('IE explicit evaluation did not reach READY');
-  actions.push('ie-explicit-evaluation');
+  const safetyNotice = page.locator('[data-procedure-safety-notice="subtle"]');
+  await safetyNotice.waitFor({ state: 'visible', timeout: 10000 });
+  if (await safetyNotice.getAttribute('data-alert-key') !== 'CONTEXT_REQUIRED') {
+    throw new Error('Procedure safety notice did not expose CONTEXT_REQUIRED');
+  }
+  if (procedureSafetyRequests < 1) throw new Error('Procedure safety read-only endpoint was not queried');
+  actions.push('procedure-safety-readonly');
 
   const finalScene = await snapshot(page, viewport, 'actions-final');
   if (openScene.overflow || finalScene.overflow) throw new Error('Horizontal overflow detected');
@@ -213,7 +208,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 await browser.close();
 await api.dispose();
 
-const expectedActions = 7;
+const expectedActions = 6;
 for (const row of evidence) {
   if (row.actions.length !== expectedActions) throw new Error(`Expected ${expectedActions} action groups, got ${row.actions.length}`);
 }
