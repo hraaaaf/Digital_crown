@@ -74,18 +74,15 @@ for (const viewport of viewports) {
             .map(label => composer.querySelector(`button[aria-label="${label}"]`))
             .filter(node => node && visible(node))
         : [];
-      const persistedLabel = composer
-        ? [...composer.querySelectorAll('div')].find(node => node.textContent?.trim() === 'Phrase persistée')
-        : null;
-      const persistedValue = persistedLabel?.nextElementSibling || null;
+      const posologyField = composer?.querySelector('textarea[aria-label="Posologie en texte libre"]') || null;
       const rect = el.getBoundingClientRect();
       return {
         card: { width: rect.width, height: rect.height, left: rect.left, right: rect.right },
         composerVisible: Boolean(composer),
         controlCount: controls.length,
         controlMinHeight: controls.length ? Math.min(...controls.map(control => control.getBoundingClientRect().height)) : null,
-        summaryVisible: Boolean(persistedValue && visible(persistedValue)),
-        summaryText: persistedValue?.textContent?.trim() || '',
+        summaryVisible: Boolean(posologyField && visible(posologyField)),
+        summaryText: posologyField?.value?.trim() || '',
       };
     });
 
@@ -123,9 +120,9 @@ for (const capture of captures) {
     if (!scene.metrics.composerVisible) failures.push(`${capture.viewport.width}-${scene.label}: composer missing`);
     if (scene.metrics.controlCount !== 4) failures.push(`${capture.viewport.width}-${scene.label}: expected 4 controls, got ${scene.metrics.controlCount}`);
     if ((scene.metrics.controlMinHeight || 0) < 43.5) failures.push(`${capture.viewport.width}-${scene.label}: control height ${scene.metrics.controlMinHeight}`);
-    if (!scene.metrics.summaryVisible) failures.push(`${capture.viewport.width}-${scene.label}: persisted phrase missing`);
+    if (!scene.metrics.summaryVisible) failures.push(`${capture.viewport.width}-${scene.label}: posology field missing`);
     if (scene.metrics.summaryText !== expectedSummary[scene.label]) {
-      failures.push(`${capture.viewport.width}-${scene.label}: unexpected persisted phrase ${scene.metrics.summaryText}`);
+      failures.push(`${capture.viewport.width}-${scene.label}: unexpected posology value ${scene.metrics.summaryText}`);
     }
   }
 }
