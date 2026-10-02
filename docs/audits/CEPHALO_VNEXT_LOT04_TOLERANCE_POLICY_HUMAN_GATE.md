@@ -123,3 +123,17 @@ For LOT04 detector selection only:
 These are engineering reference-equivalence tolerances for LOT04 selection, not universal clinical-validity thresholds. Later human-review and clinical-validation gates remain mandatory.
 
 The tolerance HUMAN_GATE is resolved. No post-result retuning is authorized.
+
+
+## HUMAN_GATE device-stratified — frozen decision
+Approved by Product Owner after the first SRPose38 untouched benchmark and **before any alternative-candidate scoring**.
+
+Frozen device rule:
+- `n_device >= 59`: device-specific p95 is a **hard gate** against the corresponding frozen LOT02 human p95 for that landmark/device;
+- `n_device < 59`: device-specific p95 is **descriptive only** and must be labeled `INSUFFICIENT_N_FOR_P95_GATE`;
+- **no post-hoc pooling** across devices is allowed to manufacture an eligible stratum;
+- aggregate landmark/measurement gates remain independently applicable;
+- a hard-gated device failure cannot be hidden by a passing aggregate result;
+- device strata with insufficient n remain visible and cannot be silently dropped.
+
+For the current Aariz untouched test split (150 cases), observed device counts are 55 / 26 / 21 / 20 / 13 / 9 / 6, so all current device strata are descriptive-only under this rule. The split is not changed to force eligibility.
