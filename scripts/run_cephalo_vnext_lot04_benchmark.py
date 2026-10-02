@@ -13,6 +13,8 @@ import numpy as np
 import onnxruntime as ort
 
 ROOT=Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0,str(ROOT))
 _PIPELINE_PATH=ROOT/"backend"/"services"/"srpose38_pipeline.py"
 _spec=importlib.util.spec_from_file_location("lot04_srpose38_pipeline",_PIPELINE_PATH)
 if _spec is None or _spec.loader is None: raise RuntimeError("cannot load frozen SRPose38 pipeline")
