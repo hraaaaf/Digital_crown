@@ -102,7 +102,7 @@ describe('DrugRow — Prescription Intelligence V1', () => {
     renderDrugRow();
     fireEvent.focus(screen.getByDisplayValue('PARACE'));
 
-    expect(await screen.findByText(/Référentiel médicament indisponible/)).toBeInTheDocument();
+    expect(await screen.findByText(/Recherche médicament indisponible pour le moment/)).toBeInTheDocument();
     expect(screen.queryByText('PARACETAMOL TEST 500 MG')).not.toBeInTheDocument();
   });
 
