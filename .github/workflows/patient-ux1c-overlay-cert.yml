@@ -96,7 +96,7 @@ jobs:
 
       - name: Capture UX1-C AFTER 390 / 768 / 1280
         working-directory: frontend
-        run: node scripts/certify-patient-ux1c-overlays.mjs
+        run: node scripts/run-with-t2-workstation.mjs scripts/certify-patient-ux1c-overlays.mjs
 
       - name: Dump runtime logs on failure
         if: failure()

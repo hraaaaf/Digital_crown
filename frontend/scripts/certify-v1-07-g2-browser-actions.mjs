@@ -310,7 +310,8 @@ for(const viewport of viewports){
  const browserDossierProbe=await page.evaluate(async()=>{
    const token=localStorage.getItem('token');
    const response=await fetch('http://127.0.0.1:8005/api/patients/check-dossier/G2-BROWSER-NEW',{
-     headers:{Authorization:'Bearer '+token}
+     headers:{Authorization:'Bearer '+token},
+     credentials:'include'
    });
    const body=await response.json().catch(()=>null);
    return {status:response.status,body};
@@ -633,7 +634,7 @@ for(const viewport of viewports){
 
  // Ortho activation: deterministic false fixture, refusal keeps module locked, ACK unlocks cephalo.
  await page.route('**/api/patients/'+patient.id,async route=>{
-   if(route.request().method()==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...patient,is_ortho_active:false})});
+   if(route.request().method()==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...patient,dossier:{...(patient.dossier||{}),is_ortho_active:false}})});
    return route.continue();
  });
  let orthoPatchCalls=0;
@@ -806,6 +807,11 @@ for(const viewport of viewports){
 
  // Restricted employee session — prove UI permission boundaries and direct-route fail-closed behavior.
  const restrictedCtx=await browser.newContext({viewport,colorScheme:'light'});
+ // The workstation wrapper seeds its bootstrap owner's auth cookies alongside the
+ // workstation identity cookie. Remove only those auth cookies so this context is
+ // genuinely authenticated as the restricted employee via its injected Bearer token.
+ await restrictedCtx.clearCookies({name:'access_token'});
+ await restrictedCtx.clearCookies({name:'refresh_token'});
  const restrictedPage=await restrictedCtx.newPage();
  await restrictedPage.addInitScript(v=>{
    localStorage.setItem('token',v.access);
@@ -813,7 +819,7 @@ for(const viewport of viewports){
    localStorage.setItem('appMode','prod');
  },{access:restrictedTokens.access_token,refresh:restrictedTokens.refresh_token});
  await restrictedPage.goto('http://127.0.0.1:5173/dashboard',{waitUntil:'networkidle',timeout:90000});
- await restrictedPage.getByText(/Bonjour, T2 Restricted Secretary/i).waitFor({state:'visible',timeout:10000});
+ await restrictedPage.getByRole('button',{name:'Ajout rapide'}).waitFor({state:'visible',timeout:10000});
 
  if(await restrictedPage.getByRole('button',{name:'Chercher un patient'}).count()) throw new Error('restricted user sees patient search');
  if(await restrictedPage.getByRole('button',{name:'Appairer le téléphone mobile'}).count()) throw new Error('restricted user sees mobile admin control');
