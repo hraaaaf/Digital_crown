@@ -36,7 +36,7 @@ def v1():
         "revision": 3,
         "sources": [
             {"evidence_id": "source:image", "kind": "lateral_ceph", **common_source},
-            {"evidence_id": "cal:1", "kind": "calibration", "ratio": 0.1, **common_source},
+            {"evidence_id": "cal:1", "kind": "calibration", **common_source, "metadata": {"ratio": 0.1}},
         ],
         "landmarks": [
             {"evidence_id": "lm:auto:A", "landmark_id": "A", "x": 10.0, "y": 20.0, **auto_common},
