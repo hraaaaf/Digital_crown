@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
 
-const outDir = path.resolve('../artifacts/v15-02-3-photo-ui-before');
+const outDir = path.resolve('../artifacts/v15-02-photo-after/02.3-before');
 fs.mkdirSync(outDir, { recursive: true });
 
 const viewports = [
