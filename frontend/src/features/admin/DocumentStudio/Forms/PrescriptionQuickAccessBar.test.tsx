@@ -270,11 +270,19 @@ describe('Neo prescription quick access', () => {
     fireEvent.change(input, { target: { value: 'doliprane 1g' } });
     fireEvent.click(await screen.findByText('DOLIPRANE'));
 
-    await waitFor(() => expect(setDrugs).toHaveBeenCalled());
-    expect(setDrugs.mock.calls[0][0][0]).toMatchObject({
+    expect(setDrugs).toHaveBeenCalled();
+    const immediate = setDrugs.mock.calls[0][0];
+    expect(immediate[0]).toMatchObject({
       name: 'DOLIPRANE',
       dosage: '1 G',
       forme: 'COMPRIMES',
+      posologie: '',
+      catalogPresentationId: 'dol-1g',
+    });
+    await waitFor(() => expect(setDrugs).toHaveBeenCalledTimes(2));
+    const enrich = setDrugs.mock.calls[1][0] as (current: typeof immediate) => typeof immediate;
+    expect(enrich(immediate)[0]).toMatchObject({
+      name: 'DOLIPRANE',
       posologie: '1 comprimé x 3 / jour pendant 4 jours',
       catalogPresentationId: 'dol-1g',
     });
@@ -303,8 +311,48 @@ describe('Neo prescription quick access', () => {
     fireEvent.change(input, { target: { value: 'doliprane 1g' } });
     fireEvent.click(await screen.findByText('DOLIPRANE'));
 
-    await waitFor(() => expect(setDrugs).toHaveBeenCalled());
+    expect(setDrugs).toHaveBeenCalledTimes(1);
     expect(setDrugs.mock.calls[0][0][0].posologie).toBe('');
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/prescriptions/habits/details', {
+      params: { med_name: 'DOLIPRANE', dosage: '1 G' },
+    }));
+    expect(setDrugs).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not overwrite practitioner posology entered while habit enrichment is pending', async () => {
+    let resolveHabit: ((value: any) => void) | undefined;
+    const habit = new Promise(resolve => { resolveHabit = resolve; });
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.includes('/habits/presets')) return { data: [] } as never;
+      if (url.includes('/habits/suggest')) return { data: {} } as never;
+      if (url.includes('/medications/neo/search')) return { data: [{
+        presentation_id: 'dol-race',
+        nom: 'DOLIPRANE',
+        dci: 'PARACETAMOL',
+        dosage: '1',
+        unite: 'G',
+        forme: 'COMPRIMES',
+        source: { id: 'ammps-current', current_marketing_status_verified: true },
+      }] } as never;
+      if (url.includes('/prescriptions/habits/details')) return habit as never;
+      return { data: [] } as never;
+    });
+
+    const setDrugs = vi.fn();
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
+    fireEvent.change(input, { target: { value: 'doliprane' } });
+    fireEvent.click(await screen.findByText('DOLIPRANE'));
+
+    const immediate = setDrugs.mock.calls[0][0];
+    resolveHabit?.({ data: { preferred_posology: 'habitude historique' } });
+    await waitFor(() => expect(setDrugs).toHaveBeenCalledTimes(2));
+    const enrich = setDrugs.mock.calls[1][0] as (current: typeof immediate) => typeof immediate;
+    const practitionerEdited = immediate.map((drug: typeof emptyLine & { catalogPresentationId?: string }) => ({
+      ...drug,
+      posologie: drug.catalogPresentationId === 'dol-race' ? 'choix praticien' : drug.posologie,
+    }));
+    expect(enrich(practitionerEdited)[0].posologie).toBe('choix praticien');
   });
 
 });
