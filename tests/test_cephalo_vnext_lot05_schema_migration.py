@@ -95,3 +95,15 @@ def test_migration_harness_import_and_core_path_execute():
     v2=migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
     assert v2["schema_version"]=="CEPHALO_CANONICAL_SCHEMA_V2"
     assert roundtrip_v2_to_v1(v2)==source
+
+
+@pytest.mark.parametrize("x,y",[(float("nan"),1.0),(float("inf"),1.0),(1.0,float("-inf")),(True,1.0),("10",1.0)])
+def test_nonfinite_or_non_numeric_landmark_coordinates_fail_closed(x,y):
+    source=v1(); source["landmarks"][0]["x"]=x; source["landmarks"][0]["y"]=y
+    with pytest.raises(Lot05MigrationError):
+        migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+
+def test_calibration_requires_stable_evidence_id():
+    source=v1(); source["sources"][1].pop("evidence_id")
+    with pytest.raises(Lot05MigrationError):
+        migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
