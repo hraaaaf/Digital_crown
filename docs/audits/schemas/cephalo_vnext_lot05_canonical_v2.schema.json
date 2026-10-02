@@ -384,7 +384,7 @@
               "string",
               "null"
             ],
-            "pattern": "^[a-f0-9]{64}$"
+            "pattern": "^[a-fA-F0-9]{64}$"
           },
           "pipeline_version": {
             "type": [
@@ -425,7 +425,7 @@
                 },
                 "model_sha256": {
                   "type": "string",
-                  "pattern": "^[a-f0-9]{64}$"
+                  "pattern": "^[a-fA-F0-9]{64}$"
                 },
                 "pipeline_version": {
                   "type": "string",
