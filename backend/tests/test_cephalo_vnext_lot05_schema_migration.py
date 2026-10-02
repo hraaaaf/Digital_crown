@@ -1,5 +1,10 @@
 import copy
+import json
+from pathlib import Path
+
 import pytest
+
+from backend.schemas.cephalo_evidence import LandmarkEvidence, SourceEvidence
 
 from scripts.validate_cephalo_vnext_lot05_migration import (
     Lot05MigrationError,
