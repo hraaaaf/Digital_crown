@@ -77,6 +77,9 @@ The qualified 2.1 GB Aariz corpus is materialized on authorized workstation `DES
 The workstation was re-observed online after HUMAN_GATE A approval.
 Before any scoring, corpus identity and frozen model bytes must be re-verified and an immutable manifest must be generated. No real candidate inference has yet been executed in this lot.
 
+## License status
+Source code at the frozen upstream commit is Apache-2.0. The pretrained checkpoint is externally hosted and no separate weight-license statement was observed in the frozen README. See `CEPHALO_VNEXT_LOT04_SRPOSE38_LICENSE_AUDIT.md`. Benchmarking may proceed, but final product adoption/redistribution remains license-gated until checkpoint rights are explicitly sourced.
+
 ## Stop conditions
 - Do not invent an acceptance result.
 - Do not retune on the untouched subset.
