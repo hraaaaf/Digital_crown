@@ -10,6 +10,7 @@ from backend.services import cephalo_steiner_evidence_adapter as steiner
 from backend.services import cephalo_tweed_merrifield_evidence as tweed
 from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
 from backend.services.cephalo_canonical_method_bridge import (
+    CANONICAL_CONVERGENCE_RULES,
     CANONICAL_METHOD_BINDINGS,
     binding_for_method,
     canonical_measurement_id_for_method,
@@ -86,3 +87,14 @@ def test_lot06_runtime_bridge_fails_closed_for_blocked_unmapped_and_unknown():
         assert "Unknown typed cephalometric method_id" in str(exc)
     else:
         raise AssertionError("unknown method must fail closed")
+
+
+def test_lot06_runtime_convergence_rules_exactly_match_canonical_json():
+    source=load_bridge()["canonical_convergence_rules"]
+    assert set(CANONICAL_CONVERGENCE_RULES)==set(source)
+    for canonical_id,rule in CANONICAL_CONVERGENCE_RULES.items():
+        expected=source[canonical_id]
+        assert rule["authoritative_method_id"]==expected["authoritative_method_id"]
+        assert list(rule["compatibility_method_ids"])==expected["compatibility_method_ids"]
+        assert rule["equivalence"]==expected["equivalence"]
+        assert rule["canonical_value_precision"]==expected["canonical_value_precision"]
