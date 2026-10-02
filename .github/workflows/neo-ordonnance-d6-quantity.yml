@@ -18,6 +18,7 @@ on:
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx'
       - 'frontend/src/features/admin/DocumentStudio/DocumentGeneration.g4Interactive.test.tsx'
       - '.github/workflows/neo-ordonnance-d6-quantity.yml'
+      - '.github/workflows/ordonnance-composer-visual-cert.yml'
   workflow_dispatch:
 
 jobs:
