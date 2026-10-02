@@ -64,6 +64,10 @@ def migrate_v1_to_v2(v1:Mapping[str,Any],*,patient_id:int,width:int,height:int,m
         if not isinstance(eid,str) or not eid or eid in source_ids: raise Lot05MigrationError("Invalid/duplicate source evidence_id")
         source_ids.add(eid)
         if isinstance(s.get("patient_id"),bool) or s.get("patient_id")!=patient_id: raise Lot05MigrationError("Patient identity mismatch")
+    for item in landmarks:
+        if item.get("source_image_ref") not in source_ids: raise Lot05MigrationError("Landmark source_image_ref is unresolved")
+        evidence_refs=item.get("evidence_refs")
+        if not isinstance(evidence_refs,list) or not evidence_refs or any(not isinstance(ref,str) or ref not in source_ids for ref in evidence_refs): raise Lot05MigrationError("Landmark evidence_refs are unresolved")
     if len([s for s in sources if s.get("kind")=="lateral_ceph"])!=1: raise Lot05MigrationError("Expected one lateral cephalogram source")
     calibration=[s for s in sources if s.get("kind")=="calibration"]
     if len(calibration)>1: raise Lot05MigrationError("Ambiguous calibration")
