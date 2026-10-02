@@ -206,12 +206,20 @@ def test_roundtrip_rejects_tampering_and_context_drift(mutation):
         v2["landmark_registry"][0]["canonical_id"] = "WRONG"
     elif mutation == "calibration":
         v2["coordinate_space"]["calibration_ref"] = "cal:other"
+    elif mutation == "semantic_status":
+        v2["landmark_registry"][0]["semantic_status"] = "CLINICAL_CANONICAL"
     elif mutation == "patient":
         v2["patient_id"] = 8
     elif mutation == "width":
         v2["coordinate_space"]["source_width_px"] = 999
-    else:
+    elif mutation == "height":
         v2["coordinate_space"]["source_height_px"] = 999
+    elif mutation == "unit":
+        v2["coordinate_space"]["unit"] = "mm"
+    elif mutation == "quality":
+        v2["quality_metadata"]["score_semantics"] = "CALIBRATED_WITH_EVIDENCE"
+    else:
+        raise AssertionError(mutation)
     with pytest.raises(Lot05MigrationError):
         roundtrip_v2_to_v1(v2)
 
