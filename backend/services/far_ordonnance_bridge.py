@@ -19,6 +19,7 @@ class FarPrescriptionLine:
     dosage: str
     form: str
     posology: str
+    quantity: int | None = None
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ def build_far_ordonnance_payload(
             dosage=str(item.dosage or "").strip(),
             form=str(item.forme or "").strip(),
             posology=str(item.posologie or "").strip(),
+            quantity=int(item.quantite) if item.quantite is not None else None,
         )
         for item in ordonnance.medications
     )
