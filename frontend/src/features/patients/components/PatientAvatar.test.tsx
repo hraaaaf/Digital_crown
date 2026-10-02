@@ -141,6 +141,7 @@ describe('PatientAvatar', () => {
     });
     await waitFor(() => expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB'));
     expect(api.get).not.toHaveBeenCalledWith('/patients/7/photo', expect.anything());
+    expect(usePatientStore.getState().patientsCache[0]?.nom).toBe('NEW');
   });
 
   it('refreshes the directory after patients permission is revoked then restored', async () => {
@@ -164,6 +165,7 @@ describe('PatientAvatar', () => {
       isAuthenticated: true,
     });
     await waitFor(() => expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB'));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:patient-avatar');
 
     useAuthStore.setState({
       user: { id: 1, email: 'same@cabinet.ma', role: 'ADMIN' } as any,
