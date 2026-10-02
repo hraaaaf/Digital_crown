@@ -108,7 +108,11 @@ def roundtrip_v2_to_v1(v2:Mapping[str,Any])->dict[str,Any]:
     if context_sha(v2.get("patient_id"),cs.get("source_width_px"),cs.get("source_height_px"))!=m.get("migration_context_sha256"): raise Lot05MigrationError("Migration context drift")
     if source.get("current_landmark_refs")!=v2.get("current_landmark_refs"): raise Lot05MigrationError("Current refs drift")
     if v2.get("active_landmarks")!=_active_from_source(source): raise Lot05MigrationError("Active provenance drift")
-    if {x.get("landmark_id") for x in source.get("landmarks",[]) if isinstance(x,dict)}!={x.get("canonical_id") for x in v2.get("landmark_registry",[]) if isinstance(x,dict)}: raise Lot05MigrationError("Registry drift")
+    expected_registry=[{"canonical_id":cid,"aliases":[],"identity_version":"V1_RUNTIME_ID_PRESERVED","semantic_status":"LEGACY_AMBIGUOUS","tissue_domain":_domain(cid),"analysis_scope":None} for cid in sorted({x.get("landmark_id") for x in source.get("landmarks",[]) if isinstance(x,dict)})]
+    if v2.get("landmark_registry") != expected_registry: raise Lot05MigrationError("Registry metadata drift")
+    if cs.get("version")!="V1_IMAGE_PIXEL_SPACE" or cs.get("unit")!="px": raise Lot05MigrationError("Coordinate-space semantics drift")
+    q=v2.get("quality_metadata")
+    if q != {"model_id":None,"model_sha256":None,"raw_score":None,"score_semantics":"NOT_AVAILABLE","score_calibration_ref":None}: raise Lot05MigrationError("Quality metadata drift")
     cal=[s for s in source.get("sources",[]) if isinstance(s,dict) and s.get("kind")=="calibration"]
     if cs.get("calibration_ref")!=(cal[0].get("evidence_id") if len(cal)==1 else None): raise Lot05MigrationError("Calibration drift")
     return copy.deepcopy(source)
