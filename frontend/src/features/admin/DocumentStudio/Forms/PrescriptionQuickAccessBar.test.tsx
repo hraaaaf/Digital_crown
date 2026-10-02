@@ -104,6 +104,20 @@ describe('Neo prescription quick access', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/prescriptions/preferences/7/use'));
   });
 
+  it('surfaces a matching protocol in the unified search and keeps medication results explicitly typed', async () => {
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={vi.fn()} prescriptionIndication="" />);
+    const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
+
+    fireEvent.change(input, { target: { value: 'extraction' } });
+    const protocol = await screen.findByRole('button', { name: /Extraction simple/i });
+    expect(protocol).toHaveTextContent('Protocole');
+
+    fireEvent.change(input, { target: { value: 'doliprane' } });
+    const medication = await screen.findByRole('button', { name: /DOLIPRANE/i });
+    expect(medication).toHaveTextContent('PARACETAMOL');
+    expect(medication).not.toHaveTextContent('Protocole');
+  });
+
   it('shows recent and frequent medication quick picks', async () => {
     render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={vi.fn()} prescriptionIndication="" />);
     await screen.findByRole('button', { name: 'Extraction simple' });
