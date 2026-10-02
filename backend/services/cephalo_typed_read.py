@@ -25,6 +25,7 @@ from backend.schemas.cephalo_evidence import (
     SourceEvidence,
     TreatmentOptionEvidence,
 )
+from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot, EvidenceGraphValidationError
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY, EVIDENCE_SCHEMA_VERSION
@@ -148,6 +149,7 @@ def project_typed_craniom_read_path(
         current["availability_status"] = measurement.availability_status.value
         current["scientific_source"] = "EVIDENCE_GRAPH_V1"
         current["measurement_id"] = measurement.measurement_id
+        current["canonical_measurement_id"] = canonical_measurement_id_for_method(method_id)
 
     # Older snapshots carried a software-state marker claiming the graph was not yet
     # on a read path. Keeping that marker in an authoritative GET response would be
@@ -160,6 +162,10 @@ def project_typed_craniom_read_path(
         "case_id": case_id,
         "revision": payload.get("revision"),
         "authoritative_fields": list(_CRANIOM_METHOD_TO_LEGACY_FIELD.values()),
+        "canonical_measurement_ids": [
+            canonical_measurement_id_for_method(method_id)
+            for method_id in _CRANIOM_METHOD_TO_LEGACY_FIELD
+        ],
     }
     return projected
 
