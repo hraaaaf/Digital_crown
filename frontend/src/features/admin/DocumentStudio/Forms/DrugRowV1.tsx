@@ -573,7 +573,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 </p>
               )}
 
-              <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-[minmax(9rem,1fr)_minmax(8rem,0.8fr)_auto]">
+              <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-[minmax(9rem,1fr)_minmax(8rem,0.8fr)_minmax(7rem,0.55fr)_auto]">
                 <PrescriptionContextualChoice
                   ariaLabel="Forme"
                   value={drug.forme}
@@ -593,6 +593,28 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                   onManual={relinkByDose}
                   icon={<Pill size={14} className="shrink-0 text-text-muted" />}
                 />
+
+                <label className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-border-main bg-input-field/70 px-3 py-2 text-text-main">
+                  <span className="shrink-0 text-[9px] font-black text-text-muted">Quantité</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    aria-label="Quantité à délivrer"
+                    value={drug.quantite ?? ''}
+                    onChange={event => {
+                      const raw = event.target.value;
+                      if (!raw) {
+                        onUpdateDrug(drug.id, 'quantite', undefined);
+                        return;
+                      }
+                      const next = Math.max(1, Math.trunc(Number(raw)));
+                      if (Number.isFinite(next)) onUpdateDrug(drug.id, 'quantite', next);
+                    }}
+                    className="min-w-0 w-full border-none bg-transparent text-right text-[11px] font-black text-text-main outline-none focus:ring-0"
+                  />
+                </label>
 
                 <button
                   type="button"
