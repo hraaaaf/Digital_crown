@@ -1,7 +1,4 @@
-"""Isolated LOT05 V1<->V2 migration proof harness. Not product runtime."""
-from __future__ import annotations
-import copy, hashlib, json\nfrom datetime import datetime
-from typing import Any, Mapping
+"""Isolated LOT05 V1<->V2 migration proof harness. Not product runtime."""\nfrom __future__ import annotations\nimport copy\nimport hashlib\nimport json\nfrom datetime import datetime\nfrom typing import Any, Mapping
 
 class Lot05MigrationError(ValueError): pass
 
