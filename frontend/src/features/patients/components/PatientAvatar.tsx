@@ -37,6 +37,7 @@ function patientDirectoryScopeKey(user: ReturnType<typeof useAuthStore.getState>
     identity.employer_id ?? '',
     identity.role ?? '',
     identity.is_superadmin === true ? 'superadmin' : '',
+    hasAccess(user, 'patients') ? 'patients:1' : 'patients:0',
   ].join('|');
 }
 
