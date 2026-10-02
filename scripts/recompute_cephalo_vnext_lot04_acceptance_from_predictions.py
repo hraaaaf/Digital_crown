@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Recompute LOT04 acceptance from frozen untouched predictions without rerunning ONNX."""
 from __future__ import annotations
-import argparse,csv,hashlib,json,math,statistics,time
+import argparse,csv,hashlib,json,math,statistics,time,sys
 from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0,str(ROOT))
 from scripts.validate_cephalo_vnext_lot04_contract import canonical_json_sha256,validate_manifest_semantics,validate_acceptance_semantics
 
 AARIZ_TO_DC={
