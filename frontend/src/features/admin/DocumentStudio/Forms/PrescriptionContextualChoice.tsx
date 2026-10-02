@@ -67,13 +67,13 @@ export function PrescriptionContextualChoice({
         disabled={disabled}
         onClick={() => setOpen(current => !current)}
         className={cn(
-          'inline-flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-border-main bg-input-field/80 px-3 py-2 text-left transition-all',
+          'inline-flex min-h-11 w-full min-w-0 items-start gap-2 rounded-xl border border-border-main bg-input-field/80 px-3 py-2 text-left transition-all',
           'hover:border-primary/30 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20',
           disabled && 'cursor-not-allowed opacity-50',
         )}
       >
         {icon}
-        <span className="min-w-0 flex-1 truncate text-[10px] font-black text-text-main">
+        <span className="min-w-0 flex-1 whitespace-normal break-words text-[10px] font-black leading-snug text-text-main">
           {value || placeholder}
         </span>
         <ChevronDown size={13} className="shrink-0 text-text-muted" />
