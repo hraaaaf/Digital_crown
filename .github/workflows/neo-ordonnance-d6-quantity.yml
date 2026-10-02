@@ -8,6 +8,10 @@ on:
       - 'backend/schemas/documents.py'
       - 'backend/services/generators/ordonnance_gen.py'
       - 'backend/tests/test_document_layout_consistency.py'
+      - 'backend/services/far_ordonnance_bridge.py'
+      - 'backend/services/insurance_far_prescription_renderer.py'
+      - 'backend/tests/test_far_ordonnance_bridge.py'
+      - 'backend/tests/test_insurance_far_prescription_renderer.py'
       - 'frontend/src/features/admin/DocumentStudio/useDocumentGenerator.ts'
       - 'frontend/src/features/admin/DocumentHub.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
@@ -36,7 +40,7 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Backend quantity + real PDF contract
-        run: pytest -q backend/tests/test_document_layout_consistency.py
+        run: pytest -q backend/tests/test_document_layout_consistency.py backend/tests/test_far_ordonnance_bridge.py backend/tests/test_insurance_far_prescription_renderer.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
