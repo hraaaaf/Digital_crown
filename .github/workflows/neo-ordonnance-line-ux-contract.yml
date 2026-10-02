@@ -32,3 +32,5 @@ jobs:
         run: npm ci
       - name: Run line customization contract tests
         run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx
+      - name: Build frontend
+        run: npm run build
