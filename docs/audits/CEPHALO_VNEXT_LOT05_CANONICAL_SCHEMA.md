@@ -23,7 +23,7 @@ LOT05 therefore does not create a competing clinical truth model.
 The isolated V2 contract is `CEPHALO_CANONICAL_SCHEMA_V2` and contains:
 - schema version and case identity;
 - source/evidence graph version reference;
-- landmark dictionary entries with canonical ID, explicit aliases, semantic status and provenance;
+- landmark registry entries with canonical ID, explicit aliases and semantic status;\n- active landmark states with evidence ref, origin, coordinates and source lineage/audit fields;
 - active landmark refs separate from historical evidence;
 - coordinate space and calibration metadata;
 - detector/model quality metadata as metadata, never as anatomical authorization;
