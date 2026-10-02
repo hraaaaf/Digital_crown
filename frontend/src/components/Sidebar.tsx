@@ -268,10 +268,10 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         <div className="sidebar-logo-wrap p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo transition-all duration-200">
           <Link 
             to="/dashboard" 
-            className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+            className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar" aria-label="Digital Crown — Tableau de bord"
           >
-            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm overflow-hidden" aria-hidden="true">
-              <img src={Logo} alt="" className="absolute left-1/2 top-[-8px] w-[180px] max-w-none -translate-x-1/2 object-contain" />
+            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm" aria-hidden="true">
+              <img src={Logo} alt="" className="h-8 w-8 object-contain" style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }} />
             </span>
             <img 
               src={Logo} 
