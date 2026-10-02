@@ -217,7 +217,7 @@ describe('DrugRow R5 progressive disclosure', () => {
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Présentation à confirmer avant validation.');
-    expect(screen.getByText('choix praticien')).toBeInTheDocument();
+    expect(screen.getByLabelText('Posologie en texte libre')).toHaveValue('choix praticien');
   });
 
 });
