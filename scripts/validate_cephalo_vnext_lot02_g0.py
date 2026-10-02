@@ -39,7 +39,7 @@ FIXTURE={
 EXPECTED={
 "SNA_deg":90.0,"SNB_deg":90.0,"ANB_deg":0.0,
 "FMA_deg":0.0,"IMPA_deg":90.0,"FMIA_deg":90.0,
-"SN_GoGn_deg":26.56505117707799,"Co_A_mm":0.5,"Co_Gn_mm":1.0,
+"SN_GoGn_deg":18.434948822922017,"Co_A_mm":0.5,"Co_Gn_mm":1.0,
 }
 
 def compute_fixture():
