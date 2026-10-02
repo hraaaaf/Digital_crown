@@ -57,3 +57,30 @@ def test_dci_prefix_is_deterministic(monkeypatch):
 
     assert [r["regulatory_presentation_id"] for r in a] == [r["regulatory_presentation_id"] for r in b]
     assert [r["nom"] for r in a] == ["BRAND A", "BRAND B"]
+
+
+def test_current_regulatory_overlay_wins_duplicate_identity_within_same_rank(monkeypatch):
+    current = {
+        "nom": "DOLIPRANE",
+        "dci": "PARACETAMOL",
+        "dosage": "1",
+        "unite": "G",
+        "forme": "COMPRIME",
+        "presentation": "Z CURRENT",
+        "epi": "CURRENT",
+        "_source": dict(medication_dict.AMMPS_CURRENT_SOURCE),
+    }
+    historical = {
+        **current,
+        "presentation": "A HISTORICAL",
+        "epi": "HISTORICAL",
+        "_source": dict(medication_dict.CATALOG_SOURCE),
+    }
+    monkeypatch.setattr(medication_dict, "_MEDS", [historical, current])
+    monkeypatch.setattr(medication_dict, "_LOADED", True)
+
+    results = medication_dict.search_unified("DOLIPRANE", limit=10)
+
+    assert len(results) == 1
+    assert results[0]["source"]["id"] == medication_dict.AMMPS_CURRENT_SOURCE["id"]
+    assert results[0]["neo_source_state"] == "CURRENT_REGULATORY_OVERLAY"
