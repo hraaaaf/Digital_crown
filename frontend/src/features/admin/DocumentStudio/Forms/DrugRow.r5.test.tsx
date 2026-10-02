@@ -64,7 +64,7 @@ describe('DrugRow R5 progressive disclosure', () => {
     expect(screen.getByText(/Commencez par choisir le médicament/)).toBeInTheDocument();
   });
 
-  it('affiche le Prescription Composer dès qu’un médicament est identifié', () => {
+  it('affiche le Prescription Composer dès qu’un médicament est identifié sans dupliquer la posologie', () => {
     renderRow(identified({
       ...baseDrug,
       name: 'AMOXICILLINE',
@@ -79,7 +79,21 @@ describe('DrugRow R5 progressive disclosure', () => {
     expect(screen.getByLabelText('Rythme')).toHaveTextContent('3 fois par jour');
     expect(screen.getByLabelText('Durée ou limite')).toHaveTextContent('7 jours');
     expect(screen.getByLabelText('Moment ou condition')).toHaveTextContent('Moment ou condition');
-    expect(screen.getByLabelText('Posologie en texte libre')).toBeInTheDocument();
+    expect(screen.getByLabelText('Posologie en texte libre')).toHaveValue('1 cp x 3 / jour pendant 7 jours');
+    expect(screen.queryByText('Phrase persistée')).not.toBeInTheDocument();
+    expect(screen.getByText('Posologie complète')).toBeInTheDocument();
+  });
+
+  it('demande de confirmer la présentation sans prétendre que le médicament est absent', () => {
+    renderRow({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+    });
+
+    expect(screen.getByText('Confirmez la présentation (forme et dosage) pour vérifier le médicament.')).toBeInTheDocument();
+    expect(screen.queryByText('Choisissez le médicament pour compléter la ligne.')).not.toBeInTheDocument();
   });
 
   it('génère la phrase de posologie dans le contrat string existant', () => {
