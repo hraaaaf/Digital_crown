@@ -54,7 +54,7 @@ def build_far_ordonnance_payload(
             dosage=str(item.dosage or "").strip(),
             form=str(item.forme or "").strip(),
             posology=str(item.posologie or "").strip(),
-            quantity=int(item.quantite) if item.quantite is not None else None,
+            quantity=int(item.quantite) if item.quantite_explicit and item.quantite is not None else None,
         )
         for item in ordonnance.medications
     )
