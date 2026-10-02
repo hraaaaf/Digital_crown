@@ -140,8 +140,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
       return;
     }
     if (!drug.catalogPresentationId) {
-      setNeoSafety(hasManualPresentationOverride ? 'blocked' : 'idle');
-      setNeoSafetyMessage(hasManualPresentationOverride ? 'Présentation à confirmer avant validation.' : null);
+      const unresolvedMedicationIdentity = Boolean(drug.name.trim());
+      setNeoSafety(unresolvedMedicationIdentity ? 'blocked' : 'idle');
+      setNeoSafetyMessage(unresolvedMedicationIdentity ? 'Présentation à confirmer avant validation.' : null);
       return;
     }
 
@@ -247,10 +248,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   const handleNameChange = (value: string) => {
     const next = value.toUpperCase();
     if (hasCatalogPresentation && next !== drug.name) {
+      // Editing the identity invalidates catalog provenance, but practitioner-entered
+      // dose/form/posology remain authored content and must never be silently erased.
       clearCatalogIdentity();
-      onUpdateDrug(drug.id, 'dosage', '');
-      onUpdateDrug(drug.id, 'forme', '');
-      onUpdateDrug(drug.id, 'posologie', '');
     }
     onUpdateDrug(drug.id, 'name', next);
     setNameSearchActive(true);
