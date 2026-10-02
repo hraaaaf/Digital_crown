@@ -316,12 +316,12 @@ def search_unified(q: str, limit: int = 30) -> List[Dict[str, Any]]:
     bounded = max(1, min(limit, 100))
     ordered_records = [*_regulatory_records(), *_legacy_records()]
     matching_records = [rec for rec in ordered_records if _matches_query(rec, query)]
-    matching_records.sort(
-        key=lambda rec: (
-            _search_rank(rec, query),
-            0 if _record_source(rec).get("id") == AMMPS_CURRENT_SOURCE["id"] else 1,
-        )
-    )
+    def unified_sort_key(rec: Dict[str, Any]) -> tuple:
+        lexical = _search_rank(rec, query)
+        source_priority = 0 if _record_source(rec).get("id") == AMMPS_CURRENT_SOURCE["id"] else 1
+        return (lexical[0], source_priority, *lexical[1:])
+
+    matching_records.sort(key=unified_sort_key)
 
     hits: List[Dict[str, Any]] = []
     seen_identity: set[str] = set()
