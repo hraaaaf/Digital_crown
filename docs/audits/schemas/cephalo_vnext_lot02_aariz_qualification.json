@@ -5,14 +5,17 @@
     "doi": "10.6084/m9.figshare.27986417.v1",
     "archive_size_bytes": 2098209792,
     "archive_md5": "e0bd645bca6759abdae4f199d841bda6",
-    "manifest_v2_sha256": "d7191e61ff3ddd58ee8598c9f98cce1b71d5ebc7151b2975534ee644175181ff",
+    "manifest_v2_sha256": "73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df",
     "cases": 1000,
     "splits": {
       "train": 700,
       "valid": 150,
       "test": 150
     },
-    "landmark_pairs": 29000
+    "landmark_pairs": 29000,
+    "manifest_schema": "CEPHALO_LOT02_AARIZ_MANIFEST_V2",
+    "qc_sha256": "f5dc5552c3484dce8cbc16e25f2c2207be1cf48c1f2407fb584c85efc3e26be0",
+    "measurement_agreement_sha256": "868de930eba33bf2b6d6b175b386f1c42e7fdb3205566ddbe331141fa5f1804d"
   },
   "qc_policy": {
     "consensus_candidate_max_mm": 2,
