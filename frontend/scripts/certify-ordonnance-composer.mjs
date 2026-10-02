@@ -34,10 +34,11 @@ for (const viewport of viewports) {
   }));
 
   await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60000,
   });
-  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'visible', timeout: 20000 });
+  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'attached', timeout: 20000 });
+  await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
   const cards = page.locator('[data-ordonnance-drug-card]');
   await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
@@ -119,8 +120,9 @@ for (const capture of captures) {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
   await page.route('**/api/medications/neo/search**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
-  await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', { waitUntil: 'networkidle', timeout: 60000 });
-  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'visible', timeout: 20000 });
+  await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'attached', timeout: 20000 });
+  await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; document.documentElement.setAttribute('data-theme', 'dark'); });
   await page.waitForTimeout(180);
   const cards = page.locator('[data-ordonnance-drug-card]');
