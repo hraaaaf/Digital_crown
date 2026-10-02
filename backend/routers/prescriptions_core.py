@@ -73,8 +73,8 @@ def get_medication_habits(q: str = "", db: Session = Depends(database.get_db), c
     return prescription_service.get_personalized_suggestions(db, current_user.id, q)
 
 @prescription_router.get("/habits/details")
-def get_medication_habit_details(med_name: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
-    return prescription_service.get_medication_details(db, current_user.id, med_name)
+def get_medication_habit_details(med_name: str, dosage: str = "", db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
+    return prescription_service.get_medication_details(db, current_user.id, med_name, dosage)
 
 @prescription_router.get("/habits/presets")
 def get_prescription_presets(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
@@ -441,16 +441,45 @@ async def design_agentic_plan(req: dict, db: Session = Depends(database.get_db),
 
 @prescription_router.post("/preferences")
 async def save_prescription_preference(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
-    """
-    Enregistre une habitude de prescription pour le médecin actuel.
-    """
+    """Create or update a reusable protocol/saved prescription for the current practitioner."""
     act_code = req.get("act_code")
     drugs = req.get("drugs")
     if not act_code or not drugs:
         raise HTTPException(status_code=400, detail="Données de préférence incomplètes")
-        
-    prescription_service.learn_habit(db, current_user.id, act_code, drugs)
-    return {"status": "success", "message": "Habitude enregistrée avec succès"}
+
+    try:
+        prescription_service.learn_habit(
+            db,
+            current_user.id,
+            act_code,
+            drugs,
+            label=req.get("label"),
+            preference_type=req.get("kind") or "PROTOCOL",
+            indication=req.get("indication"),
+            is_favorite=req.get("is_favorite"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"status": "success", "message": "Élément réutilisable enregistré"}
+
+@prescription_router.post("/preferences/{preset_id}/use")
+async def record_prescription_preference_use(
+    preset_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("prescriptions")),
+):
+    prescription_service.record_reusable_use(db, current_user.id, preset_id)
+    return {"status": "success"}
+
+@prescription_router.put("/preferences/{preset_id}/favorite")
+async def set_prescription_preference_favorite(
+    preset_id: int,
+    req: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("prescriptions")),
+):
+    prescription_service.set_reusable_favorite(db, current_user.id, preset_id, bool(req.get("is_favorite")))
+    return {"status": "success"}
 
 @prescription_router.delete("/preferences/{act_code}")
 async def delete_prescription_preference(act_code: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):

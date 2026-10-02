@@ -22,6 +22,7 @@ def _payload() -> FarOrdonnanceBridgePayload:
             dosage="500 mg",
             form="comprime",
             posology="1 cp matin et soir",
+            quantity=2,
         ),),
     )
 
@@ -51,8 +52,9 @@ def test_v4_medication_line_matches_validated_visual_hierarchy():
         name="AMOXICILLINE",
         dosage="1 g",
         form="comprime",
-    ) == "AMOXICILLINE 1 g - comprime"
-    assert _medication_text(name="PARACETAMOL", dosage="", form="") == "PARACETAMOL"
+        quantity=2,
+    ) == "AMOXICILLINE 1 g - comprime · Qté 2"
+    assert _medication_text(name="PARACETAMOL", dosage="", form="", quantity=None) == "PARACETAMOL"
 
 
 def test_renderer_contract_is_theme_independent():

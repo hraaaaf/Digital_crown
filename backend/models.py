@@ -752,16 +752,25 @@ class DocumentTemplate(Base):
 
 class DoctorPrescriptionPreference(Base):
     """
-    Surcharges personnalisées des protocoles d'ordonnance par médecin.
-    Permet une logique de priorité : Préférence Doc > Protocole Système.
+    Objet d'ordonnance réutilisable par praticien.
+
+    Compatibilité : les anciennes lignes restent des protocoles par défaut.
+    La structure de médicaments existante est conservée ; les métadonnées Neo
+    ajoutent seulement le type, le libellé, l'usage et l'indication éventuelle.
     """
     __tablename__ = "doctor_prescription_preferences"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    act_code: Mapped[str] = mapped_column(String, index=True, nullable=False) # ex: EXTRACTION_SIMPLE
-    
-    # Stocke la liste des médicaments [ {name, dosage, forme, posologie}, ... ]
+    act_code: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    preference_type: Mapped[str] = mapped_column(String(32), nullable=False, default="PROTOCOL", server_default="PROTOCOL", index=True)
+    indication: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false", index=True)
+    usage_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    last_used: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+    # Stocke uniquement les lignes réutilisables ; aucune donnée patient.
     drugs_json: Mapped[Dict] = mapped_column(JSON, nullable=False)
     
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())

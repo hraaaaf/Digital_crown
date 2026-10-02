@@ -13,6 +13,7 @@ const initialDrugs: DrugItem[] = [
     posologie: '1 comprimé, 3 fois par jour pendant 7 jours, après les repas.',
     type: 'MEDICAMENT',
     quantite: 1,
+    quantiteExplicit: true,
     non_substituable: false,
   },
   {
@@ -23,6 +24,7 @@ const initialDrugs: DrugItem[] = [
     posologie: '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 3 jours.',
     type: 'MEDICAMENT',
     quantite: 1,
+    quantiteExplicit: true,
     non_substituable: false,
   },
 ];
@@ -49,11 +51,11 @@ function Fixture() {
 
   return (
     <main className="min-h-screen bg-background px-3 py-5 text-text-main sm:px-6 sm:py-8">
-      <section className="mx-auto w-full max-w-[36rem] space-y-4" data-composer-visual-fixture>
+      <section className="mx-auto w-full max-w-[72rem] space-y-4" data-composer-visual-fixture>
         <header className="rounded-2xl border border-border-main bg-glass-bg/70 px-4 py-3 shadow-sm backdrop-blur-xl">
           <div className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Ordonnance</div>
           <h1 className="mt-1 text-lg font-black text-text-main">Prescription Composer</h1>
-          <p className="mt-1 text-xs font-semibold text-text-muted">Fixture visuel du composant réel DrugRow · largeur éditeur réelle</p>
+          <p className="mt-1 text-xs font-semibold text-text-muted">Fixture visuel du composant réel DrugRow · largeur responsive</p>
         </header>
 
         {drugs.map((drug, idx) => (
@@ -75,9 +77,9 @@ function Fixture() {
             onSearch={(id, field, value) => updateDrug(id, field as keyof DrugItem, value)}
             onKeyDown={() => undefined}
             onApplySuggestion={(id, field, value) => updateDrug(id, field as keyof DrugItem, value)}
-            onFormeOpen={() => undefined}
             onForceAllergy={() => undefined}
             onToggleType={(id, type) => updateDrug(id, 'type', type)}
+            disableCatalogLookup
           />
         ))}
       </section>

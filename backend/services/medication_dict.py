@@ -240,6 +240,44 @@ def _matches_query(rec: Dict[str, Any], query: str) -> bool:
     return query in str(rec.get("nom", "")).upper() or query in str(rec.get("dci", "")).upper()
 
 
+def _search_rank(rec: Dict[str, Any], query: str) -> tuple:
+    """Deterministic lexical ranking for Neo medication search."""
+    name = str(rec.get("nom", "")).upper().strip()
+    dci = str(rec.get("dci", "")).upper().strip()
+    name_tokens = [t for t in re.split(r"[^A-Z0-9À-ÖØ-Ý]+", name) if t]
+    dci_tokens = [t for t in re.split(r"[^A-Z0-9À-ÖØ-Ý]+", dci) if t]
+
+    if name == query:
+        band = 0
+    elif name.startswith(query):
+        band = 1
+    elif any(token.startswith(query) for token in name_tokens):
+        band = 2
+    elif dci == query:
+        band = 3
+    elif dci.startswith(query):
+        band = 4
+    elif any(token.startswith(query) for token in dci_tokens):
+        band = 5
+    elif query in name:
+        band = 6
+    elif query in dci:
+        band = 7
+    else:
+        band = 99
+
+    return (
+        band,
+        name,
+        dci,
+        str(rec.get("dosage", "")).upper(),
+        str(rec.get("unite", "")).upper(),
+        str(rec.get("forme", "")).upper(),
+        str(rec.get("presentation", "")).upper(),
+        str(rec.get("epi", "")).upper(),
+    )
+
+
 def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
     """Recherche documentaire historique par nom commercial ou DCI."""
     _load()
@@ -258,6 +296,52 @@ def search(q: str, limit: int = 30) -> List[Dict[str, Any]]:
         seen.add(canonical_key)
         hits.append(_public_presentation(rec))
         if len(hits) >= max(1, min(limit, 100)):
+            break
+    return hits
+
+
+def search_unified(q: str, limit: int = 30) -> List[Dict[str, Any]]:
+    """Recherche Neo unifi?e : overlay AMMPS courant d'abord, puis r?f?rentiels documentaires.
+
+    Le r?sultat n'inf?re jamais un statut courant pour une ligne historique. Quand une
+    pr?sentation AMMPS courante correspond exactement ? l'identit? documentaire, elle
+    masque uniquement le doublon historique dans cette vue; les deux sources restent
+    disponibles via leurs APIs d?di?es.
+    """
+    _load()
+    query = (q or "").upper().strip()
+    if len(query) < 2:
+        return []
+
+    bounded = max(1, min(limit, 100))
+    ordered_records = [*_regulatory_records(), *_legacy_records()]
+    matching_records = [rec for rec in ordered_records if _matches_query(rec, query)]
+    def unified_sort_key(rec: Dict[str, Any]) -> tuple:
+        lexical = _search_rank(rec, query)
+        source_priority = 0 if _record_source(rec).get("id") == AMMPS_CURRENT_SOURCE["id"] else 1
+        return (lexical[0], source_priority, *lexical[1:])
+
+    matching_records.sort(key=unified_sort_key)
+
+    hits: List[Dict[str, Any]] = []
+    seen_identity: set[str] = set()
+    for rec in matching_records:
+        identity = _canonical_presentation_key(rec)
+        if identity in seen_identity:
+            continue
+        seen_identity.add(identity)
+        item = _public_presentation(rec)
+        source = item.get("source") or {}
+        item["neo_source_state"] = (
+            "CURRENT_REGULATORY_OVERLAY"
+            if source.get("id") == AMMPS_CURRENT_SOURCE["id"]
+            else "DOCUMENTARY_REFERENCE"
+        )
+        item["may_claim_current_marketing_status"] = bool(
+            source.get("current_marketing_status_verified")
+        )
+        hits.append(item)
+        if len(hits) >= bounded:
             break
     return hits
 
@@ -282,6 +366,21 @@ def search_regulatory_presentations(q: str, limit: int = 100) -> List[Dict[str, 
         if len(hits) >= max(1, min(limit, 500)):
             break
     return hits
+
+
+def get_unified_presentation(presentation_id: str) -> Optional[Dict[str, Any]]:
+    """Resolve a Neo presentation id with the current AMMPS overlay first.
+
+    Legacy resolution remains unchanged; this resolver is only for the Neo boundary.
+    """
+    _load()
+    wanted = (presentation_id or "").strip()
+    if not wanted:
+        return None
+    for rec in [*_regulatory_records(), *_legacy_records()]:
+        if _presentation_id(rec) == wanted:
+            return _public_presentation(rec)
+    return None
 
 
 def get_presentation(presentation_id: str) -> Optional[Dict[str, Any]]:

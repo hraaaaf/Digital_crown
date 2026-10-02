@@ -19,6 +19,8 @@ def test_bridge_copies_explicit_ordonnance_without_inference():
             dosage="1 g",
             forme="comprimé",
             posologie="1 comprimé matin et soir pendant 7 jours",
+            quantite=2,
+            quantite_explicit=True,
         )]
     )
     payload = build_far_ordonnance_payload(
@@ -33,6 +35,19 @@ def test_bridge_copies_explicit_ordonnance_without_inference():
     assert payload.lines[0].dosage == "1 g"
     assert payload.lines[0].form == "comprimé"
     assert payload.lines[0].posology == "1 comprimé matin et soir pendant 7 jours"
+    assert payload.lines[0].quantity == 2
+
+
+def test_bridge_does_not_promote_legacy_default_quantity():
+    ordonnance = OrdonnanceData(
+        medications=[MedicationItem(nom="PARACETAMOL", quantite=1)]
+    )
+    payload = build_far_ordonnance_payload(
+        patient_id=12,
+        source_ordonnance_document_id=98,
+        ordonnance=ordonnance,
+    )
+    assert payload.lines[0].quantity is None
 
 
 def test_bridge_requires_archived_source_ordonnance():

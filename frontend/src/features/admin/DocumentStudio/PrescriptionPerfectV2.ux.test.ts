@@ -41,11 +41,18 @@ describe('Ordonnance Perfect V2 UX contract', () => {
 
   it('keeps clinical automation fail-closed through internal markers without practitioner-facing warnings', () => {
     expect(prescription).toContain('Prescription');
-    expect(prescription).toContain('Recherche médicament → présentation → validation');
+    expect(prescription).not.toContain('Recherche médicament → présentation → validation');
+    expect(prescription).toContain('<PrescriptionQuickAccessBar');
     expect(prescription).toContain('data-clinical-rule-status="blocked"');
     expect(prescription).toContain('data-safety-status="blocked"');
+    expect(prescription).toContain('data-safety-mechanics="background-only"');
+    expect(prescription).not.toContain('PatientClinicalContextPanel');
+    expect(prescription).not.toContain('IEProphylaxisRulePanel');
     expect(prescription).not.toContain("api.post('/prescriptions/safety/check'");
     expect(prescription).toContain('min-h-11');
+    expect(drugRow).toContain('PrescriptionContextualChoice');
+    expect(drugRow).not.toContain('readOnly={hasCatalogPresentation}');
+    expect(drugRow).not.toContain('disabled={hasCatalogPresentation}');
   });
 
   it('does not regress the responsive live preview back to a content-squeezing drawer', () => {

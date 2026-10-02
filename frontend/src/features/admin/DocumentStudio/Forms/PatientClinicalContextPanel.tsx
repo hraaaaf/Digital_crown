@@ -173,6 +173,9 @@ export function PatientClinicalContextPanel({ patientId }: { patientId?: number 
       setSaveState('saved');
       setLoadError(false);
       setExpanded(false);
+      window.dispatchEvent(new CustomEvent('digitalcrown:patient-clinical-context-updated', {
+        detail: { patientId },
+      }));
     } catch (error) {
       console.error('Clinical context save failed:', error);
       setSaveState('error');

@@ -9,6 +9,7 @@ const source = (file: string) => readFileSync(
 
 const prescription = source('Forms/PrescriptionAgenticStudioV1.tsx');
 const drugRow = source('Forms/DrugRowV1.tsx');
+const contextualChoice = source('Forms/PrescriptionContextualChoice.tsx');
 
 describe('Ordonnance Fidelity V3 U2 clinical density', () => {
   it('keeps the V1 ordonnance surface compact', () => {
@@ -20,7 +21,7 @@ describe('Ordonnance Fidelity V3 U2 clinical density', () => {
   it('keeps add-line and medication actions touch-safe', () => {
     expect(prescription).toContain('min-h-11');
     expect(drugRow.match(/h-11 w-11/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
-    expect(drugRow.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
+    expect(contextualChoice).toContain('min-h-11 w-full');
   });
 
   it('does not expose legacy quick-entry or protocol chips in the active V1 studio', () => {

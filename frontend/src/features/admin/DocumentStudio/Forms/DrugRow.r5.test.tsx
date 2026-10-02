@@ -36,7 +36,6 @@ function renderRow(drug: DrugItem) {
       onSearch={vi.fn()}
       onKeyDown={vi.fn()}
       onApplySuggestion={vi.fn()}
-      onFormeOpen={vi.fn()}
       onForceAllergy={vi.fn()}
       onToggleType={vi.fn()}
     />,
@@ -59,13 +58,13 @@ describe('DrugRow R5 progressive disclosure', () => {
     renderRow(baseDrug);
 
     expect(screen.getByPlaceholderText('NOM OU DCI DU MÉDICAMENT...')).toBeInTheDocument();
-    expect(screen.queryByText('Dose')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dose' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Prise')).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Ex. 1 gélule × 3/jour pendant 7 jours')).not.toBeInTheDocument();
-    expect(screen.getByText(/Recherchez un médicament puis choisissez explicitement sa présentation/)).toBeInTheDocument();
+    expect(screen.getByText(/Commencez par choisir le médicament/)).toBeInTheDocument();
   });
 
-  it('affiche le Prescription Composer dès qu’un médicament est identifié', () => {
+  it('affiche le Prescription Composer dès qu’un médicament est identifié sans dupliquer la posologie', () => {
     renderRow(identified({
       ...baseDrug,
       name: 'AMOXICILLINE',
@@ -74,14 +73,27 @@ describe('DrugRow R5 progressive disclosure', () => {
       posologie: '1 cp x 3 / jour pendant 7 jours',
     }));
 
-    expect(screen.getByText('Dose')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('500MG')).toBeInTheDocument();
-    expect(screen.getByText('GÉLULES')).toBeInTheDocument();
-    expect(screen.getByLabelText('Prise')).toHaveValue('1 comprimé');
-    expect(screen.getByLabelText('Rythme')).toHaveValue('3 fois par jour');
-    expect(screen.getByLabelText('Durée ou limite')).toHaveValue('7 jours');
-    expect(screen.getByLabelText('Moment ou condition')).toHaveValue('');
-    expect(screen.getByLabelText('Posologie en texte libre')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dose' })).toHaveTextContent('500MG');
+    expect(screen.getByRole('button', { name: 'Forme' })).toHaveTextContent('GÉLULES');
+    expect(screen.getByLabelText('Prise')).toHaveTextContent('1 comprimé');
+    expect(screen.getByLabelText('Rythme')).toHaveTextContent('3 fois par jour');
+    expect(screen.getByLabelText('Durée ou limite')).toHaveTextContent('7 jours');
+    expect(screen.getByLabelText('Moment ou condition')).toHaveTextContent('Moment ou condition');
+    expect(screen.getByLabelText('Posologie en texte libre')).toHaveValue('1 cp x 3 / jour pendant 7 jours');
+    expect(screen.queryByText('Phrase persistée')).not.toBeInTheDocument();
+    expect(screen.getByText('Posologie complète')).toBeInTheDocument();
+  });
+
+  it('demande de confirmer la présentation sans prétendre que le médicament est absent', () => {
+    renderRow({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+    });
+
+    expect(screen.getByText('Confirmez la présentation (forme et dosage) pour vérifier le médicament.')).toBeInTheDocument();
+    expect(screen.queryByText('Choisissez le médicament pour compléter la ligne.')).not.toBeInTheDocument();
   });
 
   it('génère la phrase de posologie dans le contrat string existant', () => {
@@ -93,16 +105,169 @@ describe('DrugRow R5 progressive disclosure', () => {
       posologie: '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 3 jours.',
     }));
 
-    expect(screen.getByLabelText('Prise')).toHaveValue('1 comprimé');
-    expect(screen.getByLabelText('Rythme')).toHaveValue('si douleur');
-    expect(screen.getByLabelText('Durée ou limite')).toHaveValue('max 3/jour');
-    expect(screen.getByLabelText('Moment ou condition')).toHaveValue('3 jours');
+    expect(screen.getByLabelText('Prise')).toHaveTextContent('1 comprimé');
+    expect(screen.getByLabelText('Rythme')).toHaveTextContent('si douleur');
+    expect(screen.getByLabelText('Durée ou limite')).toHaveTextContent('max 3/jour');
+    expect(screen.getByLabelText('Moment ou condition')).toHaveTextContent('3 jours');
 
-    fireEvent.change(screen.getByLabelText('Moment ou condition'), { target: { value: '5 jours' } });
+    fireEvent.click(screen.getByLabelText('Moment ou condition'));
+    fireEvent.click(screen.getByRole('menuitem', { name: '5 jours' }));
     expect(onUpdateDrug).toHaveBeenLastCalledWith(
       1,
       'posologie',
       '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 5 jours.',
     );
   });
+  it('conserve les deux types de ligne avec leurs icônes médicament et radio/examen', () => {
+    const onToggleType = vi.fn();
+    render(
+      <DrugRow
+        drug={baseDrug}
+        idx={0}
+        drugsCount={1}
+        assessment={null}
+        validationErrors={[]}
+        forcedDrugs={[]}
+        activeSearchId={null}
+        suggestions={{ medications: [], dosages: [], posologies: [] }}
+        highlightedIdx={-1}
+        medChecks={{}}
+        onUpdateDrug={vi.fn()}
+        onRemoveDrug={vi.fn()}
+        onMove={vi.fn()}
+        onSearch={vi.fn()}
+        onKeyDown={vi.fn()}
+        onApplySuggestion={vi.fn()}
+        onForceAllergy={vi.fn()}
+        onToggleType={onToggleType}
+      />,
+    );
+
+    const medicationButton = screen.getByRole('button', { name: 'Type médicament' });
+    const examButton = screen.getByRole('button', { name: 'Type radio ou examen' });
+    expect(medicationButton.querySelector('svg')).toBeTruthy();
+    expect(examButton.querySelector('svg')).toBeTruthy();
+
+    fireEvent.click(examButton);
+    expect(onToggleType).toHaveBeenCalledWith(1, 'EXAMEN');
+  });
+
+  it('conserve tous les contrôles de personnalisation praticien sur une ligne médicament identifiée', () => {
+    renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 cp x 3 / jour pendant 7 jours',
+      non_substituable: false,
+    }));
+
+    expect(screen.getByRole('button', { name: 'Forme' })).toHaveTextContent('GÉLULES');
+    expect(screen.getByRole('button', { name: 'Dose' })).toHaveTextContent('500MG');
+    expect(screen.getByLabelText('Prise')).toBeInTheDocument();
+    expect(screen.getByLabelText('Rythme')).toBeInTheDocument();
+    expect(screen.getByLabelText('Durée ou limite')).toBeInTheDocument();
+    expect(screen.getByLabelText('Moment ou condition')).toBeInTheDocument();
+    expect(screen.getByLabelText('Posologie en texte libre')).toBeInTheDocument();
+    expect(screen.getByLabelText('Quantité à délivrer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /non substituable/i })).toBeInTheDocument();
+  });
+
+  it('permet au praticien de définir ou retirer une quantité à délivrer', () => {
+    const { onUpdateDrug } = renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 cp x 3 / jour pendant 7 jours',
+      quantite: 2,
+      quantiteExplicit: true,
+    }));
+
+    const quantity = screen.getByLabelText('Quantité à délivrer');
+    expect(quantity).toHaveValue(2);
+    fireEvent.change(quantity, { target: { value: '3' } });
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantite', 3);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantiteExplicit', true);
+    fireEvent.change(quantity, { target: { value: '' } });
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantite', undefined);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantiteExplicit', false);
+  });
+
+  it('ne présente pas un ancien quantite=1 technique comme une quantité prescrite', () => {
+    renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 cp x 3 / jour pendant 7 jours',
+      quantite: 1,
+      quantiteExplicit: false,
+    }));
+
+    expect((screen.getByLabelText('Quantité à délivrer') as HTMLInputElement).value).toBe('');
+  });
+
+  it('garde une ligne radio/examen distincte sans composer médicament', () => {
+    renderRow({
+      ...baseDrug,
+      type: 'EXAMEN',
+      name: 'RADIO PANORAMIQUE',
+    });
+
+    expect(screen.getByPlaceholderText("DÉTAILS DE L'EXAMEN RADIOLOGIQUE...")).toBeInTheDocument();
+    expect(screen.queryByLabelText('Prise')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Rythme')).not.toBeInTheDocument();
+  });
+
+  it('invalide la provenance sans effacer dose, forme ou posologie lors d’une édition manuelle du nom', () => {
+    const { onUpdateDrug } = renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 comprimé x 3 / jour pendant 7 jours',
+    }));
+
+    fireEvent.change(screen.getByPlaceholderText('NOM OU DCI DU MÉDICAMENT...'), {
+      target: { value: 'AMOXICILLINE MANUELLE' },
+    });
+
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogPresentationId', undefined);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogSourceId', undefined);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'name', 'AMOXICILLINE MANUELLE');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'dosage', '');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'forme', '');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'posologie', '');
+  });
+
+  it('fail-closed quand un médicament nommé n’a plus de présentation catalogue vérifiée', async () => {
+    render(
+      <DrugRow
+        drug={{ ...baseDrug, name: 'AMOXICILLINE MANUELLE', dosage: '500MG', forme: 'GÉLULES', posologie: 'choix praticien' }}
+        idx={0}
+        drugsCount={1}
+        assessment={null}
+        validationErrors={[]}
+        forcedDrugs={[]}
+        activeSearchId={null}
+        suggestions={{ medications: [], dosages: [], posologies: [] }}
+        highlightedIdx={-1}
+        medChecks={{}}
+        onUpdateDrug={vi.fn()}
+        onRemoveDrug={vi.fn()}
+        onMove={vi.fn()}
+        onSearch={vi.fn()}
+        onKeyDown={vi.fn()}
+        onApplySuggestion={vi.fn()}
+        onForceAllergy={vi.fn()}
+        onToggleType={vi.fn()}
+        patientId="59"
+      />,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Présentation à confirmer avant validation.');
+    expect(screen.getByLabelText('Posologie en texte libre')).toHaveValue('choix praticien');
+  });
+
 });

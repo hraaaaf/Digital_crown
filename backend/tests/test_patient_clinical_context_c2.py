@@ -68,3 +68,16 @@ def test_c2_ie_context_roundtrip(client, db, dentiste, auth_headers):
     assert data["ie_cardiac_risk_category"] == "PREVIOUS_INFECTIVE_ENDOCARDITIS"
     assert "clinical_ready" not in data
     assert "dose" not in data
+
+
+def test_partial_payload_does_not_mark_omitted_lists_as_set():
+    payload = PatientClinicalContextUpdate(pregnancy_status="NO")
+    dumped = payload.model_dump(exclude_unset=True)
+    assert dumped == {"pregnancy_status": "NO"}
+
+
+def test_partial_list_only_payload_is_allowed_for_router_merge_validation():
+    payload = PatientClinicalContextUpdate(current_medications=["Traitement B"])
+    assert payload.model_dump(exclude_unset=True) == {"current_medications": ["Traitement B"]}
+    merged = PatientClinicalContextUpdate(**{**PatientClinicalContextUpdate(current_medications_status="PRESENT", current_medications=["A"]).model_dump(), **payload.model_dump(exclude_unset=True)})
+    assert merged.current_medications == ["Traitement B"]
