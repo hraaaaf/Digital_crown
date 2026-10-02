@@ -13,7 +13,8 @@
     "current_landmark_refs",
     "coordinate_space",
     "migration",
-    "quality_metadata"
+    "quality_metadata",
+    "active_landmarks"
   ],
   "properties": {
     "schema_version": {
@@ -187,6 +188,9 @@
               "score_calibration_ref": {
                 "type": "string",
                 "minLength": 1
+              },
+              "raw_score": {
+                "type": "number"
               }
             }
           }
@@ -206,6 +210,28 @@
             "properties": {
               "raw_score": {
                 "type": "null"
+              },
+              "score_calibration_ref": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "score_semantics": {
+                "const": "RAW_UNCALIBRATED"
+              }
+            },
+            "required": [
+              "score_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "raw_score": {
+                "type": "number"
               },
               "score_calibration_ref": {
                 "type": "null"
@@ -258,6 +284,82 @@
         "migration_context_sha256": {
           "type": "string",
           "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "compatibility_class": {
+                "const": "LOSSLESS_V1"
+              }
+            },
+            "required": [
+              "compatibility_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "opaque_legacy_payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "opaque_legacy_payload"
+            ]
+          }
+        }
+      ]
+    },
+    "active_landmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_ref",
+          "canonical_id",
+          "origin",
+          "x",
+          "y",
+          "validated_by",
+          "validated_at"
+        ],
+        "properties": {
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "origin": {
+            "enum": [
+              "SRPOSE38_AUTO",
+              "MANUAL",
+              "MANUAL_CORRECTED"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "validated_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
         }
       }
     }
