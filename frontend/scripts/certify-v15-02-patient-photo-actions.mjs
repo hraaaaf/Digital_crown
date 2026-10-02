@@ -29,6 +29,19 @@ await page.addInitScript(v=>{
 let postCalls=0;
 let deleteCalls=0;
 let failNextPost=true;
+await page.addInitScript(() => {
+  const track={ stop:()=>{} };
+  const stream={ getTracks:()=>[track] };
+  Object.defineProperty(navigator,'mediaDevices',{
+    configurable:true,
+    value:{ getUserMedia: async()=>stream }
+  });
+  Object.defineProperty(HTMLMediaElement.prototype,'play',{
+    configurable:true,
+    value:async function(){}
+  });
+});
+
 await page.route('**/api/patients/'+patient.id+'/photo',async route=>{
   const method=route.request().method();
   if(method==='POST'){
@@ -52,6 +65,12 @@ await page.route('**/api/patients/'+patient.id+'/photo',async route=>{
 await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'/edit',{waitUntil:'networkidle',timeout:90000});
 await page.getByRole('heading',{name:'Mise à jour',exact:true}).waitFor({state:'visible',timeout:30000});
 
+await page.getByRole('button',{name:/Prendre une photo/i}).click();
+const cameraDialog=page.getByRole('dialog',{name:'Prendre une photo'});
+await cameraDialog.waitFor({state:'visible',timeout:10000});
+await cameraDialog.getByRole('button',{name:'Fermer la caméra'}).click();
+await cameraDialog.waitFor({state:'detached',timeout:10000});
+
 await page.getByLabel('Importer une photo du patient').setInputFiles({
   name:'patient.png',
   mimeType:'image/png',
@@ -65,9 +84,10 @@ await page.getByLabel('Position verticale').fill('-10');
 
 const save=dialog.getByRole('button',{name:/Enregistrer la photo/i});
 await save.click();
+await save.click({timeout:1000}).catch(()=>{});
 await page.getByRole('alert').filter({hasText:/n’a pas pu être enregistrée/i}).waitFor({state:'visible',timeout:10000});
 if(!(await dialog.isVisible())) throw new Error('crop dialog closed after refused upload');
-if(postCalls!==1) throw new Error('refused upload call count mismatch '+postCalls);
+if(postCalls!==1) throw new Error('photo upload was not single-flight; calls='+postCalls);
 
 await save.click();
 await dialog.waitFor({state:'detached',timeout:10000});
@@ -78,7 +98,7 @@ await page.getByRole('button',{name:/Supprimer/i}).click();
 await page.getByRole('button',{name:/Supprimer/i}).waitFor({state:'detached',timeout:10000});
 if(deleteCalls!==1) throw new Error('delete call count mismatch '+deleteCalls);
 
-console.log(JSON.stringify({status:'PASS',scenario:'v15-02-photo-actions',postCalls,deleteCalls,patientId:patient.id}));
+console.log(JSON.stringify({status:'PASS',scenario:'v15-02-photo-actions',cameraDialog:true,postCalls,deleteCalls,patientId:patient.id}));
 await ctx.close();
 await browser.close();
 await api.dispose();
