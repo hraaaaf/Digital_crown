@@ -70,5 +70,25 @@
     "g3_legacy_fixture": "PRESENT_AND_EXECUTABLE",
     "detector_selection": "NOT_GRANTED_BY_THIS_RECORD",
     "clinical_acceptance": "NOT_GRANTED_BY_THIS_RECORD"
+  },
+  "g2_cross_device": {
+    "devices": 7,
+    "machine_distribution": {
+      "ART Plus": 366,
+      "Veraviewepocs 2D": 177,
+      "Hyperion X5": 143,
+      "ProMax with ProTouch": 135,
+      "Rotograph EVO": 79,
+      "Smart3D": 59,
+      "ProMax 2D": 41
+    },
+    "pixel_size_distribution_mm_per_px": {
+      "0.1": 425,
+      "0.144": 177,
+      "0.139": 176,
+      "0.089": 143,
+      "0.135": 79
+    },
+    "role": "External cross-device stratification only; not normative validation."
   }
 }
