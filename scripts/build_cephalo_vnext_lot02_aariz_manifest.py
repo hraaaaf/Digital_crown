@@ -76,10 +76,10 @@ def main():
             width,height=image_size(image)
             cases.append({
                 "case_id":stem,"split":split,
-                "image":{"path":str(image.relative_to(a.root)),"sha256":sha256(image),
+                "image":{"path":image.relative_to(a.root).as_posix(),"sha256":sha256(image),
                          "size":image.stat().st_size,"width":width,"height":height},
-                "junior":{"path":str(jp.relative_to(a.root)),"sha256":sha256(jp),"landmarks":parse_annotation(jp)},
-                "senior":{"path":str(sp.relative_to(a.root)),"sha256":sha256(sp),"landmarks":parse_annotation(sp)},
+                "junior":{"path":jp.relative_to(a.root).as_posix(),"sha256":sha256(jp),"landmarks":parse_annotation(jp)},
+                "senior":{"path":sp.relative_to(a.root).as_posix(),"sha256":sha256(sp),"landmarks":parse_annotation(sp)},
             })
     counts={s:sum(c["split"]==s for c in cases) for s in SPLITS}
     if len(cases)!=1000: raise SystemExit(f"expected 1000 cases, got {len(cases)}")
