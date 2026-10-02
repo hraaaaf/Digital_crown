@@ -23,6 +23,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 
 // --- OFFICIAL ASSET IMPORT (Digital Crown Logo) ---
 import Logo from '../assets/logo.png';
+import CompactLogo from '../assets/logo-compact.png';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -272,7 +273,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           >
             <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm" aria-hidden="true">
               <img
-                src={Logo}
+                src={CompactLogo}
                 alt=""
                 className="h-8 w-8 object-contain"
                 style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
