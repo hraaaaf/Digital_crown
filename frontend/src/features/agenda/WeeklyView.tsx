@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { AgendaModal } from './AgendaModal';
 import type { Appointment, AppointmentStatus } from './DailyView';
 import { formatScheduleSummary, getDaySchedule, getExceptionForDate, getWeekBounds, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
+import { PatientAvatar } from '../patients/components/PatientAvatar';
 
 interface WeeklyViewProps {
   selectedDate: Date;
@@ -158,7 +159,10 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
                     onClick={() => { setEditingAppointment(appt); setModalDate(date); setIsModalOpen(true); }}
                     className={cn("w-full text-left rounded-xl border px-3 py-2", getStatusColor(appt.status))}
                   >
-                    <span className="font-black text-sm">{appt.patient_name || 'Patient'}</span>
+                    <span className="flex min-w-0 items-center gap-2 font-black text-sm">
+                      {appt.patient_id ? <PatientAvatar patientId={appt.patient_id} fullName={appt.patient_name} resolveFromDirectory className="w-7 h-7 rounded-lg text-[9px]" /> : null}
+                      <span className="truncate">{appt.patient_name || 'Patient'}</span>
+                    </span>
                     <span className="block text-xs font-bold opacity-75 mt-0.5">
                       {appt.scheduling_type && appt.scheduling_type !== 'EXACT_TIME'
                         ? appt.scheduling_type === 'MORNING' ? 'Matin' : appt.scheduling_type === 'AFTERNOON' ? 'Après-midi' : 'Toute la journée'
@@ -228,7 +232,10 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
                     <span className="opacity-75 uppercase tracking-tighter text-[8px] block mb-0.5">
                       {appt.scheduling_type === 'FULL_DAY' ? 'JOUR.' : appt.scheduling_type === 'MORNING' ? 'MATIN' : 'APREM'}
                     </span>
-                    {appt.patient_name || 'Patient'}
+                    <span className="flex min-w-0 items-center gap-1">
+                      {appt.patient_id ? <PatientAvatar patientId={appt.patient_id} fullName={appt.patient_name} resolveFromDirectory className="w-5 h-5 rounded text-[7px]" /> : null}
+                      <span className="truncate">{appt.patient_name || 'Patient'}</span>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -281,7 +288,10 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
                       )}
                       style={{ top: `${top}px`, height: `${height - 2}px` }}
                     >
-                      <div className="truncate">{appt.patient_name || 'Patient'}</div>
+                      <div className="flex min-w-0 items-center gap-1">
+                        {appt.patient_id ? <PatientAvatar patientId={appt.patient_id} fullName={appt.patient_name} resolveFromDirectory className="w-5 h-5 rounded text-[7px]" /> : null}
+                        <span className="truncate">{appt.patient_name || 'Patient'}</span>
+                      </div>
                       {height > 40 && (
                         <button
                           onClick={(e) => handleRemind(e, appt.id)}
