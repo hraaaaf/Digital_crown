@@ -87,13 +87,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await manualDrug.fill('G4 MANUAL');
   await page.waitForTimeout(650);
   await manualDrug.press('Escape');
-  const formTrigger = page.locator('button[title="Choisir la forme manuellement"]:visible').first();
+  const formTrigger = page.getByRole('button', { name: 'Forme', exact: true }).first();
   await formTrigger.waitFor({ state: 'visible', timeout: 10000 });
-  if (await formTrigger.isDisabled()) throw new Error('manual form trigger unexpectedly disabled');
-  await formTrigger.dispatchEvent('click');
-  await page.locator('[data-g4-manual-form-picker]').waitFor({ state: 'visible', timeout: 10000 });
-  await inventory(page, viewport, 'ordonnance-form-picker');
+  if (await formTrigger.isDisabled()) throw new Error('form contextual trigger unexpectedly disabled');
+  await formTrigger.click();
+  const formMenu = page.getByRole('menu').first();
+  await formMenu.waitFor({ state: 'visible', timeout: 10000 });
+  await inventory(page, viewport, 'ordonnance-form-contextual-menu');
   await page.keyboard.press('Escape');
+
   const mobilePreview = page.locator('.document-studio-live-preview.fixed');
   if (await mobilePreview.count()) {
     const closePreview = mobilePreview.getByRole('button', { name: /Fermer|Close/i }).first();
@@ -102,16 +104,18 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await mobilePreview.waitFor({ state: 'hidden', timeout: 10000 });
   }
 
-  await page.getByRole('button', { name: 'Renseigner', exact: true }).click();
-  await page.getByLabel('Poids explicite en kilogrammes').waitFor({ state: 'visible' });
-  await inventory(page, viewport, 'ordonnance-clinical-context');
-  await page.getByRole('button', { name: 'Réduire', exact: true }).first().click();
-
+  await page.route('**/api/prescriptions/clinical-rules/procedure-safety/alert/**', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'BLOCKED', alert_key: 'CONTEXT_REQUIRED', read_only: true }),
+    });
+  });
   await selectExactAmoxicillin(page);
-  const ie = page.locator('[data-ie-prophylaxis-rule="c2"]');
-  await ie.getByRole('button', { name: 'Évaluer', exact: true }).click();
-  await page.getByLabel('Date prévue du geste').waitFor({ state: 'visible' });
-  await inventory(page, viewport, 'ordonnance-ie-expanded');
+  const safetyNotice = page.locator('[data-procedure-safety-notice="subtle"]');
+  await safetyNotice.waitFor({ state: 'visible', timeout: 10000 });
+  await inventory(page, viewport, 'ordonnance-procedure-safety-notice');
 
   await page.getByRole('button', { name: /Ajouter une ligne/i }).click();
   await inventory(page, viewport, 'ordonnance-two-lines');
