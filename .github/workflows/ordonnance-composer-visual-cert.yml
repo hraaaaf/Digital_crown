@@ -69,6 +69,21 @@ jobs:
         working-directory: frontend
         run: node scripts/certify-ordonnance-composer.mjs
 
+      - name: Assert D5.7 exact visual contract
+        working-directory: frontend
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('../artifacts/ordonnance-composer/results.json', 'utf8'));
+          if (report.status !== 'PASS') throw new Error(JSON.stringify(report.failures));
+          const expected = ['390x844', '430x932', '768x900', '1280x900'];
+          if (JSON.stringify(report.viewports) !== JSON.stringify(expected)) throw new Error('Unexpected D5.7 viewports: ' + JSON.stringify(report.viewports));
+          if (report.exactHead !== process.env.GITHUB_SHA) throw new Error(`Visual report HEAD ${report.exactHead} != ${process.env.GITHUB_SHA}`);
+          const scale = report.captures.find(x => x.textScale === 200);
+          if (!scale || scale.viewport.width !== 390 || scale.viewport.height !== 844) throw new Error('Missing 390x844 200% text evidence');
+          console.log('D5.7 exact visual contract PASS');
+          NODE
+
       - name: Upload composer evidence
         if: always()
         uses: actions/upload-artifact@v4
