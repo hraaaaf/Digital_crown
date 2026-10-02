@@ -1,0 +1,93 @@
+{
+  "schema_version": "CEPHALO_LOT06_ANALYSIS_PACK_REGISTRY_V1",
+  "status": "ARCHITECTURE_ONLY__SCIENTIFIC_SCOPE_BOUNDED_BY_EXECUTABLE_CONTRACT",
+  "rules": {
+    "dependencies_must_be_derived_from_executable_measurement_contract": true,
+    "frontend_scientific_dependency_mapping_forbidden": true,
+    "blocked_measurements_fail_closed": true,
+    "all_is_display_preset_not_scientific_analysis": true
+  },
+  "analysis_packs": [
+    {
+      "analysis_id": "STEINER_V1",
+      "display_name": "Steiner",
+      "version": 1,
+      "measurement_ids": [
+        "M_SNA_DEG_V1",
+        "M_SNB_DEG_V1",
+        "M_ANB_DEG_V1",
+        "M_SN_GOGN_DEG_V1",
+        "M_U1_NA_DEG_V1",
+        "M_L1_NB_DEG_V1",
+        "M_INTERINCISAL_DEG_V1"
+      ],
+      "blocked_measurement_ids": []
+    },
+    {
+      "analysis_id": "TWEED_DC_V1",
+      "display_name": "Tweed — Digital Crown source-locked subset",
+      "version": 1,
+      "measurement_ids": [
+        "M_FH_GOME_DEG_V1",
+        "M_IMPA_GOME_DEG_V1",
+        "M_FMIA_L1_FH_DEG_V1"
+      ],
+      "blocked_measurement_ids": []
+    },
+    {
+      "analysis_id": "MCNAMARA_V1",
+      "display_name": "McNamara",
+      "version": 1,
+      "measurement_ids": [
+        "M_A_NPERP_MM_V1",
+        "M_POG_NPERP_MM_V1",
+        "M_CO_A_MM_V1",
+        "M_CO_GN_ANATOMIC_MM_V1",
+        "M_ANS_ME_MM_V1"
+      ],
+      "blocked_measurement_ids": []
+    },
+    {
+      "analysis_id": "COM_V1",
+      "display_name": "COM",
+      "version": 1,
+      "measurement_ids": [
+        "M_A_NPERP_MM_V1",
+        "M_B_NPERP_MM_V1",
+        "M_AB_PRIME_FH_MM_V1",
+        "M_COM_S_NPERP_DEPTH_MM_V1",
+        "M_FH_GOME_DEG_V1",
+        "M_IMPA_GOME_DEG_V1",
+        "M_U1_FH_DEG_V1",
+        "M_INTERINCISAL_DEG_V1"
+      ],
+      "blocked_measurement_ids": []
+    },
+    {
+      "analysis_id": "RICKETTS_V1",
+      "display_name": "Ricketts",
+      "version": 1,
+      "measurement_ids": [],
+      "blocked_measurement_ids": [
+        "M_FACIAL_ANGLE_NPOG_FH_DEG_V1",
+        "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+        "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+        "M_LS_EPLANE_MM_V1",
+        "M_LI_EPLANE_MM_V1"
+      ]
+    }
+  ],
+  "display_presets": [
+    {
+      "preset_id": "ALL_CURRENT_V1",
+      "display_name": "Tous",
+      "analysis_ids": [
+        "STEINER_V1",
+        "TWEED_DC_V1",
+        "MCNAMARA_V1",
+        "COM_V1",
+        "RICKETTS_V1"
+      ]
+    }
+  ]
+}
