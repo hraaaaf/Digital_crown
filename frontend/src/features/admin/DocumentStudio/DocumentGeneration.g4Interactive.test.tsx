@@ -154,7 +154,7 @@ describe('Document generation G4 business pipeline',()=>{
       ...base,
       activeTab:'ordonnance',
       paymentStatus:'EN_ATTENTE',
-      drugs:[{id:1,name:'AMOXICILLINE',dosage:'1g',forme:'Gélules',posologie:'1 x 2/j',type:'MEDICAMENT'}],
+      drugs:[{id:1,name:'AMOXICILLINE',dosage:'1g',forme:'Gélules',posologie:'1 x 2/j',type:'MEDICAMENT',quantite:2}],
       showLegalAnnotations:false,
     };
     const {result}=renderHook(()=>useDocumentGenerator(params as any));
@@ -167,7 +167,7 @@ describe('Document generation G4 business pipeline',()=>{
         data:expect.objectContaining({
           show_legal_annotations:false,
           medications:[expect.objectContaining({
-            nom:'AMOXICILLINE',dosage:'1g',forme:'Gélules',posologie:'1 x 2/j',
+            nom:'AMOXICILLINE',dosage:'1g',forme:'Gélules',posologie:'1 x 2/j',quantite:2,
           })],
         }),
       }),
