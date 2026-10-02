@@ -237,7 +237,9 @@ export function PrescriptionQuickAccessBar({
     const targetDrugId = emptyIndex >= 0
       ? drugs[emptyIndex].id
       : drugs.reduce((max, drug) => Math.max(max, Number(drug.id) || 0), 0) + 1;
-    setDrugs(selectedPresentation(row, drugs));
+    const selected = selectedPresentation(row, drugs);
+    drugsRef.current = selected;
+    setDrugs(selected);
     setQuery('');
     setCatalog([]);
     inputRef.current?.focus();
