@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
 
-const outDir = path.resolve('../artifacts/v15-02-photo-after/02.3-before');
+const outDir = path.resolve('../artifacts/v15-02-3-photo-ui-before');
 fs.mkdirSync(outDir, { recursive: true });
 
 const viewports = [
@@ -115,7 +115,7 @@ try {
     await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
     row.surfaces.patientList = { normal: await shot(page, viewport, 'patient-list'), text200: await text200(page, viewport, 'patient-list') };
 
-    await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle', timeout: 90000 });
+    await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
     await page.getByRole('button', { name: 'Chercher un patient' }).click();
     const search = page.getByRole('textbox', { name: 'Chercher un patient' });
     await search.fill(String(patient.nom));
