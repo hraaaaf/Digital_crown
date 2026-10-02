@@ -259,8 +259,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           aria-pressed={desktopPinned}
           aria-hidden={!desktopExpanded}
           tabIndex={desktopExpanded ? 0 : -1}
-          aria-label={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
-          title={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
+          aria-label={desktopPinned ? 'Réduire la barre lat?rale' : 'Déployer la barre lat?rale'}
+          title={desktopPinned ? 'Réduire la barre lat?rale' : 'Déployer la barre lat?rale'}
         >
           {desktopPinned ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
         </button>
