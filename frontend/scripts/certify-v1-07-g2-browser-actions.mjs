@@ -807,6 +807,11 @@ for(const viewport of viewports){
 
  // Restricted employee session — prove UI permission boundaries and direct-route fail-closed behavior.
  const restrictedCtx=await browser.newContext({viewport,colorScheme:'light'});
+ // The workstation wrapper seeds its bootstrap owner's auth cookies alongside the
+ // workstation identity cookie. Remove only those auth cookies so this context is
+ // genuinely authenticated as the restricted employee via its injected Bearer token.
+ await restrictedCtx.clearCookies({name:'access_token'});
+ await restrictedCtx.clearCookies({name:'refresh_token'});
  const restrictedPage=await restrictedCtx.newPage();
  await restrictedPage.addInitScript(v=>{
    localStorage.setItem('token',v.access);
