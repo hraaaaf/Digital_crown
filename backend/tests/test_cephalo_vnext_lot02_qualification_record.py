@@ -52,3 +52,20 @@ def test_g2_cross_device_distribution_is_frozen_and_complete():
     assert sum(g2["machine_distribution"].values())==1000
     assert sum(g2["pixel_size_distribution_mm_per_px"].values())==1000
     assert g2["role"].startswith("External cross-device stratification")
+
+
+def test_goldset_contract_binds_closeout_without_stale_self_referential_sha():
+    contract=(ROOT/"docs"/"audits"/"CEPHALO_VNEXT_LOT02_ANALYSIS_GOLDSET_CONTRACT.md").read_text(encoding="utf-8")
+    assert "db9642e1695cd3f04a53f4fc606de178cbdfc151" not in contract
+    assert "CI #7324" not in contract
+    assert "T2 #6139" not in contract
+    assert "Agenda #2141" not in contract
+    for digest in (
+        "73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df",
+        "f5dc5552c3484dce8cbc16e25f2c2207be1cf48c1f2407fb584c85efc3e26be0",
+        "868de930eba33bf2b6d6b175b386f1c42e7fdb3205566ddbe331141fa5f1804d",
+        "e99fa49373ed20902c7266cbe805fcc2eee2d5bc70f747f64f424cfa45d35ff0",
+    ):
+        assert digest in contract
+    assert "### Exact-head closeout binding" in contract
+    assert "GitHub Actions run metadata (`head_sha` / `GITHUB_SHA`)" in contract
