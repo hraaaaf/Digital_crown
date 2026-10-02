@@ -31,3 +31,20 @@ def test_landmark_agreement_keeps_known_outliers_visible():
     assert r["landmarks"]["LPM"]["max_mm"] > 100
     assert r["landmarks"]["Go"]["p95_mm"] > 4
     assert r["landmarks"]["Po"]["p95_mm"] > 4
+
+
+def test_landmark_agreement_is_stratified_across_all_seven_devices():
+    r=json.loads(REC.read_text(encoding="utf-8"))
+    expected={
+        "ART Plus":366,
+        "Veraviewepocs 2D":177,
+        "Hyperion X5":143,
+        "ProMax with ProTouch":135,
+        "Rotograph EVO":79,
+        "Smart3D":59,
+        "ProMax 2D":41,
+    }
+    assert set(r["by_device"])==set(expected)
+    for machine, landmark_stats in r["by_device"].items():
+        assert len(landmark_stats)==29
+        assert all(v["n"]==expected[machine] for v in landmark_stats.values())
