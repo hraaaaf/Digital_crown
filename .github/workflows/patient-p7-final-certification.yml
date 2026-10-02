@@ -190,7 +190,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p ../artifacts/p7-final
-          node scripts/certify-patient-p7-browser.mjs 2>&1 | tee ../artifacts/p7-final/runner.log
+          node scripts/run-with-t2-workstation.mjs scripts/certify-patient-p7-browser.mjs 2>&1 | tee ../artifacts/p7-final/runner.log
 
       - name: Dump runtime logs on failure
         if: failure()

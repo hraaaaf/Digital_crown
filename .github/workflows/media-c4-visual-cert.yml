@@ -141,7 +141,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p ../artifacts/media-c4
-          node scripts/certify-media-c4-browser.mjs 2>&1 | tee ../artifacts/media-c4/runner.log
+          node scripts/run-with-t2-workstation.mjs scripts/certify-media-c4-browser.mjs 2>&1 | tee ../artifacts/media-c4/runner.log
 
       - name: Dump runtime logs on failure
         if: failure()

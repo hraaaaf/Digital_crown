@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 import datetime
 from typing import Optional, Dict, Union, List
 
@@ -138,6 +138,14 @@ class PatientOut(PatientBase):
     dossier: Optional[DossierOut] = None
     employer_id: int
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def keep_only_canonical_profile_photo_url(self):
+        """Never expose legacy/external photo URLs through the patient contract."""
+        expected = f"/api/patients/{self.id}/photo"
+        if self.photo_url != expected:
+            self.photo_url = None
+        return self
 
 
 class TreatmentPlanStepBase(BaseModel):

@@ -16,6 +16,7 @@ from backend.models_media_core import (
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _TIMEPOINT_RE = re.compile(r"^T(?:0|[1-9][0-9]{0,2})$")
+PATIENT_PROFILE_PHOTO_SOURCE_REF = "PATIENT_PROFILE_PHOTO"
 _FORBIDDEN_PROVENANCE_KEYS = {
     "patient_name",
     "patient_email",
@@ -213,6 +214,10 @@ def _timeline_query(
         ClinicalAsset.stored_at.isnot(None),
         ClinicalAsset.sha256.isnot(None),
         ClinicalAsset.byte_size.isnot(None),
+        or_(
+            ClinicalAsset.source_ref.is_(None),
+            ClinicalAsset.source_ref != PATIENT_PROFILE_PHOTO_SOURCE_REF,
+        ),
     )
     if not include_derived:
         query = query.filter(ClinicalAsset.source_kind != "DERIVED")
