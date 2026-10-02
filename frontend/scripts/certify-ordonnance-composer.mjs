@@ -41,11 +41,18 @@ for (const viewport of viewports) {
   await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
   const cards = page.locator('[data-ordonnance-drug-card]');
   await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
-  await page.waitForTimeout(180);
 
+  // Require the real fixture DOM to remain stable before capturing evidence.
+  // A transient mount followed by an async unmount must not be certified.
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-ordonnance-drug-card]').length === 2,
+    undefined,
+    { timeout: 20000 },
+  );
+  await page.waitForTimeout(250);
   const cardCount = await cards.count();
   if (cardCount !== 2) {
-    throw new Error(`Expected 2 DrugRow cards at ${viewport.width}x${viewport.height}, got ${cardCount}; pageErrors=${pageErrors.join(' | ')}`);
+    throw new Error(`Expected stable 2 DrugRow cards at ${viewport.width}x${viewport.height}, got ${cardCount}; pageErrors=${pageErrors.join(' | ')}`);
   }
 
   const scenes = [];
