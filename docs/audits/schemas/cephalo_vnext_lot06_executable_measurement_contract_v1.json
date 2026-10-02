@@ -1,6 +1,6 @@
 {
   "schema_version": "CEPHALO_LOT06_EXECUTABLE_MEASUREMENT_CONTRACT_V1",
-  "status": "PARTIAL_EXECUTABLE_20_DIRECT__4_EXPLICITLY_NON_PROMOTED",
+  "status": "PARTIAL_EXECUTABLE_19_DIRECT__5_EXPLICITLY_NON_PROMOTED",
   "clinical_interpretation": false,
   "measurements": [
     {
@@ -150,26 +150,6 @@
         "docs/CEPHALO_CONSTRUCTION_REGISTRY.md"
       ],
       "availability_gate": "VERIFIED_CALIBRATION_AND_PO_ANATOMIC"
-    },
-    {
-      "measurement_id": "M_FACIAL_ANGLE_NPOG_FH_DEG_V1",
-      "unit": "°",
-      "required_landmarks": [
-        "N",
-        "Pog_hard",
-        "Po_anatomic",
-        "Or"
-      ],
-      "required_constructions": [
-        "FH_PO_OR_V1"
-      ],
-      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_facial_depth_deg_v1",
-      "requires_calibration": false,
-      "source_contracts": [
-        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
-        "docs/audits/CEPHALO_PRIMARY_LANDMARK_CONSTRUCTIONS.md"
-      ],
-      "availability_gate": "PO_ANATOMIC_AND_POG_HARD_REQUIRED"
     },
     {
       "measurement_id": "M_FH_GOME_DEG_V1",
@@ -376,9 +356,14 @@
   ],
   "non_promoted_geometry_covered": [
     {
-      "measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
-      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED",
-      "detail": "Ricketts typed adapter still consumes legacy Po/Pog keys; LOT03 requires Po_anatomic/Pog_hard for new canonical contracts. Do not promote by alias."
+      "measurement_id": "M_FACIAL_ANGLE_NPOG_FH_DEG_V1",
+      "reason": "ANGLE_CONVENTION_COLLISION",
+      "detail": "Current Downs and Ricketts implementations use the same FH/N-Pog lines but different angle conventions: Downs acute axis angle vs Ricketts directed posterior angle. Example fixture yields 45° vs 135°. Canonical promotion is blocked until identities are split/versioned."
+    },
+    {
+      "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "reason": "BLOCKED_LANDMARK",
+      "detail": "Geometry exists but exact Ricketts Pt detector/input identity remains blocked; no runtime alias allowed."
     },
     {
       "measurement_id": "M_LI_EPLANE_MM_V1",
@@ -391,9 +376,9 @@
       "detail": "Ricketts typed adapter still consumes legacy Po plus soft-tissue legacy keys; canonical identity bridge must be explicit before LOT06 promotion."
     },
     {
-      "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
-      "reason": "BLOCKED_LANDMARK",
-      "detail": "Geometry exists but exact Ricketts Pt detector/input identity remains blocked; no runtime alias allowed."
+      "measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED",
+      "detail": "Ricketts typed adapter still consumes legacy Po/Pog keys; LOT03 requires Po_anatomic/Pog_hard for new canonical contracts. Do not promote by alias."
     }
   ]
 }
