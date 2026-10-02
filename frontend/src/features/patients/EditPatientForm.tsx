@@ -148,7 +148,7 @@ export const EditPatientForm = () => {
   const labelClass = "text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-5 mb-2 flex items-center gap-2";
 
   return (
-    <div className="max-w-2xl mx-auto p-6 md:p-10 animate-in slide-in-from-bottom-6 duration-700">
+    <div className="max-w-2xl mx-auto px-[16px] py-[24px] sm:p-6 md:p-10 animate-in slide-in-from-bottom-6 duration-700">
       
       {/* BOUTON RETOUR : Cohérent avec PatientDetails */}
       <button 
@@ -159,14 +159,14 @@ export const EditPatientForm = () => {
         Retour au dossier
       </button>
       
-      <div className="bg-white/70 backdrop-blur-2xl p-8 md:p-12 rounded-[2.5rem] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
+      <div className="bg-white/70 backdrop-blur-2xl p-[20px] sm:p-8 md:p-12 rounded-[2.5rem] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
         
-        <div className="flex items-center gap-6 mb-12">
-          <div className="w-16 h-16 bg-[#003380] text-white rounded-3xl flex items-center justify-center shadow-xl shadow-[#003380]/20">
+        <div className="flex flex-col items-start gap-[16px] mb-8 sm:flex-row sm:items-center sm:gap-6 md:mb-12">
+          <div className="w-[56px] h-[56px] sm:w-16 sm:h-16 bg-[#003380] text-white rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-xl shadow-[#003380]/20">
             <UserCircle size={32} strokeWidth={2} />
           </div>
-          <div>
-            <h2 className="text-3xl font-black text-[#003380] tracking-tight leading-none">Mise à jour</h2>
+          <div className="min-w-0">
+            <h2 className="text-2xl sm:text-3xl font-black text-[#003380] tracking-tight leading-tight">Mise à jour</h2>
             <p className="text-slate-400 font-bold text-sm mt-2">Dossier {formData.numero_dossier || `ID-${id}`}</p>
           </div>
         </div>
