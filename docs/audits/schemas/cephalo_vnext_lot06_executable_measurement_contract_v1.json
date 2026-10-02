@@ -1,6 +1,6 @@
 {
   "schema_version": "CEPHALO_LOT06_EXECUTABLE_MEASUREMENT_CONTRACT_V1",
-  "status": "BASELINE_PROMOTED_SUBSET",
+  "status": "PARTIAL_EXECUTABLE_19_DIRECT__4_EXPLICITLY_NON_PROMOTED",
   "clinical_interpretation": false,
   "measurements": [
     {
@@ -351,6 +351,28 @@
         "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
       ],
       "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    }
+  ],
+  "non_promoted_geometry_covered": [
+    {
+      "measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED",
+      "detail": "Ricketts typed adapter still consumes legacy Po/Pog keys; LOT03 requires Po_anatomic/Pog_hard for new canonical contracts. Do not promote by alias."
+    },
+    {
+      "measurement_id": "M_LI_EPLANE_MM_V1",
+      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED",
+      "detail": "Ricketts typed adapter still consumes legacy Po plus soft-tissue legacy keys; canonical identity bridge must be explicit before LOT06 promotion."
+    },
+    {
+      "measurement_id": "M_LS_EPLANE_MM_V1",
+      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED",
+      "detail": "Ricketts typed adapter still consumes legacy Po plus soft-tissue legacy keys; canonical identity bridge must be explicit before LOT06 promotion."
+    },
+    {
+      "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "reason": "BLOCKED_LANDMARK",
+      "detail": "Geometry exists but exact Ricketts Pt detector/input identity remains blocked; no runtime alias allowed."
     }
   ]
 }
