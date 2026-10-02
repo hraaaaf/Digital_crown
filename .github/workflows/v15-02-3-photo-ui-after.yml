@@ -6,6 +6,7 @@ on:
       - "frontend/src/types/index.ts"
       - "frontend/src/features/patients/components/PatientAvatar.tsx"
       - "frontend/src/features/patients/components/PatientAvatar.test.tsx"
+      - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
       - "frontend/src/features/patients/PatientList.tsx"
       - "frontend/src/features/patients/PatientDetailsInner.tsx"
       - "frontend/src/features/dashboard/types.ts"
