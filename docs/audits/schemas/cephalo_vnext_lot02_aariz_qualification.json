@@ -16,7 +16,7 @@
     "manifest_schema": "CEPHALO_LOT02_AARIZ_MANIFEST_V2",
     "qc_sha256": "f5dc5552c3484dce8cbc16e25f2c2207be1cf48c1f2407fb584c85efc3e26be0",
     "measurement_agreement_sha256": "868de930eba33bf2b6d6b175b386f1c42e7fdb3205566ddbe331141fa5f1804d",
-    "landmark_agreement_sha256": "91d08a12fb77683a44487dbb39a58712e4e77c321b2661b7d0b41f2d01e48d30"
+    "landmark_agreement_sha256": "e99fa49373ed20902c7266cbe805fcc2eee2d5bc70f747f64f424cfa45d35ff0"
   },
   "qc_policy": {
     "consensus_candidate_max_mm": 2,
