@@ -41,11 +41,14 @@ def _single_line(value: str, *, field: str, max_chars: int) -> str:
     return text
 
 
-def _medication_text(*, name: str, dosage: str, form: str) -> str:
+def _medication_text(*, name: str, dosage: str, form: str, quantity: int | None = None) -> str:
     """Compose only explicit source fields using the cabinet-validated V4 hierarchy."""
     primary = " ".join(part for part in (str(name or "").strip(), str(dosage or "").strip()) if part)
     form_text = str(form or "").strip()
-    return f"{primary} - {form_text}" if form_text else primary
+    text = f"{primary} - {form_text}" if form_text else primary
+    if quantity is not None:
+        text = f"{text} · Qté {int(quantity)}"
+    return text
 
 
 def render_far_prescription_pdf(
@@ -89,7 +92,7 @@ def render_far_prescription_pdf(
 
         for index, line in enumerate(payload.lines):
             medication = _single_line(
-                _medication_text(name=line.name, dosage=line.dosage, form=line.form),
+                _medication_text(name=line.name, dosage=line.dosage, form=line.form, quantity=line.quantity),
                 field=f"medication[{index}]",
                 max_chars=_MAX_MEDICATION_CHARS,
             )
