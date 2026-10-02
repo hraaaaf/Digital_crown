@@ -96,22 +96,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     if (response.status() >= 500) http5xx.push({ url: response.url(), status: response.status() });
   });
 
-  await page.route('**/api/prescriptions/clinical-rules/ie-prophylaxis/evaluate', async route => {
-    if (route.request().method() !== 'POST') return route.continue();
+  let procedureSafetyRequests = 0;
+  await page.route('**/api/prescriptions/clinical-rules/procedure-safety/alert/**', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    procedureSafetyRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        status: 'READY',
-        rule_id: 'IE_PROPHYLAXIS_ADULT_ORAL_AMOXICILLIN',
-        rule_version: 'g4-browser-action',
-        blockers: [],
-        active_ingredient_code: 'AMOXICILLIN',
-        total_dose_mg: 2000,
-        timing_min_minutes_before: 30,
-        timing_max_minutes_before: 60,
-        single_dose: true,
-        source_ids: ['G4_BROWSER_FIXTURE'],
+        status: 'BLOCKED',
+        alert_key: 'CONTEXT_REQUIRED',
+        read_only: true,
       }),
     });
   });
@@ -192,57 +187,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await legal.getAttribute('aria-checked') === legalBefore) throw new Error('Legal annotations toggle failed');
   actions.push('indication-legal');
 
-  const contextPanel = page.locator('[data-patient-clinical-context="c2"]');
-  await contextPanel.waitFor({ state: 'visible', timeout: 10000 });
-  await page.waitForFunction(() => {
-    const panel = document.querySelector('[data-patient-clinical-context="c2"]');
-    if (!panel) return false;
-    const text = panel.textContent || '';
-    return !text.includes('Chargement du contexte clinique');
-  }, undefined, { timeout: 15000 });
-
-  const loadFailure = contextPanel.getByText('Contexte non chargé. Aucune valeur n’est supposée.', { exact: true });
-  if (await loadFailure.isVisible().catch(() => false)) {
-    throw new Error('Clinical context failed to load in G4 Ordonnance harness');
-  }
-
-  const weightField = page.getByLabel('Poids explicite en kilogrammes');
-  if (!(await weightField.isVisible().catch(() => false))) {
-    const contextToggle = page.getByRole('button', { name: 'Renseigner', exact: true });
-    await contextToggle.waitFor({ state: 'visible', timeout: 10000 });
-    await contextToggle.click();
-    await weightField.waitFor({ state: 'visible', timeout: 10000 });
-  }
-  await weightField.fill('70');
-  await page.getByLabel('Statut des allergies médicamenteuses').selectOption('NONE_KNOWN');
-  await page.getByLabel('Statut allergie pénicilline ou amoxicilline').selectOption('NONE_KNOWN');
-  await page.getByLabel('Catégorie cardiaque endocardite infectieuse').selectOption('PROSTHETIC_CARDIAC_VALVE');
-  await page.getByLabel('Statut du contexte rénal').selectOption('NO_KNOWN_IMPAIRMENT');
-  await page.getByLabel('Statut du contexte hépatique').selectOption('NO_KNOWN_IMPAIRMENT');
-  await page.getByRole('button', { name: 'Enregistrer le contexte', exact: true }).click();
-  await page.getByText('Contexte enregistré', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
-  actions.push('clinical-context-save');
-
-  const contextReduce = page.getByRole('button', { name: 'Réduire', exact: true }).first();
-  if (await contextReduce.isVisible().catch(() => false)) {
-    await contextReduce.click();
-  } else {
-    const weightField = page.getByLabel('Poids explicite en kilogrammes');
-    if (await weightField.isVisible().catch(() => false)) {
-      throw new Error('Clinical context stayed expanded without a visible collapse control after save');
-    }
-  }
   await selectExactAmoxicillin(page);
-  const ie = page.locator('[data-ie-prophylaxis-rule="c2"]');
-  await ie.getByRole('button', { name: 'Évaluer', exact: true }).click();
-  await page.getByLabel('Date prévue du geste').fill('2026-10-01');
-  await page.getByLabel('Geste avec manipulation gingivale périapicale ou perforation muqueuse').selectOption('yes');
-  await page.getByLabel('Voie orale possible').selectOption('yes');
-  await page.getByLabel('Prise actuelle de pénicilline ou amoxicilline').selectOption('no');
-  await page.getByRole('button', { name: 'Vérifier la prophylaxie', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('[data-ie-prophylaxis-rule="c2"]')?.getAttribute('data-rule-result') === 'READY', undefined, { timeout: 10000 });
-  if ((await ie.getAttribute('data-rule-result')) !== 'READY') throw new Error('IE explicit evaluation did not reach READY');
-  actions.push('ie-explicit-evaluation');
+  const safetyNotice = page.locator('[data-procedure-safety-notice="subtle"]');
+  await safetyNotice.waitFor({ state: 'visible', timeout: 10000 });
+  if (await safetyNotice.getAttribute('data-alert-key') !== 'CONTEXT_REQUIRED') {
+    throw new Error('Procedure safety notice did not expose CONTEXT_REQUIRED');
+  }
+  if (procedureSafetyRequests < 1) throw new Error('Procedure safety read-only endpoint was not queried');
+  actions.push('procedure-safety-readonly');
 
   const finalScene = await snapshot(page, viewport, 'actions-final');
   if (openScene.overflow || finalScene.overflow) throw new Error('Horizontal overflow detected');
@@ -256,7 +208,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
 await browser.close();
 await api.dispose();
 
-const expectedActions = 7;
+const expectedActions = 6;
 for (const row of evidence) {
   if (row.actions.length !== expectedActions) throw new Error(`Expected ${expectedActions} action groups, got ${row.actions.length}`);
 }
