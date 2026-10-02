@@ -290,7 +290,8 @@
         "source_sha256",
         "compatibility_class",
         "migrated_at",
-        "migration_context_sha256"
+        "migration_context_sha256",
+        "opaque_legacy_payload"
       ],
       "properties": {
         "migration_version": {
