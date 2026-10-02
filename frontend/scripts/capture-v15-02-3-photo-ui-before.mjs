@@ -30,7 +30,7 @@ const patient = patients.find(row => row.numero_dossier === 'T2-0001') || patien
 if (!patient) throw new Error('02.3 BEFORE requires a patient fixture');
 
 const samplePng = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAASUlEQVR42u3PQQ0AIBDAsAP/nuGNAvZoFSzZOjNnyNi7dwfgUQIeJeBRAh4l4FECHiXgUQIeJeBRAh4l4FECHiXgUQIeJeBRAh4l4FHCB30Bf4Q3zAAAAABJRU5ErkJggg==',
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEAhmtCEwIngcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfcNLAgY4ynDdAAAAAElFTkSuQmCC',
   'base64',
 );
 const uploaded = await api.post(`/api/patients/${patient.id}/photo`, {
