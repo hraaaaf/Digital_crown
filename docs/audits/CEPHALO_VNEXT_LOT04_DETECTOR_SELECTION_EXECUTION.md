@@ -50,23 +50,26 @@ Examples showing why no universal 2 mm gate is acceptable:
 Sentinel G1-A human disagreement also varies materially: SNA p95 ~1.476°, FMA ~2.246°, IMPA ~3.734°, FMIA ~3.965°.
 
 ## Tolerance preregistration gate
-**HUMAN_GATE_REQUIRED before model scoring.**
+**HUMAN_GATE A APPROVED before model scoring.**
 
-The repository contains structural example tolerances only; they are not clinically justified thresholds.
-No real landmark or clinical tolerance may be copied from schema tests or chosen after observing SRPose38 results.
+Frozen policy: `REFERENCE_EQUIVALENCE_V1`, materialized in:
+- `docs/audits/CEPHALO_VNEXT_LOT04_TOLERANCE_POLICY_HUMAN_GATE.md`;
+- `docs/audits/schemas/cephalo_vnext_lot04_tolerance_policy_reference_equivalence_v1.json`.
 
-The human gate must approve a versioned quantitative policy using:
-- demonstrated per-landmark human-reference uncertainty;
-- anatomical ambiguity;
-- downstream measurement sensitivity;
-- intended clinical consumer;
-- no threshold materially tighter than reference uncertainty without explicit justification.
+Selection semantics are engineering reference-equivalence only, not universal clinical validity:
+- candidate landmark median and p95 must not exceed the corresponding frozen LOT02 human median and p95;
+- sentinel-measurement p95 absolute error must not exceed the corresponding frozen LOT02 G1-A human p95;
+- no extra non-inferiority margin is authorized;
+- missing/non-finite/out-of-frame outputs are fail-closed and cannot PASS;
+- every required compatible endpoint must PASS for an overall PASS;
+- unsupported identities remain blocked/validation-required.
 
-Until that decision is frozen, the benchmark may verify candidate/environment identity and dataset integrity, but must not score the candidate for PASS/FAIL selection.
+No post-result threshold retuning is authorized.
 
-## Current execution blocker
-The qualified 2.1 GB Aariz corpus was previously materialized on authorized workstation `DESKTOP-3MAJEEH`.
-At this checkpoint that workstation is offline, so no real candidate inference has been executed in this lot.
+## Current execution state
+The qualified 2.1 GB Aariz corpus is materialized on authorized workstation `DESKTOP-3MAJEEH`.
+The workstation was re-observed online after HUMAN_GATE A approval.
+Before any scoring, corpus identity and frozen model bytes must be re-verified and an immutable manifest must be generated. No real candidate inference has yet been executed in this lot.
 
 ## Stop conditions
 - Do not invent an acceptance result.
@@ -78,10 +81,9 @@ At this checkpoint that workstation is offline, so no real candidate inference h
 - No merge or deployment without explicit authorization.
 
 ## Next exact
-1. Approve/freeze quantitative tolerance policy before seeing candidate results.
-2. Bring the authorized Aariz execution workstation online.
-3. Generate immutable benchmark manifest from the frozen corpus and candidate environment.
-4. Execute SRPose38 inference once on the untouched acceptance subset.
-5. Produce acceptance record and run semantic validator.
-6. Review from biometrics/leakage and reproducibility/clinical-safety perspectives.
-7. Confirm on same HEAD; grant `CEPH_DETECTOR_SELECTED` only if evidence passes.
+1. Re-verify frozen model bytes and exact execution environment.
+2. Generate immutable benchmark manifest from the verified corpus/candidate environment with `REFERENCE_EQUIVALENCE_V1`.
+3. Execute SRPose38 inference once on the untouched acceptance subset.
+4. Produce acceptance record and run semantic validator.
+5. Review from biometrics/leakage and reproducibility/clinical-safety perspectives.
+6. Confirm on same HEAD; grant `CEPH_DETECTOR_SELECTED` only if evidence passes.
