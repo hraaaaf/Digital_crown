@@ -71,6 +71,24 @@ def migrate_v1_to_v2(
         x, y = item.get("x"), item.get("y")
         if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, (int, float)) or not isinstance(y, (int, float)) or not math.isfinite(x) or not math.isfinite(y):
             raise Lot05MigrationError("Landmark coordinates must be finite numbers")
+        origin = item.get("origin")
+        if origin == "SRPOSE38_AUTO":
+            if not all(isinstance(item.get(key), str) and item.get(key) for key in ("model_id", "model_sha256", "pipeline_version")):
+                raise Lot05MigrationError("Automatic landmark lacks model provenance")
+        elif origin == "MANUAL_CORRECTED":
+            ox, oy = item.get("original_auto_x"), item.get("original_auto_y")
+            if isinstance(ox, bool) or isinstance(oy, bool) or not isinstance(ox, (int, float)) or not isinstance(oy, (int, float)) or not math.isfinite(ox) or not math.isfinite(oy):
+                raise Lot05MigrationError("Corrected landmark lacks finite original automatic coordinates")
+            if not isinstance(item.get("validated_by"), str) or not item["validated_by"]:
+                raise Lot05MigrationError("Corrected landmark lacks validator identity")
+            try:
+                validated_at = datetime.fromisoformat(item.get("validated_at"))
+            except (TypeError, ValueError) as exc:
+                raise Lot05MigrationError("Corrected landmark lacks valid audit timestamp") from exc
+            if validated_at.tzinfo is None or validated_at.utcoffset() is None:
+                raise Lot05MigrationError("Corrected landmark audit timestamp must be timezone-aware")
+        elif origin != "MANUAL":
+            raise Lot05MigrationError("Unsupported or missing landmark provenance")
         by_ref[item["evidence_id"]] = item
 
     if len(refs) != len(set(refs)) or any(not isinstance(ref, str) or ref not in by_ref for ref in refs):
@@ -94,7 +112,19 @@ def migrate_v1_to_v2(
     sources = source.get("sources", [])
     if not isinstance(sources, list):
         raise Lot05MigrationError("Malformed V1 sources")
-    calibration = [s for s in sources if isinstance(s, dict) and s.get("kind") == "calibration"]
+    typed_sources = [s for s in sources if isinstance(s, dict)]
+    if len(typed_sources) != len(sources):
+        raise Lot05MigrationError("Malformed V1 source evidence")
+    for source_item in typed_sources:
+        sid = source_item.get("patient_id")
+        if isinstance(sid, bool) or not isinstance(sid, int) or sid < 1 or sid != patient_id:
+            raise Lot05MigrationError("Patient identity mismatch")
+        if not isinstance(source_item.get("evidence_id"), str) or not source_item["evidence_id"]:
+            raise Lot05MigrationError("Source evidence lacks stable evidence_id")
+    ceph_sources = [s for s in typed_sources if s.get("kind") == "lateral_ceph"]
+    if len(ceph_sources) != 1:
+        raise Lot05MigrationError("Expected exactly one lateral cephalogram source")
+    calibration = [s for s in typed_sources if s.get("kind") == "calibration"]
     if len(calibration) > 1:
         raise Lot05MigrationError("Multiple calibration sources are ambiguous")
     calibration_ref = calibration[0].get("evidence_id") if calibration else None
