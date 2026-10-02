@@ -604,6 +604,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                       : 'border-border-main bg-input-field/70 text-text-muted hover:border-primary/30 hover:bg-card hover:text-primary',
                   )}
                   title="Non substituable"
+                  aria-label="Non substituable"
                   aria-pressed={Boolean(drug.non_substituable)}
                 >
                   NS
