@@ -1,5 +1,5 @@
 name: Neo Ordonnance Line UX Contract
-# Exact-head D5 convergence gate — confirmation
+# Exact-head D5 convergence gate — final same-head proof
 
 on:
   push:
