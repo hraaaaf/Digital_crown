@@ -90,7 +90,7 @@ def test_lot06_runtime_bridge_fails_closed_for_blocked_unmapped_and_unknown():
 
 
 def test_lot06_runtime_convergence_rules_exactly_match_canonical_json():
-    source=load_bridge()["canonical_convergence_rules"]
+    source=load_bridge().get("canonical_convergence_rules",{})
     assert set(CANONICAL_CONVERGENCE_RULES)==set(source)
     for canonical_id,rule in CANONICAL_CONVERGENCE_RULES.items():
         expected=source[canonical_id]
