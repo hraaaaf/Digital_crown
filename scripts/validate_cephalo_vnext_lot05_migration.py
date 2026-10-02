@@ -115,7 +115,7 @@ def migrate_v1_to_v2(
         "patient_id": patient_id,
         "evidence_graph_version": "_evidence_graph_v1",
         "landmark_registry": registry,
-        "current_landmark_refs": copy.deepcopy(refs),
+        "current_landmark_refs": copy.deepcopy(refs),\n        "active_landmarks": active_landmarks,
         "coordinate_space": {
             "version": "V1_IMAGE_PIXEL_SPACE",
             "unit": "px",
@@ -183,6 +183,24 @@ def roundtrip_v2_to_v1(v2: Mapping[str, Any]) -> dict[str, Any]:
         raise Lot05MigrationError("Migration context changed after creation")
     if source.get("current_landmark_refs") != v2.get("current_landmark_refs"):
         raise Lot05MigrationError("Current landmark refs changed during migration")
+
+    by_ref = {item.get("evidence_id"): item for item in source.get("landmarks", []) if isinstance(item, dict)}
+    expected_active = []
+    for ref in source.get("current_landmark_refs", []):
+        evidence = by_ref.get(ref)
+        if not isinstance(evidence, dict):
+            raise Lot05MigrationError("Source active landmark evidence missing")
+        expected_active.append({
+            "evidence_ref": ref,
+            "canonical_id": evidence.get("landmark_id"),
+            "origin": evidence.get("origin"),
+            "x": evidence.get("x"),
+            "y": evidence.get("y"),
+            "validated_by": evidence.get("validated_by"),
+            "validated_at": evidence.get("validated_at"),
+        })
+    if v2.get("active_landmarks") != expected_active:
+        raise Lot05MigrationError("Active landmark provenance drifted from V1 source")
 
     source_ids = {item.get("landmark_id") for item in source.get("landmarks", []) if isinstance(item, dict)}
     registry_ids = {item.get("canonical_id") for item in v2.get("landmark_registry", []) if isinstance(item, dict)}
