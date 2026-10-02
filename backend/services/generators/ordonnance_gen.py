@@ -256,6 +256,11 @@ class OrdonnanceGenerator:
                 textColor=colors.HexColor("#7F1D1D"), leftIndent=1.5*cm, spaceBefore=2, spaceAfter=poso_space_after,
                 italic=True
             )
+            quantity_style = ParagraphStyle(
+                'MedicationQuantity', parent=self.styles['Normal'], fontName=med_font,
+                fontSize=max(base_form_fs, MIN_READABLE_SIZE), textColor=p_color,
+                leftIndent=1.5*cm, spaceBefore=1, spaceAfter=1,
+            )
 
             for i, med in enumerate(data.medications, 1):
                 forme = getattr(med, 'forme', '') or ""
@@ -263,6 +268,7 @@ class OrdonnanceGenerator:
                 nom = getattr(med, 'nom', '') or ""
                 posologie = getattr(med, 'posologie', '') or ""
                 m_type = getattr(med, 'type', 'MEDICAMENT')
+                quantity = getattr(med, 'quantite', None)
 
                 is_radio = m_type == "EXAMEN" or "RADIO" in nom.upper() or "X-RAY" in nom.upper()
                 display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
@@ -310,6 +316,14 @@ class OrdonnanceGenerator:
                 ]))
                 
                 elements.append(med_line_table)
+
+                if not is_radio and quantity is not None:
+                    try:
+                        quantity_value = int(quantity)
+                    except (TypeError, ValueError):
+                        quantity_value = 0
+                    if quantity_value > 0:
+                        elements.append(Paragraph(f"Quantité : <b>{quantity_value}</b>", quantity_style))
                 
                 # protect_unit_patterns évite qu'une posologie longue coupe un
                 # groupe nombre+unité ("3 jours", "1 semaine") en fin de ligne,
