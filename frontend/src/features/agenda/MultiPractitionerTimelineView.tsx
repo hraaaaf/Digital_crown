@@ -4,6 +4,7 @@ import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 import type { Appointment } from './DailyView';
+import { PatientAvatar } from '../patients/components/PatientAvatar';
 import {
   getDayBounds,
   getDaySchedule,
@@ -402,7 +403,10 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                             STATUS_COLORS[appointment.status] || 'bg-slate-50 text-slate-600 border-slate-200',
                           )}
                         >
-                          {schedulingLabel(appointment)} · {appointment.patient_name || 'Patient'}
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            {appointment.patient_id ? <PatientAvatar patientId={appointment.patient_id} fullName={appointment.patient_name} resolveFromDirectory className="w-5 h-5 rounded text-[7px]" /> : null}
+                            <span className="truncate">{schedulingLabel(appointment)} · {appointment.patient_name || 'Patient'}</span>
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -475,7 +479,10 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                             )}
                             style={{ top: `${top}px`, height: `${height}px` }}
                           >
-                            <span className="block truncate font-black">{formatClock(start)} · {appointment.patient_name || 'Patient'}</span>
+                            <span className="flex min-w-0 items-center gap-1.5 font-black">
+                              {appointment.patient_id ? <PatientAvatar patientId={appointment.patient_id} fullName={appointment.patient_name} resolveFromDirectory className="w-5 h-5 rounded text-[7px]" /> : null}
+                              <span className="truncate">{formatClock(start)} · {appointment.patient_name || 'Patient'}</span>
+                            </span>
                             {height >= 34 && (
                               <span className="block truncate text-[9px] opacity-70">
                                 {appointment.motif || 'Rendez-vous'} · {appointment.duration_minutes} min
@@ -504,6 +511,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                     aria-label={`Rendez-vous non assigné à ${formatClock(start)}, bloque tous les praticiens`}
                   >
                     <span className="sticky left-2 inline-flex h-full items-center whitespace-nowrap">
+                      {appointment.patient_id ? <PatientAvatar patientId={appointment.patient_id} fullName={appointment.patient_name} resolveFromDirectory className="mr-1.5 w-5 h-5 rounded text-[7px]" /> : null}
                       Non assigné · {formatClock(start)} · {appointment.patient_name || 'Patient'} · bloque tous les praticiens
                     </span>
                   </button>
