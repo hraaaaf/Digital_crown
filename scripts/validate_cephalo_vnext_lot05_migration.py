@@ -16,6 +16,7 @@ def context_sha(patient_id:int,width:int,height:int)->str:
 _SOFT={"Ls_soft","Li_soft","Sn_soft","Pog_soft","Prn","Cm","Ls2","Li2","Gn_soft","Me_soft","G_soft","N_soft","C_point"}
 _DENTAL={"L1_incisal","U1_incisal","U1_apex","L1_apex","U6","L6"}
 _ANCHORS={"Occ_Ant","Occ_Post"}
+_COMPAT_IDS={"S","N","Or","Po","A","B","Pog","Me","Gn","Go","L1_incisal","U1_incisal","Ls_soft","Li_soft","Sn_soft","Pog_soft","PNS","ANS","Ar","D_point","U1_apex","L1_apex","Cm","Ptm","Co","Prn","Ba","PT_point","Bo","Ls2","Li2","Gn_soft","Me_soft","G_soft","N_soft","C_point","U6","L6","Occ_Ant","Occ_Post"}
 def _domain(cid:str)->str:
     if cid in _SOFT:return "SOFT"
     if cid in _DENTAL:return "DENTAL"
@@ -67,7 +68,9 @@ def migrate_v1_to_v2(v1:Mapping[str,Any],*,patient_id:int,width:int,height:int,m
     calibration=[s for s in sources if s.get("kind")=="calibration"]
     if len(calibration)>1: raise Lot05MigrationError("Ambiguous calibration")
     calibration_ref=calibration[0]["evidence_id"] if calibration else None
-    registry=[{"canonical_id":cid,"aliases":[],"identity_version":"V1_RUNTIME_ID_PRESERVED","semantic_status":"LEGACY_AMBIGUOUS","tissue_domain":_domain(cid),"analysis_scope":None} for cid in sorted({x["landmark_id"] for x in landmarks})]
+    landmark_ids={x["landmark_id"] for x in landmarks}
+    if not landmark_ids <= _COMPAT_IDS: raise Lot05MigrationError("Landmark identity outside explicit compatibility registry")
+    registry=[{"canonical_id":cid,"aliases":[],"identity_version":"V1_RUNTIME_ID_PRESERVED","semantic_status":"LEGACY_AMBIGUOUS","tissue_domain":_domain(cid),"analysis_scope":None} for cid in sorted(landmark_ids)]
     active=[]
     for ref in refs:
         e=by_ref[ref]
@@ -100,7 +103,10 @@ def _active_from_source(source:Mapping[str,Any])->list[dict[str,Any]]:
 
 def roundtrip_v2_to_v1(v2:Mapping[str,Any])->dict[str,Any]:
     validate_v2_identity_registry(v2)
+    if v2.get("schema_version")!="CEPHALO_CANONICAL_SCHEMA_V2" or v2.get("evidence_graph_version")!="_evidence_graph_v1": raise Lot05MigrationError("V2 schema identity drift")
     m=v2.get("migration",{})
+    if m.get("migration_version")!="CEPHALO_V1_TO_V2_MIGRATION_V1" or m.get("source_schema")!="_evidence_graph_v1": raise Lot05MigrationError("Migration contract drift")
+    _aware(m.get("migrated_at"),"migration timestamp")
     if m.get("compatibility_class")!="LOSSLESS_V1": raise Lot05MigrationError("Not lossless V1")
     source=m.get("opaque_legacy_payload")
     if not isinstance(source,dict) or sha256(source)!=m.get("source_sha256"): raise Lot05MigrationError("Source snapshot hash mismatch")
