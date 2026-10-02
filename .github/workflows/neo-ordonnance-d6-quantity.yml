@@ -12,7 +12,14 @@ on:
       - 'backend/services/insurance_far_prescription_renderer.py'
       - 'backend/tests/test_far_ordonnance_bridge.py'
       - 'backend/tests/test_insurance_far_prescription_renderer.py'
+      - 'backend/services/prescription_service.py'
+      - 'backend/tests/test_neo_ordonnance_reusables.py'
       - 'frontend/src/features/admin/DocumentStudio/useDocumentGenerator.ts'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposerFixture.tsx'
       - 'frontend/src/features/admin/DocumentHub.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx'
@@ -43,7 +50,7 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Backend quantity + real PDF contract
-        run: pytest -q backend/tests/test_document_layout_consistency.py backend/tests/test_far_ordonnance_bridge.py backend/tests/test_insurance_far_prescription_renderer.py
+        run: pytest -q backend/tests/test_document_layout_consistency.py backend/tests/test_far_ordonnance_bridge.py backend/tests/test_insurance_far_prescription_renderer.py backend/tests/test_neo_ordonnance_reusables.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -58,7 +65,7 @@ jobs:
 
       - name: Frontend quantity contracts
         working-directory: frontend
-        run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx src/features/admin/DocumentStudio/DocumentGeneration.g4Interactive.test.tsx src/features/admin/DocumentStudio/DocumentEditConsistency.regression.test.ts
+        run: npm test -- src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx src/features/admin/DocumentStudio/DocumentGeneration.g4Interactive.test.tsx src/features/admin/DocumentStudio/DocumentEditConsistency.regression.test.ts
 
       - name: Build frontend
         working-directory: frontend
