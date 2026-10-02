@@ -1,0 +1,344 @@
+{
+  "candidate_model_sha256": "a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb",
+  "clinical_measurements": [
+    {
+      "absolute_error": 7.0502360037428575,
+      "decision": "FAIL",
+      "measurement_id": "SNA",
+      "n": 138,
+      "signed_bias": 0.7017307453701711
+    },
+    {
+      "absolute_error": 5.492760934166796,
+      "decision": "FAIL",
+      "measurement_id": "SNB",
+      "n": 135,
+      "signed_bias": -0.6724942750219766
+    },
+    {
+      "absolute_error": 4.699272749996128,
+      "decision": "FAIL",
+      "measurement_id": "ANB",
+      "n": 129,
+      "signed_bias": 1.2507772502481718
+    },
+    {
+      "absolute_error": 5.5561257250032385,
+      "decision": "FAIL",
+      "measurement_id": "FMA",
+      "n": 83,
+      "signed_bias": 2.4550898693039525
+    },
+    {
+      "absolute_error": 9.141042517156396,
+      "decision": "FAIL",
+      "measurement_id": "IMPA",
+      "n": 102,
+      "signed_bias": 0.5944969862238051
+    },
+    {
+      "absolute_error": 9.576899805387592,
+      "decision": "FAIL",
+      "measurement_id": "FMIA",
+      "n": 95,
+      "signed_bias": 0.7557464515404037
+    },
+    {
+      "absolute_error": 6.977299466928088,
+      "decision": "FAIL",
+      "measurement_id": "SN-GoGn",
+      "n": 115,
+      "signed_bias": 0.2130173505179548
+    },
+    {
+      "absolute_error": 6.259116659915602,
+      "decision": "FAIL",
+      "measurement_id": "Co-A",
+      "n": 129,
+      "signed_bias": 2.0258290431959862
+    },
+    {
+      "absolute_error": 5.110257940802912,
+      "decision": "FAIL",
+      "measurement_id": "Co-Gn",
+      "n": 132,
+      "signed_bias": 1.07896442634685
+    }
+  ],
+  "decision_reasons": [
+    "REFERENCE_EQUIVALENCE_V1 applied without post-result retuning",
+    "Recomputed from frozen untouched predictions; no second ONNX inference",
+    "Each sentinel measurement uses only its own preregistered G1-A required landmarks",
+    "Frozen untouched prediction artifact SHA256: 673c12d234cffa43661e3658ee84681f081284f77865094d2733df97ff6bc700"
+  ],
+  "executed_at": "2026-10-02T18:00:17Z",
+  "landmarks": [
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.9657010231233025,
+      "landmark_id": "A",
+      "median_mm": 1.882955875944168,
+      "n": 143,
+      "p95_mm": 6.490545782036731,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.246470841489226,
+      "landmark_id": "ANS",
+      "median_mm": 1.198300742755291,
+      "n": 139,
+      "p95_mm": 4.936773040835523,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.220360331117452,
+      "landmark_id": "Ar",
+      "median_mm": 1.2020751425381593,
+      "n": 132,
+      "p95_mm": 8.901975156877437,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.9266083568619714,
+      "landmark_id": "B",
+      "median_mm": 0.6533497595212405,
+      "n": 138,
+      "p95_mm": 2.3735769409518332,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 3.40147027033899,
+      "landmark_id": "Co",
+      "median_mm": 2.2893865209702073,
+      "n": 134,
+      "p95_mm": 6.436752531766947,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.4177144055576139,
+      "landmark_id": "Gn",
+      "median_mm": 0.5746841053683331,
+      "n": 147,
+      "p95_mm": 1.7700359468950495,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 4.142124257947273,
+      "landmark_id": "Go",
+      "median_mm": 1.2565492650734922,
+      "n": 120,
+      "p95_mm": 6.852890879217429,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.985317048798788,
+      "landmark_id": "L1_apex",
+      "median_mm": 1.9455611901860004,
+      "n": 134,
+      "p95_mm": 5.371156061601582,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.4327531312481812,
+      "landmark_id": "L1_incisal",
+      "median_mm": 0.5308885113700343,
+      "n": 149,
+      "p95_mm": 1.8509441227580394,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.1704699910719627,
+      "landmark_id": "Li_soft",
+      "median_mm": 0.7547615138481101,
+      "n": 150,
+      "p95_mm": 3.589245940636703,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 0.7087637123893971,
+      "landmark_id": "Ls_soft",
+      "median_mm": 0.586877478080374,
+      "n": 149,
+      "p95_mm": 2.4225378165288007,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "PASS",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.3243801130732997,
+      "landmark_id": "Me",
+      "median_mm": 0.6705579042378322,
+      "n": 137,
+      "p95_mm": 2.0702070906156282,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.8912056686307173,
+      "landmark_id": "N",
+      "median_mm": 0.9686688166880025,
+      "n": 144,
+      "p95_mm": 7.489821361028841,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.5524174696260025,
+      "landmark_id": "N_soft",
+      "median_mm": 1.1231372783685463,
+      "n": 145,
+      "p95_mm": 4.145035752434035,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 3.4552093187516633,
+      "landmark_id": "Or",
+      "median_mm": 1.5789760981691292,
+      "n": 133,
+      "p95_mm": 5.231235275054878,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 0.9852126552617689,
+      "landmark_id": "PNS",
+      "median_mm": 1.8387592120915963,
+      "n": 145,
+      "p95_mm": 5.221004651264523,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 4.342256126468342,
+      "landmark_id": "Po",
+      "median_mm": 2.134381674740502,
+      "n": 117,
+      "p95_mm": 6.977421385307279,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.39034663556679,
+      "landmark_id": "Pog",
+      "median_mm": 0.5811726615093403,
+      "n": 149,
+      "p95_mm": 2.25756851186431,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.3341664064126335,
+      "landmark_id": "Pog_soft",
+      "median_mm": 1.854472976687908,
+      "n": 149,
+      "p95_mm": 8.135400723271033,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.2826328696375513,
+      "landmark_id": "Prn",
+      "median_mm": 0.6614238789386062,
+      "n": 149,
+      "p95_mm": 2.2162617945949674,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 0.45656356730278175,
+      "landmark_id": "S",
+      "median_mm": 0.7204492825475268,
+      "n": 150,
+      "p95_mm": 1.6978830701406515,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.2092655622318846,
+      "landmark_id": "Sn_soft",
+      "median_mm": 0.7375011988478806,
+      "n": 148,
+      "p95_mm": 2.4109578573571913,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 3.7000675552332174,
+      "landmark_id": "U1_apex",
+      "median_mm": 1.6175003692792853,
+      "n": 127,
+      "p95_mm": 5.439118311723346,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.3912106781186537,
+      "landmark_id": "U1_incisal",
+      "median_mm": 0.42499404242377103,
+      "n": 146,
+      "p95_mm": 2.433358535681439,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    }
+  ],
+  "manifest_sha256": "153683da45c3dcae2039718a679d07f7e838f3edf9d63686b56de0a055581c0c",
+  "overall_decision": "FAIL",
+  "schema_version": "CEPHALO_LOT04_ACCEPTANCE_RECORD_V1"
+}
