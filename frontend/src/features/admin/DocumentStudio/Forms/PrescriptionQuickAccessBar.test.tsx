@@ -40,6 +40,7 @@ describe('Neo prescription quick access', () => {
             posologie: '1 comprimé matin et soir pendant 7 jours',
             type: 'MEDICAMENT',
             quantite: 2,
+            quantiteExplicit: true,
             non_substituable: true,
             catalogPresentationId: 'ammps:med-a',
             catalogDci: 'MED A DCI',
@@ -91,6 +92,7 @@ describe('Neo prescription quick access', () => {
         posologie: '1 comprimé matin et soir pendant 7 jours',
         type: 'MEDICAMENT',
         quantite: 2,
+        quantiteExplicit: true,
         non_substituable: true,
         catalogPresentationId: 'ammps:med-a',
         catalogDci: 'MED A DCI',
@@ -233,6 +235,8 @@ describe('Neo prescription quick access', () => {
       catalogDci: 'MED TEST DCI',
       catalogSourceId: 'ammps-current',
       catalogMarketingStatusVerified: true,
+      quantite: 2,
+      quantiteExplicit: true,
     }];
     render(<PrescriptionQuickAccessBar drugs={current} setDrugs={vi.fn()} prescriptionIndication="Test" />);
     await screen.findByRole('button', { name: 'Extraction simple' });
@@ -252,6 +256,8 @@ describe('Neo prescription quick access', () => {
         catalogDci: 'MED TEST DCI',
         catalogSourceId: 'ammps-current',
         catalogMarketingStatusVerified: true,
+        quantite: 2,
+        quantiteExplicit: true,
       })],
     })));
   });
