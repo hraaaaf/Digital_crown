@@ -1,0 +1,35 @@
+{
+  "schema": "CEPHALO_LOT02_AARIZ_SOURCE_V1",
+  "source": {
+    "title": "Aariz Cephalometric Dataset",
+    "doi": "10.6084/m9.figshare.27986417.v1",
+    "figshare_article_id": 27986417,
+    "figshare_file_id": 51041642,
+    "archive_name": "Aariz.zip",
+    "archive_size_bytes": 2098209792,
+    "archive_md5": "e0bd645bca6759abdae4f199d841bda6",
+    "license": "CC BY 4.0"
+  },
+  "expected": {
+    "cases": 1000,
+    "landmarks_per_annotation": 29,
+    "splits": [
+      "train",
+      "valid",
+      "test"
+    ],
+    "annotation_sets": [
+      "Junior Orthodontists",
+      "Senior Orthodontists"
+    ]
+  },
+  "policy": {
+    "dataset_bytes_committed": false,
+    "junior_senior_kept_separate": true,
+    "semantic_hold": [
+      "UMT->U6",
+      "LMT->L6"
+    ],
+    "acceptance_requires_contamination_review": true
+  }
+}
