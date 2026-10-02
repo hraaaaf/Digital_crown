@@ -2,7 +2,8 @@
 
 Status: APPROVED — benchmark/protocol contract only
 Parent: LOT03 ontology HEAD 8e97c8a7e7650f1b6807a9638d03dac76f69c267
-Gate target: CEPH_DETECTOR_CONTRACT_APPROVED
+Contract sub-gate: CEPH_DETECTOR_CONTRACT_APPROVED
+Canonical roadmap gate: CEPH_DETECTOR_SELECTED
 
 ## Goal
 Freeze what the detector is, what its 38 outputs mean operationally, and how a future candidate is benchmarked without confusing runtime parity with anatomical/clinical accuracy.
@@ -289,3 +290,11 @@ Corrections:
 Post-correction verdict: READY_FOR_GATE_REVIEW.
 Severe score: **9.3/10**.
 Residual: exact-head CI must execute before closeout; G1/G2 anatomical performance remains deliberately unexecuted and uncertified.
+
+## Debt-zero canonical gate decision
+
+The contract sub-gate `CEPH_DETECTOR_CONTRACT_APPROVED` is satisfied for reproducibility/benchmark methodology. The canonical roadmap gate `CEPH_DETECTOR_SELECTED` is **NOT SATISFIED** because LOT02 does not yet provide the required qualified G1/G3 evidence and no G1/G2 anatomical performance acceptance record exists.
+
+Decision: frozen SRPose38 is an **ENGINEERING_BASELINE_CANDIDATE**, not a clinically selected detector. Runtime parity, artifact hashes and 38-channel reproducibility MUST NOT be represented as anatomical selection. Clinical auto-consumption remains blocked until the preregistered validation evidence exists and passes.
+
+This resolves the prior gate-name contradiction without lowering the gate: the protocol is approved; the detector is not selected.
