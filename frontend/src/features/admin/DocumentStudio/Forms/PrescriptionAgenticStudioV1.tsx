@@ -40,6 +40,7 @@ const fingerprint = (drugs: DrugItem[], prescriptionIndication: string): string 
     posologie: drug.posologie,
     type: drug.type,
     quantite: drug.quantite,
+    quantiteExplicit: drug.quantiteExplicit,
     non_substituable: drug.non_substituable,
     catalogPresentationId: drug.catalogPresentationId,
   })),
