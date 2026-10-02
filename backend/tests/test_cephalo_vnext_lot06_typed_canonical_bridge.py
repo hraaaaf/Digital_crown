@@ -9,6 +9,11 @@ from backend.services import cephalo_steiner_dental_evidence as steiner_dental
 from backend.services import cephalo_steiner_evidence_adapter as steiner
 from backend.services import cephalo_tweed_merrifield_evidence as tweed
 from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
+from backend.services.cephalo_canonical_method_bridge import (
+    CANONICAL_METHOD_BINDINGS,
+    binding_for_method,
+    canonical_measurement_id_for_method,
+)
 
 ROOT=Path(__file__).resolve().parents[2]
 BRIDGE=ROOT/"docs"/"audits"/"schemas"/"cephalo_vnext_lot06_typed_canonical_bridge_v1.json"
@@ -55,3 +60,29 @@ def test_lot06_bridge_does_not_invent_missing_canonical_ids():
     by_id={x["method_id"]:x for x in load_bridge()["methods"]}
     assert by_id["DOWNS_Y_AXIS_DEG_V1"]["state"]=="UNMAPPED_CANONICAL_ID"
     assert by_id["MERRIFIELD_Z_ANGLE_DEG_V1"]["state"]=="UNMAPPED_CANONICAL_ID"
+
+
+def test_lot06_runtime_bridge_exactly_matches_canonical_json():
+    by_json={x["method_id"]:x for x in load_bridge()["methods"]}
+    assert set(CANONICAL_METHOD_BINDINGS)==set(by_json)
+    for method_id,binding in CANONICAL_METHOD_BINDINGS.items():
+        source=by_json[method_id]
+        assert binding.canonical_measurement_id==source["canonical_measurement_id"]
+        assert binding.state==source["state"]
+        assert binding.reason==source["reason"]
+
+def test_lot06_runtime_bridge_fails_closed_for_blocked_unmapped_and_unknown():
+    assert canonical_measurement_id_for_method("STEINER_SNA_DEG_V1")=="M_SNA_DEG_V1"
+    for method_id in ("DOWNS_FACIAL_ANGLE_DEG_V1","DOWNS_Y_AXIS_DEG_V1","RICKETTS_E_LINE_LS_MM_V2"):
+        try:
+            canonical_measurement_id_for_method(method_id)
+        except ValueError as exc:
+            assert "no promotable canonical identity" in str(exc)
+        else:
+            raise AssertionError(method_id)
+    try:
+        binding_for_method("NOT_A_REAL_METHOD")
+    except ValueError as exc:
+        assert "Unknown typed cephalometric method_id" in str(exc)
+    else:
+        raise AssertionError("unknown method must fail closed")
