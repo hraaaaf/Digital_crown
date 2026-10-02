@@ -61,7 +61,9 @@
         "Go",
         "Gn_anatomic"
       ],
-      "required_constructions": [],
+      "required_constructions": [
+        "STEINER_MP_GO_GN_V1"
+      ],
       "implementation": "backend.services.cephalo_steiner_geometry:steiner_sn_mp_deg_v1",
       "requires_calibration": false,
       "source_contracts": [
@@ -115,7 +117,7 @@
       ],
       "required_constructions": [
         "FH_PO_OR_V1",
-        "MP_GO_ME_V1"
+        "TWEED_DC_MP_GO_ME_V1"
       ],
       "implementation": "backend.services.cephalo_tweed_merrifield_geometry:tweed_fma_deg_v1",
       "requires_calibration": false,
@@ -134,7 +136,7 @@
         "Me"
       ],
       "required_constructions": [
-        "MP_GO_ME_V1"
+        "TWEED_DC_MP_GO_ME_V1"
       ],
       "implementation": "backend.services.cephalo_tweed_merrifield_geometry:tweed_impa_deg_v1",
       "requires_calibration": false,
@@ -256,7 +258,7 @@
       ],
       "required_constructions": [
         "FH_PO_OR_V1",
-        "N_PERP_FH_V1"
+        "NASION_VERTICAL_FH_V1"
       ],
       "implementation": "backend.services.cephalo_constructions:nasion_vertical_offset_mm_v1",
       "requires_calibration": true,
