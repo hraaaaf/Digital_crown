@@ -1,6 +1,6 @@
 {
   "schema_version": "CEPHALO_LOT06_EXECUTABLE_MEASUREMENT_CONTRACT_V1",
-  "status": "PARTIAL_EXECUTABLE_19_DIRECT__4_EXPLICITLY_NON_PROMOTED",
+  "status": "PARTIAL_EXECUTABLE_20_DIRECT__4_EXPLICITLY_NON_PROMOTED",
   "clinical_interpretation": false,
   "measurements": [
     {
@@ -262,6 +262,27 @@
         "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
       ],
       "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_POG_NPERP_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Pog_hard",
+        "N",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1",
+        "NASION_VERTICAL_FH_V1"
+      ],
+      "implementation": "backend.services.cephalo_constructions:nasion_vertical_offset_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/audits/CEPHALO_GLOBAL_ANALYSIS_CARTOGRAPHY.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_POG_HARD_AND_PO_ANATOMIC"
     },
     {
       "measurement_id": "M_SN_GOGN_DEG_V1",
