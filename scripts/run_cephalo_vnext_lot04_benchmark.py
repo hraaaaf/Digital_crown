@@ -4,7 +4,7 @@
 Certification harness only. It does not mutate product runtime or patient data.
 """
 from __future__ import annotations
-import argparse, csv, hashlib, json, math, statistics, subprocess, sys, time
+import argparse, ast, csv, hashlib, importlib.util, json, math, statistics, subprocess, sys, time
 from collections import defaultdict
 from pathlib import Path
 
@@ -12,8 +12,14 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from backend.services.srpose38_pipeline import prepare_srpose38_input, decode_srpose38_heatmaps
-from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
+ROOT=Path(__file__).resolve().parents[1]
+_PIPELINE_PATH=ROOT/"backend"/"services"/"srpose38_pipeline.py"
+_spec=importlib.util.spec_from_file_location("lot04_srpose38_pipeline",_PIPELINE_PATH)
+if _spec is None or _spec.loader is None: raise RuntimeError("cannot load frozen SRPose38 pipeline")
+_pipeline=importlib.util.module_from_spec(_spec); sys.modules[_spec.name]=_pipeline; _spec.loader.exec_module(_pipeline)
+prepare_srpose38_input=_pipeline.prepare_srpose38_input
+decode_srpose38_heatmaps=_pipeline.decode_srpose38_heatmaps
+
 from scripts.validate_cephalo_vnext_lot04_contract import (
     canonical_json_sha256, validate_manifest_semantics, validate_acceptance_semantics,
 )
@@ -37,7 +43,13 @@ AARIZ_TO_DC={
 "N\u0060":"N_soft","Pog\u0060":"Pog_soft","Sn":"Sn_soft",
 }
 DC_TO_AARIZ={v:k for k,v in AARIZ_TO_DC.items()}
-if INDEX_TO_DC != SOTA_LANDMARKS_MAPPING:
+def _runtime_mapping_from_source():
+    tree=ast.parse((ROOT/"backend"/"services"/"sota_vision_service.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="SOTA_LANDMARKS_MAPPING" for t in node.targets):
+            return ast.literal_eval(node.value)
+    raise RuntimeError("SOTA_LANDMARKS_MAPPING not found")
+if INDEX_TO_DC != _runtime_mapping_from_source():
     raise RuntimeError("LOT04 benchmark mapping drifted from runtime SOTA_LANDMARKS_MAPPING")
 SENTINELS=("SNA","SNB","ANB","FMA","IMPA","FMIA","SN-GoGn","Co-A","Co-Gn")
 REQ={
