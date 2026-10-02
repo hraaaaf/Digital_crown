@@ -4,6 +4,7 @@ import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 import { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
+import { PatientAvatar } from '../patients/components/PatientAvatar';
 
 export type AppointmentStatus = 'PRÉVU' | 'EN_S_ATTENTE' | 'EN_FAUTEUIL' | 'TERMINÉ' | 'ANNULÉ' | 'EN_ATTENTE_DEMANDE' | 'EN_ATTENTE_CONFIRM' | 'CONFIRMÉ' | 'REFUSÉ' | 'EXPIRÉ' | 'ABSENT';
 
@@ -217,8 +218,11 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
                       <span className="text-[10px] font-black uppercase tracking-widest bg-white/50 px-2 py-1 rounded-md">
                         {typeLabel}
                       </span>
-                      <span className="font-black text-sm">
-                        {appt.patient_name || `Patient #${appt.patient_id}`}
+                      <span className="inline-flex min-w-0 items-center gap-2 font-black text-sm">
+                        {appt.patient_id ? (
+                          <PatientAvatar patientId={appt.patient_id} fullName={appt.patient_name} resolveFromDirectory className="w-7 h-7 rounded-lg text-[9px]" />
+                        ) : null}
+                        <span className="truncate">{appt.patient_name || `Patient #${appt.patient_id}`}</span>
                       </span>
                       {appt.motif && <span className="text-xs opacity-90">— {appt.motif}</span>}
                     </div>
@@ -300,8 +304,11 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
                     }}
                   >
                     <div className="flex justify-between items-start">
-                      <div className="font-black text-sm truncate pr-2">
-                        {appt.patient_name || `Patient #${appt.patient_id}`}
+                      <div className="flex min-w-0 items-center gap-2 font-black text-sm pr-2">
+                        {appt.patient_id ? (
+                          <PatientAvatar patientId={appt.patient_id} fullName={appt.patient_name} resolveFromDirectory className="w-7 h-7 rounded-lg text-[9px]" />
+                        ) : null}
+                        <span className="truncate">{appt.patient_name || `Patient #${appt.patient_id}`}</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0 opacity-80">
                          <div className={cn("w-2 h-2 rounded-full", getStatusBadgeColor(appt.status))}></div>
