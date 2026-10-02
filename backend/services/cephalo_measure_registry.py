@@ -32,7 +32,7 @@ CANONICAL_MEASUREMENTS: dict[str, CanonicalMeasurement] = {
     "M_SNB_DEG_V1": _m("M_SNB_DEG_V1", "°", "GEOMETRY_COVERED"),
     "M_ANB_DEG_V1": _m("M_ANB_DEG_V1", "°", "GEOMETRY_COVERED"),
     "M_SND_DEG_V1": _m("M_SND_DEG_V1", "°", "BLOCKED_LANDMARK"),
-    "M_A_NPERP_MM_V1": _m("M_A_NPERP_MM_V1", "mm", "PRIMITIVE_AVAILABLE"),
+    "M_A_NPERP_MM_V1": _m("M_A_NPERP_MM_V1", "mm", "GEOMETRY_COVERED"),
     "M_B_NPERP_MM_V1": _m("M_B_NPERP_MM_V1", "mm", "GEOMETRY_COVERED"),
     "M_POG_NPERP_MM_V1": _m("M_POG_NPERP_MM_V1", "mm", "PRIMITIVE_AVAILABLE"),
     "M_POG_NB_MM_V1": _m("M_POG_NB_MM_V1", "mm", "IMPLEMENTATION_MISSING"),
