@@ -22,12 +22,236 @@ def sha256(payload: Mapping[str, Any]) -> str:
 
 
 def _context_sha(patient_id: int, coordinate_space: Mapping[str, Any], quality_metadata: Mapping[str, Any]) -> str:
-    payload = {
+    payload = {"patient_id": patient_id, "coordinate_space": coordinate_space, "quality_metadata": quality_metadata}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+_SOFT = {"Ls_soft", "Li_soft", "Sn_soft", "Pog_soft", "Prn", "Cm", "Ls2", "Li2", "Gn_soft", "Me_soft", "G_soft", "N_soft", "C_point"}
+_DENTAL = {"L1_incisal", "U1_incisal", "U1_apex", "L1_apex", "U6", "L6"}
+_ANCHORS = {"Occ_Ant", "Occ_Post"}
+
+
+def _domain(cid: str) -> str:
+    if cid in _SOFT:
+        return "SOFT"
+    if cid in _DENTAL:
+        return "DENTAL"
+    if cid in _ANCHORS:
+        return "CONSTRUCTION_ANCHOR"
+    return "HARD"
+
+
+def _aware_iso(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise Lot05MigrationError(f"{label} missing")
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise Lot05MigrationError(f"{label} invalid") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise Lot05MigrationError(f"{label} must be timezone-aware")
+    return value
+
+
+def _validate_landmark(item: Any) -> dict[str, Any]:
+    if not isinstance(item, dict):
+        raise Lot05MigrationError("Malformed V1 landmark evidence")
+    evidence_id, landmark_id = item.get("evidence_id"), item.get("landmark_id")
+    if not isinstance(evidence_id, str) or not evidence_id or not isinstance(landmark_id, str) or not landmark_id:
+        raise Lot05MigrationError("Malformed V1 landmark evidence")
+    x, y = item.get("x"), item.get("y")
+    if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, (int, float)) or not isinstance(y, (int, float)) or not math.isfinite(x) or not math.isfinite(y):
+        raise Lot05MigrationError("Landmark coordinates must be finite numbers")
+    origin = item.get("origin")
+    if origin == "SRPOSE38_AUTO":
+        if not all(isinstance(item.get(k), str) and item.get(k) for k in ("model_id", "model_sha256", "pipeline_version")):
+            raise Lot05MigrationError("Automatic landmark lacks model provenance")
+    elif origin == "MANUAL_CORRECTED":
+        ox, oy = item.get("original_auto_x"), item.get("original_auto_y")
+        if isinstance(ox, bool) or isinstance(oy, bool) or not isinstance(ox, (int, float)) or not isinstance(oy, (int, float)) or not math.isfinite(ox) or not math.isfinite(oy):
+            raise Lot05MigrationError("Corrected landmark lacks finite original automatic coordinates")
+        if not isinstance(item.get("validated_by"), str) or not item["validated_by"]:
+            raise Lot05MigrationError("Corrected landmark lacks validator identity")
+        _aware_iso(item.get("validated_at"), "Corrected landmark audit timestamp")
+    elif origin != "MANUAL":
+        raise Lot05MigrationError("Unsupported or missing landmark provenance")
+    return item
+
+
+def _active_state(ref: str, evidence: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "evidence_ref": ref,
+        "canonical_id": evidence.get("landmark_id"),
+        "origin": evidence.get("origin"),
+        "x": evidence.get("x"),
+        "y": evidence.get("y"),
+        "model_id": evidence.get("model_id"),
+        "model_sha256": evidence.get("model_sha256"),
+        "pipeline_version": evidence.get("pipeline_version"),
+        "original_auto_x": evidence.get("original_auto_x"),
+        "original_auto_y": evidence.get("original_auto_y"),
+        "validated_by": evidence.get("validated_by"),
+        "validated_at": evidence.get("validated_at"),
+    }
+
+
+def _registry(landmarks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "canonical_id": cid,
+            "aliases": [],
+            "identity_version": "V1_RUNTIME_ID_PRESERVED",
+            "semantic_status": "LEGACY_AMBIGUOUS",
+            "tissue_domain": _domain(cid),
+            "analysis_scope": None,
+        }
+        for cid in sorted({item["landmark_id"] for item in landmarks})
+    ]
+
+
+def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, height: int, migrated_at: str) -> dict[str, Any]:
+    if isinstance(patient_id, bool) or not isinstance(patient_id, int) or patient_id < 1:
+        raise Lot05MigrationError("Invalid patient identity")
+    if isinstance(width, bool) or isinstance(height, bool) or not isinstance(width, int) or not isinstance(height, int) or width < 1 or height < 1:
+        raise Lot05MigrationError("Invalid source image dimensions")
+    _aware_iso(migrated_at, "Migration timestamp")
+
+    source = copy.deepcopy(dict(v1))
+    if source.get("schema_version") != "CEPHALO_EVIDENCE_V1":
+        raise Lot05MigrationError("Unsupported V1 evidence schema")
+    revision = source.get("revision")
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
+        raise Lot05MigrationError("Invalid V1 evidence revision")
+    case_id, landmarks, refs = source.get("case_id"), source.get("landmarks"), source.get("current_landmark_refs")
+    if not isinstance(case_id, str) or not case_id or not isinstance(landmarks, list) or not landmarks or not isinstance(refs, list):
+        raise Lot05MigrationError("V1 graph lacks provable case/landmark/current-ref identity")
+
+    validated_landmarks = [_validate_landmark(item) for item in landmarks]
+    by_ref: dict[str, dict[str, Any]] = {}
+    for item in validated_landmarks:
+        if item["evidence_id"] in by_ref:
+            raise Lot05MigrationError("Duplicate evidence_id")
+        by_ref[item["evidence_id"]] = item
+    if len(refs) != len(set(refs)) or any(not isinstance(ref, str) or ref not in by_ref for ref in refs):
+        raise Lot05MigrationError("Ambiguous current_landmark_refs")
+    current_ids = [by_ref[ref]["landmark_id"] for ref in refs]
+    if len(current_ids) != len(set(current_ids)):
+        raise Lot05MigrationError("Multiple current refs for one landmark")
+
+    sources = source.get("sources")
+    if not isinstance(sources, list) or not sources or any(not isinstance(s, dict) for s in sources):
+        raise Lot05MigrationError("Malformed V1 source evidence")
+    for source_item in sources:
+        sid = source_item.get("patient_id")
+        if isinstance(sid, bool) or not isinstance(sid, int) or sid != patient_id:
+            raise Lot05MigrationError("Patient identity mismatch")
+        if not isinstance(source_item.get("evidence_id"), str) or not source_item["evidence_id"]:
+            raise Lot05MigrationError("Source evidence lacks stable evidence_id")
+    if len({s["evidence_id"] for s in sources}) != len(sources):
+        raise Lot05MigrationError("Duplicate source evidence_id")
+    ceph_sources = [s for s in sources if s.get("kind") == "lateral_ceph"]
+    if len(ceph_sources) != 1:
+        raise Lot05MigrationError("Expected exactly one lateral cephalogram source")
+    calibration = [s for s in sources if s.get("kind") == "calibration"]
+    if len(calibration) > 1:
+        raise Lot05MigrationError("Multiple calibration sources are ambiguous")
+    calibration_ref = calibration[0]["evidence_id"] if calibration else None
+
+    registry = _registry(validated_landmarks)
+    active_landmarks = [_active_state(ref, by_ref[ref]) for ref in refs]
+    coordinate_space = {
+        "version": "V1_IMAGE_PIXEL_SPACE",
+        "unit": "px",
+        "source_width_px": width,
+        "source_height_px": height,
+        "calibration_ref": calibration_ref,
+    }
+    quality_metadata = {
+        "model_id": None,
+        "model_sha256": None,
+        "raw_score": None,
+        "score_semantics": "NOT_AVAILABLE",
+        "score_calibration_ref": None,
+    }
+
+    return {
+        "schema_version": "CEPHALO_CANONICAL_SCHEMA_V2",
+        "case_id": case_id,
         "patient_id": patient_id,
+        "evidence_graph_version": "_evidence_graph_v1",
+        "landmark_registry": registry,
+        "current_landmark_refs": copy.deepcopy(refs),
+        "active_landmarks": active_landmarks,
         "coordinate_space": coordinate_space,
         "quality_metadata": quality_metadata,
+        "migration": {
+            "migration_version": "CEPHALO_V1_TO_V2_MIGRATION_V1",
+            "source_schema": "_evidence_graph_v1",
+            "source_sha256": sha256(source),
+            "migration_context_sha256": _context_sha(patient_id, coordinate_space, quality_metadata),
+            "migrated_at": migrated_at,
+            "compatibility_class": "LOSSLESS_V1",
+            "opaque_legacy_payload": source,
+        },
     }
-    return hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
 
+
+def validate_v2_identity_registry(v2: Mapping[str, Any]) -> None:
+    registry = v2.get("landmark_registry")
+    if not isinstance(registry, list) or not registry:
+        raise Lot05MigrationError("Missing landmark registry")
+    canonical: set[str] = set()
+    aliases: set[str] = set()
+    for item in registry:
+        if not isinstance(item, dict) or not isinstance(item.get("canonical_id"), str) or not item["canonical_id"]:
+            raise Lot05MigrationError("Malformed canonical landmark identity")
+        cid = item["canonical_id"]
+        if cid in canonical or cid in aliases:
+            raise Lot05MigrationError("Canonical landmark identity collision")
+        canonical.add(cid)
+        raw_aliases = item.get("aliases", [])
+        if not isinstance(raw_aliases, list):
+            raise Lot05MigrationError("Malformed aliases")
+        for alias in raw_aliases:
+            if not isinstance(alias, str) or not alias or alias == cid or alias in aliases or alias in canonical:
+                raise Lot05MigrationError("Landmark alias collision")
+            aliases.add(alias)
+
+
+def roundtrip_v2_to_v1(v2: Mapping[str, Any]) -> dict[str, Any]:
+    validate_v2_identity_registry(v2)
+    migration = v2.get("migration", {})
+    if migration.get("compatibility_class") != "LOSSLESS_V1":
+        raise Lot05MigrationError("V2 object is not lossless-V1")
+    source = migration.get("opaque_legacy_payload")
+    if not isinstance(source, dict) or sha256(source) != migration.get("source_sha256"):
+        raise Lot05MigrationError("V1 source snapshot hash mismatch")
+    if source.get("case_id") != v2.get("case_id"):
+        raise Lot05MigrationError("Case identity changed during migration")
+
+    coordinate = v2.get("coordinate_space")
+    quality = v2.get("quality_metadata")
+    if not isinstance(coordinate, dict) or not isinstance(quality, dict):
+        raise Lot05MigrationError("Missing derived migration metadata")
+    if _context_sha(v2.get("patient_id"), coordinate, quality) != migration.get("migration_context_sha256"):
+        raise Lot05MigrationError("Migration context changed after creation")
+    if source.get("current_landmark_refs") != v2.get("current_landmark_refs"):
+        raise Lot05MigrationError("Current landmark refs changed during migration")
+
+    source_landmarks = source.get("landmarks", [])
+    by_ref = {item.get("evidence_id"): item for item in source_landmarks if isinstance(item, dict)}
+    refs = source.get("current_landmark_refs", [])
+    if any(ref not in by_ref for ref in refs):
+        raise Lot05MigrationError("Source active landmark evidence missing")
+    expected_active = [_active_state(ref, by_ref[ref]) for ref in refs]
+    if v2.get("active_landmarks") != expected_active:
+        raise Lot05MigrationError("Active landmark provenance drifted from V1 source")
+    expected_registry = _registry([item for item in source_landmarks if isinstance(item, dict)])
+    if v2.get("landmark_registry") != expected_registry:
+        raise Lot05MigrationError("Landmark registry semantics drifted from V1 migration contract")
+
+    calibrations = [s for s in source.get("sources", []) if isinstance(s, dict) and s.get("kind") == "calibration"]
+    expected_calibration = calibrations[0].get("evidence_id") if len(calibrations) == 1 else None
+    if coordinate.get("calibration_ref") != expected_calibration:
+        raise Lot05MigrationError("Calibration reference changed during migration")
+    return copy.deepcopy(source)
