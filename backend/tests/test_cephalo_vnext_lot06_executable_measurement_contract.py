@@ -57,3 +57,20 @@ def test_lot06_contract_uses_analysis_specific_mandibular_constructions():
     assert by_id["M_FH_GOME_DEG_V1"]["required_constructions"]==["FH_PO_OR_V1","TWEED_DC_MP_GO_ME_V1"]
     assert by_id["M_IMPA_GOME_DEG_V1"]["required_constructions"]==["TWEED_DC_MP_GO_ME_V1"]
     assert by_id["M_B_NPERP_MM_V1"]["required_constructions"]==["FH_PO_OR_V1","NASION_VERTICAL_FH_V1"]
+
+
+def test_lot06_contract_exhausts_every_geometry_covered_registry_entry():
+    data=load_contract()
+    promoted={m["measurement_id"] for m in data["measurements"]}
+    non_promoted={m["measurement_id"] for m in data["non_promoted_geometry_covered"]}
+    covered={k for k,v in CANONICAL_MEASUREMENTS.items() if "GEOMETRY_COVERED" in v.source_status}
+    assert promoted.isdisjoint(non_promoted)
+    assert promoted | non_promoted == covered
+
+def test_lot06_non_promoted_entries_are_explicitly_fail_closed():
+    data=load_contract()
+    reasons={m["measurement_id"]:m["reason"] for m in data["non_promoted_geometry_covered"]}
+    assert reasons["M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
+    assert reasons["M_LI_EPLANE_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
+    assert reasons["M_LS_EPLANE_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
+    assert reasons["M_FACIAL_AXIS_RICKETTS_DEG_V1"]=="BLOCKED_LANDMARK"
