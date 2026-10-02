@@ -106,12 +106,16 @@ This document authorizes no model training, patient export, runtime change, merg
 
 The previous missing-corpus blocker is resolved by material evidence:
 
+- G0 executable synthetic geometry oracle now covers exact sentinel geometry and fail-closed degeneracy.
+
 - Aariz official archive verified by exact size and MD5.
 - 1000 cases frozen as 700 train / 150 valid / 150 test with paired Junior/Senior expert-group annotations.
 - Manifest V2 records image SHA-256, dimensions, annotation SHA-256 and split membership; local frozen manifest SHA-256: `d7191e61ff3ddd58ee8598c9f98cce1b71d5ebc7151b2975534ee644175181ff`.
 - 29,000 paired annotations were calibrated in mm and deterministically classified: 27,248 CONSENSUS_CANDIDATE; 1,309 REVIEW_REQUIRED; 441 ADJUDICATION_REQUIRED; 2 STRUCTURAL_INVALID.
+- Sentinel measurement agreement is frozen for SNA, SNB, ANB, FMA, IMPA, FMIA, SN-GoGn, Co-A and Co-Gn across all 1000 cases; no computation failures.
+- Aariz publication source-locks intra-observer repeatability evidence (DOI 10.1038/s41597-025-05542-3); executable DC evidence remains the downloaded Junior/Senior corpus.
 - Ambiguous pairs are retained as G1-B stress evidence and cannot become exact ground truth without adjudication.
 - G3 synthetic legacy fixture is present and executable; migration tests prove exact round-trip preservation and no silent historical recomputation.
 - SRPose38 source checkpoint provenance is byte-identical to the published CLDetection2023 pretrained weight; the published training procedure consumes CLDetection2023 train_stack.mha/train-gt.json and contains no Aariz reference. This is provenance evidence, not a clinical performance claim.
 
-Therefore the **corpus/protocol portion** of `CEPH_GOLDSET_READY` is satisfied. Detector selection and clinical acceptance remain separate LOT04/LOT09 concerns. LOT02 does not authorize SRPose38 clinically.
+Therefore `CEPH_GOLDSET_READY` is satisfied for the LOT02 gold-set contract itself: G0 executable geometry, G1-A exact consensus reference, G1-B ambiguity stress evidence, G2 cross-device role, and G3 executable legacy oracle are all materialized with explicit limitations. This gate does not select a detector or confer clinical validity. Detector selection and clinical acceptance remain separate LOT04/LOT09 concerns. LOT02 does not authorize SRPose38 clinically.
