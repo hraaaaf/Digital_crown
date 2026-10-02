@@ -2,7 +2,7 @@
 
 Status: CANDIDATE — documentation only, no runtime change
 Baseline: master 71efbb62db60fbb2152c7f70e263b500a44f2c80
-Gate target: CEPH_SCIENTIFIC_CONTRACT_LOCKED
+Gate target: CEPH_SCIENTIFIC_CONTRACT_APPROVED
 
 ## Goal / Success / Proof
 
@@ -29,6 +29,8 @@ Gate target: CEPH_SCIENTIFIC_CONTRACT_LOCKED
 |---|---|---|
 | Steiner | STEINER_1953_CORE_V1 | core |
 | Steiner extension | STEINER_1959_CLINICAL_EXTENSION_V1 | separate version |
+| Downs | DOWNS_1948_CORE_V1 | primary source locked; geometry only until per-measure implementation proof |
+| Wits / Jacobson | WITS_JACOBSON_1975_V1 | standalone sagittal appraisal; never relabelled Steiner/Downs |
 | Tweed | DC_TWEED_ANATOMICAL_FH_VARIANT | selected DC Po-Or contract; not strict 1954 ear-rod geometry |
 | Merrifield | separate analysis/version | never merged into Tweed silently |
 | McNamara | MCNAMARA_1984_SINGLE_FILM_V1 | lateral core |
@@ -98,9 +100,24 @@ A landmark can become AUTO_VALIDATED only when all are proven:
 
 ## Gate decision
 
-LOT01 may reach CEPH_SCIENTIFIC_CONTRACT_LOCKED only after adversarial review confirms:
+LOT01 may reach CEPH_SCIENTIFIC_CONTRACT_APPROVED only after adversarial review confirms:
 - no hidden equivalence between Pt/PTM, anatomical/constructed Gn, hard/soft Pog, generic/source-specific molars, or Tweed/Ricketts mandibular/Frankfort variants;
 - all legacy norms remain explicitly versioned and non-authoritative unless proven;
 - Aariz is used as benchmark evidence rather than silently redefining the Digital Crown landmark ontology.
 
 No runtime, DB, patient, report, detector or UI mutation is authorized by this document.
+
+## Debt-zero source-lock addendum
+
+### Downs 1948
+Primary source lock: W. B. Downs, *Variations in facial relationships; their significance in treatment and prognosis*, American Journal of Orthodontics 34(10):812–840 (1948), DOI 10.1016/0002-9416(48)90015-3, PMID 18882558.
+
+Canonical family: `DOWNS_1948_CORE_V1`. The retained geometry family includes facial angle, angle of convexity, A-B plane angle, mandibular-plane/FH relation, Y-axis/FH, occlusal-plane/FH, interincisal relation and incisor/plane relations only when their exact required constructions are available. Normative interpretation is not activated by this source lock alone. Missing exact occlusal or dental construction remains NOT_COMPUTABLE; no substitute plane or crown point is allowed.
+
+### Wits / Jacobson 1975
+Primary source lock: A. Jacobson, *The “Wits” appraisal of jaw disharmony*, American Journal of Orthodontics 67(2):125–138 (1975), DOI 10.1016/0002-9416(75)90065-2, PMID 1054214.
+
+Canonical contract: `WITS_JACOBSON_1975_V1`. A and B are projected perpendicularly to the occlusal plane to produce AO and BO; the sagittal AO–BO relation is the measurement. It is a distinct analysis and MUST NOT be inferred from ANB or renamed as a Steiner measurement. If the required occlusal-plane construction is unavailable or ambiguous, Wits is NOT_COMPUTABLE.
+
+### Decision
+Downs and Wits/Jacobson are no longer undocumented analysis families. Their primary bibliographic identities and non-substitution rules are source-locked. Quantitative population norms remain separate normative evidence and are not silently activated.
