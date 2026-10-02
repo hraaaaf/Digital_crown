@@ -42,7 +42,7 @@ def migrate_v1_to_v2(
     patient_id: int,
     width: int,
     height: int,
-    migrated_at: str = "2026-10-01T00:00:00+00:00",
+    migrated_at: str,
 ) -> dict[str, Any]:
     if isinstance(patient_id, bool) or not isinstance(patient_id, int) or patient_id < 1:
         raise Lot05MigrationError("Invalid patient identity")
@@ -173,6 +173,14 @@ def roundtrip_v2_to_v1(v2: Mapping[str, Any]) -> dict[str, Any]:
         raise Lot05MigrationError("V1 source snapshot hash mismatch")
     if source.get("case_id") != v2.get("case_id"):
         raise Lot05MigrationError("Case identity changed during migration")
+    context = {
+        "patient_id": v2.get("patient_id"),
+        "source_width_px": v2.get("coordinate_space", {}).get("source_width_px"),
+        "source_height_px": v2.get("coordinate_space", {}).get("source_height_px"),
+    }
+    context_sha = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    if context_sha != migration.get("migration_context_sha256"):
+        raise Lot05MigrationError("Migration context changed after creation")
     if source.get("current_landmark_refs") != v2.get("current_landmark_refs"):
         raise Lot05MigrationError("Current landmark refs changed during migration")
 
