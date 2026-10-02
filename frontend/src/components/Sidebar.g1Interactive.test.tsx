@@ -134,7 +134,8 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(brandImages).toHaveLength(2);
     expect(compactBrandImage).toBeTruthy();
     expect(expandedBrandImage).toBeTruthy();
-    expect(compactBrandImage?.getAttribute('src')).toBe(expandedBrandImage?.getAttribute('src'));
+    expect(compactBrandImage?.getAttribute('src')).toContain('logo-compact');
+    expect(expandedBrandImage?.getAttribute('src')).not.toContain('logo-compact');
     expect(container.querySelector('.sidebar-brand-compact svg.lucide-crown')).toBeNull();
 
     fireEvent.click(toggle);
