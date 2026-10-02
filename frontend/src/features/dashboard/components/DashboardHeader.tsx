@@ -6,6 +6,7 @@ import { cn } from '../../../utils/cn';
 import type { CabinetHealthDisplayState } from '../../../hooks/useCabinetHealth';
 import { dashboardItemVariants } from '../animations';
 import type { SearchPatientResult } from '../types';
+import { PatientAvatar } from '../../patients/components/PatientAvatar';
 
 const SEARCH_RESULTS_ID = 'dashboard-patient-search-results';
 const QUICK_ADD_MENU_ID = 'dashboard-quick-add-menu';
@@ -136,9 +137,13 @@ export const DashboardHeader = ({
                         }}
                         className="w-full min-h-11 flex items-center gap-3 px-4 py-3 hover:bg-primary/5 focus-visible:bg-primary/5 transition-colors text-left border-b border-border-main last:border-0"
                       >
-                        <div className="w-9 h-9 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0" aria-hidden="true">
-                          {(patient.nom || '?').charAt(0)}
-                        </div>
+                        <PatientAvatar
+                          patientId={patient.id}
+                          firstName={patient.prenom}
+                          lastName={patient.nom}
+                          photoUrl={patient.photo_url}
+                          className="w-9 h-9 rounded-xl text-sm flex-shrink-0"
+                        />
                         <div className="min-w-0">
                           <p className="font-black text-sm text-primary truncate">{(patient.nom || '').toUpperCase()} {patient.prenom || ''}</p>
                           <p className="text-[10px] text-text-muted font-medium">{patient.numero_dossier || `#${patient.id}`}</p>
