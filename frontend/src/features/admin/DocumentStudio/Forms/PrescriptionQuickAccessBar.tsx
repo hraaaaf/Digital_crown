@@ -229,8 +229,27 @@ export function PrescriptionQuickAccessBar({
   };
 
 
-  const applyPresentation = (row: CatalogPresentation) => {
-    setDrugs(selectedPresentation(row, drugs));
+  const applyPresentation = async (row: CatalogPresentation) => {
+    let preferredPosology = '';
+    try {
+      const response = await api.get('/prescriptions/habits/details', {
+        params: {
+          med_name: row.nom,
+          dosage: presentationStrength(row),
+        },
+      });
+      preferredPosology = String(response.data?.preferred_posology || '');
+    } catch {
+      // Practitioner habits are an optional accelerator; catalog selection must remain usable.
+    }
+
+    setDrugs(
+      selectedPresentation(row, drugs).map(drug =>
+        drug.catalogPresentationId === row.presentation_id
+          ? { ...drug, posologie: preferredPosology }
+          : drug,
+      ),
+    );
     setQuery('');
     setCatalog([]);
     inputRef.current?.focus();
@@ -310,7 +329,7 @@ export function PrescriptionQuickAccessBar({
       const item = searchItems[highlighted] || searchItems[0];
       if (!item) return;
       if (item.type === 'reusable') void applyReusable(item.row);
-      else applyPresentation(item.row);
+      else void applyPresentation(item.row);
     } else if (event.key === 'Escape') {
       setQuery('');
       setCatalog([]);
@@ -431,7 +450,7 @@ export function PrescriptionQuickAccessBar({
               <button
                 key={`m-${row.presentation_id}`}
                 type="button"
-                onClick={() => applyPresentation(row)}
+                onClick={() => void applyPresentation(row)}
                 className={`flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left ${
                   highlighted === index ? 'bg-primary/10' : 'hover:bg-primary/5'
                 }`}
