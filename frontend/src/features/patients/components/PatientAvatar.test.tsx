@@ -116,6 +116,33 @@ describe('PatientAvatar', () => {
     await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:patient-avatar'));
   });
 
+  it('rejects a stale directory response after the authenticated identity changes', async () => {
+    let resolveFirstDirectory!: (value: unknown) => void;
+    vi.mocked(api.get)
+      .mockImplementationOnce(() => new Promise(resolve => { resolveFirstDirectory = resolve; }) as never)
+      .mockResolvedValueOnce({ data: [{ id: 7, nom: 'NEW', prenom: 'Tenant', photo_url: null }] } as never);
+
+    useAuthStore.setState({
+      user: { id: 1, email: 'first@cabinet.ma', role: 'ADMIN' } as any,
+      isAuthenticated: true,
+    });
+    const view = render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" resolveFromDirectory />);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/'));
+
+    useAuthStore.setState({
+      user: { id: 2, email: 'second@cabinet.ma', role: 'ADMIN' } as any,
+      isAuthenticated: true,
+    });
+    view.rerender(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" resolveFromDirectory />);
+    await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(call => call[0] === '/patients/')).toHaveLength(2));
+
+    resolveFirstDirectory({
+      data: [{ id: 7, nom: 'OLD', prenom: 'Tenant', photo_url: '/api/patients/7/photo' }],
+    });
+    await waitFor(() => expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB'));
+    expect(api.get).not.toHaveBeenCalledWith('/patients/7/photo', expect.anything());
+  });
+
   it('deduplicates the patient directory request across agenda-like avatars', async () => {
     vi.mocked(api.get).mockImplementation(((url: string) => {
       if (url === '/patients/') {
