@@ -268,7 +268,6 @@ def _search_rank(rec: Dict[str, Any], query: str) -> tuple:
 
     return (
         band,
-        len(name),
         name,
         dci,
         str(rec.get("dosage", "")).upper(),
