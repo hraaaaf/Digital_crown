@@ -238,10 +238,8 @@ class BaseTemplate(_BaseTemplateCore):
 
         try:
             logo_filename = self._get_val(config, 'logo_path')
-            actual_logo_path = None
-            if logo_filename:
-                actual_logo_path = _core.os.path.join(self.base_path, "static", "uploads", logo_filename)
-            if actual_logo_path and not _core.os.path.exists(actual_logo_path):
+            actual_logo_path = self._resolve_brand_asset(config, 'logo_path')
+            if logo_filename and not actual_logo_path:
                 actual_logo_path = self.default_logo_path if _core.os.path.exists(self.default_logo_path) else None
 
             qr_style = self._get_val(config, 'qr_code_style', 'dots')

@@ -1,4 +1,5 @@
 import os
+from backend.core.clinic_assets import resolve_clinic_asset
 import arabic_reshaper
 from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A5
@@ -151,6 +152,13 @@ class BaseTemplate:
         else:
             val = getattr(obj, key, default)
         return default if val in ["", None] else val
+
+    def _resolve_brand_asset(self, config, field):
+        return resolve_clinic_asset(
+            self._get_val(config, field),
+            os.path.join(self.base_path, "static", "uploads"),
+            public_id=self._get_val(config, 'public_id'),
+        )
 
     def has_active_letterhead(self, config):
         """Indique si un design de document uploade est actif."""
@@ -348,23 +356,19 @@ class BaseTemplate:
         secondary_color = colors.HexColor(s_color_hex)
         accent_color = colors.HexColor(a_color_hex)
         
-        logo_filename = self._get_val(config, 'logo_path')
-        logo_path = None
-        if logo_filename:
-            logo_path = os.path.join(self.base_path, "static", "uploads", logo_filename)
+        logo_path = self._resolve_brand_asset(config, 'logo_path')
         if not logo_path or not os.path.exists(logo_path):
             logo_path = self.default_logo_path if os.path.exists(self.default_logo_path) else None
 
         p_width, p_height = doc.pagesize
         
         # 1. Fond de page / Letterhead
-        lh_path_str = self._get_val(config, 'letterhead_path')
         has_letterhead = self.has_active_letterhead(config)
         letterhead_rendered = False
 
         if has_letterhead:
-            lh_path = os.path.join(self.base_path, "static", "uploads", str(lh_path_str))
-            if os.path.exists(lh_path):
+            lh_path = self._resolve_brand_asset(config, 'letterhead_path')
+            if lh_path:
                 canvas.saveState()
                 self._draw_safe_image(canvas, lh_path, 0, 0, p_width, p_height)
                 canvas.restoreState()
@@ -662,12 +666,10 @@ class BaseTemplate:
         # Génération du QR avec sceau "Elite" ou Logo réel au centre
         try:
             logo_filename = self._get_val(config, 'logo_path')
-            actual_logo_path = None
-            if logo_filename:
-                actual_logo_path = os.path.join(self.base_path, "static", "uploads", logo_filename)
+            actual_logo_path = self._resolve_brand_asset(config, 'logo_path')
             
             # Fallback sur logo par défaut si configuré mais inexistant
-            if actual_logo_path and not os.path.exists(actual_logo_path):
+            if logo_filename and not actual_logo_path:
                 actual_logo_path = self.default_logo_path if os.path.exists(self.default_logo_path) else None
 
             qr_style = self._get_val(config, 'qr_code_style', 'dots')
