@@ -139,7 +139,8 @@ describe('Neo prescription quick access', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Actions ordonnance' }));
     fireEvent.click(screen.getByRole('button', { name: /Mettre à jour « Extraction simple »/i }));
-    expect(screen.getByRole('textbox', { name: 'Nom' })).toHaveValue('Extraction simple');
+    expect(await screen.findByRole('textbox', { name: 'Nom' })).toHaveValue('Extraction simple');
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/prescriptions/habits/presets'));
   });
 
   it('can favorite a reusable item without changing prescription lines', async () => {
@@ -179,7 +180,8 @@ describe('Neo prescription quick access', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Ordonnances' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Post-op sauvegardée' }));
-    expect(setIndication).toHaveBeenCalledWith('Douleur postopératoire');
+    await waitFor(() => expect(setIndication).toHaveBeenCalledWith('Douleur postopératoire'));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/prescriptions/habits/presets'));
   });
 
   it('prioritizes a medication presentation over a homonymous reusable on Enter', async () => {
