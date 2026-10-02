@@ -4,7 +4,7 @@ from pathlib import Path
 
 from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[2]
 CONTRACT=ROOT/"docs"/"audits"/"schemas"/"cephalo_vnext_lot06_executable_measurement_contract_v1.json"
 
 def load_contract():
