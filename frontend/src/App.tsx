@@ -109,6 +109,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [workstationIdentityRequired, setWorkstationIdentityRequired] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -132,6 +133,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       };
 
       try {
+        setWorkstationIdentityRequired(false);
         await waitForBackend();
         const authStatus = await authService.isAuthenticated();
         setIsAuthenticated(authStatus);
@@ -145,9 +147,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             safeStorage.set('appMode', 'prod');
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erreur vérification statut:', error);
-        setIsInitialized(false);
+        const detail = error?.response?.data?.detail;
+        if (error?.response?.status === 423 && detail === 'WORKSTATION_IDENTITY_REQUIRED') {
+          setWorkstationIdentityRequired(true);
+          setIsInitialized(null);
+        } else {
+          setIsInitialized(false);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -164,6 +172,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!isAuthenticated) {
     if (['/login', '/register', '/terms', '/privacy'].includes(location.pathname)) return <>{children}</>;
     return <Navigate to="/login" replace />;
+  }
+
+  if (workstationIdentityRequired) {
+    return <Navigate to="/hub?enroll=1" replace />;
   }
 
   // Force le choix du mode s'il n'existe pas (Mode PROD par défaut désormais)
