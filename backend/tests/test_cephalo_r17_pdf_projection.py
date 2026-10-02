@@ -330,3 +330,47 @@ def test_pdf_projection_complete_gate_requires_validation_and_zero_blockers(monk
     assert result["clinical_validation_available"] is True
     assert result["blocking_gates"] == []
     assert result["document_state"] == "COMPLETE"
+
+
+def test_pdf_projection_carries_canonical_measurement_authority_from_runtime_read(monkeypatch):
+    monkeypatch.setattr(
+        projection,
+        "project_runtime_chain_read_path",
+        lambda payload, patient_id: {
+            "scientific_read_path": {
+                "active_chain": "VERIFIED",
+                "canonical_measurements": [
+                    {
+                        "canonical_measurement_id": "M_SNA_DEG_V1",
+                        "value": 81.5,
+                        "unit": "deg",
+                        "availability_status": "AVAILABLE",
+                        "value_authority_method_id": "STEINER_SNA_DEG_V1",
+                        "method_ids": ["STEINER_SNA_DEG_V1"],
+                        "measurement_refs": ["measurement:test:SNA"],
+                    }
+                ],
+                "blocked_method_ids": ["DOWNS_FACIAL_ANGLE_DEG_V1"],
+                "unmapped_method_ids": ["DOWNS_Y_AXIS_DEG_V1"],
+            }
+        },
+    )
+    monkeypatch.setattr(projection, "deserialize_evidence_snapshot", lambda payload: object())
+    monkeypatch.setattr(
+        projection,
+        "validate_active_runtime_chain",
+        lambda payload, graph: type("Chain", (), {"measurements": {}})(),
+    )
+    monkeypatch.setattr(
+        projection,
+        "build_r15_clinical_studio_snapshot",
+        lambda **kwargs: _studio(active=True),
+    )
+    result = projection.build_cephalo_pdf_projection(
+        patient_id=7,
+        analysis_id=9,
+        angles_data={EVIDENCE_GRAPH_KEY: {"contract": "typed"}},
+    )
+    assert result["canonical_measurements"][0]["canonical_measurement_id"] == "M_SNA_DEG_V1"
+    assert result["canonical_blocked_method_ids"] == ["DOWNS_FACIAL_ANGLE_DEG_V1"]
+    assert result["canonical_unmapped_method_ids"] == ["DOWNS_Y_AXIS_DEG_V1"]
