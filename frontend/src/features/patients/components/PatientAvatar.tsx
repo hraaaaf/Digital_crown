@@ -8,6 +8,7 @@ type PatientAvatarProps = {
   patientId: number | string;
   firstName?: string | null;
   lastName?: string | null;
+  fullName?: string | null;
   photoUrl?: string | null;
   resolveFromDirectory?: boolean;
   className?: string;
@@ -45,6 +46,7 @@ export function PatientAvatar({
   patientId,
   firstName,
   lastName,
+  fullName,
   photoUrl,
   resolveFromDirectory = false,
   className,
@@ -58,10 +60,16 @@ export function PatientAvatar({
   const blobUrlRef = useRef<string | null>(null);
 
   const initials = useMemo(() => {
+    if (fullName?.trim()) {
+      const parts = fullName.trim().split(/\s+/);
+      const first = parts[0]?.charAt(0) || '';
+      const last = parts.length > 1 ? parts[parts.length - 1]?.charAt(0) || '' : '';
+      return (first + last).toUpperCase() || 'P';
+    }
     const first = (firstName || '').trim().charAt(0);
     const last = (lastName || '').trim().charAt(0);
     return (first + last).toUpperCase() || 'P';
-  }, [firstName, lastName]);
+  }, [firstName, fullName, lastName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,7 +155,7 @@ export function PatientAvatar({
         'relative shrink-0 overflow-hidden bg-primary/10 text-primary flex items-center justify-center font-black',
         className,
       )}
-      aria-label={blobUrl ? `Photo de ${firstName || ''} ${lastName || ''}`.trim() : 'Initiales du patient'}
+      aria-label={blobUrl ? `Photo de ${fullName || `${firstName || ''} ${lastName || ''}`}`.trim() : 'Initiales du patient'}
     >
       {blobUrl ? (
         <img
