@@ -32,6 +32,26 @@ async function imageFromSource(src: string): Promise<HTMLImageElement> {
   });
 }
 
+export function computeCropGeometry(
+  naturalWidth: number,
+  naturalHeight: number,
+  zoom: number,
+  offsetX: number,
+  offsetY: number,
+  size = 768,
+) {
+  const baseScale = Math.max(size / naturalWidth, size / naturalHeight);
+  const scale = baseScale * zoom;
+  const drawnWidth = naturalWidth * scale;
+  const drawnHeight = naturalHeight * scale;
+  // Keep the JPEG geometry aligned with the CSS preview:
+  // scale(zoom) translate(offset / zoom %) produces a final translation equal
+  // to offset% of the square preview box, independent of zoom.
+  const x = (size - drawnWidth) / 2 + (offsetX / 100) * size;
+  const y = (size - drawnHeight) / 2 + (offsetY / 100) * size;
+  return { drawnWidth, drawnHeight, x, y };
+}
+
 async function cropToJpeg(
   src: string,
   zoom: number,
@@ -46,14 +66,14 @@ async function cropToJpeg(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Recadrage indisponible');
 
-  const baseScale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
-  const scale = baseScale * zoom;
-  const drawnWidth = image.naturalWidth * scale;
-  const drawnHeight = image.naturalHeight * scale;
-  const overflowX = Math.max(0, drawnWidth - size);
-  const overflowY = Math.max(0, drawnHeight - size);
-  const x = (size - drawnWidth) / 2 + (offsetX / 100) * (overflowX / 2);
-  const y = (size - drawnHeight) / 2 + (offsetY / 100) * (overflowY / 2);
+  const { drawnWidth, drawnHeight, x, y } = computeCropGeometry(
+    image.naturalWidth,
+    image.naturalHeight,
+    zoom,
+    offsetX,
+    offsetY,
+    size,
+  );
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, size, size);
@@ -88,6 +108,7 @@ export function PatientPhotoEditor({
   const [crop, setCrop] = useState<CropState | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [photoLoadError, setPhotoLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState(1);
@@ -142,6 +163,7 @@ export function PatientPhotoEditor({
       revokeObjectUrl(previewUrlRef.current);
       previewUrlRef.current = null;
       setPreviewUrl(null);
+      setPhotoLoadError('');
       return;
     }
 
@@ -152,11 +174,12 @@ export function PatientPhotoEditor({
         revokeObjectUrl(previewUrlRef.current);
         previewUrlRef.current = next;
         setPreviewUrl(next);
+        setPhotoLoadError('');
       })
       .catch(() => {
         if (!cancelled) {
           setPreviewUrl(null);
-          setHasPhoto(false);
+          setPhotoLoadError('La photo existante est momentanément indisponible. Vous pouvez réessayer plus tard, la remplacer ou la supprimer.');
         }
       });
 
@@ -194,11 +217,13 @@ export function PatientPhotoEditor({
     setCrop({ src, sourceName });
     resetCropControls();
     setError('');
+    setCameraError('');
   };
 
   const handleFile = (file?: File) => {
     if (!file) return;
     setError('');
+    setCameraError('');
     if (!ACCEPTED_TYPES.has(file.type)) {
       setError('Format non pris en charge. Utilisez JPEG, PNG ou WebP.');
       return;
@@ -298,6 +323,7 @@ export function PatientPhotoEditor({
     try {
       await api.delete(`/patients/${patientId}/photo`);
       setHasPhoto(false);
+      setPhotoLoadError('');
       revokeObjectUrl(previewUrlRef.current);
       previewUrlRef.current = null;
       setPreviewUrl(null);
@@ -381,9 +407,9 @@ export function PatientPhotoEditor({
         </div>
       </div>
 
-      {(error || cameraError) && (
+      {(error || cameraError || photoLoadError) && (
         <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-          {error || cameraError}
+          {error || cameraError || photoLoadError}
         </p>
       )}
 
