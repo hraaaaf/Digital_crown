@@ -25,8 +25,15 @@ jobs:
     steps:
       - name: Checkout exact LOT E HEAD
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Record exact product HEAD
-        run: echo "PRODUCT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        env:
+          EXPECTED_PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          ACTUAL_PRODUCT_HEAD="$(git rev-parse HEAD)"
+          test "$ACTUAL_PRODUCT_HEAD" = "$EXPECTED_PRODUCT_HEAD"
+          echo "PRODUCT_HEAD=$ACTUAL_PRODUCT_HEAD" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -51,16 +58,16 @@ jobs:
           if (report.phase !== 'AFTER') throw new Error(`Wrong phase ${report.phase}`);
           if (report.invalidCount !== 0) throw new Error(`Invalid captures ${report.invalidCount}`);
           if (report.blockedExternalRequests.length !== 0) throw new Error('Unexpected external egress');
-          if (report.captures.length !== 3) throw new Error('Expected three viewports');
+          if (report.captures.length !== 5) throw new Error('Expected four viewports plus 200% zoom proof');
           for (const c of report.captures) {
             if (!c.valid) throw new Error(`Invalid ${c.viewport}`);
             if (c.pageErrors.length || c.consoleErrors.length) throw new Error(`Runtime errors ${c.viewport}`);
             if (c.closed.scrollWidth > c.closed.innerWidth + 1 || c.open.scrollWidth > c.open.innerWidth + 1) throw new Error(`Overflow ${c.viewport}`);
             if (c.closed.bellCount !== 1) throw new Error(`Bell count ${c.viewport}`);
-            if (!c.open.hasCenter || !c.open.hasClinical || !c.open.hasTreasury || !c.open.hasTruth) throw new Error(`Connect Hub semantics ${c.viewport}`);
+            if (!c.open.hasCenter || !c.open.hasClinical || !c.open.hasNoPatientName || !c.open.hasTreasury || !c.open.hasTruth) throw new Error(`Connect Hub semantics/privacy ${c.viewport}`);
           }
           NODE
-          for viewport in 390x844 768x1024 1280x900; do
+          for viewport in 390x844 430x932 768x1024 1280x900 1280x900-zoom200; do
             test -s "connect-hub-e-after-artifacts/after-shell-${viewport}.png"
             test -s "connect-hub-e-after-artifacts/after-bell-open-${viewport}.png"
           done
