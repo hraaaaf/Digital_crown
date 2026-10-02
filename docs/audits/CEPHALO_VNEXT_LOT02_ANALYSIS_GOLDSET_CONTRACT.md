@@ -110,7 +110,7 @@ The previous missing-corpus blocker is resolved by material evidence:
 
 - Aariz official archive verified by exact size and MD5.
 - 1000 cases frozen as 700 train / 150 valid / 150 test with paired Junior/Senior expert-group annotations.
-- Manifest V2 records image SHA-256, dimensions, annotation SHA-256 and split membership; local frozen manifest SHA-256: `d7191e61ff3ddd58ee8598c9f98cce1b71d5ebc7151b2975534ee644175181ff`.
+- Manifest V2 records image SHA-256, dimensions, annotation SHA-256 and split membership; local frozen manifest SHA-256: `73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df`.
 - 29,000 paired annotations were calibrated in mm and deterministically classified: 27,248 CONSENSUS_CANDIDATE; 1,309 REVIEW_REQUIRED; 441 ADJUDICATION_REQUIRED; 2 STRUCTURAL_INVALID.
 - Sentinel measurement agreement is frozen for SNA, SNB, ANB, FMA, IMPA, FMIA, SN-GoGn, Co-A and Co-Gn across all 1000 cases; no computation failures.
 - Aariz publication source-locks intra-observer repeatability evidence (DOI 10.1038/s41597-025-05542-3); executable DC evidence remains the downloaded Junior/Senior corpus.
