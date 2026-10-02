@@ -1,4 +1,5 @@
 name: D5 Medication Search Ranking
+# Exact-head D5 convergence gate
 
 on:
   push:
