@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PatientAvatar } from './PatientAvatar';
 import { api } from '../../../services/api';
 import { usePatientStore } from '../../../stores/usePatientStore';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 vi.mock('../../../services/api', () => ({
   api: { get: vi.fn() },
@@ -14,6 +15,12 @@ beforeEach(() => {
     patientsCache: [],
     patientsCacheLoaded: false,
     patientsCacheUpdatedAt: 0,
+  });
+  useAuthStore.setState({
+    user: { role: 'ADMIN', is_superadmin: false } as any,
+    isAuthenticated: true,
+    isLoading: false,
+    error: null,
   });
   vi.stubGlobal('URL', {
     createObjectURL: vi.fn(() => 'blob:patient-avatar'),
@@ -47,11 +54,31 @@ describe('PatientAvatar', () => {
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to initials on a 404 or 503 read failure', async () => {
-    vi.mocked(api.get).mockRejectedValue({ response: { status: 503 } });
+  it.each([404, 503])('falls back to initials on a %s read failure', async status => {
+    vi.mocked(api.get).mockRejectedValue({ response: { status } });
     render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" photoUrl="/api/patients/7/photo" />);
     await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB');
+  });
+
+  it('never fetches a direct canonical photo without patients permission', async () => {
+    useAuthStore.setState({
+      user: { role: 'SECRETAIRE', permissions: { agenda: true, patients: false } } as any,
+      isAuthenticated: true,
+    });
+    render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" photoUrl="/api/patients/7/photo" />);
+    await waitFor(() => expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB'));
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it('never resolves the patient directory without patients permission', async () => {
+    useAuthStore.setState({
+      user: { role: 'SECRETAIRE', permissions: { agenda: true, patients: false } } as any,
+      isAuthenticated: true,
+    });
+    render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" resolveFromDirectory />);
+    await waitFor(() => expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB'));
+    expect(api.get).not.toHaveBeenCalled();
   });
 
   it('revokes ObjectURLs when the patient changes', async () => {
@@ -77,6 +104,35 @@ describe('PatientAvatar', () => {
     await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByLabelText(/Photo de Nora Amrani/)).toBeTruthy());
     expect(screen.queryByLabelText(/Photo de Sara Benali/)).toBeNull();
+  });
+
+  it('revokes a late ObjectURL when unmounted before the photo response resolves', async () => {
+    let resolvePhoto!: (value: unknown) => void;
+    vi.mocked(api.get).mockImplementationOnce(() => new Promise(resolve => { resolvePhoto = resolve; }) as never);
+    const view = render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" photoUrl="/api/patients/7/photo" />);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/7/photo', expect.objectContaining({ responseType: 'blob' })));
+    view.unmount();
+    resolvePhoto({ data: new Blob(['jpeg'], { type: 'image/jpeg' }) });
+    await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:patient-avatar'));
+  });
+
+  it('deduplicates the patient directory request across agenda-like avatars', async () => {
+    vi.mocked(api.get).mockImplementation(((url: string) => {
+      if (url === '/patients/') {
+        return Promise.resolve({ data: [
+          { id: 7, nom: 'BENALI', prenom: 'Sara', photo_url: '/api/patients/7/photo' },
+          { id: 8, nom: 'AMRANI', prenom: 'Nora', photo_url: '/api/patients/8/photo' },
+        ] });
+      }
+      return Promise.resolve({ data: new Blob(['jpeg'], { type: 'image/jpeg' }) });
+    }) as never);
+    render(<>
+      <PatientAvatar patientId={7} firstName="Sara" lastName="Benali" resolveFromDirectory />
+      <PatientAvatar patientId={8} firstName="Nora" lastName="Amrani" resolveFromDirectory />
+    </>);
+    await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(call => call[0] === '/patients/')).toHaveLength(1));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/7/photo', expect.objectContaining({ responseType: 'blob' })));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/8/photo', expect.objectContaining({ responseType: 'blob' })));
   });
 
   it('resolves photo presence from the patient contract for agenda-like surfaces', async () => {
