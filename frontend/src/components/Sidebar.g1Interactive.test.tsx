@@ -59,7 +59,7 @@ describe('Sidebar G1 navigation matrix', () => {
   it('renders authorized cabinet navigation and alert badge from backend truth', async () => {
     renderSidebar();
 
-    expect(screen.getByRole('link', { name: /Tableau de bord/i }).getAttribute('href')).toBe('/dashboard');
+    expect(screen.getByRole('link', { name: 'Tableau de bord' }).getAttribute('href')).toBe('/dashboard');
     expect(screen.getByRole('link', { name: 'Agenda' }).getAttribute('href')).toBe('/agenda');
     expect(screen.getByRole('link', { name: 'Comptabilité' }).getAttribute('href')).toBe('/accounting');
     expect(screen.getByRole('link', { name: 'Patients' }).getAttribute('href')).toBe('/patients');
@@ -104,15 +104,15 @@ describe('Sidebar G1 navigation matrix', () => {
     const toggle = container.querySelector('.sidebar-pin-toggle') as HTMLButtonElement;
 
     expect(toggle.tabIndex).toBe(-1);
-    fireEvent.focus(screen.getByRole('link', { name: 'Digital Crown' }));
+    fireEvent.focus(screen.getByRole('link', { name: 'Digital Crown — Tableau de bord' }));
     expect(shell).toHaveAttribute('data-expanded', 'true');
     expect(toggle.tabIndex).toBe(0);
 
     fireEvent.click(toggle);
     expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('true');
-    expect(screen.getByRole('button', { name: 'R?duire la barre lat?rale' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Réduire la barre latérale' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'R?duire la barre lat?rale' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Réduire la barre latérale' }));
     expect(localStorage.getItem('sidebar_desktop_pinned')).toBe('false');
   });
 
@@ -129,8 +129,8 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(surface?.className).not.toContain('lg:absolute');
     expect(toggle.className).toContain('right-2');
     expect(toggle.className).not.toContain('-right-3');
-    expect(brandImages).toHaveLength(2);
-    expect(brandImages[0].getAttribute('src')).toBe(brandImages[1].getAttribute('src'));
+    expect(brandImages).toHaveLength(1);
+    expect(container.querySelector('.sidebar-brand-compact svg.lucide-crown')).toBeTruthy();
 
     fireEvent.click(toggle);
     expect(shell?.className).toContain('lg:w-72');
@@ -155,11 +155,11 @@ describe('Sidebar G1 navigation matrix', () => {
     const { container } = renderSidebar();
     const shell = container.querySelector('.sidebar-shell');
     const toggle = container.querySelector('.sidebar-pin-toggle') as HTMLButtonElement;
-    const logoLink = screen.getByRole('link', { name: 'Digital Crown' });
+    const logoLink = screen.getByRole('link', { name: 'Digital Crown — Tableau de bord' });
 
     expect(toggle.tabIndex).toBe(-1);
     expect(toggle).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.queryByRole('button', { name: 'D?ployer la barre lat?rale' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Déployer la barre latérale' })).toBeNull();
 
     fireEvent.focus(logoLink);
     expect(shell).toHaveAttribute('data-expanded', 'true');
