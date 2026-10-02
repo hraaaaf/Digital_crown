@@ -46,3 +46,20 @@ Before inference:
 4. validate 38-output shape and mapping identity;
 5. create a new immutable benchmark manifest bound to the existing LOT02 corpus/QC/calibration/human-agreement artifacts and `REFERENCE_EQUIVALENCE_V1`;
 6. run one untouched pass only.
+
+
+## Aborted preprocessing compatibility attempt
+A first technical score process was started from the initial candidate manifest but terminated with no results artifact when an Aariz grayscale image was encountered. No candidate performance metric or prediction artifact was produced or inspected.
+
+A pre-performance corpus modality inventory then established:
+- 820 RGB images;
+- 178 8-bit grayscale images;
+- 2 16-bit grayscale images;
+- untouched test split: 124 RGB + 26 grayscale.
+
+Before any scored rerun, the input compatibility rule is frozen as:
+- RGB: unchanged;
+- any 2D grayscale: replicate the same intensity plane into three identical RGB channels;
+- no contrast adjustment, histogram manipulation, normalization tuning, cropping, or threshold change.
+
+This is a structural input-compatibility fix, not performance-driven tuning. The failed process is recorded as `ABORTED_PREPROCESSING_COMPATIBILITY_RUN`, not as a completed untouched benchmark.
