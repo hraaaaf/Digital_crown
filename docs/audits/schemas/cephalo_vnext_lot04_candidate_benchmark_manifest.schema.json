@@ -25,6 +25,7 @@
         "candidate_id",
         "artifact_name",
         "artifact_sha256",
+        "model_sha256",
         "artifact_size_bytes",
         "source_repository",
         "source_commit",
@@ -90,6 +91,10 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "source_inference_file_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "model_sha256": {
           "type": "string",
           "pattern": "^[a-f0-9]{64}$"
         }
