@@ -2,7 +2,7 @@
 
 Status: CANDIDATE — documentation only
 Parent: LOT01 candidate 8b722dd5686536997642ea07836bee6588de731a
-Gate target: CEPH_GOLDSET_CONTRACT_LOCKED
+Gate target: CEPH_GOLDSET_READY
 
 ## Goal
 Define exactly what Cephalo 2.0 must prove before detector/schema implementation: analysis coverage, blocked dependencies, and a reproducible gold-set protocol.
@@ -90,8 +90,20 @@ Validation datasets are separated from development/training data. Gold-set cases
 Geometric truth and normative truth are separate. LEGACY_UNVALIDATED remains untrusted for new claims. Aariz supplies no DC norms. Historical author values remain contextual until population/age/sex/scaling applicability is locked. Conflicts remain HOLD, never averaged.
 
 ## Gate
-CEPH_GOLDSET_CONTRACT_LOCKED requires LOT01 locked, reviewed coverage, accepted G0-G3, reviewed metric/tolerance policy, a pre-registered ground-truth/adjudication protocol, and zero runtime/master mutation.
+CEPH_GOLDSET_READY requires LOT01 locked, reviewed coverage, accepted G0-G3, reviewed metric/tolerance policy, a pre-registered ground-truth/adjudication protocol, and zero runtime/master mutation.
 
 Before any benchmark run, a machine-readable validation manifest must freeze: case IDs/hashes, split membership, landmark-definition versions, analysis versions, calibration provenance, annotator roles, adjudication rule, metrics, tolerance-policy version, candidate model/checkpoint IDs and preprocessing version. Benchmark outputs must be write-once/versioned evidence and must never mutate this manifest.
 
 This document authorizes no model training, patient export, runtime change, merge to master or deployment.
+
+## Debt-zero gate decision
+
+The repository inspection performed before LOT06 found no frozen executable G1 internal corpus and no frozen representative G3 legacy corpus satisfying this contract. Therefore `CEPH_GOLDSET_READY` is explicitly **NOT SATISFIED** at this revision. This is a hard evidence blocker, not accepted technical debt and not a documentation waiver.
+
+Consequences:
+- no detector may be clinically selected from LOT02 evidence;
+- no anatomical-accuracy claim may be inherited from runtime parity;
+- LOT06 engine geometry may proceed only with G0/manual deterministic landmark fixtures and MUST remain detector-independent;
+- chain-level Cephalo 2.0 certification remains blocked until G1/G3 are materially created, independently reviewed and frozen.
+
+Required unblock proof: immutable G1/G3 case manifests/fixtures, qualified annotator/adjudication provenance where applicable, preregistered tolerances derived from human-reference reproducibility, and executable deterministic comparison evidence.
