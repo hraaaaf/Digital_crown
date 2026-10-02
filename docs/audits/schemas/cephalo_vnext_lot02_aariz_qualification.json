@@ -1,0 +1,71 @@
+{
+  "schema": "CEPHALO_LOT02_AARIZ_QUALIFICATION_V1",
+  "generated_at": "2026-10-02",
+  "source": {
+    "doi": "10.6084/m9.figshare.27986417.v1",
+    "archive_size_bytes": 2098209792,
+    "archive_md5": "e0bd645bca6759abdae4f199d841bda6",
+    "manifest_v2_sha256": "d7191e61ff3ddd58ee8598c9f98cce1b71d5ebc7151b2975534ee644175181ff",
+    "cases": 1000,
+    "splits": {
+      "train": 700,
+      "valid": 150,
+      "test": 150
+    },
+    "landmark_pairs": 29000
+  },
+  "qc_policy": {
+    "consensus_candidate_max_mm": 2,
+    "review_required_max_mm": 4,
+    "thresholds_are_clinical_acceptance": false,
+    "auto_midpoint_only_for": "CONSENSUS_CANDIDATE",
+    "unresolved_pairs_are_not_exact_ground_truth": true
+  },
+  "qc_counts": {
+    "CONSENSUS_CANDIDATE": 27248,
+    "REVIEW_REQUIRED": 1309,
+    "ADJUDICATION_REQUIRED": 441,
+    "STRUCTURAL_INVALID": 2
+  },
+  "split_counts": {
+    "train": {
+      "CONSENSUS_CANDIDATE": 19062,
+      "REVIEW_REQUIRED": 948,
+      "ADJUDICATION_REQUIRED": 288,
+      "STRUCTURAL_INVALID": 2
+    },
+    "valid": {
+      "CONSENSUS_CANDIDATE": 4085,
+      "REVIEW_REQUIRED": 194,
+      "ADJUDICATION_REQUIRED": 71,
+      "STRUCTURAL_INVALID": 0
+    },
+    "test": {
+      "CONSENSUS_CANDIDATE": 4101,
+      "REVIEW_REQUIRED": 167,
+      "ADJUDICATION_REQUIRED": 82,
+      "STRUCTURAL_INVALID": 0
+    }
+  },
+  "g1_design": {
+    "G1A": "Consensus gold: exact reference only for qualified consensus pairs. No automatic truth for unresolved pairs.",
+    "G1B": "Ambiguity stress set: REVIEW_REQUIRED / ADJUDICATION_REQUIRED / STRUCTURAL_INVALID retained and reported; never silently averaged.",
+    "anti_bias": "All excluded-from-exact-reference pairs remain in the stress-set denominator and reporting. Detector performance may not be summarized from G1A alone without G1B coverage/failure disclosure."
+  },
+  "detector_provenance": {
+    "source_repo": "5k5000/CLdetection2023",
+    "source_commit": "18d17d1934970016e7610c4849311900b8d1f191",
+    "source_weight_sha256": "fb1a781ac1c83149b379cb15724e3b0fae06ba2d567978f35c61e9d06b46fdcc",
+    "digital_crown_frozen_checkpoint_sha256": "fb1a781ac1c83149b379cb15724e3b0fae06ba2d567978f35c61e9d06b46fdcc",
+    "byte_for_byte_match": true,
+    "documented_training_source": "CLDetection2023 train_stack.mha + train-gt.json; published pretrained weight described as train+val",
+    "aariz_reference_in_source_repo": false,
+    "provenance_scope": "Repository/config/README and byte identity prove the published source weight lineage. This does not prove absence of undocumented external data outside the published training procedure."
+  },
+  "gate_effect": {
+    "g1_public_reference": "QUALIFIED_WITH_DUAL_TRACK_G1A_G1B",
+    "g3_legacy_fixture": "PRESENT_AND_EXECUTABLE",
+    "detector_selection": "NOT_GRANTED_BY_THIS_RECORD",
+    "clinical_acceptance": "NOT_GRANTED_BY_THIS_RECORD"
+  }
+}
