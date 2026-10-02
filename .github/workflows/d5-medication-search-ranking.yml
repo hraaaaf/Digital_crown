@@ -36,7 +36,18 @@ jobs:
           for q in ("DOL", "DOLIPRANE", "AMOX", "IBUPROFENE"):
               results = medication_dict.search_unified(q, limit=10)
               print(q, [r["nom"] for r in results[:10]])
-          dol = medication_dict.search_unified("DOL", limit=10)
-          assert dol and dol[0]["nom"].upper().startswith("DOL")
-          assert any(r["nom"].upper().startswith("DOLIPRANE") for r in dol[:5])
+          dol = medication_dict.search_unified("DOL", limit=100)
+          assert dol and all(r["nom"].upper().startswith("DOL") for r in dol[:10])
+          doliprane = medication_dict.search_unified("DOLIPRANE", limit=10)
+          assert doliprane and doliprane[0]["nom"].upper() == "DOLIPRANE"
+          amox = medication_dict.search_unified("AMOX", limit=10)
+          assert amox and all(
+              r["nom"].upper().startswith("AMOX") or r["dci"].upper().startswith("AMOX")
+              for r in amox
+          )
+          ibuprofen = medication_dict.search_unified("IBUPROFENE", limit=10)
+          assert ibuprofen and all(
+              r["nom"].upper().startswith("IBUPROFENE") or r["dci"].upper().startswith("IBUPROFENE")
+              for r in ibuprofen
+          )
           PY
