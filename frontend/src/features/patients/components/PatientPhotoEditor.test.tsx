@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PatientPhotoEditor, computeCropGeometry } from './PatientPhotoEditor';
 import { api } from '../../../services/api';
+import { usePatientStore } from '../../../stores/usePatientStore';
 
 vi.mock('../../../services/api', () => ({
   api: {
@@ -13,6 +14,7 @@ vi.mock('../../../services/api', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  usePatientStore.setState({ patientsCache: [], patientsCacheLoaded: false, patientsCacheUpdatedAt: 0 });
   vi.stubGlobal('URL', {
     createObjectURL: vi.fn(() => 'blob:photo-preview'),
     revokeObjectURL: vi.fn(),
@@ -82,6 +84,11 @@ describe('PatientPhotoEditor', () => {
   });
 
   it('deletes the canonical photo binding without false success', async () => {
+    usePatientStore.setState({
+      patientsCache: [{ id: 7, nom: 'BENALI', prenom: 'Sara', photo_url: '/api/patients/7/photo' } as any],
+      patientsCacheLoaded: true,
+      patientsCacheUpdatedAt: Date.now(),
+    });
     vi.mocked(api.get).mockResolvedValue({ data: new Blob(['jpeg'], { type: 'image/jpeg' }) } as never);
     vi.mocked(api.delete).mockResolvedValue({ status: 204 } as never);
     render(<PatientPhotoEditor patientId={7} firstName="Sara" lastName="Benali" initialHasPhoto />);
@@ -89,5 +96,6 @@ describe('PatientPhotoEditor', () => {
     fireEvent.click(remove);
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/patients/7/photo'));
     await waitFor(() => expect(screen.queryByRole('button', { name: /Supprimer/i })).toBeNull());
+    expect(usePatientStore.getState().patientsCache[0]?.photo_url).toBeNull();
   });
 });
