@@ -13,6 +13,7 @@ import {
   Store,
   PanelLeftClose,
   PanelLeftOpen,
+  Crown,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
@@ -258,8 +259,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           aria-pressed={desktopPinned}
           aria-hidden={!desktopExpanded}
           tabIndex={desktopExpanded ? 0 : -1}
-          aria-label={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
-          title={desktopPinned ? 'R?duire la barre lat?rale' : 'D?ployer la barre lat?rale'}
+          aria-label={desktopPinned ? 'Réduire la barre latérale' : 'Déployer la barre latérale'}
+          title={desktopPinned ? 'Réduire la barre latérale' : 'Déployer la barre latérale'}
         >
           {desktopPinned ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
         </button>
@@ -268,10 +269,10 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         <div className="sidebar-logo-wrap p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo transition-all duration-200">
           <Link 
             to="/dashboard" 
-            className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+            className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar" aria-label="Digital Crown — Tableau de bord"
           >
-            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm overflow-hidden" aria-hidden="true">
-              <img src={Logo} alt="" className="absolute left-1/2 top-[-8px] w-[180px] max-w-none -translate-x-1/2 object-contain" />
+            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 text-primary shadow-sm" aria-hidden="true">
+              <Crown size={22} strokeWidth={1.8} />
             </span>
             <img 
               src={Logo} 
