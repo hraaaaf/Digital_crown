@@ -445,7 +445,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 <input
                   type="text"
                   className={cn(
-                    'min-h-11 w-full min-w-0 border-none bg-transparent py-1 text-sm font-black uppercase tracking-tight text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0 sm:text-base',
+                    'min-h-11 w-full min-w-0 border-none bg-transparent py-1 text-[12px] font-black uppercase tracking-tight text-text-main outline-none placeholder:text-text-muted/55 focus:ring-0 sm:text-base',
                     !isRadio && 'pl-5',
                   )}
                   placeholder={isRadio ? "DÉTAILS DE L'EXAMEN RADIOLOGIQUE..." : 'NOM OU DCI DU MÉDICAMENT...'}
