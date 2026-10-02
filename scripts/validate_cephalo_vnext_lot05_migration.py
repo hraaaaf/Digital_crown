@@ -1,4 +1,4 @@
-"""Isolated LOT05 V1<->V2 migration proof harness. Not product runtime."""\nfrom __future__ import annotations\nimport copy\nimport hashlib\nimport json\nfrom datetime import datetime\nfrom typing import Any, Mapping
+"""Isolated LOT05 V1<->V2 migration proof harness. Not product runtime."""\nfrom __future__ import annotations\nimport copy\nimport hashlib\nimport json\nimport math\nfrom datetime import datetime\nfrom typing import Any, Mapping
 
 class Lot05MigrationError(ValueError): pass
 
@@ -36,6 +36,9 @@ def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, heig
         if not isinstance(item,dict) or not isinstance(item.get("evidence_id"),str) or not isinstance(item.get("landmark_id"),str):
             raise Lot05MigrationError("Malformed V1 landmark evidence")
         if item["evidence_id"] in by_ref: raise Lot05MigrationError("Duplicate evidence_id")
+        x,y=item.get("x"),item.get("y")
+        if isinstance(x,bool) or isinstance(y,bool) or not isinstance(x,(int,float)) or not isinstance(y,(int,float)) or not math.isfinite(x) or not math.isfinite(y):
+            raise Lot05MigrationError("Landmark coordinates must be finite numbers")
         by_ref[item["evidence_id"]]=item
     if len(refs)!=len(set(refs)) or any(ref not in by_ref for ref in refs):
         raise Lot05MigrationError("Ambiguous current_landmark_refs")
@@ -47,6 +50,8 @@ def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, heig
     calibration=[s for s in source.get("sources",[]) if isinstance(s,dict) and s.get("kind")=="calibration"]
     if len(calibration)>1: raise Lot05MigrationError("Multiple calibration sources are ambiguous")
     calibration_ref=calibration[0].get("evidence_id") if calibration else None
+    if calibration and (not isinstance(calibration_ref,str) or not calibration_ref):
+        raise Lot05MigrationError("Calibration evidence lacks stable evidence_id")
     source_patient_ids={s.get("patient_id") for s in source.get("sources",[]) if isinstance(s,dict) and isinstance(s.get("patient_id"),int)}
     if source_patient_ids and source_patient_ids != {patient_id}: raise Lot05MigrationError("Patient identity mismatch")
     return {
