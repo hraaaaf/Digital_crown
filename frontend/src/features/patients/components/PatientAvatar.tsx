@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../services/api';
 import { usePatientStore } from '../../../stores/usePatientStore';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import type { Patient } from '../../../types';
 import { cn } from '../../../utils/cn';
+import { hasAccess } from '../../../utils/accessControl';
 
 type PatientAvatarProps = {
   patientId: number | string;
@@ -53,8 +55,10 @@ export function PatientAvatar({
   imageClassName,
   initialsClassName,
 }: PatientAvatarProps) {
+  const user = useAuthStore(state => state.user);
+  const canReadPatientMedia = hasAccess(user, 'patients');
   const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState<string | null>(() =>
-    isCanonicalPhotoUrl(patientId, photoUrl) ? photoUrl! : null,
+    canReadPatientMedia && isCanonicalPhotoUrl(patientId, photoUrl) ? photoUrl! : null,
   );
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
@@ -73,6 +77,11 @@ export function PatientAvatar({
 
   useEffect(() => {
     let cancelled = false;
+
+    if (!canReadPatientMedia) {
+      setResolvedPhotoUrl(null);
+      return () => { cancelled = true; };
+    }
 
     if (photoUrl !== undefined) {
       setResolvedPhotoUrl(isCanonicalPhotoUrl(patientId, photoUrl) ? photoUrl! : null);
@@ -101,7 +110,7 @@ export function PatientAvatar({
       });
 
     return () => { cancelled = true; };
-  }, [patientId, photoUrl, resolveFromDirectory]);
+  }, [canReadPatientMedia, patientId, photoUrl, resolveFromDirectory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +123,7 @@ export function PatientAvatar({
     };
 
     revokeCurrent();
-    if (!resolvedPhotoUrl || !isCanonicalPhotoUrl(patientId, resolvedPhotoUrl)) {
+    if (!canReadPatientMedia || !resolvedPhotoUrl || !isCanonicalPhotoUrl(patientId, resolvedPhotoUrl)) {
       return () => {
         cancelled = true;
         controller.abort();
@@ -145,10 +154,10 @@ export function PatientAvatar({
       if (blobUrlRef.current?.startsWith('blob:')) URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = null;
     };
-  }, [patientId, resolvedPhotoUrl]);
+  }, [canReadPatientMedia, patientId, resolvedPhotoUrl]);
 
   return (
-    <div
+    <span
       data-patient-avatar
       data-photo-state={blobUrl ? 'photo' : 'initials'}
       className={cn(
@@ -167,6 +176,6 @@ export function PatientAvatar({
       ) : (
         <span className={initialsClassName}>{initials}</span>
       )}
-    </div>
+    </span>
   );
 }
