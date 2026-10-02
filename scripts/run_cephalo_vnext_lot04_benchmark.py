@@ -13,6 +13,7 @@ import numpy as np
 import onnxruntime as ort
 
 from backend.services.srpose38_pipeline import prepare_srpose38_input, decode_srpose38_heatmaps
+from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
 from scripts.validate_cephalo_vnext_lot04_contract import (
     canonical_json_sha256, validate_manifest_semantics, validate_acceptance_semantics,
 )
@@ -36,6 +37,8 @@ AARIZ_TO_DC={
 "N\u0060":"N_soft","Pog\u0060":"Pog_soft","Sn":"Sn_soft",
 }
 DC_TO_AARIZ={v:k for k,v in AARIZ_TO_DC.items()}
+if INDEX_TO_DC != SOTA_LANDMARKS_MAPPING:
+    raise RuntimeError("LOT04 benchmark mapping drifted from runtime SOTA_LANDMARKS_MAPPING")
 SENTINELS=("SNA","SNB","ANB","FMA","IMPA","FMIA","SN-GoGn","Co-A","Co-Gn")
 REQ={
 "SNA":{"S","N","A"},"SNB":{"S","N","B"},"ANB":{"S","N","A","B"},
@@ -210,7 +213,10 @@ def score(args):
           "signed_bias":bias,"absolute_error":s,"decision":decision}
         clinical_accept.append({"measurement_id":mid,"n":len(absolute),"signed_bias":bias,
           "absolute_error":None if not s else s["p95"],"decision":decision})
-    overall="PASS" if all(x["decision"]=="PASS" for x in lm_accept+clinical_accept) else "FAIL"
+    decisions=[x["decision"] for x in lm_accept+clinical_accept]
+    if all(d=="PASS" for d in decisions): overall="PASS"
+    elif "FAIL" in decisions: overall="FAIL"
+    else: overall="INSUFFICIENT_EVIDENCE"
     evidence={"schema":"CEPHALO_LOT04_BENCHMARK_RESULTS_V1","manifest_sha256":canonical_json_sha256(manifest),
       "candidate_model_sha256":MODEL_SHA256,"acceptance_cases":len(acceptance),
       "latency_seconds":summary(latencies),"landmarks":lm_results,"clinical_measurements":clinical_results,
