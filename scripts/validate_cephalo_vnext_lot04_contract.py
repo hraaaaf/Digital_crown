@@ -38,7 +38,8 @@ def validate_acceptance_semantics(record: Mapping[str, Any], manifest: Mapping[s
     expected_manifest = canonical_json_sha256(manifest)
     if record["manifest_sha256"] != expected_manifest:
         raise Lot04ContractError("acceptance record manifest_sha256 mismatch")
-    if record["candidate_model_sha256"] != manifest["candidate"]["model_sha256"]:
+    candidate_hash = manifest["candidate"].get("model_sha256") or manifest["candidate"].get("artifact_sha256")
+    if record["candidate_model_sha256"] != candidate_hash:
         raise Lot04ContractError("acceptance record candidate_model_sha256 mismatch")
 
     landmarks = record["landmarks"]
@@ -52,6 +53,8 @@ def validate_acceptance_semantics(record: Mapping[str, Any], manifest: Mapping[s
     overall = record["overall_decision"]
     landmark_decisions = [item["decision"] for item in landmarks]
     clinical_decisions = [item["decision"] for item in clinical]
+    device_strata = record.get("device_strata", [])
+    hard_device_decisions = [item["decision"] for item in device_strata if item.get("gate_status") == "HARD_GATE"]
 
     policy = manifest["acceptance_policy"]
     landmark_tolerances = {item["landmark_id"]: item for item in policy["landmark_tolerances"]}
@@ -73,6 +76,8 @@ def validate_acceptance_semantics(record: Mapping[str, Any], manifest: Mapping[s
             raise Lot04ContractError("overall PASS requires human-reference uncertainty")
         if any(decision != "PASS" for decision in clinical_decisions):
             raise Lot04ContractError("overall PASS cannot hide a non-passing clinical measurement")
+        if any(decision != "PASS" for decision in hard_device_decisions):
+            raise Lot04ContractError("overall PASS cannot hide a hard-gated device failure")
         for item in landmarks:
             tolerance = landmark_tolerances.get(item["landmark_id"])
             if tolerance is None:
@@ -91,7 +96,7 @@ def validate_acceptance_semantics(record: Mapping[str, Any], manifest: Mapping[s
                 raise Lot04ContractError("clinical PASS exceeds preregistered tolerance")
 
     if overall == "FAIL":
-        if "FAIL" not in landmark_decisions and "FAIL" not in clinical_decisions:
+        if "FAIL" not in landmark_decisions and "FAIL" not in clinical_decisions and "FAIL" not in hard_device_decisions:
             raise Lot04ContractError("overall FAIL requires an explicit failing component")
 
     if overall == "INSUFFICIENT_EVIDENCE":
