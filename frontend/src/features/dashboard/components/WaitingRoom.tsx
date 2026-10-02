@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { cn } from '../../../utils/cn';
 import { dashboardItemVariants } from '../animations';
 import type { DashboardAppointment } from '../types';
+import { PatientAvatar } from '../../patients/components/PatientAvatar';
 
 export const WaitingRoom = ({
   visible,
@@ -124,6 +125,16 @@ export const WaitingRoom = ({
                       <div className="shrink-0 text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
                         {appointmentTime}
                       </div>
+                      {(appointment.patient?.id || appointment.patient_id) ? (
+                        <PatientAvatar
+                          patientId={appointment.patient?.id || appointment.patient_id!}
+                          firstName={appointment.patient?.prenom}
+                          lastName={appointment.patient?.nom}
+                          photoUrl={appointment.patient?.photo_url}
+                          resolveFromDirectory={appointment.patient?.photo_url === undefined}
+                          className="w-10 h-10 rounded-xl text-xs border border-primary/10"
+                        />
+                      ) : null}
                       <div className="min-w-0">
                         <h4 className="text-sm font-black text-primary font-outfit break-words">
                           {appointment.patient ? `${appointment.patient.nom.toUpperCase()} ${appointment.patient.prenom}` : 'Patient non spécifié'}
