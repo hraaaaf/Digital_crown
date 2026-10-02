@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from backend.schemas.cephalo_evidence import LandmarkEvidence, SourceEvidence
 
@@ -323,3 +324,11 @@ def test_evidence_ids_must_be_globally_unique_across_sources_and_landmarks():
     source["landmarks"][0]["evidence_refs"] = [source["sources"][0]["evidence_id"]]
     with pytest.raises(Lot05MigrationError):
         migrate(source)
+
+
+def test_generated_v2_artifact_validates_against_draft_2020_12_schema():
+    schema_path = Path("docs/audits/schemas/cephalo_vnext_lot05_canonical_v2.schema.json")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    errors = sorted(Draft202012Validator(schema).iter_errors(migrate()), key=lambda error: list(error.absolute_path))
+    assert errors == []
