@@ -74,3 +74,4 @@ def test_lot06_non_promoted_entries_are_explicitly_fail_closed():
     assert reasons["M_LI_EPLANE_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
     assert reasons["M_LS_EPLANE_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
     assert reasons["M_FACIAL_AXIS_RICKETTS_DEG_V1"]=="BLOCKED_LANDMARK"
+    assert reasons["M_FACIAL_ANGLE_NPOG_FH_DEG_V1"]=="ANGLE_CONVENTION_COLLISION"
