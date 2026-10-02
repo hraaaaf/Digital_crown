@@ -123,14 +123,19 @@ describe('Sidebar G1 navigation matrix', () => {
     const shell = container.querySelector('.sidebar-shell');
     const surface = container.querySelector('.sidebar-shell > div');
     const toggle = container.querySelector('.sidebar-pin-toggle') as HTMLButtonElement;
-    const brandImages = container.querySelectorAll('.sidebar-logo-wrap img');
+    const brandImages = Array.from(container.querySelectorAll('.sidebar-logo-wrap img')) as HTMLImageElement[];
+    const compactBrandImage = container.querySelector('.sidebar-brand-compact img') as HTMLImageElement | null;
+    const expandedBrandImage = container.querySelector('.sidebar-logo') as HTMLImageElement | null;
 
     expect(shell).toBeTruthy();
     expect(surface?.className).not.toContain('lg:absolute');
     expect(toggle.className).toContain('right-2');
     expect(toggle.className).not.toContain('-right-3');
-    expect(brandImages).toHaveLength(1);
-    expect(container.querySelector('.sidebar-brand-compact svg.lucide-crown')).toBeTruthy();
+    expect(brandImages).toHaveLength(2);
+    expect(compactBrandImage).toBeTruthy();
+    expect(expandedBrandImage).toBeTruthy();
+    expect(compactBrandImage?.getAttribute('src')).toBe(expandedBrandImage?.getAttribute('src'));
+    expect(container.querySelector('.sidebar-brand-compact svg.lucide-crown')).toBeNull();
 
     fireEvent.click(toggle);
     expect(shell?.className).toContain('lg:w-72');
