@@ -97,7 +97,6 @@ async function shot(page, viewport, surface, suffix = '') {
 }
 
 async function text200(page, viewport, surface) {
-  if (viewport.width !== 390) return null;
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   await page.waitForTimeout(150);
   const result = await shot(page, viewport, surface, '-text200');
