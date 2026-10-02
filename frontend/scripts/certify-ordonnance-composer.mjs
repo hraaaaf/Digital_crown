@@ -143,6 +143,7 @@ for (const capture of captures) {
   const cardCount = await cards.count();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   const controls = await page.locator('[data-ordonnance-prescription-composer] button').evaluateAll(nodes => nodes.filter(node => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; }).map(node => node.getBoundingClientRect().height));
+  const medicationNameFits = await page.locator('input[placeholder="NOM OU DCI DU MÉDICAMENT..."]').first().evaluate(node => node.scrollWidth <= node.clientWidth + 1);
   const shot = 'ordonnance-composer-390x844-text-200.png';
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
   const resolvedTheme = await page.evaluate(() => {
@@ -156,9 +157,10 @@ for (const capture of captures) {
       primary: style.getPropertyValue('--primary').trim(),
     };
   });
-  captures.push({ viewport: { width: 390, height: 844 }, themeMode: 'tokens-default', resolvedTheme, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, pageErrors });
+  captures.push({ viewport: { width: 390, height: 844 }, themeMode: 'tokens-default', resolvedTheme, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, medicationNameFits, pageErrors });
   if (cardCount !== 2) failures.push(`390-text200: expected 2 cards, got ${cardCount}`);
   if (overflow) failures.push('390-text200: horizontal overflow');
+  if (!medicationNameFits) failures.push('390-text200: medication name is visually clipped');
   if (controls.length && Math.min(...controls) < 43.5) failures.push(`390-text200: control height ${Math.min(...controls)}`);
   if (pageErrors.length) failures.push(`390-text200: page errors ${pageErrors.join(' | ')}`);
   await context.close();
