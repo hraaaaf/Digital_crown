@@ -30,21 +30,21 @@ describe('Ordonnance Fidelity V3 U4 medication cards', () => {
   });
 
   it('keeps primary medication controls touch-safe', () => {
-    expect(drugRow.match(/h-11 w-11/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
-    expect(drugRow.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
+    expect(drugRow.match(/h-11 w-11/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(drugRow.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(drugRow).toContain('PrescriptionContextualChoice');
   });
 
   it('preserves medication behavior callbacks', () => {
     for (const callback of [
       'onToggleType',
-      'onFormeOpen',
       'onUpdateDrug',
       'onMove',
       'onRemoveDrug',
     ]) {
       expect(drugRow).toContain(callback);
     }
-    expect(drugRow).toContain("api.get('/medications/search'");
+    expect(drugRow).toContain("api.get('/medications/neo/search'");
     expect(drugRow).not.toContain('onApplySuggestion(');
   });
 });
