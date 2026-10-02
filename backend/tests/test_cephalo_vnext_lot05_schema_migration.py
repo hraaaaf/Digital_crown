@@ -275,7 +275,7 @@ def test_machine_readable_v2_schema_contains_gate_invariants():
     required = set(schema["required"])
     assert {"landmark_registry", "current_landmark_refs", "active_landmarks", "coordinate_space", "quality_metadata", "migration"} <= required
     migration_required = set(schema["properties"]["migration"]["required"])
-    assert {"source_sha256", "migration_context_sha256", "migrated_at", "compatibility_class"} <= migration_required
+    assert {"source_sha256", "migration_context_sha256", "migrated_at", "compatibility_class", "opaque_legacy_payload"} <= migration_required
     assert schema["properties"]["coordinate_space"]["properties"]["unit"]["const"] == "px"
     assert schema["properties"]["evidence_graph_version"]["const"] == "_evidence_graph_v1"
     assert schema["properties"]["migration"]["properties"]["compatibility_class"]["const"] == "LOSSLESS_V1"
