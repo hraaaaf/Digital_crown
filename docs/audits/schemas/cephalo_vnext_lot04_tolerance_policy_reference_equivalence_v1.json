@@ -1,0 +1,211 @@
+{
+  "schema_version": "CEPHALO_LOT04_TOLERANCE_POLICY_V1",
+  "policy_id": "REFERENCE_EQUIVALENCE_V1",
+  "status": "APPROVED_BEFORE_CANDIDATE_SCORING",
+  "clinical_validity_claim": false,
+  "universal_2mm_gate": false,
+  "human_gate": "A_APPROVED",
+  "failure_policy": {
+    "max_failure_rate": 0,
+    "fail_open_rate": 0,
+    "note": "Strict engineering selection bar; missing/non-finite/out-of-frame outputs cannot PASS."
+  },
+  "landmark_tolerances": [
+    {
+      "landmark_id": "A",
+      "max_median_mm": 0.288,
+      "max_p95_mm": 1.9657010231233025,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "ANS",
+      "max_median_mm": 0.144,
+      "max_p95_mm": 2.246470841489226,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "B",
+      "max_median_mm": 0.48963983391748545,
+      "max_p95_mm": 2.9266083568619714,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Me",
+      "max_median_mm": 0.7905124837953328,
+      "max_p95_mm": 2.3243801130732997,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "N",
+      "max_median_mm": 0.2,
+      "max_p95_mm": 1.8912056686307173,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Or",
+      "max_median_mm": 0.6000000000000001,
+      "max_p95_mm": 3.4552093187516633,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Pog",
+      "max_median_mm": 0.089,
+      "max_p95_mm": 1.39034663556679,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "PNS",
+      "max_median_mm": 0,
+      "max_p95_mm": 0.9852126552617689,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Prn",
+      "max_median_mm": 0,
+      "max_p95_mm": 1.2826328696375513,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "S",
+      "max_median_mm": 0,
+      "max_p95_mm": 0.45656356730278175,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Ar",
+      "max_median_mm": 0,
+      "max_p95_mm": 2.220360331117452,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Co",
+      "max_median_mm": 0.3219937887599697,
+      "max_p95_mm": 3.40147027033899,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Gn",
+      "max_median_mm": 0.3775950211536163,
+      "max_p95_mm": 1.4177144055576139,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Go",
+      "max_median_mm": 0.8246211251235321,
+      "max_p95_mm": 4.142124257947273,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Po",
+      "max_median_mm": 0.8228970333568959,
+      "max_p95_mm": 4.342256126468342,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "L1_incisal",
+      "max_median_mm": 0.144,
+      "max_p95_mm": 1.4327531312481812,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "U1_apex",
+      "max_median_mm": 0.6293250352560273,
+      "max_p95_mm": 3.7000675552332174,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "U1_incisal",
+      "max_median_mm": 0.144,
+      "max_p95_mm": 1.3912106781186537,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "L1_apex",
+      "max_median_mm": 0.447213595499958,
+      "max_p95_mm": 2.985317048798788,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Li_soft",
+      "max_median_mm": 0,
+      "max_p95_mm": 1.1704699910719627,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Ls_soft",
+      "max_median_mm": 0,
+      "max_p95_mm": 0.7087637123893971,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "N_soft",
+      "max_median_mm": 0,
+      "max_p95_mm": 1.5524174696260025,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Pog_soft",
+      "max_median_mm": 0,
+      "max_p95_mm": 1.3341664064126335,
+      "max_failure_rate": 0
+    },
+    {
+      "landmark_id": "Sn_soft",
+      "max_median_mm": 0,
+      "max_p95_mm": 1.2092655622318846,
+      "max_failure_rate": 0
+    }
+  ],
+  "clinical_tolerances": [
+    {
+      "measurement_id": "ANB",
+      "max_absolute_error": 1.0771932600248784,
+      "unit": "deg"
+    },
+    {
+      "measurement_id": "Co-A",
+      "max_absolute_error": 1.450271131616148,
+      "unit": "mm"
+    },
+    {
+      "measurement_id": "Co-Gn",
+      "max_absolute_error": 1.3207334508174582,
+      "unit": "mm"
+    },
+    {
+      "measurement_id": "FMA",
+      "max_absolute_error": 2.2455624753832857,
+      "unit": "deg"
+    },
+    {
+      "measurement_id": "FMIA",
+      "max_absolute_error": 3.964632131510949,
+      "unit": "deg"
+    },
+    {
+      "measurement_id": "IMPA",
+      "max_absolute_error": 3.734074175863931,
+      "unit": "deg"
+    },
+    {
+      "measurement_id": "SN-GoGn",
+      "max_absolute_error": 2.2679704188558008,
+      "unit": "deg"
+    },
+    {
+      "measurement_id": "SNA",
+      "max_absolute_error": 1.4764091546046298,
+      "unit": "deg"
+    },
+    {
+      "measurement_id": "SNB",
+      "max_absolute_error": 1.2619791879778826,
+      "unit": "deg"
+    }
+  ],
+  "source_bindings": {
+    "landmark_agreement_sha256": "e99fa49373ed20902c7266cbe805fcc2eee2d5bc70f747f64f424cfa45d35ff0",
+    "sentinel_measurement_agreement_sha256": "868de930eba33bf2b6d6b175b386f1c42e7fdb3205566ddbe331141fa5f1804d",
+    "goldset_manifest_sha256": "73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df"
+  }
+}
