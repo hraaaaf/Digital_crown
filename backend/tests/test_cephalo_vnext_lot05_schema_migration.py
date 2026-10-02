@@ -286,3 +286,23 @@ def test_auto_model_hash_must_match_v2_schema_contract():
     source["landmarks"][0]["model_sha256"] = "not-a-sha"
     with pytest.raises(Lot05MigrationError):
         migrate(source)
+
+
+@pytest.mark.parametrize("mutation", ["schema_version", "evidence_graph_version", "migration_version", "source_schema", "migrated_at"])
+def test_roundtrip_rejects_control_plane_tampering(mutation):
+    v2 = migrate()
+    if mutation in ("schema_version", "evidence_graph_version"):
+        v2[mutation] = "tampered"
+    elif mutation == "migrated_at":
+        v2["migration"][mutation] = "not-a-date"
+    else:
+        v2["migration"][mutation] = "tampered"
+    with pytest.raises(Lot05MigrationError):
+        roundtrip_v2_to_v1(v2)
+
+
+def test_unknown_landmark_identity_fails_closed_instead_of_becoming_canonical():
+    source = v1()
+    source["landmarks"].append({"evidence_id": "lm:unknown", "landmark_id": "UNKNOWN_LEGACY_POINT", "x": 1.0, "y": 2.0, "source_image_ref": "source:image", "origin": "MANUAL", "evidence_refs": ["source:image"], "evidence_status": "OBSERVED", "availability_status": "AVAILABLE"})
+    with pytest.raises(Lot05MigrationError):
+        migrate(source)
