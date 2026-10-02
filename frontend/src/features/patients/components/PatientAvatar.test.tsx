@@ -143,6 +143,35 @@ describe('PatientAvatar', () => {
     expect(api.get).not.toHaveBeenCalledWith('/patients/7/photo', expect.anything());
   });
 
+  it('refreshes the directory after patients permission is revoked then restored', async () => {
+    vi.mocked(api.get).mockImplementation(((url: string) => {
+      if (url === '/patients/') {
+        return Promise.resolve({ data: [{ id: 7, nom: 'BENALI', prenom: 'Sara', photo_url: '/api/patients/7/photo' }] });
+      }
+      return Promise.resolve({ data: new Blob(['jpeg'], { type: 'image/jpeg' }) });
+    }) as never);
+
+    useAuthStore.setState({
+      user: { id: 1, email: 'same@cabinet.ma', role: 'ADMIN' } as any,
+      isAuthenticated: true,
+    });
+    render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" resolveFromDirectory />);
+    await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(call => call[0] === '/patients/')).toHaveLength(1));
+    await waitFor(() => expect(screen.getByLabelText(/Photo de Sara Benali/)).toBeTruthy());
+
+    useAuthStore.setState({
+      user: { id: 1, email: 'same@cabinet.ma', role: 'SECRETAIRE', permissions: { agenda: true, patients: false } } as any,
+      isAuthenticated: true,
+    });
+    await waitFor(() => expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB'));
+
+    useAuthStore.setState({
+      user: { id: 1, email: 'same@cabinet.ma', role: 'ADMIN' } as any,
+      isAuthenticated: true,
+    });
+    await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(call => call[0] === '/patients/')).toHaveLength(2));
+  });
+
   it('deduplicates the patient directory request across agenda-like avatars', async () => {
     vi.mocked(api.get).mockImplementation(((url: string) => {
       if (url === '/patients/') {
