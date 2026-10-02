@@ -119,7 +119,7 @@ export function PrescriptionQuickAccessBar({
   onPrescriptionIndicationChange,
 }: {
   drugs: DrugItem[];
-  setDrugs: (drugs: DrugItem[]) => void;
+  setDrugs: React.Dispatch<React.SetStateAction<DrugItem[]>>;
   prescriptionIndication: string;
   onPrescriptionIndicationChange?: (value: string) => void;
 }) {
@@ -229,30 +229,30 @@ export function PrescriptionQuickAccessBar({
   };
 
 
-  const applyPresentation = async (row: CatalogPresentation) => {
-    let preferredPosology = '';
-    try {
-      const response = await api.get('/prescriptions/habits/details', {
-        params: {
-          med_name: row.nom,
-          dosage: presentationStrength(row),
-        },
-      });
-      preferredPosology = String(response.data?.preferred_posology || '');
-    } catch {
-      // Practitioner habits are an optional accelerator; catalog selection must remain usable.
-    }
-
-    setDrugs(
-      selectedPresentation(row, drugs).map(drug =>
-        drug.catalogPresentationId === row.presentation_id
-          ? { ...drug, posologie: preferredPosology }
-          : drug,
-      ),
-    );
+  const applyPresentation = (row: CatalogPresentation) => {
+    // Catalog selection is immediate. Practitioner habits are optional enrichment and
+    // must never delay selection or overwrite a later practitioner edit.
+    setDrugs(selectedPresentation(row, drugs));
     setQuery('');
     setCatalog([]);
     inputRef.current?.focus();
+
+    void api.get('/prescriptions/habits/details', {
+      params: {
+        med_name: row.nom,
+        dosage: presentationStrength(row),
+      },
+    }).then(response => {
+      const preferredPosology = String(response.data?.preferred_posology || '');
+      if (!preferredPosology) return;
+      setDrugs(current => current.map(drug => (
+        drug.catalogPresentationId === row.presentation_id && !drug.posologie.trim()
+          ? { ...drug, posologie: preferredPosology }
+          : drug
+      )));
+    }).catch(() => {
+      // Practitioner habits are an optional accelerator; catalog selection remains usable.
+    });
   };
 
   const idleRows = React.useMemo(() => {
