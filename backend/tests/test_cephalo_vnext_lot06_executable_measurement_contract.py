@@ -1,0 +1,45 @@
+import importlib
+import json
+from pathlib import Path
+
+from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
+
+ROOT=Path(__file__).resolve().parents[1]
+CONTRACT=ROOT/"docs"/"audits"/"schemas"/"cephalo_vnext_lot06_executable_measurement_contract_v1.json"
+
+def load_contract():
+    return json.loads(CONTRACT.read_text(encoding="utf-8"))
+
+def test_lot06_contract_entries_bind_existing_canonical_measurements():
+    data=load_contract()
+    assert data["schema_version"]=="CEPHALO_LOT06_EXECUTABLE_MEASUREMENT_CONTRACT_V1"
+    assert data["clinical_interpretation"] is False
+    ids=[m["measurement_id"] for m in data["measurements"]]
+    assert len(ids)==len(set(ids))
+    for entry in data["measurements"]:
+        canonical=CANONICAL_MEASUREMENTS[entry["measurement_id"]]
+        assert canonical.source_status=="GEOMETRY_COVERED"
+        assert canonical.unit==entry["unit"]
+        assert entry["required_landmarks"]
+        assert entry["source_contracts"]
+        assert entry["availability_gate"]
+
+def test_lot06_contract_implementation_symbols_are_importable_and_callable():
+    for entry in load_contract()["measurements"]:
+        module_name,symbol=entry["implementation"].split(":",1)
+        module=importlib.import_module(module_name)
+        assert callable(getattr(module,symbol))
+
+def test_lot06_contract_keeps_ambiguous_identities_explicit():
+    by_id={m["measurement_id"]:m for m in load_contract()["measurements"]}
+    assert "Gn_anatomic" in by_id["M_SN_GOGN_DEG_V1"]["required_landmarks"]
+    assert "Gn_anatomic" in by_id["M_CO_GN_ANATOMIC_MM_V1"]["required_landmarks"]
+    assert "Po_anatomic" in by_id["M_FH_GOME_DEG_V1"]["required_landmarks"]
+    assert "Po_anatomic" in by_id["M_FMIA_L1_FH_DEG_V1"]["required_landmarks"]
+    assert "Po_anatomic" in by_id["M_B_NPERP_MM_V1"]["required_landmarks"]
+    assert "Po_anatomic" in by_id["M_AB_PRIME_FH_MM_V1"]["required_landmarks"]
+
+def test_lot06_contract_requires_calibration_for_every_mm_measurement():
+    for entry in load_contract()["measurements"]:
+        if entry["unit"]=="mm":
+            assert entry["requires_calibration"] is True
