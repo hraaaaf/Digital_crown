@@ -12,6 +12,7 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from PyPDF2 import PdfReader
 
 from backend.services.generators.document_layout_safety import (
     protect_unit_patterns,
@@ -140,6 +141,25 @@ class TestOrdonnanceLayoutSafety:
         meds = [SimpleNamespace(nom="VITAMINE C", forme="", dosage="500 mg", posologie="1 par jour", type="MEDICAMENT")]
         path = self._generate(tmp_path, meds)
         assert os.path.exists(path)
+
+    def test_quantity_is_rendered_in_real_ordonnance_pdf(self, tmp_path):
+        meds = [SimpleNamespace(
+            nom="DOLIPRANE", forme="Comprimés", dosage="1 g",
+            posologie="1 comprimé si douleur", type="MEDICAMENT", quantite=2,
+        )]
+        path = self._generate(tmp_path, meds)
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
+        assert "Quantité" in text
+        assert "2" in text
+
+    def test_quantity_schema_is_optional_positive_integer(self):
+        from pydantic import ValidationError
+        from backend.schemas.documents import MedicationItem
+
+        assert MedicationItem(nom="DOLIPRANE", quantite=2).quantite == 2
+        assert MedicationItem(nom="DOLIPRANE").quantite is None
+        with pytest.raises(ValidationError):
+            MedicationItem(nom="DOLIPRANE", quantite=0)
 
     def test_no_medications_still_renders(self, tmp_path):
         path = self._generate(tmp_path, [])
