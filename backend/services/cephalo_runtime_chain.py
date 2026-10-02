@@ -17,6 +17,7 @@ from backend.schemas.cephalo_evidence import (
     MeasurementEvidence,
     SourceEvidence,
 )
+from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_typed_read import (
     CephaloTypedReadError,
@@ -145,11 +146,19 @@ def project_runtime_chain_read_path(
     except CephaloRuntimeChainError as exc:
         raise CephaloTypedReadError("Persisted evidence active runtime chain is incoherent") from exc
 
+    try:
+        canonical_projection = project_canonical_measurements(chain.measurements.values())
+    except ValueError as exc:
+        raise CephaloTypedReadError("Typed measurements failed canonical convergence") from exc
+
     projected["scientific_read_path"] = {
         **projected.get("scientific_read_path", {}),
         "active_chain": "VERIFIED",
         "current_landmark_count": len(chain.landmarks),
         "current_construction_count": len(chain.constructions),
         "current_measurement_count": len(chain.measurements),
+        "canonical_measurements": canonical_projection["measurements"],
+        "blocked_method_ids": canonical_projection["blocked_method_ids"],
+        "unmapped_method_ids": canonical_projection["unmapped_method_ids"],
     }
     return projected
