@@ -304,18 +304,10 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "compatibility_class": {
-          "enum": [
-            "LOSSLESS_V1",
-            "FAIL_CLOSED_AMBIGUOUS",
-            "OPAQUE_LEGACY_PRESERVED",
-            "V2_NATIVE"
-          ]
+          "const": "LOSSLESS_V1"
         },
         "opaque_legacy_payload": {
-          "type": [
-            "object",
-            "null"
-          ]
+          "type": "object"
         },
         "migrated_at": {
           "type": "string",
@@ -325,31 +317,7 @@
           "type": "string",
           "pattern": "^[a-f0-9]{64}$"
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "compatibility_class": {
-                "const": "LOSSLESS_V1"
-              }
-            },
-            "required": [
-              "compatibility_class"
-            ]
-          },
-          "then": {
-            "properties": {
-              "opaque_legacy_payload": {
-                "type": "object"
-              }
-            },
-            "required": [
-              "opaque_legacy_payload"
-            ]
-          }
-        }
-      ]
+      }
     },
     "active_landmarks": {
       "type": "array",
