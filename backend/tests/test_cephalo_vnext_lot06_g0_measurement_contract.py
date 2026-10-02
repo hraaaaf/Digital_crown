@@ -2,6 +2,7 @@ import math
 
 from backend.services.cephalo_constructions import (
     craniom_ab_prime_mm_v1,
+    craniom_facial_depth_mm_v1,
     nasion_vertical_offset_mm_v1,
 )
 from backend.services.cephalo_craniom_angular import (
@@ -21,6 +22,7 @@ from backend.services.cephalo_steiner_geometry import (
     steiner_sn_mp_deg_v1,
     steiner_u1_na_deg_v1,
 )
+from backend.services.cephalo_ricketts_geometry import ricketts_facial_depth_deg_v1
 from backend.services.cephalo_tweed_merrifield_geometry import (
     tweed_fma_deg_v1,
     tweed_fmia_deg_v1,
@@ -44,12 +46,14 @@ def test_lot06_g0_angular_contracts():
     close(tweed_fmia_deg_v1((0,0),(0,1),(0,0),(1,0)),90.0)
     close(craniom_u1_frankfort_deg_v1((0,0),(0,1),(0,0),(1,0)),90.0)
     close(craniom_interincisal_deg_v1((0,0),(0,1),(0,0),(1,0)),90.0)
+    close(ricketts_facial_depth_deg_v1((0,0),(1,0),(0,1),(0,0)),90.0)
 
 def test_lot06_g0_linear_contracts_require_calibration():
     close(mcnamara_co_a_mm_v1((0,0),(3,4),0.5),2.5)
     close(mcnamara_co_gn_mm_v1((0,0),(3,4),0.5),2.5)
     close(mcnamara_ans_me_mm_v1((0,0),(3,4),0.5),2.5)
     close(nasion_vertical_offset_mm_v1((2,3),(0,0),(0,0),(1,0),0.5),1.0)
+    close(craniom_facial_depth_mm_v1((2,3),(0,0),(0,0),(1,0),0.5),1.0)
     close(craniom_ab_prime_mm_v1((3,0),(1,0),(0,0),(1,0),0.5),1.0)
 
 def test_lot06_g0_fail_closed_on_missing_or_degenerate_inputs():
@@ -62,3 +66,5 @@ def test_lot06_g0_fail_closed_on_missing_or_degenerate_inputs():
     assert mcnamara_ans_me_mm_v1((0,0),(3,4),0.0) is None
     assert nasion_vertical_offset_mm_v1((2,3),(0,0),(0,0),(0,0),0.5) is None
     assert craniom_ab_prime_mm_v1((3,0),(1,0),(0,0),(0,0),0.5) is None
+    assert craniom_facial_depth_mm_v1((2,3),(0,0),(0,0),(0,0),0.5) is None
+    assert ricketts_facial_depth_deg_v1((0,0),(0,0),(0,1),(0,0)) is None
