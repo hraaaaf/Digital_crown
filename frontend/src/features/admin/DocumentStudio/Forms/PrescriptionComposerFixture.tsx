@@ -13,6 +13,7 @@ const initialDrugs: DrugItem[] = [
     posologie: '1 comprimé, 3 fois par jour pendant 7 jours, après les repas.',
     type: 'MEDICAMENT',
     quantite: 1,
+    quantiteExplicit: true,
     non_substituable: false,
   },
   {
@@ -23,6 +24,7 @@ const initialDrugs: DrugItem[] = [
     posologie: '1 comprimé, si douleur, sans dépasser 3 fois par jour pendant 3 jours.',
     type: 'MEDICAMENT',
     quantite: 1,
+    quantiteExplicit: true,
     non_substituable: false,
   },
 ];
