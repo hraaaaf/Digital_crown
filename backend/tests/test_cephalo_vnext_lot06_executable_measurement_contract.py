@@ -43,3 +43,17 @@ def test_lot06_contract_requires_calibration_for_every_mm_measurement():
     for entry in load_contract()["measurements"]:
         if entry["unit"]=="mm":
             assert entry["requires_calibration"] is True
+
+
+def test_lot06_contract_construction_ids_exist_in_canonical_registry():
+    registry=(ROOT/"docs"/"CEPHALO_CONSTRUCTION_REGISTRY.md").read_text(encoding="utf-8")
+    for entry in load_contract()["measurements"]:
+        for construction_id in entry["required_constructions"]:
+            assert f"`{construction_id}`" in registry
+
+def test_lot06_contract_uses_analysis_specific_mandibular_constructions():
+    by_id={m["measurement_id"]:m for m in load_contract()["measurements"]}
+    assert by_id["M_SN_GOGN_DEG_V1"]["required_constructions"]==["STEINER_MP_GO_GN_V1"]
+    assert by_id["M_FH_GOME_DEG_V1"]["required_constructions"]==["FH_PO_OR_V1","TWEED_DC_MP_GO_ME_V1"]
+    assert by_id["M_IMPA_GOME_DEG_V1"]["required_constructions"]==["TWEED_DC_MP_GO_ME_V1"]
+    assert by_id["M_B_NPERP_MM_V1"]["required_constructions"]==["FH_PO_OR_V1","NASION_VERTICAL_FH_V1"]
