@@ -3,8 +3,19 @@ name: V1.5-02.3 Patient Photo UI AFTER
 on:
   pull_request:
     paths:
-      - "frontend/scripts/capture-v15-02-3-photo-ui-after.mjs"
-      - ".github/workflows/v15-02-3-photo-ui-before.yml"
+      - "frontend/src/types/index.ts"
+      - "frontend/src/features/patients/components/PatientAvatar.tsx"
+      - "frontend/src/features/patients/components/PatientAvatar.test.tsx"
+      - "frontend/src/features/patients/PatientList.tsx"
+      - "frontend/src/features/patients/PatientDetailsInner.tsx"
+      - "frontend/src/features/dashboard/types.ts"
+      - "frontend/src/features/dashboard/components/DashboardHeader.tsx"
+      - "frontend/src/features/dashboard/components/WaitingRoom.tsx"
+      - "frontend/src/features/agenda/DailyView.tsx"
+      - "frontend/src/features/agenda/WeeklyView.tsx"
+      - "frontend/src/features/agenda/MonthlyView.tsx"
+      - "frontend/src/features/agenda/MultiPractitionerTimelineView.tsx"
+      - ".github/workflows/v15-02-3-photo-ui-after.yml"
   workflow_dispatch:
 
 concurrency:
@@ -15,12 +26,12 @@ permissions:
   contents: read
 
 jobs:
-  before:
+  after:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       ENVIRONMENT: test
-      SECRET_KEY: v15-02-3-before-secret-long-enough
+      SECRET_KEY: v15-02-3-after-secret-long-enough
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
@@ -85,7 +96,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v15-02-3-photo-ui-before
-          path: artifacts/v15-02-3-photo-ui-before
+          name: v15-02-3-photo-ui-after
+          path: artifacts/v15-02-3-photo-ui-after
           if-no-files-found: error
           retention-days: 14
