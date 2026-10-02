@@ -51,27 +51,6 @@ const identified = (drug: DrugItem): DrugItem => ({
   catalogSourceLabel: 'CNOPS Open Data — Référentiel des médicaments',
   catalogSnapshotDate: '2021-12-13',
   catalogMarketingStatusVerified: false,
-  it('invalide la provenance sans effacer dose, forme ou posologie lors d’une édition manuelle du nom', () => {
-    const { onUpdateDrug } = renderRow(identified({
-      ...baseDrug,
-      name: 'AMOXICILLINE',
-      forme: 'GÉLULES',
-      dosage: '500MG',
-      posologie: '1 comprimé x 3 / jour pendant 7 jours',
-    }));
-
-    fireEvent.change(screen.getByPlaceholderText('NOM OU DCI DU MÉDICAMENT...'), {
-      target: { value: 'AMOXICILLINE MANUELLE' },
-    });
-
-    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogPresentationId', undefined);
-    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogSourceId', undefined);
-    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'name', 'AMOXICILLINE MANUELLE');
-    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'dosage', '');
-    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'forme', '');
-    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'posologie', '');
-  });
-
 });
 
 describe('DrugRow R5 progressive disclosure', () => {
@@ -189,6 +168,27 @@ describe('DrugRow R5 progressive disclosure', () => {
     expect(screen.getByPlaceholderText("DÉTAILS DE L'EXAMEN RADIOLOGIQUE...")).toBeInTheDocument();
     expect(screen.queryByLabelText('Prise')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Rythme')).not.toBeInTheDocument();
+  });
+
+  it('invalide la provenance sans effacer dose, forme ou posologie lors d’une édition manuelle du nom', () => {
+    const { onUpdateDrug } = renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 comprimé x 3 / jour pendant 7 jours',
+    }));
+
+    fireEvent.change(screen.getByPlaceholderText('NOM OU DCI DU MÉDICAMENT...'), {
+      target: { value: 'AMOXICILLINE MANUELLE' },
+    });
+
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogPresentationId', undefined);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogSourceId', undefined);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'name', 'AMOXICILLINE MANUELLE');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'dosage', '');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'forme', '');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'posologie', '');
   });
 
 });
