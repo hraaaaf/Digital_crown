@@ -84,12 +84,14 @@ await page.getByLabel('Position horizontale').fill('20');
 await page.getByLabel('Position verticale').fill('-10');
 
 const save=dialog.getByRole('button',{name:/Enregistrer la photo/i});
+const saveHandle=await save.elementHandle();
+if(!saveHandle) throw new Error('save button handle missing');
 await save.click();
 await page.waitForFunction(() => {
   const button=[...document.querySelectorAll('button')].find(el=>el.textContent?.includes('Enregistrement'));
   return !!button && button.disabled;
 },{timeout:3000});
-await save.evaluate(button=>button.click());
+await saveHandle.evaluate(button=>button.click());
 await page.waitForTimeout(100);
 if(postCalls!==1) throw new Error('photo upload was not single-flight while busy; calls='+postCalls);
 await page.getByRole('alert').filter({hasText:/n’a pas pu être enregistrée/i}).waitFor({state:'visible',timeout:10000});
