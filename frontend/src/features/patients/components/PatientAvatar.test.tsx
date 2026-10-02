@@ -64,7 +64,7 @@ describe('PatientAvatar', () => {
   });
 
   it('ignores and revokes a stale blob response after rapid patient navigation', async () => {
-    let resolveFirst: ((value: unknown) => void) | null = null;
+    let resolveFirst!: (value: unknown) => void;
     vi.mocked(api.get)
       .mockImplementationOnce(() => new Promise(resolve => { resolveFirst = resolve; }) as never)
       .mockResolvedValueOnce({ data: new Blob(['jpeg-2'], { type: 'image/jpeg' }) } as never);
@@ -73,7 +73,7 @@ describe('PatientAvatar', () => {
     view.rerender(<PatientAvatar patientId={8} firstName="Nora" lastName="Amrani" photoUrl="/api/patients/8/photo" />);
 
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/8/photo', expect.objectContaining({ responseType: 'blob' })));
-    resolveFirst?.({ data: new Blob(['jpeg-1'], { type: 'image/jpeg' }) });
+    resolveFirst({ data: new Blob(['jpeg-1'], { type: 'image/jpeg' }) });
     await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByLabelText(/Photo de Nora Amrani/)).toBeTruthy());
     expect(screen.queryByLabelText(/Photo de Sara Benali/)).toBeNull();
