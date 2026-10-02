@@ -24,12 +24,13 @@ def test_reference_equivalence_policy_is_frozen_from_lot02_human_envelopes():
     assert p["universal_2mm_gate"] is False
     assert p["human_gate"]=="A_APPROVED"
     assert p["failure_policy"]["max_failure_rate"]==0
+    assert p["primary_landmark_gate"]=="candidate_p95_mm <= frozen_human_p95_mm"
     assert len(p["landmark_tolerances"])==24
     by_dc={x["landmark_id"]:x for x in p["landmark_tolerances"]}
     assert set(by_dc)==set(AARIZ_TO_DC.values())
     for aariz,dc in AARIZ_TO_DC.items():
-        assert by_dc[dc]["max_median_mm"]==l["landmarks"][aariz]["median_mm"]
         assert by_dc[dc]["max_p95_mm"]==l["landmarks"][aariz]["p95_mm"]
+        assert by_dc[dc]["max_median_mm"]==l["landmarks"][aariz]["p95_mm"]
         assert by_dc[dc]["max_failure_rate"]==0
     g1a=m["measurements_g1a_consensus_only"]
     clinical={x["measurement_id"]:x for x in p["clinical_tolerances"]}
