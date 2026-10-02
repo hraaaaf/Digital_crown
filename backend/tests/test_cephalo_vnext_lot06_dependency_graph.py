@@ -69,12 +69,13 @@ def test_lot06_dependency_graph_deduplicates_shared_landmarks_and_constructions(
     }
 
 
-def test_lot06_analysis_pack_graph_keeps_ricketts_fail_closed():
+def test_lot06_analysis_pack_graph_keeps_only_ricketts_facial_axis_fail_closed():
     graph = build_analysis_pack_dependency_graph("RICKETTS_V1")
-    assert graph["measurement_ids"] == []
+    assert "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1" in graph["measurement_ids"]
+    assert "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1" in graph["measurement_ids"]
+    assert "M_LS_EPLANE_MM_V1" in graph["measurement_ids"]
     assert graph["scientific_state"] == "PROVISIONAL_MEMBERSHIP_FAIL_CLOSED"
-    assert "M_FACIAL_ANGLE_NPOG_FH_DEG_V1" in graph["blocked_measurement_ids"]
-    assert "M_LS_EPLANE_MM_V1" in graph["blocked_measurement_ids"]
+    assert graph["blocked_measurement_ids"] == ["M_FACIAL_AXIS_RICKETTS_DEG_V1"]
 
 
 def test_lot06_com_pack_uses_canonical_contract_not_frontend_mapping():
@@ -87,8 +88,8 @@ def test_lot06_com_pack_uses_canonical_contract_not_frontend_mapping():
 
 
 def test_lot06_dependency_graph_fails_closed_for_non_promoted_or_unknown_measurement():
-    with pytest.raises(CephaloDependencyGraphError):
-        compose_measurement_dependency_graph(["M_LS_EPLANE_MM_V1"])
+    graph = compose_measurement_dependency_graph(["M_LS_EPLANE_MM_V1"])
+    assert graph["measurement_ids"] == ["M_LS_EPLANE_MM_V1"]
     with pytest.raises(CephaloDependencyGraphError):
         compose_measurement_dependency_graph(["M_NOT_REAL_V1"])
 

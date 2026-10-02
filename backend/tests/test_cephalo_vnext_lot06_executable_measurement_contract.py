@@ -70,8 +70,10 @@ def test_lot06_contract_exhausts_every_geometry_covered_registry_entry():
 def test_lot06_non_promoted_entries_are_explicitly_fail_closed():
     data=load_contract()
     reasons={m["measurement_id"]:m["reason"] for m in data["non_promoted_geometry_covered"]}
-    assert reasons["M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
-    assert reasons["M_LI_EPLANE_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
-    assert reasons["M_LS_EPLANE_MM_V1"]=="LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
-    assert reasons["M_FACIAL_AXIS_RICKETTS_DEG_V1"]=="BLOCKED_LANDMARK"
-    assert reasons["M_FACIAL_ANGLE_NPOG_FH_DEG_V1"]=="ANGLE_CONVENTION_COLLISION"
+    assert reasons == {"M_FACIAL_AXIS_RICKETTS_DEG_V1": "BLOCKED_LANDMARK"}
+    promoted={m["measurement_id"] for m in data["measurements"]}
+    assert "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1" in promoted
+    assert "M_LI_EPLANE_MM_V1" in promoted
+    assert "M_LS_EPLANE_MM_V1" in promoted
+    assert "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1" in promoted
+    assert "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1" in promoted

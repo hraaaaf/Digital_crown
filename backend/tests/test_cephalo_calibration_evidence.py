@@ -112,13 +112,17 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert all(item["requires_calibration"] is False for item in steiner)
     assert all(item["calibration_ref"] is None for item in steiner)
 
-    assert {item["method_id"] for item in mcnamara} == {
+    assert {
         "MCNAMARA_CO_A_MM_V1",
         "MCNAMARA_CO_GN_MM_V1",
         "MCNAMARA_ANS_ME_MM_V1",
         "M_A_NPERP_MM_V1",
         "M_POG_NPERP_MM_V1",
-    }
+        "MCNAMARA_CO_A_CANONICAL_MM_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
+        "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+    }.issubset({item["method_id"] for item in mcnamara})
     assert all(item["requires_calibration"] is True for item in mcnamara)
     assert all(item["calibration_ref"] == calibration[0]["evidence_id"] for item in mcnamara)
     assert all(item["value"] is not None for item in mcnamara)

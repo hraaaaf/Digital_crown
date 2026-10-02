@@ -33,6 +33,14 @@
     {
       "contract_id": "COM_DC_LEGACY_V1",
       "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    },
+    {
+      "contract_id": "DOWNS_1948_CORE_V1",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    },
+    {
+      "contract_id": "MERRIFIELD_1966_Z_ANGLE_V1",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
     }
   ],
   "analysis_packs": [
@@ -41,7 +49,10 @@
       "display_name": "Steiner",
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
-      "scientific_contract_refs": ["STEINER_1953_CORE_V1", "STEINER_1959_CLINICAL_EXTENSION_V1"],
+      "scientific_contract_refs": [
+        "STEINER_1953_CORE_V1",
+        "STEINER_1959_CLINICAL_EXTENSION_V1"
+      ],
       "membership_evidence_refs": [],
       "measurement_ids": [
         "M_SNA_DEG_V1",
@@ -59,7 +70,9 @@
       "display_name": "Tweed — Digital Crown anatomical FH variant",
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
-      "scientific_contract_refs": ["DC_TWEED_ANATOMICAL_FH_VARIANT"],
+      "scientific_contract_refs": [
+        "DC_TWEED_ANATOMICAL_FH_VARIANT"
+      ],
       "membership_evidence_refs": [],
       "measurement_ids": [
         "M_FH_GOME_DEG_V1",
@@ -73,7 +86,9 @@
       "display_name": "McNamara",
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
-      "scientific_contract_refs": ["MCNAMARA_1984_SINGLE_FILM_V1"],
+      "scientific_contract_refs": [
+        "MCNAMARA_1984_SINGLE_FILM_V1"
+      ],
       "membership_evidence_refs": [],
       "measurement_ids": [
         "M_A_NPERP_MM_V1",
@@ -89,7 +104,9 @@
       "display_name": "COM",
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
-      "scientific_contract_refs": ["COM_DC_LEGACY_V1"],
+      "scientific_contract_refs": [
+        "COM_DC_LEGACY_V1"
+      ],
       "membership_evidence_refs": [],
       "measurement_ids": [
         "M_A_NPERP_MM_V1",
@@ -108,16 +125,48 @@
       "display_name": "Ricketts",
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
-      "scientific_contract_refs": ["RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1"],
+      "scientific_contract_refs": [
+        "RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1"
+      ],
       "membership_evidence_refs": [],
-      "measurement_ids": [],
-      "blocked_measurement_ids": [
-        "M_FACIAL_ANGLE_NPOG_FH_DEG_V1",
-        "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "measurement_ids": [
+        "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
         "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
         "M_LS_EPLANE_MM_V1",
         "M_LI_EPLANE_MM_V1"
+      ],
+      "blocked_measurement_ids": [
+        "M_FACIAL_AXIS_RICKETTS_DEG_V1"
       ]
+    },
+    {
+      "analysis_id": "DOWNS_V1",
+      "display_name": "Downs",
+      "version": 1,
+      "composition_state": "PROVISIONAL_MEMBERSHIP",
+      "scientific_contract_refs": [
+        "DOWNS_1948_CORE_V1"
+      ],
+      "membership_evidence_refs": [],
+      "measurement_ids": [
+        "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
+        "M_DOWNS_Y_AXIS_SGN_FH_DEG_V1"
+      ],
+      "blocked_measurement_ids": []
+    },
+    {
+      "analysis_id": "MERRIFIELD_V1",
+      "display_name": "Merrifield",
+      "version": 1,
+      "composition_state": "PROVISIONAL_MEMBERSHIP",
+      "scientific_contract_refs": [
+        "MERRIFIELD_1966_Z_ANGLE_V1"
+      ],
+      "membership_evidence_refs": [],
+      "measurement_ids": [
+        "M_MERRIFIELD_Z_FH_DEG_V1"
+      ],
+      "blocked_measurement_ids": []
     }
   ],
   "display_presets": [
@@ -129,7 +178,9 @@
         "TWEED_DC_V1",
         "MCNAMARA_V1",
         "COM_V1",
-        "RICKETTS_V1"
+        "RICKETTS_V1",
+        "DOWNS_V1",
+        "MERRIFIELD_V1"
       ]
     }
   ]

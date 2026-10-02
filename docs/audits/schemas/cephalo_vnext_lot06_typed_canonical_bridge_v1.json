@@ -175,6 +175,84 @@
       "canonical_measurement_id": null,
       "state": "BLOCKED",
       "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "TWEED_FMA_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_FH_GOME_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "TWEED_FMIA_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_FMIA_L1_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_CO_A_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_CO_A_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_CO_GN_ANATOMIC_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_A_NPERP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_POG_NPERP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SPLIT_ANGLE_CONVENTION"
+    },
+    {
+      "method_id": "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_DOWNS_Y_AXIS_SGN_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SPLIT_ANGLE_CONVENTION"
+    },
+    {
+      "method_id": "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
+      "canonical_measurement_id": "M_LS_EPLANE_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
+      "canonical_measurement_id": "M_LI_EPLANE_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MERRIFIELD_Z_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_MERRIFIELD_Z_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
     }
   ]
 }

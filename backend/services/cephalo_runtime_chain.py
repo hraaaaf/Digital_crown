@@ -77,6 +77,19 @@ def _active_landmarks(
                 f"Multiple current evidence objects for landmark {item.landmark_id}"
             )
         selected[item.landmark_id] = item
+
+    selected_refs = {item.evidence_id for item in selected.values()}
+    for item in graph.landmarks:
+        if ":canonical:" not in item.evidence_id:
+            continue
+        base_ref = item.evidence_id.split(":canonical:", 1)[0]
+        if base_ref not in selected_refs:
+            continue
+        if item.landmark_id in selected:
+            raise CephaloRuntimeChainError(
+                f"Canonical landmark identity collides with current landmark {item.landmark_id}"
+            )
+        selected[item.landmark_id] = item
     return selected
 
 
@@ -154,7 +167,11 @@ def project_runtime_chain_read_path(
     projected["scientific_read_path"] = {
         **projected.get("scientific_read_path", {}),
         "active_chain": "VERIFIED",
-        "current_landmark_count": len(chain.landmarks),
+        "current_landmark_count": (
+            len(payload["current_landmark_refs"])
+            if isinstance(payload.get("current_landmark_refs"), list)
+            else len([key for key in chain.landmarks if key not in {"Po_anatomic","Co_anatomic","Gn_anatomic","Pog_hard"}])
+        ),
         "current_construction_count": len(chain.constructions),
         "current_measurement_count": len(chain.measurements),
         "canonical_measurements": canonical_projection["measurements"],

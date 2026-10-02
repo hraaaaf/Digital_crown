@@ -7,7 +7,7 @@ from backend.services.cephalo_landmark_identity_bridge import (
     CanonicalLandmarkIdentityError,
     project_canonical_landmark_identities,
 )
-from backend.services.sota_vision_service import (
+from backend.services.srpose38_contract import (
     SRPOSE38_MODEL_NAME,
     SRPOSE38_MODEL_SHA256,
     SRPOSE38_PIPELINE_VERSION,

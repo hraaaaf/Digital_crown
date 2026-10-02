@@ -9,6 +9,7 @@ from backend.services import cephalo_steiner_dental_evidence as steiner_dental
 from backend.services import cephalo_steiner_evidence_adapter as steiner
 from backend.services import cephalo_tweed_merrifield_evidence as tweed
 from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
+from backend.services.cephalo_canonical_analysis_v2 import CANONICAL_V2_METHOD_IDS
 from backend.services.cephalo_canonical_method_bridge import (
     CANONICAL_CONVERGENCE_RULES,
     CANONICAL_METHOD_BINDINGS,
@@ -31,6 +32,7 @@ def emitted_method_ids():
     ids|={x.method_id for x in mcnamara._MCNAMARA_SPECS}
     ids|={x.canonical_id for x in mcnamara._MCNAMARA_NPERP_SPECS}
     ids|={x.method_id for x in ricketts._RICKETTS_ACTIVE_SPECS}
+    ids|=CANONICAL_V2_METHOD_IDS
     return ids
 
 def test_lot06_bridge_exhausts_all_current_typed_method_ids():
