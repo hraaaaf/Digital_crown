@@ -56,6 +56,11 @@ describe('Neo prescription quick access', () => {
         recent_medications: ['DOLIPRANE'],
         frequent_medications: ['AMOXICILLINE'],
       } } as never;
+      if (url.includes('/prescriptions/habits/details')) return { data: {
+        preferred_posology: null,
+        preferred_dosage: null,
+        preference_source: null,
+      } } as never;
       if (url.includes('/medications/neo/search')) return { data: [{
         presentation_id: 'p1',
         nom: 'DOLIPRANE',
@@ -234,4 +239,72 @@ describe('Neo prescription quick access', () => {
       })],
     })));
   });
+  it('hydrates DOLIPRANE 1G with the exact practitioner posology habit', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string, config?: any) => {
+      if (url.includes('/habits/presets')) return { data: [] } as never;
+      if (url.includes('/habits/suggest')) return { data: {} } as never;
+      if (url.includes('/medications/neo/search')) return { data: [{
+        presentation_id: 'dol-1g',
+        nom: 'DOLIPRANE',
+        dci: 'PARACETAMOL',
+        dosage: '1',
+        unite: 'G',
+        forme: 'COMPRIMES',
+        source: { id: 'ammps-current', current_marketing_status_verified: true },
+      }] } as never;
+      if (url.includes('/prescriptions/habits/details')) {
+        expect(config?.params).toEqual({ med_name: 'DOLIPRANE', dosage: '1 G' });
+        return { data: {
+          preferred_posology: '1 comprimé x 3 / jour pendant 4 jours',
+          preferred_dosage: '1 G',
+          preference_source: 'DOCTOR_HABIT',
+        } } as never;
+      }
+      return { data: [] } as never;
+    });
+
+    const setDrugs = vi.fn();
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+
+    const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
+    fireEvent.change(input, { target: { value: 'doliprane 1g' } });
+    fireEvent.click(await screen.findByText('DOLIPRANE'));
+
+    await waitFor(() => expect(setDrugs).toHaveBeenCalled());
+    expect(setDrugs.mock.calls[0][0][0]).toMatchObject({
+      name: 'DOLIPRANE',
+      dosage: '1 G',
+      forme: 'COMPRIMES',
+      posologie: '1 comprimé x 3 / jour pendant 4 jours',
+      catalogPresentationId: 'dol-1g',
+    });
+  });
+
+  it('keeps posology empty when no exact practitioner habit exists', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.includes('/habits/presets')) return { data: [] } as never;
+      if (url.includes('/habits/suggest')) return { data: {} } as never;
+      if (url.includes('/medications/neo/search')) return { data: [{
+        presentation_id: 'dol-1g',
+        nom: 'DOLIPRANE',
+        dci: 'PARACETAMOL',
+        dosage: '1',
+        unite: 'G',
+        forme: 'COMPRIMES',
+        source: { id: 'ammps-current', current_marketing_status_verified: true },
+      }] } as never;
+      if (url.includes('/prescriptions/habits/details')) return { data: { preferred_posology: null } } as never;
+      return { data: [] } as never;
+    });
+
+    const setDrugs = vi.fn();
+    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
+    fireEvent.change(input, { target: { value: 'doliprane 1g' } });
+    fireEvent.click(await screen.findByText('DOLIPRANE'));
+
+    await waitFor(() => expect(setDrugs).toHaveBeenCalled());
+    expect(setDrugs.mock.calls[0][0][0].posologie).toBe('');
+  });
+
 });
