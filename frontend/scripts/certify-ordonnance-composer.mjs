@@ -17,6 +17,8 @@ const browser = await chromium.launch({ headless: true });
 const exactHead = process.env.GITHUB_SHA || 'local';
 const captures = [];
 
+// D6: the visual contract certifies only practitioner-explicit quantity as documentary data.
+
 for (const viewport of viewports) {
   const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
   const page = await context.newPage();
