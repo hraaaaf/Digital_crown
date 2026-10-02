@@ -166,6 +166,7 @@ jobs:
           pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-ci.txt
           pip install -r /tmp/requirements-ci.txt
+          pip install jsonschema==4.25.1
           python -m pip check
       - name: Run only changed backend test files
         env:
