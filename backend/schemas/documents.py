@@ -17,6 +17,8 @@ class MedicationItem(BaseModel):
     forme: Optional[str] = "Sachets"
     posologie: Optional[str] = ""
     type: Optional[str] = "MEDICAMENT"
+    quantite: Optional[int] = Field(default=None, ge=1)
+    quantite_explicit: bool = False
 
 
 class OrdonnanceData(BaseModel):

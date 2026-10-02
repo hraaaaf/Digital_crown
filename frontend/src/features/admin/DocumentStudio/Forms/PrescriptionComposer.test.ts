@@ -61,6 +61,15 @@ describe('PrescriptionComposer', () => {
     });
   });
 
+  it('préserve une durée ou limite saisie manuellement dans la phrase', () => {
+    expect(composePrescriptionPosology({
+      amount: '1 comprimé',
+      frequency: '2 fois par jour',
+      constraint: 'pendant 8 jours selon contrôle',
+      context: '',
+    })).toBe('1 comprimé, 2 fois par jour, pendant 8 jours selon contrôle.');
+  });
+
   it('préserve un texte non reconnu en dehors du composer jusqu’à action explicite', () => {
     expect(parsePrescriptionPosology('Selon protocole personnalisé du praticien')).toEqual({
       amount: '',

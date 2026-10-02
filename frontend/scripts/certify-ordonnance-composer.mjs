@@ -9,15 +9,18 @@ fs.mkdirSync(outDir, { recursive: true });
 const viewports = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
-  { width: 768, height: 1024 },
+  { width: 768, height: 900 },
   { width: 1280, height: 900 },
 ];
 
 const browser = await chromium.launch({ headless: true });
+const exactHead = process.env.GITHUB_SHA || 'local';
 const captures = [];
 
+// D6: the visual contract certifies only practitioner-explicit quantity as documentary data.
+
 for (const viewport of viewports) {
-  const context = await browser.newContext({ viewport, colorScheme: 'dark' });
+  const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
@@ -26,32 +29,40 @@ for (const viewport of viewports) {
   // a documentary catalog lookup after mount, while this workflow intentionally
   // starts no backend. Keep the visual harness deterministic and self-contained
   // instead of letting an unrelated API failure/redirect unmount the fixture.
-  await page.route('**/api/medications/search**', route => route.fulfill({
+  await page.route('**/api/medications/neo/search**', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: '[]',
   }));
 
   await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60000,
   });
-  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'visible', timeout: 20000 });
+  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'attached', timeout: 20000 });
+  await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
   const cards = page.locator('[data-ordonnance-drug-card]');
-  await cards.nth(1).waitFor({ state: 'visible', timeout: 20000 });
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-  await page.waitForTimeout(180);
+  await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
 
+  // Require the real fixture DOM to remain stable before capturing evidence.
+  // A transient mount followed by an async unmount must not be certified.
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-ordonnance-drug-card]').length === 2,
+    undefined,
+    { timeout: 20000 },
+  );
+  await page.waitForTimeout(250);
   const cardCount = await cards.count();
   if (cardCount !== 2) {
-    throw new Error(`Expected 2 DrugRow cards at ${viewport.width}x${viewport.height}, got ${cardCount}; pageErrors=${pageErrors.join(' | ')}`);
+    throw new Error(`Expected stable 2 DrugRow cards at ${viewport.width}x${viewport.height}, got ${cardCount}; pageErrors=${pageErrors.join(' | ')}`);
   }
 
   const scenes = [];
   for (const [index, label] of [[0, 'regular'], [1, 'pain']]) {
-    const card = cards.nth(index);
-    await card.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(160);
+    const card = page.locator('[data-ordonnance-drug-card]').nth(index);
+    await card.waitFor({ state: 'visible', timeout: 20000 });
+    await card.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    await page.waitForTimeout(80);
 
     const metrics = await card.evaluate(el => {
       const visible = node => {
@@ -61,20 +72,22 @@ for (const viewport of viewports) {
       };
       const composer = el.querySelector('[data-ordonnance-prescription-composer]');
       const controls = composer
-        ? [...composer.querySelectorAll('select')].filter(visible)
+        ? ['Prise', 'Rythme', 'Durée ou limite', 'Moment ou condition']
+            .map(label => composer.querySelector(`button[aria-label="${label}"]`))
+            .filter(node => node && visible(node))
         : [];
-      const persistedLabel = composer
-        ? [...composer.querySelectorAll('div')].find(node => node.textContent?.trim() === 'Phrase persistée')
-        : null;
-      const persistedValue = persistedLabel?.nextElementSibling || null;
+      const posologyField = composer?.querySelector('textarea[aria-label="Posologie en texte libre"]') || null;
+      const quantityField = el.querySelector('input[aria-label="Quantité à délivrer"]');
       const rect = el.getBoundingClientRect();
       return {
         card: { width: rect.width, height: rect.height, left: rect.left, right: rect.right },
         composerVisible: Boolean(composer),
         controlCount: controls.length,
         controlMinHeight: controls.length ? Math.min(...controls.map(control => control.getBoundingClientRect().height)) : null,
-        summaryVisible: Boolean(persistedValue && visible(persistedValue)),
-        summaryText: persistedValue?.textContent?.trim() || '',
+        summaryVisible: Boolean(posologyField && visible(posologyField)),
+        summaryText: posologyField?.value?.trim() || '',
+        quantityVisible: Boolean(quantityField && visible(quantityField)),
+        quantityValue: quantityField?.value || '',
       };
     });
 
@@ -84,7 +97,18 @@ for (const viewport of viewports) {
   }
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
-  captures.push({ viewport, scenes, horizontalOverflow: overflow, pageErrors });
+  const resolvedTheme = await page.evaluate(() => {
+    const root = document.documentElement;
+    const style = getComputedStyle(root);
+    return {
+      dataTheme: root.getAttribute('data-theme'),
+      background: style.getPropertyValue('--bg-medical-pearl').trim(),
+      card: style.getPropertyValue('--card-bg').trim(),
+      textMain: style.getPropertyValue('--text-main').trim(),
+      primary: style.getPropertyValue('--primary').trim(),
+    };
+  });
+  captures.push({ viewport, themeMode: 'tokens-default', resolvedTheme, scenes, horizontalOverflow: overflow, pageErrors });
   await context.close();
 }
 
@@ -101,14 +125,58 @@ for (const capture of captures) {
     if (!scene.metrics.composerVisible) failures.push(`${capture.viewport.width}-${scene.label}: composer missing`);
     if (scene.metrics.controlCount !== 4) failures.push(`${capture.viewport.width}-${scene.label}: expected 4 controls, got ${scene.metrics.controlCount}`);
     if ((scene.metrics.controlMinHeight || 0) < 43.5) failures.push(`${capture.viewport.width}-${scene.label}: control height ${scene.metrics.controlMinHeight}`);
-    if (!scene.metrics.summaryVisible) failures.push(`${capture.viewport.width}-${scene.label}: persisted phrase missing`);
+    if (!scene.metrics.summaryVisible) failures.push(`${capture.viewport.width}-${scene.label}: posology field missing`);
+    if (!scene.metrics.quantityVisible) failures.push(`${capture.viewport.width}-${scene.label}: quantity field missing`);
+    if (scene.metrics.quantityValue !== '1') failures.push(`${capture.viewport.width}-${scene.label}: unexpected quantity ${scene.metrics.quantityValue}`);
     if (scene.metrics.summaryText !== expectedSummary[scene.label]) {
-      failures.push(`${capture.viewport.width}-${scene.label}: unexpected persisted phrase ${scene.metrics.summaryText}`);
+      failures.push(`${capture.viewport.width}-${scene.label}: unexpected posology value ${scene.metrics.summaryText}`);
     }
   }
 }
 
+// 200% text scaling certification on the narrowest viewport.
+{
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(String(error)));
+  await page.route('**/api/medications/neo/search**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'attached', timeout: 20000 });
+  await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await page.waitForTimeout(180);
+  const cards = page.locator('[data-ordonnance-drug-card]');
+  const cardCount = await cards.count();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+  const controls = await page.locator('[data-ordonnance-prescription-composer] button').evaluateAll(nodes => nodes.filter(node => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; }).map(node => node.getBoundingClientRect().height));
+  const medicationNameFits = await page.locator('input[placeholder="NOM OU DCI DU MÉDICAMENT..."]').first().evaluate(node => node.scrollWidth <= node.clientWidth + 1);
+  const quantityFieldVisible = await page.locator('input[aria-label="Quantité à délivrer"]').first().isVisible();
+  const shot = 'ordonnance-composer-390x844-text-200.png';
+  await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
+  const resolvedTheme = await page.evaluate(() => {
+    const root = document.documentElement;
+    const style = getComputedStyle(root);
+    return {
+      dataTheme: root.getAttribute('data-theme'),
+      background: style.getPropertyValue('--bg-medical-pearl').trim(),
+      card: style.getPropertyValue('--card-bg').trim(),
+      textMain: style.getPropertyValue('--text-main').trim(),
+      primary: style.getPropertyValue('--primary').trim(),
+    };
+  });
+  captures.push({ viewport: { width: 390, height: 844 }, themeMode: 'tokens-default', resolvedTheme, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, medicationNameFits, quantityFieldVisible, pageErrors });
+  if (cardCount !== 2) failures.push(`390-text200: expected 2 cards, got ${cardCount}`);
+  if (overflow) failures.push('390-text200: horizontal overflow');
+  if (!medicationNameFits) failures.push('390-text200: medication name is visually clipped');
+  if (!quantityFieldVisible) failures.push('390-text200: quantity field missing');
+  if (controls.length && Math.min(...controls) < 43.5) failures.push(`390-text200: control height ${Math.min(...controls)}`);
+  if (pageErrors.length) failures.push(`390-text200: page errors ${pageErrors.join(' | ')}`);
+  await context.close();
+}
+
 const report = {
+  exactHead,
   status: failures.length ? 'FAIL' : 'PASS',
   viewports: viewports.map(viewport => `${viewport.width}x${viewport.height}`),
   captures,

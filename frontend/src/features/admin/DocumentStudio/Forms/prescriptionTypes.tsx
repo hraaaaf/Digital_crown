@@ -9,6 +9,7 @@ export interface DrugItem {
   posologie: string;
   type?: 'MEDICAMENT' | 'EXAMEN';
   quantite?: number;
+  quantiteExplicit?: boolean;
   non_substituable?: boolean;
 
   // Prescription Intelligence V1 — identité documentaire explicite.
