@@ -8,7 +8,7 @@ from pathlib import Path
 def _key(item, idx):
     return item.get("symbol") or item.get("raw_id") or f"index:{idx}"
 
-def _load_pixel_sizes(path: Path) -> dict[str, float]:
+def _load_calibration(path: Path):
     out={}
     with path.open(newline="", encoding="utf-8-sig") as handle:
         for row in csv.DictReader(handle):
@@ -18,7 +18,10 @@ def _load_pixel_sizes(path: Path) -> dict[str, float]:
                 raise SystemExit(f"invalid pixel_size for {cid}")
             if cid in out:
                 raise SystemExit(f"duplicate calibration for {cid}")
-            out[cid]=size
+            machine=row["machine"].strip()
+            if not machine:
+                raise SystemExit(f"missing machine for {cid}")
+            out[cid]={"pixel_size":size,"machine":machine}
     if len(out)!=1000:
         raise SystemExit(f"expected 1000 calibration rows, got {len(out)}")
     return out
@@ -49,11 +52,11 @@ def main():
     a=ap.parse_args()
 
     m=json.loads(a.manifest.read_text(encoding="utf-8"))
-    pixel_sizes=_load_pixel_sizes(a.calibration_csv)
+    calibration=_load_calibration(a.calibration_csv)
     case_ids={c["case_id"] for c in m["cases"]}
-    if set(pixel_sizes)!=case_ids:
-        missing=sorted(case_ids-set(pixel_sizes))
-        extra=sorted(set(pixel_sizes)-case_ids)
+    if set(calibration)!=case_ids:
+        missing=sorted(case_ids-set(calibration))
+        extra=sorted(set(calibration)-case_ids)
         raise SystemExit(f"calibration/manifest mismatch missing={missing[:3]} extra={extra[:3]}")
 
     by_px=defaultdict(list)
@@ -62,9 +65,12 @@ def main():
     dy_px=defaultdict(list)
     dx_mm=defaultdict(list)
     dy_mm=defaultdict(list)
+    by_device=defaultdict(lambda:defaultdict(list))
 
     for case in m["cases"]:
-        scale=pixel_sizes[case["case_id"]]
+        info=calibration[case["case_id"]]
+        scale=info["pixel_size"]
+        machine=info["machine"]
         j=case["junior"]["landmarks"]
         s=case["senior"]["landmarks"]
         if len(j)!=29 or len(s)!=29:
@@ -82,12 +88,14 @@ def main():
             dy_px[kj].append(dy)
             dx_mm[kj].append(dx*scale)
             dy_mm[kj].append(dy*scale)
+            by_device[machine][kj].append(d*scale)
 
     out={
         "schema":"CEPHALO_LOT02_AARIZ_AGREEMENT_V3",
         "cases":len(m["cases"]),
-        "calibration":{"source":a.calibration_csv.name,"rows":len(pixel_sizes),"unit":"mm_per_pixel"},
+        "calibration":{"source":a.calibration_csv.name,"rows":len(calibration),"unit":"mm_per_pixel"},
         "landmarks":{},
+        "by_device":{},
     }
 
     for k in sorted(by_px):
@@ -117,11 +125,14 @@ def main():
             "sd_dy_mm":statistics.pstdev(dy_mm[k]),
         }
 
+    for machine in sorted(by_device):
+        out["by_device"][machine]={k:_summary(v) for k,v in sorted(by_device[machine].items())}
+
     if len(out["landmarks"])!=29:
         raise SystemExit(f"expected 29 landmark identities, got {len(out['landmarks'])}")
 
     a.output.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-    print(json.dumps({"cases":out["cases"],"landmarks":len(out["landmarks"]),"calibrations":len(pixel_sizes)},sort_keys=True))
+    print(json.dumps({"cases":out["cases"],"landmarks":len(out["landmarks"]),"calibrations":len(calibration)},sort_keys=True))
 
 if __name__=="__main__":
     main()
