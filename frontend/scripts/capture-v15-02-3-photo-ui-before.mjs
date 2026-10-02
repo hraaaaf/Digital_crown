@@ -113,7 +113,10 @@ try {
 
     await page.goto('http://127.0.0.1:5173/patients', { waitUntil: 'networkidle', timeout: 90000 });
     await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
-    row.surfaces.patientList = { normal: await shot(page, viewport, 'patient-list'), text200: await text200(page, viewport, 'patient-list') };
+    row.surfaces.patientListTable = { normal: await shot(page, viewport, 'patient-list-table'), text200: await text200(page, viewport, 'patient-list-table') };
+    await page.getByRole('button', { name: 'Vue Grille' }).click();
+    await page.waitForTimeout(120);
+    row.surfaces.patientListGrid = { normal: await shot(page, viewport, 'patient-list-grid'), text200: await text200(page, viewport, 'patient-list-grid') };
 
     await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
     await page.getByRole('button', { name: 'Chercher un patient' }).click();
