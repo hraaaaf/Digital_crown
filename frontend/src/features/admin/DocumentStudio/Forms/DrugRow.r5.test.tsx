@@ -169,7 +169,26 @@ describe('DrugRow R5 progressive disclosure', () => {
     expect(screen.getByLabelText('Durée ou limite')).toBeInTheDocument();
     expect(screen.getByLabelText('Moment ou condition')).toBeInTheDocument();
     expect(screen.getByLabelText('Posologie en texte libre')).toBeInTheDocument();
+    expect(screen.getByLabelText('Quantité à délivrer')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /non substituable/i })).toBeInTheDocument();
+  });
+
+  it('permet au praticien de définir ou retirer une quantité à délivrer', () => {
+    const { onUpdateDrug } = renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 cp x 3 / jour pendant 7 jours',
+      quantite: 2,
+    }));
+
+    const quantity = screen.getByLabelText('Quantité à délivrer');
+    expect(quantity).toHaveValue(2);
+    fireEvent.change(quantity, { target: { value: '3' } });
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantite', 3);
+    fireEvent.change(quantity, { target: { value: '' } });
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantite', undefined);
   });
 
   it('garde une ligne radio/examen distincte sans composer médicament', () => {
