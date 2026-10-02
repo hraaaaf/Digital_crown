@@ -33,7 +33,7 @@ Success must be observable through executable fixtures and measurement-level evi
 - Preserve landmark vs construction vs plane/line vs measurement vs norm vs interpretation separation.
 - Fail closed on ambiguous identities.
 - No patient-data mutation, DB migration, runtime activation, master merge or Vercel deployment.
-- Recheck upstream debt before claiming chain-level certification: LOT01 explicit Downs/Wits-Jacobson/source-lock gaps; LOT02 real G1/G3 corpus/quantitative thresholds; LOT04 canonical gate mismatch/performance evidence.
+- Upstream decisions are explicit: LOT01 Downs/Wits source locks are resolved; LOT02 `CEPH_GOLDSET_READY` is NOT SATISFIED until real qualified G1/G3 evidence exists; LOT04 protocol sub-gate is approved but canonical `CEPH_DETECTOR_SELECTED` is NOT SATISFIED. LOT06 must remain detector-independent and may use only deterministic/manual G0 geometry until those hard blockers are cleared.
 - Apply adversarial convergence doctrine: 2+ distinct perspectives, fix+test+new HEAD on every demonstrated significant finding, then clean confirmation pass.
 - CI green alone is insufficient; prove test collection/execution on exact HEAD.
 
