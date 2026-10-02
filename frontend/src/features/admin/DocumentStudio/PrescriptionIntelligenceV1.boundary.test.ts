@@ -30,8 +30,9 @@ describe('Prescription Intelligence V1 active clinical boundary', () => {
     expect(studio).not.toContain('Contrôle clinique automatique bloqué');
   });
 
-  it('captures C1 patient facts without introducing a prescription automation path', () => {
-    expect(studio).toContain('PatientClinicalContextPanel');
+  it('keeps patient facts deterministic and safety consumption separate from prescription automation', () => {
+    expect(studio).toContain('ProcedureSafetyNotice');
+    expect(studio).not.toContain('PatientClinicalContextPanel');
     expect(clinicalContextPanel).toContain('/clinical-context');
     expect(clinicalContextPanel).not.toContain('/prescriptions/');
     expect(clinicalContextPanel).not.toContain('clinical_ready');

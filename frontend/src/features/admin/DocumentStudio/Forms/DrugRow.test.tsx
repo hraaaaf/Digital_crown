@@ -74,6 +74,7 @@ describe('DrugRow — Prescription Intelligence V1', () => {
 
   it('recherche uniquement dans le référentiel médicament après 2 caractères', async () => {
     renderDrugRow();
+    fireEvent.focus(screen.getByDisplayValue('PARACE'));
 
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith('/medications/neo/search', { params: { q: 'PARACE' } });
@@ -83,6 +84,7 @@ describe('DrugRow — Prescription Intelligence V1', () => {
 
   it('sélectionne explicitement une présentation et n injecte aucune posologie', async () => {
     const { onUpdateDrug } = renderDrugRow();
+    fireEvent.focus(screen.getByDisplayValue('PARACE'));
     const suggestion = await screen.findByText('PARACETAMOL TEST 500 MG');
 
     fireEvent.mouseDown(suggestion.closest('button')!);
@@ -98,8 +100,9 @@ describe('DrugRow — Prescription Intelligence V1', () => {
   it('échoue fermé si le référentiel est indisponible', async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error('offline'));
     renderDrugRow();
+    fireEvent.focus(screen.getByDisplayValue('PARACE'));
 
-    expect(await screen.findByText(/Référentiel médicament indisponible/)).toBeInTheDocument();
+    expect(await screen.findByText(/Recherche médicament indisponible pour le moment/)).toBeInTheDocument();
     expect(screen.queryByText('PARACETAMOL TEST 500 MG')).not.toBeInTheDocument();
   });
 
@@ -119,8 +122,8 @@ describe('DrugRow — Prescription Intelligence V1', () => {
       },
     });
 
-    expect(screen.getByText(/Suggestion clinique indisponible/)).toBeInTheDocument();
-    expect(screen.getByText(/Aucune règle de dose V1 certifiée/)).toBeInTheDocument();
+    expect(document.querySelector('[data-clinical-suggestion-status="blocked"]')).toBeInTheDocument();
+    expect(screen.queryByText(/Suggestion clinique indisponible/)).not.toBeInTheDocument();
   });
 
   it('réévalue silencieusement la sécurité N5 quand une présentation exacte est liée', async () => {
@@ -148,7 +151,7 @@ describe('DrugRow — Prescription Intelligence V1', () => {
         params: { presentation_id: 'cnops:test-500' },
       });
     });
-    expect(screen.queryByRole('alert')).not.toHaveTextContent(/Contexte patient à vérifier/i);
+    expect(screen.queryByText(/Contexte patient à vérifier/i)).not.toBeInTheDocument();
   });
 
   it('réévalue N5 quand le contexte patient enregistré change', async () => {
@@ -217,9 +220,9 @@ describe('DrugRow — Prescription Intelligence V1', () => {
     });
 
     expect(onUpdateDrug).toHaveBeenCalledWith(1, 'catalogPresentationId', undefined);
-    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'dosage', '');
-    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'forme', '');
-    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'posologie', '');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'dosage', '');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'forme', '');
+    expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'posologie', '');
     expect(onUpdateDrug).toHaveBeenCalledWith(1, 'name', 'PARACETAMOL TEST');
   });
 });

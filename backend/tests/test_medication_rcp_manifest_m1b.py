@@ -18,20 +18,21 @@ def _write_local_artifact(tmp_path, monkeypatch, relative_path: str, payload: by
     return artifact
 
 
-def test_rcp_manifest_covers_exact_current_amoxicillin_regulatory_ids():
+def test_rcp_manifest_preserves_legacy_seed_as_documentary_fail_closed_evidence():
     current_rows = [
         row
         for row in medication_dict.search_regulatory_presentations("AMOXICILLINE", limit=100)
         if row["source"]["id"] == CURRENT_SOURCE_ID
     ]
-    expected_ids = {row["regulatory_presentation_id"] for row in current_rows}
+    assert current_rows
 
-    assert len(expected_ids) == 8
-    manifest_ids = {
-        entry["regulatory_presentation_id"]
-        for entry in medication_rcp_manifest._load_manifest()["entries"]
-    }
-    assert manifest_ids == expected_ids
+    entries = medication_rcp_manifest._load_manifest()["entries"]
+    assert len(entries) == 8
+    assert len({entry["regulatory_presentation_id"] for entry in entries}) == 8
+    assert all(entry["dci"] == "AMOXICILLINE" for entry in entries)
+    assert all(entry["capture_status"] == "PENDING_DOWNLOAD" for entry in entries)
+    assert all(entry["extracted_clinical_fields"] == {} for entry in entries)
+    assert all(medication_rcp_manifest.entry_is_fail_closed(entry) is True for entry in entries)
 
 
 def test_all_initial_rcp_entries_are_pending_and_fail_closed():

@@ -32,7 +32,7 @@ describe('PrescriptionAgenticStudio V1 — isolation legacy', () => {
     );
 
     expect(screen.getByText('Prescription')).toBeInTheDocument();
-    expect(screen.getByText('Recherche médicament → présentation → validation')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' })).toBeInTheDocument();
     expect(screen.queryByText(/Suggestion clinique bloquée/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Contrôle clinique automatique bloqué/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Prescription Intelligence V1/)).not.toBeInTheDocument();
