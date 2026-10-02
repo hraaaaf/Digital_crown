@@ -314,3 +314,12 @@ def test_landmark_source_references_must_resolve(field):
     source["landmarks"][0][field] = "source:missing" if field == "source_image_ref" else ["source:missing"]
     with pytest.raises(Lot05MigrationError):
         migrate(source)
+
+
+def test_evidence_ids_must_be_globally_unique_across_sources_and_landmarks():
+    source = v1()
+    source["sources"][0]["evidence_id"] = source["landmarks"][0]["evidence_id"]
+    source["landmarks"][0]["source_image_ref"] = source["sources"][0]["evidence_id"]
+    source["landmarks"][0]["evidence_refs"] = [source["sources"][0]["evidence_id"]]
+    with pytest.raises(Lot05MigrationError):
+        migrate(source)
