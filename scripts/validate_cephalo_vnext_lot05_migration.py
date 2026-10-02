@@ -160,6 +160,20 @@ def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, heig
         for cid in sorted({item["landmark_id"] for item in landmarks})
     ]
     active_landmarks = [_active_state(ref, by_ref[ref]) for ref in refs]
+    coordinate_space = {
+        "version": "V1_IMAGE_PIXEL_SPACE",
+        "unit": "px",
+        "source_width_px": width,
+        "source_height_px": height,
+        "calibration_ref": calibration_ref,
+    }
+    quality_metadata = {
+        "model_id": None,
+        "model_sha256": None,
+        "raw_score": None,
+        "score_semantics": "NOT_AVAILABLE",
+        "score_calibration_ref": None,
+    }
 
     return {
         "schema_version": "CEPHALO_CANONICAL_SCHEMA_V2",
@@ -169,25 +183,13 @@ def migrate_v1_to_v2(v1: Mapping[str, Any], *, patient_id: int, width: int, heig
         "landmark_registry": registry,
         "current_landmark_refs": copy.deepcopy(refs),
         "active_landmarks": active_landmarks,
-        "coordinate_space": {
-            "version": "V1_IMAGE_PIXEL_SPACE",
-            "unit": "px",
-            "source_width_px": width,
-            "source_height_px": height,
-            "calibration_ref": calibration_ref,
-        },
-        "quality_metadata": {
-            "model_id": None,
-            "model_sha256": None,
-            "raw_score": None,
-            "score_semantics": "NOT_AVAILABLE",
-            "score_calibration_ref": None,
-        },
+        "coordinate_space": coordinate_space,
+        "quality_metadata": quality_metadata,
         "migration": {
             "migration_version": "CEPHALO_V1_TO_V2_MIGRATION_V1",
             "source_schema": "_evidence_graph_v1",
             "source_sha256": sha256(source),
-            "migration_context_sha256": _context_sha(patient_id, width, height),
+            "migration_context_sha256": _context_sha(patient_id, coordinate_space, quality_metadata),
             "migrated_at": migrated_at,
             "compatibility_class": "LOSSLESS_V1",
             "opaque_legacy_payload": source,
@@ -229,7 +231,8 @@ def roundtrip_v2_to_v1(v2: Mapping[str, Any]) -> dict[str, Any]:
         raise Lot05MigrationError("Case identity changed during migration")
 
     coordinate = v2.get("coordinate_space", {})
-    if _context_sha(v2.get("patient_id"), coordinate.get("source_width_px"), coordinate.get("source_height_px")) != migration.get("migration_context_sha256"):
+    quality = v2.get("quality_metadata", {})
+    if _context_sha(v2.get("patient_id"), coordinate, quality) != migration.get("migration_context_sha256"):
         raise Lot05MigrationError("Migration context changed after creation")
     if source.get("current_landmark_refs") != v2.get("current_landmark_refs"):
         raise Lot05MigrationError("Current landmark refs changed during migration")
@@ -239,10 +242,19 @@ def roundtrip_v2_to_v1(v2: Mapping[str, Any]) -> dict[str, Any]:
     if v2.get("active_landmarks") != expected_active:
         raise Lot05MigrationError("Active landmark provenance drifted from V1 source")
 
-    source_ids = {item.get("landmark_id") for item in source.get("landmarks", []) if isinstance(item, dict)}
-    registry_ids = {item.get("canonical_id") for item in v2.get("landmark_registry", []) if isinstance(item, dict)}
-    if source_ids != registry_ids:
-        raise Lot05MigrationError("Landmark registry drifted from V1 source")
+    expected_registry = [
+        {
+            "canonical_id": cid,
+            "aliases": [],
+            "identity_version": "V1_RUNTIME_ID_PRESERVED",
+            "semantic_status": "LEGACY_AMBIGUOUS",
+            "tissue_domain": _domain(cid),
+            "analysis_scope": None,
+        }
+        for cid in sorted({item.get("landmark_id") for item in source.get("landmarks", []) if isinstance(item, dict)})
+    ]
+    if v2.get("landmark_registry") != expected_registry:
+        raise Lot05MigrationError("Landmark registry semantics drifted from V1 migration contract")
 
     calibrations = [s for s in source.get("sources", []) if isinstance(s, dict) and s.get("kind") == "calibration"]
     expected_calibration = calibrations[0].get("evidence_id") if len(calibrations) == 1 else None
