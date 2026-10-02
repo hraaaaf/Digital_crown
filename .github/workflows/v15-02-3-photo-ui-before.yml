@@ -7,6 +7,10 @@ on:
       - ".github/workflows/v15-02-3-photo-ui-before.yml"
   workflow_dispatch:
 
+concurrency:
+  group: v15-02-3-before-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
