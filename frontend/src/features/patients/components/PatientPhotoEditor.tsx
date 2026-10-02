@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Camera, ImagePlus, Loader2, Trash2, X, Check, ZoomIn } from 'lucide-react';
 import { api } from '../../../services/api';
+import { usePatientStore } from '../../../stores/usePatientStore';
 
 type PatientPhotoEditorProps = {
   patientId: string | number;
@@ -115,6 +116,15 @@ export function PatientPhotoEditor({
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const lastTriggerRef = useRef<'import' | 'camera'>('import');
+
+  const syncCachedPhotoBinding = (value: string | null) => {
+    const state = usePatientStore.getState();
+    if (!state.patientsCacheLoaded) return;
+    const numericPatientId = Number(patientId);
+    state.setPatientsCache(state.patientsCache.map(patient =>
+      patient.id === numericPatientId ? { ...patient, photo_url: value } : patient
+    ));
+  };
 
   const returnFocus = () => {
     requestAnimationFrame(() => {
@@ -305,7 +315,8 @@ export function PatientPhotoEditor({
       const jpeg = await cropToJpeg(crop.src, zoom, offsetX, offsetY);
       const data = new FormData();
       data.append('file', new File([jpeg], 'patient-profile.jpg', { type: 'image/jpeg' }));
-      await api.post(`/patients/${patientId}/photo`, data);
+      const response = await api.post(`/patients/${patientId}/photo`, data);
+      syncCachedPhotoBinding(response.data?.photo_url || `/api/patients/${patientId}/photo`);
       closeCrop();
       setHasPhoto(true);
       returnFocus();
@@ -322,6 +333,7 @@ export function PatientPhotoEditor({
     setError('');
     try {
       await api.delete(`/patients/${patientId}/photo`);
+      syncCachedPhotoBinding(null);
       setHasPhoto(false);
       setPhotoLoadError('');
       revokeObjectUrl(previewUrlRef.current);

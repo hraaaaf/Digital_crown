@@ -49,6 +49,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { AssuranceBadge } from '../../components/AssuranceBadge';
 import { useFlowHandoff } from '../../hooks/useFlowHandoff';
+import { PatientAvatar } from './components/PatientAvatar';
 
 interface Patient {
   id: number;
@@ -67,6 +68,7 @@ interface Patient {
   assurance_complementaire_nom?: string;
   antecedents_medicaux?: string;
   motif_consultation?: string;
+  photo_url?: string | null;
   dossier?: {
     is_ortho_active: boolean;
   };
@@ -296,6 +298,13 @@ export const PatientDetails = () => {
           <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>
             <div className={cn('flex items-start sm:items-center min-w-0', isRadiology ? 'gap-2' : 'gap-3')}>
               <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
+              <PatientAvatar
+                patientId={patient.id}
+                firstName={patient.prenom}
+                lastName={patient.nom}
+                photoUrl={patient.photo_url}
+                className={cn('rounded-xl border border-primary/15 shadow-sm', isRadiology ? 'w-8 h-8 text-xs' : 'w-10 h-10 sm:w-12 sm:h-12 text-sm')}
+              />
               <div className="min-w-0">
                 <div className={cn('flex flex-wrap items-center', isRadiology ? 'gap-1.5' : 'gap-2')}>
                   <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl')} style={{ color: 'var(--primary)' }}>{fullName}</h1>

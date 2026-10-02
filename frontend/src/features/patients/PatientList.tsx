@@ -5,6 +5,7 @@ import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, Arro
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
+import { PatientAvatar } from './components/PatientAvatar';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { PatientSummaryHoverCard } from './components/PatientSummaryHoverCard';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
@@ -318,9 +319,13 @@ export const PatientList = () => {
                   >
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 rounded-[1.2rem] bg-gradient-to-br from-primary/10 to-card-bg flex items-center justify-center text-primary font-black text-xl border border-primary/20 shadow-sm group-hover:shadow-md transition-all">
-                          {(p.prenom?.charAt(0) || '')}{(p.nom?.charAt(0) || '')}
-                        </div>
+                        <PatientAvatar
+                          patientId={p.id}
+                          firstName={p.prenom}
+                          lastName={p.nom}
+                          photoUrl={p.photo_url}
+                          className="w-14 h-14 rounded-[1.2rem] text-xl border border-primary/20 shadow-sm group-hover:shadow-md transition-all"
+                        />
                         <div>
                           <div className="flex items-center gap-3">
                             <div className="font-black text-primary text-lg tracking-tight">
@@ -396,9 +401,13 @@ export const PatientList = () => {
                   <div>
                     {/* Ligne du haut: Bulle Patient et Actions rapides */}
                     <div className="flex items-start justify-between gap-3 mb-5">
-                      <div className="w-14 h-14 rounded-[1.2rem] bg-gradient-to-br from-primary/10 to-card-bg flex items-center justify-center text-primary font-black text-xl border border-primary/20 shadow-sm group-hover:shadow-md transition-all">
-                        {(p.prenom?.charAt(0) || '')}{(p.nom?.charAt(0) || '')}
-                      </div>
+                      <PatientAvatar
+                        patientId={p.id}
+                        firstName={p.prenom}
+                        lastName={p.nom}
+                        photoUrl={p.photo_url}
+                        className="w-14 h-14 rounded-[1.2rem] text-xl border border-primary/20 shadow-sm group-hover:shadow-md transition-all"
+                      />
 
                       <div className="flex items-center gap-1.5">
                         <button

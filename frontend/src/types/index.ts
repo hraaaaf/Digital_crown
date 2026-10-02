@@ -32,6 +32,7 @@ export interface Patient {
   assurance: 'CNOPS' | 'CNSS' | 'MUTUELLE_FAR' | 'AUTRE' | 'AUCUNE';
   created_at: string;
   updated_at: string;
+  photo_url?: string | null;
   
   // NOUVEAU : Score de fiabilité (calculé ou forcé)
   manual_grade?: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE' | null;

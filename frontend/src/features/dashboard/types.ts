@@ -22,9 +22,12 @@ export interface DashboardAppointment {
   start_time: string;
   status: string;
   description?: string | null;
+  patient_id?: number | null;
   patient?: {
+    id?: number;
     nom: string;
     prenom: string;
+    photo_url?: string | null;
   } | null;
 }
 
@@ -93,6 +96,7 @@ export interface SearchPatientResult {
   nom?: string | null;
   prenom?: string | null;
   numero_dossier?: string | null;
+  photo_url?: string | null;
 }
 
 export type DataState = 'idle' | 'loading' | 'ready' | 'error';
