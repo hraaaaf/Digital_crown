@@ -66,7 +66,7 @@ def v1():
 
 def migrate(source=None, **kwargs):
     return migrate_v1_to_v2(
-        source or v1(),
+        v1() if source is None else source,
         patient_id=kwargs.pop("patient_id", 7),
         width=kwargs.pop("width", 1935),
         height=kwargs.pop("height", 2400),
@@ -246,3 +246,22 @@ def test_semantic_domains_do_not_flatten_soft_dental_or_occlusal_points():
     assert registry["Pog_soft"]["tissue_domain"] == "SOFT"
     assert registry["U1_apex"]["tissue_domain"] == "DENTAL"
     assert registry["Occ_Ant"]["tissue_domain"] == "CONSTRUCTION_ANCHOR"
+
+
+def test_fixture_is_accepted_by_real_v1_typed_evidence_models():
+    source = v1()
+    for item in source["sources"]:
+        SourceEvidence.model_validate(item)
+    for item in source["landmarks"]:
+        LandmarkEvidence.model_validate(item)
+
+
+def test_machine_readable_v2_schema_contains_gate_invariants():
+    schema_path = Path("docs/audits/schemas/cephalo_vnext_lot05_canonical_v2.schema.json")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    required = set(schema["required"])
+    assert {"landmark_registry", "current_landmark_refs", "active_landmarks", "coordinate_space", "quality_metadata", "migration"} <= required
+    migration_required = set(schema["properties"]["migration"]["required"])
+    assert {"source_sha256", "migration_context_sha256", "migrated_at", "compatibility_class"} <= migration_required
+    assert schema["properties"]["coordinate_space"]["properties"]["unit"]["const"] == "px"
+    assert schema["properties"]["evidence_graph_version"]["const"] == "_evidence_graph_v1"
