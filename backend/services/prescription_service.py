@@ -81,6 +81,7 @@ class PrescriptionService(LegacyPrescriptionService):
                 "posologie": d.get("posologie", ""),
                 "type": d.get("type", "MEDICAMENT"),
                 "quantite": d.get("quantite"),
+                "quantiteExplicit": bool(d.get("quantiteExplicit", d.get("quantite_explicit", False))),
                 "non_substituable": bool(d.get("non_substituable", False)),
                 "catalogPresentationId": d.get("catalogPresentationId"),
                 "catalogDci": d.get("catalogDci"),
