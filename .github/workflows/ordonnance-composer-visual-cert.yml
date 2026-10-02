@@ -1,6 +1,18 @@
 name: Ordonnance Composer Visual Certification
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-search-intelligence
+    paths:
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposer.ts'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposerFixture.tsx'
+      - 'frontend/scripts/certify-ordonnance-composer.mjs'
+      - 'frontend/ordonnance-composer-fixture.html'
+      - '.github/workflows/ordonnance-composer-visual-cert.yml'
   pull_request:
     paths:
       - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.tsx'
