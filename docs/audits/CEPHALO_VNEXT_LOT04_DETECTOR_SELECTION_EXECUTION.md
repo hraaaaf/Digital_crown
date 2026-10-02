@@ -57,7 +57,7 @@ Frozen policy: `REFERENCE_EQUIVALENCE_V1`, materialized in:
 - `docs/audits/schemas/cephalo_vnext_lot04_tolerance_policy_reference_equivalence_v1.json`.
 
 Selection semantics are engineering reference-equivalence only, not universal clinical validity:
-- candidate landmark median and p95 must not exceed the corresponding frozen LOT02 human median and p95;
+- candidate landmark p95 must not exceed the corresponding frozen LOT02 human p95; median is reported but non-blocking for the approved Option A;
 - sentinel-measurement p95 absolute error must not exceed the corresponding frozen LOT02 G1-A human p95;
 - no extra non-inferiority margin is authorized;
 - missing/non-finite/out-of-frame outputs are fail-closed and cannot PASS;
