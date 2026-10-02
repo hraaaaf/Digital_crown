@@ -94,9 +94,9 @@
     },
     {
       "method_id": "TWEED_IMPA_DEG_V1",
-      "canonical_measurement_id": null,
-      "state": "BLOCKED",
-      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+      "canonical_measurement_id": "M_IMPA_GOME_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_L1_APEX_INCISAL_GO_ME_IDENTITY_BINDING"
     },
     {
       "method_id": "TWEED_FMIA_DEG_V1",

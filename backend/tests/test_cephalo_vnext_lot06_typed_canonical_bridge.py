@@ -98,3 +98,27 @@ def test_lot06_runtime_convergence_rules_exactly_match_canonical_json():
         assert list(rule["compatibility_method_ids"])==expected["compatibility_method_ids"]
         assert rule["equivalence"]==expected["equivalence"]
         assert rule["canonical_value_precision"]==expected["canonical_value_precision"]
+
+
+def test_lot06_tweed_impa_is_promoted_but_frankfort_dependent_tweed_methods_remain_blocked():
+    impa = binding_for_method("TWEED_IMPA_DEG_V1")
+    assert impa.state == "MAPPED"
+    assert impa.canonical_measurement_id == "M_IMPA_GOME_DEG_V1"
+    assert impa.reason == "EXACT_L1_APEX_INCISAL_GO_ME_IDENTITY_BINDING"
+
+    for method_id in ("TWEED_FMA_DEG_V1", "TWEED_FMIA_DEG_V1"):
+        binding = binding_for_method(method_id)
+        assert binding.state == "BLOCKED"
+        assert binding.canonical_measurement_id is None
+        assert binding.reason == "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+
+
+def test_lot06_tweed_impa_promotion_matches_executable_contract_landmarks():
+    contract = json.loads(
+        (ROOT / "docs" / "audits" / "schemas" / "cephalo_vnext_lot06_executable_measurement_contract_v1.json")
+        .read_text(encoding="utf-8")
+    )
+    by_id = {item["measurement_id"]: item for item in contract["measurements"]}
+    assert by_id["M_IMPA_GOME_DEG_V1"]["required_landmarks"] == [
+        "L1_apex", "L1_incisal", "Go", "Me"
+    ]
