@@ -1,6 +1,6 @@
 # Cephalo vNext — LOT02 Analysis Coverage & Gold Set Contract
 
-Status: VERIFIED — CEPH_GOLDSET_READY
+Status target: VERIFIED — CEPH_GOLDSET_READY (effective only after the external exact-head closeout record below is clean on the current branch HEAD)
 Parent: LOT01 candidate 8b722dd5686536997642ea07836bee6588de731a
 Gate target: CEPH_GOLDSET_READY
 
@@ -110,7 +110,10 @@ The previous missing-corpus blocker is resolved by material evidence:
 
 - Aariz official archive verified by exact size and MD5.
 - 1000 cases frozen as 700 train / 150 valid / 150 test with paired Junior/Senior expert-group annotations.
-- Manifest V2 records image SHA-256, dimensions, annotation SHA-256 and split membership; local frozen manifest SHA-256: `73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df`.
+- Manifest V2 records image SHA-256, dimensions, annotation SHA-256 and split membership; frozen cross-platform manifest SHA-256: `73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df`.
+- QC artifact SHA-256: `f5dc5552c3484dce8cbc16e25f2c2207be1cf48c1f2407fb584c85efc3e26be0`.
+- Sentinel-measurement agreement SHA-256: `868de930eba33bf2b6d6b175b386f1c42e7fdb3205566ddbe331141fa5f1804d`.
+- Per-landmark/device agreement SHA-256: `e99fa49373ed20902c7266cbe805fcc2eee2d5bc70f747f64f424cfa45d35ff0`.
 - 29,000 paired annotations were calibrated in mm and deterministically classified: 27,248 CONSENSUS_CANDIDATE; 1,309 REVIEW_REQUIRED; 441 ADJUDICATION_REQUIRED; 2 STRUCTURAL_INVALID.
 - Sentinel measurement agreement is frozen for SNA, SNB, ANB, FMA, IMPA, FMIA, SN-GoGn, Co-A and Co-Gn across all 1000 cases; no computation failures.
 - Aariz publication source-locks intra-observer repeatability evidence (DOI 10.1038/s41597-025-05542-3); executable DC evidence remains the downloaded Junior/Senior corpus.
@@ -118,7 +121,12 @@ The previous missing-corpus blocker is resolved by material evidence:
 - G3 synthetic legacy fixture is present and executable; migration tests prove exact round-trip preservation and no silent historical recomputation.
 - SRPose38 source checkpoint provenance is byte-identical to the published CLDetection2023 pretrained weight; the published training procedure consumes CLDetection2023 train_stack.mha/train-gt.json and contains no Aariz reference. This is provenance evidence, not a clinical performance claim.
 
-Therefore `CEPH_GOLDSET_READY` is satisfied for the LOT02 gold-set contract itself. Exact-head evidence at `db9642e1695cd3f04a53f4fc606de178cbdfc151`: CI #7324 SUCCESS; targeted backend tests 70/70 passed; T2 #6139 SUCCESS; Agenda #2141 SUCCESS. Two independent internal adversarial perspectives (science/biometrics; architecture/reproducibility) found 0 BLOCKER, 0 MAJOR, and 0 significant unresolved debt; confirmation pass clean. This gate remains limited to gold-set readiness and does not select a detector or confer clinical validity.
+Therefore `CEPH_GOLDSET_READY` is satisfied for the LOT02 gold-set contract itself **only when the external exact-head closeout record for the current branch HEAD is clean**. The last pre-closeout evidence parent is `319c1274928c01c029de64d04b4c6c3cd57e7e43`: CI #7334 SUCCESS with targeted backend tests 73/73 passed and no skip reported; T2 #6149 SUCCESS; Agenda #2151 SUCCESS. These parent runs are integration evidence, not the final child-HEAD certification.
+
+### Exact-head closeout binding
+The final LOT02 closeout identity MUST be taken from the immutable Git commit SHA and GitHub Actions run metadata (`head_sha` / `GITHUB_SHA`) of the final documentation commit. The contract intentionally does **not** embed its own final commit SHA or final run numbers: doing so is self-referential and would create a new commit every time those identifiers were written, instantly making the embedded SHA/runs stale again. A clean closeout therefore requires, on one unchanged final HEAD: (1) directly impacted Actions SUCCESS; (2) actual test collection/execution inspected; (3) two adversarial reviews restarted from zero; (4) one additional confirmation pass; (5) 0 new BLOCKER, 0 new MAJOR, and 0 significant unaccepted debt. The exact SHA/run IDs and review verdicts are recorded in the PR/Notion closeout evidence for that unchanged HEAD.
+
+This gate remains limited to gold-set readiness and does not select a detector or confer clinical validity.
 
 
 Detector selection and clinical acceptance remain separate LOT04/LOT09 concerns. LOT02 does not authorize SRPose38 clinically.
