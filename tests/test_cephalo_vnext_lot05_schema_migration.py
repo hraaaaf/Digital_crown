@@ -107,3 +107,13 @@ def test_calibration_requires_stable_evidence_id():
     source=v1(); source["sources"][1].pop("evidence_id")
     with pytest.raises(Lot05MigrationError):
         migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+
+
+@pytest.mark.parametrize("mutation",["case","registry","calibration"])
+def test_roundtrip_rejects_v2_metadata_drift(mutation):
+    v2=migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400)
+    if mutation=="case": v2["case_id"]="case:other"
+    elif mutation=="registry": v2["landmark_registry"][0]["canonical_id"]="WRONG"
+    else: v2["coordinate_space"]["calibration_ref"]="cal:other"
+    with pytest.raises(Lot05MigrationError):
+        roundtrip_v2_to_v1(v2)
