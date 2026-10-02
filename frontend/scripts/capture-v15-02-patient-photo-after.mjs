@@ -114,3 +114,7 @@ try {
 
 fs.writeFileSync(path.join(outDir, 'evidence.json'), JSON.stringify(evidence, null, 2));
 console.log('V15_02_PHOTO_AFTER', JSON.stringify(evidence));
+
+
+// V1.5-02.3 BEFORE extension: harness-only; product runtime unchanged.
+await import('./capture-v15-02-3-photo-ui-before.mjs');
