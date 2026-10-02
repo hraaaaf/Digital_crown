@@ -8,7 +8,7 @@ def test_measurement_agreement_record_is_complete_and_nonclinical():
     r=json.loads(REC.read_text(encoding="utf-8"))
     assert r["cases"]==1000
     assert r["bad_cases"]==0
-    assert set(r["measurements"])=={"SNA","SNB","ANB","FMA","IMPA","FMIA","SN-GoGn","Co-A","Co-Gn"}
+    assert set(r["measurements_all_source"])=={"SNA","SNB","ANB","FMA","IMPA","FMIA","SN-GoGn","Co-A","Co-Gn"}\n    assert set(r["measurements_g1a_consensus_only"])=={"SNA","SNB","ANB","FMA","IMPA","FMIA","SN-GoGn","Co-A","Co-Gn"}\n    assert all(v["n"]==1000 for v in r["measurements_all_source"].values())\n    assert all(0 < v["n"] <= 1000 for v in r["measurements_g1a_consensus_only"].values())
     assert r["policy"]["clinical_acceptance"] is False
     assert r["policy"]["no_threshold_retuning_to_candidate_model"] is True
 
