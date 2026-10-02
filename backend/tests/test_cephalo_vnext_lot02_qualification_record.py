@@ -42,3 +42,13 @@ def test_qualification_does_not_select_detector_or_grant_clinical_acceptance():
     effect=r["gate_effect"]
     assert effect["detector_selection"]=="NOT_GRANTED_BY_THIS_RECORD"
     assert effect["clinical_acceptance"]=="NOT_GRANTED_BY_THIS_RECORD"
+
+
+def test_g2_cross_device_distribution_is_frozen_and_complete():
+    r=load()
+    g2=r["g2_cross_device"]
+    assert g2["devices"]==7
+    assert len(g2["machine_distribution"])==7
+    assert sum(g2["machine_distribution"].values())==1000
+    assert sum(g2["pixel_size_distribution_mm_per_px"].values())==1000
+    assert g2["role"].startswith("External cross-device stratification")
