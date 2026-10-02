@@ -634,7 +634,7 @@ for(const viewport of viewports){
 
  // Ortho activation: deterministic false fixture, refusal keeps module locked, ACK unlocks cephalo.
  await page.route('**/api/patients/'+patient.id,async route=>{
-   if(route.request().method()==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...patient,is_ortho_active:false})});
+   if(route.request().method()==='GET') return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...patient,dossier:{...(patient.dossier||{}),is_ortho_active:false}})});
    return route.continue();
  });
  let orthoPatchCalls=0;
