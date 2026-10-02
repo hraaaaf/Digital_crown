@@ -33,7 +33,7 @@ Success must be observable through executable fixtures and measurement-level evi
 - Preserve landmark vs construction vs plane/line vs measurement vs norm vs interpretation separation.
 - Fail closed on ambiguous identities.
 - No patient-data mutation, DB migration, runtime activation, master merge or Vercel deployment.
-- Upstream decisions are explicit: LOT01 Downs/Wits source locks are resolved; LOT02 `CEPH_GOLDSET_READY` is NOT SATISFIED until real qualified G1/G3 evidence exists; LOT04 protocol sub-gate is approved but canonical `CEPH_DETECTOR_SELECTED` is NOT SATISFIED. LOT06 must remain detector-independent and may use only deterministic/manual G0 geometry until those hard blockers are cleared.
+- Upstream decisions are explicit: LOT01 Downs/Wits source locks are resolved; LOT02 `CEPH_GOLDSET_READY` is SATISFIED on evidence HEAD `6ba434f7c23812144f84a5a8b286542473bb5f18` with CI #7356 SUCCESS (74/74 targeted tests, no skip reported), Agenda #2173 SUCCESS, T2 #6171 SUCCESS, two internal adversarial perspectives clean and confirmation pass clean. LOT04 protocol sub-gate is approved but canonical `CEPH_DETECTOR_SELECTED` remains NOT SATISFIED. LOT06 must remain detector-independent for semantics requiring detector selection; deterministic/manual G0 geometry remains authorized where applicable.
 - Apply adversarial convergence doctrine: 2+ distinct perspectives, fix+test+new HEAD on every demonstrated significant finding, then clean confirmation pass.
 - CI green alone is insufficient; prove test collection/execution on exact HEAD.
 
