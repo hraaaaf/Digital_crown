@@ -294,8 +294,8 @@ describe('Neo prescription quick access', () => {
       catalogPresentationId: 'dol-1g',
     });
     await waitFor(() => expect(setDrugs).toHaveBeenCalledTimes(2));
-    const enrich = setDrugs.mock.calls[1][0] as (current: typeof immediate) => typeof immediate;
-    expect(enrich(immediate)[0]).toMatchObject({
+    const enriched = setDrugs.mock.calls[1][0];
+    expect(enriched[0]).toMatchObject({
       name: 'DOLIPRANE',
       posologie: '1 comprimé x 3 / jour pendant 4 jours',
       catalogPresentationId: 'dol-1g',
@@ -320,7 +320,7 @@ describe('Neo prescription quick access', () => {
     });
 
     const setDrugs = vi.fn();
-    render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
+    const { rerender } = render(<PrescriptionQuickAccessBar drugs={[emptyLine]} setDrugs={setDrugs} prescriptionIndication="" />);
     const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
     fireEvent.change(input, { target: { value: 'doliprane 1g' } });
     fireEvent.click(await screen.findByText('DOLIPRANE'));
@@ -368,8 +368,7 @@ describe('Neo prescription quick access', () => {
 
     const immediate = setDrugs.mock.calls[0][0];
     await waitFor(() => expect(setDrugs).toHaveBeenCalledTimes(2));
-    const enrich = setDrugs.mock.calls[1][0] as (current: typeof immediate) => typeof immediate;
-    const final = enrich(immediate);
+    const final = setDrugs.mock.calls[1][0];
     expect(final[0].posologie).toBe('');
     expect(final[1].posologie).toBe('habitude ciblée');
   });
