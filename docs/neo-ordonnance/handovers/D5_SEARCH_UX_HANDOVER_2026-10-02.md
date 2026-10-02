@@ -595,3 +595,145 @@ The Git integration of the larger Neo Ordonnance chantier remains OPEN.
 
 Next exact:
 continue the next Neo Ordonnance lot from a clean integration strategy rather than merging the long-lived divergent branch wholesale. Before any future merge to `master`, reconcile the 93 commits currently ahead on `master`, isolate the intended Neo Ordonnance changes, rerun the relevant exact-head gates on the integration candidate, then perform the normal adversarial convergence cycle.
+
+
+---
+
+## 16. D5.8 — UX Polish closeout
+
+D5.8 was opened after a fresh two-reviewer UX/UI audit of the D5 composer.
+
+Final implementation HEAD before D6:
+`6814fbf4f36d03230a6ca7384e8228a5f5176735`
+
+Certified outcomes:
+- duplicate `Phrase persistée` representation removed;
+- single primary posology text representation retained;
+- catalog instruction rewritten to request exact presentation confirmation instead of falsely implying no medication was selected;
+- desktop composer width expanded;
+- contextual values wrap instead of truncating;
+- responsive grid uses 1 column mobile / 2 tablet / 4 desktop;
+- 200% text scaling no longer clips the medication identity.
+
+Exact-head visual run:
+`37005066182` — SUCCESS.
+
+Artifact:
+`11224833134`
+digest:
+`sha256:4649c67d47d333a99ebea113cc81c30f366cf90e86fcd0356180d8d25a11c016`
+
+Final adversarial scores:
+- practitioner flow / cognitive load: **9.4 / 10**;
+- UI / accessibility / responsive: **9.3 / 10**.
+
+Status:
+**D5.8 CONVERGED**.
+
+---
+
+## 17. D6 — Quantity end-to-end & document fidelity closeout
+
+Final certified HEAD:
+`65f7875ef7f6d66f6157e0927e0de439a5818bc9`
+
+D6 restores medication quantity only when it is explicitly authored by the practitioner.
+
+Canonical contract:
+- `quantite`: optional positive integer value;
+- `quantiteExplicit` / `quantite_explicit`: documentary-authoring marker;
+- historical/default `quantite=1` without the explicit marker is **not** considered a prescribed quantity;
+- no inferred unit is invented;
+- clinical ordonnance renders `Quantité : N`;
+- FAR derived ordonnance renders `Qté N` only for explicit quantity.
+
+End-to-end coverage now includes:
+- DrugRow UI;
+- practitioner edit / clear behavior;
+- document generation payload;
+- backend schema validation;
+- archived clinical data;
+- document reopening / rehydration;
+- saved protocols / saved prescriptions;
+- dirty-state;
+- real clinical PDF generation;
+- FAR bridge + renderer;
+- responsive / 200% visual contract.
+
+Critical adversarial finding fixed before certification:
+legacy presets could contain `quantite=1` by historical default without practitioner intent.
+D6 therefore introduced the explicit marker so those values remain invisible and are not printed.
+
+Exact-head D6 gate:
+`37008012126` — SUCCESS.
+- backend: **48 passed**;
+- frontend: **4 files / 36 tests passed**;
+- frontend build: SUCCESS;
+- exact build manifest commit:
+  `65f7875ef7f6d66f6157e0927e0de439a5818bc9`.
+
+Exact-head visual gate:
+`37008012133` — SUCCESS.
+
+Artifact:
+`11227425801`
+digest:
+`sha256:397754a160b298d67ae71f87957e0c5a4fa4b02899d9dd0f8be0a8ea0833366b`
+
+Observed:
+- 390×844;
+- 430×932;
+- 768×900;
+- 1280×900;
+- 390×844 at 200%;
+- quantity control visible;
+- medication identity fits at 200%;
+- zero horizontal overflow;
+- zero page errors.
+
+Adversarial closeout:
+- data/document integrity: **9.4 / 10**, 0 BLOCKER, 0 MAJOR;
+- practitioner UX / backward compatibility: **9.3 / 10**, 0 BLOCKER, 0 MAJOR;
+- extra confirmation pass on same HEAD: clean.
+
+Status:
+**D6 CONVERGED**.
+
+---
+
+## 18. Canonical next lot after D6
+
+No pre-existing canonical `D7` definition exists in the current Neo Ordonnance roadmap.
+
+The historical P1 roadmap explicitly leaves one engineering/runtime gate open that the screenshot harness cannot prove:
+
+**authenticated interaction in the real local cabinet application.**
+
+Therefore the recommended next Neo Ordonnance lot is:
+
+### D7 — Authenticated Local Runtime Validation
+
+Goal:
+prove the certified Neo Ordonnance workflow inside the real authenticated local application, not only in isolated fixtures.
+
+Minimum scope:
+- open a real patient context in the local app;
+- create an ordonnance;
+- search/select an exact national catalog presentation;
+- edit form, dose, structured/free posology, NS and explicit quantity;
+- add / reorder / delete a line;
+- apply a saved protocol and edit the hydrated line;
+- exercise Radio / Exam line behavior;
+- preview the ordonnance;
+- archive it;
+- reopen the archived ordonnance;
+- prove practitioner-authored values are preserved exactly;
+- inspect the generated clinical PDF;
+- verify legacy implicit quantity is not surfaced as authored quantity;
+- confirm no unexpected network/LLM dependency is introduced.
+
+This lot is an engineering/runtime validation gate.
+It is **not** a clinical/pharmacological certification.
+
+Do not merge to `master` before the complete Neo Ordonnance chantier is finished and explicitly authorized.
+Do not deploy to Vercel.
