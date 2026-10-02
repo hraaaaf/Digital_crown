@@ -332,3 +332,11 @@ def test_generated_v2_artifact_validates_against_draft_2020_12_schema():
     Draft202012Validator.check_schema(schema)
     errors = sorted(Draft202012Validator(schema).iter_errors(migrate()), key=lambda error: list(error.absolute_path))
     assert errors == []
+
+
+def test_landmark_source_image_ref_must_be_the_unique_lateral_cephalogram():
+    source = v1()
+    source["landmarks"][0]["source_image_ref"] = "cal:1"
+    source["landmarks"][0]["evidence_refs"] = ["cal:1"]
+    with pytest.raises(Lot05MigrationError):
+        migrate(source)
