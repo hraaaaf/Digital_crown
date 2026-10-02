@@ -1,3 +1,4 @@
+// Synchronize trigger: BEFORE proof only; no product runtime change.
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
