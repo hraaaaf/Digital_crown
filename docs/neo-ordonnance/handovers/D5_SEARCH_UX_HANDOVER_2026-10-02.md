@@ -482,3 +482,116 @@ Do not deploy.
 Continue automatically on safe/reversible work.
 
 Follow the handover's Exact restart sequence and the project's adversarial review doctrine.
+
+
+---
+
+## 13. D5 closeout — certified implementation state
+
+Functional certification HEAD:
+`4dc606ee13366a0a3072c3f38220b5d26051dfdf`
+
+D5.2 — Deterministic medication ranking:
+CLOSED / CONVERGED on exact-head evidence.
+
+D5.3 — Pre-Neo line UX compatibility:
+CLOSED / CONVERGED.
+
+D5.4 — Unified Medication + Protocol search:
+CLOSED within the D5 scope covered by the certified tests.
+
+D5.5 — Practitioner habits / personalization:
+CLOSED for the demonstrated contract:
+- exact catalog presentation is preserved;
+- exact-dose practitioner posology habit is reused when present;
+- no exact habit leaves posology empty;
+- practitioner line remains editable.
+
+D5.6 — Safety + provenance without friction:
+CONVERGED.
+Certified exact-head evidence:
+- manual identity edits invalidate catalog provenance without erasing practitioner-authored dose/form/posology;
+- named medication without exact catalog presentation fails closed with “Présentation à confirmer avant validation.”;
+- exact tests passed with no unexpected skips or React act warnings.
+
+D5.7 — UX certification:
+CONVERGED on exact implementation HEAD `4dc606ee13366a0a3072c3f38220b5d26051dfdf`.
+
+Visual run:
+`36994829437` — SUCCESS.
+
+Artifact:
+`ordonnance-composer-visual-evidence`
+id `11221182790`
+digest:
+`sha256:6e69ca308cc093c0b8341104f30eef3e2c5bf0ce98bfd09479b572b8718360ab`
+
+Observed evidence:
+- 390×844;
+- 430×932;
+- 768×900;
+- 1280×900;
+- 390×844 at 200% text scaling;
+- `themeMode=tokens-default`;
+- no forced `dark` theme in the canonical scenario;
+- resolved default tokens:
+  - background `#f8fafc`;
+  - card `white`;
+  - text `#0f172a`;
+  - primary `#003380`;
+- zero horizontal overflow;
+- zero page errors;
+- minimum control height 44 px, 88 px at 200%.
+
+Adversarial review — UX / accessibility / workflow:
+- BLOCKER: 0
+- MAJOR: 0
+- significant debt: 0
+- strict score: 9.3 / 10
+
+Adversarial review — visual fidelity / safety / practitioner intent:
+- BLOCKER: 0
+- MAJOR: 0
+- significant debt: 0
+- strict score: 9.4 / 10
+
+Confirmation pass:
+- all 9 visual captures re-inspected;
+- metrics and screenshots cross-checked;
+- no new BLOCKER or MAJOR demonstrated.
+
+Minor remaining note:
+at 200% some compact controls / medication name values are not fully visible at once, without demonstrated functional loss. This is documented as non-blocking.
+
+---
+
+## 14. Merge state at D5 closeout
+
+Do **not** merge D5 directly to `master`.
+
+Verified on 2026-10-02:
+- working branch: `feat/neo-medication-search-intelligence`;
+- certified implementation HEAD: `4dc606ee13366a0a3072c3f38220b5d26051dfdf`;
+- compared with `master`: branch is **diverged**;
+- ahead by 315 commits;
+- behind by 93 commits.
+
+A direct merge would mix D5 with a large amount of unrelated historical branch state and is therefore not an acceptable closeout action.
+
+This also matches the pre-existing project constraint:
+`master` remains untouched until the larger Neo Ordonnance chantier is globally finished and explicitly authorized.
+
+No Vercel deployment is authorized or required for this D5 closeout.
+
+---
+
+## 15. D5 closeout status and next exact action
+
+D5 functional scope:
+**CLOSED / CONVERGED** at implementation SHA
+`4dc606ee13366a0a3072c3f38220b5d26051dfdf`.
+
+The Git integration of the larger Neo Ordonnance chantier remains OPEN.
+
+Next exact:
+continue the next Neo Ordonnance lot from a clean integration strategy rather than merging the long-lived divergent branch wholesale. Before any future merge to `master`, reconcile the 93 commits currently ahead on `master`, isolate the intended Neo Ordonnance changes, rerun the relevant exact-head gates on the integration candidate, then perform the normal adversarial convergence cycle.
