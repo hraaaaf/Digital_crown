@@ -12,7 +12,8 @@
     "landmark_registry",
     "current_landmark_refs",
     "coordinate_space",
-    "migration"
+    "migration",
+    "quality_metadata"
   ],
   "properties": {
     "schema_version": {
