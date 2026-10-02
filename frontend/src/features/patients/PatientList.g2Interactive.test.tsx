@@ -7,6 +7,7 @@ import { api } from '../../services/api';
 const setPatientsCache = vi.fn();
 
 vi.mock('../../services/api', () => ({
+  API_BASE: 'http://127.0.0.1:8005',
   api: {
     get: vi.fn(),
     delete: vi.fn(),
