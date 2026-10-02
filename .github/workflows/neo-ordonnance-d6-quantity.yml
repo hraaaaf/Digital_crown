@@ -20,6 +20,7 @@ on:
       - 'frontend/src/features/admin/DocumentStudio/DocumentEditConsistency.regression.test.ts'
       - '.github/workflows/neo-ordonnance-d6-quantity.yml'
       - '.github/workflows/ordonnance-composer-visual-cert.yml'
+      - 'frontend/scripts/certify-ordonnance-composer.mjs'
   workflow_dispatch:
 
 jobs:
