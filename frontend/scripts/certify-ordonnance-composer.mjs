@@ -75,6 +75,7 @@ for (const viewport of viewports) {
             .filter(node => node && visible(node))
         : [];
       const posologyField = composer?.querySelector('textarea[aria-label="Posologie en texte libre"]') || null;
+      const quantityField = el.querySelector('input[aria-label="Quantité à délivrer"]');
       const rect = el.getBoundingClientRect();
       return {
         card: { width: rect.width, height: rect.height, left: rect.left, right: rect.right },
@@ -83,6 +84,8 @@ for (const viewport of viewports) {
         controlMinHeight: controls.length ? Math.min(...controls.map(control => control.getBoundingClientRect().height)) : null,
         summaryVisible: Boolean(posologyField && visible(posologyField)),
         summaryText: posologyField?.value?.trim() || '',
+        quantityVisible: Boolean(quantityField && visible(quantityField)),
+        quantityValue: quantityField?.value || '',
       };
     });
 
@@ -121,6 +124,8 @@ for (const capture of captures) {
     if (scene.metrics.controlCount !== 4) failures.push(`${capture.viewport.width}-${scene.label}: expected 4 controls, got ${scene.metrics.controlCount}`);
     if ((scene.metrics.controlMinHeight || 0) < 43.5) failures.push(`${capture.viewport.width}-${scene.label}: control height ${scene.metrics.controlMinHeight}`);
     if (!scene.metrics.summaryVisible) failures.push(`${capture.viewport.width}-${scene.label}: posology field missing`);
+    if (!scene.metrics.quantityVisible) failures.push(`${capture.viewport.width}-${scene.label}: quantity field missing`);
+    if (scene.metrics.quantityValue !== '1') failures.push(`${capture.viewport.width}-${scene.label}: unexpected quantity ${scene.metrics.quantityValue}`);
     if (scene.metrics.summaryText !== expectedSummary[scene.label]) {
       failures.push(`${capture.viewport.width}-${scene.label}: unexpected posology value ${scene.metrics.summaryText}`);
     }
@@ -144,6 +149,7 @@ for (const capture of captures) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   const controls = await page.locator('[data-ordonnance-prescription-composer] button').evaluateAll(nodes => nodes.filter(node => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; }).map(node => node.getBoundingClientRect().height));
   const medicationNameFits = await page.locator('input[placeholder="NOM OU DCI DU MÉDICAMENT..."]').first().evaluate(node => node.scrollWidth <= node.clientWidth + 1);
+  const quantityFieldVisible = await page.locator('input[aria-label="Quantité à délivrer"]').first().isVisible();
   const shot = 'ordonnance-composer-390x844-text-200.png';
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
   const resolvedTheme = await page.evaluate(() => {
@@ -157,10 +163,11 @@ for (const capture of captures) {
       primary: style.getPropertyValue('--primary').trim(),
     };
   });
-  captures.push({ viewport: { width: 390, height: 844 }, themeMode: 'tokens-default', resolvedTheme, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, medicationNameFits, pageErrors });
+  captures.push({ viewport: { width: 390, height: 844 }, themeMode: 'tokens-default', resolvedTheme, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, medicationNameFits, quantityFieldVisible, pageErrors });
   if (cardCount !== 2) failures.push(`390-text200: expected 2 cards, got ${cardCount}`);
   if (overflow) failures.push('390-text200: horizontal overflow');
   if (!medicationNameFits) failures.push('390-text200: medication name is visually clipped');
+  if (!quantityFieldVisible) failures.push('390-text200: quantity field missing');
   if (controls.length && Math.min(...controls) < 43.5) failures.push(`390-text200: control height ${Math.min(...controls)}`);
   if (pageErrors.length) failures.push(`390-text200: page errors ${pageErrors.join(' | ')}`);
   await context.close();
