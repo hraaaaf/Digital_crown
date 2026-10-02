@@ -340,3 +340,21 @@ def test_landmark_source_image_ref_must_be_the_unique_lateral_cephalogram():
     source["landmarks"][0]["evidence_refs"] = ["cal:1"]
     with pytest.raises(Lot05MigrationError):
         migrate(source)
+
+
+def test_schema_rejects_canonical_id_outside_retained_set():
+    schema_path = Path("docs/audits/schemas/cephalo_vnext_lot05_canonical_v2.schema.json")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    artifact = migrate()
+    artifact["landmark_registry"][0]["canonical_id"] = "NOT_A_RETAINED_LANDMARK"
+    errors = list(Draft202012Validator(schema).iter_errors(artifact))
+    assert any("NOT_A_RETAINED_LANDMARK" in error.message for error in errors)
+
+
+def test_schema_rejects_active_canonical_id_outside_retained_set():
+    schema_path = Path("docs/audits/schemas/cephalo_vnext_lot05_canonical_v2.schema.json")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    artifact = migrate()
+    artifact["active_landmarks"][0]["canonical_id"] = "NOT_A_RETAINED_LANDMARK"
+    errors = list(Draft202012Validator(schema).iter_errors(artifact))
+    assert any("NOT_A_RETAINED_LANDMARK" in error.message for error in errors)
