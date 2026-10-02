@@ -1,0 +1,172 @@
+{
+  "schema_version": "CEPHALO_EVIDENCE_V1",
+  "case_id": "g3:legacy:001",
+  "revision": 7,
+  "sources": [
+    {
+      "evidence_id": "source:image",
+      "kind": "lateral_ceph",
+      "patient_id": 7001,
+      "source_record_id": "synthetic:g3:image:001",
+      "recorded_at": "2026-09-10T15:00:00+00:00",
+      "evidence_status": "OBSERVED",
+      "availability_status": "AVAILABLE",
+      "metadata": {
+        "fixture": true
+      }
+    },
+    {
+      "evidence_id": "cal:1",
+      "kind": "calibration",
+      "patient_id": 7001,
+      "source_record_id": "synthetic:g3:cal:001",
+      "recorded_at": "2026-09-10T15:00:00+00:00",
+      "evidence_status": "OBSERVED",
+      "availability_status": "AVAILABLE",
+      "metadata": {
+        "ratio": 0.1,
+        "unit": "mm_per_px"
+      }
+    }
+  ],
+  "landmarks": [
+    {
+      "evidence_id": "lm:auto:A",
+      "landmark_id": "A",
+      "x": 101.25,
+      "y": 202.5,
+      "source_image_ref": "source:image",
+      "origin": "SRPOSE38_AUTO",
+      "model_id": "srpose38",
+      "model_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pipeline_version": "SRPOSE38_V1",
+      "evidence_refs": [
+        "source:image"
+      ],
+      "evidence_status": "OBSERVED",
+      "availability_status": "AVAILABLE"
+    },
+    {
+      "evidence_id": "lm:auto:B",
+      "landmark_id": "B",
+      "x": 122.5,
+      "y": 244.75,
+      "source_image_ref": "source:image",
+      "origin": "SRPOSE38_AUTO",
+      "model_id": "srpose38",
+      "model_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pipeline_version": "SRPOSE38_V1",
+      "evidence_refs": [
+        "source:image"
+      ],
+      "evidence_status": "OBSERVED",
+      "availability_status": "AVAILABLE"
+    },
+    {
+      "evidence_id": "lm:r7:A",
+      "landmark_id": "A",
+      "x": 102,
+      "y": 203,
+      "source_image_ref": "source:image",
+      "origin": "MANUAL_CORRECTED",
+      "original_auto_x": 101.25,
+      "original_auto_y": 202.5,
+      "validated_by": "fixture-clinician",
+      "validated_at": "2026-09-10T15:35:00+00:00",
+      "evidence_refs": [
+        "source:image"
+      ],
+      "evidence_status": "CLINICIAN_VALIDATED",
+      "availability_status": "AVAILABLE"
+    }
+  ],
+  "current_landmark_refs": [
+    "lm:r7:A"
+  ],
+  "measurements": [
+    {
+      "measurement_id": "SNA",
+      "value": 81.2,
+      "unit": "deg",
+      "status": "COMPUTABLE"
+    },
+    {
+      "measurement_id": "WITS",
+      "value": null,
+      "unit": "mm",
+      "status": "NOT_COMPUTABLE",
+      "reason": "OCCLUSAL_PLANE_UNAVAILABLE"
+    },
+    {
+      "measurement_id": "RICKETTS_U6_PTV",
+      "value": null,
+      "unit": "mm",
+      "status": "BLOCKED",
+      "reason": "SOURCE_SPECIFIC_MOLAR_IDENTITY_UNPROVEN"
+    }
+  ],
+  "calibration_status": "clinician_confirmed",
+  "unknown_legacy": {
+    "fixture_version": "G3_LEGACY_COMPAT_V1",
+    "aliases": {
+      "A": [
+        "A_point"
+      ],
+      "B": [
+        "B_point"
+      ]
+    },
+    "tracing": {
+      "visible": true,
+      "show_soft_tissue": true,
+      "show_planes": [
+        "SN",
+        "NA",
+        "NB"
+      ],
+      "polyline_points": [
+        [
+          10,
+          20
+        ],
+        [
+          30,
+          40
+        ],
+        [
+          50,
+          60
+        ]
+      ]
+    },
+    "report_pdf": {
+      "semantic_values": {
+        "SNA": 81.2,
+        "WITS": null
+      },
+      "provenance_label": "clinician-corrected",
+      "generated_from_revision": 7
+    },
+    "superimposition": {
+      "reference_case_id": "g3:legacy:000",
+      "current_case_id": "g3:legacy:001",
+      "anchor": "S-N",
+      "serial_study_id": "serial:synthetic:01"
+    },
+    "visibility_state": {
+      "landmark_labels": true,
+      "measurements": true,
+      "construction_lines": false
+    },
+    "intentional_unknown_payload": {
+      "preserve_me_exactly": true,
+      "nested": [
+        "x",
+        1,
+        {
+          "y": false
+        }
+      ]
+    }
+  }
+}
