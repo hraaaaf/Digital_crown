@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PatientAvatar } from './PatientAvatar';
 import { api } from '../../../services/api';
@@ -130,9 +130,11 @@ describe('PatientAvatar', () => {
     const view = render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" resolveFromDirectory />);
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/'));
 
-    useAuthStore.setState({
-      user: { id: 2, email: 'second@cabinet.ma', role: 'ADMIN' } as any,
-      isAuthenticated: true,
+    act(() => {
+      useAuthStore.setState({
+        user: { id: 2, email: 'second@cabinet.ma', role: 'ADMIN' } as any,
+        isAuthenticated: true,
+      });
     });
     view.rerender(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" resolveFromDirectory />);
     await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(call => call[0] === '/patients/')).toHaveLength(2));
@@ -161,16 +163,20 @@ describe('PatientAvatar', () => {
     await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(call => call[0] === '/patients/')).toHaveLength(1));
     await waitFor(() => expect(screen.getByLabelText(/Photo de Sara Benali/)).toBeTruthy());
 
-    useAuthStore.setState({
-      user: { id: 1, email: 'same@cabinet.ma', role: 'SECRETAIRE', permissions: { agenda: true, patients: false } } as any,
-      isAuthenticated: true,
+    act(() => {
+      useAuthStore.setState({
+        user: { id: 1, email: 'same@cabinet.ma', role: 'SECRETAIRE', permissions: { agenda: true, patients: false } } as any,
+        isAuthenticated: true,
+      });
     });
     await waitFor(() => expect(screen.getByLabelText('Initiales du patient').textContent).toBe('SB'));
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:patient-avatar');
 
-    useAuthStore.setState({
-      user: { id: 1, email: 'same@cabinet.ma', role: 'ADMIN' } as any,
-      isAuthenticated: true,
+    act(() => {
+      useAuthStore.setState({
+        user: { id: 1, email: 'same@cabinet.ma', role: 'ADMIN' } as any,
+        isAuthenticated: true,
+      });
     });
     await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(call => call[0] === '/patients/')).toHaveLength(2));
   });
