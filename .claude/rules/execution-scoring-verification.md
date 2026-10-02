@@ -4,6 +4,18 @@ Cette règle s'applique à tout lot et à toute **étape matérielle** : changem
 
 Le scoring ne remplace jamais un gate binaire, une preuve, un test requis, une validation humaine exigée, ni une règle de sécurité/clinique. Il s'y ajoute.
 
+## 0. Surface d'exécution par défaut
+
+Pour toute tâche reproductible liée au repo, **GitHub Actions est la surface d'exécution par défaut**.
+
+- Préférer un job/workflow GitHub Actions lié au SHA/PR exact aux exécutions ad hoc sur un poste local.
+- Utiliser l'exécution locale/Remote Desktop uniquement lorsqu'une dépendance réelle l'exige : dataset public volumineux hors repo, périphérique/hardware, secret non exportable, inspection machine ou runtime cabinet explicitement autorisé.
+- Une preuve locale doit être rattachée à un SHA exact et ne remplace jamais un gate GitHub requis.
+- Ne jamais uploader vers GitHub Actions de données patients, secrets cabinet ou artefacts interdits.
+- Les datasets publics lourds restent hors repo ; le code/harness est validé en CI et les artefacts locaux sont hashés et documentés.
+- Rerun ciblé : ne relancer que le job/workflow nécessaire sauf dépendance transverse démontrée.
+- CI queued/in_progress : poursuivre le travail indépendant ; pas d'attente passive.
+
 ## 1. Deux scores obligatoires
 
 Après chaque étape matérielle, produire séparément :
