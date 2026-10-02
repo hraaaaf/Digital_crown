@@ -65,9 +65,9 @@ def main():
         out["landmarks"][k]={
             "n":p["n"],
             "mean_px":p["mean"],"median_px":p["median"],"p90_px":p["p90"],"p95_px":p["p95"],"max_px":p["max"],
-            "mean_dx_px":statistics.fmean(dx_px[k]),"mean_dy_px":statistics.fmean(dy_px[k]),
+            "sd_px":statistics.pstdev(by_px[k]),\n            "mean_dx_px":statistics.fmean(dx_px[k]),"mean_dy_px":statistics.fmean(dy_px[k]),\n            "sd_dx_px":statistics.pstdev(dx_px[k]),"sd_dy_px":statistics.pstdev(dy_px[k]),
             "mean_mm":mm["mean"],"median_mm":mm["median"],"p90_mm":mm["p90"],"p95_mm":mm["p95"],"max_mm":mm["max"],
-            "mean_dx_mm":statistics.fmean(dx_mm[k]),"mean_dy_mm":statistics.fmean(dy_mm[k]),
+            "sd_mm":statistics.pstdev(by_mm[k]),\n            "mean_dx_mm":statistics.fmean(dx_mm[k]),"mean_dy_mm":statistics.fmean(dy_mm[k]),\n            "sd_dx_mm":statistics.pstdev(dx_mm[k]),"sd_dy_mm":statistics.pstdev(dy_mm[k]),
         }
     if len(out["landmarks"])!=29: raise SystemExit(f"expected 29 landmark identities, got {len(out['landmarks'])}")
     a.output.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n",encoding="utf-8")
