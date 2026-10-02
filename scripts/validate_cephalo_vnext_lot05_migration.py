@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 import math
+import re
 from datetime import datetime
 from typing import Any, Mapping
 
@@ -66,6 +67,8 @@ def _validate_landmark(item: Any) -> dict[str, Any]:
     if origin == "SRPOSE38_AUTO":
         if not all(isinstance(item.get(k), str) and item.get(k) for k in ("model_id", "model_sha256", "pipeline_version")):
             raise Lot05MigrationError("Automatic landmark lacks model provenance")
+        if re.fullmatch(r"[a-f0-9]{64}", item["model_sha256"]) is None:
+            raise Lot05MigrationError("Automatic landmark model_sha256 is invalid")
     elif origin == "MANUAL_CORRECTED":
         ox, oy = item.get("original_auto_x"), item.get("original_auto_y")
         if isinstance(ox, bool) or isinstance(oy, bool) or not isinstance(ox, (int, float)) or not isinstance(oy, (int, float)) or not math.isfinite(ox) or not math.isfinite(oy):
