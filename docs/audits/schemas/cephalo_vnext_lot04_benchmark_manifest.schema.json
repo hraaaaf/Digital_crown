@@ -195,7 +195,13 @@
         "manifest_frozen_before_scoring",
         "cases",
         "development_case_ids",
-        "acceptance_case_ids"
+        "acceptance_case_ids",
+        "source_manifest_sha256",
+        "qc_sha256",
+        "calibration_sha256",
+        "landmark_agreement_sha256",
+        "measurement_agreement_sha256",
+        "split_policy"
       ],
       "properties": {
         "manifest_frozen_before_scoring": {
@@ -252,6 +258,29 @@
           "items": {
             "type": "string"
           }
+        },
+        "source_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "qc_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "calibration_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "landmark_agreement_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "measurement_agreement_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "split_policy": {
+          "const": "train+valid=development;test=acceptance"
         }
       }
     },
@@ -314,7 +343,8 @@
         "aggregate_regression_masking_forbidden",
         "tolerance_version",
         "landmark_tolerances",
-        "clinical_tolerances"
+        "clinical_tolerances",
+        "policy_sha256"
       ],
       "properties": {
         "preregistered": {
@@ -397,6 +427,10 @@
               }
             }
           }
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
         }
       }
     }
