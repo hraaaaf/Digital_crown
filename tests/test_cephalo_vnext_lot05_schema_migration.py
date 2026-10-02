@@ -88,3 +88,10 @@ def test_migration_timestamp_is_auditable_and_timezone_aware():
     assert v2["migration"]["migrated_at"]=="2026-10-01T17:00:00+00:00"
     with pytest.raises(Lot05MigrationError):
         migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400,migrated_at="2026-10-01T17:00:00")
+
+
+def test_migration_harness_import_and_core_path_execute():
+    source=v1()
+    v2=migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400)
+    assert v2["schema_version"]=="CEPHALO_CANONICAL_SCHEMA_V2"
+    assert roundtrip_v2_to_v1(v2)==source
