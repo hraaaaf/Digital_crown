@@ -7,7 +7,8 @@ canonical measurement IDs.
 
 Adding a new analysis pack therefore does not require a new frontend mapping or
 new geometry code. It still requires source-locked measurement contracts before
-a measurement can become executable.
+a measurement can become executable, and exact pack membership must itself be
+source-locked before the pack can become clinical authority.
 """
 from __future__ import annotations
 
@@ -27,6 +28,10 @@ ANALYSIS_PACK_REGISTRY_PATH = (
 )
 
 GRAPH_VERSION = "CEPHALO_LOT06_DEPENDENCY_GRAPH_V1"
+PACK_COMPOSITION_STATES = {
+    "PROVISIONAL_MEMBERSHIP",
+    "SOURCE_LOCKED_MEMBERSHIP",
+}
 
 
 class CephaloDependencyGraphError(ValueError):
@@ -79,12 +84,38 @@ def validate_analysis_pack_registry(payload: Mapping[str, Any]) -> None:
             raise CephaloDependencyGraphError("analysis_id must be unique and non-empty")
         seen_pack_ids.add(pack_id)
 
+        display_name = pack.get("display_name")
+        version = pack.get("version")
+        composition_state = pack.get("composition_state")
+        scientific_contract_refs = pack.get("scientific_contract_refs")
+        if not isinstance(display_name, str) or not display_name.strip():
+            raise CephaloDependencyGraphError(f"{pack_id}: display_name must be non-empty")
+        if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+            raise CephaloDependencyGraphError(f"{pack_id}: version must be a positive integer")
+        if composition_state not in PACK_COMPOSITION_STATES:
+            raise CephaloDependencyGraphError(
+                f"{pack_id}: unsupported composition_state {composition_state!r}"
+            )
+        if (
+            not isinstance(scientific_contract_refs, list)
+            or not scientific_contract_refs
+            or any(not isinstance(ref, str) or not ref.strip() for ref in scientific_contract_refs)
+            or len(scientific_contract_refs) != len(set(scientific_contract_refs))
+        ):
+            raise CephaloDependencyGraphError(
+                f"{pack_id}: scientific_contract_refs must be unique non-empty strings"
+            )
+
         measurements = pack.get("measurement_ids")
         blocked_measurements = pack.get("blocked_measurement_ids")
         if not isinstance(measurements, list) or not isinstance(blocked_measurements, list):
             raise CephaloDependencyGraphError(
                 f"{pack_id}: measurement lists must be explicit arrays"
             )
+        if any(not isinstance(item, str) or not item.strip() for item in measurements):
+            raise CephaloDependencyGraphError(f"{pack_id}: invalid executable measurement id")
+        if any(not isinstance(item, str) or not item.strip() for item in blocked_measurements):
+            raise CephaloDependencyGraphError(f"{pack_id}: invalid blocked measurement id")
         if len(measurements) != len(set(measurements)):
             raise CephaloDependencyGraphError(f"{pack_id}: duplicate executable measurement")
         if len(blocked_measurements) != len(set(blocked_measurements)):
@@ -110,8 +141,26 @@ def validate_analysis_pack_registry(payload: Mapping[str, Any]) -> None:
     presets = payload.get("display_presets", [])
     if not isinstance(presets, list):
         raise CephaloDependencyGraphError("display_presets must be a list")
+    seen_preset_ids: set[str] = set()
     for preset in presets:
-        analysis_ids = preset.get("analysis_ids", [])
+        if not isinstance(preset, Mapping):
+            raise CephaloDependencyGraphError("display preset must be an object")
+        preset_id = preset.get("preset_id")
+        display_name = preset.get("display_name")
+        analysis_ids = preset.get("analysis_ids")
+        if (
+            not isinstance(preset_id, str)
+            or not preset_id.strip()
+            or preset_id in seen_preset_ids
+        ):
+            raise CephaloDependencyGraphError("preset_id must be unique and non-empty")
+        seen_preset_ids.add(preset_id)
+        if not isinstance(display_name, str) or not display_name.strip():
+            raise CephaloDependencyGraphError(f"{preset_id}: display_name must be non-empty")
+        if not isinstance(analysis_ids, list):
+            raise CephaloDependencyGraphError(f"{preset_id}: analysis_ids must be a list")
+        if len(analysis_ids) != len(set(analysis_ids)):
+            raise CephaloDependencyGraphError(f"{preset_id}: duplicate analysis_id")
         unknown = sorted(set(analysis_ids) - seen_pack_ids)
         if unknown:
             raise CephaloDependencyGraphError(
@@ -200,17 +249,24 @@ def build_analysis_pack_dependency_graph(analysis_id: str) -> dict[str, Any]:
         raise CephaloDependencyGraphError(f"Unknown analysis pack: {analysis_id}")
 
     graph = compose_measurement_dependency_graph(pack["measurement_ids"])
+    has_blocked = bool(pack["blocked_measurement_ids"])
+    composition_state = pack["composition_state"]
+    if composition_state != "SOURCE_LOCKED_MEMBERSHIP":
+        scientific_state = "PROVISIONAL_MEMBERSHIP_FAIL_CLOSED"
+    elif has_blocked:
+        scientific_state = "SOURCE_LOCKED_PARTIAL_FAIL_CLOSED"
+    else:
+        scientific_state = "SOURCE_LOCKED_EXECUTABLE_SUBSET"
+
     return {
         **graph,
         "analysis_id": analysis_id,
         "analysis_version": pack["version"],
         "display_name": pack["display_name"],
+        "composition_state": composition_state,
+        "scientific_contract_refs": list(pack["scientific_contract_refs"]),
         "blocked_measurement_ids": list(pack["blocked_measurement_ids"]),
-        "scientific_state": (
-            "PARTIAL_FAIL_CLOSED"
-            if pack["blocked_measurement_ids"]
-            else "EXECUTABLE_SUBSET"
-        ),
+        "scientific_state": scientific_state,
     }
 
 
@@ -222,6 +278,8 @@ def list_analysis_packs() -> list[dict[str, Any]]:
             "analysis_id": item["analysis_id"],
             "display_name": item["display_name"],
             "version": item["version"],
+            "composition_state": item["composition_state"],
+            "scientific_contract_refs": list(item["scientific_contract_refs"]),
             "measurement_ids": list(item["measurement_ids"]),
             "blocked_measurement_ids": list(item["blocked_measurement_ids"]),
         }

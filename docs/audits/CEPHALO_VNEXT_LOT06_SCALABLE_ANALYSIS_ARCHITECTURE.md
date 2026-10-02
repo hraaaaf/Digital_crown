@@ -20,6 +20,12 @@ scientifically approved. A measurement is selectable only when its LOT06 executa
 contract is source-locked and promoted. Blocked or ambiguous measurements remain
 fail-closed.
 
+Pack membership is a separate scientific question. The current named packs are
+`PROVISIONAL_MEMBERSHIP`: their measurement lists are useful architecture candidates
+anchored to LOT01 family contracts, but they are not yet source-locked as exact complete
+clinical analysis compositions. LOT08/09 must never infer clinical approval from the
+pack label.
+
 ## Single dependency authority
 
 `backend/services/cephalo_dependency_graph.py` derives dependencies only from
@@ -32,10 +38,12 @@ This is the contract LOT07 must consume for Measure ↔ Geometry Focus.
 
 ## Current packs
 
-The first registry contains Steiner, Tweed-DC, McNamara, COM and Ricketts.
+The first registry contains provisional Steiner, Tweed-DC, McNamara, COM and Ricketts
+compositions. Each carries explicit LOT01 family contract references and a composition
+state.
 
-Ricketts is intentionally partial/fail-closed because the currently covered Ricketts
-measurements remain blocked by landmark identity or angle-convention debt.
+Ricketts is additionally fail-closed because the currently covered Ricketts measurements
+remain blocked by landmark identity or angle-convention debt.
 
 `Tous` is represented as a display preset, not as a new scientific analysis.
 

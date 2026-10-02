@@ -32,6 +32,15 @@ def test_lot06_analysis_pack_registry_is_data_driven_and_valid():
     assert payload["rules"]["dependencies_must_be_derived_from_executable_measurement_contract"] is True
     assert payload["rules"]["frontend_scientific_dependency_mapping_forbidden"] is True
     assert payload["rules"]["all_is_display_preset_not_scientific_analysis"] is True
+    assert payload["rules"]["pack_membership_requires_explicit_source_lock_before_clinical_authority"] is True
+
+
+def test_lot06_current_pack_membership_is_explicitly_provisional():
+    for pack in list_analysis_packs():
+        assert pack["composition_state"] == "PROVISIONAL_MEMBERSHIP"
+        assert pack["scientific_contract_refs"]
+        graph = build_analysis_pack_dependency_graph(pack["analysis_id"])
+        assert graph["scientific_state"] == "PROVISIONAL_MEMBERSHIP_FAIL_CLOSED"
 
 
 def test_lot06_dependency_graph_derives_sna_exactly_from_executable_contract():
@@ -61,7 +70,7 @@ def test_lot06_dependency_graph_deduplicates_shared_landmarks_and_constructions(
 def test_lot06_analysis_pack_graph_keeps_ricketts_fail_closed():
     graph = build_analysis_pack_dependency_graph("RICKETTS_V1")
     assert graph["measurement_ids"] == []
-    assert graph["scientific_state"] == "PARTIAL_FAIL_CLOSED"
+    assert graph["scientific_state"] == "PROVISIONAL_MEMBERSHIP_FAIL_CLOSED"
     assert "M_FACIAL_ANGLE_NPOG_FH_DEG_V1" in graph["blocked_measurement_ids"]
     assert "M_LS_EPLANE_MM_V1" in graph["blocked_measurement_ids"]
 
@@ -82,11 +91,32 @@ def test_lot06_dependency_graph_fails_closed_for_non_promoted_or_unknown_measure
         compose_measurement_dependency_graph(["M_NOT_REAL_V1"])
 
 
+def test_lot06_registry_rejects_missing_pack_scientific_state_or_contract_refs():
+    payload = _registry()
+    del payload["analysis_packs"][0]["composition_state"]
+    with pytest.raises(CephaloDependencyGraphError):
+        validate_analysis_pack_registry(payload)
+
+    payload = _registry()
+    payload["analysis_packs"][0]["scientific_contract_refs"] = []
+    with pytest.raises(CephaloDependencyGraphError):
+        validate_analysis_pack_registry(payload)
+
+
+def test_lot06_registry_rejects_duplicate_display_preset_identity():
+    payload = _registry()
+    payload["display_presets"].append(copy.deepcopy(payload["display_presets"][0]))
+    with pytest.raises(CephaloDependencyGraphError):
+        validate_analysis_pack_registry(payload)
+
+
 def test_lot06_registry_architecture_scales_beyond_400_packs_without_code_branching():
     payload = _registry()
     template = {
         "display_name": "Synthetic architecture-only pack",
         "version": 1,
+        "composition_state": "PROVISIONAL_MEMBERSHIP",
+        "scientific_contract_refs": ["SYNTHETIC_ARCHITECTURE_ONLY"],
         "measurement_ids": ["M_SNA_DEG_V1"],
         "blocked_measurement_ids": [],
     }

@@ -1,17 +1,20 @@
 {
   "schema_version": "CEPHALO_LOT06_ANALYSIS_PACK_REGISTRY_V1",
-  "status": "ARCHITECTURE_ONLY__SCIENTIFIC_SCOPE_BOUNDED_BY_EXECUTABLE_CONTRACT",
+  "status": "ARCHITECTURE_ONLY__PACK_MEMBERSHIP_PROVISIONAL",
   "rules": {
     "dependencies_must_be_derived_from_executable_measurement_contract": true,
     "frontend_scientific_dependency_mapping_forbidden": true,
     "blocked_measurements_fail_closed": true,
-    "all_is_display_preset_not_scientific_analysis": true
+    "all_is_display_preset_not_scientific_analysis": true,
+    "pack_membership_requires_explicit_source_lock_before_clinical_authority": true
   },
   "analysis_packs": [
     {
       "analysis_id": "STEINER_V1",
       "display_name": "Steiner",
       "version": 1,
+      "composition_state": "PROVISIONAL_MEMBERSHIP",
+      "scientific_contract_refs": ["STEINER_1953_CORE_V1", "STEINER_1959_CLINICAL_EXTENSION_V1"],
       "measurement_ids": [
         "M_SNA_DEG_V1",
         "M_SNB_DEG_V1",
@@ -25,8 +28,10 @@
     },
     {
       "analysis_id": "TWEED_DC_V1",
-      "display_name": "Tweed — Digital Crown source-locked subset",
+      "display_name": "Tweed — Digital Crown anatomical FH variant",
       "version": 1,
+      "composition_state": "PROVISIONAL_MEMBERSHIP",
+      "scientific_contract_refs": ["DC_TWEED_ANATOMICAL_FH_VARIANT"],
       "measurement_ids": [
         "M_FH_GOME_DEG_V1",
         "M_IMPA_GOME_DEG_V1",
@@ -38,6 +43,8 @@
       "analysis_id": "MCNAMARA_V1",
       "display_name": "McNamara",
       "version": 1,
+      "composition_state": "PROVISIONAL_MEMBERSHIP",
+      "scientific_contract_refs": ["MCNAMARA_1984_SINGLE_FILM_V1"],
       "measurement_ids": [
         "M_A_NPERP_MM_V1",
         "M_POG_NPERP_MM_V1",
@@ -51,6 +58,8 @@
       "analysis_id": "COM_V1",
       "display_name": "COM",
       "version": 1,
+      "composition_state": "PROVISIONAL_MEMBERSHIP",
+      "scientific_contract_refs": ["COM_DC_LEGACY_V1", "CRANIOM_PER_METRIC_PROVENANCE"],
       "measurement_ids": [
         "M_A_NPERP_MM_V1",
         "M_B_NPERP_MM_V1",
@@ -67,6 +76,8 @@
       "analysis_id": "RICKETTS_V1",
       "display_name": "Ricketts",
       "version": 1,
+      "composition_state": "PROVISIONAL_MEMBERSHIP",
+      "scientific_contract_refs": ["RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1"],
       "measurement_ids": [],
       "blocked_measurement_ids": [
         "M_FACIAL_ANGLE_NPOG_FH_DEG_V1",
