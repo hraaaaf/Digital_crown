@@ -33,6 +33,7 @@ def test_legacy_preference_defaults_to_protocol_and_remains_compatible(db):
     assert item["is_favorite"] is False
     assert item["usage_count"] == 0
     assert item["last_used"] is None
+    assert item["drugs"][0]["quantiteExplicit"] is False
 
 
 def test_saved_prescription_keeps_indication_without_patient_data(db):
@@ -50,6 +51,8 @@ def test_saved_prescription_keeps_indication_without_patient_data(db):
             "catalogDci": "PARACETAMOL",
             "catalogSourceId": "ammps-current",
             "catalogMarketingStatusVerified": True,
+            "quantite": 2,
+            "quantiteExplicit": True,
             "patient_id": 999,
         }],
         label="Ordonnance post-op",
@@ -66,6 +69,8 @@ def test_saved_prescription_keeps_indication_without_patient_data(db):
     assert item["drugs"][0]["catalogDci"] == "PARACETAMOL"
     assert item["drugs"][0]["catalogSourceId"] == "ammps-current"
     assert item["drugs"][0]["catalogMarketingStatusVerified"] is True
+    assert item["drugs"][0]["quantite"] == 2
+    assert item["drugs"][0]["quantiteExplicit"] is True
     assert "patient_id" not in item["drugs"][0]
 
 
