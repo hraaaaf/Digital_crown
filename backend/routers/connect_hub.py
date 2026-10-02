@@ -48,7 +48,7 @@ def _alert_items(db: Session, current_user: models.User) -> list[dict]:
             ),
             "priority": alert.priority,
             "action": alert.action,
-            "destination": "/dashboard",
+            "destination": (f"/patients/{alert.patient_id}" if alert.patient_id else "/dashboard"),
             "channel": "in_app",
             "delivery_state": "source_state",
             "delivery_verified": False,

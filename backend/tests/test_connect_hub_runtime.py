@@ -110,6 +110,52 @@ def test_runtime_aggregation_never_invokes_transport_or_persistence():
     db.delete.assert_not_called()
 
 
+
+def test_patient_alert_destination_opens_authorized_patient_dossier():
+    db = MagicMock()
+    user = FakeUser(employer_id=42)
+    alert = SimpleNamespace(
+        id=17,
+        title="Suivi à replanifier",
+        message="Contrôle requis",
+        patient_id=901,
+        patient=SimpleNamespace(nom="El Mansouri", prenom="Sara"),
+        priority="high",
+        action="Ouvrir le dossier",
+    )
+    db.query.return_value = _query_with_alerts([alert])
+
+    with patch.object(connect_hub, "has_permission", return_value=True):
+        items = connect_hub._alert_items(db, user)
+
+    assert len(items) == 1
+    assert items[0]["destination"] == "/patients/901"
+    assert items[0]["patient_id"] == 901
+    assert items[0]["patient_name"] == "El Mansouri Sara"
+    assert items[0]["delivery_verified"] is False
+
+
+def test_alert_without_patient_keeps_safe_dashboard_fallback():
+    db = MagicMock()
+    user = FakeUser(employer_id=42)
+    alert = SimpleNamespace(
+        id=18,
+        title="Alerte cabinet",
+        message="Attention requise",
+        patient_id=None,
+        patient=None,
+        priority="normal",
+        action="Ouvrir",
+    )
+    db.query.return_value = _query_with_alerts([alert])
+
+    with patch.object(connect_hub, "has_permission", return_value=True):
+        items = connect_hub._alert_items(db, user)
+
+    assert items[0]["destination"] == "/dashboard"
+    assert items[0]["patient_name"] is None
+
+
 def test_connect_hub_route_is_mounted_under_intelligence_surface():
     from backend.main import app
 
