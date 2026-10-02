@@ -68,3 +68,59 @@ def canonical_measurement_id_for_method(method_id: str) -> str:
             f"{binding.state}/{binding.reason}"
         )
     return binding.canonical_measurement_id
+
+
+def project_canonical_measurements(measurements) -> dict[str, object]:
+    """Collapse mapped typed methods onto canonical M_* identities.
+
+    Multiple historical methods may map to one canonical geometry. They must
+    agree exactly on unit, availability and value; divergence fails closed.
+    Blocked/unmapped methods are reported but never promoted.
+    """
+    canonical: dict[str, dict[str, object]] = {}
+    blocked: list[str] = []
+    unmapped: list[str] = []
+    for measurement in measurements:
+        binding = binding_for_method(measurement.method_id)
+        if binding.state == "BLOCKED":
+            blocked.append(measurement.method_id)
+            continue
+        if binding.state == "UNMAPPED_CANONICAL_ID":
+            unmapped.append(measurement.method_id)
+            continue
+        canonical_id = binding.canonical_measurement_id
+        assert canonical_id is not None
+        availability = getattr(
+            measurement.availability_status,
+            "value",
+            str(measurement.availability_status),
+        )
+        candidate = {
+            "canonical_measurement_id": canonical_id,
+            "value": measurement.value,
+            "unit": measurement.unit,
+            "availability_status": availability,
+            "method_ids": [measurement.method_id],
+            "measurement_refs": [measurement.measurement_id],
+        }
+        existing = canonical.get(canonical_id)
+        if existing is None:
+            canonical[canonical_id] = candidate
+            continue
+        if (
+            existing["unit"] != candidate["unit"]
+            or existing["availability_status"] != candidate["availability_status"]
+            or existing["value"] != candidate["value"]
+        ):
+            raise ValueError(
+                f"Canonical measurement divergence for {canonical_id}: "
+                f"{existing['method_ids']} vs {measurement.method_id}"
+            )
+        existing["method_ids"].append(measurement.method_id)
+        existing["measurement_refs"].append(measurement.measurement_id)
+
+    return {
+        "measurements": [canonical[key] for key in sorted(canonical)],
+        "blocked_method_ids": sorted(set(blocked)),
+        "unmapped_method_ids": sorted(set(unmapped)),
+    }
