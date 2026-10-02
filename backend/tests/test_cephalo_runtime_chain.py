@@ -235,3 +235,32 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
     }
     assert all(measurement["requires_calibration"] is False for measurement in steiner)
     assert all(measurement["calibration_ref"] is None for measurement in steiner)
+
+
+def test_runtime_chain_projects_canonical_measurements_and_reports_non_promotable_methods():
+    projected = project_runtime_chain_read_path(_angles(), patient_id=7)
+    canonical = {
+        item["canonical_measurement_id"]: item
+        for item in projected["scientific_read_path"]["canonical_measurements"]
+    }
+    assert "M_SNA_DEG_V1" in canonical
+    assert "M_IMPA_GOME_DEG_V1" in canonical
+    assert set(canonical["M_IMPA_GOME_DEG_V1"]["method_ids"]) == {
+        "CRANIOM_L1_DOWNS_DEG_V1",
+        "TWEED_IMPA_DEG_V1",
+    }
+    assert "DOWNS_FACIAL_ANGLE_DEG_V1" in projected["scientific_read_path"]["blocked_method_ids"]
+    assert "RICKETTS_FACIAL_DEPTH_DEG_V1" in projected["scientific_read_path"]["blocked_method_ids"]
+    assert "DOWNS_Y_AXIS_DEG_V1" in projected["scientific_read_path"]["unmapped_method_ids"]
+    assert "MERRIFIELD_Z_ANGLE_DEG_V1" in projected["scientific_read_path"]["unmapped_method_ids"]
+
+def test_runtime_chain_fails_closed_when_methods_for_one_canonical_measurement_diverge():
+    angles = _angles()
+    payload = angles[EVIDENCE_GRAPH_KEY]
+    tweed = next(
+        item for item in payload["measurements"]
+        if item["method_id"] == "TWEED_IMPA_DEG_V1"
+    )
+    tweed["value"] = float(tweed["value"]) + 1.0
+    with pytest.raises(CephaloTypedReadError, match="canonical convergence"):
+        project_runtime_chain_read_path(angles, patient_id=7)
