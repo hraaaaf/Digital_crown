@@ -64,13 +64,13 @@ Une analyse **ne possède pas** une formule. Elle référence un `measurement_id
 | `M_SNB_DEG_V1` | SNB | angle SN / NB | S,N,B | angle ° | `GEOMETRY_COVERED` |
 | `M_ANB_DEG_V1` | ANB | angle NA / NB, compatible avec SNA−SNB selon convention verrouillée | S,N,A,B | angle ° | `GEOMETRY_COVERED` |
 | `M_SND_DEG_V1` | SND | angle SN / ND | S,N,D | angle ° | `BLOCKED_LANDMARK` |
-| `M_A_NPERP_MM_V1` | A → N-perp | distance AP signée de A à la perpendiculaire à FH passant par N | A,N,Po_anatomic,Or | mm signé | `PRIMITIVE_AVAILABLE` |
+| `M_A_NPERP_MM_V1` | A → N-perp | distance AP signée de A à la perpendiculaire à FH passant par N | A,N,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` |
 | `M_B_NPERP_MM_V1` | B → N-perp | même construction avec B | B,N,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` côté DC legacy |
-| `M_POG_NPERP_MM_V1` | Pog → N-perp | même construction avec Pog hard | Pog_hard,N,Po_anatomic,Or | mm signé | `PRIMITIVE_AVAILABLE` |
+| `M_POG_NPERP_MM_V1` | Pog → N-perp | même construction avec Pog hard | Pog_hard,N,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` |
 | `M_POG_NB_MM_V1` | Pog → NB | distance perpendiculaire Pog hard → NB | Pog_hard,N,B | mm | `IMPLEMENTATION_MISSING` |
 | `M_AB_PRIME_FH_MM_V1` | A′B′ | différence signée des projections de A et B sur FH | A,B,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` |
 | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | Convexité maxillaire | distance perpendiculaire signée A → N-Pog | A,N,Pog_hard | mm signé | `GEOMETRY_COVERED` |
-| `M_FACIAL_ANGLE_NPOG_FH_DEG_V1` | Facial Angle | angle N-Pog / FH | N,Pog_hard,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED`; runtime nommé actuellement `FACIAL_DEPTH` |
+| `M_FACIAL_ANGLE_NPOG_FH_DEG_V1` | Facial Angle | angle N-Pog / FH | N,Pog_hard,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED + CONVENTION_COLLISION` — Downs = angle aigu d’axes; Ricketts `FACIAL_DEPTH` = angle postérieur dirigé; split/version requis avant promotion canonique |
 | `M_COM_S_NPERP_DEPTH_MM_V1` | Profondeur faciale legacy COM | magnitude S → N-perp | S,N,Po_anatomic,Or | mm absolu | `GEOMETRY_COVERED` |
 
 # 2. Squelettique vertical / pattern facial
