@@ -63,6 +63,7 @@ def migrate_v1_to_v2(v1:Mapping[str,Any],*,patient_id:int,width:int,height:int,m
         eid=s.get("evidence_id")
         if not isinstance(eid,str) or not eid or eid in source_ids: raise Lot05MigrationError("Invalid/duplicate source evidence_id")
         source_ids.add(eid)
+        if eid in by_ref: raise Lot05MigrationError("Evidence ID collision across source and landmark evidence")
         if isinstance(s.get("patient_id"),bool) or s.get("patient_id")!=patient_id: raise Lot05MigrationError("Patient identity mismatch")
     for item in landmarks:
         if item.get("source_image_ref") not in source_ids: raise Lot05MigrationError("Landmark source_image_ref is unresolved")
