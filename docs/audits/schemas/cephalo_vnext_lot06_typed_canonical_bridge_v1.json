@@ -176,5 +176,23 @@
       "state": "BLOCKED",
       "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
     }
-  ]
+  ],
+  "canonical_convergence_rules": {
+    "M_A_NPERP_MM_V1": {
+      "authoritative_method_id": "M_A_NPERP_MM_V1",
+      "compatibility_method_ids": [
+        "CRANIOM_SITUATION_A_MM_V1"
+      ],
+      "equivalence": "AUTHORITATIVE_VALUE_ROUNDED_TO_1DP_EQUALS_LEGACY_VALUE",
+      "canonical_value_precision": "AUTHORITATIVE_FULL_PRECISION"
+    },
+    "M_IMPA_GOME_DEG_V1": {
+      "authoritative_method_id": "TWEED_IMPA_DEG_V1",
+      "compatibility_method_ids": [
+        "CRANIOM_L1_DOWNS_DEG_V1"
+      ],
+      "equivalence": "EXACT_VALUE_UNIT_STATUS",
+      "canonical_value_precision": "AUTHORITATIVE_VALUE"
+    }
+  }
 }
