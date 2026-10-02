@@ -22,6 +22,7 @@ from backend.services.cephalo_steiner_geometry import (
     steiner_sn_mp_deg_v1,
     steiner_u1_na_deg_v1,
 )
+from backend.services.cephalo_downs_geometry import downs_facial_angle_deg_v1
 from backend.services.cephalo_ricketts_geometry import ricketts_facial_depth_deg_v1
 from backend.services.cephalo_tweed_merrifield_geometry import (
     tweed_fma_deg_v1,
@@ -46,7 +47,6 @@ def test_lot06_g0_angular_contracts():
     close(tweed_fmia_deg_v1((0,0),(0,1),(0,0),(1,0)),90.0)
     close(craniom_u1_frankfort_deg_v1((0,0),(0,1),(0,0),(1,0)),90.0)
     close(craniom_interincisal_deg_v1((0,0),(0,1),(0,0),(1,0)),90.0)
-    close(ricketts_facial_depth_deg_v1((0,0),(1,0),(0,1),(0,0)),90.0)
 
 def test_lot06_g0_linear_contracts_require_calibration():
     close(mcnamara_co_a_mm_v1((0,0),(3,4),0.5),2.5)
@@ -67,4 +67,9 @@ def test_lot06_g0_fail_closed_on_missing_or_degenerate_inputs():
     assert nasion_vertical_offset_mm_v1((2,3),(0,0),(0,0),(0,0),0.5) is None
     assert craniom_ab_prime_mm_v1((3,0),(1,0),(0,0),(0,0),0.5) is None
     assert craniom_facial_depth_mm_v1((2,3),(0,0),(0,0),(0,0),0.5) is None
-    assert ricketts_facial_depth_deg_v1((0,0),(0,0),(0,1),(0,0)) is None
+
+
+def test_lot06_g0_facial_angle_conventions_are_not_silently_merged():
+    po=(0.0,0.0); orbitale=(1.0,0.0); n=(0.0,1.0); pog=(1.0,0.0)
+    close(downs_facial_angle_deg_v1(po,orbitale,n,pog),45.0)
+    close(ricketts_facial_depth_deg_v1(po,orbitale,n,pog),135.0)
