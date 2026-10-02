@@ -138,6 +138,8 @@ export function PrescriptionQuickAccessBar({
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const drugsRef = React.useRef(drugs);
+  drugsRef.current = drugs;
 
   const reload = React.useCallback(async () => {
     const [reusableResponse, habitsResponse] = await Promise.all([
