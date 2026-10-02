@@ -279,6 +279,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           forme: d.forme,
           posologie: d.posologie,
           type: d.type || 'MEDICAMENT',
+          quantite: d.quantite ?? null,
           non_substituable: d.non_substituable ?? false,
         })),
         doc_date: docDate,
@@ -512,7 +513,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     try {
       await api.post('/prescriptions/preferences/', {
         act_code: smartSuggestion.protocol_name.replace(' ', '_').toUpperCase(),
-        drugs: drugs.map(d => ({ nom: d.name, dosage: d.dosage, forme: d.forme, posologie: d.posologie })),
+        drugs: drugs.map(d => ({ nom: d.name, dosage: d.dosage, forme: d.forme, posologie: d.posologie, quantite: d.quantite ?? null })),
       });
       setHasChanges(false);
       toast.success('Protocole personnalisé enregistré !');
