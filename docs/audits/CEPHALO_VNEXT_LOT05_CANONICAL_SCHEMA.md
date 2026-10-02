@@ -61,7 +61,7 @@ Every active coordinate set declares:
 A migration MUST NOT infer missing calibration, detector confidence, anatomical identity, validation state, or operator identity.
 
 ## Quality/confidence metadata
-Detector score/quality metadata is optional and typed separately from anatomy:
+The quality metadata envelope is mandatory, while detector score values remain optional and typed separately from anatomy:
 - raw model score may be stored;
 - `score_semantics` must identify the score as raw/uncalibrated unless calibration evidence exists;
 - no missing score may be synthesized;
