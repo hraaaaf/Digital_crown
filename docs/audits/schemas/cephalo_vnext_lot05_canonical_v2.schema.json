@@ -223,7 +223,8 @@
         "source_schema",
         "source_sha256",
         "compatibility_class",
-        "migrated_at"
+        "migrated_at",
+        "migration_context_sha256"
       ],
       "properties": {
         "migration_version": {
@@ -253,6 +254,10 @@
         "migrated_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "migration_context_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
         }
       }
     }
