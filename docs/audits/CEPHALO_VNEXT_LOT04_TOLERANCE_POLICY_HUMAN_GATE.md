@@ -1,6 +1,6 @@
 # Cephalo vNext — LOT04 Tolerance Policy — HUMAN GATE PROPOSAL
 
-Status: DRAFT — HUMAN_GATE_REQUIRED; not authorized for scoring
+Status: APPROVED — HUMAN_GATE A / REFERENCE_EQUIVALENCE_V1; frozen before candidate scoring
 Gate target: `CEPH_DETECTOR_SELECTED`
 Branch preparation base: `c2da527a9622cf1a9493adb6f4770194d7bf8e3c`
 
@@ -104,3 +104,22 @@ The later Human Review and Clinical Validation lots remain mandatory even if Opt
 
 ## Stop
 No candidate inference or acceptance scoring until this human gate is explicitly resolved and frozen in the benchmark manifest.
+
+
+## HUMAN_GATE A — frozen decision
+Approved by Product Owner before any SRPose38 anatomical result was observed.
+
+Frozen policy version: `REFERENCE_EQUIVALENCE_V1`.
+
+For LOT04 detector selection only:
+- candidate landmark median error must not exceed the corresponding frozen LOT02 human median;
+- candidate landmark p95 error must not exceed the corresponding frozen LOT02 human p95;
+- candidate sentinel-measurement p95 absolute error must not exceed the corresponding frozen LOT02 G1-A human p95 absolute disagreement;
+- no additive or multiplicative margin above the human envelope is authorized;
+- unsupported identities remain non-passing and cannot be promoted by aliasing;
+- overall PASS requires every required compatible landmark and sentinel measurement to PASS;
+- missing, non-finite, or out-of-frame outputs are fail-closed and cannot be counted as PASS.
+
+These are engineering reference-equivalence tolerances for LOT04 selection, not universal clinical-validity thresholds. Later human-review and clinical-validation gates remain mandatory.
+
+The tolerance HUMAN_GATE is resolved. No post-result retuning is authorized.
