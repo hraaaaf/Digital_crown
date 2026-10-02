@@ -84,8 +84,27 @@ try {
     const cropShot = `after-crop-patient-${viewport.width}x${viewport.height}.png`;
     await page.screenshot({ path: path.join(outDir, cropShot), fullPage: false });
 
+    let text200 = null;
+    if (viewport.width === 390) {
+      await dialog.getByRole('button', { name: 'Annuler', exact: true }).click();
+      await dialog.waitFor({ state: 'detached', timeout: 10000 });
+      await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+      await page.waitForTimeout(100);
+      await page.getByRole('button', { name: 'Importer', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Prendre une photo', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+      const metrics = await page.evaluate(() => ({
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+      }));
+      if (metrics.horizontalOverflow) throw new Error(`390: 200% text overflow ${metrics.scrollWidth}>${metrics.innerWidth}`);
+      const text200Shot = 'after-text200-patient-390x844.png';
+      await page.screenshot({ path: path.join(outDir, text200Shot), fullPage: true });
+      text200 = { ...metrics, text200Shot };
+    }
+
     if (pageErrors.length) throw new Error(`${viewport.width}: page errors: ${pageErrors.join(' | ')}`);
-    evidence.push({ viewport, baseShot, cropShot, baseMetrics, dialogMetrics, pageErrors });
+    evidence.push({ viewport, baseShot, cropShot, baseMetrics, dialogMetrics, text200, pageErrors });
     await context.close();
   }
 } finally {
