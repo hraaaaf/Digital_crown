@@ -13,6 +13,8 @@ on:
       - '.github/workflows/ordonnance-composer-visual-cert.yml'
   workflow_dispatch:
 
+# D5.7 exact-head visual trigger 2026-10-02
+
 jobs:
   ordonnance-composer-visual:
     runs-on: ubuntu-latest
