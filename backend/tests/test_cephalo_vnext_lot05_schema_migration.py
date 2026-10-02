@@ -195,7 +195,7 @@ def test_migration_timestamp_must_be_explicit_timezone_aware():
         migrate(migrated_at="2026-10-01T17:00:00")
 
 
-@pytest.mark.parametrize("mutation", ["snapshot", "case", "registry", "calibration", "patient", "width", "height"])
+@pytest.mark.parametrize("mutation", ["snapshot", "case", "registry", "semantic_status", "calibration", "patient", "width", "height", "unit", "quality"])
 def test_roundtrip_rejects_tampering_and_context_drift(mutation):
     v2 = migrate()
     if mutation == "snapshot":
