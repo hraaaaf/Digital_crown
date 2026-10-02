@@ -3,11 +3,12 @@
 
 The dataset itself is never committed. This tool verifies the expected Aariz
 layout, keeps junior/senior annotations separate, hashes every accepted file,
-and emits a reproducible JSON manifest for later human-reference statistics.
+records image dimensions, and emits a reproducible JSON manifest.
 """
 from __future__ import annotations
 import argparse, hashlib, json
 from pathlib import Path
+from PIL import Image
 
 DATASET_DOI="10.6084/m9.figshare.27986417.v1"
 FIGSHARE_ARTICLE_ID=27986417
@@ -32,6 +33,13 @@ def sha256(p:Path)->str:
         for b in iter(lambda:f.read(1024*1024),b""): h.update(b)
     return h.hexdigest()
 
+def image_size(p:Path)->tuple[int,int]:
+    with Image.open(p) as im:
+        width,height=im.size
+    if width<=0 or height<=0:
+        raise ValueError(f"{p}: invalid image dimensions")
+    return width,height
+
 def parse_annotation(p:Path):
     d=json.loads(p.read_text(encoding="utf-8"))
     pts=d.get("landmarks")
@@ -41,12 +49,10 @@ def parse_annotation(p:Path):
     for item in pts:
         value=item.get("value",{})
         symbol=item.get("symbol") or item.get("name") or item.get("title")
-        # Official files may identify points by stable ids; retain full raw object
-        # and resolve symbols later if the annotation does not embed them.
         x,y=value.get("x"),value.get("y")
         if not isinstance(x,(int,float)) or not isinstance(y,(int,float)):
             raise ValueError(f"{p}: invalid landmark coordinates")
-        out.append({"symbol":symbol,"x":x,"y":y,"raw_id":item.get("id")})
+        out.append({"symbol":symbol,"x":x,"y":y,"raw_id":item.get("landmark_id") or item.get("id")})
     return out
 
 def main():
@@ -67,16 +73,18 @@ def main():
             jp=junior/f"{stem}.json"; sp=senior/f"{stem}.json"
             if not jp.is_file() or not sp.is_file():
                 raise SystemExit(f"missing paired annotations for {split}/{stem}")
+            width,height=image_size(image)
             cases.append({
                 "case_id":stem,"split":split,
-                "image":{"path":str(image.relative_to(a.root)),"sha256":sha256(image),"size":image.stat().st_size},
+                "image":{"path":str(image.relative_to(a.root)),"sha256":sha256(image),
+                         "size":image.stat().st_size,"width":width,"height":height},
                 "junior":{"path":str(jp.relative_to(a.root)),"sha256":sha256(jp),"landmarks":parse_annotation(jp)},
                 "senior":{"path":str(sp.relative_to(a.root)),"sha256":sha256(sp),"landmarks":parse_annotation(sp)},
             })
     counts={s:sum(c["split"]==s for c in cases) for s in SPLITS}
     if len(cases)!=1000: raise SystemExit(f"expected 1000 cases, got {len(cases)}")
     manifest={
-      "schema":"CEPHALO_LOT02_AARIZ_MANIFEST_V1",
+      "schema":"CEPHALO_LOT02_AARIZ_MANIFEST_V2",
       "source":{"doi":DATASET_DOI,"figshare_article_id":FIGSHARE_ARTICLE_ID,
         "archive_file_id":ARCHIVE_FILE_ID,"archive_size":ARCHIVE_SIZE,
         "archive_md5":ARCHIVE_MD5,"license":LICENSE},
