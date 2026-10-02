@@ -191,4 +191,33 @@ describe('DrugRow R5 progressive disclosure', () => {
     expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'posologie', '');
   });
 
+  it('fail-closed quand un médicament nommé n’a plus de présentation catalogue vérifiée', async () => {
+    render(
+      <DrugRow
+        drug={{ ...baseDrug, name: 'AMOXICILLINE MANUELLE', dosage: '500MG', forme: 'GÉLULES', posologie: 'choix praticien' }}
+        idx={0}
+        drugsCount={1}
+        assessment={null}
+        validationErrors={[]}
+        forcedDrugs={[]}
+        activeSearchId={null}
+        suggestions={{ medications: [], dosages: [], posologies: [] }}
+        highlightedIdx={-1}
+        medChecks={{}}
+        onUpdateDrug={vi.fn()}
+        onRemoveDrug={vi.fn()}
+        onMove={vi.fn()}
+        onSearch={vi.fn()}
+        onKeyDown={vi.fn()}
+        onApplySuggestion={vi.fn()}
+        onForceAllergy={vi.fn()}
+        onToggleType={vi.fn()}
+        patientId="59"
+      />,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Présentation à confirmer avant validation.');
+    expect(screen.getByText('choix praticien')).toBeInTheDocument();
+  });
+
 });
