@@ -94,6 +94,11 @@ jobs:
           node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-3-photo-ui-before.mjs
           mkdir -p ../artifacts/v15-02-3-photo-ui-after
           cp -R ../artifacts/v15-02-3-photo-ui-before/. ../artifacts/v15-02-3-photo-ui-after/
+          for file in ../artifacts/v15-02-3-photo-ui-after/before-*.png; do
+            [ -e "$file" ] || continue
+            mv "$file" "${file/before-/after-}"
+          done
+          sed -i 's/before-/after-/g' ../artifacts/v15-02-3-photo-ui-after/evidence.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
