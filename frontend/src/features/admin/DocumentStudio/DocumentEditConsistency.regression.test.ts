@@ -39,9 +39,11 @@ describe('document edit consistency regression', () => {
   });
 
   it('rehydrates persisted ordonnance quantity instead of dropping it on edit', () => {
-    expect(documentHub).toContain("quantite?: number | null");
+    expect(documentHub).toContain("quantite?: number | null; quantite_explicit?: boolean");
     expect(documentHub).toContain("quantite: typeof m.quantite === 'number' && m.quantite > 0 ? m.quantite : undefined");
+    expect(documentHub).toContain("quantiteExplicit: Boolean(m.quantite_explicit)");
     expect(generator).toContain("quantite: d.quantite ?? null");
+    expect(generator).toContain("quantite_explicit: Boolean(d.quantiteExplicit)");
   });
 
   it('maps persisted libre document enum values back to the libre editor', () => {
