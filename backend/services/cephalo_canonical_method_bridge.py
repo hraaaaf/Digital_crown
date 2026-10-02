@@ -70,14 +70,98 @@ def canonical_measurement_id_for_method(method_id: str) -> str:
     return binding.canonical_measurement_id
 
 
+
+CANONICAL_CONVERGENCE_RULES = {
+    "M_A_NPERP_MM_V1": {
+        "authoritative_method_id": "M_A_NPERP_MM_V1",
+        "compatibility_method_ids": ("CRANIOM_SITUATION_A_MM_V1",),
+        "equivalence": "AUTHORITATIVE_VALUE_ROUNDED_TO_1DP_EQUALS_LEGACY_VALUE",
+        "canonical_value_precision": "AUTHORITATIVE_FULL_PRECISION",
+    },
+    "M_IMPA_GOME_DEG_V1": {
+        "authoritative_method_id": "TWEED_IMPA_DEG_V1",
+        "compatibility_method_ids": ("CRANIOM_L1_DOWNS_DEG_V1",),
+        "equivalence": "EXACT_VALUE_UNIT_STATUS",
+        "canonical_value_precision": "AUTHORITATIVE_VALUE",
+    },
+}
+
+
+def _availability_value(measurement) -> str:
+    return getattr(
+        measurement.availability_status,
+        "value",
+        str(measurement.availability_status),
+    )
+
+
+def _assert_common_state(canonical_id: str, measurements: list) -> None:
+    first = measurements[0]
+    first_status = _availability_value(first)
+    for item in measurements[1:]:
+        if item.unit != first.unit or _availability_value(item) != first_status:
+            raise ValueError(
+                f"Canonical measurement divergence for {canonical_id}: "
+                "unit/availability mismatch"
+            )
+
+
+def _resolve_converged_group(canonical_id: str, measurements: list) -> dict[str, object]:
+    _assert_common_state(canonical_id, measurements)
+    rule = CANONICAL_CONVERGENCE_RULES.get(canonical_id)
+    by_method = {item.method_id: item for item in measurements}
+    authority = measurements[0]
+
+    if rule is not None:
+        authority = by_method.get(rule["authoritative_method_id"], authority)
+        mode = rule["equivalence"]
+        for item in measurements:
+            if item is authority:
+                continue
+            if authority.value is None or item.value is None:
+                if authority.value != item.value:
+                    raise ValueError(
+                        f"Canonical measurement divergence for {canonical_id}: missing value mismatch"
+                    )
+                continue
+            if mode == "EXACT_VALUE_UNIT_STATUS":
+                equivalent = authority.value == item.value
+            elif mode == "AUTHORITATIVE_VALUE_ROUNDED_TO_1DP_EQUALS_LEGACY_VALUE":
+                equivalent = round(float(authority.value), 1) == float(item.value)
+            else:
+                raise ValueError(f"Unsupported canonical convergence mode: {mode}")
+            if not equivalent:
+                raise ValueError(
+                    f"Canonical measurement divergence for {canonical_id}: "
+                    f"{authority.method_id} vs {item.method_id}"
+                )
+    else:
+        for item in measurements[1:]:
+            if item.value != authority.value:
+                raise ValueError(
+                    f"Canonical measurement divergence for {canonical_id}: "
+                    f"{authority.method_id} vs {item.method_id}"
+                )
+
+    return {
+        "canonical_measurement_id": canonical_id,
+        "value": authority.value,
+        "unit": authority.unit,
+        "availability_status": _availability_value(authority),
+        "value_authority_method_id": authority.method_id,
+        "method_ids": sorted(item.method_id for item in measurements),
+        "measurement_refs": sorted(item.measurement_id for item in measurements),
+    }
+
+
 def project_canonical_measurements(measurements) -> dict[str, object]:
     """Collapse mapped typed methods onto canonical M_* identities.
 
-    Multiple historical methods may map to one canonical geometry. They must
-    agree exactly on unit, availability and value; divergence fails closed.
-    Blocked/unmapped methods are reported but never promoted.
+    Historical methods may share one canonical geometry only when their
+    preregistered convergence rule is satisfied. Blocked/unmapped methods are
+    reported but never promoted. Persisted measurement objects are not mutated.
     """
-    canonical: dict[str, dict[str, object]] = {}
+    grouped: dict[str, list] = {}
     blocked: list[str] = []
     unmapped: list[str] = []
     for measurement in measurements:
@@ -90,37 +174,13 @@ def project_canonical_measurements(measurements) -> dict[str, object]:
             continue
         canonical_id = binding.canonical_measurement_id
         assert canonical_id is not None
-        availability = getattr(
-            measurement.availability_status,
-            "value",
-            str(measurement.availability_status),
-        )
-        candidate = {
-            "canonical_measurement_id": canonical_id,
-            "value": measurement.value,
-            "unit": measurement.unit,
-            "availability_status": availability,
-            "method_ids": [measurement.method_id],
-            "measurement_refs": [measurement.measurement_id],
-        }
-        existing = canonical.get(canonical_id)
-        if existing is None:
-            canonical[canonical_id] = candidate
-            continue
-        if (
-            existing["unit"] != candidate["unit"]
-            or existing["availability_status"] != candidate["availability_status"]
-            or existing["value"] != candidate["value"]
-        ):
-            raise ValueError(
-                f"Canonical measurement divergence for {canonical_id}: "
-                f"{existing['method_ids']} vs {measurement.method_id}"
-            )
-        existing["method_ids"].append(measurement.method_id)
-        existing["measurement_refs"].append(measurement.measurement_id)
+        grouped.setdefault(canonical_id, []).append(measurement)
 
     return {
-        "measurements": [canonical[key] for key in sorted(canonical)],
+        "measurements": [
+            _resolve_converged_group(canonical_id, grouped[canonical_id])
+            for canonical_id in sorted(grouped)
+        ],
         "blocked_method_ids": sorted(set(blocked)),
         "unmapped_method_ids": sorted(set(unmapped)),
     }
