@@ -192,12 +192,24 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   if (await legal.getAttribute('aria-checked') === legalBefore) throw new Error('Legal annotations toggle failed');
   actions.push('indication-legal');
 
+  const contextPanel = page.locator('[data-patient-clinical-context="c2"]');
+  await contextPanel.waitFor({ state: 'visible', timeout: 10000 });
+  await page.waitForFunction(() => {
+    const panel = document.querySelector('[data-patient-clinical-context="c2"]');
+    if (!panel) return false;
+    const text = panel.textContent || '';
+    return !text.includes('Chargement du contexte clinique');
+  }, undefined, { timeout: 15000 });
+
+  const loadFailure = contextPanel.getByText('Contexte non chargé. Aucune valeur n’est supposée.', { exact: true });
+  if (await loadFailure.isVisible().catch(() => false)) {
+    throw new Error('Clinical context failed to load in G4 Ordonnance harness');
+  }
+
   const weightField = page.getByLabel('Poids explicite en kilogrammes');
   if (!(await weightField.isVisible().catch(() => false))) {
     const contextToggle = page.getByRole('button', { name: 'Renseigner', exact: true });
-    if (!(await contextToggle.isVisible().catch(() => false))) {
-      throw new Error('Clinical context is neither expanded nor exposable through the legacy Renseigner control');
-    }
+    await contextToggle.waitFor({ state: 'visible', timeout: 10000 });
     await contextToggle.click();
     await weightField.waitFor({ state: 'visible', timeout: 10000 });
   }
