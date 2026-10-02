@@ -120,4 +120,5 @@ The previous missing-corpus blocker is resolved by material evidence:
 
 Therefore `CEPH_GOLDSET_READY` is satisfied for the LOT02 gold-set contract itself. Exact-head evidence at `db9642e1695cd3f04a53f4fc606de178cbdfc151`: CI #7324 SUCCESS; targeted backend tests 70/70 passed; T2 #6139 SUCCESS; Agenda #2141 SUCCESS. Two independent internal adversarial perspectives (science/biometrics; architecture/reproducibility) found 0 BLOCKER, 0 MAJOR, and 0 significant unresolved debt; confirmation pass clean. This gate remains limited to gold-set readiness and does not select a detector or confer clinical validity.
 
- G0 executable geometry, G1-A exact consensus reference, G1-B ambiguity stress evidence, G2 cross-device role, and G3 executable legacy oracle are all materialized with explicit limitations. This gate does not select a detector or confer clinical validity. Detector selection and clinical acceptance remain separate LOT04/LOT09 concerns. LOT02 does not authorize SRPose38 clinically.
+
+Detector selection and clinical acceptance remain separate LOT04/LOT09 concerns. LOT02 does not authorize SRPose38 clinically.
