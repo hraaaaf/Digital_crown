@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PatientPhotoEditor } from './PatientPhotoEditor';
+import { PatientPhotoEditor, computeCropGeometry } from './PatientPhotoEditor';
 import { api } from '../../../services/api';
 
 vi.mock('../../../services/api', () => ({
@@ -23,6 +23,23 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('PatientPhotoEditor crop geometry', () => {
+  it('matches the preview translation semantics for square sources', () => {
+    expect(computeCropGeometry(100, 100, 1, 50, -25, 768)).toEqual({
+      drawnWidth: 768,
+      drawnHeight: 768,
+      x: 384,
+      y: -192,
+    });
+    expect(computeCropGeometry(100, 100, 2, 25, 0, 768)).toEqual({
+      drawnWidth: 1536,
+      drawnHeight: 1536,
+      x: -192,
+      y: -384,
+    });
+  });
 });
 
 describe('PatientPhotoEditor', () => {
@@ -54,6 +71,14 @@ describe('PatientPhotoEditor', () => {
     render(<PatientPhotoEditor patientId={7} firstName="Sara" lastName="Benali" initialHasPhoto />);
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/7/photo', { responseType: 'blob' }));
     expect(await screen.findByRole('button', { name: /Supprimer/i })).toBeTruthy();
+  });
+
+  it('preserves the existing photo binding when the authenticated blob read fails transiently', async () => {
+    vi.mocked(api.get).mockRejectedValue(new Error('network'));
+    render(<PatientPhotoEditor patientId={7} firstName="Sara" lastName="Benali" initialHasPhoto />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/momentanément indisponible/i);
+    expect(screen.getByRole('button', { name: /Supprimer/i })).toBeTruthy();
+    expect(api.delete).not.toHaveBeenCalled();
   });
 
   it('deletes the canonical photo binding without false success', async () => {
