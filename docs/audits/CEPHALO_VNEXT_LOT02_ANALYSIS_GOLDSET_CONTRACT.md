@@ -1,6 +1,7 @@
 # Cephalo vNext — LOT02 Analysis Coverage & Gold Set Contract
 
-Status target: VERIFIED — CEPH_GOLDSET_READY (effective only after the external exact-head closeout record below is clean on the current branch HEAD)
+Status: VERIFIED — CEPH_GOLDSET_READY
+Closeout evidence HEAD: `6ba434f7c23812144f84a5a8b286542473bb5f18` (scientific/evidence HEAD immediately preceding this documentation-only closeout commit)
 Parent: LOT01 candidate 8b722dd5686536997642ea07836bee6588de731a
 Gate target: CEPH_GOLDSET_READY
 
@@ -124,7 +125,7 @@ The previous missing-corpus blocker is resolved by material evidence:
 Therefore `CEPH_GOLDSET_READY` is satisfied for the LOT02 gold-set contract itself **only when the external exact-head closeout record for the current branch HEAD is clean**. The last pre-closeout evidence parent is `319c1274928c01c029de64d04b4c6c3cd57e7e43`: CI #7334 SUCCESS with targeted backend tests 73/73 passed and no skip reported; T2 #6149 SUCCESS; Agenda #2151 SUCCESS. These parent runs are integration evidence, not the final child-HEAD certification.
 
 ### Exact-head closeout binding
-The final LOT02 closeout identity MUST be taken from the immutable Git commit SHA and GitHub Actions run metadata (`head_sha` / `GITHUB_SHA`) of the final documentation commit. The contract intentionally does **not** embed its own final commit SHA or final run numbers: doing so is self-referential and would create a new commit every time those identifiers were written, instantly making the embedded SHA/runs stale again. A clean closeout therefore requires, on one unchanged final HEAD: (1) directly impacted Actions SUCCESS; (2) actual test collection/execution inspected; (3) two adversarial reviews restarted from zero; (4) one additional confirmation pass; (5) 0 new BLOCKER, 0 new MAJOR, and 0 significant unaccepted debt. The exact SHA/run IDs and review verdicts are recorded in the PR/Notion closeout evidence for that unchanged HEAD.
+The final LOT02 closeout identity MUST be taken from the immutable Git commit SHA and GitHub Actions run metadata (`head_sha` / `GITHUB_SHA`) of the final documentation commit. The contract intentionally does **not** embed its own final commit SHA or final run numbers: doing so is self-referential and would create a new commit every time those identifiers were written, instantly making the embedded SHA/runs stale again. A clean closeout therefore requires, on one unchanged final HEAD: (1) directly impacted Actions SUCCESS; (2) actual test collection/execution inspected; (3) two adversarial reviews restarted from zero; (4) one additional confirmation pass; (5) 0 new BLOCKER, 0 new MAJOR, and 0 significant unaccepted debt. The exact SHA/run IDs and review verdicts are recorded in the PR/Notion closeout evidence for that unchanged evidence HEAD. This status line is a documentation-only closeout marker created after convergence; it does not alter gold-set artifacts, algorithms, runtime, or patient data.
 
 This gate remains limited to gold-set readiness and does not select a detector or confer clinical validity.
 
