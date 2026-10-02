@@ -2,42 +2,37 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const drugRow = readFileSync(
-  resolve(process.cwd(), 'src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'),
-  'utf8',
-);
+const read = (file: string) => readFileSync(resolve(process.cwd(), file), 'utf8');
+const drugRow = read('src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx');
+const contextualChoice = read('src/features/admin/DocumentStudio/Forms/PrescriptionContextualChoice.tsx');
 
 describe('Ordonnance Fidelity V3.1 prescription composer', () => {
-  it('renders the four structured controls and persisted phrase', () => {
+  it('renders the four structured controls with one primary posology text source', () => {
     expect(drugRow).toContain('data-ordonnance-prescription-composer');
-    for (const field of ['amount', 'frequency', 'constraint', 'context']) {
-      expect(drugRow).toContain(`data-composer-field="${field}"`);
+    for (const label of ['Prise', 'Rythme', 'Durée ou limite', 'Moment ou condition']) {
+      expect(drugRow).toContain(`ariaLabel="${label}"`);
     }
-    expect(drugRow).toContain('Phrase persistée');
-    expect(drugRow).toContain('Prescription structurée');
+    expect(drugRow).toContain('Posologie complète');
+    expect(drugRow).not.toContain('Phrase persistée');
   });
 
   it('keeps free text as a fallback instead of changing the backend contract', () => {
-    expect(drugRow).toContain('Texte libre');
     expect(drugRow).toContain('aria-label="Posologie en texte libre"');
     expect(drugRow).toContain("onUpdateDrug(drug.id, 'posologie'");
   });
 
-  it('keeps all four structured selectors touch-safe', () => {
-    const composerStart = drugRow.indexOf('data-ordonnance-prescription-composer');
-    const composerEnd = drugRow.indexOf('aria-label="Posologie en texte libre"', composerStart);
-    const composerSource = drugRow.slice(composerStart, composerEnd);
-    expect(composerSource.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+  it('keeps every structured selector touch-safe', () => {
+    expect(contextualChoice).toContain('data-composer-field={dataField}');
+    expect(contextualChoice).toContain('min-h-11');
+    expect((drugRow.match(/<PrescriptionContextualChoice/g) || []).length).toBeGreaterThanOrEqual(4);
   });
 
   it('inherits the active app theme with no local palette', () => {
-    const composerStart = drugRow.indexOf('data-ordonnance-prescription-composer');
-    const composerEnd = drugRow.indexOf('aria-label="Posologie en texte libre"', composerStart);
-    const composerSource = drugRow.slice(composerStart, composerEnd);
+    const combined = `${drugRow}\n${contextualChoice}`;
     for (const tokenClass of ['bg-glass-bg', 'bg-input-field', 'border-border-main', 'text-text-main', 'text-text-muted']) {
-      expect(composerSource).toContain(tokenClass);
+      expect(combined).toContain(tokenClass);
     }
-    expect(composerSource).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    expect(composerSource).not.toContain('data-theme=');
+    expect(combined).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(combined).not.toContain('data-theme=');
   });
 });
