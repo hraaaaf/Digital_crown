@@ -4,6 +4,7 @@ import { RefreshCw, Plus } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 import type { Appointment } from './DailyView';
+import { PatientAvatar } from '../patients/components/PatientAvatar';
 
 interface MonthlyViewProps {
   selectedDate: Date;
@@ -135,7 +136,12 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
                         className="w-full min-h-11 text-left text-[9px] font-bold bg-white border border-slate-100 px-2 py-1 rounded-md text-slate-700 truncate shadow-sm hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
                         aria-label={`Modifier le rendez-vous de ${a.patient_name || 'patient'} à ${timeLabel}`}
                       >
-                        {timeLabel} - {a.patient_name}
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          {a.patient_id ? (
+                            <PatientAvatar patientId={a.patient_id} fullName={a.patient_name} resolveFromDirectory className="w-6 h-6 rounded-md text-[8px]" />
+                          ) : null}
+                          <span className="truncate">{timeLabel} - {a.patient_name}</span>
+                        </span>
                       </button>
                     );
                   })}
