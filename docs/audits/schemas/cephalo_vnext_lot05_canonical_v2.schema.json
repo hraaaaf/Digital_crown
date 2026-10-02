@@ -238,6 +238,46 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "model_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "model_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "model_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "model_sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "model_sha256"
+            ]
+          },
+          "then": {
+            "properties": {
+              "model_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       ]
     },
@@ -322,6 +362,11 @@
           "origin",
           "x",
           "y",
+          "model_id",
+          "model_sha256",
+          "pipeline_version",
+          "original_auto_x",
+          "original_auto_y",
           "validated_by",
           "validated_at"
         ],
@@ -359,8 +404,99 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "model_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "pipeline_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "original_auto_x": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "original_auto_y": {
+            "type": [
+              "number",
+              "null"
+            ]
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "origin": {
+                  "const": "SRPOSE38_AUTO"
+                }
+              },
+              "required": [
+                "origin"
+              ]
+            },
+            "then": {
+              "properties": {
+                "model_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "model_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "pipeline_version": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "origin": {
+                  "const": "MANUAL_CORRECTED"
+                }
+              },
+              "required": [
+                "origin"
+              ]
+            },
+            "then": {
+              "properties": {
+                "original_auto_x": {
+                  "type": "number"
+                },
+                "original_auto_y": {
+                  "type": "number"
+                },
+                "validated_by": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "validated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        ]
       }
     }
   }
