@@ -119,7 +119,7 @@ export function PrescriptionQuickAccessBar({
   onPrescriptionIndicationChange,
 }: {
   drugs: DrugItem[];
-  setDrugs: React.Dispatch<React.SetStateAction<DrugItem[]>>;
+  setDrugs: (drugs: DrugItem[]) => void;
   prescriptionIndication: string;
   onPrescriptionIndicationChange?: (value: string) => void;
 }) {
@@ -250,7 +250,8 @@ export function PrescriptionQuickAccessBar({
     }).then(response => {
       const preferredPosology = String(response.data?.preferred_posology || '');
       if (!preferredPosology) return;
-      setDrugs(current => current.map(drug => (
+      const current = drugsRef.current;
+      setDrugs(current.map(drug => (
         drug.id === targetDrugId
         && drug.catalogPresentationId === row.presentation_id
         && !drug.posologie.trim()
