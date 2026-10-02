@@ -158,7 +158,7 @@ on the D5 branch.
 
 ---
 
-## 4. D5 revised roadmap
+## 4. D5 revised roadmap — historical snapshot (superseded by §13–15)
 
 ### D5.1 — National canonical catalog
 DONE.
@@ -438,7 +438,7 @@ Do not declare CLOSED / VERIFIED / READY unless the project convergence rule is 
 
 ---
 
-## 11. Exact restart sequence for the next window
+## 11. Historical restart sequence — superseded by §13–15
 
 1. Read this handover.
 2. Fetch actual branch HEAD and latest workflow state.
@@ -463,7 +463,7 @@ Do not declare CLOSED / VERIFIED / READY unless the project convergence rule is 
 
 ---
 
-## 12. Prompt to use in the new ChatGPT window
+## 12. Historical restart prompt — superseded by §13–15
 
 Continue Digital Crown / Neo Ordonnance from:
 
