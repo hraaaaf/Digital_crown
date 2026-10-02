@@ -269,6 +269,7 @@ class OrdonnanceGenerator:
                 posologie = getattr(med, 'posologie', '') or ""
                 m_type = getattr(med, 'type', 'MEDICAMENT')
                 quantity = getattr(med, 'quantite', None)
+                quantity_explicit = bool(getattr(med, 'quantite_explicit', False))
 
                 is_radio = m_type == "EXAMEN" or "RADIO" in nom.upper() or "X-RAY" in nom.upper()
                 display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
@@ -317,7 +318,7 @@ class OrdonnanceGenerator:
                 
                 elements.append(med_line_table)
 
-                if not is_radio and quantity is not None:
+                if not is_radio and quantity_explicit and quantity is not None:
                     try:
                         quantity_value = int(quantity)
                     except (TypeError, ValueError):
