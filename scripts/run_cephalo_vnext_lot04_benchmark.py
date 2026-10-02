@@ -115,13 +115,18 @@ def build_manifest(args):
       "preprocessing":{"input_size":[1024,1024],"bbox_padding":1.25,"interpolation":"cv2.INTER_LINEAR",
         "color_conversion":"BGR_TO_RGB","mean":[121.25,121.25,121.25],"std":[76.5,76.5,76.5],
         "tta_embedded_in_onnx":True,"darkpose_blur_kernel":11},
-      "dataset":{"manifest_frozen_before_scoring":True,"cases":cases,
+      "dataset":{"manifest_frozen_before_scoring":True,"source_manifest_sha256":sha256_file(args.corpus_manifest),
+        "qc_sha256":sha256_file(args.qc),"calibration_sha256":sha256_file(args.calibration_csv),
+        "landmark_agreement_sha256":sha256_file(args.landmark_agreement),
+        "measurement_agreement_sha256":sha256_file(args.measurement_agreement),
+        "split_policy":"train+valid=development;test=acceptance","cases":cases,
         "development_case_ids":dev,"acceptance_case_ids":acc},
       "metrics":{"per_landmark_mm":True,"directional_xy":True,"robust_percentiles":True,
         "failure_rate":True,"sdr_secondary":True,"clinical_propagation":list(SENTINELS)},
       "acceptance_policy":{"preregistered":True,"universal_2mm_gate":False,
         "human_reference_uncertainty_required":True,"landmark_specific":True,
         "aggregate_regression_masking_forbidden":True,"tolerance_version":policy["policy_id"],
+        "policy_sha256":sha256_file(args.tolerance_policy),
         "landmark_tolerances":policy["landmark_tolerances"],"clinical_tolerances":policy["clinical_tolerances"]},
     }
     validate_manifest_semantics(manifest)
@@ -155,6 +160,17 @@ def score(args):
     if sha256_file(args.model)!=MODEL_SHA256: raise SystemExit("model drift since manifest freeze")
     corpus=json.loads(args.corpus_manifest.read_text(encoding="utf-8"))
     qc=json.loads(args.qc.read_text(encoding="utf-8")); cal=load_cal(args.calibration_csv)
+    bindings={
+      "source_manifest_sha256":sha256_file(args.corpus_manifest),
+      "qc_sha256":sha256_file(args.qc),
+      "calibration_sha256":sha256_file(args.calibration_csv),
+      "landmark_agreement_sha256":sha256_file(args.landmark_agreement),
+      "measurement_agreement_sha256":sha256_file(args.measurement_agreement),
+    }
+    for key,value in bindings.items():
+        if manifest["dataset"].get(key)!=value: raise SystemExit(f"{key} drift since manifest freeze")
+    if manifest["acceptance_policy"].get("policy_sha256")!=sha256_file(args.tolerance_policy):
+        raise SystemExit("tolerance policy drift since manifest freeze")
     acceptance=set(manifest["dataset"]["acceptance_case_ids"])
     cases={c["case_id"]:c for c in corpus["cases"] if c["case_id"] in acceptance}
     if set(cases)!=acceptance: raise SystemExit("acceptance case mismatch")
@@ -252,8 +268,8 @@ def score(args):
 def main():
     ap=argparse.ArgumentParser(); sub=ap.add_subparsers(dest="cmd",required=True)
     m=sub.add_parser("manifest")
-    for p in ("corpus_manifest","calibration_csv","model","tolerance_policy","repo","output"): m.add_argument(f"--{p.replace('_','-')}",type=Path,required=True)
+    for p in ("corpus_manifest","qc","calibration_csv","landmark_agreement","measurement_agreement","model","tolerance_policy","repo","output"): m.add_argument(f"--{p.replace('_','-')}",type=Path,required=True)
     s=sub.add_parser("score")
-    for p in ("manifest","corpus_manifest","qc","calibration_csv","dataset_root","model","repo","output_dir"): s.add_argument(f"--{p.replace('_','-')}",type=Path,required=True)
+    for p in ("manifest","corpus_manifest","qc","calibration_csv","landmark_agreement","measurement_agreement","tolerance_policy","dataset_root","model","repo","output_dir"): s.add_argument(f"--{p.replace('_','-')}",type=Path,required=True)
     a=ap.parse_args(); build_manifest(a) if a.cmd=="manifest" else score(a)
 if __name__=="__main__": main()
