@@ -181,14 +181,31 @@ describe('DrugRow R5 progressive disclosure', () => {
       dosage: '500MG',
       posologie: '1 cp x 3 / jour pendant 7 jours',
       quantite: 2,
+      quantiteExplicit: true,
     }));
 
     const quantity = screen.getByLabelText('Quantité à délivrer');
     expect(quantity).toHaveValue(2);
     fireEvent.change(quantity, { target: { value: '3' } });
     expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantite', 3);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantiteExplicit', true);
     fireEvent.change(quantity, { target: { value: '' } });
     expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantite', undefined);
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'quantiteExplicit', false);
+  });
+
+  it('ne présente pas un ancien quantite=1 technique comme une quantité prescrite', () => {
+    renderRow(identified({
+      ...baseDrug,
+      name: 'AMOXICILLINE',
+      forme: 'GÉLULES',
+      dosage: '500MG',
+      posologie: '1 cp x 3 / jour pendant 7 jours',
+      quantite: 1,
+      quantiteExplicit: false,
+    }));
+
+    expect((screen.getByLabelText('Quantité à délivrer') as HTMLInputElement).value).toBe('');
   });
 
   it('garde une ligne radio/examen distincte sans composer médicament', () => {
