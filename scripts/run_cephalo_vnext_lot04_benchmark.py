@@ -145,14 +145,17 @@ def vang(u,v):
 def angle3(a,b,c): return vang(vec(b,a),vec(b,c))
 def lineang(a,b,c,d):
     x=vang(vec(a,b),vec(c,d)); return min(x,180.0-x)
-def measures(p,scale):
-    sna=angle3(p["S"],p["N"],p["A"]); snb=angle3(p["S"],p["N"],p["B"])
-    return {"SNA":sna,"SNB":snb,"ANB":sna-snb,
-      "FMA":lineang(p["Po"],p["Or"],p["Go"],p["Me"]),
-      "IMPA":lineang(p["L1_apex"],p["L1_incisal"],p["Go"],p["Me"]),
-      "FMIA":lineang(p["L1_apex"],p["L1_incisal"],p["Po"],p["Or"]),
-      "SN-GoGn":lineang(p["S"],p["N"],p["Go"],p["Gn"]),
-      "Co-A":math.dist(p["Co"],p["A"])*scale,"Co-Gn":math.dist(p["Co"],p["Gn"])*scale}
+def measure_one(mid,p,scale):
+    if mid=="SNA": return angle3(p["S"],p["N"],p["A"])
+    if mid=="SNB": return angle3(p["S"],p["N"],p["B"])
+    if mid=="ANB": return angle3(p["S"],p["N"],p["A"])-angle3(p["S"],p["N"],p["B"])
+    if mid=="FMA": return lineang(p["Po"],p["Or"],p["Go"],p["Me"])
+    if mid=="IMPA": return lineang(p["L1_apex"],p["L1_incisal"],p["Go"],p["Me"])
+    if mid=="FMIA": return lineang(p["L1_apex"],p["L1_incisal"],p["Po"],p["Or"])
+    if mid=="SN-GoGn": return lineang(p["S"],p["N"],p["Go"],p["Gn"])
+    if mid=="Co-A": return math.dist(p["Co"],p["A"])*scale
+    if mid=="Co-Gn": return math.dist(p["Co"],p["Gn"])*scale
+    raise KeyError(mid)
 
 def score(args):
     manifest=json.loads(args.manifest.read_text(encoding="utf-8"))
