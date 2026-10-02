@@ -127,3 +127,18 @@ def test_roundtrip_rejects_migration_context_drift(mutation):
     else: v2["coordinate_space"]["source_height_px"]=999
     with pytest.raises(Lot05MigrationError):
         roundtrip_v2_to_v1(v2)
+
+
+def test_active_landmark_provenance_is_explicit_and_bound_to_source():
+    v2=migrate_v1_to_v2(v1(),patient_id=7,width=1935,height=2400,migrated_at="2026-10-01T00:00:00+00:00")
+    assert v2["active_landmarks"] == [{
+        "evidence_ref":"lm:r3:A","canonical_id":"A","origin":"MANUAL_CORRECTED",
+        "x":11.0,"y":21.0,"validated_by":"99","validated_at":"2026-09-10T15:35:00+00:00"}]
+    v2["active_landmarks"][0]["origin"]="SRPOSE38_AUTO"
+    with pytest.raises(Lot05MigrationError):
+        roundtrip_v2_to_v1(v2)
+
+def test_missing_or_unknown_active_provenance_fails_closed():
+    source=v1(); source["landmarks"][2].pop("origin")
+    with pytest.raises(Lot05MigrationError):
+        migrate_v1_to_v2(source,patient_id=7,width=1935,height=2400,migrated_at="2026-10-01T00:00:00+00:00")
