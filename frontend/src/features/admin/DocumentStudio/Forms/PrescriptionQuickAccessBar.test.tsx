@@ -333,6 +333,47 @@ describe('Neo prescription quick access', () => {
     expect(setDrugs).toHaveBeenCalledTimes(1);
   });
 
+  it('hydrates only the newly selected line when another line uses the same presentation', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.includes('/habits/presets')) return { data: [] } as never;
+      if (url.includes('/habits/suggest')) return { data: {} } as never;
+      if (url.includes('/medications/neo/search')) return { data: [{
+        presentation_id: 'same-presentation',
+        nom: 'DOLIPRANE',
+        dci: 'PARACETAMOL',
+        dosage: '1',
+        unite: 'G',
+        forme: 'COMPRIMES',
+        source: { id: 'ammps-current', current_marketing_status_verified: true },
+      }] } as never;
+      if (url.includes('/prescriptions/habits/details')) return { data: {
+        preferred_posology: 'habitude ciblée',
+      } } as never;
+      return { data: [] } as never;
+    });
+
+    const existing = {
+      ...emptyLine,
+      id: 1,
+      name: 'DOLIPRANE',
+      catalogPresentationId: 'same-presentation',
+      posologie: '',
+    };
+    const emptySecond = { ...emptyLine, id: 2 };
+    const setDrugs = vi.fn();
+    render(<PrescriptionQuickAccessBar drugs={[existing, emptySecond]} setDrugs={setDrugs} prescriptionIndication="" />);
+    const input = screen.getByRole('textbox', { name: 'Ajouter un médicament ou un protocole' });
+    fireEvent.change(input, { target: { value: 'doliprane' } });
+    fireEvent.click(await screen.findByText('DOLIPRANE'));
+
+    const immediate = setDrugs.mock.calls[0][0];
+    await waitFor(() => expect(setDrugs).toHaveBeenCalledTimes(2));
+    const enrich = setDrugs.mock.calls[1][0] as (current: typeof immediate) => typeof immediate;
+    const final = enrich(immediate);
+    expect(final[0].posologie).toBe('');
+    expect(final[1].posologie).toBe('habitude ciblée');
+  });
+
   it('does not overwrite practitioner posology entered while habit enrichment is pending', async () => {
     let resolveHabit: ((value: any) => void) | undefined;
     const habit = new Promise(resolve => { resolveHabit = resolve; });
