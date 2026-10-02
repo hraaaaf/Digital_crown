@@ -36,7 +36,7 @@ interface DocumentHubProps {
 }
 
 interface GenericClinicalData {
-  medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }[];
+  medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN'; quantite?: number | null }[];
   indication?: string;
   reason?: string;
   days?: number;
@@ -196,10 +196,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
     if (desiredTab === 'ordonnance') {
       setPrescriptionIndication(d.indication || '');
-      if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
+      if (d.medications) setDrugs(d.medications.map((m, idx: number) => ({
         id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
         forme: m.forme || '', posologie: m.posologie || '',
-        type: m.type || 'MEDICAMENT'
+        type: m.type || 'MEDICAMENT',
+        quantite: typeof m.quantite === 'number' && m.quantite > 0 ? m.quantite : undefined,
       })));
     } else if (desiredTab === 'certificat') {
       setCertifType(d.reason || 'Arrêt de travail');
