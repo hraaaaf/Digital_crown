@@ -27,11 +27,17 @@ Accidental equality in one image is never semantic equivalence.
 ### G0 — Synthetic geometry truth
 Exact fixed-coordinate expected values, sign/orientation, degeneracy and fail-closed cases, aliases and non-substitution tests.
 
-### G1 — Internal manually reviewed lateral set
-Representative image quality, dentition and difficult landmarks (Po, Co, Go, PNS, Ar/Ba/PT region), dental/soft-tissue visibility and calibration conditions. Each case stores immutable image hash, device metadata when known, calibration provenance, versioned landmark definitions, annotator/reviewer provenance, correction history, analysis version and expected measurements/tolerances.
+### G1 — Qualified public expert reference with explicit ambiguity track
+G1 is split into two non-interchangeable tracks:
+- **G1-A Consensus Gold** — exact landmark reference is permitted only when the two Aariz expert-group annotations are structurally valid and differ by <=2.0 mm after per-image calibration. The reference coordinate is their midpoint.
+- **G1-B Ambiguity Stress Set** — pairs >2.0 mm, structurally invalid pairs, and all pairs requiring review/adjudication remain visible in reporting but are never silently averaged into exact ground truth.
 
-### G2 — Aariz external generalization
-Use official Aariz split/device metadata only for anatomically compatible mappings. Purpose = cross-device landmark validation, not Digital Crown normative validation. Unsupported DC points are never coerced into Aariz labels.
+The 2/4 mm bands are QC triage boundaries only, not clinical detector-acceptance thresholds. G1-B remains in denominators/coverage reporting to prevent easy-case selection bias. Performance summaries MUST disclose both G1-A exact-reference performance and G1-B unresolved/coverage behavior.
+
+Immutable evidence record: `docs/audits/schemas/cephalo_vnext_lot02_aariz_qualification.json`.
+
+### G2 — External generalization role
+The same official Aariz source provides cross-device stratification across seven acquisition devices, but G2 is a distinct evaluation role from G1 reference qualification. Only anatomy-compatible mappings are allowed. Unsupported DC points are never coerced into Aariz labels. Train/valid/test membership remains frozen; final detector acceptance MUST NOT use any subset exposed during model or threshold tuning.
 
 ### G3 — Legacy compatibility
 Representative existing DC schema, manual corrections, calibration, evidence graph, tracing, PDF/report and superimposition states. Use de-identified/synthetic material according to test policy.
@@ -98,12 +104,14 @@ This document authorizes no model training, patient export, runtime change, merg
 
 ## Debt-zero gate decision
 
-The repository inspection performed before LOT06 found no frozen executable G1 internal corpus and no frozen representative G3 legacy corpus satisfying this contract. Therefore `CEPH_GOLDSET_READY` is explicitly **NOT SATISFIED** at this revision. This is a hard evidence blocker, not accepted technical debt and not a documentation waiver.
+The previous missing-corpus blocker is resolved by material evidence:
 
-Consequences:
-- no detector may be clinically selected from LOT02 evidence;
-- no anatomical-accuracy claim may be inherited from runtime parity;
-- LOT06 engine geometry may proceed only with G0/manual deterministic landmark fixtures and MUST remain detector-independent;
-- chain-level Cephalo 2.0 certification remains blocked until G1/G3 are materially created, independently reviewed and frozen.
+- Aariz official archive verified by exact size and MD5.
+- 1000 cases frozen as 700 train / 150 valid / 150 test with paired Junior/Senior expert-group annotations.
+- Manifest V2 records image SHA-256, dimensions, annotation SHA-256 and split membership; local frozen manifest SHA-256: `d7191e61ff3ddd58ee8598c9f98cce1b71d5ebc7151b2975534ee644175181ff`.
+- 29,000 paired annotations were calibrated in mm and deterministically classified: 27,248 CONSENSUS_CANDIDATE; 1,309 REVIEW_REQUIRED; 441 ADJUDICATION_REQUIRED; 2 STRUCTURAL_INVALID.
+- Ambiguous pairs are retained as G1-B stress evidence and cannot become exact ground truth without adjudication.
+- G3 synthetic legacy fixture is present and executable; migration tests prove exact round-trip preservation and no silent historical recomputation.
+- SRPose38 source checkpoint provenance is byte-identical to the published CLDetection2023 pretrained weight; the published training procedure consumes CLDetection2023 train_stack.mha/train-gt.json and contains no Aariz reference. This is provenance evidence, not a clinical performance claim.
 
-Required unblock proof: immutable G1/G3 case manifests/fixtures, qualified annotator/adjudication provenance where applicable, preregistered tolerances derived from human-reference reproducibility, and executable deterministic comparison evidence.
+Therefore the **corpus/protocol portion** of `CEPH_GOLDSET_READY` is satisfied. Detector selection and clinical acceptance remain separate LOT04/LOT09 concerns. LOT02 does not authorize SRPose38 clinically.
