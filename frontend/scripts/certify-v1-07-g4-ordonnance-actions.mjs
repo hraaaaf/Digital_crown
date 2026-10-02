@@ -54,6 +54,36 @@ async function selectExactAmoxicillin(page) {
   throw new Error('Exact amoxicillin presentation missing');
 }
 
+
+async function openContextualChoice(page, label) {
+  const trigger = page.getByRole('button', { name: label, exact: true }).first();
+  await trigger.click();
+  const menu = page.getByRole('menu').first();
+  await menu.waitFor({ state: 'visible', timeout: 10000 });
+  return { trigger, menu };
+}
+
+async function applyManualContextualChoice(page, label, value) {
+  const { trigger, menu } = await openContextualChoice(page, label);
+  await menu.getByRole('menuitem', { name: /Modifier manuellement/i }).click();
+  const input = page.getByLabel('Valeur personnalisée');
+  await input.fill(value);
+  await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
+  if (!(await trigger.innerText()).includes(value)) {
+    throw new Error(`Manual contextual choice not applied: ${label} -> ${value}`);
+  }
+}
+
+async function selectFirstContextualOption(page, label) {
+  const { trigger, menu } = await openContextualChoice(page, label);
+  const options = menu.getByRole('menuitem').filter({ hasNotText: 'Modifier manuellement' });
+  if (await options.count() < 1) throw new Error(`No contextual option available: ${label}`);
+  await options.first().click();
+  const value = (await trigger.innerText()).trim();
+  if (!value || value === label) throw new Error(`Contextual choice did not update: ${label}`);
+  return value;
+}
+
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
   const context = await browser.newContext({ viewport, colorScheme: 'light' });
   const page = await context.newPage();
@@ -128,30 +158,24 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const name = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...').first();
   await name.fill('G4 MANUAL');
   await page.waitForTimeout(700);
-  const formTrigger = page.getByTitle('Choisir la forme manuellement').first();
-  await formTrigger.click();
-  const menu = page.getByRole('menu', { name: 'Choisir la forme' });
-  await menu.waitFor({ state: 'visible', timeout: 10000 });
-  const options = menu.getByRole('menuitemradio');
-  if (await options.count() !== 11) throw new Error('Manual form chooser does not expose 11 canonical forms');
-  const heights = await options.evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
-  if (Math.min(...heights) < 43.5) throw new Error('Manual form chooser touch target below 44px');
+  const { trigger: formTrigger, menu: formMenu } = await openContextualChoice(page, 'Forme');
+  const formTriggerHeight = await formTrigger.evaluate(node => node.getBoundingClientRect().height);
+  if (formTriggerHeight < 43.5) throw new Error('Form contextual trigger touch target below 44px');
   const openScene = await snapshot(page, viewport, 'forme-open');
-  await menu.getByRole('menuitemradio', { name: 'COMPRIMÉS', exact: true }).click();
+  await formMenu.getByRole('menuitem', { name: /Modifier manuellement/i }).click();
+  await page.getByLabel('Valeur personnalisée').fill('COMPRIMÉS');
+  await page.getByRole('button', { name: 'Appliquer', exact: true }).click();
   if (!/COMPRIMÉS/.test(await formTrigger.innerText())) throw new Error('Manual form selection not applied');
   actions.push('manual-form');
 
-  const dose = page.getByLabel('Dose').first();
-  await dose.fill('500 MG');
+  await applyManualContextualChoice(page, 'Dose', '500 MG');
   const ns = page.getByTitle('Non substituable').first();
   const nsBefore = await ns.getAttribute('aria-pressed');
   await ns.click();
   if (await ns.getAttribute('aria-pressed') === nsBefore) throw new Error('NS toggle failed');
 
   for (const label of ['Prise', 'Rythme', 'Durée ou limite', 'Moment ou condition']) {
-    const select = page.getByLabel(label).first();
-    await select.selectOption({ index: 1 });
-    if (!(await select.inputValue())) throw new Error(`Structured posology field failed: ${label}`);
+    await selectFirstContextualOption(page, label);
   }
   const freePosology = page.getByLabel('Posologie en texte libre').first();
   await freePosology.fill('Saisie praticien G4');
