@@ -46,3 +46,16 @@ def test_reference_equivalence_policy_binds_expected_lot02_artifacts():
       "sentinel_measurement_agreement_sha256":"868de930eba33bf2b6d6b175b386f1c42e7fdb3205566ddbe331141fa5f1804d",
       "goldset_manifest_sha256":"73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df",
     }
+
+
+def test_device_stratified_gate_is_frozen_before_alternative_scoring():
+    p=load("cephalo_vnext_lot04_tolerance_policy_reference_equivalence_v1.json")
+    d=p["device_stratified_policy"]
+    assert d["status"]=="APPROVED_BEFORE_ALTERNATIVE_CANDIDATE_SCORING"
+    assert d["min_n_for_hard_p95_gate"]==59
+    assert d["hard_gate_metric"]=="p95_mm"
+    assert d["comparator"]=="candidate_device_p95_mm <= frozen_LOT02_human_device_p95_mm"
+    assert d["insufficient_n_status"]=="INSUFFICIENT_N_FOR_P95_GATE"
+    assert d["insufficient_n_effect"]=="DESCRIPTIVE_ONLY"
+    assert d["post_hoc_pooling_allowed"] is False
+    assert d["aggregate_masking_allowed"] is False
