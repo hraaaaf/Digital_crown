@@ -102,7 +102,10 @@ def main():
  overall="PASS" if all(x=="PASS" for x in decisions) else ("FAIL" if "FAIL" in decisions else "INSUFFICIENT_EVIDENCE")
  record={"schema_version":"CEPHALO_LOT04_ACCEPTANCE_RECORD_V1","manifest_sha256":mh,"candidate_model_sha256":manifest["candidate"]["model_sha256"],"executed_at":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),"landmarks":landmarks,"clinical_measurements":clinical,"overall_decision":overall,"decision_reasons":["REFERENCE_EQUIVALENCE_V1 applied without post-result retuning","Recomputed from frozen untouched predictions; no second ONNX inference","Each sentinel measurement uses only its own preregistered G1-A required landmarks"]}
  validate_acceptance_semantics(record,manifest)
- payload={"source_results_sha256":sha256_file(a.results),"record":record,"clinical_detail":detail}
- a.output.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n",encoding="utf-8")
- print(json.dumps({"overall_decision":overall,"source_results_sha256":payload["source_results_sha256"],"output_sha256":sha256_file(a.output),"clinical_n":{k:v["valid_n"] for k,v in detail.items()}},sort_keys=True))
+ source_results_sha256=sha256_file(a.results)
+ record["decision_reasons"].append(f"Frozen untouched prediction artifact SHA256: {source_results_sha256}")
+ a.output.write_text(json.dumps(record,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+ detail_path=a.output.with_name(a.output.stem+"_detail.json")
+ detail_path.write_text(json.dumps({"source_results_sha256":source_results_sha256,"clinical_detail":detail},indent=2,sort_keys=True)+"\n",encoding="utf-8")
+ print(json.dumps({"overall_decision":overall,"source_results_sha256":source_results_sha256,"output_sha256":sha256_file(a.output),"detail_sha256":sha256_file(detail_path),"clinical_n":{k:v["valid_n"] for k,v in detail.items()}},sort_keys=True))
 if __name__=="__main__":main()
