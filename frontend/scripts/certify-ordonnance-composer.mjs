@@ -9,11 +9,12 @@ fs.mkdirSync(outDir, { recursive: true });
 const viewports = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
-  { width: 768, height: 1024 },
+  { width: 768, height: 900 },
   { width: 1280, height: 900 },
 ];
 
 const browser = await chromium.launch({ headless: true });
+const exactHead = process.env.GITHUB_SHA || 'local';
 const captures = [];
 
 for (const viewport of viewports) {
@@ -111,7 +112,33 @@ for (const capture of captures) {
   }
 }
 
+// 200% text scaling certification on the narrowest viewport.
+{
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark', reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(String(error)));
+  await page.route('**/api/medications/neo/search**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.goto('http://127.0.0.1:5173/ordonnance-composer-fixture.html', { waitUntil: 'networkidle', timeout: 60000 });
+  await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'visible', timeout: 20000 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; document.documentElement.setAttribute('data-theme', 'dark'); });
+  await page.waitForTimeout(180);
+  const cards = page.locator('[data-ordonnance-drug-card]');
+  const cardCount = await cards.count();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+  const controls = await page.locator('[data-ordonnance-prescription-composer] button').evaluateAll(nodes => nodes.filter(node => { const r = node.getBoundingClientRect(); const s = getComputedStyle(node); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; }).map(node => node.getBoundingClientRect().height));
+  const shot = 'ordonnance-composer-390x844-text-200.png';
+  await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
+  captures.push({ viewport: { width: 390, height: 844 }, textScale: 200, screenshot: shot, cardCount, horizontalOverflow: overflow, controlMinHeight: controls.length ? Math.min(...controls) : null, pageErrors });
+  if (cardCount !== 2) failures.push(`390-text200: expected 2 cards, got ${cardCount}`);
+  if (overflow) failures.push('390-text200: horizontal overflow');
+  if (controls.length && Math.min(...controls) < 43.5) failures.push(`390-text200: control height ${Math.min(...controls)}`);
+  if (pageErrors.length) failures.push(`390-text200: page errors ${pageErrors.join(' | ')}`);
+  await context.close();
+}
+
 const report = {
+  exactHead,
   status: failures.length ? 'FAIL' : 'PASS',
   viewports: viewports.map(viewport => `${viewport.width}x${viewport.height}`),
   captures,
