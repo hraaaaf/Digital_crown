@@ -19,6 +19,7 @@ def test_bridge_copies_explicit_ordonnance_without_inference():
             dosage="1 g",
             forme="comprimé",
             posologie="1 comprimé matin et soir pendant 7 jours",
+            quantite=2,
         )]
     )
     payload = build_far_ordonnance_payload(
@@ -33,6 +34,7 @@ def test_bridge_copies_explicit_ordonnance_without_inference():
     assert payload.lines[0].dosage == "1 g"
     assert payload.lines[0].form == "comprimé"
     assert payload.lines[0].posology == "1 comprimé matin et soir pendant 7 jours"
+    assert payload.lines[0].quantity == 2
 
 
 def test_bridge_requires_archived_source_ordonnance():
