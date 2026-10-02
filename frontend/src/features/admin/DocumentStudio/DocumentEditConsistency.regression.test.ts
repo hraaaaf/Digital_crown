@@ -38,6 +38,12 @@ describe('document edit consistency regression', () => {
     expect(patientStore).not.toContain('sessionStorage.setItem');
   });
 
+  it('rehydrates persisted ordonnance quantity instead of dropping it on edit', () => {
+    expect(documentHub).toContain("quantite?: number | null");
+    expect(documentHub).toContain("quantite: typeof m.quantite === 'number' && m.quantite > 0 ? m.quantite : undefined");
+    expect(generator).toContain("quantite: d.quantite ?? null");
+  });
+
   it('maps persisted libre document enum values back to the libre editor', () => {
     expect(documentHub).toContain("type === 'document_libre'");
     expect(documentHub).toContain("type === 'lettre_medicale'");
