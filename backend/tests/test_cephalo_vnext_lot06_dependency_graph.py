@@ -33,12 +33,14 @@ def test_lot06_analysis_pack_registry_is_data_driven_and_valid():
     assert payload["rules"]["frontend_scientific_dependency_mapping_forbidden"] is True
     assert payload["rules"]["all_is_display_preset_not_scientific_analysis"] is True
     assert payload["rules"]["pack_membership_requires_explicit_source_lock_before_clinical_authority"] is True
+    assert payload["rules"]["source_locked_membership_requires_evidence_refs"] is True
 
 
 def test_lot06_current_pack_membership_is_explicitly_provisional():
     for pack in list_analysis_packs():
         assert pack["composition_state"] == "PROVISIONAL_MEMBERSHIP"
         assert pack["scientific_contract_refs"]
+        assert pack["membership_evidence_refs"] == []
         graph = build_analysis_pack_dependency_graph(pack["analysis_id"])
         assert graph["scientific_state"] == "PROVISIONAL_MEMBERSHIP_FAIL_CLOSED"
 
@@ -103,6 +105,28 @@ def test_lot06_registry_rejects_missing_pack_scientific_state_or_contract_refs()
         validate_analysis_pack_registry(payload)
 
 
+def test_lot06_registry_rejects_unknown_contract_ref_and_unproven_source_lock():
+    payload = _registry()
+    payload["analysis_packs"][0]["scientific_contract_refs"] = ["NOT_A_REAL_CONTRACT"]
+    with pytest.raises(CephaloDependencyGraphError):
+        validate_analysis_pack_registry(payload)
+
+    payload = _registry()
+    payload["analysis_packs"][0]["composition_state"] = "SOURCE_LOCKED_MEMBERSHIP"
+    payload["analysis_packs"][0]["membership_evidence_refs"] = []
+    with pytest.raises(CephaloDependencyGraphError):
+        validate_analysis_pack_registry(payload)
+
+
+def test_lot06_registry_accepts_source_lock_only_with_explicit_membership_evidence():
+    payload = _registry()
+    payload["analysis_packs"][0]["composition_state"] = "SOURCE_LOCKED_MEMBERSHIP"
+    payload["analysis_packs"][0]["membership_evidence_refs"] = [
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md#steiner-membership-evidence"
+    ]
+    validate_analysis_pack_registry(payload)
+
+
 def test_lot06_registry_rejects_duplicate_display_preset_identity():
     payload = _registry()
     payload["display_presets"].append(copy.deepcopy(payload["display_presets"][0]))
@@ -116,7 +140,8 @@ def test_lot06_registry_architecture_scales_beyond_400_packs_without_code_branch
         "display_name": "Synthetic architecture-only pack",
         "version": 1,
         "composition_state": "PROVISIONAL_MEMBERSHIP",
-        "scientific_contract_refs": ["SYNTHETIC_ARCHITECTURE_ONLY"],
+        "scientific_contract_refs": ["STEINER_1953_CORE_V1"],
+        "membership_evidence_refs": [],
         "measurement_ids": ["M_SNA_DEG_V1"],
         "blocked_measurement_ids": [],
     }

@@ -26,6 +26,10 @@ anchored to LOT01 family contracts, but they are not yet source-locked as exact 
 clinical analysis compositions. LOT08/09 must never infer clinical approval from the
 pack label.
 
+The registry contains a machine-validated catalog of allowed LOT01 contract IDs.
+A pack cannot move to `SOURCE_LOCKED_MEMBERSHIP` unless it carries explicit
+`membership_evidence_refs`; changing a label alone therefore cannot promote a pack.
+
 ## Single dependency authority
 
 `backend/services/cephalo_dependency_graph.py` derives dependencies only from

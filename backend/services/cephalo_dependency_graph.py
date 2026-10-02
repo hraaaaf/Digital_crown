@@ -71,6 +71,28 @@ def validate_analysis_pack_registry(payload: Mapping[str, Any]) -> None:
 
     executable = _measurement_contract_index()
     blocked = _blocked_measurement_index()
+
+    catalog = payload.get("scientific_contract_catalog")
+    if not isinstance(catalog, list):
+        raise CephaloDependencyGraphError("scientific_contract_catalog must be a list")
+    known_contracts: set[str] = set()
+    for contract in catalog:
+        if not isinstance(contract, Mapping):
+            raise CephaloDependencyGraphError("scientific contract catalog entry must be an object")
+        contract_id = contract.get("contract_id")
+        source_document = contract.get("source_document")
+        if (
+            not isinstance(contract_id, str)
+            or not contract_id.strip()
+            or contract_id in known_contracts
+        ):
+            raise CephaloDependencyGraphError("contract_id must be unique and non-empty")
+        if not isinstance(source_document, str) or not source_document.strip():
+            raise CephaloDependencyGraphError(
+                f"{contract_id}: source_document must be non-empty"
+            )
+        known_contracts.add(contract_id)
+
     packs = payload.get("analysis_packs")
     if not isinstance(packs, list):
         raise CephaloDependencyGraphError("analysis_packs must be a list")
@@ -88,6 +110,7 @@ def validate_analysis_pack_registry(payload: Mapping[str, Any]) -> None:
         version = pack.get("version")
         composition_state = pack.get("composition_state")
         scientific_contract_refs = pack.get("scientific_contract_refs")
+        membership_evidence_refs = pack.get("membership_evidence_refs")
         if not isinstance(display_name, str) or not display_name.strip():
             raise CephaloDependencyGraphError(f"{pack_id}: display_name must be non-empty")
         if not isinstance(version, int) or isinstance(version, bool) or version < 1:
@@ -104,6 +127,27 @@ def validate_analysis_pack_registry(payload: Mapping[str, Any]) -> None:
         ):
             raise CephaloDependencyGraphError(
                 f"{pack_id}: scientific_contract_refs must be unique non-empty strings"
+            )
+        unknown_contract_refs = sorted(set(scientific_contract_refs) - known_contracts)
+        if unknown_contract_refs:
+            raise CephaloDependencyGraphError(
+                f"{pack_id}: unknown scientific contract refs: "
+                + ", ".join(unknown_contract_refs)
+            )
+        if (
+            not isinstance(membership_evidence_refs, list)
+            or any(not isinstance(ref, str) or not ref.strip() for ref in membership_evidence_refs)
+            or len(membership_evidence_refs) != len(set(membership_evidence_refs))
+        ):
+            raise CephaloDependencyGraphError(
+                f"{pack_id}: membership_evidence_refs must be unique strings"
+            )
+        if (
+            composition_state == "SOURCE_LOCKED_MEMBERSHIP"
+            and not membership_evidence_refs
+        ):
+            raise CephaloDependencyGraphError(
+                f"{pack_id}: source-locked membership requires evidence refs"
             )
 
         measurements = pack.get("measurement_ids")
@@ -265,6 +309,7 @@ def build_analysis_pack_dependency_graph(analysis_id: str) -> dict[str, Any]:
         "display_name": pack["display_name"],
         "composition_state": composition_state,
         "scientific_contract_refs": list(pack["scientific_contract_refs"]),
+        "membership_evidence_refs": list(pack["membership_evidence_refs"]),
         "blocked_measurement_ids": list(pack["blocked_measurement_ids"]),
         "scientific_state": scientific_state,
     }
@@ -280,6 +325,7 @@ def list_analysis_packs() -> list[dict[str, Any]]:
             "version": item["version"],
             "composition_state": item["composition_state"],
             "scientific_contract_refs": list(item["scientific_contract_refs"]),
+            "membership_evidence_refs": list(item["membership_evidence_refs"]),
             "measurement_ids": list(item["measurement_ids"]),
             "blocked_measurement_ids": list(item["blocked_measurement_ids"]),
         }

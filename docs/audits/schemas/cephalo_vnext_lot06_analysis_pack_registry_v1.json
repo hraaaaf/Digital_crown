@@ -6,8 +6,35 @@
     "frontend_scientific_dependency_mapping_forbidden": true,
     "blocked_measurements_fail_closed": true,
     "all_is_display_preset_not_scientific_analysis": true,
-    "pack_membership_requires_explicit_source_lock_before_clinical_authority": true
+    "pack_membership_requires_explicit_source_lock_before_clinical_authority": true,
+    "source_locked_membership_requires_evidence_refs": true
   },
+  "scientific_contract_catalog": [
+    {
+      "contract_id": "STEINER_1953_CORE_V1",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    },
+    {
+      "contract_id": "STEINER_1959_CLINICAL_EXTENSION_V1",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    },
+    {
+      "contract_id": "DC_TWEED_ANATOMICAL_FH_VARIANT",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    },
+    {
+      "contract_id": "MCNAMARA_1984_SINGLE_FILM_V1",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    },
+    {
+      "contract_id": "RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    },
+    {
+      "contract_id": "COM_DC_LEGACY_V1",
+      "source_document": "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md"
+    }
+  ],
   "analysis_packs": [
     {
       "analysis_id": "STEINER_V1",
@@ -15,6 +42,7 @@
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
       "scientific_contract_refs": ["STEINER_1953_CORE_V1", "STEINER_1959_CLINICAL_EXTENSION_V1"],
+      "membership_evidence_refs": [],
       "measurement_ids": [
         "M_SNA_DEG_V1",
         "M_SNB_DEG_V1",
@@ -32,6 +60,7 @@
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
       "scientific_contract_refs": ["DC_TWEED_ANATOMICAL_FH_VARIANT"],
+      "membership_evidence_refs": [],
       "measurement_ids": [
         "M_FH_GOME_DEG_V1",
         "M_IMPA_GOME_DEG_V1",
@@ -45,6 +74,7 @@
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
       "scientific_contract_refs": ["MCNAMARA_1984_SINGLE_FILM_V1"],
+      "membership_evidence_refs": [],
       "measurement_ids": [
         "M_A_NPERP_MM_V1",
         "M_POG_NPERP_MM_V1",
@@ -59,7 +89,8 @@
       "display_name": "COM",
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
-      "scientific_contract_refs": ["COM_DC_LEGACY_V1", "CRANIOM_PER_METRIC_PROVENANCE"],
+      "scientific_contract_refs": ["COM_DC_LEGACY_V1"],
+      "membership_evidence_refs": [],
       "measurement_ids": [
         "M_A_NPERP_MM_V1",
         "M_B_NPERP_MM_V1",
@@ -78,6 +109,7 @@
       "version": 1,
       "composition_state": "PROVISIONAL_MEMBERSHIP",
       "scientific_contract_refs": ["RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1"],
+      "membership_evidence_refs": [],
       "measurement_ids": [],
       "blocked_measurement_ids": [
         "M_FACIAL_ANGLE_NPOG_FH_DEG_V1",
