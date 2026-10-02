@@ -1,0 +1,88 @@
+{
+  "schema": "CEPHALO_LOT02_SENTINEL_MEASUREMENT_AGREEMENT_V1",
+  "source_manifest_sha256": "d7191e61ff3ddd58ee8598c9f98cce1b71d5ebc7151b2975534ee644175181ff",
+  "cases": 1000,
+  "bad_cases": 0,
+  "definition": "Absolute Junior-vs-Senior group-average disagreement computed on all 1000 Aariz cases using calibrated mm for linear measurements and degrees for angular measurements.",
+  "measurements": {
+    "SNA": {
+      "unit": "deg",
+      "mean_abs": 0.627,
+      "median_abs": 0.372,
+      "p95_abs": 2.244,
+      "max_abs": 7.446
+    },
+    "SNB": {
+      "unit": "deg",
+      "mean_abs": 0.465,
+      "median_abs": 0.217,
+      "p95_abs": 1.695,
+      "max_abs": 8.156
+    },
+    "ANB": {
+      "unit": "deg",
+      "mean_abs": 0.41,
+      "median_abs": 0.257,
+      "p95_abs": 1.321,
+      "max_abs": 4.143
+    },
+    "FMA": {
+      "unit": "deg",
+      "mean_abs": 1.256,
+      "median_abs": 0.846,
+      "p95_abs": 3.8,
+      "max_abs": 19.719
+    },
+    "IMPA": {
+      "unit": "deg",
+      "mean_abs": 1.67,
+      "median_abs": 1.182,
+      "p95_abs": 4.991,
+      "max_abs": 10.719
+    },
+    "FMIA": {
+      "unit": "deg",
+      "mean_abs": 1.888,
+      "median_abs": 1.328,
+      "p95_abs": 5.547,
+      "max_abs": 24.154
+    },
+    "SN-GoGn": {
+      "unit": "deg",
+      "mean_abs": 1.002,
+      "median_abs": 0.652,
+      "p95_abs": 3.046,
+      "max_abs": 8.28
+    },
+    "Co-A": {
+      "unit": "mm",
+      "mean_abs": 0.747,
+      "median_abs": 0.366,
+      "p95_abs": 2.809,
+      "max_abs": 8.798
+    },
+    "Co-Gn": {
+      "unit": "mm",
+      "mean_abs": 0.682,
+      "median_abs": 0.306,
+      "p95_abs": 2.578,
+      "max_abs": 9.132
+    }
+  },
+  "intra_observer_source": {
+    "dataset": "Aariz",
+    "paper": "A Benchmark Dataset for Automatic Cephalometric Landmark Detection and CVM Stage Classification",
+    "doi": "10.1038/s41597-025-05542-3",
+    "published_intra_observer_mre_mm": [
+      "1.473 ± 1.829",
+      "1.651 ± 2.003"
+    ],
+    "published_inter_observer_mre_mm": "0.329 ± 0.663",
+    "role": "Independent published repeatability context; not substituted for the executable Junior/Senior pairwise evidence."
+  },
+  "policy": {
+    "clinical_acceptance": false,
+    "purpose": "Human-reference uncertainty baseline for later detector/measurement tolerance setting.",
+    "no_threshold_retuning_to_candidate_model": true
+  }
+}
