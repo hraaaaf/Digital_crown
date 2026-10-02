@@ -231,7 +231,12 @@ export function PrescriptionQuickAccessBar({
 
   const applyPresentation = (row: CatalogPresentation) => {
     // Catalog selection is immediate. Practitioner habits are optional enrichment and
-    // must never delay selection or overwrite a later practitioner edit.
+    // must never delay selection, overwrite a later practitioner edit, or hydrate a
+    // different line that happens to use the same catalog presentation.
+    const emptyIndex = drugs.findIndex(drug => !drug.name.trim());
+    const targetDrugId = emptyIndex >= 0
+      ? drugs[emptyIndex].id
+      : drugs.reduce((max, drug) => Math.max(max, Number(drug.id) || 0), 0) + 1;
     setDrugs(selectedPresentation(row, drugs));
     setQuery('');
     setCatalog([]);
@@ -246,7 +251,9 @@ export function PrescriptionQuickAccessBar({
       const preferredPosology = String(response.data?.preferred_posology || '');
       if (!preferredPosology) return;
       setDrugs(current => current.map(drug => (
-        drug.catalogPresentationId === row.presentation_id && !drug.posologie.trim()
+        drug.id === targetDrugId
+        && drug.catalogPresentationId === row.presentation_id
+        && !drug.posologie.trim()
           ? { ...drug, posologie: preferredPosology }
           : drug
       )));
