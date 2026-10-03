@@ -253,6 +253,12 @@
       "canonical_measurement_id": "M_MERRIFIELD_Z_FH_DEG_V1",
       "state": "MAPPED",
       "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_PT_RICKETTS_AND_CONSTRUCTED_GN"
     }
   ]
 }

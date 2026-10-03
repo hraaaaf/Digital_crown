@@ -21,6 +21,7 @@ from backend.schemas.cephalo_evidence import (
 from backend.schemas.clinical import CephaloAnalysisResult
 from backend.services.cephalo_construction_evidence_adapter import materialize_craniom_linear_constructions
 from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
+from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
 from backend.services.cephalo_landmark_identity_bridge import project_canonical_landmark_identities
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
@@ -341,17 +342,23 @@ def rebuild_evidence_after_landmark_edit(
         calibration_ref=calibration_ref,
     )
 
+    canonical_v2_constructions = materialize_canonical_constructions_v2(
+        scientific_current,
+        construction_namespace=f"construction:{case_id}:r{next_revision}:canonical-v2",
+    )
     all_constructions = [
         *craniom_constructions.values(),
         *steiner_constructions.values(),
         *steiner_dental_constructions.values(),
         *mcnamara_nperp_constructions.values(),
+        *canonical_v2_constructions.values(),
     ]
     canonical_v2_measurements = materialize_canonical_analysis_v2_measurements(
         measurement_namespace=f"measurement:{case_id}:r{next_revision}:canonical-v2",
         landmarks=scientific_current,
         mm_per_pixel=result.analysis_metadata.pixel_ratio,
         calibration_ref=calibration_ref,
+        constructions=canonical_v2_constructions,
     )
     all_measurements = [
         *craniom_measurements,

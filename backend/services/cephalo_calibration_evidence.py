@@ -221,7 +221,19 @@ def rebuild_evidence_after_manual_calibration(
 
     explicit_current = _explicit_current_landmarks(previous_payload, landmarks)
     if explicit_current is not None:
+        previous_auto = [
+            item for item in landmarks
+            if item.origin == LandmarkOrigin.SRPOSE38_AUTO
+            and ":canonical:" not in item.evidence_id
+        ]
+        scientific_current = project_canonical_landmark_identities(
+            explicit_current, previous_auto_landmarks=previous_auto
+        )
         current_ref_set = {item.evidence_id for item in explicit_current.values()}
+        current_ref_set.update(
+            item.evidence_id for key, item in scientific_current.items()
+            if key not in explicit_current
+        )
         stale_construction_refs = sorted(
             {
                 ref

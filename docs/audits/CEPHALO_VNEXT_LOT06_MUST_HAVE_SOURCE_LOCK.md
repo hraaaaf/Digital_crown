@@ -53,11 +53,20 @@ They are separate scientific identities even though both depend on the
 Frankfort and N-Pog geometry. No value substitution or convergence rule is
 allowed between them.
 
-## Fail-closed residual
+## Ricketts facial-axis resolution
 
-Ricketts facial axis remains non-promoted until an exact
-`Pt_Ricketts` landmark identity is available. Generic legacy `PT_point` is
-not accepted as an implicit substitute.
+The engine supports an explicit canonical `Pt_Ricketts` identity defined as
+the intersection of the inferior border of the foramen rotundum with the
+posterior wall of the pterygomaxillary fissure. Generic legacy `PT_point`
+is **not** promoted by name. Until its annotation protocol is independently
+proven equivalent, automatic `PT_point` remains unusable for this measurement.
+
+`Gn_constructed_Ricketts` is a derived construction, not `Gn_anatomic`.
+It is the intersection of the N-Pog_hard facial line and Go-Me mandibular
+line and is recorded as `RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1`.
+
+Therefore the Ricketts facial axis is executable when an explicit/audited
+`Pt_Ricketts` is present and fails closed otherwise.
 
 ## Compatibility
 

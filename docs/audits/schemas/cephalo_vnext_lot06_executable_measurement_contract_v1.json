@@ -489,13 +489,29 @@
         "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
       ],
       "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
-    }
-  ],
-  "non_promoted_geometry_covered": [
+    },
     {
       "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
-      "reason": "BLOCKED_LANDMARK",
-      "detail": "Geometry exists but exact Ricketts Pt detector/input identity remains blocked; no runtime alias allowed."
+      "unit": "°",
+      "required_landmarks": [
+        "Ba",
+        "N",
+        "Pt_Ricketts",
+        "Pog_hard",
+        "Go",
+        "Me"
+      ],
+      "required_constructions": [
+        "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
+      ],
+      "implementation": "backend.services.cephalo_canonical_analysis_v2:ricketts_facial_axis_from_explicit_identities_v2",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "EXPLICIT_PT_RICKETTS_AND_CANONICAL_HARD_TISSUE_IDENTITIES"
     }
-  ]
+  ],
+  "non_promoted_geometry_covered": []
 }

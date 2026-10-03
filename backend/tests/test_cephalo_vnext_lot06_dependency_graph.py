@@ -69,13 +69,16 @@ def test_lot06_dependency_graph_deduplicates_shared_landmarks_and_constructions(
     }
 
 
-def test_lot06_analysis_pack_graph_keeps_only_ricketts_facial_axis_fail_closed():
+def test_lot06_ricketts_pack_exposes_facial_axis_with_explicit_construction_dependency():
     graph = build_analysis_pack_dependency_graph("RICKETTS_V1")
     assert "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1" in graph["measurement_ids"]
+    assert "M_FACIAL_AXIS_RICKETTS_DEG_V1" in graph["measurement_ids"]
     assert "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1" in graph["measurement_ids"]
     assert "M_LS_EPLANE_MM_V1" in graph["measurement_ids"]
+    assert "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1" in graph["construction_ids"]
+    assert "Pt_Ricketts" in graph["landmark_ids"]
     assert graph["scientific_state"] == "PROVISIONAL_MEMBERSHIP_FAIL_CLOSED"
-    assert graph["blocked_measurement_ids"] == ["M_FACIAL_AXIS_RICKETTS_DEG_V1"]
+    assert graph["blocked_measurement_ids"] == []
 
 
 def test_lot06_com_pack_uses_canonical_contract_not_frontend_mapping():

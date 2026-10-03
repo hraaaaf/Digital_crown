@@ -259,8 +259,19 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     calibration = [x for x in payload["sources"] if x["kind"] == "calibration"]
     assert len(calibration) == 1
     assert calibration[0]["quality_status"] == "VERIFIED_MANUAL_TWO_POINT"
-    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in payload["measurements"])
-    assert all(x["value"] is not None for x in payload["measurements"])
+    facial_axis = [
+        x for x in payload["measurements"]
+        if x["method_id"] == "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
+    ]
+    assert len(facial_axis) == 1
+    assert facial_axis[0]["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value
+    assert facial_axis[0]["value"] is None
+    other_measurements = [
+        x for x in payload["measurements"]
+        if x["method_id"] != "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
+    ]
+    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in other_measurements)
+    assert all(x["value"] is not None for x in other_measurements)
 
     craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
     steiner = [x for x in payload["measurements"] if x["analysis_id"] == "STEINER"]

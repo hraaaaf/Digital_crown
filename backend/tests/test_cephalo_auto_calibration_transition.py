@@ -112,7 +112,18 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert source["metadata"]["profile_id"] == "TEST_RULER"
 
     measurements = payload["measurements"]
-    assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
+    facial_axis = [
+        item for item in measurements
+        if item["method_id"] == "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
+    ]
+    assert len(facial_axis) == 1
+    assert facial_axis[0]["availability_status"] == "NOT_COMPUTABLE"
+    assert facial_axis[0]["value"] is None
+    assert all(
+        item["availability_status"] == "AVAILABLE"
+        for item in measurements
+        if item["method_id"] != "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
+    )
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
     steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
@@ -142,11 +153,18 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert all(item["requires_calibration"] is False for item in steiner)
     assert all(item["calibration_ref"] is None for item in steiner)
 
-    assert {item["method_id"] for item in mcnamara} == {
+    mcnamara_methods = {item["method_id"] for item in mcnamara}
+    assert {
         "MCNAMARA_CO_A_MM_V1",
         "MCNAMARA_CO_GN_MM_V1",
         "MCNAMARA_ANS_ME_MM_V1",
-    }
+    }.issubset(mcnamara_methods)
+    assert {
+        "MCNAMARA_CO_A_CANONICAL_MM_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
+        "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+    }.issubset(mcnamara_methods)
     assert all(item["requires_calibration"] is True for item in mcnamara)
     assert all(item["calibration_ref"] == source["evidence_id"] for item in mcnamara)
     assert all(item["value"] is not None for item in mcnamara)

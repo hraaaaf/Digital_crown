@@ -169,3 +169,9 @@ Tests :
 ## NEXT EXACT
 
 Obtenir la preuve CI des golden tests puis séparer explicitement les constructions `TWEED_MP`, `DOWNS_MP` et les besoins `CRANIOM_Gi/Gs` avant d'activer IMPA/FMA comme mesures attribuées à une école.
+### RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1
+- ID: `RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1`
+- Output: `Gn_constructed_Ricketts`
+- Inputs: N, Pog_hard, Go, Me.
+- Rule: intersection of the infinite N-Pog_hard facial line and Go-Me mandibular line.
+- Purpose: explicit dependency for Ricketts facial axis; never interchangeable with `Gn_anatomic`.

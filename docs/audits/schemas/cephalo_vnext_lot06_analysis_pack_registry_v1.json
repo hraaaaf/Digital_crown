@@ -133,11 +133,10 @@
         "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
         "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
         "M_LS_EPLANE_MM_V1",
-        "M_LI_EPLANE_MM_V1"
-      ],
-      "blocked_measurement_ids": [
+        "M_LI_EPLANE_MM_V1",
         "M_FACIAL_AXIS_RICKETTS_DEG_V1"
-      ]
+      ],
+      "blocked_measurement_ids": []
     },
     {
       "analysis_id": "DOWNS_V1",
