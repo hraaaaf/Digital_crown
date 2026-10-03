@@ -564,6 +564,8 @@
   },
   "lot06_scientific_refs": {
     "authority": "LOT06_EXECUTABLE_MEASUREMENT_CONTRACT",
+    "evidence_schema_version": "CEPHALO_EVIDENCE_V1",
+    "active_chain": "VERIFIED",
     "construction_refs": [
       {
         "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_AB_PRIME_V1",

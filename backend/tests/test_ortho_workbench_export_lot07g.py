@@ -428,3 +428,63 @@ def test_lot07g_route_preserves_tenant_isolation(client, db, dentiste, auth_head
         json=_request().model_dump(mode="json"),
     )
     assert response.status_code in {403, 404}
+
+
+def test_lot07g_export_rejects_tampered_persisted_correction_history(db, dentiste):
+    patient = _patient(db, dentiste.id)
+    analysis = _analysis(db, patient.id)
+    previous = analysis.angles_data[EVIDENCE_GRAPH_KEY]
+    edited = [dict(item) for item in analysis.landmarks_data]
+    target = next(item for item in edited if item["id"] == "A")
+    target["x"] += 2.0
+    result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points(edited))
+    revised = rebuild_evidence_after_landmark_edit(
+        previous_payload=previous,
+        patient_id=patient.id,
+        image_record_id="radio-lot07g.jpg",
+        result=result,
+        runtime_landmarks=edited,
+        clinician_id=str(dentiste.id),
+        validated_at=LATER,
+    )
+    manual = next(
+        item for item in revised["landmarks"] if item.get("origin") == "MANUAL_CORRECTED"
+    )
+    forged = dict(manual)
+    forged["validated_by"] = None
+    revised["history"].append(
+        {
+            "revision": 999,
+            "landmarks": [forged],
+            "sources": [],
+            "constructions": [],
+            "measurements": [],
+        }
+    )
+    analysis.angles_data = {**result.model_dump(), EVIDENCE_GRAPH_KEY: revised}
+    db.commit()
+    db.refresh(analysis)
+
+    with pytest.raises(OrthoWorkbenchExportError, match="invalid landmark evidence"):
+        build_ortho_workbench_export(
+            db,
+            analysis=analysis,
+            employer_id=dentiste.id,
+            request=_request(),
+            exported_at=EXPORT_AT,
+        )
+
+
+def test_lot07g_request_rejects_unstructured_session_audit_event():
+    with pytest.raises(ValueError):
+        _request(
+            session_edit_audit=[
+                {
+                    "sequence": 1,
+                    "action": "EDIT",
+                    "transactionId": "landmark-edit-1",
+                    "changedLandmarkIds": ["A"],
+                    "scientificAuthority": "CLIENT_FORGED",
+                }
+            ]
+        )

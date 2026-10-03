@@ -10,10 +10,11 @@ from datetime import datetime, timezone
 import math
 from typing import Any, Final, Literal, Mapping
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.schemas.cephalo_evidence import LandmarkEvidence
 from backend.services.cephalo_runtime_chain import (
     CephaloRuntimeChainError,
     project_runtime_chain_read_path,
@@ -80,12 +81,19 @@ class TracedStructureState(_StrictModel):
         return value
 
 
+class SessionEditAuditEvent(_StrictModel):
+    sequence: int = Field(ge=1)
+    action: Literal["EDIT", "UNDO", "REDO", "RESET_TO_BASELINE"]
+    transactionId: str = Field(min_length=1)
+    changedLandmarkIds: list[str]
+
+
 class OrthoWorkbenchExportRequest(_StrictModel):
     timepoint: str
     layer_visibility: dict[str, bool]
     layer_opacity: dict[str, float]
     traced_structures: list[TracedStructureState] = Field(default_factory=list)
-    session_edit_audit: list[dict[str, Any]] = Field(default_factory=list)
+    session_edit_audit: list[SessionEditAuditEvent] = Field(default_factory=list)
 
     @field_validator("timepoint")
     @classmethod
@@ -156,25 +164,30 @@ def _manual_correction_rows(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
         landmarks = snapshot.get("landmarks", [])
         if not isinstance(landmarks, list):
             raise OrthoWorkbenchExportError("persisted history landmarks must be a list")
-        for item in landmarks:
-            if not isinstance(item, Mapping) or item.get("origin") != "MANUAL_CORRECTED":
+        for raw_item in landmarks:
+            try:
+                item = LandmarkEvidence.model_validate(raw_item)
+            except ValidationError as exc:
+                raise OrthoWorkbenchExportError(
+                    "persisted correction history contains invalid landmark evidence"
+                ) from exc
+            if item.origin.value != "MANUAL_CORRECTED":
                 continue
-            evidence_id = item.get("evidence_id")
-            if not isinstance(evidence_id, str) or not evidence_id or evidence_id in seen:
+            if item.evidence_id in seen:
                 continue
-            seen.add(evidence_id)
+            seen.add(item.evidence_id)
             corrections.append(
                 {
                     "revision": revision,
-                    "evidence_id": evidence_id,
-                    "landmark_id": item.get("landmark_id"),
-                    "x": item.get("x"),
-                    "y": item.get("y"),
-                    "original_auto_x": item.get("original_auto_x"),
-                    "original_auto_y": item.get("original_auto_y"),
-                    "validated_by": item.get("validated_by"),
-                    "validated_at": item.get("validated_at"),
-                    "evidence_refs": list(item.get("evidence_refs") or []),
+                    "evidence_id": item.evidence_id,
+                    "landmark_id": item.landmark_id,
+                    "x": item.x,
+                    "y": item.y,
+                    "original_auto_x": item.original_auto_x,
+                    "original_auto_y": item.original_auto_y,
+                    "validated_by": item.validated_by,
+                    "validated_at": item.validated_at.isoformat() if item.validated_at else None,
+                    "evidence_refs": list(item.evidence_refs),
                 }
             )
     return corrections
@@ -216,7 +229,10 @@ def _cephalogram_source(graph):
     sources = [item for item in graph.sources if item.kind == "lateral_ceph"]
     if len(sources) != 1:
         raise OrthoWorkbenchExportError("exactly one canonical lateral cephalogram source is required")
-    return sources[0]
+    source = sources[0]
+    if source.availability_status.value != "AVAILABLE":
+        raise OrthoWorkbenchExportError("canonical lateral cephalogram source must be available")
+    return source
 
 
 def _calibration_payload(chain) -> dict[str, Any] | None:
@@ -352,7 +368,7 @@ def build_ortho_workbench_export(
             "manual_corrections": _manual_correction_rows(raw_graph),
             "session_operations": {
                 "authority": "SESSION_OPERATIONAL_UNDO_REDO_ONLY",
-                "events": request.session_edit_audit,
+                "events": [event.model_dump(mode="json") for event in request.session_edit_audit],
             },
         },
         "traced_structures": {
@@ -366,6 +382,8 @@ def build_ortho_workbench_export(
         },
         "lot06_scientific_refs": {
             "authority": "LOT06_EXECUTABLE_MEASUREMENT_CONTRACT",
+            "evidence_schema_version": scientific["schema_version"],
+            "active_chain": scientific["active_chain"],
             "construction_refs": _construction_refs(chain),
             "measurement_refs": _measurement_refs(chain),
             "canonical_measurements": list(scientific.get("canonical_measurements") or []),
