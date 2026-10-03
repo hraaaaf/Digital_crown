@@ -101,7 +101,8 @@ describe('WorkstationModeAdminPanel V1.5-00.3', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Appairer cette borne' }));
 
     await waitFor(() => expect(workstationModeService.pairWorkstation).toHaveBeenCalledWith('123456', 'Accueil 1'));
-    await screen.findByText('Accueil 1 · Mode de démarrage');
+    await screen.findByText('Mode de démarrage permanent');
+    await screen.findByText(/Poste : Accueil 1\./);
   });
 
   it('requires explicit owner re-enrollment when the workstation identity is missing', async () => {
