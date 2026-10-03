@@ -31,3 +31,13 @@ def effective_document_practitioner_id(default_practitioner_id: Optional[int]) -
     """Use the request-scoped clinical author without changing the technical actor."""
     author_id = get_document_author_practitioner_id()
     return author_id if author_id is not None else default_practitioner_id
+
+
+def document_branding_owner_id(user, fallback_user_id: int) -> int:
+    """Resolve organization-owned document branding from a practitioner actor."""
+    if user is None:
+        return fallback_user_id
+    getter = getattr(user, "get_employer_id", None)
+    if callable(getter):
+        return getter()
+    return getattr(user, "employer_id", None) or getattr(user, "id", fallback_user_id)

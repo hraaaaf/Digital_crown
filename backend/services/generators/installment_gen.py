@@ -4,7 +4,8 @@ from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import Image as RLImage, SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from backend.models import InstallmentPlan, Patient, CabinetConfig
@@ -39,6 +40,26 @@ def _cabinet_contact_lines(config: CabinetConfig) -> list[str]:
     return lines
 
 
+def _cabinet_logo_flowable(config: CabinetConfig):
+    """Return the configured cabinet logo as a proportional PDF flowable, if available."""
+    logo_path = BaseTemplate()._resolve_brand_asset(getattr(config, "logo_path", None))
+    if not logo_path:
+        return None
+
+    raw_scale = getattr(config, "header_logo_scale", 1.0) or 1.0
+    try:
+        scale = max(0.5, min(float(raw_scale), 2.0))
+    except (TypeError, ValueError):
+        scale = 1.0
+    return RLImage(
+        logo_path,
+        width=4.0 * cm * scale,
+        height=2.0 * cm * scale,
+        kind="proportional",
+        hAlign="CENTER",
+    )
+
+
 def generate_installment_plan(
     plan: InstallmentPlan,
     patient: Patient,
@@ -66,6 +87,10 @@ def generate_installment_plan(
     normal_style.textColor = colors.HexColor('#334155')
 
     elements = []
+
+    logo = _cabinet_logo_flowable(config)
+    if logo is not None:
+        elements.extend([logo, Spacer(1, 10)])
 
     organization_name = (getattr(config, "nom_cabinet", None) or "Cabinet dentaire").strip()
     elements.append(Paragraph(f"<b>{escape(organization_name.upper())}</b>", title_style))
