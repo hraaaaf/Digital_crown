@@ -70,6 +70,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       store.setAnalysisId(loaded.id);
       store.setImageSrc(resolveImageSrc(loaded.image_original_path));
       store.setLocal({ landmarks, version: Date.now() });
+      store.setLandmarkEditBaseline(landmarks);
       store.setAnglesData({ ...anglesData, __calibrationData: loaded.calibration_data || null });
       store.setVisionMetadata(anglesData.vision_metadata || {});
       store.setIsCalibrated(Boolean(loaded.is_calibrated));
