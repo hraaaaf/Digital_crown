@@ -265,7 +265,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               data-r18-construction="ricketts-frankfort"
               x1={po.x} y1={po.y} x2={orPoint.x} y2={orPoint.y}
               stroke={cephaloGeometryColor('fh')} strokeWidth="1.6" strokeDasharray="8,4"
-              opacity="0.9" vectorEffect="non-scaling-stroke"
+              opacity={0.9 * layerOpacity('plans')} vectorEffect="non-scaling-stroke"
             />
           )}
           {layerVisible('plans') && showRickettsHard && n && pog && (
@@ -273,7 +273,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               data-r18-construction="ricketts-n-pog"
               x1={n.x} y1={n.y} x2={pog.x} y2={pog.y}
               stroke={cephaloGeometryColor('npog')} strokeWidth="1.8"
-              opacity="0.92" vectorEffect="non-scaling-stroke"
+              opacity={0.92 * layerOpacity('plans')} vectorEffect="non-scaling-stroke"
             />
           )}
           {layerVisible('plans') && showRickettsHard && a && aOnNPog && (
@@ -281,7 +281,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               data-r18-construction="ricketts-convexity"
               x1={a.x} y1={a.y} x2={aOnNPog.x} y2={aOnNPog.y}
               stroke={cephaloGeometryColor('convexity')} strokeWidth="1.6" strokeDasharray="3,3"
-              opacity="0.95" vectorEffect="non-scaling-stroke"
+              opacity={0.95 * layerOpacity('plans')} vectorEffect="non-scaling-stroke"
             />
           )}
           {layerVisible('landmarks') && showRickettsMarkers && [po, orPoint, n, pog, a].filter(Boolean).map(point => {
