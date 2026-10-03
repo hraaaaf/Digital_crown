@@ -205,7 +205,9 @@ try {
     $assetBundleHash = (Get-FileHash -LiteralPath $RuntimeAssetsZip -Algorithm SHA256).Hash.ToLowerInvariant()
 
     $oldPythonPath = $env:PYTHONPATH
+    $oldDontWriteBytecode = $env:PYTHONDONTWRITEBYTECODE
     $env:PYTHONPATH = $payloadRoot
+    $env:PYTHONDONTWRITEBYTECODE = "1"
     try {
         & $VerifierPython $composeScript `
             --code-release-dir $payloadRoot `
@@ -218,6 +220,7 @@ try {
     }
     finally {
         $env:PYTHONPATH = $oldPythonPath
+        $env:PYTHONDONTWRITEBYTECODE = $oldDontWriteBytecode
     }
 
     Write-Host ""
