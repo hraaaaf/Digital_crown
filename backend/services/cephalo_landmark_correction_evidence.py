@@ -35,6 +35,7 @@ from backend.services.cephalo_steiner_dental_evidence import (
     adapt_steiner_dental_measurements,
     materialize_steiner_dental_constructions,
 )
+from backend.services.cephalo_steiner_protocol_evidence import materialize_steiner_protocol_evidence
 from backend.services.cephalo_steiner_evidence_adapter import (
     adapt_steiner_skeletal_measurements,
     materialize_steiner_skeletal_constructions,
@@ -342,6 +343,14 @@ def rebuild_evidence_after_landmark_edit(
         calibration_ref=calibration_ref,
     )
 
+    steiner_protocol_constructions, steiner_protocol_measurements = materialize_steiner_protocol_evidence(
+        landmarks=scientific_current,
+        construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:protocol-v1",
+        measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:protocol-v1",
+        mm_per_pixel=result.analysis_metadata.pixel_ratio,
+        calibration_ref=calibration_ref,
+    )
+
     canonical_v2_constructions = materialize_canonical_constructions_v2(
         scientific_current,
         construction_namespace=f"construction:{case_id}:r{next_revision}:canonical-v2",
@@ -351,6 +360,7 @@ def rebuild_evidence_after_landmark_edit(
         *steiner_constructions.values(),
         *steiner_dental_constructions.values(),
         *mcnamara_nperp_constructions.values(),
+        *steiner_protocol_constructions.values(),
         *canonical_v2_constructions.values(),
     ]
     canonical_v2_measurements = materialize_canonical_analysis_v2_measurements(
@@ -365,6 +375,7 @@ def rebuild_evidence_after_landmark_edit(
         *steiner_measurements,
         *steiner_dental_measurements,
         *mcnamara_nperp_measurements,
+        *steiner_protocol_measurements,
         *canonical_v2_measurements,
     ]
 

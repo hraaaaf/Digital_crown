@@ -10,6 +10,7 @@ import type {
 import { useOrthoStore } from '../stores/useOrthoStore';
 import { cephaloRepository } from '../cephaloRepository';
 import { calibrationUiLabel, calibrationUiTone, deriveCalibrationUiState } from '../cephaloCalibration';
+import { STEINER_EXPLICIT_ID_SET, STEINER_EXPLICIT_IDENTITIES } from '../cephaloSteinerProtocol';
 import { scienceArticles } from '../../../data/science_articles';
 import { ClinicalTipBubble } from '../../clinical_tips/components/ClinicalTipBubble';
 
@@ -260,6 +261,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     : calibrationTone === 'indigo'
       ? 'bg-indigo-900/30 border-indigo-700/50 text-indigo-400 hover:bg-indigo-900/45'
       : 'bg-amber-900/30 border-amber-700/50 text-amber-400 hover:bg-amber-900/45';
+  const activeSteinerPlacement = activePointId && STEINER_EXPLICIT_ID_SET.has(activePointId)
+    ? STEINER_EXPLICIT_IDENTITIES.find(item => item.id === activePointId) ?? null
+    : null;
+
+  const handleSteinerExplicitPointPlacement = (p: { x: number; y: number }) => {
+    if (!activeSteinerPlacement) return;
+    const next = local.landmarks.filter(point => point.id !== activeSteinerPlacement.id);
+    updateLandmarksOptimistic([...next, { id: activeSteinerPlacement.id, x: p.x, y: p.y, isAdjusted: true }]);
+    setActivePointId(null);
+  };
 
   return (
     <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[80vh] w-full'}`} style={{ background: cbg, boxShadow: 'inset 0 0 100px rgba(0,0,0,0.8)' }}>
@@ -276,6 +287,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           activePointId={activePointId}
           focusedPointId={null}
           onPointMouseDown={setActivePointId}
+          onEmptyAreaClick={activeSteinerPlacement ? handleSteinerExplicitPointPlacement : undefined}
           visualDebug={anglesData?.visual_debug ?? null}
           isCalibrating={showCalibration}
           calibrationPoints={calibrationClickPoints}

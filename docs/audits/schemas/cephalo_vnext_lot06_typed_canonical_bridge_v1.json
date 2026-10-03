@@ -307,6 +307,12 @@
       "canonical_measurement_id": "M_L1_DLINE_DEG_V1",
       "state": "MAPPED",
       "reason": "CANONICAL_V2_EXPLICIT_STEINER_D"
+    },
+    {
+      "method_id": "STEINER_SN_GOGN_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_SN_GOGN_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_GN_ANATOMIC"
     }
   ]
 }

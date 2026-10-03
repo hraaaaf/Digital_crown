@@ -17,7 +17,7 @@ def _landmarks():
 
 def test_source_locked_steiner_protocol_materializes_with_explicit_identities():
     c,m=materialize_steiner_protocol_evidence(landmarks=_landmarks(),construction_namespace="c",measurement_namespace="m",mm_per_pixel=0.5,calibration_ref="cal:1")
-    assert len(c)==8 and len(m)==8
+    assert len(c)==9 and len(m)==9
     assert all(x.availability_status==AvailabilityStatus.AVAILABLE for x in m)
     for x in m:
         assert canonical_measurement_id_for_method(x.method_id)

@@ -62,6 +62,7 @@ def build_cephalo_pdf_projection(
     canonical_measurements: list[dict[str, Any]] = []
     canonical_blocked_methods: list[str] = []
     canonical_unmapped_methods: list[str] = []
+    protocol_profiles: dict[str, Any] = {}
     projection_blockers: list[str] = []
     typed_projection_verified = False
     graph_payload = payload.get(EVIDENCE_GRAPH_KEY)
@@ -75,6 +76,7 @@ def build_cephalo_pdf_projection(
             canonical_measurements = list(scientific_read_path.get("canonical_measurements") or [])
             canonical_blocked_methods = list(scientific_read_path.get("blocked_method_ids") or [])
             canonical_unmapped_methods = list(scientific_read_path.get("unmapped_method_ids") or [])
+            protocol_profiles = dict(scientific_read_path.get("protocol_profiles") or {})
             graph = deserialize_evidence_snapshot(graph_payload)
             chain = validate_active_runtime_chain(graph_payload, graph)
             measurements = sorted(
@@ -125,6 +127,7 @@ def build_cephalo_pdf_projection(
         "canonical_measurements": canonical_measurements,
         "canonical_blocked_method_ids": canonical_blocked_methods,
         "canonical_unmapped_method_ids": canonical_unmapped_methods,
+        "protocol_profiles": protocol_profiles,
         "stages": stages,
         "blocking_gates": blockers,
         "clinical_validation_available": bool(studio.get("clinical_validation_available")),

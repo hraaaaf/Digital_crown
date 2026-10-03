@@ -66,7 +66,8 @@
     "L1_facial_surface": "manual_or_structure_anchor_only",
     "D_Steiner_1959": "manual_explicit_only; detector D_point alias forbidden",
     "Occ_Steiner_Ant": "constructed_or_manual_anchor",
-    "Occ_Steiner_Post": "constructed_or_manual_anchor"
+    "Occ_Steiner_Post": "constructed_or_manual_anchor",
+    "Gn_anatomic": "manual_explicit_only; generic detector Gn alias forbidden for LOT08 Steiner activation"
   },
   "execution_policy": {
     "missing_required_identity": "FAIL_CLOSED_NOT_COMPUTABLE",

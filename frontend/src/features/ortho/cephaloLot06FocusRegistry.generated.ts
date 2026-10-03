@@ -493,6 +493,155 @@ export const CEPHALO_LOT06_FOCUS_REGISTRY = {
     ],
     "availabilityGate": "EXPLICIT_PT_RICKETTS_AND_CANONICAL_HARD_TISSUE_IDENTITIES",
     "requiresCalibration": false
+  },
+  "M_SND_DEG_V1": {
+    "measurementId": "M_SND_DEG_V1",
+    "unit": "°",
+    "requiredLandmarks": [
+      "S",
+      "N",
+      "D_Steiner_1959"
+    ],
+    "requiredConstructions": [
+      "STEINER_SND_1959_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "EXPLICIT_MANUAL_STEINER_D_REQUIRED",
+    "requiresCalibration": false
+  },
+  "M_U1_NA_MM_V1": {
+    "measurementId": "M_U1_NA_MM_V1",
+    "unit": "mm",
+    "requiredLandmarks": [
+      "U1_facial_surface",
+      "N",
+      "A"
+    ],
+    "requiredConstructions": [
+      "STEINER_U1_NA_LINEAR_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "VERIFIED_CALIBRATION_AND_EXPLICIT_U1_CROWN_SURFACE",
+    "requiresCalibration": true
+  },
+  "M_L1_NB_MM_V1": {
+    "measurementId": "M_L1_NB_MM_V1",
+    "unit": "mm",
+    "requiredLandmarks": [
+      "L1_facial_surface",
+      "N",
+      "B"
+    ],
+    "requiredConstructions": [
+      "STEINER_L1_NB_LINEAR_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "VERIFIED_CALIBRATION_AND_EXPLICIT_L1_CROWN_SURFACE",
+    "requiresCalibration": true
+  },
+  "M_POG_NB_MM_V1": {
+    "measurementId": "M_POG_NB_MM_V1",
+    "unit": "mm",
+    "requiredLandmarks": [
+      "Pog_hard",
+      "N",
+      "B"
+    ],
+    "requiredConstructions": [
+      "STEINER_POG_NB_1959_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "VERIFIED_CALIBRATION_AND_EXACT_POG_HARD",
+    "requiresCalibration": true
+  },
+  "M_L1_GOGN_DEG_V1": {
+    "measurementId": "M_L1_GOGN_DEG_V1",
+    "unit": "°",
+    "requiredLandmarks": [
+      "L1_apex",
+      "L1_incisal",
+      "Go",
+      "Gn_anatomic"
+    ],
+    "requiredConstructions": [
+      "STEINER_L1_GOGN_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "EXACT_GN_ANATOMIC_REQUIRED",
+    "requiresCalibration": false
+  },
+  "M_OCCLUSAL_PLANE_SN_DEG_V1": {
+    "measurementId": "M_OCCLUSAL_PLANE_SN_DEG_V1",
+    "unit": "°",
+    "requiredLandmarks": [
+      "S",
+      "N",
+      "Occ_Steiner_Ant",
+      "Occ_Steiner_Post"
+    ],
+    "requiredConstructions": [
+      "STEINER_OCCLUSAL_SN_1953_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "EXPLICIT_STEINER_OCCLUSAL_ANCHORS_REQUIRED",
+    "requiresCalibration": false
+  },
+  "M_L1_DLINE_MM_V1": {
+    "measurementId": "M_L1_DLINE_MM_V1",
+    "unit": "mm",
+    "requiredLandmarks": [
+      "L1_facial_surface",
+      "D_Steiner_1959",
+      "Go",
+      "Gn_anatomic"
+    ],
+    "requiredConstructions": [
+      "STEINER_L1_DLINE_LINEAR_1959_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "VERIFIED_CALIBRATION_AND_EXPLICIT_STEINER_D_AND_CROWN_SURFACE",
+    "requiresCalibration": true
+  },
+  "M_L1_DLINE_DEG_V1": {
+    "measurementId": "M_L1_DLINE_DEG_V1",
+    "unit": "°",
+    "requiredLandmarks": [
+      "L1_apex",
+      "L1_incisal",
+      "D_Steiner_1959",
+      "Go",
+      "Gn_anatomic"
+    ],
+    "requiredConstructions": [
+      "STEINER_L1_DLINE_ANGULAR_1959_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+      "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+    ],
+    "availabilityGate": "EXPLICIT_STEINER_D_AND_GN_ANATOMIC_REQUIRED",
+    "requiresCalibration": false
   }
 } as const satisfies Record<string, CephaloCanonicalFocusDependency>;
 

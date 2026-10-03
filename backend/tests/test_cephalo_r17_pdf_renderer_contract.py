@@ -121,3 +121,42 @@ def test_html_renderer_autoescapes_authoritative_text(tmp_path):
     assert "&lt;reason&amp;unsafe&gt;" in html
     assert "&lt;summary&amp;unsafe&gt;" in html
     assert "&lt;value&amp;unsafe&gt;" in html
+
+
+def test_steiner_protocol_renderer_preserves_display_only_reference_contract(tmp_path):
+    generator = BilanOrthoPDFGenerator(str(tmp_path))
+    projection = _projection()
+    projection["protocol_profiles"] = {
+        "steiner": {
+            "protocol_profile_id": "STEINER_STATIC_PROTOCOL_PROFILE_V1",
+            "source_lock_gate": {"status": "SATISFIED"},
+            "final_gate": {"status": "OPEN"},
+            "norm_set": {
+                "authority": "REFERENCE_DISPLAY_ONLY",
+                "applicability": "NOT_VALIDATED_FOR_UNIVERSAL_MODERN_USE",
+            },
+            "rows": [{
+                "canonical_measurement_id": "M_SNA_DEG_V1",
+                "label": "SNA",
+                "layer": "STEINER_1953_BASE",
+                "value": 83.5,
+                "unit": "?",
+                "availability_status": "AVAILABLE",
+                "historical_reference": 82.0,
+                "reference_delta": 1.5,
+                "reference_authority": "REFERENCE_DISPLAY_ONLY",
+                "interpretation_status": "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION",
+            }],
+        }
+    }
+    context = generator._shared_context(_vm(), projection)
+    steiner = context["steiner_protocol"]
+    assert steiner["protocol_profile_id"] == "STEINER_STATIC_PROTOCOL_PROFILE_V1"
+    assert steiner["norm_set"]["authority"] == "REFERENCE_DISPLAY_ONLY"
+    assert steiner["rows"][0]["value"].startswith("83.5")
+    assert steiner["rows"][0]["reference"].startswith("82")
+    assert steiner["rows"][0]["delta"].startswith("1.5")
+    html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
+    assert "Analyse protocolaire Steiner" in html
+    assert "classification clinique universelle" in html
+    assert "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION" in html

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, Crosshair, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Info, Crosshair, CheckCircle2, AlertTriangle, MapPin, ShieldCheck } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
   CEPHALO_METRIC_FOCUS_EVENT,
@@ -15,6 +15,12 @@ import {
   describeCanonicalMetricFocus,
   resolveCanonicalMetricFocus,
 } from '../cephaloCanonicalFocusAdapter';
+import {
+  readSteinerProtocolProjection,
+  STEINER_EXPLICIT_IDENTITIES,
+  steinerAvailabilityLabel,
+  steinerProtocolRow,
+} from '../cephaloSteinerProtocol';
 
 interface ThemePalette {
   bg: string;
@@ -50,12 +56,17 @@ type MetricRecord = {
   involved_lines?: string[];
   measurement_id?: string | null;
   canonical_measurement_id?: string | null;
+  availability_status?: string | null;
+  reference_delta?: number | null;
+  reference_authority?: string | null;
+  classification_authority?: boolean | null;
+  interpretation_status?: string | null;
 };
 
 type MetricDefinition = {
   key: string;
   label: string;
-  unit: '?' | 'mm';
+  unit: '\u00b0' | '?' | 'mm';
   section: 'analyse_dentaire' | 'analyse_osseuse' | 'analyse_esthetique';
 };
 
@@ -65,6 +76,21 @@ const DEFINITIONS: Record<string, MetricDefinition> = {
   SNA: { key: 'SNA', label: 'SNA', unit: '?', section: 'analyse_osseuse' },
   SNB: { key: 'SNB', label: 'SNB', unit: '?', section: 'analyse_osseuse' },
   ANB: { key: 'ANB', label: 'ANB', unit: '?', section: 'analyse_osseuse' },
+  'M_SNA_DEG_V1': { key: 'M_SNA_DEG_V1', label: 'SNA', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_SNB_DEG_V1': { key: 'M_SNB_DEG_V1', label: 'SNB', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_ANB_DEG_V1': { key: 'M_ANB_DEG_V1', label: 'ANB', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_U1_NA_DEG_V1': { key: 'M_U1_NA_DEG_V1', label: 'U1\u2013NA angulaire', unit: '\u00b0', section: 'analyse_dentaire' },
+  'M_U1_NA_MM_V1': { key: 'M_U1_NA_MM_V1', label: 'U1\u2013NA lin\u00e9aire', unit: 'mm', section: 'analyse_dentaire' },
+  'M_L1_NB_DEG_V1': { key: 'M_L1_NB_DEG_V1', label: 'L1\u2013NB angulaire', unit: '\u00b0', section: 'analyse_dentaire' },
+  'M_L1_NB_MM_V1': { key: 'M_L1_NB_MM_V1', label: 'L1\u2013NB lin\u00e9aire', unit: 'mm', section: 'analyse_dentaire' },
+  'M_INTERINCISAL_DEG_V1': { key: 'M_INTERINCISAL_DEG_V1', label: 'Angle inter-incisif', unit: '\u00b0', section: 'analyse_dentaire' },
+  'M_OCCLUSAL_PLANE_SN_DEG_V1': { key: 'M_OCCLUSAL_PLANE_SN_DEG_V1', label: 'Plan occlusal\u2013SN', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_SN_GOGN_DEG_V1': { key: 'M_SN_GOGN_DEG_V1', label: 'GoGn\u2013SN', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_L1_GOGN_DEG_V1': { key: 'M_L1_GOGN_DEG_V1', label: 'L1\u2013GoGn', unit: '\u00b0', section: 'analyse_dentaire' },
+  'M_SND_DEG_V1': { key: 'M_SND_DEG_V1', label: 'SND', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_POG_NB_MM_V1': { key: 'M_POG_NB_MM_V1', label: 'Pog\u2013NB', unit: 'mm', section: 'analyse_osseuse' },
+  'M_L1_DLINE_MM_V1': { key: 'M_L1_DLINE_MM_V1', label: 'L1\u2013D line lin\u00e9aire', unit: 'mm', section: 'analyse_dentaire' },
+  'M_L1_DLINE_DEG_V1': { key: 'M_L1_DLINE_DEG_V1', label: 'L1\u2013D line angulaire', unit: '\u00b0', section: 'analyse_dentaire' },
   IMPA: { key: 'IMPA', label: 'I / Mandibulaire', unit: '?', section: 'analyse_dentaire' },
   I_Francfort: { key: 'I_Francfort', label: 'I / Francfort', unit: '?', section: 'analyse_dentaire' },
   Inter_Incisif: { key: 'Inter_Incisif', label: 'Angle inter-incisif', unit: '?', section: 'analyse_dentaire' },
@@ -84,7 +110,7 @@ const DEFINITIONS: Record<string, MetricDefinition> = {
 
 const ANALYSIS_METRICS: Record<CephaloAnalysisMode, string[]> = {
   all: ['SNA','SNB','ANB','IMPA','I_Francfort','Inter_Incisif','Surplomb','Recouvrement','Angle_de_Tweed','Decalage_A_B','Situation_A','Situation_B','Profondeur_Faciale','Ligne_E_Ls','Ligne_E_Li'],
-  steiner: ['SNA','SNB','ANB'],
+  steiner: ['M_SNA_DEG_V1','M_SNB_DEG_V1','M_ANB_DEG_V1','M_U1_NA_DEG_V1','M_U1_NA_MM_V1','M_L1_NB_DEG_V1','M_L1_NB_MM_V1','M_INTERINCISAL_DEG_V1','M_OCCLUSAL_PLANE_SN_DEG_V1','M_SN_GOGN_DEG_V1','M_L1_GOGN_DEG_V1','M_SND_DEG_V1','M_POG_NB_MM_V1','M_L1_DLINE_MM_V1','M_L1_DLINE_DEG_V1'],
   tweed: ['IMPA','Angle_de_Tweed'],
   mcnamara: ['Co_A','Co_Gn','ANS_Me'],
   com: ['Surplomb','Recouvrement','IMPA','I_Francfort','Inter_Incisif','Angle_de_Tweed','Decalage_A_B','Situation_A','Situation_B','Profondeur_Faciale'],
@@ -127,6 +153,26 @@ const statusLabel = (metric?: MetricRecord) => {
 };
 
 const metricFromResults = (anglesData: any, definition: MetricDefinition): MetricRecord | undefined => {
+  if (definition.key.startsWith('M_')) {
+    const row = steinerProtocolRow(anglesData, definition.key);
+    if (!row) return undefined;
+    return {
+      value: row.value,
+      norm_mean: row.historical_reference,
+      status: steinerAvailabilityLabel(row.availability_status),
+      interpretation: row.interpretation_status === 'REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION'
+        ? 'R\u00e9f\u00e9rence historique affich\u00e9e sans classification clinique.'
+        : null,
+      unit: row.unit,
+      measurement_id: row.measurement_refs?.[0] ?? null,
+      canonical_measurement_id: row.canonical_measurement_id,
+      availability_status: row.availability_status,
+      reference_delta: row.reference_delta,
+      reference_authority: row.reference_authority,
+      classification_authority: row.classification_authority,
+      interpretation_status: row.interpretation_status,
+    };
+  }
   const metrics = anglesData?.metrics ?? anglesData?.result?.metrics ?? {};
   const section = metrics?.[definition.section] ?? {};
   return section?.[definition.key];
@@ -142,6 +188,10 @@ export interface CephaloAnalysisWorkbenchPanelProps {
 
 export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = ({ P, analysis }) => {
   const anglesData = useOrthoStore(state => state.anglesData);
+  const landmarks = useOrthoStore(state => state.local.landmarks);
+  const activePointId = useOrthoStore(state => state.activePointId);
+  const setActivePointId = useOrthoStore(state => state.setActivePointId);
+  const steinerProfile = React.useMemo(() => readSteinerProtocolProjection(anglesData), [anglesData]);
   const definitions = React.useMemo(() => ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]), [analysis]);
   const [selectedKey, setSelectedKey] = React.useState(definitions[0]?.key ?? '');
   const [hoverKey, setHoverKey] = React.useState<string | null>(null);
@@ -172,6 +222,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
 
   const statusTone = (metric?: MetricRecord) => {
     if (!metric || readValue(metric) === null) return P.textDim;
+    if (metric.availability_status === 'AVAILABLE') return P.accentSuccess;
     const status = (metric.status || '').trim().toLowerCase();
     if (!status || status === 'n/a') return P.textMuted;
     if (status.includes('missing') || status.includes('non calcul')) return P.textDim;
@@ -191,6 +242,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
   return (
     <aside
       data-r19-analysis-panel={analysis}
+      data-lot08-protocol-profile={analysis === 'steiner' ? steinerProfile?.protocol_profile_id ?? 'UNAVAILABLE' : undefined}
       className="flex min-h-0 flex-col overflow-hidden rounded-3xl border"
       style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadowLg }}
     >
@@ -201,7 +253,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
           </div>
           <div className="min-w-0">
             <h3 className="break-words text-sm font-black leading-tight" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
-            <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>Mesure ↔ construction géométrique</p>
+            <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5" aria-label="Code couleur céphalométrique">
@@ -212,6 +264,40 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             </span>
           ))}
         </div>
+        {analysis === 'steiner' && (
+          <div className="mt-3 space-y-2" data-lot08-steiner-contract>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: P.border, background: `${P.accent}0d` }}>
+              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]" style={{ color: steinerProfile?.source_lock_gate?.status === 'SATISFIED' ? P.accentSuccess : P.accentWarning }}>
+                <ShieldCheck size={12} /> Source-lock {steinerProfile?.source_lock_gate?.status === 'SATISFIED' ? 'valid\u00e9' : 'non v\u00e9rifi\u00e9'}
+              </span>
+              <span className="text-[9px]" style={{ color: P.textMuted }}>R\u00e9f\u00e9rences historiques \u00b7 affichage sans classification universelle</span>
+            </div>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2" aria-label="Points explicites Steiner">
+              {STEINER_EXPLICIT_IDENTITIES.map(identity => {
+                const present = landmarks.some(point => point.id === identity.id);
+                const placing = activePointId === identity.id;
+                return (
+                  <button
+                    key={identity.id}
+                    type="button"
+                    data-steiner-place={identity.id}
+                    aria-pressed={placing}
+                    onClick={() => setActivePointId(placing ? null : identity.id)}
+                    className="flex min-h-9 items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left"
+                    style={{ borderColor: placing ? P.accent : P.border, background: placing ? `${P.accent}18` : P.bgInput }}
+                    title={identity.help}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[9px] font-black" style={{ color: P.text }}>{identity.label}</span>
+                      <span className="block truncate text-[8px]" style={{ color: present ? P.accentSuccess : P.textDim }}>{placing ? 'Cliquez sur la t\u00e9l\u00e9radio' : (present ? 'Plac\u00e9e \u00b7 cliquer pour replacer' : '\u00c0 placer')}</span>
+                    </span>
+                    <MapPin size={12} style={{ color: placing ? P.accent : (present ? P.accentSuccess : P.textDim) }} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
@@ -220,8 +306,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             <tr className="border-b text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
               <th className="w-[39%] px-4 py-3">Mesure</th>
               <th className="w-[20%] px-2 py-3">Valeur</th>
-              <th className="w-[25%] px-2 py-3">Norme</th>
-              <th className="w-[16%] px-2 py-3 text-right">Écart</th>
+              <th className="w-[25%] px-2 py-3">{analysis === 'steiner' ? 'R\u00e9f. hist.' : 'Norme'}</th>
+              <th className="w-[16%] px-2 py-3 text-right">{analysis === 'steiner' ? '\u0394 r\u00e9f.' : '\u00c9cart'}</th>
             </tr>
           </thead>
           <tbody>
@@ -229,7 +315,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
               const metric = metricFromResults(anglesData, definition);
               const value = readValue(metric);
               const selected = activeKey === definition.key;
-              const deviation = value !== null && typeof metric?.norm_mean === 'number' ? value - metric.norm_mean : null;
+              const deviation = typeof metric?.reference_delta === 'number' ? metric.reference_delta : (value !== null && typeof metric?.norm_mean === 'number' ? value - metric.norm_mean : null);
               const familyTone = cephaloMetricColor(definition.key);
               const clinicalTone = statusTone(metric);
               return (
@@ -254,7 +340,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                   <td className="px-2 py-3 font-mono text-[11px] font-black tabular-nums" style={{ color: value === null ? P.textDim : P.text }}>
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
-                  <td className="px-2 py-3 text-[10px]" style={{ color: P.textMuted }}>{normText(metric, definition.unit)}</td>
+                  <td className="px-2 py-3 text-[10px]" style={{ color: P.textMuted }}>{normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
                   <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: deviation === null ? P.textDim : clinicalTone }}>
                     {deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`}
                   </td>

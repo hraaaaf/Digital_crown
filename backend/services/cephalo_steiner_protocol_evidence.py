@@ -31,6 +31,7 @@ class _Spec:
     ids:tuple[str,...]; unit:str; requires_calibration:bool
 
 _SPECS=(
+    _Spec("SN_GOGN","STEINER_SN_GOGN_CANONICAL_V2","STEINER_SN_GOGN_CANONICAL_DEG_V2","M_SN_GOGN_DEG_V1",("S","N","Go","Gn_anatomic"),"deg",False),
     _Spec("SND","STEINER_SND_1959_V1","STEINER_SND_CANONICAL_DEG_V2","M_SND_DEG_V1",("S","N","D_Steiner_1959"),"deg",False),
     _Spec("U1_NA_MM","STEINER_U1_NA_LINEAR_V1","STEINER_U1_NA_CANONICAL_MM_V2","M_U1_NA_MM_V1",("U1_facial_surface","N","A"),"mm",True),
     _Spec("L1_NB_MM","STEINER_L1_NB_LINEAR_V1","STEINER_L1_NB_CANONICAL_MM_V2","M_L1_NB_MM_V1",("L1_facial_surface","N","B"),"mm",True),
@@ -46,6 +47,9 @@ def _point(lm:Mapping[str,LandmarkEvidence], key:str):
 
 def _compute(spec:_Spec,lm:Mapping[str,LandmarkEvidence],ratio:Optional[float]):
     p=lambda k:_point(lm,k)
+    if spec.name=="SN_GOGN":
+        from backend.services.cephalo_steiner_geometry import steiner_sn_mp_deg_v1
+        return steiner_sn_mp_deg_v1(p("S"),p("N"),p("Go"),p("Gn_anatomic"))
     if spec.name=="SND": return steiner_snd_deg_v1(p("S"),p("N"),p("D_Steiner_1959"))
     if spec.name=="U1_NA_MM": return steiner_u1_na_mm_v1(p("U1_facial_surface"),p("N"),p("A"),ratio)
     if spec.name=="L1_NB_MM": return steiner_l1_nb_mm_v1(p("L1_facial_surface"),p("N"),p("B"),ratio)

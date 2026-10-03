@@ -33,6 +33,8 @@ const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
     's', 'n', 'a', 'b',
     'u1_incisal', 'u1i', 'u1_apex', 'u1a',
     'l1_incisal', 'l1i', 'l1_apex', 'l1a',
+    'gn_anatomic', 'u1_facial_surface', 'l1_facial_surface',
+    'd_steiner_1959', 'occ_steiner_ant', 'occ_steiner_post',
   ]),
   tweed: new Set([
     'po', 'or', 'go', 'me',

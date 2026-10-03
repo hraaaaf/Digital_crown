@@ -66,7 +66,8 @@ export const useCephaloInteraction = ({
       onAddCalibrationPoint(coords);
       return;
     }
-    if (e.target === e.currentTarget && onEmptyAreaClick) {
+    const tagName = (e.target as Element | null)?.tagName?.toLowerCase();
+    if (onEmptyAreaClick && (e.target === e.currentTarget || tagName === 'image')) {
       onEmptyAreaClick(coords);
     }
   }, [clientToSVG, activeDragId, isCalibrating, onAddCalibrationPoint, onEmptyAreaClick]);

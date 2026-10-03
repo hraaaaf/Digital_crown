@@ -6,6 +6,7 @@ import { createLandmarkEditTimeline } from './orthoLandmarkEditHistory';
 vi.mock('./cephaloRepository', () => ({
   cephaloRepository: {
     saveAnalysis: vi.fn(async () => ({ status: 'success' })),
+    getAnalysis: vi.fn(async () => ({ angles_data: { scientific_read_path: { authority: 'EVIDENCE_GRAPH_V1', active_chain: 'VERIFIED' } }, calibration_data: null, is_calibrated: false, mm_per_pixel: null })),
   },
 }));
 
@@ -36,6 +37,15 @@ afterEach(() => {
 });
 
 describe('Orthodontic Studio LOT07 landmark edit store', () => {
+  it('refreshes authoritative scientific read after a persisted edit', async () => {
+    const edited = baseline.map(item => item.id === 'N' ? { ...item, y: 48 } : item);
+    useOrthoStore.getState().updateLandmarksOptimistic(edited);
+    await flushSaveQueue();
+    expect(cephaloRepository.getAnalysis).toHaveBeenCalledWith(42);
+    expect(useOrthoStore.getState().anglesData?.scientific_read_path?.authority).toBe('EVIDENCE_GRAPH_V1');
+    expect(useOrthoStore.getState().anglesData?.scientific_read_path?.active_chain).toBe('VERIFIED');
+  });
+
   it('persists a stabilized edit and its undo through the audited analysis endpoint', async () => {
     const edited = baseline.map(item => item.id === 'N' ? { ...item, x: 36 } : item);
 

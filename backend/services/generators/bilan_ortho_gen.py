@@ -83,9 +83,32 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "calibration": str(row.get("calibration_ref") or ("requise / absente" if row.get("requires_calibration") else "non requise")),
         }
 
+    @staticmethod
+    def _protocol_row_display(row: dict[str, Any]) -> dict[str, str]:
+        status=str(row.get("availability_status") or "NOT_COMPUTABLE")
+        value=row.get("value") if status=="AVAILABLE" else None
+        unit=str(row.get("unit") or "")
+        reference=row.get("historical_reference")
+        delta=row.get("reference_delta")
+        def show(number):
+            return f"{number:g}" if isinstance(number,(int,float)) else "?"
+        return {
+            "canonical_measurement_id":str(row.get("canonical_measurement_id") or ""),
+            "label":str(row.get("label") or row.get("canonical_measurement_id") or "Mesure"),
+            "layer":str(row.get("layer") or ""),
+            "value":f"{show(value)} {unit}".strip() if value is not None else status,
+            "reference":f"{show(reference)} {unit}".strip() if reference is not None else "?",
+            "delta":f"{show(delta)} {unit}".strip() if delta is not None else "?",
+            "reference_authority":str(row.get("reference_authority") or ""),
+            "interpretation_status":str(row.get("interpretation_status") or ""),
+        }
+
     def _shared_context(self, vm: schemas.CephaloViewModel, projection: dict[str, Any]) -> dict[str, Any]:
         config = vm.cabinet_config or {}
         measurements = [self._measurement_display(row) for row in projection.get("measurements", [])]
+        protocol_profiles = dict(projection.get("protocol_profiles") or {})
+        steiner_profile = dict(protocol_profiles.get("steiner") or {})
+        steiner_rows = [self._protocol_row_display(row) for row in steiner_profile.get("rows", [])]
         stages = []
         for stage in projection.get("stages", []):
             stages.append({
@@ -119,6 +142,13 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "clinical_validation_reason": projection.get("clinical_validation_reason"),
             "blocking_gates": list(projection.get("blocking_gates") or []),
             "measurements": measurements,
+            "steiner_protocol": {
+                "protocol_profile_id": steiner_profile.get("protocol_profile_id"),
+                "source_lock_status": (steiner_profile.get("source_lock_gate") or {}).get("status"),
+                "final_gate_status": (steiner_profile.get("final_gate") or {}).get("status"),
+                "norm_set": dict(steiner_profile.get("norm_set") or {}),
+                "rows": steiner_rows,
+            } if steiner_profile else None,
             "stages": stages,
         }
 

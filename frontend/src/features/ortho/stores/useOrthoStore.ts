@@ -175,12 +175,27 @@ const queueAuditedLandmarkSave = (
     .then(async () => {
       try {
         await cephaloRepository.saveAnalysis(scheduledAnalysisId, payload);
+        let authoritativeRead: any = null;
+        try {
+          authoritativeRead = await cephaloRepository.getAnalysis(scheduledAnalysisId);
+        } catch (readError) {
+          console.warn('Landmark sauvegard? mais relecture scientifique indisponible:', readError);
+        }
         const current = get();
         if (
           generation === landmarkSaveGeneration
           && current.analysisId === scheduledAnalysisId
           && current.patientId === scheduledPatientId
         ) {
+          if (authoritativeRead) {
+            const refreshedAngles = authoritativeRead.angles_data || {};
+            set({
+              anglesData: { ...refreshedAngles, __calibrationData: authoritativeRead.calibration_data || null },
+              visionMetadata: refreshedAngles.vision_metadata || {},
+              isCalibrated: Boolean(authoritativeRead.is_calibrated),
+              mmPerPixel: typeof authoritativeRead.mm_per_pixel === 'number' ? authoritativeRead.mm_per_pixel : null,
+            });
+          }
           set({ syncState: 'success' });
           setTimeout(() => {
             const latest = get();
