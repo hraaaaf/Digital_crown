@@ -21,13 +21,15 @@ describe('StationKioskShell', () => {
   it('switches FR / AR / EN and applies RTL only to Arabic', () => {
     const { container } = render(<StationKioskShell onAdminTap={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'ع' }));
+    fireEvent.click(screen.getByRole('button', { name: 'العربية' }));
     expect(screen.getByRole('heading', { name: 'مرحباً بكم في العيادة' })).toBeInTheDocument();
     expect(container.querySelector('[data-station-language="ar"]')).toHaveAttribute('dir', 'rtl');
+    expect(container.querySelector('[data-station-language="ar"]')).toHaveAttribute('lang', 'ar');
 
-    fireEvent.click(screen.getByRole('button', { name: 'EN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
     expect(screen.getByRole('heading', { name: 'Welcome to the clinic' })).toBeInTheDocument();
     expect(container.querySelector('[data-station-language="en"]')).toHaveAttribute('dir', 'ltr');
+    expect(container.querySelector('[data-station-language="en"]')).toHaveAttribute('lang', 'en');
   });
 
   it('keeps 03.1 actions bounded and returns to public home after inactivity', () => {
