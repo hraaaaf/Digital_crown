@@ -9,6 +9,11 @@ vi.mock('../../services/workstationMode', () => ({
     getBootstrapState: vi.fn(),
     getState: vi.fn(),
     enrollWorkstation: vi.fn(),
+    issuePairingCode: vi.fn(),
+    pairWorkstation: vi.fn(),
+    listWorkstations: vi.fn(),
+    renameWorkstation: vi.fn(),
+    revokeWorkstation: vi.fn(),
     configureOwnerPin: vi.fn(),
     changeMode: vi.fn(),
   },
@@ -27,6 +32,7 @@ const baseState = {
 describe('WorkstationModeAdminPanel V1.5-00.3', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(workstationModeService.listWorkstations).mockResolvedValue([]);
     vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
       ...baseState,
       authenticated: true,
@@ -71,6 +77,31 @@ describe('WorkstationModeAdminPanel V1.5-00.3', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Appliquer ce mode' }));
 
     await waitFor(() => expect(workstationModeService.changeMode).toHaveBeenCalledWith('station', '2468'));
+  });
+
+  it('pairs a missing workstation with a temporary code and editable name', async () => {
+    vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
+      ...baseState,
+      workstationId: null,
+      authenticated: true,
+      enrollmentRequired: true,
+    });
+    vi.mocked(workstationModeService.pairWorkstation).mockResolvedValue({
+      ...baseState,
+      workstationId: 'ws-paired',
+      displayName: 'Accueil 1',
+      enrollmentRequired: false,
+    });
+
+    render(<MemoryRouter><WorkstationModeAdminPanel /></MemoryRouter>);
+
+    await screen.findByText('Réenregistrer ce navigateur');
+    fireEvent.change(screen.getByLabelText('Nom de cette borne'), { target: { value: 'Accueil 1' } });
+    fireEvent.change(screen.getByLabelText('Code d’appairage'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Appairer cette borne' }));
+
+    await waitFor(() => expect(workstationModeService.pairWorkstation).toHaveBeenCalledWith('123456', 'Accueil 1'));
+    await screen.findByText('Accueil 1 · Mode de démarrage');
   });
 
   it('requires explicit owner re-enrollment when the workstation identity is missing', async () => {
