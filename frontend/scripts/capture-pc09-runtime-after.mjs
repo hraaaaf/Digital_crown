@@ -82,7 +82,9 @@ if (staffResponse?.status() !== 200) throw new Error('staff page ' + staffRespon
 const staffPanel = staffPage.locator('[data-pc09-staff]');
 await staffPanel.waitFor({ state: 'visible', timeout: 30000 });
 
-const teleResponse = await api.get(
+const staffApi = staffContext.request;
+
+const teleResponse = await staffApi.get(
   '/api/patient-companion/admin/patients/' + patient.id + '/teleconsultations',
   { headers: authHeaders },
 );
@@ -95,14 +97,14 @@ const parentAccess = accesses.find(item => item.relationship_type === 'PARENT');
 if (!selfAccess || !parentAccess) throw new Error('teleconsult access labels incomplete');
 
 for (const access of [selfAccess, parentAccess]) {
-  const response = await api.post(
+  const response = await staffApi.post(
     '/api/patient-companion/admin/patients/' + patient.id + '/teleconsultations',
     { headers: authHeaders, data: { access_id: access.access_id, ttl_minutes: 60 } },
   );
   if (!response.ok()) throw new Error('create teleconsult ' + access.relationship_type + ' ' + response.status());
   const created = await response.json();
   if (created?.session?.state !== 'CREATED') throw new Error('teleconsult must start CREATED');
-  const joined = await api.post(
+  const joined = await staffApi.post(
     '/api/patient-companion/admin/patients/' + patient.id + '/teleconsultations/' + created.session.session_id + '/join',
     { headers: authHeaders, data: { access_id: access.access_id } },
   );
