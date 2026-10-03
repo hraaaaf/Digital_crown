@@ -253,9 +253,9 @@ export const WorkstationModeAdminPanel = () => {
             <MonitorCog size={18} />
             <span className="text-xs font-black uppercase tracking-widest">Configuration du poste</span>
           </div>
-          <h2 className="mt-2 font-outfit text-lg font-black">{state.displayName || 'Ce poste'} · Mode de démarrage</h2>
+          <h2 className="mt-2 font-outfit text-lg font-black">Mode de démarrage permanent</h2>
           <p className="mt-1 text-sm font-semibold text-text-muted">
-            Le serveur reste l'autorité. Un changement permanent exige le PIN propriétaire.
+            {state.displayName ? `Poste : ${state.displayName}. ` : ''}Le serveur reste l'autorité. Un changement permanent exige le PIN propriétaire.
           </p>
         </div>
         <div className="inline-flex items-center gap-2 self-start rounded-elite-sm border border-border-main bg-main-bg px-3 py-2 text-xs font-black text-text-muted">
