@@ -92,7 +92,7 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     expect(screen.getByRole('region',{name:'Historique des corrections'})).toBeTruthy();
     expect((screen.getByRole('button',{name:/Annuler/}) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button',{name:/Rétablir/}) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button',{name:/Réinitialiser le tracé/}) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button',{name:/Réinitialiser les corrections de session/}) as HTMLButtonElement).disabled).toBe(true);
 
     state.local={landmarks:[{id:'S',x:14,y:20}],version:2};
     state.landmarkEditTimeline={
@@ -104,7 +104,7 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     fireEvent.click(screen.getByRole('button',{name:/Annuler/}));
     expect(state.undoLandmarkEdit).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button',{name:/Réinitialiser le tracé/}));
+    fireEvent.click(screen.getByRole('button',{name:/Réinitialiser les corrections de session/}));
     expect(state.resetLandmarkEdits).toHaveBeenCalledTimes(1);
   });
 

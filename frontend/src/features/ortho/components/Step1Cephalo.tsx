@@ -188,7 +188,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             </button>
             <button
               type="button"
-              aria-label="Réinitialiser le tracé"
+              aria-label="Réinitialiser les corrections de session"
               disabled={
                 landmarkEditTimeline.baseline.length === 0
                 || landmarkSnapshotsEqual(localLandmarks, landmarkEditTimeline.baseline)
@@ -197,7 +197,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               className="min-h-9 rounded-xl border px-2 py-2 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
               style={{ borderColor: props.P.border, background: props.P.bgInput, color: props.P.textMuted }}
             >
-              Tracé initial
+              État chargé
             </button>
           </div>
         </section>
