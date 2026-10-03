@@ -78,9 +78,9 @@ def test_srpose_snapshot_persists_analysis_scoped_evidence_and_does_not_silently
     assert payload["revision"] == 1
     assert payload["history"] == []
     assert len(payload["current_landmark_refs"]) == 38
-    assert len(payload["landmarks"]) == 42
+    assert len(payload["landmarks"]) == 41
     assert {item["landmark_id"] for item in payload["landmarks"] if ":canonical:" in item["evidence_id"]} == {
-        "Po_anatomic", "Co_anatomic", "Gn_anatomic", "Pog_hard"
+        "Po_anatomic", "Co_anatomic", "Pog_hard"
     }
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
 
@@ -215,7 +215,7 @@ def test_manual_revision_preserves_auto_points_and_full_previous_snapshot_histor
     assert second["history"][0]["constructions"] == first["constructions"]
     assert second["history"][0]["measurements"] == first["measurements"]
     origins = [x["origin"] for x in second["landmarks"]]
-    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 42
+    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 41
     assert len(second["current_landmark_refs"]) == len(_points())
     canonical_manual = [
         x for x in second["landmarks"]
@@ -266,10 +266,16 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     assert len(facial_axis) == 1
     assert facial_axis[0]["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value
     assert facial_axis[0]["value"] is None
-    other_measurements = [
-        x for x in payload["measurements"]
-        if x["method_id"] != "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
-    ]
+    explicit_identity_required = {
+        "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+        "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+    }
+    blocked = [x for x in payload["measurements"] if x["method_id"] in explicit_identity_required]
+    assert {x["method_id"] for x in blocked} == explicit_identity_required
+    assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in blocked)
+    assert all(x["value"] is None for x in blocked)
+    other_measurements = [x for x in payload["measurements"] if x["method_id"] not in explicit_identity_required]
     assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in other_measurements)
     assert all(x["value"] is not None for x in other_measurements)
 

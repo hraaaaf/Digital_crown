@@ -19,9 +19,10 @@ from backend.services.srpose38_contract import (
 CANONICAL_LANDMARK_ALIASES: dict[str, str] = {
     "Po": "Po_anatomic",
     "Co": "Co_anatomic",
-    "Gn": "Gn_anatomic",
     "Pog": "Pog_hard",
 }
+
+EXPLICIT_ONLY_CANONICAL_IDENTITIES = frozenset({"Gn_anatomic", "Pt_Ricketts"})
 
 
 class CanonicalLandmarkIdentityError(ValueError):

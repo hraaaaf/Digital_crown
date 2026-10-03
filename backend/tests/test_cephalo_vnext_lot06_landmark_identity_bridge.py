@@ -43,14 +43,23 @@ def _manual(landmark_id: str) -> LandmarkEvidence:
     )
 
 
-def test_certified_srpose_points_gain_additive_canonical_identities():
+def test_certified_srpose_points_gain_only_source_locked_additive_identities():
     projected = project_canonical_landmark_identities(
         {key: _auto(key) for key in ("Po", "Co", "Gn", "Pog")}
     )
-    assert set(("Po_anatomic", "Co_anatomic", "Gn_anatomic", "Pog_hard")).issubset(projected)
+    assert set(("Po_anatomic", "Co_anatomic", "Pog_hard")).issubset(projected)
+    assert "Gn_anatomic" not in projected
     assert projected["Po_anatomic"].x == projected["Po"].x
     assert projected["Pog_hard"].y == projected["Pog"].y
     assert projected["Po"].landmark_id == "Po"
+
+
+def test_gn_anatomic_and_pt_ricketts_are_explicit_only():
+    projected = project_canonical_landmark_identities(
+        {"Gn": _auto("Gn"), "PT_point": _auto("PT_point")}
+    )
+    assert "Gn_anatomic" not in projected
+    assert "Pt_Ricketts" not in projected
 
 
 def test_manual_revision_requires_certified_auto_predecessor():

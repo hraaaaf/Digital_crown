@@ -63,7 +63,14 @@ def _assert_downs_available_uncalibrated(graph):
     method_ids={measurement["method_id"] for measurement in downs}
     assert {"DOWNS_FACIAL_ANGLE_DEG_V1","DOWNS_Y_AXIS_DEG_V1"}.issubset(method_ids)
     assert {"DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2","DOWNS_Y_AXIS_CANONICAL_DEG_V2"}.issubset(method_ids)
-    assert all(measurement["availability_status"] == "AVAILABLE" for measurement in downs)
+    by_method={measurement["method_id"]: measurement for measurement in downs}
+    assert by_method["DOWNS_Y_AXIS_CANONICAL_DEG_V2"]["availability_status"] == "NOT_COMPUTABLE"
+    assert by_method["DOWNS_Y_AXIS_CANONICAL_DEG_V2"]["value"] is None
+    assert all(
+        measurement["availability_status"] == "AVAILABLE"
+        for measurement in downs
+        if measurement["method_id"] != "DOWNS_Y_AXIS_CANONICAL_DEG_V2"
+    )
     assert all(measurement["requires_calibration"] is False for measurement in downs)
     assert all(measurement["calibration_ref"] is None for measurement in downs)
 
@@ -82,9 +89,15 @@ def _assert_mcnamara(graph, *, calibrated: bool):
     }.issubset(method_ids)
     assert all(measurement["requires_calibration"] is True for measurement in mcnamara)
     if calibrated:
-        assert all(measurement["availability_status"] == "AVAILABLE" for measurement in mcnamara)
-        assert all(measurement["calibration_ref"] is not None for measurement in mcnamara)
-        assert all(measurement["value"] is not None for measurement in mcnamara)
+        by_method={measurement["method_id"]: measurement for measurement in mcnamara}
+        canonical_co_gn=by_method["MCNAMARA_CO_GN_CANONICAL_MM_V2"]
+        assert canonical_co_gn["availability_status"] == "NOT_COMPUTABLE"
+        assert canonical_co_gn["calibration_ref"] is None
+        assert canonical_co_gn["value"] is None
+        available=[m for m in mcnamara if m["method_id"] != "MCNAMARA_CO_GN_CANONICAL_MM_V2"]
+        assert all(measurement["availability_status"] == "AVAILABLE" for measurement in available)
+        assert all(measurement["calibration_ref"] is not None for measurement in available)
+        assert all(measurement["value"] is not None for measurement in available)
     else:
         assert all(measurement["availability_status"] == "NOT_COMPUTABLE" for measurement in mcnamara)
         assert all(measurement["calibration_ref"] is None for measurement in mcnamara)

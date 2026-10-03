@@ -112,17 +112,19 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert source["metadata"]["profile_id"] == "TEST_RULER"
 
     measurements = payload["measurements"]
-    facial_axis = [
-        item for item in measurements
-        if item["method_id"] == "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
-    ]
-    assert len(facial_axis) == 1
-    assert facial_axis[0]["availability_status"] == "NOT_COMPUTABLE"
-    assert facial_axis[0]["value"] is None
+    explicit_identity_required = {
+        "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+        "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+    }
+    blocked = [item for item in measurements if item["method_id"] in explicit_identity_required]
+    assert {item["method_id"] for item in blocked} == explicit_identity_required
+    assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
+    assert all(item["value"] is None for item in blocked)
     assert all(
         item["availability_status"] == "AVAILABLE"
         for item in measurements
-        if item["method_id"] != "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
+        if item["method_id"] not in explicit_identity_required
     )
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
@@ -166,8 +168,18 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
         "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
     }.issubset(mcnamara_methods)
     assert all(item["requires_calibration"] is True for item in mcnamara)
-    assert all(item["calibration_ref"] == source["evidence_id"] for item in mcnamara)
-    assert all(item["value"] is not None for item in mcnamara)
+    blocked_co_gn = next(
+        item for item in mcnamara
+        if item["method_id"] == "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+    )
+    assert blocked_co_gn["calibration_ref"] is None
+    assert blocked_co_gn["value"] is None
+    available_mcnamara = [
+        item for item in mcnamara
+        if item["method_id"] != "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+    ]
+    assert all(item["calibration_ref"] == source["evidence_id"] for item in available_mcnamara)
+    assert all(item["value"] is not None for item in available_mcnamara)
 
 
 def test_auto_calibration_preserves_corrected_landmark_and_current_refs_exactly():

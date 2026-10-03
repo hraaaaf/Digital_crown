@@ -25,7 +25,10 @@ explicit additive identities only when provenance is certified:
 
 - Po_anatomic: anatomical porion; never machine/ear-rod porion.
 - Co_anatomic: anatomical condylion; never a generic condylar center.
-- Gn_anatomic: anatomical gnathion; never a constructed Gn.
+- Gn_anatomic: anatomical gnathion; never a constructed Gn. Because published
+  definitions vary and the exact SRPose/CL-Detection Gn annotation protocol is
+  not independently source-locked here, this identity is explicit/audited only;
+  legacy automatic Gn is not promoted by name.
 - Pog_hard: hard-tissue pogonion; never soft-tissue Pog'.
 
 Supporting landmark literature describes anatomical porion at the superior/upper
