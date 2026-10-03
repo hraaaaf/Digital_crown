@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
     RATE_LIMIT_LOGIN: str = "10/minute"
+    # V1.5-03.2 — dedicated HMAC pepper for short-lived workstation pairing codes.
+    # Empty keeps a domain-separated SECRET_KEY-derived fallback for backwards-compatible startup.
+    PAIRING_CODE_PEPPER: str = ""
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
     @classmethod
