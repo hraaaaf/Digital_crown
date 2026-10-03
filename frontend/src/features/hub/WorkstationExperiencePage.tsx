@@ -83,7 +83,7 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
         className="relative min-h-screen overflow-x-hidden bg-main-bg px-4 py-8 text-main sm:px-6 sm:py-10"
       >
         <section className="mx-auto w-full max-w-md rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Digital Crown · Administration</p>
+          <p className="text-xs font-black uppercase tracking-widest text-primary">Digital Crown · Administration</p>
           <h1 className="mt-3 font-outfit text-2xl font-black tracking-tight">Administration du poste</h1>
           <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">
             La Station reste verrouillée tant que le PIN propriétaire n’est pas validé par le serveur.
