@@ -5,6 +5,7 @@ export type WorkstationExperience = 'cabinet' | 'station' | 'control_center';
 export type WorkstationBootstrapState = {
   workstationId: string | null;
   displayName?: string | null;
+  lastSeenAt?: string | null;
   defaultExperience: WorkstationExperience | null;
   stationLocked: boolean;
   stationEscapeAuthorized: boolean;
@@ -21,6 +22,8 @@ export type WorkstationRegistryEntry = {
   displayName: string | null;
   defaultExperience: WorkstationExperience | null;
   revoked: boolean;
+  status: 'online' | 'offline' | 'revoked';
+  lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
