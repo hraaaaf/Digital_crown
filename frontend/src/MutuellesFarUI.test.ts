@@ -9,8 +9,9 @@ describe('Mutuelles FAR UI contract', () => {
     const action = read('./features/patients/CnssInsuranceAction.tsx');
     expect(documents).toContain("doc.type.toUpperCase() === 'NOTE'");
     expect(documents).toContain('<CnssInsuranceAction');
-    expect(action).toContain('data-insurance-action="prepare-far"');
-    expect(action).toContain("handlePrepare('FAR')");
+    expect(action).toContain('data-insurance-action={`prepare-${organization.toLowerCase()}`}');
+    expect(action).toContain("renderPrepareButton('FAR')");
+    expect(action).toContain("onClick={() => void handlePrepare(organization)}");
     expect(action).toContain('<FarInsuranceSubmissionReview');
   });
 
