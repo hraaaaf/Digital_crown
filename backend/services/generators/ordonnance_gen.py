@@ -108,16 +108,23 @@ class OrdonnanceGenerator:
             return obj.get(key, default)
         return getattr(obj, key, default)
 
+    def _resolve_branding_context(self, db, user_id):
+        """Return organization branding plus the real clinical actor."""
+        if not db or not user_id:
+            return None, None
+        from backend.models import CabinetConfig, User
+        user_obj = db.query(User).filter(User.id == user_id).first()
+        config_owner_id = document_branding_owner_id(user_obj, user_id)
+        db_config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == config_owner_id).first()
+        return db_config, user_obj
+
     def generate(self, patient, data, db=None, user_id=None, custom_config=None):
         filepath = self._get_save_path(patient, data)
 
         config = None
         user_obj = None
         if db and user_id:
-            from backend.models import CabinetConfig, User
-            user_obj = db.query(User).filter(User.id == user_id).first()
-            config_owner_id = document_branding_owner_id(user_obj, user_id)
-            db_config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == config_owner_id).first()
+            db_config, user_obj = self._resolve_branding_context(db, user_id)
             
             if db_config:
                 config = {}
