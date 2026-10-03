@@ -377,10 +377,11 @@ body {
   }
 }
 
-/* Open Patient Documents action menus upward on larger screens to avoid bottom clipping. */
+/* Anchor Patient Documents action menus below their trigger on larger screens.
+   A scrollable max-height on the menu handles long action lists without top clipping. */
 @media (min-width: 640px) {
   [data-document-action-menu] {
-    top: auto !important;
-    bottom: 3rem !important;
+    top: 100% !important;
+    bottom: auto !important;
   }
 }

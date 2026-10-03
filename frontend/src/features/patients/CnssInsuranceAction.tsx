@@ -12,12 +12,21 @@ import type {
 
 interface CnssInsuranceActionProps {
   honorairesDocumentId: number;
+  preferredOrganization?: SupportedOrganization | null;
   onArchived: () => void;
   onCloseMenu: () => void;
 }
 
 type SupportedOrganization = 'CNSS' | 'CNOPS' | 'FAR';
 type BusyAction = 'prepare' | 'validate' | 'finalize' | null;
+
+export const insuranceOrganizationFromAssurance = (assurance?: string | null): SupportedOrganization | null => {
+  const normalized = String(assurance || '').trim().toUpperCase();
+  if (normalized === 'CNSS') return 'CNSS';
+  if (normalized === 'CNOPS') return 'CNOPS';
+  if (normalized === 'FAR' || normalized === 'MUTUELLE_FAR') return 'FAR';
+  return null;
+};
 
 const apiErrorMessage = (error: any, fallback: string): string => {
   const detail = error?.response?.data?.detail;
@@ -26,8 +35,15 @@ const apiErrorMessage = (error: any, fallback: string): string => {
   return fallback;
 };
 
+const organizationLabel: Record<SupportedOrganization, string> = {
+  CNSS: 'CNSS',
+  CNOPS: 'CNOPS',
+  FAR: 'FAR',
+};
+
 export const CnssInsuranceAction = ({
   honorairesDocumentId,
+  preferredOrganization = null,
   onArchived,
   onCloseMenu,
 }: CnssInsuranceActionProps) => {
@@ -114,46 +130,65 @@ export const CnssInsuranceAction = ({
     onClose: handleCloseReview,
   } : null;
 
+  const renderPrepareButton = (organization: SupportedOrganization, primary = false) => (
+    <button
+      data-insurance-action={`prepare-${organization.toLowerCase()}`}
+      data-insurance-preferred={primary ? 'true' : undefined}
+      data-m4c-touch
+      role="menuitem"
+      type="button"
+      disabled={busyAction === 'prepare'}
+      onClick={() => void handlePrepare(organization)}
+      className={`w-full min-h-11 px-3 rounded-lg font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60 ${
+        primary
+          ? 'bg-primary/10 text-primary hover:bg-primary/15'
+          : 'hover:bg-primary/5 text-primary'
+      }`}
+    >
+      {preparingOrganization === organization ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+      {preparingOrganization === organization
+        ? `Préparation ${organizationLabel[organization]}…`
+        : primary
+          ? `Préparer feuille ${organizationLabel[organization]}`
+          : `Préparer ${organizationLabel[organization]}`}
+    </button>
+  );
+
+  const alternatives = preferredOrganization
+    ? (['CNSS', 'CNOPS', 'FAR'] as SupportedOrganization[]).filter(item => item !== preferredOrganization)
+    : [];
+
   return (
     <>
-      <button
-        data-insurance-action="prepare-cnss"
-        data-m4c-touch
-        role="menuitem"
-        type="button"
-        disabled={busyAction === 'prepare'}
-        onClick={() => void handlePrepare('CNSS')}
-        className="w-full min-h-11 px-3 rounded-lg hover:bg-primary/5 text-primary font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
-      >
-        {preparingOrganization === 'CNSS' ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-        {preparingOrganization === 'CNSS' ? 'Préparation CNSS…' : 'Préparer CNSS'}
-      </button>
-      <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
-      <button
-        data-insurance-action="prepare-cnops"
-        data-m4c-touch
-        role="menuitem"
-        type="button"
-        disabled={busyAction === 'prepare'}
-        onClick={() => void handlePrepare('CNOPS')}
-        className="w-full min-h-11 px-3 rounded-lg hover:bg-primary/5 text-primary font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
-      >
-        {preparingOrganization === 'CNOPS' ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-        {preparingOrganization === 'CNOPS' ? 'Préparation CNOPS…' : 'Préparer CNOPS'}
-      </button>
-      <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
-      <button
-        data-insurance-action="prepare-far"
-        data-m4c-touch
-        role="menuitem"
-        type="button"
-        disabled={busyAction === 'prepare'}
-        onClick={() => void handlePrepare('FAR')}
-        className="w-full min-h-11 px-3 rounded-lg hover:bg-primary/5 text-primary font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
-      >
-        {preparingOrganization === 'FAR' ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-        {preparingOrganization === 'FAR' ? 'Préparation FAR…' : 'Préparer FAR'}
-      </button>
+      {preferredOrganization ? (
+        <>
+          {renderPrepareButton(preferredOrganization, true)}
+          <details className="group">
+            <summary
+              data-insurance-action="change-organization"
+              className="min-h-9 px-3 rounded-lg cursor-pointer text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-primary hover:bg-slate-50 flex items-center"
+            >
+              Changer d’organisme
+            </summary>
+            <div className="mt-1 border-t border-slate-100 pt-1">
+              {alternatives.map((organization, index) => (
+                <div key={organization}>
+                  {renderPrepareButton(organization)}
+                  {index < alternatives.length - 1 && <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />}
+                </div>
+              ))}
+            </div>
+          </details>
+        </>
+      ) : (
+        <>
+          {renderPrepareButton('CNSS')}
+          <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
+          {renderPrepareButton('CNOPS')}
+          <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
+          {renderPrepareButton('FAR')}
+        </>
+      )}
 
       {draft && reviewProps && typeof document !== 'undefined' && createPortal(
         draft.organization === 'CNOPS'

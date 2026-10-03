@@ -27,7 +27,7 @@ import {
   ShieldQuestion,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { CnssInsuranceAction } from './CnssInsuranceAction';
+import { CnssInsuranceAction, insuranceOrganizationFromAssurance } from './CnssInsuranceAction';
 
 interface DocumentInfo {
   id: string;
@@ -65,6 +65,7 @@ export const PatientDocuments = () => {
   const currentUser = useAuthStore(state => state.user);
   const currentUserId = Number(currentUser?.id);
   const [docs, setDocs] = useState<DocumentInfo[]>([]);
+  const [patientAssurance, setPatientAssurance] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -77,11 +78,20 @@ export const PatientDocuments = () => {
       setLoading(true);
       setFetchError(false);
       try {
-        const res = await api.get(`/patients/${id}/documents`);
-        setDocs(res.data);
+        const patientRequest = api.get(`/patients/${id}`).catch((patientError) => {
+          console.warn('Assurance patient indisponible pour la présélection mutuelle:', patientError);
+          return null;
+        });
+        const [docsResponse, patientResponse] = await Promise.all([
+          api.get(`/patients/${id}/documents`),
+          patientRequest,
+        ]);
+        setDocs(docsResponse.data);
+        setPatientAssurance(patientResponse?.data?.assurance || null);
       } catch (err) {
         console.error('Erreur archives:', err);
         setDocs([]);
+        setPatientAssurance(null);
         setFetchError(true);
       } finally {
         setLoading(false);
@@ -103,6 +113,8 @@ export const PatientDocuments = () => {
       }
     }
   };
+
+  const preferredInsuranceOrganization = insuranceOrganizationFromAssurance(patientAssurance);
 
   const setEditingDoc = usePatientStore(state => state.setEditingDoc);
 
@@ -281,12 +293,12 @@ export const PatientDocuments = () => {
                 </div>
                 <div className="flex items-center gap-2 relative">
                   {!isLegacy && (
-                    <div className="static">
+                    <div className="relative">
                       <button data-m4c-touch type="button" onClick={() => setActionsOpenFor(current => current === doc.id ? null : doc.id)} aria-label={`Actions du document ${doc.name}`} aria-haspopup="menu" aria-expanded={actionsOpenFor === doc.id} aria-controls={`document-actions-${doc.id}`} className="min-w-11 min-h-11 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 inline-flex items-center justify-center transition-all shadow-sm">
                         <MoreHorizontal size={19} />
                       </button>
                       {actionsOpenFor === doc.id && (
-                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-1/2 top-20 z-50 w-56 -translate-x-1/2 rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
+                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-full mt-2 z-50 w-56 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
                           {canRecordSignature && (
                             <>
                               <button
@@ -309,6 +321,7 @@ export const PatientDocuments = () => {
                             <>
                               <CnssInsuranceAction
                                 honorairesDocumentId={canonicalId}
+                                preferredOrganization={preferredInsuranceOrganization}
                                 onArchived={() => setReloadKey(key => key + 1)}
                                 onCloseMenu={() => setActionsOpenFor(null)}
                               />
