@@ -1,0 +1,517 @@
+{
+  "schema_version": "CEPHALO_LOT06_EXECUTABLE_MEASUREMENT_CONTRACT_V1",
+  "status": "PARTIAL_EXECUTABLE_26_DIRECT__1_EXPLICITLY_NON_PROMOTED",
+  "clinical_interpretation": false,
+  "measurements": [
+    {
+      "measurement_id": "M_AB_PRIME_FH_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "A",
+        "B",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1",
+        "CRANIOM_AB_PRIME_V1"
+      ],
+      "implementation": "backend.services.cephalo_constructions:craniom_ab_prime_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_PO_ANATOMIC"
+    },
+    {
+      "measurement_id": "M_ANB_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "S",
+        "N",
+        "A",
+        "B"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_anb_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_ANS_ME_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "ANS",
+        "Me"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_mcnamara_geometry:mcnamara_ans_me_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION"
+    },
+    {
+      "measurement_id": "M_A_NPERP_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "A",
+        "N",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1",
+        "NASION_VERTICAL_FH_V1"
+      ],
+      "implementation": "backend.services.cephalo_constructions:nasion_vertical_offset_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_PO_ANATOMIC"
+    },
+    {
+      "measurement_id": "M_B_NPERP_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "B",
+        "N",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1",
+        "NASION_VERTICAL_FH_V1"
+      ],
+      "implementation": "backend.services.cephalo_constructions:nasion_vertical_offset_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_PO_ANATOMIC"
+    },
+    {
+      "measurement_id": "M_COM_S_NPERP_DEPTH_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "S",
+        "N",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1",
+        "NASION_VERTICAL_FH_V1",
+        "CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"
+      ],
+      "implementation": "backend.services.cephalo_constructions:craniom_facial_depth_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_PO_ANATOMIC"
+    },
+    {
+      "measurement_id": "M_CO_A_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Co_anatomic",
+        "A"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_mcnamara_geometry:mcnamara_co_a_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_CO"
+    },
+    {
+      "measurement_id": "M_CO_GN_ANATOMIC_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Co_anatomic",
+        "Gn_anatomic"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_mcnamara_geometry:mcnamara_co_gn_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/audits/CEPHALO_VNEXT_LOT03_LANDMARK_ATLAS.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_ANATOMIC_GN"
+    },
+    {
+      "measurement_id": "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "N",
+        "Pog_hard"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_downs_geometry:downs_facial_angle_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_DOWNS_Y_AXIS_SGN_FH_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "S",
+        "Gn_anatomic",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_downs_geometry:downs_y_axis_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_FH_GOME_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "Go",
+        "Me"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1",
+        "TWEED_DC_MP_GO_ME_V1"
+      ],
+      "implementation": "backend.services.cephalo_tweed_merrifield_geometry:tweed_fma_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "PO_ANATOMIC_AND_GO_ME_REQUIRED"
+    },
+    {
+      "measurement_id": "M_FMIA_L1_FH_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "L1_apex",
+        "L1_incisal",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1"
+      ],
+      "implementation": "backend.services.cephalo_tweed_merrifield_geometry:tweed_fmia_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "PO_ANATOMIC_REQUIRED"
+    },
+    {
+      "measurement_id": "M_IMPA_GOME_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "L1_apex",
+        "L1_incisal",
+        "Go",
+        "Me"
+      ],
+      "required_constructions": [
+        "TWEED_DC_MP_GO_ME_V1"
+      ],
+      "implementation": "backend.services.cephalo_tweed_merrifield_geometry:tweed_impa_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_INTERINCISAL_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "U1_apex",
+        "U1_incisal",
+        "L1_apex",
+        "L1_incisal"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_craniom_angular:craniom_interincisal_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_L1_NB_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "L1_apex",
+        "L1_incisal",
+        "N",
+        "B"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_l1_nb_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_LI_EPLANE_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Li_soft",
+        "Prn",
+        "Pog_soft",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_e_line_perpendicular_signed_distance_px_v2",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_CANONICAL_IDENTITIES"
+    },
+    {
+      "measurement_id": "M_LS_EPLANE_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Ls_soft",
+        "Prn",
+        "Pog_soft",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_e_line_perpendicular_signed_distance_px_v2",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_CANONICAL_IDENTITIES"
+    },
+    {
+      "measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "A",
+        "N",
+        "Pog_hard",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_convexity_signed_distance_px_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_CANONICAL_IDENTITIES"
+    },
+    {
+      "measurement_id": "M_MERRIFIELD_Z_FH_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "Pog_soft",
+        "Ls_soft",
+        "Li_soft"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_tweed_merrifield_geometry:merrifield_z_angle_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_POG_NPERP_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Pog_hard",
+        "N",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1",
+        "NASION_VERTICAL_FH_V1"
+      ],
+      "implementation": "backend.services.cephalo_constructions:nasion_vertical_offset_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/audits/CEPHALO_GLOBAL_ANALYSIS_CARTOGRAPHY.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_POG_HARD_AND_PO_ANATOMIC"
+    },
+    {
+      "measurement_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "N",
+        "Pog_hard"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_facial_depth_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_SNA_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "S",
+        "N",
+        "A"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_sna_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_SNB_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "S",
+        "N",
+        "B"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_snb_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_SN_GOGN_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "S",
+        "N",
+        "Go",
+        "Gn_anatomic"
+      ],
+      "required_constructions": [
+        "STEINER_MP_GO_GN_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_sn_mp_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/audits/CEPHALO_VNEXT_LOT03_LANDMARK_ATLAS.md"
+      ],
+      "availability_gate": "EXACT_GN_ANATOMIC_REQUIRED"
+    },
+    {
+      "measurement_id": "M_U1_FH_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "U1_apex",
+        "U1_incisal",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1"
+      ],
+      "implementation": "backend.services.cephalo_craniom_angular:craniom_u1_frankfort_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md"
+      ],
+      "availability_gate": "PO_ANATOMIC_REQUIRED"
+    },
+    {
+      "measurement_id": "M_U1_NA_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "U1_apex",
+        "U1_incisal",
+        "N",
+        "A"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_u1_na_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "Ba",
+        "N",
+        "Pt_Ricketts",
+        "Pog_hard",
+        "Go",
+        "Me"
+      ],
+      "required_constructions": [
+        "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
+      ],
+      "implementation": "backend.services.cephalo_canonical_analysis_v2:ricketts_facial_axis_from_explicit_identities_v2",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_VNEXT_LOT01_SCIENTIFIC_CONTRACT.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "EXPLICIT_PT_RICKETTS_AND_CANONICAL_HARD_TISSUE_IDENTITIES"
+    }
+  ],
+  "non_promoted_geometry_covered": []
+}

@@ -13,6 +13,7 @@ from typing import Any, Mapping, Sequence
 from backend.schemas.cephalo_evidence import (
     ConstructionEvidence,
     LandmarkEvidence,
+    LandmarkOrigin,
     MeasurementEvidence,
     SourceEvidence,
 )
@@ -31,6 +32,8 @@ from backend.services.cephalo_calibration_evidence import (
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
+from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
+from backend.services.cephalo_landmark_identity_bridge import project_canonical_landmark_identities
 from backend.services.cephalo_runtime_evidence import EVIDENCE_SCHEMA_VERSION
 
 _DOWNSTREAM_CLINICAL_KEYS = (
@@ -139,7 +142,19 @@ def rebuild_evidence_after_auto_calibration(
 
         explicit_current = _explicit_current_landmarks(previous_payload, landmarks)
         if explicit_current is not None:
+            previous_auto = [
+                item for item in landmarks
+                if item.origin == LandmarkOrigin.SRPOSE38_AUTO
+                and ":canonical:" not in item.evidence_id
+            ]
+            scientific_current = project_canonical_landmark_identities(
+                explicit_current, previous_auto_landmarks=previous_auto
+            )
             current_ref_set = {item.evidence_id for item in explicit_current.values()}
+            current_ref_set.update(
+                item.evidence_id for key, item in scientific_current.items()
+                if key not in explicit_current
+            )
             stale_construction_refs = sorted(
                 {
                     ref
@@ -214,7 +229,25 @@ def rebuild_evidence_after_auto_calibration(
         rebuilt_calibrated = [
             item for item in rebuilt_craniom if item.requires_calibration
         ]
-        measurements = [*preserved_independent, *rebuilt_calibrated]
+        rebuilt_canonical_v2 = []
+        if explicit_current is not None:
+            previous_auto = [
+                item for item in landmarks if item.origin == LandmarkOrigin.SRPOSE38_AUTO
+                and ":canonical:" not in item.evidence_id
+            ]
+            scientific_current = project_canonical_landmark_identities(
+                explicit_current, previous_auto_landmarks=previous_auto
+            )
+            rebuilt_canonical_v2 = [
+                item for item in materialize_canonical_analysis_v2_measurements(
+                    measurement_namespace=f"measurement:{case_id}:r{next_revision}:canonical-v2",
+                    landmarks=scientific_current,
+                    mm_per_pixel=float(runtime_ratio),
+                    calibration_ref=calibration.evidence_id,
+                )
+                if item.requires_calibration
+            ]
+        measurements = [*preserved_independent, *rebuilt_calibrated, *rebuilt_canonical_v2]
 
         current_sources = [source for source in sources if source.kind != "calibration"] + [calibration]
         graph = EvidenceGraphSnapshot(

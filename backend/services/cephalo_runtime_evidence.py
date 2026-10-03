@@ -17,6 +17,9 @@ from backend.services.cephalo_auto_calibration_evidence import (
 )
 from backend.services.cephalo_auto_calibration_gate import AutoCalibrationDecision, AutoCalibrationState
 from backend.services.cephalo_construction_evidence_adapter import materialize_craniom_linear_constructions
+from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
+from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
+from backend.services.cephalo_landmark_identity_bridge import project_canonical_landmark_identities
 from backend.services.cephalo_constructions import (
     craniom_ab_prime_mm_v1,
     craniom_facial_depth_mm_v1,
@@ -37,15 +40,15 @@ from backend.services.cephalo_steiner_evidence_adapter import (
     adapt_steiner_skeletal_measurements,
     materialize_steiner_skeletal_constructions,
 )
-from backend.services.sota_vision_service import (
+from backend.services.srpose38_contract import (
     SOTA_LANDMARKS_MAPPING,
     SRPOSE38_MODEL_NAME,
     SRPOSE38_MODEL_SHA256,
+    SRPOSE38_PIPELINE_VERSION,
 )
 
 EVIDENCE_GRAPH_KEY = "_evidence_graph_v1"
 EVIDENCE_SCHEMA_VERSION = "CEPHALO_EVIDENCE_V1"
-SRPOSE38_PIPELINE_VERSION = "SRPOSE38_TTA_1024_V1"
 _SRPOSE38_IDS = frozenset(SOTA_LANDMARKS_MAPPING.values())
 
 
@@ -272,8 +275,11 @@ def build_cephalo_runtime_evidence_payload(
         inference_mode=inference_mode, manual=manual_revision,
     )
     current_by_id = {lm.landmark_id: lm for lm in current}
+    previous_auto = _old_auto(previous_payload)
+    scientific_by_id = project_canonical_landmark_identities(current_by_id, previous_auto_landmarks=previous_auto if manual_revision else ())
+    canonical_aliases = [item for key,item in scientific_by_id.items() if key not in current_by_id]
     _assert_runtime_geometry_matches(result, current_by_id)
-    graph_landmarks = (_old_auto(previous_payload) if manual_revision else []) + current
+    graph_landmarks = (previous_auto if manual_revision else []) + current + canonical_aliases
 
     # Preserve historical CRANIOM/Steiner evidence IDs exactly. Céphalo-N is
     # additive and uses a dedicated McNamara namespace.
@@ -317,17 +323,29 @@ def build_cephalo_runtime_evidence_payload(
         calibration_ref=calibration_ref,
     )
 
+    canonical_v2_constructions = materialize_canonical_constructions_v2(
+        scientific_by_id,
+        construction_namespace=f"construction:{resolved_case}:r{revision}:canonical-v2",
+    )
     all_constructions = [
         *craniom_constructions.values(),
         *steiner_constructions.values(),
         *steiner_dental_constructions.values(),
         *mcnamara_nperp_constructions.values(),
+        *canonical_v2_constructions.values(),
     ]
+    canonical_v2_measurements = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace=f"measurement:{resolved_case}:r{revision}:canonical-v2",
+        landmarks=scientific_by_id, mm_per_pixel=result.analysis_metadata.pixel_ratio,
+        calibration_ref=calibration_ref,
+        constructions=canonical_v2_constructions,
+    )
     all_measurements = [
         *craniom_measurements,
         *steiner_measurements,
         *steiner_dental_measurements,
         *mcnamara_nperp_measurements,
+        *canonical_v2_measurements,
     ]
     sources = [ceph_source] + ([calibration] if calibration else [])
     graph = EvidenceGraphSnapshot(
@@ -341,6 +359,7 @@ def build_cephalo_runtime_evidence_payload(
         "history": _history(previous_payload),
         "sources": [x.model_dump(mode="json") for x in sources],
         "landmarks": [x.model_dump(mode="json") for x in graph_landmarks],
+        "current_landmark_refs": [x.evidence_id for x in current],
         "constructions": [x.model_dump(mode="json") for x in all_constructions],
         "measurements": [x.model_dump(mode="json") for x in all_measurements],
         "normative_evaluations": [], "findings": [], "diagnoses": [], "problems": [],

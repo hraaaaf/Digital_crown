@@ -77,7 +77,11 @@ def test_srpose_snapshot_persists_analysis_scoped_evidence_and_does_not_silently
     assert payload["schema_version"] == EVIDENCE_SCHEMA_VERSION
     assert payload["revision"] == 1
     assert payload["history"] == []
-    assert len(payload["landmarks"]) == 38
+    assert len(payload["current_landmark_refs"]) == 38
+    assert len(payload["landmarks"]) == 41
+    assert {item["landmark_id"] for item in payload["landmarks"] if ":canonical:" in item["evidence_id"]} == {
+        "Po_anatomic", "Co_anatomic", "Pog_hard"
+    }
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
 
     craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
@@ -211,8 +215,13 @@ def test_manual_revision_preserves_auto_points_and_full_previous_snapshot_histor
     assert second["history"][0]["constructions"] == first["constructions"]
     assert second["history"][0]["measurements"] == first["measurements"]
     origins = [x["origin"] for x in second["landmarks"]]
-    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 38
-    assert origins.count(LandmarkOrigin.MANUAL.value) == len(_points())
+    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 41
+    assert len(second["current_landmark_refs"]) == len(_points())
+    canonical_manual = [
+        x for x in second["landmarks"]
+        if x["origin"] == LandmarkOrigin.MANUAL.value and ":canonical:" in x["evidence_id"]
+    ]
+    assert {x["landmark_id"] for x in canonical_manual} == {"Po_anatomic"}
     for construction in second["constructions"]:
         assert all(":r2:" in ref for ref in construction["landmark_refs"])
     validate_case_evidence_graph(_graph(second), patient_id=7, case_id=CASE_ID)
@@ -250,8 +259,25 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     calibration = [x for x in payload["sources"] if x["kind"] == "calibration"]
     assert len(calibration) == 1
     assert calibration[0]["quality_status"] == "VERIFIED_MANUAL_TWO_POINT"
-    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in payload["measurements"])
-    assert all(x["value"] is not None for x in payload["measurements"])
+    facial_axis = [
+        x for x in payload["measurements"]
+        if x["method_id"] == "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
+    ]
+    assert len(facial_axis) == 1
+    assert facial_axis[0]["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value
+    assert facial_axis[0]["value"] is None
+    explicit_identity_required = {
+        "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+        "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+    }
+    blocked = [x for x in payload["measurements"] if x["method_id"] in explicit_identity_required]
+    assert {x["method_id"] for x in blocked} == explicit_identity_required
+    assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in blocked)
+    assert all(x["value"] is None for x in blocked)
+    other_measurements = [x for x in payload["measurements"] if x["method_id"] not in explicit_identity_required]
+    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in other_measurements)
+    assert all(x["value"] is not None for x in other_measurements)
 
     craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
     steiner = [x for x in payload["measurements"] if x["analysis_id"] == "STEINER"]

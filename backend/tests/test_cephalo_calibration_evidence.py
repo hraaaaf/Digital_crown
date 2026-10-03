@@ -83,7 +83,20 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert calibration[0]["metadata"]["calibrated_by"] == "99"
 
     measurements = payload["measurements"]
-    assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
+    explicit_identity_required = {
+        "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+        "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+    }
+    blocked = [item for item in measurements if item["method_id"] in explicit_identity_required]
+    assert {item["method_id"] for item in blocked} == explicit_identity_required
+    assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
+    assert all(item["value"] is None for item in blocked)
+    assert all(
+        item["availability_status"] == "AVAILABLE"
+        for item in measurements
+        if item["method_id"] not in explicit_identity_required
+    )
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
     steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
@@ -112,16 +125,30 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert all(item["requires_calibration"] is False for item in steiner)
     assert all(item["calibration_ref"] is None for item in steiner)
 
-    assert {item["method_id"] for item in mcnamara} == {
+    assert {
         "MCNAMARA_CO_A_MM_V1",
         "MCNAMARA_CO_GN_MM_V1",
         "MCNAMARA_ANS_ME_MM_V1",
         "M_A_NPERP_MM_V1",
         "M_POG_NPERP_MM_V1",
-    }
+        "MCNAMARA_CO_A_CANONICAL_MM_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
+        "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+    }.issubset({item["method_id"] for item in mcnamara})
     assert all(item["requires_calibration"] is True for item in mcnamara)
-    assert all(item["calibration_ref"] == calibration[0]["evidence_id"] for item in mcnamara)
-    assert all(item["value"] is not None for item in mcnamara)
+    blocked_co_gn = next(
+        item for item in mcnamara
+        if item["method_id"] == "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+    )
+    assert blocked_co_gn["calibration_ref"] is None
+    assert blocked_co_gn["value"] is None
+    available_mcnamara = [
+        item for item in mcnamara
+        if item["method_id"] != "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+    ]
+    assert all(item["calibration_ref"] == calibration[0]["evidence_id"] for item in available_mcnamara)
+    assert all(item["value"] is not None for item in available_mcnamara)
 
 
 def test_calibration_rejects_runtime_landmarks_different_from_persisted_evidence():

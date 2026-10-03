@@ -106,6 +106,36 @@ Le champ historique `Angle_de_Tweed` est actuellement calculé avec `Go-Me`. **I
 
 Même règle pour `IMPA` : l'axe incisif est disponible, mais la construction du plan mandibulaire doit être rattachée explicitement à l'analyse choisie avant toute norme/interprétation.
 
+## CONSTRUCTIONS MANDIBULAIRES VERSIONNÉES — DÉCISION SCIENTIFIQUE ACTIVE
+
+Les source-locks plus récents de Céphalo-N ont fermé la géométrie Steiner et la variante Tweed Digital Crown sans réinterpréter les normes historiques.
+
+### `STEINER_MP_GO_GN_V1`
+
+**Nom :** plan mandibulaire Steiner Go-Gn.  
+**Dépendances :** `Go`, `Gn_anatomic`.  
+**Définition :** droite passant par Gonion et le Gnathion anatomique utilisé par le contrat Steiner 1953.  
+**Usages autorisés :** SN-GoGn et mesures explicitement rattachées à la version Steiner correspondante.  
+**Échec :** `NOT_COMPUTABLE` si Go manque, si Gn n'est pas explicitement anatomique, ou si les deux points sont confondus.  
+**État :** `SOURCE_LOCKED_GEOMETRY`.  
+**Source contractuelle :** `docs/audits/CEPHALO_PRIMARY_LANDMARK_CONSTRUCTIONS.md` + `docs/audits/CEPHALO_LANDMARKS_PLANES_SOURCE_LOCK.md`.
+
+### `TWEED_DC_MP_GO_ME_V1`
+
+**Nom :** plan mandibulaire Tweed — variante Digital Crown active.  
+**Dépendances :** `Go`, `Me`.  
+**Définition :** droite Go-Me utilisée par le contrat Digital Crown actif.  
+**Usages autorisés :** `M_FH_GOME_DEG_V1` et `M_IMPA_GOME_DEG_V1` lorsque la variante est explicitement identifiée comme `DC_TWEED_ANATOMICAL_FH_VARIANT`.  
+**Frankfort associé :** `FH_PO_OR_V1`.  
+**Échec :** `NOT_COMPUTABLE` si Go/Me absents ou confondus.  
+**État :** `SELECTED_DC_GEOMETRY`.  
+**Limite :** cette construction ne doit pas être présentée comme reproduction stricte du Frankfort ear-rod de Tweed 1954 et n'active aucune norme historique Tweed par héritage de nom.  
+**Source contractuelle :** `docs/audits/CEPHALO_PRIMARY_LANDMARK_CONSTRUCTIONS.md` + `docs/audits/CEPHALO_LANDMARKS_PLANES_SOURCE_LOCK.md`.
+
+### Harmonisation de l'ancien avertissement
+
+L'avertissement historique ci-dessus reste utile pour interdire les substitutions entre plans mandibulaires. En revanche, pour la **géométrie Digital Crown active**, la décision clinique/source-lock du 2026-09-15 ferme désormais explicitement le couple `Po-Or + Go-Me` sous le nom versionné `DC_TWEED_ANATOMICAL_FH_VARIANT`. Les normes/interprétations Tweed historiques restent un chantier distinct.
+
 ## CONSTRUCTIONS NON COMPUTABLES OU NON CERTIFIÉES
 
 ### CRANIOM `Gi/Gs`
@@ -139,3 +169,9 @@ Tests :
 ## NEXT EXACT
 
 Obtenir la preuve CI des golden tests puis séparer explicitement les constructions `TWEED_MP`, `DOWNS_MP` et les besoins `CRANIOM_Gi/Gs` avant d'activer IMPA/FMA comme mesures attribuées à une école.
+### RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1
+- ID: `RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1`
+- Output: `Gn_constructed_Ricketts`
+- Inputs: N, Pog_hard, Go, Me.
+- Rule: intersection of the infinite N-Pog_hard facial line and Go-Me mandibular line.
+- Purpose: explicit dependency for Ricketts facial axis; never interchangeable with `Gn_anatomic`.

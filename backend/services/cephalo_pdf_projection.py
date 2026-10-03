@@ -59,6 +59,9 @@ def build_cephalo_pdf_projection(
     )
 
     measurements: list[dict[str, Any]] = []
+    canonical_measurements: list[dict[str, Any]] = []
+    canonical_blocked_methods: list[str] = []
+    canonical_unmapped_methods: list[str] = []
     projection_blockers: list[str] = []
     typed_projection_verified = False
     graph_payload = payload.get(EVIDENCE_GRAPH_KEY)
@@ -67,7 +70,11 @@ def build_cephalo_pdf_projection(
         try:
             # This is the same authoritative read gate used by the API/Studio. It
             # verifies typed-read case integrity before any patient value is exposed.
-            project_runtime_chain_read_path(payload, patient_id=patient_id)
+            runtime_projection = project_runtime_chain_read_path(payload, patient_id=patient_id)
+            scientific_read_path = runtime_projection.get("scientific_read_path", {})
+            canonical_measurements = list(scientific_read_path.get("canonical_measurements") or [])
+            canonical_blocked_methods = list(scientific_read_path.get("blocked_method_ids") or [])
+            canonical_unmapped_methods = list(scientific_read_path.get("unmapped_method_ids") or [])
             graph = deserialize_evidence_snapshot(graph_payload)
             chain = validate_active_runtime_chain(graph_payload, graph)
             measurements = sorted(
@@ -115,6 +122,9 @@ def build_cephalo_pdf_projection(
         "active_runtime_chain_verified": active_runtime_chain_verified,
         "evidence_graph_present": bool(studio.get("evidence_graph_present")),
         "measurements": measurements,
+        "canonical_measurements": canonical_measurements,
+        "canonical_blocked_method_ids": canonical_blocked_methods,
+        "canonical_unmapped_method_ids": canonical_unmapped_methods,
         "stages": stages,
         "blocking_gates": blockers,
         "clinical_validation_available": bool(studio.get("clinical_validation_available")),
