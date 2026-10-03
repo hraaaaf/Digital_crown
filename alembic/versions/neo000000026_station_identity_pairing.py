@@ -31,9 +31,18 @@ def upgrade():
     op.create_index("ix_workstation_pairing_codes_employer_id", "workstation_pairing_codes", ["employer_id"])
     op.create_index("ix_workstation_pairing_codes_code_hash", "workstation_pairing_codes", ["code_hash"], unique=True)
     op.create_index("ix_workstation_pairing_codes_expires_at", "workstation_pairing_codes", ["expires_at"])
+    op.create_index(
+        "uq_workstation_pairing_codes_one_active",
+        "workstation_pairing_codes",
+        ["employer_id"],
+        unique=True,
+        sqlite_where=sa.text("used_at IS NULL"),
+        postgresql_where=sa.text("used_at IS NULL"),
+    )
 
 
 def downgrade():
+    op.drop_index("uq_workstation_pairing_codes_one_active", table_name="workstation_pairing_codes")
     op.drop_index("ix_workstation_pairing_codes_expires_at", table_name="workstation_pairing_codes")
     op.drop_index("ix_workstation_pairing_codes_code_hash", table_name="workstation_pairing_codes")
     op.drop_index("ix_workstation_pairing_codes_employer_id", table_name="workstation_pairing_codes")
