@@ -161,7 +161,7 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
                   )}
                   <span className="text-xs font-bold text-text-muted">#{shortId(item.workstationId)}</span>
                   <span className="text-xs font-bold text-text-muted">
-                    {item.status === 'revoked' ? 'Révoqué' : item.status === 'online' ? 'En ligne' : 'Hors ligne'}
+                    {item.status === 'revoked' ? 'Révoqué' : item.status === 'recent' ? 'Vu récemment' : 'Hors ligne'}
                   </span>
                 </div>
                 <p className="mt-1 text-xs font-semibold text-text-muted">
