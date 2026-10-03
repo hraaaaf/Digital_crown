@@ -40,6 +40,9 @@ def test_station_identity_pairing_migration_roundtrip(tmp_path):
             columns = {column["name"] for column in inspector.get_columns("workstation_modes")}
             assert {"display_name", "revoked_at", "last_seen_at"}.issubset(columns)
             pairing_columns = {column["name"] for column in inspector.get_columns("workstation_pairing_codes")}
+            pairing_indexes = {index["name"]: index for index in inspector.get_indexes("workstation_pairing_codes")}
+            assert "uq_workstation_pairing_codes_one_active" in pairing_indexes
+            assert pairing_indexes["uq_workstation_pairing_codes_one_active"]["unique"] is True
             assert {
                 "id",
                 "employer_id",
