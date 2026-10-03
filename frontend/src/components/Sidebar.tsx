@@ -103,7 +103,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           50% { transform: scale(1.02); filter: drop-shadow(0 0 15px var(--primary)); }
         }
         .animate-logo-pulse-light { animation: logo-pulse-light 2s ease-in-out infinite; }
-        .sidebar-cabinet-compact { display: none; }
+        .sidebar-cabinet-compact,
+        .sidebar-brand-compact { display: none; }
         @media (min-width: 1024px) {
           .sidebar-shell {
             transition: width 340ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms ease-out;
