@@ -203,3 +203,61 @@ def test_lot07f_invalid_slot_and_timepoint_fail_closed_without_asset(
     bad_timepoint = client.get(f"/api/patients/{patient.id}/ortho-media-record?timepoint=T99", headers=auth_headers)
     assert bad_timepoint.status_code == 422
     assert db.query(ClinicalAsset).count() == before
+
+
+def test_lot07f_record_rejects_incomplete_or_misattributed_canonical_asset(db, dentiste):
+    from backend.services.ortho_media_record import build_ortho_media_record
+
+    patient = _patient(db, dentiste.id)
+    base_provenance = {
+        "schema_version": "ORTHO_MEDIA_RECORD_V1",
+        "slot_id": "EXTRA_PROFILE",
+        "source_type": "CLINICIAN_UPLOAD",
+        "acquired_at": "2026-10-03T09:15:00+00:00",
+        "operator_or_device": f"user:{dentiste.id}",
+        "patient_record_id": str(patient.id),
+        "timepoint_id": "T0",
+    }
+
+    incomplete = ClinicalAsset(
+        employer_id=dentiste.id,
+        patient_id=patient.id,
+        asset_type="PHOTO",
+        source_kind="UPLOAD",
+        source_ref="ORTHO_PHOTO_V1:EXTRA_PROFILE",
+        mime_type="image/png",
+        byte_size=None,
+        sha256="1" * 64,
+        storage_key="aa/bb/incomplete.enc",
+        storage_format="AESGCM_V1",
+        stored_at=datetime.now(timezone.utc),
+        timepoint="T0",
+        captured_at=datetime.now(timezone.utc),
+        created_by=dentiste.id,
+        provenance_json=base_provenance,
+    )
+    wrong_source = ClinicalAsset(
+        employer_id=dentiste.id,
+        patient_id=patient.id,
+        asset_type="PHOTO",
+        source_kind="IMPORT",
+        source_ref="ORTHO_PHOTO_V1:EXTRA_PROFILE",
+        mime_type="image/png",
+        byte_size=10,
+        sha256="2" * 64,
+        storage_key="aa/bb/import.enc",
+        storage_format="AESGCM_V1",
+        stored_at=datetime.now(timezone.utc),
+        timepoint="T0",
+        captured_at=datetime.now(timezone.utc),
+        created_by=dentiste.id,
+        provenance_json=base_provenance,
+    )
+    db.add_all([incomplete, wrong_source])
+    db.commit()
+
+    record = build_ortho_media_record(
+        db, employer_id=dentiste.id, patient_id=patient.id, timepoint="T0"
+    )
+    profile = next(item for item in record["photo_slots"] if item["slot_id"] == "EXTRA_PROFILE")
+    assert profile == {"slot_id": "EXTRA_PROFILE", "state": "EMPTY", "asset": None}

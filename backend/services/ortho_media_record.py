@@ -53,11 +53,13 @@ def ortho_photo_source_ref(slot: str) -> str:
 def _has_canonical_ortho_provenance(asset: ClinicalAsset, *, slot: str, patient_id: int, timepoint: str) -> bool:
     provenance = asset.provenance_json if isinstance(asset.provenance_json, dict) else {}
     return (
-        provenance.get("schema_version") == ORTHO_MEDIA_SCHEMA_VERSION
+        asset.source_kind == "UPLOAD"
+        and asset.created_by is not None
+        and provenance.get("schema_version") == ORTHO_MEDIA_SCHEMA_VERSION
         and provenance.get("slot_id") == slot
         and provenance.get("source_type") == "CLINICIAN_UPLOAD"
         and bool(provenance.get("acquired_at"))
-        and bool(provenance.get("operator_or_device"))
+        and provenance.get("operator_or_device") == f"user:{asset.created_by}"
         and provenance.get("patient_record_id") == str(patient_id)
         and provenance.get("timepoint_id") == timepoint
         and asset.captured_at is not None
@@ -93,6 +95,7 @@ def build_ortho_media_record(
             ClinicalAsset.storage_format.isnot(None),
             ClinicalAsset.stored_at.isnot(None),
             ClinicalAsset.sha256.isnot(None),
+            ClinicalAsset.byte_size.isnot(None),
         )
         .order_by(ClinicalAsset.created_at.desc(), ClinicalAsset.id.desc())
         .all()

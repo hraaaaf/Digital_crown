@@ -137,7 +137,7 @@ export const OrthoMediaRecordPanel: React.FC<{ patientId: number; P: any }> = ({
           const filled = slot?.state === 'FILLED' && slot.asset;
           return (
             <label key={slotId} data-ortho-photo-slot={slotId} className="group relative min-h-[138px] cursor-pointer overflow-hidden rounded-2xl border transition hover:-translate-y-0.5" style={{ borderColor: filled ? P.accentSuccess : P.border, background: P.bgCard }}>
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => void upload(slotId, event)} />
+              <input aria-label={`Importer ${label}`} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => void upload(slotId, event)} />
               <div className="absolute inset-0 flex items-center justify-center" style={{ color: P.textMuted }}>
                 {uploadingSlot === slotId ? <Loader2 size={22} className="animate-spin" /> : <AssetPreview patientId={patientId} asset={slot?.asset ?? null} />}
               </div>

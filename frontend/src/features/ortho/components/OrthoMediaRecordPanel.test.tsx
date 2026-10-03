@@ -45,6 +45,8 @@ describe('OrthoMediaRecordPanel LOT07-F', () => {
     expect(document.querySelectorAll('[data-ortho-photo-slot]')).toHaveLength(8);
     expect(document.querySelectorAll('[data-ortho-model-hook]')).toHaveLength(3);
     expect(screen.getAllByText(/Import désactivé jusqu'au validateur 3D/i)).toHaveLength(3);
+    expect(screen.getByLabelText('Importer Profil')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+    expect(screen.getByLabelText('Importer Occlusal mandibulaire')).toBeInTheDocument();
     expect(document.querySelector('[data-ortho-model-hook] input[type=file]')).toBeNull();
     expect(get).toHaveBeenCalledWith('/patients/7/ortho-media-record', { params: { timepoint: 'T0' } });
   });
