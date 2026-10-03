@@ -270,7 +270,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
               <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]" style={{ color: steinerProfile?.source_lock_gate?.status === 'SATISFIED' ? P.accentSuccess : P.accentWarning }}>
                 <ShieldCheck size={12} /> Source-lock {steinerProfile?.source_lock_gate?.status === 'SATISFIED' ? 'valid\u00e9' : 'non v\u00e9rifi\u00e9'}
               </span>
-              <span className="text-[9px]" style={{ color: P.textMuted }}>R\u00e9f\u00e9rences historiques \u00b7 affichage sans classification universelle</span>
+              <span className="text-[9px]" style={{ color: P.textMuted }}>R&eacute;f&eacute;rences historiques &middot; affichage sans classification universelle</span>
             </div>
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2" aria-label="Points explicites Steiner">
               {STEINER_EXPLICIT_IDENTITIES.map(identity => {

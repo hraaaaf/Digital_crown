@@ -5,6 +5,10 @@ import path from 'node:path';
 const read=(rel:string)=>fs.readFileSync(path.resolve(process.cwd(),'src','features','ortho',rel),'utf8');
 
 describe('LOT08 Steiner explicit landmark placement audit',()=>{
+  it('does not leak unicode escape sequences into visible JSX text',()=>{
+    const panel=read('components/CephaloAnalysisWorkbenchPanel.tsx');
+    expect(panel).not.toMatch(/>[^<{]*\\u[0-9A-Fa-f]{4}/);
+  });
   it('never aliases detector D_point or generic Gn to explicit Steiner identities',()=>{
     const protocol=read('cephaloSteinerProtocol.ts');
     expect(protocol).toContain("id: 'D_Steiner_1959'");
