@@ -48,7 +48,7 @@ def test_station_identity_pairing_migration_roundtrip(tmp_path):
             pairing_columns = {column["name"] for column in inspector.get_columns("workstation_pairing_codes")}
             pairing_indexes = {index["name"]: index for index in inspector.get_indexes("workstation_pairing_codes")}
             assert "uq_workstation_pairing_codes_one_active" in pairing_indexes
-            assert pairing_indexes["uq_workstation_pairing_codes_one_active"]["unique"] is True
+            assert bool(pairing_indexes["uq_workstation_pairing_codes_one_active"]["unique"])
             assert {
                 "id",
                 "employer_id",
