@@ -268,6 +268,10 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "INSTALLABLE_CERTIFIED" in launcher
     assert "runtime-assets-certification.json" in launcher
     assert 'PYTHONDONTWRITEBYTECODE = "1"' in launcher
+    runtime_no_pyc = launcher.rindex('$env:PYTHONDONTWRITEBYTECODE = "1"')
+    runtime_start = launcher.index('& $VenvPython @uvicornArgs')
+    runtime_restore = launcher.rindex('$env:PYTHONDONTWRITEBYTECODE = $runtimeOldDontWriteBytecode')
+    assert runtime_no_pyc < runtime_start < runtime_restore
 
     assert "verify_installable_release_directory(_CERTIFIED_RELEASE_ROOT)" in spec
     assert "iter_runtime_asset_files" in spec
