@@ -6,6 +6,7 @@ const app = readFileSync(path.join(process.cwd(), 'src', 'App.tsx'), 'utf8');
 const header = readFileSync(path.join(process.cwd(), 'src', 'components', 'Header.tsx'), 'utf8');
 const hub = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'HubPage.tsx'), 'utf8');
 const workstation = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'WorkstationExperiencePage.tsx'), 'utf8');
+const stationShell = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'StationKioskShell.tsx'), 'utf8');
 const workstationAdmin = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'WorkstationModeAdminPanel.tsx'), 'utf8');
 
 describe('V1.5-00.2 Hub routing contract', () => {
@@ -22,7 +23,7 @@ describe('V1.5-00.2 Hub routing contract', () => {
   });
 
   it('uses only canonical theme tokens in V1.5 Hub surfaces', () => {
-    const source = hub + workstation + workstationAdmin;
+    const source = hub + workstation + stationShell + workstationAdmin;
     expect(source).not.toMatch(/(?:rounded|text|tracking|shadow|bg|border)-\[[^\]]+\]/);
     expect(source).not.toMatch(/(?:amber|red|rose|green|emerald|blue|indigo|violet|purple|slate)-\d+/);
     expect(source).not.toContain('shadow-2xl');
