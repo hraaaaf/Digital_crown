@@ -46,6 +46,30 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
 Source : `backend/main.py::validate_environment_invariants()`.
 
+## Exécution par défaut — GitHub Actions
+
+**GitHub Actions est la surface d'exécution par défaut de Digital Crown** pour toute preuve reproductible qui peut raisonnablement y être exécutée.
+
+Par défaut :
+- tests backend/frontend ;
+- validations ciblées après correctif ;
+- certifications et gates ;
+- audits reproductibles ;
+- scripts d'analyse ne dépendant pas d'un asset local non disponible en CI ;
+- génération de preuves liées à un SHA Git ;
+- reruns de jobs/workflows échoués.
+
+Ordre de préférence :
+1. GitHub Actions sur le SHA/PR exact ;
+2. exécution locale isolée uniquement lorsqu'elle apporte une preuve impossible ou disproportionnée à obtenir en CI ;
+3. Remote Desktop / poste cabinet seulement si la tâche dépend réellement d'un fichier local volumineux, d'un périphérique/hardware, d'un secret non exportable, d'un runtime cabinet autorisé ou d'une inspection machine.
+
+Une exécution locale ne remplace pas la preuve GitHub lorsqu'un gate CI existe. Toute preuve locale utilisée doit être rattachée à un SHA exact et documenter son environnement.
+
+Ne jamais transférer vers GitHub Actions des données patients, secrets cabinet ou assets interdits de dépôt. Les datasets publics volumineux peuvent rester hors repo : la CI valide alors le harness/code et l'environnement local produit les artefacts hashés nécessaires.
+
+Une CI queued/in_progress n'autorise pas l'attente passive : poursuivre le travail indépendant. Ne pas relancer toute la matrice par défaut ; cibler le job/workflow impacté conformément à la validation CI chirurgicale.
+
 ## Règles absolues
 
 ### Scoring d'exécution et vérification
