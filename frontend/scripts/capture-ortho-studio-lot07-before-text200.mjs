@@ -149,6 +149,3 @@ try{
 }finally{if(!server.killed)server.kill('SIGTERM');await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8')}
 const invalid=captures.filter(c=>!c.valid); const report={lot:'ORTHO-STUDIO-LOT07-WORKBENCH',phase:'BEFORE_TEXT_200',theme:CAPTURE_THEME,productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage; default Digital Crown theme; 390/430/768/1280 BEFORE viewports; R19 adds analysis panel and autonomous COM; validates rendered constructions and rejects legacy McNamara leakage in COM; fresh Chromium per viewport; one retry only after invalid first render.',captures,blockedExternalRequests,invalidCount:invalid.length};
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8'); console.log(JSON.stringify(report,null,2)); if(invalid.length||blockedExternalRequests.length)process.exitCode=1;
-
-
-
