@@ -153,6 +153,7 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(nav?.className).toContain('px-2');
     expect(styleText).toContain('width 340ms cubic-bezier(0.16, 1, 0.3, 1)');
     expect(styleText).toContain('opacity 150ms ease 125ms');
+    expect(styleText).toContain('.sidebar-brand-compact { display: none; }');
     expect(styleText).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
