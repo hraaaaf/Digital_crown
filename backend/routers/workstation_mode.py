@@ -584,20 +584,24 @@ def pair_workstation(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workstation is already paired")
 
     now = datetime.utcnow()
-    pairing = (
+    consumed = (
         db.query(models.WorkstationPairingCode)
         .filter(
             models.WorkstationPairingCode.employer_id == employer_id,
             models.WorkstationPairingCode.code_hash == _pairing_code_hash(employer_id, payload.code),
             models.WorkstationPairingCode.used_at.is_(None),
+            models.WorkstationPairingCode.expires_at >= now,
         )
-        .first()
+        .update(
+            {models.WorkstationPairingCode.used_at: now},
+            synchronize_session=False,
+        )
     )
-    if pairing is None or pairing.expires_at < now:
+    if consumed != 1:
+        db.rollback()
         record_rate_limit_failure(request, scope)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or expired pairing code")
 
-    pairing.used_at = now
     row = _register_workstation(
         request,
         response,
