@@ -261,6 +261,8 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "--deny-self-hosted-runners" in creator
     assert "unlisted appended CODE file refused" in creator
     assert "compose_installable_release.py" in creator
+    assert '$env:PYTHONDONTWRITEBYTECODE = "1"' in creator
+    assert '$env:PYTHONDONTWRITEBYTECODE = $oldDontWriteBytecode' in creator
 
     assert "verify_installable_release.py" in launcher
     assert "INSTALLABLE_CERTIFIED" in launcher
