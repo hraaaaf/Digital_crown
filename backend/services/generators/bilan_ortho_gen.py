@@ -92,15 +92,18 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         delta=row.get("reference_delta")
         def show(number):
             return f"{number:g}" if isinstance(number,(int,float)) else "?"
+        interpretation = str(row.get("interpretation_status") or "")
+        if interpretation == "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION":
+            interpretation = "R?f?rence historique ? aucune classification clinique"
         return {
             "canonical_measurement_id":str(row.get("canonical_measurement_id") or ""),
             "label":str(row.get("label") or row.get("canonical_measurement_id") or "Mesure"),
             "layer":str(row.get("layer") or ""),
-            "value":f"{show(value)} {unit}".strip() if value is not None else status,
+            "value":f"{show(value)} {unit}".strip() if value is not None else "Non calculable",
             "reference":f"{show(reference)} {unit}".strip() if reference is not None else "?",
             "delta":f"{show(delta)} {unit}".strip() if delta is not None else "?",
             "reference_authority":str(row.get("reference_authority") or ""),
-            "interpretation_status":str(row.get("interpretation_status") or ""),
+            "interpretation_status":interpretation,
         }
 
     def _shared_context(self, vm: schemas.CephaloViewModel, projection: dict[str, Any]) -> dict[str, Any]:
@@ -248,6 +251,30 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
         elements.extend([table, Spacer(1, 0.4*cm)])
+
+        if context["steiner_protocol"]:
+            steiner = context["steiner_protocol"]
+            elements.append(Paragraph("Analyse protocolaire Steiner", h2))
+            elements.append(Paragraph(
+                f"{escape(str(steiner.get('protocol_profile_id') or 'Steiner'))} ? "
+                f"source-lock {escape(str(steiner.get('source_lock_status') or 'non v?rifi?'))}. "
+                "R?f?rences historiques affich?es ? titre comparatif uniquement; aucune classification clinique universelle n'est produite.",
+                body,
+            ))
+            protocol_rows = [["Mesure", "Valeur", "R?f. hist.", "? r?f.", "Statut"]]
+            for row in steiner.get("rows", []):
+                protocol_rows.append([
+                    row["label"], row["value"], row["reference"], row["delta"], row["interpretation_status"]
+                ])
+            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.2*cm, 2.8*cm, 2.8*cm, 2.8*cm, 4.0*cm])
+            protocol_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), p_color),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("FONTSIZE", (0, 0), (-1, -1), 7.0),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            elements.extend([protocol_table, Spacer(1, 0.4*cm)])
 
         elements.append(Paragraph("Chaîne clinique R11 -&gt; R14", h2))
         for stage in context["stages"]:

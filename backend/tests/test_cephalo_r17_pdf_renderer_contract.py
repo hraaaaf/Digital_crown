@@ -140,7 +140,7 @@ def test_steiner_protocol_renderer_preserves_display_only_reference_contract(tmp
                 "label": "SNA",
                 "layer": "STEINER_1953_BASE",
                 "value": 83.5,
-                "unit": "?",
+                "unit": "\u00b0",
                 "availability_status": "AVAILABLE",
                 "historical_reference": 82.0,
                 "reference_delta": 1.5,
@@ -159,4 +159,13 @@ def test_steiner_protocol_renderer_preserves_display_only_reference_contract(tmp
     html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
     assert "Analyse protocolaire Steiner" in html
     assert "classification clinique universelle" in html
-    assert "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION" in html
+    assert "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION" not in html
+    assert "aucune classification clinique" in html
+
+
+def test_reportlab_renderer_contains_steiner_protocol_section():
+    import inspect
+    source = inspect.getsource(BilanOrthoPDFGenerator._generate_reportlab)
+    assert 'context["steiner_protocol"]' in source
+    assert 'Analyse protocolaire Steiner' in source
+    assert 'protocol_table = Table' in source

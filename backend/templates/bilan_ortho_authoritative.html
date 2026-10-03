@@ -70,10 +70,10 @@ Les données absentes, non calculables ou non validées restent explicitement no
 <h2>Analyse protocolaire Steiner</h2>
 <div class="notice">
 <strong>{{ steiner_protocol.protocol_profile_id }}</strong> - source-lock {{ steiner_protocol.source_lock_status }}.<br>
-<span class="small">References historiques affichees a titre comparatif uniquement. Elles ne constituent pas une classification clinique universelle.</span>
+<span class="small">Références historiques affichées à titre comparatif uniquement. Elles ne constituent pas une classification clinique universelle.</span>
 </div>
 <table>
-<thead><tr><th>Mesure</th><th>Valeur</th><th>Ref. hist.</th><th>Delta ref.</th><th>Etat interpretatif</th></tr></thead>
+<thead><tr><th>Mesure</th><th>Valeur</th><th>Ref. hist.</th><th>Delta ref.</th><th>État interprétatif</th></tr></thead>
 <tbody>
 {% for row in steiner_protocol.rows %}
 <tr><td>{{ row.label }}</td><td>{{ row.value }}</td><td>{{ row.reference }}</td><td>{{ row.delta }}</td><td>{{ row.interpretation_status }}</td></tr>
