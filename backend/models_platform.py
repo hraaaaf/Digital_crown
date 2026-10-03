@@ -38,6 +38,9 @@ class WorkstationSecurityPolicy(Base):
 
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     owner_pin_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    pairing_failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    pairing_failure_window_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    pairing_locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     updated_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
