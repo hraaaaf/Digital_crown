@@ -248,6 +248,7 @@ def _register_workstation(
         display_name=_normalized_display_name(display_name) if display_name is not None else None,
         default_experience=None,
         mode_revision=0,
+        last_seen_at=datetime.utcnow(),
         updated_by_user_id=user.id,
     )
     db.add(row)
