@@ -13,6 +13,7 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
   const [names, setNames] = useState<Record<string, string>>({});
   const [ownerPin, setOwnerPin] = useState('');
   const [pairing, setPairing] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
 
@@ -73,10 +74,16 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
 
   const revoke = async (item: WorkstationRegistryEntry) => {
     if (!requirePin()) return;
+    if (confirmRevokeId !== item.workstationId) {
+      setConfirmRevokeId(item.workstationId);
+      setFeedback('Confirmez la révocation de ce poste.');
+      return;
+    }
     setBusy(`revoke:${item.workstationId}`);
     setFeedback('');
     try {
       await workstationModeService.revokeWorkstation(item.workstationId, ownerPin);
+      setConfirmRevokeId(null);
       await refresh();
       setFeedback(item.workstationId === current.workstationId
         ? 'Ce poste a été révoqué. Il devra être appairé de nouveau.'
@@ -185,8 +192,22 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
                     onClick={() => void revoke(item)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-elite-sm border border-border-main bg-card-bg px-3 text-xs font-black text-main disabled:opacity-50"
                   >
-                    <ShieldX size={14} aria-hidden="true" /> Révoquer
+                    <ShieldX size={14} aria-hidden="true" />
+                    {confirmRevokeId === item.workstationId ? 'Confirmer la révocation' : 'Révoquer'}
                   </button>
+                  {confirmRevokeId === item.workstationId && (
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        setConfirmRevokeId(null);
+                        setFeedback('');
+                      }}
+                      className="inline-flex min-h-11 items-center justify-center rounded-elite-sm border border-border-main bg-card-bg px-3 text-xs font-black text-main disabled:opacity-50"
+                    >
+                      Annuler
+                    </button>
+                  )}
                 </div>
               )}
             </div>
