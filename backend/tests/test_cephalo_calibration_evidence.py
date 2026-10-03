@@ -83,7 +83,12 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert calibration[0]["metadata"]["calibrated_by"] == "99"
 
     measurements = payload["measurements"]
-    assert all(item["availability_status"] == "AVAILABLE" for item in measurements)
+    non_available = [
+        item for item in measurements if item["availability_status"] != "AVAILABLE"
+    ]
+    assert [(item["method_id"], item["availability_status"]) for item in non_available] == [
+        ("RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2", "NOT_COMPUTABLE")
+    ]
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
     steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
