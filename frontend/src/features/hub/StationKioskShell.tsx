@@ -122,8 +122,8 @@ export const StationKioskShell = ({
       onKeyDown={noteActivity}
       className="relative min-h-screen overflow-x-hidden bg-main-bg text-main"
     >
-      <div aria-hidden="true" className="pointer-events-none absolute -left-32 -top-36 h-80 w-80 rounded-full bg-primary/7 blur-3xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-primary/7 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -left-32 -top-36 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
         <header className="flex items-center justify-between gap-3">
@@ -160,11 +160,11 @@ export const StationKioskShell = ({
 
         <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center py-8 sm:py-10 lg:py-12">
           <div className="text-center">
-            <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-primary">
+            <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-black uppercase tracking-widest text-primary">
               <ShieldCheck size={15} aria-hidden="true" />
               {copy.secure}
             </div>
-            <p className="mt-5 text-xs font-black uppercase tracking-[0.18em] text-primary">{copy.eyebrow}</p>
+            <p className="mt-5 text-xs font-black uppercase tracking-widest text-primary">{copy.eyebrow}</p>
             <h1 className="mx-auto mt-3 max-w-3xl font-outfit text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
               {screen === 'home' ? copy.title : copy[ACTIONS.find((action) => action.id === screen)?.title ?? 'appointment']}
             </h1>
@@ -205,7 +205,7 @@ export const StationKioskShell = ({
           )}
         </section>
 
-        <footer className="pb-[max(0.25rem,env(safe-area-inset-bottom))] text-center text-xs font-bold leading-relaxed text-text-muted">
+        <footer className="pb-1 text-center text-xs font-bold leading-relaxed text-text-muted">
           {copy.privacy}
         </footer>
       </div>
