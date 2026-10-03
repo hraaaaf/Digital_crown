@@ -1,0 +1,73 @@
+name: V1.5-03.1 Kiosk Shell Visual Evidence
+
+on:
+  push:
+    branches:
+      - feat/v1-5-03-1-kiosk-shell
+  pull_request:
+    branches: [master]
+    paths:
+      - "frontend/src/features/hub/WorkstationExperiencePage.tsx"
+      - "frontend/src/features/hub/WorkstationExperiencePage.test.tsx"
+      - "frontend/src/features/hub/StationKioskShell.tsx"
+      - "frontend/src/features/hub/StationKioskShell.test.tsx"
+      - "frontend/scripts/capture-v15-03-1-kiosk-shell.mjs"
+      - ".github/workflows/v15-03-1-kiosk-shell-visual.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'a518ad91bd2934d0f2f7c6c25f75d285e9e237fe' }}
+      V15_03_1_PHASE: after
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Kiosk shell unit tests
+        working-directory: frontend
+        run: npx vitest run src/features/hub/StationKioskShell.test.tsx src/features/hub/WorkstationExperiencePage.test.tsx --maxWorkers=1 --fileParallelism=false
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4195 >/tmp/v15-03-1-frontend.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:4195 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v15-03-1-frontend.log
+          exit 1
+
+      - name: Capture kiosk shell evidence
+        working-directory: frontend
+        run: node scripts/capture-v15-03-1-kiosk-shell.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-03-1-kiosk-shell-${{ env.V15_03_1_PHASE }}
+          path: frontend/artifacts/v15-03-1-kiosk-shell-${{ env.V15_03_1_PHASE }}
+          if-no-files-found: error
+          retention-days: 14
