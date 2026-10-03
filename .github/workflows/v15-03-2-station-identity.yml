@@ -8,6 +8,7 @@ on:
     branches: [master]
     paths:
       - "backend/config.py"
+      - "backend/core/schema_runtime.py"
       - "backend/models.py"
       - "backend/models_platform.py"
       - "backend/routers/workstation_mode.py"
