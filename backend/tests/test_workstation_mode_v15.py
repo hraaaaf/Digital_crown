@@ -624,6 +624,10 @@ def test_workstation_pin_rate_limit_counts_failures_not_successes(client, db, de
             json={"mode": "station", "ownerPin": "0000"},
         )
         assert wrong.status_code == 403, wrong.text
+        # Prove the security decision is DB-backed, not dependent on one
+        # worker's in-memory limiter state.
+        with rate_limit._lock:
+            rate_limit._attempts.clear()
 
     limited = client.post(
         "/api/workstation/mode",
@@ -970,6 +974,8 @@ def test_issuing_new_pairing_code_invalidates_previous_unused_code(client, db, d
 
 
 def test_pairing_short_code_is_failure_rate_limited(client, db, dentiste):
+    from backend.utils import rate_limit
+
     token = _token(client, dentiste.email, "TestPass123!")
     assert client.get("/api/workstation/state", headers=_headers(token)).status_code == 200
     assert client.post(
