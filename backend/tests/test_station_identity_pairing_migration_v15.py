@@ -37,6 +37,12 @@ def test_station_identity_pairing_migration_roundtrip(tmp_path):
             revision.upgrade()
             inspector = inspect(connection)
             assert "workstation_pairing_codes" in inspector.get_table_names()
+            policy_columns = {column["name"] for column in inspector.get_columns("workstation_security_policies")}
+            assert {
+                "pairing_failed_attempts",
+                "pairing_failure_window_started_at",
+                "pairing_locked_until",
+            }.issubset(policy_columns)
             columns = {column["name"] for column in inspector.get_columns("workstation_modes")}
             assert {"display_name", "revoked_at", "last_seen_at"}.issubset(columns)
             pairing_columns = {column["name"] for column in inspector.get_columns("workstation_pairing_codes")}
@@ -60,6 +66,10 @@ def test_station_identity_pairing_migration_roundtrip(tmp_path):
             assert "display_name" not in columns
             assert "revoked_at" not in columns
             assert "last_seen_at" not in columns
+            policy_columns = {column["name"] for column in inspector.get_columns("workstation_security_policies")}
+            assert "pairing_failed_attempts" not in policy_columns
+            assert "pairing_failure_window_started_at" not in policy_columns
+            assert "pairing_locked_until" not in policy_columns
         finally:
             base.op = base_original
             revision.op = revision_original
