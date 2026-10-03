@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { KeyRound, MonitorCog, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { WorkstationIdentityPanel } from './WorkstationIdentityPanel';
 import {
   workstationModeService,
   type WorkstationBootstrapState,
@@ -38,9 +39,11 @@ export const WorkstationModeAdminPanel = () => {
   const [ownerPin, setOwnerPin] = useState('');
   const [accountPassword, setAccountPassword] = useState('');
   const [enrollmentPassword, setEnrollmentPassword] = useState('');
+  const [pairingCode, setPairingCode] = useState('');
+  const [pairingName, setPairingName] = useState('');
   const [newPin, setNewPin] = useState('');
   const [selectedMode, setSelectedMode] = useState<WorkstationExperience>('cabinet');
-  const [busy, setBusy] = useState<'enroll' | 'pin' | 'mode' | null>(null);
+  const [busy, setBusy] = useState<'enroll' | 'pair' | 'pin' | 'mode' | null>(null);
   const [feedback, setFeedback] = useState('');
 
   const refresh = async () => {
@@ -99,6 +102,30 @@ export const WorkstationModeAdminPanel = () => {
     }
   };
 
+  const pair = async () => {
+    const code = pairingCode.replace(/\D/g, '');
+    const name = pairingName.trim();
+    if (!/^\d{6}$/.test(code) || !name) {
+      setFeedback('Saisissez le code à 6 chiffres et le nom de cette borne.');
+      return;
+    }
+    setBusy('pair');
+    setFeedback('');
+    try {
+      const next = await workstationModeService.pairWorkstation(code, name);
+      setPairingCode('');
+      setPairingName('');
+      setState(next);
+      setBootstrap({ ...next, authenticated: true });
+      if (next.defaultExperience) setSelectedMode(next.defaultExperience);
+      setFeedback('Borne appairée et identifiée.');
+    } catch (error) {
+      setFeedback(errorDetail(error));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (bootstrap?.enrollmentRequired) {
     return (
       <section data-workstation-enrollment className="mt-6 rounded-elite-lg border border-primary/20 bg-card-bg p-5 shadow-elite sm:p-6">
@@ -115,32 +142,63 @@ export const WorkstationModeAdminPanel = () => {
           </div>
         </div>
 
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-black uppercase tracking-wide text-text-muted">
+            Nom de cette borne
+            <input
+              value={pairingName}
+              maxLength={80}
+              onChange={(event) => setPairingName(event.target.value)}
+              placeholder="Ex. Accueil 1"
+              className="mt-2 min-h-11 w-full rounded-elite-sm border border-border-main bg-main-bg px-3 text-sm font-semibold text-main outline-none focus:border-primary"
+            />
+          </label>
+          <label className="text-xs font-black uppercase tracking-wide text-text-muted">
+            Code d’appairage
+            <input
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={pairingCode}
+              onChange={(event) => setPairingCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              className="mt-2 min-h-11 w-full rounded-elite-sm border border-border-main bg-main-bg px-3 text-sm font-semibold text-main outline-none focus:border-primary"
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          disabled={busy !== null || pairingCode.length !== 6 || !pairingName.trim()}
+          onClick={pair}
+          className="mt-3 min-h-11 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:opacity-50"
+        >
+          {busy === 'pair' ? 'Appairage…' : 'Appairer cette borne'}
+        </button>
+
         {bootstrap.canConfigurePin ? (
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <label className="flex-1 text-xs font-black uppercase tracking-wide text-text-muted">
-              Mot de passe du compte propriétaire
-              <input
-                type="password"
-                value={enrollmentPassword}
-                onChange={(event) => setEnrollmentPassword(event.target.value)}
-                autoComplete="current-password"
-                className="mt-2 min-h-11 w-full rounded-elite-sm border border-border-main bg-main-bg px-3 text-sm font-semibold text-main outline-none focus:border-primary"
-              />
-            </label>
-            <button
-              type="button"
-              disabled={busy !== null || !enrollmentPassword}
-              onClick={enroll}
-              className="self-end min-h-11 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:border disabled:border-border-main disabled:bg-main-bg disabled:text-text-muted disabled:opacity-100"
-            >
-              {busy === 'enroll' ? 'Vérification…' : 'Réenregistrer le poste'}
-            </button>
-          </div>
-        ) : (
-          <p className="mt-5 rounded-elite-sm border border-border-main bg-main-bg p-3 text-sm font-semibold text-text-muted">
-            Le propriétaire principal doit réenregistrer ce poste.
-          </p>
-        )}
+          <details className="mt-4 rounded-elite-sm border border-border-main bg-main-bg p-4">
+            <summary className="cursor-pointer text-sm font-black text-main">Récupération propriétaire sans code</summary>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <label className="flex-1 text-xs font-black uppercase tracking-wide text-text-muted">
+                Mot de passe du compte propriétaire
+                <input
+                  type="password"
+                  value={enrollmentPassword}
+                  onChange={(event) => setEnrollmentPassword(event.target.value)}
+                  autoComplete="current-password"
+                  className="mt-2 min-h-11 w-full rounded-elite-sm border border-border-main bg-card-bg px-3 text-sm font-semibold text-main outline-none focus:border-primary"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={busy !== null || !enrollmentPassword}
+                onClick={enroll}
+                className="self-end min-h-11 rounded-elite-sm border border-border-main bg-card-bg px-5 text-sm font-black text-main disabled:opacity-50"
+              >
+                {busy === 'enroll' ? 'Vérification…' : 'Réenregistrer le poste'}
+              </button>
+            </div>
+          </details>
+        ) : null}
 
         {feedback && <p role="status" className="mt-3 text-sm font-bold text-text-muted">{feedback}</p>}
       </section>
@@ -195,7 +253,7 @@ export const WorkstationModeAdminPanel = () => {
             <MonitorCog size={18} />
             <span className="text-xs font-black uppercase tracking-widest">Configuration du poste</span>
           </div>
-          <h2 className="mt-2 font-outfit text-lg font-black">Mode de démarrage permanent</h2>
+          <h2 className="mt-2 font-outfit text-lg font-black">{state.displayName || 'Ce poste'} · Mode de démarrage</h2>
           <p className="mt-1 text-sm font-semibold text-text-muted">
             Le serveur reste l'autorité. Un changement permanent exige le PIN propriétaire.
           </p>
@@ -292,6 +350,7 @@ export const WorkstationModeAdminPanel = () => {
       </div>
 
       {feedback && <p role="status" className="mt-3 text-sm font-bold text-text-muted">{feedback}</p>}
+      <WorkstationIdentityPanel current={state} />
     </section>
   );
 };
