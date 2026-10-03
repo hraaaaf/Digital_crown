@@ -185,7 +185,7 @@ jobs:
           fs.writeFileSync(path.join(out,'after-evidence.json'),JSON.stringify(evidence,null,2));
           await browser.close(); await api.dispose();
           JS
-          GITHUB_SHA="$GITHUB_SHA" node .document-history-after.mjs
+          GITHUB_SHA="$GITHUB_SHA" node scripts/run-with-t2-workstation.mjs .document-history-after.mjs
           rm .document-history-after.mjs
       - name: Stop isolated backend
         if: always()
