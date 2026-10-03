@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -82,9 +83,22 @@ def _token_hash(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _pairing_code_pepper() -> bytes:
+    configured = str(getattr(settings, "PAIRING_CODE_PEPPER", "") or "").strip()
+    if configured:
+        return configured.encode("utf-8")
+    # Backwards-compatible local/test fallback: domain-separated derivation,
+    # never the raw application SECRET_KEY used directly as the pairing HMAC key.
+    return hmac.new(
+        SECRET_KEY.encode("utf-8"),
+        b"digital-crown/workstation-pairing-pepper/v1",
+        hashlib.sha256,
+    ).digest()
+
+
 def _pairing_code_hash(employer_id: int, code: str) -> str:
-    peppered = f"{employer_id}:{code}:{SECRET_KEY}"
-    return hashlib.sha256(peppered.encode("utf-8")).hexdigest()
+    message = f"{employer_id}:{code}".encode("utf-8")
+    return hmac.new(_pairing_code_pepper(), message, hashlib.sha256).hexdigest()
 
 
 def _normalized_display_name(value: str) -> str:
@@ -135,6 +149,27 @@ def _can_configure_pin(user: models.User) -> bool:
     return user.employer_id is None and int(user.id) == employer_id
 
 
+def _add_audit_entry(
+    db: Session,
+    *,
+    user: models.User,
+    action: str,
+    resource_type: str,
+    resource_id: str,
+    details: str,
+    request: Request,
+) -> None:
+    db.add(models.AuditLog(
+        user_id=user.id,
+        employer_id=_employer_id(user),
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        details=details,
+        ip_address=request.client.host if request.client else None,
+    ))
+
+
 def _commit_with_audit(
     db: Session,
     *,
@@ -146,15 +181,15 @@ def _commit_with_audit(
     request: Request,
 ) -> None:
     try:
-        db.add(models.AuditLog(
-            user_id=user.id,
-            employer_id=_employer_id(user),
+        _add_audit_entry(
+            db,
+            user=user,
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
             details=details,
-            ip_address=request.client.host if request.client else None,
-        ))
+            request=request,
+        )
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -221,7 +256,7 @@ def _station_status(row: models.WorkstationMode) -> str:
         return "revoked"
     if row.last_seen_at is None:
         return "offline"
-    return "online" if (datetime.utcnow() - row.last_seen_at).total_seconds() <= 120 else "offline"
+    return "recent" if (datetime.utcnow() - row.last_seen_at).total_seconds() <= 120 else "offline"
 
 
 def _tenant_has_workstations(db: Session, employer_id: int) -> bool:
@@ -233,14 +268,12 @@ def _tenant_has_workstations(db: Session, employer_id: int) -> bool:
     )
 
 
-def _register_workstation(
-    request: Request,
-    response: Response,
+def _create_workstation_row(
     db: Session,
     user: models.User,
     *,
     display_name: str | None = None,
-) -> models.WorkstationMode:
+) -> tuple[models.WorkstationMode, str]:
     raw = secrets.token_urlsafe(32)
     row = models.WorkstationMode(
         employer_id=_employer_id(user),
@@ -253,6 +286,18 @@ def _register_workstation(
     )
     db.add(row)
     db.flush()
+    return row, raw
+
+
+def _register_workstation(
+    request: Request,
+    response: Response,
+    db: Session,
+    user: models.User,
+    *,
+    display_name: str | None = None,
+) -> models.WorkstationMode:
+    row, raw = _create_workstation_row(db, user, display_name=display_name)
     _commit_with_audit(
         db,
         user=user,
@@ -629,22 +674,47 @@ def pair_workstation(
         record_rate_limit_failure(request, scope)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or expired pairing code")
 
-    row = _register_workstation(
-        request,
-        response,
-        db,
-        current_user,
-        display_name=payload.displayName,
-    )
-    _commit_with_audit(
-        db,
-        user=current_user,
-        action="WORKSTATION_PAIRED",
-        resource_type="WorkstationMode",
-        resource_id=row.id,
-        details="Workstation paired with single-use code; secret not logged.",
-        request=request,
-    )
+    try:
+        row, raw = _create_workstation_row(
+            db,
+            current_user,
+            display_name=payload.displayName,
+        )
+        _add_audit_entry(
+            db,
+            user=current_user,
+            action="WORKSTATION_REGISTERED",
+            resource_type="WorkstationMode",
+            resource_id=row.id,
+            details="Opaque server-side workstation identity registered.",
+            request=request,
+        )
+        _add_audit_entry(
+            db,
+            user=current_user,
+            action="WORKSTATION_PAIRED",
+            resource_type="WorkstationMode",
+            resource_id=row.id,
+            details="Workstation paired with single-use code; secret not logged.",
+            request=request,
+        )
+        # Critical atomic boundary: code consumption + workstation row + both audit
+        # records must commit together. Any failure rolls the whole pairing back.
+        db.commit()
+        db.refresh(row)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Atomic workstation pairing transaction failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Workstation pairing could not be committed",
+        ) from exc
+
+    _set_workstation_cookie(response, raw)
+    response.delete_cookie(ESCAPE_COOKIE, path="/")
     reset_rate_limit_failures(request, scope)
     return _state_payload(request, row, current_user, db)
 
