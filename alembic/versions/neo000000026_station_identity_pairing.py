@@ -13,6 +13,19 @@ depends_on = None
 
 
 def upgrade():
+    op.add_column(
+        "workstation_security_policies",
+        sa.Column("pairing_failed_attempts", sa.Integer(), nullable=False, server_default="0"),
+    )
+    op.add_column(
+        "workstation_security_policies",
+        sa.Column("pairing_failure_window_started_at", sa.DateTime(), nullable=True),
+    )
+    op.add_column(
+        "workstation_security_policies",
+        sa.Column("pairing_locked_until", sa.DateTime(), nullable=True),
+    )
+
     op.add_column("workstation_modes", sa.Column("display_name", sa.String(length=80), nullable=True))
     op.add_column("workstation_modes", sa.Column("revoked_at", sa.DateTime(), nullable=True))
     op.add_column("workstation_modes", sa.Column("last_seen_at", sa.DateTime(), nullable=True))
@@ -51,3 +64,6 @@ def downgrade():
     op.drop_column("workstation_modes", "last_seen_at")
     op.drop_column("workstation_modes", "revoked_at")
     op.drop_column("workstation_modes", "display_name")
+    op.drop_column("workstation_security_policies", "pairing_locked_until")
+    op.drop_column("workstation_security_policies", "pairing_failure_window_started_at")
+    op.drop_column("workstation_security_policies", "pairing_failed_attempts")
