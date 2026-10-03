@@ -35,6 +35,24 @@ const scenarios = [
     state: null,
     expect: '[data-workstation-enrollment]',
   },
+  ...(phase === 'after' ? [
+    {
+      name: 'hub-pairing-code',
+      url: '/hub?select=1',
+      bootstrap: baseBootstrap,
+      state: baseBootstrap,
+      expect: '[data-workstation-identity]',
+      action: 'pairing-code',
+    },
+    {
+      name: 'hub-revoke-confirm',
+      url: '/hub?select=1',
+      bootstrap: baseBootstrap,
+      state: baseBootstrap,
+      expect: '[data-workstation-identity]',
+      action: 'revoke-confirm',
+    },
+  ] : []),
 ];
 
 const registry = [
@@ -99,6 +117,11 @@ try {
           contentType: 'application/json',
           body: JSON.stringify(registry),
         }));
+        await context.route('**/api/workstation/pairing-code', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: '654321', expiresAt: '2026-10-03T10:15:00' }),
+        }));
 
         const page = await context.newPage();
         const errors = [];
@@ -108,6 +131,18 @@ try {
         });
 
         await page.goto(`http://127.0.0.1:4196${scenario.url}`, { waitUntil: 'networkidle', timeout: 30000 });
+
+        if (scenario.action === 'pairing-code') {
+          await page.getByLabel('PIN propriétaire pour les actions sensibles').fill('2468');
+          await page.getByRole('button', { name: 'Nouveau code d’appairage' }).click();
+          await page.getByText('654321').waitFor();
+        }
+        if (scenario.action === 'revoke-confirm') {
+          await page.getByLabel('PIN propriétaire pour les actions sensibles').fill('2468');
+          await page.getByRole('button', { name: 'Révoquer' }).nth(1).click();
+          await page.getByRole('button', { name: 'Confirmer la révocation' }).waitFor();
+        }
+
         if (scale.rootFontSize) {
           await page.evaluate(value => { document.documentElement.style.fontSize = value; }, scale.rootFontSize);
           await page.waitForTimeout(100);
@@ -119,6 +154,8 @@ try {
           expectedVisible: Boolean(document.querySelector(expectSelector)),
           identityVisible: Boolean(document.querySelector('[data-workstation-identity]')),
           enrollmentVisible: Boolean(document.querySelector('[data-workstation-enrollment]')),
+          pairingCodeVisible: document.body.textContent?.includes('654321') || false,
+          revokeConfirmVisible: document.body.textContent?.includes('Confirmer la révocation') || false,
           h1: document.querySelector('h1')?.textContent || '',
         }), scenario.expect);
 
@@ -144,7 +181,9 @@ await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, nul
 const failures = report.filter(item =>
   !item.expectedVisible ||
   item.scrollWidth > item.width ||
-  item.errors.length > 0
+  item.errors.length > 0 ||
+  (item.scenario === 'hub-pairing-code' && !item.pairingCodeVisible) ||
+  (item.scenario === 'hub-revoke-confirm' && !item.revokeConfirmVisible)
 );
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length > 0) {
