@@ -97,7 +97,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     calibrationStep, calibrationDistance, applyCalibration, local, imgDim,
     updateLandmarksOptimistic, activePointId, setActivePointId, anglesData,
     performanceMode, isUploading, uploadError,
-    activeMorphing, setActiveMorphing
+    activeMorphing, setActiveMorphing, layerVisibility, layerOpacity, setLayerVisible
   } = store;
 
   const calibrationData = anglesData?.__calibrationData ?? null;
@@ -163,24 +163,33 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     }
   };
 
-  // Calcul des projections de croissance (Ghosts T1 / T2)
+  // Historical T1/T2 projections stay visualization-only. LOT07 allows
+  // independent layer visibility without defining a new longitudinal registration.
   const computedGhosts = React.useMemo(() => {
-    if (activeMorphing === 'none') return [];
-    const projection = activeMorphing === 'T1' ? anglesData?.t1_projection : anglesData?.t2_projection;
-    if (!projection || Object.keys(projection).length === 0) return [];
+    const requested = new Set<'T1' | 'T2'>();
+    if (layerVisibility.t1) requested.add('T1');
+    if (layerVisibility.t2) requested.add('T2');
+    if (activeMorphing === 'T1' || activeMorphing === 'T2') requested.add(activeMorphing);
 
-    const ghostLandmarks = Object.entries(projection).map(([id, coords]) => ({
-      id,
-      x: (coords as [number, number])[0],
-      y: (coords as [number, number])[1]
-    }));
+    return Array.from(requested).flatMap(layer => {
+      const projection = layer === 'T1' ? anglesData?.t1_projection : anglesData?.t2_projection;
+      if (!projection || Object.keys(projection).length === 0) return [];
 
-    return [{
-      landmarks: ghostLandmarks,
-      opacity: 0.5,
-      color: activeMorphing === 'T1' ? P.accent : P.accentSuccess
-    }];
-  }, [activeMorphing, anglesData, P]);
+      const ghostLandmarks = Object.entries(projection).map(([id, coords]) => ({
+        id,
+        x: (coords as [number, number])[0],
+        y: (coords as [number, number])[1]
+      }));
+
+      const layerId: 't1' | 't2' = layer === 'T1' ? 't1' : 't2';
+      return [{
+        layerId,
+        landmarks: ghostLandmarks,
+        opacity: 1,
+        color: layer === 'T1' ? P.accent : P.accentSuccess
+      }];
+    });
+  }, [activeMorphing, anglesData, layerVisibility.t1, layerVisibility.t2, P]);
 
   if (!imageSrc) {
     return (
@@ -276,6 +285,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           magnifierEnabled={magnifierEnabled}
           performanceMode={performanceMode}
           vto={vtoSettings}
+          layerPresentation={{ visibility: layerVisibility, opacity: layerOpacity }}
         />
       </div>
 
@@ -449,16 +459,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30 sm:right-6">
         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl shadow-2xl">
           <button 
-            onClick={() => setActiveMorphing(activeMorphing === 'T1' ? 'none' : 'T1')}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${activeMorphing === 'T1' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+            onClick={() => { setActiveMorphing('none'); setLayerVisible('t1', !layerVisibility.t1); }}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${layerVisibility.t1 ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
             title="Morphing à 1 an"
           >
             T1
           </button>
           
           <button 
-            onClick={() => setActiveMorphing(activeMorphing === 'T2' ? 'none' : 'T2')}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${activeMorphing === 'T2' ? 'bg-fuchsia-500 text-white shadow-[0_0_15px_rgba(217,70,239,0.5)]' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+            onClick={() => { setActiveMorphing('none'); setLayerVisible('t2', !layerVisibility.t2); }}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${layerVisibility.t2 ? 'bg-fuchsia-500 text-white shadow-[0_0_15px_rgba(217,70,239,0.5)]' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
             title="Morphing à 5 ans"
           >
             T2
@@ -467,8 +477,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           <div className="w-6 h-px bg-slate-700/50 mx-auto my-1" />
 
           <button 
-            onClick={() => setVtoSettings((v: VTOSettings) => ({ ...v, showSoftTissue: !v.showSoftTissue }))}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl text-[9px] font-black transition-all leading-tight text-center ${vtoSettings.showSoftTissue ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+            onClick={() => { const next = !layerVisibility.soft_tissue; setLayerVisible('soft_tissue', next); setVtoSettings((v: VTOSettings) => ({ ...v, showSoftTissue: next })); }}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl text-[9px] font-black transition-all leading-tight text-center ${layerVisibility.soft_tissue ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
           >
             SKIN
           </button>

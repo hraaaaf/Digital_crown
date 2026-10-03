@@ -104,6 +104,8 @@ const unitAxis = (start?: Landmark, end?: Landmark) => {
  */
 export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) => {
   const P = getCephaloPalette();
+  const layerVisible = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.visibility[id] ?? true;
+  const layerOpacity = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.opacity[id] ?? 1;
   const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
   const [metricFocus, setMetricFocus] = React.useState<CephaloMetricFocus | null>(props.hoveredMetric ?? null);
 
@@ -235,7 +237,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     const active = !focusedKey || keys.includes(focusedKey);
     return {
       stroke: cephaloGeometryColor(geometryKey),
-      opacity: active ? 0.96 : 0.16,
+      opacity: layerVisible('plans') ? (active ? 0.96 : 0.16) * layerOpacity('plans') : 0,
       strokeWidth: active && focusedKey ? 2.6 : 1.7,
     };
   };
@@ -251,14 +253,14 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
         hoveredMetric={metricFocus ?? props.hoveredMetric ?? null}
       />
 
-      {(showRickettsHard || showCom) && props.imageWidth > 0 && props.imageHeight > 0 && (
+      {(showRickettsHard || showCom) && (layerVisible('plans') || layerVisible('landmarks') || layerVisible('measurements')) && props.imageWidth > 0 && props.imageHeight > 0 && (
         <svg
           viewBox={`0 0 ${props.imageWidth} ${props.imageHeight}`}
           preserveAspectRatio="xMidYMid meet"
           className="pointer-events-none absolute inset-0 z-[28] h-full w-full"
           aria-hidden="true"
         >
-          {showRickettsHard && po && orPoint && (
+          {layerVisible('plans') && showRickettsHard && po && orPoint && (
             <line
               data-r18-construction="ricketts-frankfort"
               x1={po.x} y1={po.y} x2={orPoint.x} y2={orPoint.y}
@@ -266,7 +268,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               opacity="0.9" vectorEffect="non-scaling-stroke"
             />
           )}
-          {showRickettsHard && n && pog && (
+          {layerVisible('plans') && showRickettsHard && n && pog && (
             <line
               data-r18-construction="ricketts-n-pog"
               x1={n.x} y1={n.y} x2={pog.x} y2={pog.y}
@@ -274,7 +276,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               opacity="0.92" vectorEffect="non-scaling-stroke"
             />
           )}
-          {showRickettsHard && a && aOnNPog && (
+          {layerVisible('plans') && showRickettsHard && a && aOnNPog && (
             <line
               data-r18-construction="ricketts-convexity"
               x1={a.x} y1={a.y} x2={aOnNPog.x} y2={aOnNPog.y}
@@ -282,10 +284,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               opacity="0.95" vectorEffect="non-scaling-stroke"
             />
           )}
-          {showRickettsMarkers && [po, orPoint, n, pog, a].filter(Boolean).map(point => {
+          {layerVisible('landmarks') && showRickettsMarkers && [po, orPoint, n, pog, a].filter(Boolean).map(point => {
             const p = point as Landmark;
             return (
-              <g key={`ricketts-${p.id}`} data-r18-point={p.id}>
+              <g key={`ricketts-${p.id}`} data-r18-point={p.id} opacity={layerOpacity('landmarks')}>
                 <circle cx={p.x} cy={p.y} r="3.4" fill={P.bgInput} stroke={CEPHALO_SCIENTIFIC_COLORS.skeletal} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 <text x={p.x + 10} y={p.y - 10} fill={P.text} fontSize="10" fontWeight="800">{p.id}</text>
               </g>
@@ -345,17 +347,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             return <line data-r19-construction="com-overbite" x1={overjetEnd.x} y1={overjetEnd.y} x2={u1i.x} y2={u1i.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
 
-          {showCom && [po, orPoint, n, s, a, b, go, me, u1i, u1a, l1i, l1a].filter(Boolean).map(point => {
+          {layerVisible('landmarks') && showCom && [po, orPoint, n, s, a, b, go, me, u1i, u1a, l1i, l1a].filter(Boolean).map(point => {
             const p = point as Landmark;
             return (
-              <g key={`com-${p.id}`} data-r19-point={p.id} opacity={focusedKey ? 0.82 : 0.92}>
+              <g key={`com-${p.id}`} data-r19-point={p.id} opacity={(focusedKey ? 0.82 : 0.92) * layerOpacity('landmarks')}>
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{p.id}</text>
               </g>
             );
           })}
-          {showCom && aPrime && <text data-r19-construction="com-a-prime-label" x={aPrime.x + 7} y={aPrime.y - 7} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">A′</text>}
-          {showCom && bPrime && <text data-r19-construction="com-b-prime-label" x={bPrime.x + 7} y={bPrime.y + 13} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">B′</text>}
+          {layerVisible('measurements') && showCom && aPrime && <text opacity={layerOpacity('measurements')} data-r19-construction="com-a-prime-label" x={aPrime.x + 7} y={aPrime.y - 7} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">A′</text>}
+          {layerVisible('measurements') && showCom && bPrime && <text opacity={layerOpacity('measurements')} data-r19-construction="com-b-prime-label" x={bPrime.x + 7} y={bPrime.y + 13} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">B′</text>}
         </svg>
       )}
 

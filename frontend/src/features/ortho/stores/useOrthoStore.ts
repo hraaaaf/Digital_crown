@@ -7,6 +7,14 @@ import {
 } from '../cephaloUtils';
 import type { Landmark, SyncState, ImageFilters, UIMode, VTOSettings, StepId } from '../cephaloShared';
 import type { LocalState, DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, PhotoUpload, ProfilFacial } from '../cephaloTypes';
+import {
+  clampLayerOpacity,
+  createDefaultLayerOpacity,
+  createDefaultLayerVisibility,
+  type OrthoLayerId,
+  type OrthoLayerOpacity,
+  type OrthoLayerVisibility,
+} from '../orthoLayerRegistry';
 
 const normalizeProfilFacial = (value?: string | null): ProfilFacial | '' => {
   const normalized = (value || '').trim().toLowerCase();
@@ -54,11 +62,17 @@ interface OrthoState {
   isPreviewLoading: boolean;
   syncState: SyncState;
   photos: PhotoUpload[];
+  layerVisibility: OrthoLayerVisibility;
+  layerOpacity: OrthoLayerOpacity;
   dateConsultation: string;
   sexePatient: 'M' | 'F' | null;
   setStep: (step: StepId) => void;
   setCompletedSteps: (updater: Set<number> | ((prev: Set<number>) => Set<number>)) => void;
   setPhotos: (updater: PhotoUpload[] | ((prev: PhotoUpload[]) => PhotoUpload[])) => void;
+  setLayerVisible: (id: OrthoLayerId, visible: boolean) => void;
+  toggleLayer: (id: OrthoLayerId) => void;
+  setLayerOpacity: (id: OrthoLayerId, opacity: number) => void;
+  resetLayers: () => void;
   setDateConsultation: (date: string) => void;
   setSexePatient: (sexe: 'M' | 'F' | null) => void;
   setPatientInfo: (id: number, name: string) => void;
@@ -170,6 +184,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   previewPdfUrl: null,
   isPreviewLoading: false,
   syncState: 'idle',
+  layerVisibility: createDefaultLayerVisibility(),
+  layerOpacity: createDefaultLayerOpacity(),
   photos: [
     { id: 'radio', type: 'radio', file: null, preview: null, label: 'Radiographie Céphalométrique' },
     { id: 'moulage_max', type: 'moulage_max', file: null, preview: null, label: 'Moulage Maxillaire' },
@@ -185,6 +201,21 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setStep: (step) => set({ step }),
   setCompletedSteps: (updater) => set((state) => ({ completedSteps: typeof updater === 'function' ? updater(state.completedSteps) : updater })),
   setPhotos: (updater) => set((state) => ({ photos: typeof updater === 'function' ? updater(state.photos) : updater })),
+  setLayerVisible: (id, visible) => set((state) => ({
+    layerVisibility: { ...state.layerVisibility, [id]: visible },
+  })),
+  toggleLayer: (id) => set((state) => ({
+    layerVisibility: { ...state.layerVisibility, [id]: !state.layerVisibility[id] },
+  })),
+  setLayerOpacity: (id, opacity) => set((state) => ({
+    layerOpacity: { ...state.layerOpacity, [id]: clampLayerOpacity(opacity) },
+  })),
+  resetLayers: () => set((state) => ({
+    layerVisibility: createDefaultLayerVisibility(),
+    layerOpacity: createDefaultLayerOpacity(),
+    activeMorphing: 'none',
+    vtoSettings: { ...state.vtoSettings, showSoftTissue: true },
+  })),
   setDateConsultation: (date) => set({ dateConsultation: date }),
   setSexePatient: (sexe) => set({ sexePatient: sexe }),
   setPatientInfo: (id, name) => {
