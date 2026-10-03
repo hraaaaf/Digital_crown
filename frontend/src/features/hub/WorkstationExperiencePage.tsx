@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, KeyRound, MonitorCog, ShieldCheck, TabletSmartphone } from 'lucide-react';
+import { ArrowLeft, KeyRound, MonitorCog } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { workstationModeService } from '../../services/workstationMode';
+import { StationKioskShell } from './StationKioskShell';
 
 const errorDetail = (error: unknown): string => {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -15,7 +16,6 @@ const errorDetail = (error: unknown): string => {
 export const WorkstationExperiencePage = ({ experience }: { experience: 'station' | 'control-center' }) => {
   const navigate = useNavigate();
   const isStation = experience === 'station';
-  const Icon = isStation ? TabletSmartphone : MonitorCog;
   const [ownerPin, setOwnerPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -28,11 +28,18 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
       if (event.ctrlKey && event.altKey && event.key.toLowerCase() === 'h') {
         event.preventDefault();
         setAdminOpen(true);
+        setAdminTapCount(0);
       }
     };
     window.addEventListener('keydown', handleAdminShortcut);
     return () => window.removeEventListener('keydown', handleAdminShortcut);
   }, [isStation]);
+
+  useEffect(() => {
+    if (!adminTapCount || adminOpen) return;
+    const timer = window.setTimeout(() => setAdminTapCount(0), 3_000);
+    return () => window.clearTimeout(timer);
+  }, [adminOpen, adminTapCount]);
 
   const registerAdminTap = () => {
     if (!isStation || adminOpen) return;
@@ -64,62 +71,81 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
     }
   };
 
-  return <main data-workstation-experience={experience} className="relative min-h-screen overflow-hidden bg-main-bg text-main flex items-center justify-center px-5 py-10">
-    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 scale-150 rounded-full border border-primary/5" />
-    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 scale-125 rounded-full border border-primary/10" />
-    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
-    <section className="relative z-10 w-full max-w-2xl overflow-hidden rounded-elite-lg border border-border-main bg-card-bg/95 p-7 sm:p-10 shadow-elite text-center backdrop-blur-sm">
-      <div aria-hidden="true" className="absolute inset-x-24 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent" />
-      {isStation ? (
-        <button
-          type="button"
-          aria-label="Digital Crown"
-          onClick={registerAdminTap}
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-elite-sm bg-primary/10 text-primary"
-        >
-          <Icon size={30}/>
-        </button>
-      ) : (
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-elite-sm bg-primary/10 text-primary"><Icon size={30}/></div>
-      )}
-      <p className="mt-6 text-xs font-black uppercase tracking-widest text-primary">Digital Crown</p>
-      <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight">{isStation ? "Station d'accueil" : 'Centre de contrôle'}</h1>
-      <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-relaxed text-text-muted">{isStation ? "Bienvenue au cabinet. Ce poste fonctionne en mode accueil sécurisé. Les espaces cliniques et administratifs restent verrouillés." : "Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible."}</p>
-      {isStation && !adminOpen && <>
-        <div className="mx-auto mt-7 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3.5 py-2 text-xs font-black uppercase tracking-widest text-primary">
-          <ShieldCheck size={14} aria-hidden="true" /> Mode accueil sécurisé
-        </div>
-        <div aria-hidden="true" className="mx-auto mt-7 flex max-w-md items-center gap-4"><span className="h-px flex-1 bg-gradient-to-r from-transparent to-border-main"/><span className="h-2 w-2 rounded-full border-2 border-card-bg bg-primary/55 ring-4 ring-primary/5"/><span className="h-px flex-1 bg-gradient-to-l from-transparent to-border-main"/></div>
-      </>}
+  if (isStation && !adminOpen) {
+    return <StationKioskShell onAdminTap={registerAdminTap} />;
+  }
 
-      {isStation && adminOpen ? (
-        <div data-station-admin className="mx-auto mt-8 max-w-sm rounded-elite-sm border border-border-main bg-main-bg p-4 text-left">
-          <p className="text-xs font-black uppercase tracking-widest text-text-muted">Administration du poste</p>
-          <label className="mt-4 block text-xs font-black uppercase tracking-wide text-text-muted">
+  if (isStation) {
+    return (
+      <main
+        data-workstation-experience="station"
+        data-station-admin
+        className="relative min-h-screen overflow-x-hidden bg-main-bg px-4 py-8 text-main sm:px-6 sm:py-10"
+      >
+        <section className="mx-auto w-full max-w-md rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite sm:p-8">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Digital Crown · Administration</p>
+          <h1 className="mt-3 font-outfit text-2xl font-black tracking-tight">Administration du poste</h1>
+          <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">
+            La Station reste verrouillée tant que le PIN propriétaire n’est pas validé par le serveur.
+          </p>
+          <label className="mt-6 block text-xs font-black uppercase tracking-wide text-text-muted">
             PIN propriétaire
             <input
               type="password"
               inputMode="numeric"
               pattern="[0-9]*"
+              autoComplete="off"
               value={ownerPin}
               onChange={(event) => setOwnerPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-              className="mt-2 min-h-11 w-full rounded-elite-sm border border-border-main bg-card-bg px-3 text-sm font-semibold text-main outline-none focus:border-primary"
+              className="mt-2 min-h-12 w-full rounded-elite-sm border border-border-main bg-main-bg px-4 text-base font-semibold text-main outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary"
             />
           </label>
           <button
             type="button"
             disabled={busy || !ownerPin}
             onClick={leaveStation}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-4 text-sm font-black text-card-bg transition-elite disabled:border disabled:border-border-main disabled:bg-main-bg disabled:text-text-muted disabled:opacity-100"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-4 text-sm font-black text-card-bg transition-elite disabled:border disabled:border-border-main disabled:bg-main-bg disabled:text-text-muted disabled:opacity-100"
           >
-            <KeyRound size={16} />
+            <KeyRound size={17} aria-hidden="true" />
             {busy ? 'Vérification…' : 'Autoriser l’accès au Hub'}
           </button>
-          {feedback && <p role="status" className="mt-3 text-sm font-bold text-text-muted">{feedback}</p>}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setOwnerPin('');
+              setFeedback('');
+              setAdminOpen(false);
+            }}
+            className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-elite-sm border border-border-main px-4 text-sm font-black text-main transition-elite hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Annuler
+          </button>
+          {feedback && <p role="status" className="mt-4 text-sm font-bold text-text-muted">{feedback}</p>}
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main data-workstation-experience={experience} className="relative flex min-h-screen items-center justify-center overflow-hidden bg-main-bg px-5 py-10 text-main">
+      <section className="relative z-10 w-full max-w-2xl rounded-elite-lg border border-border-main bg-card-bg/95 p-7 text-center shadow-elite backdrop-blur-sm sm:p-10">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-elite-sm bg-primary/10 text-primary">
+          <MonitorCog size={30} aria-hidden="true" />
         </div>
-      ) : !isStation ? (
-        <button type="button" onClick={() => navigate('/hub')} className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-elite-sm border border-border-main px-5 text-sm font-black text-main transition-elite hover:bg-primary/5"><ArrowLeft size={16}/> Retour au Hub</button>
-      ) : null}
-    </section>
-  </main>;
+        <p className="mt-6 text-xs font-black uppercase tracking-widest text-primary">Digital Crown</p>
+        <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight">Centre de contrôle</h1>
+        <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-relaxed text-text-muted">
+          Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/hub')}
+          className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-elite-sm border border-border-main px-5 text-sm font-black text-main transition-elite hover:bg-primary/5"
+        >
+          <ArrowLeft size={16} aria-hidden="true" /> Retour au Hub
+        </button>
+      </section>
+    </main>
+  );
 };
