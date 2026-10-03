@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 25
     env:
       EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'f98e61693ec795613604b17bb42ccc7fef410058' }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || '4306754aa7cbf5d85f93d8d426be101c4537d037' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,6 +73,7 @@ jobs:
         working-directory: frontend
         env:
           V15_03_2_PHASE: before
+          EVALUATED_SHA: ${{ env.EVALUATED_BASE }}
         run: node scripts/capture-v15-03-2-station-identity.mjs
 
       - uses: actions/upload-artifact@v4
@@ -88,7 +89,7 @@ jobs:
     timeout-minutes: 40
     env:
       EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'f98e61693ec795613604b17bb42ccc7fef410058' }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || '4306754aa7cbf5d85f93d8d426be101c4537d037' }}
       ENVIRONMENT: test
       SECRET_KEY: v15-03-2-station-identity-secret-long-enough
       PAIRING_CODE_PEPPER: v15-03-2-dedicated-pairing-pepper
