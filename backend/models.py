@@ -927,6 +927,7 @@ from backend.models_platform import (
     AuditLog,
     WorkstationSecurityPolicy,
     WorkstationMode,
+    WorkstationPairingCode,
     RevokedToken,
     AIFeedback,
     ProactiveAlert,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,9 @@ logger = logging.getLogger(__name__)
 WORKSTATION_COOKIE = "dc_workstation"
 ESCAPE_COOKIE = "dc_station_escape"
 ESCAPE_TTL_MINUTES = 5
+PAIRING_TTL_MINUTES = 10
+PAIRING_FAILURE_LIMIT = 5
+PAIRING_FAILURE_WINDOW_SECONDS = 10 * 60
 
 
 class OwnerPinSetup(BaseModel):
@@ -38,6 +42,24 @@ class OwnerPinSetup(BaseModel):
 
 class WorkstationEnrollment(BaseModel):
     accountPassword: str = Field(min_length=1, max_length=256)
+
+
+class PairingCodeIssue(BaseModel):
+    ownerPin: str = Field(pattern=r"^\d{4,8}$")
+
+
+class PairingClaim(BaseModel):
+    code: str = Field(pattern=r"^\d{6}$")
+    displayName: str = Field(min_length=1, max_length=80)
+
+
+class WorkstationRename(BaseModel):
+    displayName: str = Field(min_length=1, max_length=80)
+    ownerPin: str = Field(pattern=r"^\d{4,8}$")
+
+
+class WorkstationRevoke(BaseModel):
+    ownerPin: str = Field(pattern=r"^\d{4,8}$")
 
 
 class ModeChange(BaseModel):
@@ -61,6 +83,33 @@ def _cookie_secure() -> bool:
 
 def _token_hash(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _pairing_code_pepper() -> bytes:
+    configured = str(getattr(settings, "PAIRING_CODE_PEPPER", "") or "").strip()
+    if configured:
+        return configured.encode("utf-8")
+    # Backwards-compatible local/test fallback: domain-separated derivation,
+    # never the raw application SECRET_KEY used directly as the pairing HMAC key.
+    return hmac.new(
+        SECRET_KEY.encode("utf-8"),
+        b"digital-crown/workstation-pairing-pepper/v1",
+        hashlib.sha256,
+    ).digest()
+
+
+def _pairing_code_hash(employer_id: int, code: str) -> str:
+    message = f"{employer_id}:{code}".encode("utf-8")
+    return hmac.new(_pairing_code_pepper(), message, hashlib.sha256).hexdigest()
+
+
+def _normalized_display_name(value: str) -> str:
+    normalized = " ".join(value.split())
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Station name is required")
+    if len(normalized) > 80:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Station name is too long")
+    return normalized
 
 
 def _access_session_jti(request: Request) -> str | None:
@@ -102,6 +151,27 @@ def _can_configure_pin(user: models.User) -> bool:
     return user.employer_id is None and int(user.id) == employer_id
 
 
+def _add_audit_entry(
+    db: Session,
+    *,
+    user: models.User,
+    action: str,
+    resource_type: str,
+    resource_id: str,
+    details: str,
+    request: Request,
+) -> None:
+    db.add(models.AuditLog(
+        user_id=user.id,
+        employer_id=_employer_id(user),
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        details=details,
+        ip_address=request.client.host if request.client else None,
+    ))
+
+
 def _commit_with_audit(
     db: Session,
     *,
@@ -113,15 +183,15 @@ def _commit_with_audit(
     request: Request,
 ) -> None:
     try:
-        db.add(models.AuditLog(
-            user_id=user.id,
-            employer_id=_employer_id(user),
+        _add_audit_entry(
+            db,
+            user=user,
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
             details=details,
-            ip_address=request.client.host if request.client else None,
-        ))
+            request=request,
+        )
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -161,10 +231,34 @@ def _find_workstation(request: Request, db: Session, employer_id: int | None = N
     raw = request.cookies.get(WORKSTATION_COOKIE)
     if not raw:
         return None
-    query = db.query(models.WorkstationMode).filter(models.WorkstationMode.token_hash == _token_hash(raw))
+    query = db.query(models.WorkstationMode).filter(
+        models.WorkstationMode.token_hash == _token_hash(raw),
+        models.WorkstationMode.revoked_at.is_(None),
+    )
     if employer_id is not None:
         query = query.filter(models.WorkstationMode.employer_id == employer_id)
     return query.first()
+
+
+def _touch_workstation(db: Session, row: models.WorkstationMode) -> None:
+    now = datetime.utcnow()
+    if row.last_seen_at is not None and (now - row.last_seen_at).total_seconds() < 60:
+        return
+    try:
+        row.last_seen_at = now
+        db.commit()
+        db.refresh(row)
+    except Exception:
+        db.rollback()
+        logger.warning("Workstation heartbeat could not be persisted", exc_info=True)
+
+
+def _station_status(row: models.WorkstationMode) -> str:
+    if row.revoked_at is not None:
+        return "revoked"
+    if row.last_seen_at is None:
+        return "offline"
+    return "recent" if (datetime.utcnow() - row.last_seen_at).total_seconds() <= 120 else "offline"
 
 
 def _tenant_has_workstations(db: Session, employer_id: int) -> bool:
@@ -176,22 +270,36 @@ def _tenant_has_workstations(db: Session, employer_id: int) -> bool:
     )
 
 
+def _create_workstation_row(
+    db: Session,
+    user: models.User,
+    *,
+    display_name: str | None = None,
+) -> tuple[models.WorkstationMode, str]:
+    raw = secrets.token_urlsafe(32)
+    row = models.WorkstationMode(
+        employer_id=_employer_id(user),
+        token_hash=_token_hash(raw),
+        display_name=_normalized_display_name(display_name) if display_name is not None else None,
+        default_experience=None,
+        mode_revision=0,
+        last_seen_at=datetime.utcnow(),
+        updated_by_user_id=user.id,
+    )
+    db.add(row)
+    db.flush()
+    return row, raw
+
+
 def _register_workstation(
     request: Request,
     response: Response,
     db: Session,
     user: models.User,
+    *,
+    display_name: str | None = None,
 ) -> models.WorkstationMode:
-    raw = secrets.token_urlsafe(32)
-    row = models.WorkstationMode(
-        employer_id=_employer_id(user),
-        token_hash=_token_hash(raw),
-        default_experience=None,
-        mode_revision=0,
-        updated_by_user_id=user.id,
-    )
-    db.add(row)
-    db.flush()
+    row, raw = _create_workstation_row(db, user, display_name=display_name)
     _commit_with_audit(
         db,
         user=user,
@@ -231,6 +339,92 @@ def _security_policy(db: Session, employer_id: int) -> models.WorkstationSecurit
         .filter(models.WorkstationSecurityPolicy.employer_id == employer_id)
         .first()
     )
+
+
+def _pairing_policy_for_update(db: Session, employer_id: int) -> models.WorkstationSecurityPolicy:
+    policy = (
+        db.query(models.WorkstationSecurityPolicy)
+        .filter(models.WorkstationSecurityPolicy.employer_id == employer_id)
+        .with_for_update()
+        .first()
+    )
+    if policy is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Owner PIN is not configured")
+    return policy
+
+
+def _pairing_window_is_expired(policy: models.WorkstationSecurityPolicy, now: datetime) -> bool:
+    started = policy.pairing_failure_window_started_at
+    return started is None or (now - started).total_seconds() >= PAIRING_FAILURE_WINDOW_SECONDS
+
+
+def _reset_pairing_failure_state(policy: models.WorkstationSecurityPolicy) -> None:
+    policy.pairing_failed_attempts = 0
+    policy.pairing_failure_window_started_at = None
+    policy.pairing_locked_until = None
+
+
+def _begin_persistent_pairing_attempt(
+    db: Session,
+    *,
+    employer_id: int,
+    user: models.User,
+    request: Request,
+) -> tuple[models.WorkstationSecurityPolicy, datetime]:
+    """Acquire the tenant policy lock and keep it through pairing verification."""
+    now = datetime.utcnow()
+    try:
+        policy = _pairing_policy_for_update(db, employer_id)
+        if _pairing_window_is_expired(policy, now):
+            _reset_pairing_failure_state(policy)
+
+        if int(policy.pairing_failed_attempts or 0) >= PAIRING_FAILURE_LIMIT:
+            started = policy.pairing_failure_window_started_at or now
+            locked_until = policy.pairing_locked_until or (
+                started + timedelta(seconds=PAIRING_FAILURE_WINDOW_SECONDS)
+            )
+            policy.pairing_locked_until = locked_until
+            retry_after = max(1, int((locked_until - now).total_seconds()))
+            _add_audit_entry(
+                db,
+                user=user,
+                action="WORKSTATION_PAIRING_DB_RATE_LIMITED",
+                resource_type="WorkstationSecurity",
+                resource_id=str(employer_id),
+                details="Pairing claim blocked by persistent tenant-wide failure limit.",
+                request=request,
+            )
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many pairing attempts",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        # Do not commit here: the row lock intentionally remains held until the
+        # code attempt either records a failure or commits a successful pairing.
+        return policy, now
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Persistent workstation pairing rate-limit check failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Pairing security state unavailable",
+        ) from exc
+
+
+def _record_persistent_pairing_failure_locked(
+    policy: models.WorkstationSecurityPolicy,
+    now: datetime,
+) -> None:
+    if policy.pairing_failure_window_started_at is None:
+        policy.pairing_failure_window_started_at = now
+    policy.pairing_failed_attempts = int(policy.pairing_failed_attempts or 0) + 1
+    if policy.pairing_failed_attempts >= PAIRING_FAILURE_LIMIT:
+        started = policy.pairing_failure_window_started_at or now
+        policy.pairing_locked_until = started + timedelta(seconds=PAIRING_FAILURE_WINDOW_SECONDS)
 
 
 def _require_pin(db: Session, user: models.User, pin: str) -> models.WorkstationSecurityPolicy:
@@ -310,6 +504,7 @@ def enforce_workstation_access_from_values(
             .filter(
                 models.WorkstationMode.token_hash == _token_hash(workstation_cookie),
                 models.WorkstationMode.employer_id == employer_id,
+                models.WorkstationMode.revoked_at.is_(None),
             )
             .first()
         )
@@ -366,6 +561,8 @@ def _state_payload(request: Request, row: models.WorkstationMode, user: models.U
     escape_authorized = _escape_authorized(request, row, user, session_jti=session_jti)
     return {
         "workstationId": row.id,
+        "displayName": row.display_name,
+        "lastSeenAt": row.last_seen_at,
         "defaultExperience": row.default_experience,
         "pinConfigured": bool(policy and policy.owner_pin_hash),
         "canManage": _authorized_admin(user),
@@ -401,6 +598,7 @@ async def bootstrap_state(
         )
         return {
             "workstationId": None,
+            "displayName": None,
             "defaultExperience": None,
             "stationLocked": False,
             "stationEscapeAuthorized": False,
@@ -408,6 +606,8 @@ async def bootstrap_state(
             "enrollmentRequired": enrollment_required,
             **auth_context,
         }
+
+    _touch_workstation(db, row)
 
     # Escape authority is user- and access-session-bound. Anonymous bootstrap
     # may reveal only the workstation's non-sensitive routing mode.
@@ -420,6 +620,7 @@ async def bootstrap_state(
         escape_expires_at = None
     return {
         "workstationId": row.id,
+        "displayName": row.display_name,
         "defaultExperience": row.default_experience,
         "stationLocked": row.default_experience == "station",
         "stationEscapeAuthorized": escape_authorized,
@@ -427,6 +628,296 @@ async def bootstrap_state(
         "enrollmentRequired": False,
         **auth_context,
     }
+
+
+@router.get("/registry")
+def list_workstations(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not _authorized_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+    rows = (
+        db.query(models.WorkstationMode)
+        .filter(models.WorkstationMode.employer_id == _employer_id(current_user))
+        .order_by(models.WorkstationMode.created_at.asc())
+        .all()
+    )
+    return [
+        {
+            "workstationId": row.id,
+            "displayName": row.display_name,
+            "defaultExperience": row.default_experience,
+            "revoked": row.revoked_at is not None,
+            "status": _station_status(row),
+            "lastSeenAt": row.last_seen_at,
+            "createdAt": row.created_at,
+            "updatedAt": row.updated_at,
+        }
+        for row in rows
+    ]
+
+
+@router.post("/pairing-code")
+def issue_pairing_code(
+    payload: PairingCodeIssue,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    employer_id = _employer_id(current_user)
+    scope = f"workstation-pairing-code:{employer_id}"
+    _enforce_failure_limit_with_audit(
+        request,
+        db,
+        current_user,
+        scope=scope,
+        action="WORKSTATION_PAIRING_CODE_RATE_LIMITED",
+        resource_id=str(employer_id),
+    )
+    try:
+        _require_pin(db, current_user, payload.ownerPin)
+    except HTTPException as exc:
+        if exc.detail == "Invalid owner PIN":
+            record_rate_limit_failure(request, scope)
+        raise
+
+    # Serialize code issuance per cabinet. The DB unique partial index is the
+    # final invariant; this row lock avoids turning a normal concurrent issue
+    # race into a uniqueness error on PostgreSQL.
+    pairing_policy = (
+        db.query(models.WorkstationSecurityPolicy)
+        .filter(models.WorkstationSecurityPolicy.employer_id == employer_id)
+        .with_for_update()
+        .one()
+    )
+    _reset_pairing_failure_state(pairing_policy)
+
+    now = datetime.utcnow()
+    for stale in db.query(models.WorkstationPairingCode).filter(
+        models.WorkstationPairingCode.employer_id == employer_id,
+        models.WorkstationPairingCode.used_at.is_(None),
+    ).all():
+        stale.used_at = now
+
+    code = None
+    code_hash = None
+    for _attempt in range(20):
+        candidate = f"{secrets.randbelow(1_000_000):06d}"
+        candidate_hash = _pairing_code_hash(employer_id, candidate)
+        exists = db.query(models.WorkstationPairingCode.id).filter(
+            models.WorkstationPairingCode.code_hash == candidate_hash
+        ).first()
+        if exists is None:
+            code = candidate
+            code_hash = candidate_hash
+            break
+    if code is None or code_hash is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Pairing code unavailable")
+    expires_at = now + timedelta(minutes=PAIRING_TTL_MINUTES)
+    db.add(models.WorkstationPairingCode(
+        employer_id=employer_id,
+        code_hash=code_hash,
+        expires_at=expires_at,
+        created_by_user_id=current_user.id,
+    ))
+    _commit_with_audit(
+        db,
+        user=current_user,
+        action="WORKSTATION_PAIRING_CODE_ISSUED",
+        resource_type="WorkstationPairingCode",
+        resource_id=str(employer_id),
+        details=f"Single-use pairing code issued; ttl_minutes={PAIRING_TTL_MINUTES}; secret not logged.",
+        request=request,
+    )
+    reset_rate_limit_failures(request, scope)
+    return {"code": code, "expiresAt": expires_at}
+
+
+@router.post("/pair")
+def pair_workstation(
+    payload: PairingClaim,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    employer_id = _employer_id(current_user)
+    if _find_workstation(request, db, employer_id) is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workstation is already paired")
+
+    pairing_policy, now = _begin_persistent_pairing_attempt(
+        db,
+        employer_id=employer_id,
+        user=current_user,
+        request=request,
+    )
+    consumed = (
+        db.query(models.WorkstationPairingCode)
+        .filter(
+            models.WorkstationPairingCode.employer_id == employer_id,
+            models.WorkstationPairingCode.code_hash == _pairing_code_hash(employer_id, payload.code),
+            models.WorkstationPairingCode.used_at.is_(None),
+            models.WorkstationPairingCode.expires_at >= now,
+        )
+        .update(
+            {models.WorkstationPairingCode.used_at: now},
+            synchronize_session=False,
+        )
+    )
+    if consumed != 1:
+        _record_persistent_pairing_failure_locked(pairing_policy, now)
+        try:
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            logger.exception("Persistent workstation pairing failure counter could not be committed")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Pairing security state unavailable",
+            ) from exc
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or expired pairing code")
+
+    try:
+        row, raw = _create_workstation_row(
+            db,
+            current_user,
+            display_name=payload.displayName,
+        )
+        _reset_pairing_failure_state(pairing_policy)
+        _add_audit_entry(
+            db,
+            user=current_user,
+            action="WORKSTATION_REGISTERED",
+            resource_type="WorkstationMode",
+            resource_id=row.id,
+            details="Opaque server-side workstation identity registered.",
+            request=request,
+        )
+        _add_audit_entry(
+            db,
+            user=current_user,
+            action="WORKSTATION_PAIRED",
+            resource_type="WorkstationMode",
+            resource_id=row.id,
+            details="Workstation paired with single-use code; secret not logged.",
+            request=request,
+        )
+        # Critical atomic boundary: code consumption + workstation row + both audit
+        # records must commit together. Any failure rolls the whole pairing back.
+        db.commit()
+        db.refresh(row)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Atomic workstation pairing transaction failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Workstation pairing could not be committed",
+        ) from exc
+
+    _set_workstation_cookie(response, raw)
+    response.delete_cookie(ESCAPE_COOKIE, path="/")
+    return _state_payload(request, row, current_user, db)
+
+
+@router.patch("/{workstation_id}/name")
+def rename_workstation(
+    workstation_id: str,
+    payload: WorkstationRename,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    scope = f"workstation-rename:{_employer_id(current_user)}:{workstation_id}"
+    _enforce_failure_limit_with_audit(
+        request, db, current_user, scope=scope,
+        action="WORKSTATION_RENAME_RATE_LIMITED", resource_id=workstation_id,
+    )
+    try:
+        _require_pin(db, current_user, payload.ownerPin)
+    except HTTPException as exc:
+        if exc.detail == "Invalid owner PIN":
+            record_rate_limit_failure(request, scope)
+        raise
+    row = (
+        db.query(models.WorkstationMode)
+        .filter(
+            models.WorkstationMode.id == workstation_id,
+            models.WorkstationMode.employer_id == _employer_id(current_user),
+            models.WorkstationMode.revoked_at.is_(None),
+        )
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workstation not found")
+    previous = row.display_name
+    row.display_name = _normalized_display_name(payload.displayName)
+    row.updated_by_user_id = current_user.id
+    _commit_with_audit(
+        db,
+        user=current_user,
+        action="WORKSTATION_RENAMED",
+        resource_type="WorkstationMode",
+        resource_id=row.id,
+        details=f"Display name changed; previous={previous!r}; current={row.display_name!r}.",
+        request=request,
+    )
+    reset_rate_limit_failures(request, scope)
+    return {"workstationId": row.id, "displayName": row.display_name}
+
+
+@router.post("/{workstation_id}/revoke")
+def revoke_workstation(
+    workstation_id: str,
+    payload: WorkstationRevoke,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    scope = f"workstation-revoke:{_employer_id(current_user)}:{workstation_id}"
+    _enforce_failure_limit_with_audit(
+        request, db, current_user, scope=scope,
+        action="WORKSTATION_REVOKE_RATE_LIMITED", resource_id=workstation_id,
+    )
+    try:
+        _require_pin(db, current_user, payload.ownerPin)
+    except HTTPException as exc:
+        if exc.detail == "Invalid owner PIN":
+            record_rate_limit_failure(request, scope)
+        raise
+    row = (
+        db.query(models.WorkstationMode)
+        .filter(
+            models.WorkstationMode.id == workstation_id,
+            models.WorkstationMode.employer_id == _employer_id(current_user),
+            models.WorkstationMode.revoked_at.is_(None),
+        )
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workstation not found")
+    row.revoked_at = datetime.utcnow()
+    row.mode_revision = int(row.mode_revision or 0) + 1
+    row.updated_by_user_id = current_user.id
+    _commit_with_audit(
+        db,
+        user=current_user,
+        action="WORKSTATION_REVOKED",
+        resource_type="WorkstationMode",
+        resource_id=row.id,
+        details="Workstation identity revoked.",
+        request=request,
+    )
+    current_raw = request.cookies.get(WORKSTATION_COOKIE)
+    if current_raw and _token_hash(current_raw) == row.token_hash:
+        response.delete_cookie(WORKSTATION_COOKIE, path="/")
+        response.delete_cookie(ESCAPE_COOKIE, path="/")
+    reset_rate_limit_failures(request, scope)
+    return {"ok": True, "workstationId": row.id}
 
 
 @router.post("/enroll")
@@ -488,6 +979,7 @@ def get_state(
     current_user: models.User = Depends(get_current_user),
 ):
     row = _get_or_create_workstation(request, response, db, current_user)
+    _touch_workstation(db, row)
     return _state_payload(request, row, current_user, db)
 
 

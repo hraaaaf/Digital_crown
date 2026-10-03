@@ -4,6 +4,8 @@ export type WorkstationExperience = 'cabinet' | 'station' | 'control_center';
 
 export type WorkstationBootstrapState = {
   workstationId: string | null;
+  displayName?: string | null;
+  lastSeenAt?: string | null;
   defaultExperience: WorkstationExperience | null;
   stationLocked: boolean;
   stationEscapeAuthorized: boolean;
@@ -13,6 +15,17 @@ export type WorkstationBootstrapState = {
   pinConfigured?: boolean;
   canManage?: boolean;
   canConfigurePin?: boolean;
+};
+
+export type WorkstationRegistryEntry = {
+  workstationId: string;
+  displayName: string | null;
+  defaultExperience: WorkstationExperience | null;
+  revoked: boolean;
+  status: 'recent' | 'offline' | 'revoked';
+  lastSeenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type WorkstationState = WorkstationBootstrapState & {
@@ -26,6 +39,8 @@ export type WorkstationState = WorkstationBootstrapState & {
 const CONVENIENCE_KEY = 'dc_workstation_default_experience';
 const CHANNEL_NAME = 'dc-workstation-mode';
 const LOCAL_EVENT = 'dc-workstation-mode-changed';
+
+let stateReadInFlight: Promise<WorkstationState> | null = null;
 
 const emitWorkstationChange = () => {
   if (typeof window === 'undefined') return;
@@ -73,20 +88,60 @@ export const workstationModeService = {
   },
 
   async getState(): Promise<WorkstationState> {
-    const { data } = await api.get<WorkstationState>('/workstation/state');
+    if (stateReadInFlight) return stateReadInFlight;
+
+    stateReadInFlight = (async () => {
+      const { data } = await api.get<WorkstationState>('/workstation/state');
+      try {
+        if (data.defaultExperience) localStorage.setItem(CONVENIENCE_KEY, data.defaultExperience);
+        else localStorage.removeItem(CONVENIENCE_KEY);
+      } catch {
+        // Convenience cache only. Server state remains authoritative.
+      }
+      return data;
+    })();
+
     try {
-      if (data.defaultExperience) localStorage.setItem(CONVENIENCE_KEY, data.defaultExperience);
-      else localStorage.removeItem(CONVENIENCE_KEY);
-    } catch {
-      // Convenience cache only. Server state remains authoritative.
+      return await stateReadInFlight;
+    } finally {
+      stateReadInFlight = null;
     }
-    return data;
   },
 
   async enrollWorkstation(accountPassword: string): Promise<WorkstationState> {
     const { data } = await api.post<WorkstationState>('/workstation/enroll', { accountPassword });
     emitWorkstationChange();
     return data;
+  },
+
+  async issuePairingCode(ownerPin: string): Promise<{ code: string; expiresAt: string }> {
+    const { data } = await api.post<{ code: string; expiresAt: string }>('/workstation/pairing-code', { ownerPin });
+    return data;
+  },
+
+  async pairWorkstation(code: string, displayName: string): Promise<WorkstationState> {
+    const { data } = await api.post<WorkstationState>('/workstation/pair', { code, displayName });
+    emitWorkstationChange();
+    return data;
+  },
+
+  async listWorkstations(): Promise<WorkstationRegistryEntry[]> {
+    const { data } = await api.get<WorkstationRegistryEntry[]>('/workstation/registry');
+    return data;
+  },
+
+  async renameWorkstation(workstationId: string, displayName: string, ownerPin: string): Promise<{ workstationId: string; displayName: string }> {
+    const { data } = await api.patch<{ workstationId: string; displayName: string }>(
+      `/workstation/${workstationId}/name`,
+      { displayName, ownerPin },
+    );
+    emitWorkstationChange();
+    return data;
+  },
+
+  async revokeWorkstation(workstationId: string, ownerPin: string): Promise<void> {
+    await api.post(`/workstation/${workstationId}/revoke`, { ownerPin });
+    emitWorkstationChange();
   },
 
   async configureOwnerPin(accountPassword: string, newPin: string): Promise<void> {

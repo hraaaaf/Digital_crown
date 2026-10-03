@@ -51,6 +51,7 @@ def _first_boot_bootstrap() -> None:
         "# ne jamais partager ce fichier (contient des secrets uniques à ce poste).\n"
         "ENVIRONMENT=cabinet\n"
         f"SECRET_KEY={secrets.token_hex(32)}\n"
+        f"PAIRING_CODE_PEPPER={secrets.token_hex(32)}\n"
         f"CABINET_MASTER_KEY_HEX={secrets.token_hex(32)}\n"
         f"ALLOWED_ORIGINS={origins}\n"
         "CABINET_HOST=127.0.0.1\n"

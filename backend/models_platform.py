@@ -2,7 +2,7 @@ import uuid
 import enum
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer, UniqueConstraint, Index
+from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer, UniqueConstraint, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.models_base import Base
 
@@ -38,6 +38,9 @@ class WorkstationSecurityPolicy(Base):
 
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     owner_pin_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    pairing_failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    pairing_failure_window_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    pairing_locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     updated_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
@@ -49,11 +52,35 @@ class WorkstationMode(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    display_name: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     default_experience: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     mode_revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     updated_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class WorkstationPairingCode(Base):
+    __tablename__ = "workstation_pairing_codes"
+    __table_args__ = (
+        Index(
+            "uq_workstation_pairing_codes_one_active",
+            "employer_id",
+            unique=True,
+            sqlite_where=text("used_at IS NULL"),
+            postgresql_where=text("used_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
 
 
 class RevokedToken(Base):

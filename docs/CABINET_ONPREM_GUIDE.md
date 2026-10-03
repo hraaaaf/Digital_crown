@@ -82,7 +82,7 @@ terminal visible et sans droits admin :
 - Installe par utilisateur courant (`%LOCALAPPDATA%\Programs\DigitalCrown`)
 - `run.py::_first_boot_bootstrap()` génère `%APPDATA%/DigitalCrown/.env` au
   tout premier lancement (`ENVIRONMENT=cabinet`, `SECRET_KEY`,
-  `CABINET_MASTER_KEY_HEX`, `ALLOWED_ORIGINS` loopback et `CABINET_HOST=127.0.0.1`) —
+  `PAIRING_CODE_PEPPER`, `CABINET_MASTER_KEY_HEX`, `ALLOWED_ORIGINS` loopback et `CABINET_HOST=127.0.0.1`) —
   aucun secret à générer/coller à la main
 - Enregistre une tâche planifiée au logon (pas de service SYSTEM)
 - Lance l'app et ouvre le navigateur automatiquement en fin d'installation
@@ -166,6 +166,7 @@ DigitalCrown AppEnvironmentExtra ...`).
 |---|---|---|
 | `ENVIRONMENT` | `cabinet` (solo) ou `production` (PostgreSQL) | Active les invariants fail-fast (SECRET_KEY fort, pas de wildcard CORS). `cabinet` autorise SQLite/SQLCipher ou PostgreSQL ; `production` exige PostgreSQL. Dans les deux cas, une release certifiée et un upgrade Alembic explicite sont requis avant le boot. |
 | `SECRET_KEY` | généré (64 hex) | `python -c "import secrets;print(secrets.token_hex(32))"` — sert aussi aux JWT (pas de JWT_SECRET séparé dans ce codebase) |
+| `PAIRING_CODE_PEPPER` | généré (64 hex) | Secret HMAC dédié aux codes d’appairage Station. Les nouvelles installations le génèrent automatiquement ; pour un cabinet existant, générer une valeur indépendante lors d’une maintenance planifiée. |
 | `DATABASE_URL` | absent (SQLite) ou `postgresql://...` local | |
 | `CABINET_MASTER_KEY_HEX` | généré (64 hex) | Chiffre DB SQLCipher + backups |
 | `CABINET_HOST` | `127.0.0.1` par défaut ; adresse LAN ou `0.0.0.0` seulement si HTTPS configuré | Aucun bind LAN automatique |

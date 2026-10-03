@@ -1,0 +1,173 @@
+name: V1.5-03.2 Station Identity & Pairing Gate
+
+on:
+  push:
+    branches:
+      - feat/v1-5-03-2-station-pairing-identity
+  pull_request:
+    branches: [master]
+    paths:
+      - "backend/.env.example"
+      - "backend/config.py"
+      - "backend/core/schema_runtime.py"
+      - "backend/models.py"
+      - "backend/models_platform.py"
+      - "backend/routers/workstation_mode.py"
+      - "backend/tests/test_workstation_mode_v15.py"
+      - "backend/tests/test_station_identity_pairing_migration_v15.py"
+      - "alembic/versions/neo000000026_station_identity_pairing.py"
+      - "frontend/src/services/workstationMode.ts"
+      - "frontend/src/features/hub/WorkstationModeAdminPanel.tsx"
+      - "frontend/src/features/hub/WorkstationModeAdminPanel.test.tsx"
+      - "frontend/src/features/hub/WorkstationIdentityPanel.tsx"
+      - "frontend/src/features/hub/WorkstationIdentityPanel.test.tsx"
+      - "frontend/scripts/capture-v15-03-2-station-identity.mjs"
+      - "run.py"
+      - "docs/CABINET_ONPREM_GUIDE.md"
+      - ".github/workflows/v15-03-2-station-identity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || '4306754aa7cbf5d85f93d8d426be101c4537d037' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+
+      - name: Preserve 03.2 capture harness
+        run: cp frontend/scripts/capture-v15-03-2-station-identity.mjs /tmp/capture-v15-03-2-station-identity.mjs
+
+      - name: Checkout exact BEFORE base
+        run: |
+          git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
+          git checkout --force "${EVALUATED_BASE}"
+          cp /tmp/capture-v15-03-2-station-identity.mjs frontend/scripts/capture-v15-03-2-station-identity.mjs
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start BEFORE frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4196 >/tmp/v15-03-2-before.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:4196 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v15-03-2-before.log
+          exit 1
+
+      - name: Capture BEFORE station identity matrix
+        working-directory: frontend
+        env:
+          V15_03_2_PHASE: before
+          EVALUATED_SHA: ${{ env.EVALUATED_BASE }}
+        run: node scripts/capture-v15-03-2-station-identity.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-03-2-station-identity-before
+          path: frontend/artifacts/v15-03-2-station-identity-before
+          if-no-files-found: error
+          retention-days: 14
+
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || '4306754aa7cbf5d85f93d8d426be101c4537d037' }}
+      ENVIRONMENT: test
+      SECRET_KEY: v15-03-2-station-identity-secret-long-enough
+      PAIRING_CODE_PEPPER: v15-03-2-dedicated-pairing-pepper
+      DATABASE_URL: sqlite:///./v15-03-2-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:4196,http://localhost:4196
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt >/tmp/requirements-v15-03-2.txt
+          pip install -r /tmp/requirements-v15-03-2.txt
+
+      - name: Migration head and roundtrip
+        run: |
+          python -m alembic heads
+          python -m pytest backend/tests/test_station_identity_pairing_migration_v15.py -q
+
+      - name: Workstation backend security tests
+        run: python -m pytest backend/tests/test_workstation_mode_v15.py -q
+
+      - name: Frontend dependencies + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Station identity frontend tests
+        working-directory: frontend
+        run: npx vitest run src/features/hub/WorkstationModeAdminPanel.test.tsx src/features/hub/WorkstationIdentityPanel.test.tsx src/test/v15WorkstationModeContract.test.ts --maxWorkers=1 --fileParallelism=false
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4196 >/tmp/v15-03-2-frontend.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:4196 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v15-03-2-frontend.log
+          exit 1
+
+      - name: Capture AFTER station identity matrix
+        working-directory: frontend
+        env:
+          V15_03_2_PHASE: after
+        run: node scripts/capture-v15-03-2-station-identity.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-03-2-station-identity-after
+          path: frontend/artifacts/v15-03-2-station-identity-after
+          if-no-files-found: error
+          retention-days: 14
