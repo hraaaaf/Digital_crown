@@ -133,8 +133,8 @@ interface OrthoState {
   goToStep: (target: StepId) => Promise<void>;
 }
 
-let syncTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 let landmarkSaveGeneration = 0;
+let landmarkSaveChain: Promise<void> = Promise.resolve();
 
 const queueAuditedLandmarkSave = (
   landmarks: Landmark[],
@@ -143,52 +143,73 @@ const queueAuditedLandmarkSave = (
 ) => {
   const state = get();
   if (!state.analysisId || state.patientId === null) return;
+
   const scheduledAnalysisId = state.analysisId;
   const scheduledPatientId = state.patientId;
   const generation = ++landmarkSaveGeneration;
-  if (syncTimer) clearTimeout(syncTimer);
+  const max = state.ddm.maxillaire === '' ? null : Number(state.ddm.maxillaire);
+  const mand = state.ddm.mandibulaire === '' ? null : Number(state.ddm.mandibulaire);
+  const impa = computeLocalImpa(landmarks);
+  const ceph = calcDDMCephalo(impa);
+  const real = (mand !== null && ceph !== null) ? mand + ceph : null;
+  const projections = computeMcNamaraProjections(landmarks);
+  const payload = buildPayload(
+    landmarks,
+    max,
+    mand,
+    real,
+    state.diag,
+    projections,
+    state.mmPerPixel,
+    state.etape2Data,
+    state.etape3Data,
+  );
+
   set({ syncState: 'syncing' });
-  syncTimer = setTimeout(async () => {
-    const currentS = get();
-    if (
-      generation !== landmarkSaveGeneration
-      || currentS.analysisId !== scheduledAnalysisId
-      || currentS.patientId !== scheduledPatientId
-    ) return;
-    const max = currentS.ddm.maxillaire === '' ? null : Number(currentS.ddm.maxillaire);
-    const mand = currentS.ddm.mandibulaire === '' ? null : Number(currentS.ddm.mandibulaire);
-    const impa = computeLocalImpa(landmarks);
-    const ceph = calcDDMCephalo(impa);
-    const real = (mand !== null && ceph !== null) ? mand + ceph : null;
-    try {
-      const projections = computeMcNamaraProjections(landmarks);
-      await cephaloRepository.saveAnalysis(
-        scheduledAnalysisId,
-        buildPayload(
-          landmarks,
-          max,
-          mand,
-          real,
-          currentS.diag,
-          projections,
-          currentS.mmPerPixel,
-          currentS.etape2Data,
-          currentS.etape3Data,
-        ),
-      );
-      if (generation !== landmarkSaveGeneration) return;
-      set({ syncState: 'success' });
-      setTimeout(() => {
-        if (generation === landmarkSaveGeneration) set({ syncState: 'idle' });
-      }, 1500);
-    } catch {
-      if (generation !== landmarkSaveGeneration) return;
-      set({ syncState: 'error' });
-      setTimeout(() => {
-        if (generation === landmarkSaveGeneration) set({ syncState: 'idle' });
-      }, 2500);
-    }
-  }, 600);
+
+  // Each pointer-up / undo / redo / reset is already a committed clinical edit.
+  // Persist every transaction in FIFO order so backend evidence revisions cannot
+  // be collapsed by debounce or reordered by concurrent requests.
+  landmarkSaveChain = landmarkSaveChain
+    .catch(() => undefined)
+    .then(async () => {
+      try {
+        await cephaloRepository.saveAnalysis(scheduledAnalysisId, payload);
+        const current = get();
+        if (
+          generation === landmarkSaveGeneration
+          && current.analysisId === scheduledAnalysisId
+          && current.patientId === scheduledPatientId
+        ) {
+          set({ syncState: 'success' });
+          setTimeout(() => {
+            const latest = get();
+            if (
+              generation === landmarkSaveGeneration
+              && latest.analysisId === scheduledAnalysisId
+              && latest.patientId === scheduledPatientId
+            ) set({ syncState: 'idle' });
+          }, 1500);
+        }
+      } catch {
+        const current = get();
+        if (
+          generation === landmarkSaveGeneration
+          && current.analysisId === scheduledAnalysisId
+          && current.patientId === scheduledPatientId
+        ) {
+          set({ syncState: 'error' });
+          setTimeout(() => {
+            const latest = get();
+            if (
+              generation === landmarkSaveGeneration
+              && latest.analysisId === scheduledAnalysisId
+              && latest.patientId === scheduledPatientId
+            ) set({ syncState: 'idle' });
+          }, 2500);
+        }
+      }
+    });
 };
 
 export const useOrthoStore = create<OrthoState>((set, get) => ({
@@ -324,10 +345,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setPatientInfo: (id, name) => {
     const current = get();
     if (current.patientId !== null && current.patientId !== id) {
-      if (syncTimer) {
-        clearTimeout(syncTimer);
-        syncTimer = undefined;
-      }
       landmarkSaveGeneration += 1;
       set({
         imageSrc: undefined,
@@ -417,8 +434,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setIsPreviewLoading: (loading) => set({ isPreviewLoading: loading }),
   setSyncState: (s) => set({ syncState: s }),
   clearSyncTimer: () => {
+    // Legacy lifecycle hook name retained for callers. Serial clinical revisions
+    // are never cancelled; only stale UI success/error state is invalidated.
     landmarkSaveGeneration += 1;
-    if (syncTimer) { clearTimeout(syncTimer); syncTimer = undefined; }
   },
   handlePhotoUpload: (id, file) => {
     const url = URL.createObjectURL(file);

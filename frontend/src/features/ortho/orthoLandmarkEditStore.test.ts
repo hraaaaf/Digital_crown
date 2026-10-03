@@ -9,6 +9,10 @@ vi.mock('./cephaloRepository', () => ({
   },
 }));
 
+const flushSaveQueue = async (turns = 8) => {
+  for (let i = 0; i < turns; i += 1) await Promise.resolve();
+};
+
 const baseline = [
   { id: 'S', x: 10, y: 20 },
   { id: 'N', x: 30, y: 40 },
@@ -40,7 +44,7 @@ describe('Orthodontic Studio LOT07 landmark edit store', () => {
     expect(useOrthoStore.getState().landmarkEditTimeline.undoStack).toHaveLength(1);
     expect(useOrthoStore.getState().syncState).toBe('syncing');
 
-    await vi.advanceTimersByTimeAsync(600);
+    await flushSaveQueue();
     expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(1);
     expect(cephaloRepository.saveAnalysis).toHaveBeenLastCalledWith(
       42,
@@ -51,7 +55,7 @@ describe('Orthodontic Studio LOT07 landmark edit store', () => {
     expect(useOrthoStore.getState().local.landmarks).toEqual(baseline);
     expect(useOrthoStore.getState().landmarkEditTimeline.redoStack).toHaveLength(1);
 
-    await vi.advanceTimersByTimeAsync(600);
+    await flushSaveQueue();
     expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(2);
     expect(cephaloRepository.saveAnalysis).toHaveBeenLastCalledWith(
       42,
@@ -59,17 +63,54 @@ describe('Orthodontic Studio LOT07 landmark edit store', () => {
     );
   });
 
-  it('cancels a pending landmark save when the active patient changes', async () => {
+  it('persists a committed revision to its originating analysis after patient navigation', async () => {
     useOrthoStore.setState({ patientId: 1, analysisId: 42 });
     const edited = baseline.map(item => item.id === 'S' ? { ...item, x: 18 } : item);
     useOrthoStore.getState().updateLandmarksOptimistic(edited);
 
     useOrthoStore.getState().setPatientInfo(2, 'Patient B');
     useOrthoStore.setState({ analysisId: 43 });
-    await vi.advanceTimersByTimeAsync(1000);
+    await flushSaveQueue();
 
-    expect(cephaloRepository.saveAnalysis).not.toHaveBeenCalled();
+    expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(1);
+    expect(cephaloRepository.saveAnalysis).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ landmarks: edited }),
+    );
     expect(useOrthoStore.getState().patientId).toBe(2);
+    expect(useOrthoStore.getState().syncState).not.toBe('success');
+  });
+
+  it('serializes rapid committed edits so no backend evidence revision is collapsed or reordered', async () => {
+    let releaseFirst!: () => void;
+    const firstPending = new Promise<void>(resolve => { releaseFirst = resolve; });
+    vi.mocked(cephaloRepository.saveAnalysis)
+      .mockImplementationOnce(async () => { await firstPending; return { status: 'success' } as any; })
+      .mockResolvedValue({ status: 'success' } as any);
+
+    const first = baseline.map(item => item.id === 'S' ? { ...item, x: 18 } : item);
+    const second = first.map(item => item.id === 'N' ? { ...item, y: 49 } : item);
+
+    useOrthoStore.getState().updateLandmarksOptimistic(first);
+    useOrthoStore.getState().updateLandmarksOptimistic(second);
+    await flushSaveQueue();
+
+    expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(1);
+    expect(cephaloRepository.saveAnalysis).toHaveBeenNthCalledWith(
+      1,
+      42,
+      expect.objectContaining({ landmarks: first }),
+    );
+
+    releaseFirst();
+    await flushSaveQueue();
+
+    expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(2);
+    expect(cephaloRepository.saveAnalysis).toHaveBeenNthCalledWith(
+      2,
+      42,
+      expect.objectContaining({ landmarks: second }),
+    );
   });
 
   it('makes reset-to-baseline undoable and clears redo after a new edit', () => {

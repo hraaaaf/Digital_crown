@@ -11,7 +11,8 @@
     "NEW_EDIT_AFTER_UNDO_INVALIDATES_REDO_BRANCH",
     "RESET_TO_BASELINE_IS_UNDOABLE",
     "DISPLAY_LAYER_STATE_NEVER_ENTERS_LANDMARK_EDIT_HISTORY",
-    "LOT07_DOES_NOT_DEFINE_OR_CHANGE_CEPHALOMETRIC_FORMULAS"
+    "LOT07_DOES_NOT_DEFINE_OR_CHANGE_CEPHALOMETRIC_FORMULAS",
+    "COMMITTED_EDIT_REVISIONS_ARE_PERSISTED_FIFO_WITHOUT_DEBOUNCE_COLLAPSE"
   ],
   "baseline": {
     "definition": "session baseline: landmarks returned when the active cephalometric analysis is loaded or freshly computed; it is not asserted to be the historical detector-original trace after a reopened corrected case",
@@ -24,8 +25,9 @@
   },
   "persistence": {
     "endpoint": "PUT /api/ia/analyses/{analysis_id}",
-    "debounce_ms": 600,
     "server_operator_binding": "authenticated current_user.id",
-    "failure_behavior": "surface sync error; do not claim persisted audit until server save succeeds"
+    "failure_behavior": "surface sync error; do not claim persisted audit until server save succeeds",
+    "mode": "SERIALIZED_FIFO_ONE_REQUEST_PER_COMMITTED_TRANSACTION",
+    "ordering": "a later committed edit must not overtake an earlier backend evidence revision"
   }
 }
