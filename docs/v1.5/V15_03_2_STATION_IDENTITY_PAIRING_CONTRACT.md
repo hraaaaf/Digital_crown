@@ -8,15 +8,16 @@ Give each Digital Crown Station a stable server-side identity, a human-editable 
 2. `displayName` is human-editable, 1–80 chars after trim, tenant-scoped and never used as an authorization key.
 3. A Station can be renamed without rotating its workstation token or changing `workstationId`.
 4. Pairing codes are short-lived, single-use, HMAC-SHA256 protected with a dedicated configurable pepper, and stored only as hashes server-side.
-5. At most one unused pairing code may be active per cabinet; issuing a new code invalidates every older unused code.
+5. At most one unused pairing code may be active per cabinet; issuing a new code invalidates every older unused code. The invariant is DB-enforced under concurrent issuance.
 6. Pairing an additional or untrusted Station requires an authenticated user in the target tenant plus a valid unexpired pairing code. The existing first-owner-workstation bootstrap path remains unchanged.
 7. Pairing code generation, rename and revocation require admin authority; privileged mutations require the owner PIN where configured.
 8. Pairing-code consumption, workstation creation and the critical pairing audits form one atomic transaction; failure rolls the entire pairing back.
-9. Revocation is fail-closed: a revoked workstation identity can no longer authorize protected cabinet access.
-10. Station registry never exposes token hashes or pairing-code hashes.
-11. Multiple Stations may coexist in the same cabinet.
-12. `lastSeenAt` is diagnostic only ("vu récemment"), never a security proof or guaranteed realtime-presence signal.
-13. Every pairing, rename and revocation is audited without logging secrets.
+9. Pairing claims are protected by a persistent tenant-wide 5-failures/10-minute DB throttle, independent of worker-local memory, plus the existing failure limiter as defense in depth.
+10. Revocation is fail-closed: a revoked workstation identity can no longer authorize protected cabinet access.
+11. Station registry never exposes token hashes or pairing-code hashes.
+12. Multiple Stations may coexist in the same cabinet.
+13. `lastSeenAt` is diagnostic only ("vu récemment"), never a security proof or guaranteed realtime-presence signal.
+14. Every pairing, rename and revocation is audited without logging secrets.
 
 ## UX
 - The current Station name is visible in workstation settings.
