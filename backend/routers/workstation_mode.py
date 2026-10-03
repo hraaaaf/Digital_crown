@@ -743,15 +743,6 @@ def pair_workstation(
     current_user: models.User = Depends(get_current_user),
 ):
     employer_id = _employer_id(current_user)
-    scope = f"workstation-pair-claim:{employer_id}"
-    _enforce_failure_limit_with_audit(
-        request,
-        db,
-        current_user,
-        scope=scope,
-        action="WORKSTATION_PAIRING_RATE_LIMITED",
-        resource_id=str(employer_id),
-    )
     if _find_workstation(request, db, employer_id) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workstation is already paired")
 
@@ -785,7 +776,6 @@ def pair_workstation(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Pairing security state unavailable",
             ) from exc
-        record_rate_limit_failure(request, scope)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or expired pairing code")
 
     try:
@@ -830,7 +820,6 @@ def pair_workstation(
 
     _set_workstation_cookie(response, raw)
     response.delete_cookie(ESCAPE_COOKIE, path="/")
-    reset_rate_limit_failures(request, scope)
     return _state_payload(request, row, current_user, db)
 
 
