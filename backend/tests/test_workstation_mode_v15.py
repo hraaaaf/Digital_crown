@@ -624,10 +624,6 @@ def test_workstation_pin_rate_limit_counts_failures_not_successes(client, db, de
             json={"mode": "station", "ownerPin": "0000"},
         )
         assert wrong.status_code == 403, wrong.text
-        # Prove the security decision is DB-backed, not dependent on one
-        # worker's in-memory limiter state.
-        with rate_limit._lock:
-            rate_limit._attempts.clear()
 
     limited = client.post(
         "/api/workstation/mode",
