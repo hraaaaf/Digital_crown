@@ -62,7 +62,14 @@ function json(body,status=200){return{status,contentType:'application/json',body
 async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(Date.now()-start<timeoutMs){try{const r=await fetch(url);if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,250))}throw new Error(`Vite unavailable ${url}`)}
 
 function modeContract(mode, metrics) {
-  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow) return false;
+  if (
+    metrics.analysis !== mode
+    || metrics.panelAnalysis !== mode
+    || !metrics.hasAnalysisSelector
+    || metrics.horizontalOverflow
+    || metrics.componentHorizontalOverflow
+    || metrics.clippedTextCount !== 0
+  ) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
   if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
@@ -120,7 +127,20 @@ async function captureViewport(viewport,attempt){
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
       legacyMcNamaraLeakCount,
       selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
-      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
+      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+      componentHorizontalOverflow:[
+        document.querySelector('[data-tour="cephalo-stepper"]'),
+        document.querySelector('[data-ortho-layer-manager]'),
+        document.querySelector('[data-r20-workbench-sidebar]'),
+        document.querySelector('[data-r19-analysis-panel]')
+      ].filter(Boolean).some(el=>el.scrollWidth>el.clientWidth+1),
+      clippedTextCount:[
+        document.querySelector('[data-ortho-workspace-title]'),
+        document.querySelector('[data-ortho-workspace-patient]'),
+        document.querySelector('[data-r20-workbench-sidebar] h3'),
+        document.querySelector('[data-r19-analysis-panel] h3'),
+        ...document.querySelectorAll('[data-tour="cephalo-stepper"] button')
+      ].filter(Boolean).filter(el=>el.scrollWidth>el.clientWidth+1).length
     };
    });
    const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');

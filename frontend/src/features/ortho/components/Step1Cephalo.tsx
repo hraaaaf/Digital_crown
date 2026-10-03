@@ -113,7 +113,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         <div className="hidden xl:block">
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Workbench</p>
-            <h3 className="mt-1 truncate text-sm font-black" style={{ color: props.P.text }}>{ANALYSIS_LABELS[analysis]}</h3>
+            <h3 className="mt-1 break-words text-sm font-black leading-tight" style={{ color: props.P.text }}>{ANALYSIS_LABELS[analysis]}</h3>
           </div>
           <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
             Analyse active
@@ -219,7 +219,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               Réinitialiser
             </button>
           </div>
-          <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 xl:grid xl:grid-cols-1 xl:overflow-visible">
+          <div className="flex min-w-0 flex-wrap gap-2 pb-1 xl:grid xl:grid-cols-1 xl:overflow-visible">
             {ORTHO_LAYER_REGISTRY.map(layer => {
               const available = layer.availability === 'available';
               const active = layerVisibility[layer.id];

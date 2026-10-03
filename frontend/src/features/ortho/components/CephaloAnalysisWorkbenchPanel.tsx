@@ -200,7 +200,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             <Crosshair size={17} />
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-black" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
+            <h3 className="break-words text-sm font-black leading-tight" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
             <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>Mesure ↔ construction géométrique</p>
           </div>
         </div>
@@ -248,7 +248,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: familyTone }} />
-                      <span className="truncate text-[11px] font-semibold" style={{ color: selected ? P.text : P.textMuted }}>{definition.label}</span>
+                      <span className="break-words text-[11px] font-semibold leading-tight" style={{ color: selected ? P.text : P.textMuted }}>{definition.label}</span>
                     </div>
                   </td>
                   <td className="px-2 py-3 font-mono text-[11px] font-black tabular-nums" style={{ color: value === null ? P.textDim : P.text }}>
