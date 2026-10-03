@@ -11,6 +11,10 @@ import {
   CEPHALO_SCIENTIFIC_COLORS,
   cephaloMetricColor,
 } from '../cephaloVisualSemantics';
+import {
+  describeCanonicalMetricFocus,
+  resolveCanonicalMetricFocus,
+} from '../cephaloCanonicalFocusAdapter';
 
 interface ThemePalette {
   bg: string;
@@ -44,37 +48,38 @@ type MetricRecord = {
   unit?: string | null;
   involved_points?: string[];
   involved_lines?: string[];
+  measurement_id?: string | null;
+  canonical_measurement_id?: string | null;
 };
 
 type MetricDefinition = {
   key: string;
   label: string;
-  unit: '°' | 'mm';
+  unit: '?' | 'mm';
   section: 'analyse_dentaire' | 'analyse_osseuse' | 'analyse_esthetique';
-  points: string[];
-  lines: string[];
-  construction: string;
 };
 
+// Presentation metadata only. Scientific geometry is resolved exclusively through
+// cephaloCanonicalFocusAdapter from LOT06 canonical measurement identities.
 const DEFINITIONS: Record<string, MetricDefinition> = {
-  SNA: { key: 'SNA', label: 'SNA', unit: '°', section: 'analyse_osseuse', points: ['S','N','A'], lines: ['sn','na'], construction: 'Angle entre la base crânienne S–N et la ligne N–A.' },
-  SNB: { key: 'SNB', label: 'SNB', unit: '°', section: 'analyse_osseuse', points: ['S','N','B'], lines: ['sn','nb'], construction: 'Angle entre la base crânienne S–N et la ligne N–B.' },
-  ANB: { key: 'ANB', label: 'ANB', unit: '°', section: 'analyse_osseuse', points: ['N','A','B'], lines: ['na','nb'], construction: 'Différence angulaire SNA–SNB, visualisée par les lignes N–A et N–B.' },
-  IMPA: { key: 'IMPA', label: 'I / Mandibulaire', unit: '°', section: 'analyse_dentaire', points: ['L1_incisal','L1_apex','Go','Me'], lines: ['l1','mp'], construction: 'Angle entre l’axe de l’incisive inférieure et le plan mandibulaire Go–Me.' },
-  I_Francfort: { key: 'I_Francfort', label: 'I / Francfort', unit: '°', section: 'analyse_dentaire', points: ['U1_incisal','U1_apex','Po','Or'], lines: ['u1','fh'], construction: 'Angle entre l’axe de l’incisive supérieure et le plan de Francfort Po–Or.' },
-  Inter_Incisif: { key: 'Inter_Incisif', label: 'Angle inter-incisif', unit: '°', section: 'analyse_dentaire', points: ['U1_incisal','U1_apex','L1_incisal','L1_apex'], lines: ['u1','l1'], construction: 'Angle formé par les axes des incisives supérieure et inférieure.' },
-  Surplomb: { key: 'Surplomb', label: 'Surplomb', unit: 'mm', section: 'analyse_dentaire', points: ['U1_incisal','L1_incisal','Po','Or'], lines: ['fh'], construction: 'Composante U1–L1 mesurée parallèlement au plan de Francfort.' },
-  Recouvrement: { key: 'Recouvrement', label: 'Recouvrement', unit: 'mm', section: 'analyse_dentaire', points: ['U1_incisal','L1_incisal','Po','Or'], lines: ['fh'], construction: 'Composante U1–L1 mesurée perpendiculairement au plan de Francfort.' },
-  Angle_de_Tweed: { key: 'Angle_de_Tweed', label: 'Angle de Tweed', unit: '°', section: 'analyse_osseuse', points: ['Go','Me','Po','Or'], lines: ['mp','fh'], construction: 'Angle entre le plan mandibulaire Go–Me et le plan de Francfort Po–Or.' },
-  Decalage_A_B: { key: 'Decalage_A_B', label: "Décalage osseux A’B’", unit: 'mm', section: 'analyse_osseuse', points: ['A','B','Po','Or'], lines: ['fh'], construction: 'A’ et B’ sont les projections orthogonales de A et B sur Francfort ; A’B’ est leur séparation antéro-postérieure signée.' },
-  Situation_A: { key: 'Situation_A', label: 'Pt A → verticale Nasion', unit: 'mm', section: 'analyse_osseuse', points: ['A','N','Po','Or'], lines: ['fh'], construction: 'Distance antéro-postérieure signée du point A à la verticale passant par Nasion, perpendiculaire à Francfort.' },
-  Situation_B: { key: 'Situation_B', label: 'Pt B → verticale Nasion', unit: 'mm', section: 'analyse_osseuse', points: ['B','N','Po','Or'], lines: ['fh'], construction: 'Distance antéro-postérieure signée du point B à la verticale passant par Nasion, perpendiculaire à Francfort.' },
-  Profondeur_Faciale: { key: 'Profondeur_Faciale', label: 'Profondeur faciale', unit: 'mm', section: 'analyse_osseuse', points: ['S','N','Po','Or'], lines: ['fh'], construction: 'Magnitude de la distance de S à la verticale de Nasion, perpendiculaire à Francfort, selon la construction COM versionnée.' },
-  Ligne_E_Ls: { key: 'Ligne_E_Ls', label: 'Lèvre sup. / ligne E', unit: 'mm', section: 'analyse_esthetique', points: ['Prn','Pog_soft','Ls'], lines: ['eline'], construction: 'Distance signée de la lèvre supérieure à la ligne esthétique Prn–Pog′.' },
-  Ligne_E_Li: { key: 'Ligne_E_Li', label: 'Lèvre inf. / ligne E', unit: 'mm', section: 'analyse_esthetique', points: ['Prn','Pog_soft','Li'], lines: ['eline'], construction: 'Distance signée de la lèvre inférieure à la ligne esthétique Prn–Pog′.' },
-  Co_A: { key: 'Co_A', label: 'Co–A', unit: 'mm', section: 'analyse_osseuse', points: ['Co','A'], lines: ['coa'], construction: 'Longueur géométrique Co–A. Cette valeur n’est affichée que si un résultat backend versionné la fournit.' },
-  Co_Gn: { key: 'Co_Gn', label: 'Co–Gn', unit: 'mm', section: 'analyse_osseuse', points: ['Co','Gn'], lines: ['cogn'], construction: 'Longueur géométrique Co–Gn. Cette valeur n’est affichée que si un résultat backend versionné la fournit.' },
-  ANS_Me: { key: 'ANS_Me', label: 'ANS–Me', unit: 'mm', section: 'analyse_osseuse', points: ['ANS','Me'], lines: ['ansme'], construction: 'Hauteur ANS–Me. Cette valeur n’est affichée que si un résultat backend versionné la fournit.' },
+  SNA: { key: 'SNA', label: 'SNA', unit: '?', section: 'analyse_osseuse' },
+  SNB: { key: 'SNB', label: 'SNB', unit: '?', section: 'analyse_osseuse' },
+  ANB: { key: 'ANB', label: 'ANB', unit: '?', section: 'analyse_osseuse' },
+  IMPA: { key: 'IMPA', label: 'I / Mandibulaire', unit: '?', section: 'analyse_dentaire' },
+  I_Francfort: { key: 'I_Francfort', label: 'I / Francfort', unit: '?', section: 'analyse_dentaire' },
+  Inter_Incisif: { key: 'Inter_Incisif', label: 'Angle inter-incisif', unit: '?', section: 'analyse_dentaire' },
+  Surplomb: { key: 'Surplomb', label: 'Surplomb', unit: 'mm', section: 'analyse_dentaire' },
+  Recouvrement: { key: 'Recouvrement', label: 'Recouvrement', unit: 'mm', section: 'analyse_dentaire' },
+  Angle_de_Tweed: { key: 'Angle_de_Tweed', label: 'Angle de Tweed', unit: '?', section: 'analyse_osseuse' },
+  Decalage_A_B: { key: 'Decalage_A_B', label: "D?calage osseux A'B'", unit: 'mm', section: 'analyse_osseuse' },
+  Situation_A: { key: 'Situation_A', label: 'Pt A ? verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
+  Situation_B: { key: 'Situation_B', label: 'Pt B ? verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
+  Profondeur_Faciale: { key: 'Profondeur_Faciale', label: 'Profondeur faciale', unit: 'mm', section: 'analyse_osseuse' },
+  Ligne_E_Ls: { key: 'Ligne_E_Ls', label: 'L?vre sup. / ligne E', unit: 'mm', section: 'analyse_esthetique' },
+  Ligne_E_Li: { key: 'Ligne_E_Li', label: 'L?vre inf. / ligne E', unit: 'mm', section: 'analyse_esthetique' },
+  Co_A: { key: 'Co_A', label: 'Co?A', unit: 'mm', section: 'analyse_osseuse' },
+  Co_Gn: { key: 'Co_Gn', label: 'Co?Gn', unit: 'mm', section: 'analyse_osseuse' },
+  ANS_Me: { key: 'ANS_Me', label: 'ANS?Me', unit: 'mm', section: 'analyse_osseuse' },
 };
 
 const ANALYSIS_METRICS: Record<CephaloAnalysisMode, string[]> = {
@@ -127,11 +132,8 @@ const metricFromResults = (anglesData: any, definition: MetricDefinition): Metri
   return section?.[definition.key];
 };
 
-const makeFocus = (definition: MetricDefinition, metric?: MetricRecord): CephaloMetricFocus => ({
-  key: definition.key,
-  points: metric?.involved_points?.length ? metric.involved_points : definition.points,
-  lines: metric?.involved_lines?.length ? metric.involved_lines : definition.lines,
-});
+const makeFocus = (anglesData: any, definition: MetricDefinition, metric?: MetricRecord): CephaloMetricFocus | null =>
+  resolveCanonicalMetricFocus(definition.key, metric, anglesData);
 
 export interface CephaloAnalysisWorkbenchPanelProps {
   P: ThemePalette;
@@ -152,17 +154,21 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
   const activeKey = hoverKey ?? selectedKey;
   const activeDefinition = DEFINITIONS[activeKey] ?? definitions[0];
   const activeMetric = activeDefinition ? metricFromResults(anglesData, activeDefinition) : undefined;
+  const activeFocus = React.useMemo(
+    () => activeDefinition ? makeFocus(anglesData, activeDefinition, activeMetric) : null,
+    [anglesData, activeDefinition, activeMetric],
+  );
 
   React.useEffect(() => {
-    if (!activeDefinition) {
+    if (!activeDefinition || !activeFocus) {
       publishCephaloMetricFocus(null);
       return;
     }
-    publishCephaloMetricFocus(makeFocus(activeDefinition, activeMetric));
+    publishCephaloMetricFocus(activeFocus);
     return () => {
       window.dispatchEvent(new CustomEvent(CEPHALO_METRIC_FOCUS_EVENT, { detail: null }));
     };
-  }, [activeDefinition, activeMetric]);
+  }, [activeDefinition, activeFocus]);
 
   const statusTone = (metric?: MetricRecord) => {
     if (!metric || readValue(metric) === null) return P.textDim;
@@ -269,7 +275,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: cephaloMetricColor(activeDefinition.key) }} />
                 {activeDefinition.label}
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>{activeDefinition.construction}</p>
+              <p className="mt-2 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>{describeCanonicalMetricFocus(activeFocus)}</p>
               <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: `${statusTone(activeMetric)}12`, color: statusTone(activeMetric) }}>
                 {readValue(activeMetric) === null ? <AlertTriangle size={13} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={13} className="mt-0.5 shrink-0" />}
                 <span className="text-[10px] font-bold leading-relaxed">{statusLabel(activeMetric)}{activeMetric?.interpretation ? ` · ${activeMetric.interpretation}` : ''}</span>
