@@ -169,3 +169,23 @@ def test_reportlab_renderer_contains_steiner_protocol_section():
     assert 'context["steiner_protocol"]' in source
     assert 'Analyse protocolaire Steiner' in source
     assert 'protocol_table = Table' in source
+
+
+def test_reportlab_steiner_wording_preserves_clinical_safety_semantics():
+    import inspect
+    row = BilanOrthoPDFGenerator._protocol_row_display({
+        "availability_status": "AVAILABLE",
+        "value": 83.5,
+        "unit": "°",
+        "historical_reference": 82.0,
+        "reference_delta": 1.5,
+        "interpretation_status": "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION",
+    })
+    assert row["interpretation_status"] == "Référence historique — aucune classification clinique"
+    source = inspect.getsource(BilanOrthoPDFGenerator._generate_reportlab)
+    assert "Références historiques affichées à titre comparatif uniquement" in source
+    assert "non vérifié" in source
+    assert "Réf. hist." in source
+    assert "Écart réf." in source
+    assert "R?f" not in source
+    assert "v?rifi" not in source

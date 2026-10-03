@@ -94,7 +94,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             return f"{number:g}" if isinstance(number,(int,float)) else "?"
         interpretation = str(row.get("interpretation_status") or "")
         if interpretation == "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION":
-            interpretation = "R?f?rence historique ? aucune classification clinique"
+            interpretation = "Référence historique — aucune classification clinique"
         return {
             "canonical_measurement_id":str(row.get("canonical_measurement_id") or ""),
             "label":str(row.get("label") or row.get("canonical_measurement_id") or "Mesure"),
@@ -256,12 +256,12 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             steiner = context["steiner_protocol"]
             elements.append(Paragraph("Analyse protocolaire Steiner", h2))
             elements.append(Paragraph(
-                f"{escape(str(steiner.get('protocol_profile_id') or 'Steiner'))} ? "
-                f"source-lock {escape(str(steiner.get('source_lock_status') or 'non v?rifi?'))}. "
-                "R?f?rences historiques affich?es ? titre comparatif uniquement; aucune classification clinique universelle n'est produite.",
+                f"{escape(str(steiner.get('protocol_profile_id') or 'Steiner'))} — "
+                f"source-lock {escape(str(steiner.get('source_lock_status') or 'non vérifié'))}. "
+                "Références historiques affichées à titre comparatif uniquement; aucune classification clinique universelle n'est produite.",
                 body,
             ))
-            protocol_rows = [["Mesure", "Valeur", "R?f. hist.", "? r?f.", "Statut"]]
+            protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart réf.", "Statut"]]
             for row in steiner.get("rows", []):
                 protocol_rows.append([
                     row["label"], row["value"], row["reference"], row["delta"], row["interpretation_status"]
