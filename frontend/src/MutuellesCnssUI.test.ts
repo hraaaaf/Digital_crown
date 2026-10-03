@@ -17,8 +17,9 @@ describe('Mutuelles CNSS UI contract', () => {
     expect(source).toContain("'/documents/insurance-submissions/prepare'");
     expect(source).toContain("'/documents/insurance-submissions/validate'");
     expect(source).toContain("'/documents/insurance-submissions/finalize'");
-    expect(source).toContain("onClick={() => void handlePrepare('CNSS')}");
-    expect(source).toContain("type SupportedOrganization = 'CNSS' | 'CNOPS'");
+    expect(source).toContain("renderPrepareButton('CNSS')");
+    expect(source).toContain("type SupportedOrganization = 'CNSS' | 'CNOPS' | 'FAR'");
+    expect(source).toContain('data-insurance-action');
     expect(source).toContain('result.original_filename');
   });
 

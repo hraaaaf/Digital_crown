@@ -124,6 +124,7 @@ const calls: Array<{ method: string; url: string; data?: unknown }> = [];
 (api as any).get = async (url: string) => {
   calls.push({ method: 'GET', url });
   if (url === '/patients/915/documents') return { data: [fixture], status: 200 };
+  if (url === '/patients/915') return { data: { id: 915, assurance: 'CNSS' }, status: 200 };
   throw new Error('Unexpected GET in deterministic Mutuelles AFTER cert: ' + url);
 };
 (api as any).post = async (url: string, data?: any) => {
@@ -230,6 +231,8 @@ try {
     await page.locator('[data-document-action-menu]').waitFor({ state: 'visible', timeout: 10000 });
     const insuranceAction = page.locator('[data-insurance-action="prepare-cnss"]');
     const hasInsuranceAction = await insuranceAction.count() === 1;
+    const preferredInsuranceAction = await insuranceAction.getAttribute('data-insurance-preferred');
+    const hasOrganizationOverride = await page.locator('[data-insurance-action="change-organization"]').count() === 1;
     await page.screenshot({ path: path.join(OUTPUT_DIR, `after-menu-${viewport.name}.png`), fullPage: false });
 
     await insuranceAction.click();
@@ -279,6 +282,8 @@ try {
       pageErrors,
       consoleErrors,
       hasInsuranceAction,
+      preferredInsuranceAction,
+      hasOrganizationOverride,
       reviewVisible,
       upperInsuredControls,
       validatedZoneControls,
@@ -291,6 +296,8 @@ try {
       valid: (
         response?.status() === 200 &&
         hasInsuranceAction &&
+        preferredInsuranceAction === 'true' &&
+        hasOrganizationOverride &&
         reviewVisible &&
         upperInsuredControls === 0 &&
         validatedZoneControls === 10 &&

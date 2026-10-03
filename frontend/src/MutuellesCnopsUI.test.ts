@@ -9,8 +9,9 @@ describe('Mutuelles CNOPS UI contract', () => {
     const action = read('./features/patients/CnssInsuranceAction.tsx');
     expect(documents).toContain("doc.type.toUpperCase() === 'NOTE'");
     expect(documents).toContain('<CnssInsuranceAction');
-    expect(action).toContain('data-insurance-action="prepare-cnops"');
-    expect(action).toContain("handlePrepare('CNOPS')");
+    expect(action).toContain('data-insurance-action={`prepare-${organization.toLowerCase()}`}');
+    expect(action).toContain("renderPrepareButton('CNOPS')");
+    expect(action).toContain("onClick={() => void handlePrepare(organization)}");
     expect(action).toContain("'/documents/insurance-submissions/prepare'");
     expect(action).toContain("'/documents/insurance-submissions/validate'");
     expect(action).toContain("'/documents/insurance-submissions/finalize'");
