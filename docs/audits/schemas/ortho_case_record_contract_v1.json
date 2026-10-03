@@ -1,0 +1,105 @@
+{
+  "schema_version": "ORTHO_CASE_RECORD_CONTRACT_V1",
+  "status": "PROJECT_LOCKED_LOT07",
+  "clinical_decision_authority": "CLINICIAN",
+  "storage_policy": {
+    "patient_media": "LOCAL_PATIENT_RECORD",
+    "browser_local_storage": "FORBIDDEN_AS_CANONICAL_RECORD",
+    "derived_preview": "CACHE_ONLY"
+  },
+  "timepoint_contract": {
+    "required_fields": [
+      "timepoint_id",
+      "acquired_at",
+      "provenance"
+    ],
+    "supported_labels": [
+      "T0",
+      "T1",
+      "T2",
+      "T3",
+      "OTHER"
+    ],
+    "longitudinal_registration": "EXTERNAL_TO_LOT07"
+  },
+  "record_types": {
+    "lateral_cephalogram": {
+      "required_for_cephalo": true,
+      "requires_calibration_for_mm": true,
+      "scientific_authority": "LOT06_ENGINE"
+    },
+    "panoramic_radiograph": {
+      "required_for_cephalo": false,
+      "diagnostic_role": "SEPARATE_RECORD"
+    },
+    "dental_model": {
+      "accepted_formats": [
+        "STL",
+        "PLY",
+        "OBJ"
+      ],
+      "source_types": [
+        "IOS",
+        "LAB_SCAN",
+        "CAST_SCAN",
+        "PHOTO_RECONSTRUCTION"
+      ],
+      "required_metadata": [
+        "unit",
+        "coordinate_space",
+        "orientation_state",
+        "source_type",
+        "checksum"
+      ],
+      "allowed_units": [
+        "mm"
+      ]
+    }
+  },
+  "photo_protocol": {
+    "extraoral": [
+      "EXTRA_FRONTAL_REPOSE",
+      "EXTRA_PROFILE",
+      "EXTRA_SMILE"
+    ],
+    "intraoral": [
+      "INTRA_FRONTAL",
+      "INTRA_RIGHT",
+      "INTRA_LEFT",
+      "INTRA_OCCLUSAL_MAXILLARY",
+      "INTRA_OCCLUSAL_MANDIBULAR"
+    ],
+    "photo_reconstruction_input": [
+      "INTRA_FRONTAL",
+      "INTRA_RIGHT",
+      "INTRA_LEFT",
+      "INTRA_OCCLUSAL_MAXILLARY",
+      "INTRA_OCCLUSAL_MANDIBULAR"
+    ],
+    "photo_reconstruction_gate": "ALL_5_STANDARDIZED_VIEWS_REQUIRED"
+  },
+  "legacy_slot_migration": {
+    "radio": "LATERAL_CEPHALOGRAM_REQUIRES_MEDIA_VERIFICATION",
+    "extra_face": "EXTRA_FRONTAL_REPOSE",
+    "extra_profile": "EXTRA_PROFILE",
+    "extra_sourire": "EXTRA_SMILE",
+    "intra_face": "INTRA_FRONTAL",
+    "intra_profile": "AMBIGUOUS_FAIL_CLOSED_NO_AUTO_MAP",
+    "moulage_max": "LEGACY_IMAGE_ONLY_NOT_DENTAL_MODEL_RECORD",
+    "moulage_mand": "LEGACY_IMAGE_ONLY_NOT_DENTAL_MODEL_RECORD"
+  },
+  "authority_rules": {
+    "PHOTO_RECONSTRUCTION": "RND_NON_MEASUREMENT_AUTHORITATIVE_UNTIL_VALIDATED",
+    "IOS": "MEASUREMENT_ELIGIBLE_AFTER_PIPELINE_VALIDATION",
+    "LAB_SCAN": "MEASUREMENT_ELIGIBLE_AFTER_PIPELINE_VALIDATION",
+    "CAST_SCAN": "MEASUREMENT_ELIGIBLE_AFTER_PIPELINE_VALIDATION",
+    "photo_direct_mm": "FAIL_CLOSED_UNLESS_METHOD_SPECIFIC_VALIDATION"
+  },
+  "provenance_required": [
+    "source_type",
+    "acquired_at",
+    "operator_or_device",
+    "patient_record_id",
+    "timepoint_id"
+  ]
+}
