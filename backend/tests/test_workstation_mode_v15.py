@@ -1062,3 +1062,14 @@ def test_pairing_transaction_rolls_back_code_and_workstation_on_creation_failure
     assert db.query(models.WorkstationMode).filter(
         models.WorkstationMode.employer_id == dentiste.id
     ).count() == before_count
+
+
+def test_frozen_first_boot_generates_independent_pairing_pepper():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    launcher = (root / "run.py").read_text(encoding="utf-8-sig")
+    env_example = (root / "backend" / ".env.example").read_text(encoding="utf-8-sig")
+
+    assert 'f"PAIRING_CODE_PEPPER={secrets.token_hex(32)}\\n"' in launcher
+    assert "PAIRING_CODE_PEPPER=" in env_example
