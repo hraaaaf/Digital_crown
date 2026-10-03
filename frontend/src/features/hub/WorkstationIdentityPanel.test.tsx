@@ -91,7 +91,7 @@ describe('WorkstationIdentityPanel V1.5-03.2', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Nouveau code d’appairage' }));
 
     expect(await screen.findByText('654321')).toBeInTheDocument();
-    expect(screen.getByText(/usage unique/i)).toBeInTheDocument();
+    expect(screen.getByText('Usage unique · expiration automatique dans 10 minutes.')).toBeInTheDocument();
   });
 
   it('revokes the selected station explicitly', async () => {
