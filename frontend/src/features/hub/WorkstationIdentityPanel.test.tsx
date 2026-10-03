@@ -100,6 +100,8 @@ describe('WorkstationIdentityPanel V1.5-03.2', () => {
       target: { value: '2468' },
     });
     fireEvent.click(screen.getAllByRole('button', { name: 'Révoquer' })[1]);
+    expect(workstationModeService.revokeWorkstation).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer la révocation' }));
 
     await waitFor(() => expect(workstationModeService.revokeWorkstation).toHaveBeenCalledWith(
       'ws-other-87654321',
