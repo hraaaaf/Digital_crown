@@ -728,3 +728,147 @@ def test_failure_rate_limiter_is_thread_safe(monkeypatch, tmp_path):
     with pytest.raises(HTTPException) as exc:
         rate_limit.enforce_failure_rate_limit(request, scope, max_attempts=5)
     assert exc.value.status_code == 429
+
+
+def test_station_pairing_code_is_single_use_and_name_is_editable_without_identity_rotation(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    initial = client.get("/api/workstation/state", headers=_headers(token))
+    assert initial.status_code == 200, initial.text
+    first_id = initial.json()["workstationId"]
+
+    configured = client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    )
+    assert configured.status_code == 200, configured.text
+
+    issued = client.post(
+        "/api/workstation/pairing-code",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert issued.status_code == 200, issued.text
+    code = issued.json()["code"]
+    assert len(code) == 6 and code.isdigit()
+
+    client.cookies.delete("dc_workstation")
+    paired = client.post(
+        "/api/workstation/pair",
+        headers=_headers(token),
+        json={"code": code, "displayName": "  Accueil   1  "},
+    )
+    assert paired.status_code == 200, paired.text
+    second_id = paired.json()["workstationId"]
+    assert second_id != first_id
+    assert paired.json()["displayName"] == "Accueil 1"
+
+    row = db.query(models.WorkstationMode).filter(models.WorkstationMode.id == second_id).one()
+    original_token_hash = row.token_hash
+
+    renamed = client.patch(
+        f"/api/workstation/{second_id}/name",
+        headers=_headers(token),
+        json={"displayName": "Borne entrée", "ownerPin": "2468"},
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json() == {"workstationId": second_id, "displayName": "Borne entrée"}
+    db.refresh(row)
+    assert row.id == second_id
+    assert row.token_hash == original_token_hash
+    assert row.display_name == "Borne entrée"
+
+    registry = client.get("/api/workstation/registry", headers=_headers(token))
+    assert registry.status_code == 200, registry.text
+    entries = {entry["workstationId"]: entry for entry in registry.json()}
+    assert entries[second_id]["displayName"] == "Borne entrée"
+    assert entries[second_id]["revoked"] is False
+
+    client.cookies.delete("dc_workstation")
+    reused = client.post(
+        "/api/workstation/pair",
+        headers=_headers(token),
+        json={"code": code, "displayName": "Replay"},
+    )
+    assert reused.status_code == 403
+    assert reused.json()["detail"] == "Invalid or expired pairing code"
+
+
+def test_revoked_station_fails_closed_and_registry_keeps_revocation_truth(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    current = client.get("/api/workstation/state", headers=_headers(token))
+    assert current.status_code == 200, current.text
+    workstation_id = current.json()["workstationId"]
+
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+
+    renamed = client.patch(
+        f"/api/workstation/{workstation_id}/name",
+        headers=_headers(token),
+        json={"displayName": "Tablette secrétariat", "ownerPin": "2468"},
+    )
+    assert renamed.status_code == 200, renamed.text
+
+    revoked = client.post(
+        f"/api/workstation/{workstation_id}/revoke",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert revoked.status_code == 200, revoked.text
+    assert client.cookies.get("dc_workstation") is None
+
+    blocked = client.get("/api/patients/", headers=_headers(token))
+    assert blocked.status_code == 423, blocked.text
+    assert blocked.json()["detail"] == "WORKSTATION_IDENTITY_REQUIRED"
+
+    registry = client.get("/api/workstation/registry", headers=_headers(token))
+    assert registry.status_code == 200, registry.text
+    entry = next(item for item in registry.json() if item["workstationId"] == workstation_id)
+    assert entry["displayName"] == "Tablette secrétariat"
+    assert entry["revoked"] is True
+
+
+def test_workstation_rename_and_revoke_are_tenant_scoped(client, db, dentiste):
+    owner_token = _token(client, dentiste.email, "TestPass123!")
+    own = client.get("/api/workstation/state", headers=_headers(owner_token))
+    assert own.status_code == 200, own.text
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(owner_token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+
+    other_owner = models.User(
+        email="pairing.other@cabinet.ma",
+        hashed_password=get_password_hash("OtherOwnerPass123!"),
+        role=models.UserRole.DENTISTE,
+        nom_complet="Other Pairing Owner",
+        is_active=True,
+        is_licensed=True,
+        employer_id=None,
+    )
+    db.add(other_owner)
+    db.commit()
+    other_token = _token(client, other_owner.email, "OtherOwnerPass123!")
+    other = client.get("/api/workstation/state", headers=_headers(other_token))
+    assert other.status_code == 200, other.text
+    other_id = other.json()["workstationId"]
+
+    client.cookies.delete("dc_workstation")
+    cross_rename = client.patch(
+        f"/api/workstation/{other_id}/name",
+        headers=_headers(owner_token),
+        json={"displayName": "Intrusion", "ownerPin": "2468"},
+    )
+    assert cross_rename.status_code == 404
+
+    cross_revoke = client.post(
+        f"/api/workstation/{other_id}/revoke",
+        headers=_headers(owner_token),
+        json={"ownerPin": "2468"},
+    )
+    assert cross_revoke.status_code == 404
