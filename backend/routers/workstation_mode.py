@@ -416,6 +416,7 @@ def enforce_workstation_access_from_values(
             .filter(
                 models.WorkstationMode.token_hash == _token_hash(workstation_cookie),
                 models.WorkstationMode.employer_id == employer_id,
+                models.WorkstationMode.revoked_at.is_(None),
             )
             .first()
         )
