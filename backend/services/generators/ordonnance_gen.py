@@ -10,6 +10,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT, TA_JUSTIFY
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
 from backend.services.generators.document_layout_safety import join_unbreakable, protect_unit_patterns
+from backend.services.document_provenance_context import document_branding_owner_id
 from backend.services.generators.document_typography import (
     PRESCRIPTION_TITLE_SIZE,
     PRESCRIPTION_PATIENT_SIZE,
@@ -114,8 +115,9 @@ class OrdonnanceGenerator:
         user_obj = None
         if db and user_id:
             from backend.models import CabinetConfig, User
-            db_config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
             user_obj = db.query(User).filter(User.id == user_id).first()
+            config_owner_id = document_branding_owner_id(user_obj, user_id)
+            db_config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == config_owner_id).first()
             
             if db_config:
                 config = {}
