@@ -832,6 +832,34 @@ def test_revoked_station_fails_closed_and_registry_keeps_revocation_truth(client
     assert entry["revoked"] is True
 
 
+def test_revoked_workstation_cookie_replay_is_rejected_by_global_guard(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    current = client.get("/api/workstation/state", headers=_headers(token))
+    assert current.status_code == 200, current.text
+    workstation_id = current.json()["workstationId"]
+    raw_cookie = client.cookies.get("dc_workstation")
+    assert raw_cookie
+
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+
+    revoked = client.post(
+        f"/api/workstation/{workstation_id}/revoke",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert revoked.status_code == 200, revoked.text
+
+    # Simulate another browser/device retaining the old HttpOnly workstation cookie.
+    client.cookies.set("dc_workstation", raw_cookie)
+    blocked = client.get("/api/patients/", headers=_headers(token))
+    assert blocked.status_code == 423, blocked.text
+    assert blocked.json()["detail"] == "WORKSTATION_IDENTITY_REQUIRED"
+
+
 def test_workstation_rename_and_revoke_are_tenant_scoped(client, db, dentiste):
     owner_token = _token(client, dentiste.email, "TestPass123!")
     own = client.get("/api/workstation/state", headers=_headers(owner_token))
