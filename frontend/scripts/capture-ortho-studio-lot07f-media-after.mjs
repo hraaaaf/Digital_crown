@@ -94,6 +94,8 @@ try{
      if(u.includes('/api/patients/919/assets/') && u.endsWith('/content')){
        return route.fulfill({status:200,contentType:'image/png',body:tinyPng});
      }
+     if(u.startsWith('https://fonts.googleapis.com')) return route.fulfill({status:200,contentType:'text/css',body:''});
+     if(u.startsWith('https://fonts.gstatic.com')) return route.fulfill({status:204,body:''});
      if(u.startsWith(BASE_URL)) return route.continue();
      blocked.push(u); return route.abort();
    });
