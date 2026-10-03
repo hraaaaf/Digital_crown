@@ -22,7 +22,7 @@ export type WorkstationRegistryEntry = {
   displayName: string | null;
   defaultExperience: WorkstationExperience | null;
   revoked: boolean;
-  status: 'online' | 'offline' | 'revoked';
+  status: 'recent' | 'offline' | 'revoked';
   lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;
