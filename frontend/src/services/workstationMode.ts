@@ -40,6 +40,8 @@ const CONVENIENCE_KEY = 'dc_workstation_default_experience';
 const CHANNEL_NAME = 'dc-workstation-mode';
 const LOCAL_EVENT = 'dc-workstation-mode-changed';
 
+let stateReadInFlight: Promise<WorkstationState> | null = null;
+
 const emitWorkstationChange = () => {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new Event(LOCAL_EVENT));
@@ -86,14 +88,24 @@ export const workstationModeService = {
   },
 
   async getState(): Promise<WorkstationState> {
-    const { data } = await api.get<WorkstationState>('/workstation/state');
+    if (stateReadInFlight) return stateReadInFlight;
+
+    stateReadInFlight = (async () => {
+      const { data } = await api.get<WorkstationState>('/workstation/state');
+      try {
+        if (data.defaultExperience) localStorage.setItem(CONVENIENCE_KEY, data.defaultExperience);
+        else localStorage.removeItem(CONVENIENCE_KEY);
+      } catch {
+        // Convenience cache only. Server state remains authoritative.
+      }
+      return data;
+    })();
+
     try {
-      if (data.defaultExperience) localStorage.setItem(CONVENIENCE_KEY, data.defaultExperience);
-      else localStorage.removeItem(CONVENIENCE_KEY);
-    } catch {
-      // Convenience cache only. Server state remains authoritative.
+      return await stateReadInFlight;
+    } finally {
+      stateReadInFlight = null;
     }
-    return data;
   },
 
   async enrollWorkstation(accountPassword: string): Promise<WorkstationState> {
