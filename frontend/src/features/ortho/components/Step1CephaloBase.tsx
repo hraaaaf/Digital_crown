@@ -254,8 +254,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     );
   }
 
-  const isCinematic = true; 
-  const cbg = '#020617';
+  const isCinematic = true;
+  const cbg = '#f8fbff';
   const toneClasses = calibrationTone === 'emerald'
     ? 'bg-emerald-900/30 border-emerald-700/50 text-emerald-400 hover:bg-emerald-900/45'
     : calibrationTone === 'indigo'
@@ -273,8 +273,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   };
 
   return (
-    <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[80vh] w-full'}`} style={{ background: cbg, boxShadow: 'inset 0 0 100px rgba(0,0,0,0.8)' }}>
-      <div className="absolute inset-0 z-0">
+    <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[80vh] w-full'}`} style={{ background: cbg, boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.32), inset 0 0 80px rgba(255,255,255,0.96), 0 12px 36px rgba(15,23,42,0.08)' }}>
+      <div className="absolute inset-3 z-0 overflow-hidden rounded-[1.15rem] border border-slate-200/90 bg-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.14)] sm:inset-4">
         <CephaloTracingLayer
           imageSrc={imageSrc}
           imgFilters={imgFilters}
@@ -301,10 +301,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         />
       </div>
 
-      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-slate-950/80 to-transparent pointer-events-none z-10" />
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none z-10" />
-      <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-950/80 to-transparent pointer-events-none z-10" />
-      <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-950/80 to-transparent pointer-events-none z-10" />
 
       <div className="absolute top-3 left-3 right-3 flex flex-wrap items-start justify-between gap-2 z-20 sm:top-6 sm:left-6 sm:right-6">
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
