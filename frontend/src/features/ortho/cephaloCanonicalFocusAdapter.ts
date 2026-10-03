@@ -26,13 +26,15 @@ export interface CanonicalMetricAnglesData {
   scientific_read_path?: ScientificReadPath | null;
 }
 
-const hasRegistryEntry = (id: string): id is keyof typeof CEPHALO_LOT06_FOCUS_REGISTRY =>
+export type CephaloCanonicalMeasurementId = keyof typeof CEPHALO_LOT06_FOCUS_REGISTRY;
+
+const hasRegistryEntry = (id: string): id is CephaloCanonicalMeasurementId =>
   Object.prototype.hasOwnProperty.call(CEPHALO_LOT06_FOCUS_REGISTRY, id);
 
 export const resolveCanonicalMeasurementId = (
   metric: CanonicalMetricRecord | undefined,
   anglesData: CanonicalMetricAnglesData | undefined,
-): string | null => {
+): CephaloCanonicalMeasurementId | null => {
   const scientificReadPath = anglesData?.scientific_read_path;
   if (scientificReadPath?.authority !== 'EVIDENCE_GRAPH_V1') return null;
 
