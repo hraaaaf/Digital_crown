@@ -562,7 +562,19 @@ def _google_clear_state_cookie(response: Response) -> None:
 
 
 @router.get("/google/authorize", summary="Démarrer la connexion Google")
-async def google_authorize():
+async def google_authorize(request: Request):
+    # The real HTTPS cabinet launcher exposes the UI on digitalcrown.local for
+    # WebAuthn, while Google OAuth is intentionally registered on loopback.
+    # Normalize the browser onto the callback origin *before* minting state so
+    # the host-only state cookie and the callback always share one origin.
+    canonical_origin = _google_local_origin()
+    current_origin = f"{request.url.scheme}://{request.url.netloc}"
+    if request.url.port == 8005 and current_origin != canonical_origin:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{canonical_origin}/api/auth/google/authorize",
+        )
+
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(
             status_code=501,
