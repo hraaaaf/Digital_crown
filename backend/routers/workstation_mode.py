@@ -528,11 +528,24 @@ def issue_pairing_code(
     ).all():
         stale.used_at = now
 
-    code = f"{secrets.randbelow(1_000_000):06d}"
+    code = None
+    code_hash = None
+    for _attempt in range(20):
+        candidate = f"{secrets.randbelow(1_000_000):06d}"
+        candidate_hash = _pairing_code_hash(employer_id, candidate)
+        exists = db.query(models.WorkstationPairingCode.id).filter(
+            models.WorkstationPairingCode.code_hash == candidate_hash
+        ).first()
+        if exists is None:
+            code = candidate
+            code_hash = candidate_hash
+            break
+    if code is None or code_hash is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Pairing code unavailable")
     expires_at = now + timedelta(minutes=PAIRING_TTL_MINUTES)
     db.add(models.WorkstationPairingCode(
         employer_id=employer_id,
-        code_hash=_pairing_code_hash(employer_id, code),
+        code_hash=code_hash,
         expires_at=expires_at,
         created_by_user_id=current_user.id,
     ))
@@ -613,7 +626,17 @@ def rename_workstation(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    _require_pin(db, current_user, payload.ownerPin)
+    scope = f"workstation-rename:{_employer_id(current_user)}:{workstation_id}"
+    _enforce_failure_limit_with_audit(
+        request, db, current_user, scope=scope,
+        action="WORKSTATION_RENAME_RATE_LIMITED", resource_id=workstation_id,
+    )
+    try:
+        _require_pin(db, current_user, payload.ownerPin)
+    except HTTPException as exc:
+        if exc.detail == "Invalid owner PIN":
+            record_rate_limit_failure(request, scope)
+        raise
     row = (
         db.query(models.WorkstationMode)
         .filter(
@@ -637,6 +660,7 @@ def rename_workstation(
         details=f"Display name changed; previous={previous!r}; current={row.display_name!r}.",
         request=request,
     )
+    reset_rate_limit_failures(request, scope)
     return {"workstationId": row.id, "displayName": row.display_name}
 
 
@@ -649,7 +673,17 @@ def revoke_workstation(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    _require_pin(db, current_user, payload.ownerPin)
+    scope = f"workstation-revoke:{_employer_id(current_user)}:{workstation_id}"
+    _enforce_failure_limit_with_audit(
+        request, db, current_user, scope=scope,
+        action="WORKSTATION_REVOKE_RATE_LIMITED", resource_id=workstation_id,
+    )
+    try:
+        _require_pin(db, current_user, payload.ownerPin)
+    except HTTPException as exc:
+        if exc.detail == "Invalid owner PIN":
+            record_rate_limit_failure(request, scope)
+        raise
     row = (
         db.query(models.WorkstationMode)
         .filter(
@@ -677,6 +711,7 @@ def revoke_workstation(
     if current_raw and _token_hash(current_raw) == row.token_hash:
         response.delete_cookie(WORKSTATION_COOKIE, path="/")
         response.delete_cookie(ESCAPE_COOKIE, path="/")
+    reset_rate_limit_failures(request, scope)
     return {"ok": True, "workstationId": row.id}
 
 
