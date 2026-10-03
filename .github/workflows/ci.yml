@@ -40,6 +40,7 @@ jobs:
       changed_backend_tests: ${{ steps.scope.outputs.changed_backend_tests }}
       frontend_needed: ${{ steps.scope.outputs.frontend_needed }}
       reuse_pr_frontend: ${{ steps.scope.outputs.reuse_pr_frontend }}
+      frontend_targeted: ${{ steps.scope.outputs.frontend_targeted }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,6 +61,7 @@ jobs:
           echo "changed_backend_tests=" >> "$GITHUB_OUTPUT"
           echo "frontend_needed=true" >> "$GITHUB_OUTPUT"
           echo "reuse_pr_frontend=false" >> "$GITHUB_OUTPUT"
+          echo "frontend_targeted=false" >> "$GITHUB_OUTPUT"
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             if [[ -z "$PR_BASE_SHA" || -z "$PR_HEAD_SHA" ]]; then
@@ -76,6 +78,8 @@ jobs:
             backend_tests=()
             strict_test_only=true
             frontend_changed=false
+            frontend_source_changed=false
+            frontend_risky_config=false
             for file in "${changed[@]}"; do
               case "$file" in
                 frontend/src/*.test.ts|frontend/src/*.test.tsx|frontend/src/**/*.test.ts|frontend/src/**/*.test.tsx|frontend/src/*.spec.ts|frontend/src/*.spec.tsx|frontend/src/**/*.spec.ts|frontend/src/**/*.spec.tsx)
@@ -85,8 +89,19 @@ jobs:
                 backend/tests/*.py|backend/tests/**/*.py)
                   backend_tests+=("$file")
                   ;;
-                frontend/*|frontend/**/*|package.json|package-lock.json)
+                frontend/src/*|frontend/src/**/*)
                   frontend_changed=true
+                  frontend_source_changed=true
+                  strict_test_only=false
+                  ;;
+                frontend/package.json|frontend/package-lock.json|package.json|package-lock.json)
+                  frontend_changed=true
+                  frontend_risky_config=true
+                  strict_test_only=false
+                  ;;
+                frontend/*|frontend/**/*)
+                  frontend_changed=true
+                  frontend_risky_config=true
                   strict_test_only=false
                   ;;
                 .github/workflows/ci.yml)
@@ -99,6 +114,10 @@ jobs:
 
             printf 'changed_tests=%s\n' "$(IFS=,; echo "${frontend_tests[*]}")" >> "$GITHUB_OUTPUT"
             printf 'changed_backend_tests=%s\n' "$(IFS=,; echo "${backend_tests[*]}")" >> "$GITHUB_OUTPUT"
+            if [[ "$frontend_source_changed" == "true" && "${#frontend_tests[@]}" -gt 0 && "$frontend_risky_config" == "false" ]]; then
+              echo "frontend_targeted=true" >> "$GITHUB_OUTPUT"
+              echo "Targeted frontend PR CI: source changes are paired with explicit changed frontend tests; run those tests plus a full build."
+            fi
             if [[ "$frontend_changed" == "false" ]]; then
               echo "frontend_needed=false" >> "$GITHUB_OUTPUT"
               echo "PR fast-path: delta contains no frontend surface change."
@@ -228,7 +247,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Fast-path — run only changed test files
-        if: needs.classify-change.outputs.test_only == 'true'
+        if: needs.classify-change.outputs.test_only == 'true' || needs.classify-change.outputs.frontend_targeted == 'true'
         shell: bash
         env:
           CHANGED_TESTS: ${{ needs.classify-change.outputs.changed_tests }}
@@ -238,7 +257,7 @@ jobs:
           IFS=',' read -ra files <<< "$CHANGED_TESTS"
           for file in "${files[@]}"; do npx vitest run "$file" --maxWorkers=1 --fileParallelism=false; done
       - name: Test suite
-        if: needs.classify-change.outputs.test_only != 'true'
+        if: needs.classify-change.outputs.test_only != 'true' && needs.classify-change.outputs.frontend_targeted != 'true'
         run: npx vitest run --maxWorkers=1 --fileParallelism=false
       - name: Build
         if: needs.classify-change.outputs.test_only != 'true'
