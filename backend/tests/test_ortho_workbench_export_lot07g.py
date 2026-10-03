@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from backend import models
+from backend.security import get_password_hash
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_landmark_correction_evidence import rebuild_evidence_after_landmark_edit
 from backend.services.cephalo_runtime_evidence import (
@@ -145,7 +146,21 @@ def test_lot07g_export_projects_canonical_evidence_without_recomputing_science(d
     assert exported["case"]["analysis_id"] == analysis.id
     assert exported["case"]["case_id"] == CASE_ID
     assert exported["case"]["timepoint_id"] == "T0"
+    assert exported["case"]["source_evidence_id"] == f"source:{CASE_ID}:ceph"
+    assert exported["case"]["source_record_id"] == "radio-lot07g.jpg"
+    assert exported["case"]["source_provenance"]["kind"] == "lateral_ceph"
     assert len(exported["landmarks"]["items"]) == 38
+    construction_landmark_refs = {
+        ref
+        for item in exported["lot06_scientific_refs"]["construction_refs"]
+        for ref in item["landmark_refs"]
+    }
+    exported_landmark_refs = {
+        item["evidence_id"] for item in exported["landmarks"]["items"]
+    } | {
+        item["evidence_id"] for item in exported["landmarks"]["canonical_dependency_items"]
+    }
+    assert construction_landmark_refs <= exported_landmark_refs
     assert exported["landmarks"]["current_refs"]
     assert exported["lot06_scientific_refs"]["construction_refs"]
     assert exported["lot06_scientific_refs"]["measurement_refs"]
@@ -272,3 +287,144 @@ def test_lot07g_route_preserves_patient_access_and_returns_fail_closed_409(
     )
     assert response.status_code == 409
     assert "Export orthodontique bloqué" in response.json()["detail"]
+
+
+def test_lot07g_export_rejects_longitudinal_structure_outside_lot07(db, dentiste):
+    patient = _patient(db, dentiste.id)
+    analysis = _analysis(db, patient.id)
+    request = _request(
+        traced_structures=[
+            {
+                "structure_id": "t1-ghost",
+                "structure_class": "LONGITUDINAL_GHOST",
+                "authority_state": "DERIVED_VISUALIZATION",
+                "coordinate_space": "REGISTERED_LONGITUDINAL",
+                "version": "1",
+                "source_record_id": "session:t1",
+                "created_at": NOW.isoformat(),
+                "updated_at": NOW.isoformat(),
+                "provenance": {"source": "client-presentation"},
+                "edit_history": [],
+            }
+        ]
+    )
+    with pytest.raises(OrthoWorkbenchExportError, match="outside LOT07"):
+        build_ortho_workbench_export(
+            db,
+            analysis=analysis,
+            employer_id=dentiste.id,
+            request=request,
+            exported_at=EXPORT_AT,
+        )
+
+
+def test_lot07g_export_rejects_calibrated_display_coordinates_without_calibration(db, dentiste):
+    patient = _patient(db, dentiste.id)
+    analysis = _analysis(db, patient.id)
+    request = _request(
+        traced_structures=[
+            {
+                "structure_id": "soft-tissue-mm",
+                "structure_class": "SOFT_TISSUE_PROFILE",
+                "authority_state": "DISPLAY_TEMPLATE_ONLY",
+                "coordinate_space": "CALIBRATED_MM",
+                "version": "1",
+                "source_record_id": "session:soft",
+                "created_at": NOW.isoformat(),
+                "updated_at": NOW.isoformat(),
+                "provenance": {"source": "client-presentation"},
+                "edit_history": [],
+            }
+        ]
+    )
+    with pytest.raises(OrthoWorkbenchExportError, match="require current calibration"):
+        build_ortho_workbench_export(
+            db,
+            analysis=analysis,
+            employer_id=dentiste.id,
+            request=request,
+            exported_at=EXPORT_AT,
+        )
+
+
+def test_lot07g_export_server_binds_display_structure_to_case_and_timepoint(db, dentiste):
+    patient = _patient(db, dentiste.id)
+    analysis = _analysis(db, patient.id)
+    request = _request(
+        traced_structures=[
+            {
+                "structure_id": "soft_tissue_profile",
+                "structure_class": "SOFT_TISSUE_PROFILE",
+                "authority_state": "DISPLAY_TEMPLATE_ONLY",
+                "coordinate_space": "IMAGE_PIXEL",
+                "version": "1",
+                "source_record_id": "client-session:soft",
+                "created_at": NOW.isoformat(),
+                "updated_at": NOW.isoformat(),
+                "provenance": {"source": "client-presentation"},
+                "edit_history": [],
+            }
+        ]
+    )
+    exported = build_ortho_workbench_export(
+        db,
+        analysis=analysis,
+        employer_id=dentiste.id,
+        request=request,
+        exported_at=EXPORT_AT,
+    )
+    binding = exported["traced_structures"]["items"][0]["server_binding"]
+    assert binding == {
+        "patient_id": patient.id,
+        "analysis_id": analysis.id,
+        "case_id": CASE_ID,
+        "timepoint_id": "T0",
+        "persistence_state": "SESSION_PRESENTATION_ONLY",
+    }
+
+
+def test_lot07g_export_rejects_duplicate_structure_ids(db, dentiste):
+    patient = _patient(db, dentiste.id)
+    analysis = _analysis(db, patient.id)
+    structure = {
+        "structure_id": "soft_tissue_profile",
+        "structure_class": "SOFT_TISSUE_PROFILE",
+        "authority_state": "DISPLAY_TEMPLATE_ONLY",
+        "coordinate_space": "IMAGE_PIXEL",
+        "version": "1",
+        "source_record_id": "client-session:soft",
+        "created_at": NOW.isoformat(),
+        "updated_at": NOW.isoformat(),
+        "provenance": {"source": "client-presentation"},
+        "edit_history": [],
+    }
+    with pytest.raises(OrthoWorkbenchExportError, match="duplicate traced structure"):
+        build_ortho_workbench_export(
+            db,
+            analysis=analysis,
+            employer_id=dentiste.id,
+            request=_request(traced_structures=[structure, structure]),
+            exported_at=EXPORT_AT,
+        )
+
+
+def test_lot07g_route_preserves_tenant_isolation(client, db, dentiste, auth_headers):
+    other = models.User(
+        email="lot07g-other@cabinet.ma",
+        hashed_password=get_password_hash("TestPass123!"),
+        role="DENTISTE",
+        nom_complet="Dr Other LOT07G",
+        is_active=True,
+        is_licensed=True,
+    )
+    db.add(other)
+    db.commit()
+    db.refresh(other)
+    patient = _patient(db, other.id)
+    analysis = _analysis(db, patient.id)
+    response = client.post(
+        f"/api/ia/analyses/{analysis.id}/ortho-workbench-export",
+        headers=auth_headers,
+        json=_request().model_dump(mode="json"),
+    )
+    assert response.status_code in {403, 404}

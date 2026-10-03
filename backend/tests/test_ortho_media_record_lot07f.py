@@ -99,6 +99,9 @@ def test_lot07f_photo_upload_binds_slot_timepoint_and_server_operator_provenance
     profile = next(item for item in record["photo_slots"] if item["slot_id"] == "EXTRA_PROFILE")
     assert profile["state"] == "FILLED"
     assert profile["asset"]["asset_id"] == asset_id
+    assert profile["asset"]["source_ref"] == "ORTHO_PHOTO_V1:EXTRA_PROFILE"
+    assert len(profile["asset"]["sha256"]) == 64
+    assert profile["asset"]["provenance_schema_version"] == "ORTHO_MEDIA_RECORD_V1"
     assert profile["asset"]["mime_type"] == "image/png"
 
 

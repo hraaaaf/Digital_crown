@@ -16,7 +16,23 @@
     "case_id": "cephalo:lot07g-export-fixture",
     "timepoint_id": "T0",
     "evidence_revision": 1,
-    "source_record_id": "synthetic://lot07g/lateral-cephalogram"
+    "source_evidence_id": "source:cephalo:lot07g-export-fixture:ceph",
+    "source_record_id": "synthetic://lot07g/lateral-cephalogram",
+    "source_provenance": {
+      "evidence_id": "source:cephalo:lot07g-export-fixture:ceph",
+      "patient_id": 907001,
+      "kind": "lateral_ceph",
+      "source_record_id": "synthetic://lot07g/lateral-cephalogram",
+      "acquired_at": null,
+      "recorded_at": "2026-10-03T10:00:00Z",
+      "operator_id": null,
+      "evidence_status": "OBSERVED",
+      "availability_status": "AVAILABLE",
+      "quality_status": null,
+      "metadata": {
+        "case_id": "cephalo:lot07g-export-fixture"
+      }
+    }
   },
   "landmarks": {
     "authority": "LOT06_TYPED_EVIDENCE_CURRENT_LANDMARKS",
@@ -477,6 +493,35 @@
         "origin": "SRPOSE38_AUTO",
         "validated_by": null,
         "validated_at": null,
+        "availability_status": "AVAILABLE"
+      }
+    ],
+    "canonical_dependency_items": [
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Co:canonical:Co_anatomic",
+        "landmark_id": "Co_anatomic",
+        "x": 148.0,
+        "y": 192.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+        "landmark_id": "Po_anatomic",
+        "x": 106.0,
+        "y": 129.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+        "landmark_id": "Pog_hard",
+        "x": 112.0,
+        "y": 138.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
         "availability_status": "AVAILABLE"
       }
     ]

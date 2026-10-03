@@ -2,7 +2,8 @@ import type { LandmarkEditAuditEvent } from './orthoLandmarkEditHistory';
 import type { OrthoLayerOpacity, OrthoLayerVisibility } from './orthoLayerRegistry';
 
 export type WorkbenchDisplayAuthority = 'DISPLAY_TEMPLATE_ONLY' | 'DERIVED_VISUALIZATION';
-export type WorkbenchCoordinateSpace = 'IMAGE_PIXEL' | 'CALIBRATED_MM' | 'REGISTERED_LONGITUDINAL';
+// Longitudinal registration is explicitly outside LOT07 authority.
+export type WorkbenchCoordinateSpace = 'IMAGE_PIXEL' | 'CALIBRATED_MM';
 
 export interface OrthoWorkbenchTracedStructure {
   structure_id: string;

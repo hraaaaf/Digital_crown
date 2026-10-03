@@ -212,6 +212,13 @@ def _measurement_refs(chain) -> list[dict[str, Any]]:
     ]
 
 
+def _cephalogram_source(graph):
+    sources = [item for item in graph.sources if item.kind == "lateral_ceph"]
+    if len(sources) != 1:
+        raise OrthoWorkbenchExportError("exactly one canonical lateral cephalogram source is required")
+    return sources[0]
+
+
 def _calibration_payload(chain) -> dict[str, Any] | None:
     if chain.calibration is None:
         requires_current_calibration = any(
@@ -267,8 +274,31 @@ def build_ortho_workbench_export(
 
     current_landmarks = _current_landmark_rows(raw_graph, graph)
     calibration = _calibration_payload(chain)
+    cephalogram_source = _cephalogram_source(graph)
 
-    structures = [item.model_dump(mode="json") for item in request.traced_structures]
+    structure_ids = [item.structure_id for item in request.traced_structures]
+    if len(structure_ids) != len(set(structure_ids)):
+        raise OrthoWorkbenchExportError("duplicate traced structure ids are not allowed")
+    structures: list[dict[str, Any]] = []
+    for item in request.traced_structures:
+        if item.coordinate_space == "REGISTERED_LONGITUDINAL":
+            raise OrthoWorkbenchExportError(
+                "longitudinal registration is outside LOT07 export authority"
+            )
+        if item.coordinate_space == "CALIBRATED_MM" and calibration is None:
+            raise OrthoWorkbenchExportError(
+                "calibrated structure coordinates require current calibration provenance"
+            )
+        serialized = item.model_dump(mode="json")
+        serialized["server_binding"] = {
+            "patient_id": analysis.patient_id,
+            "analysis_id": analysis.id,
+            "case_id": case_id,
+            "timepoint_id": request.timepoint,
+            "persistence_state": "SESSION_PRESENTATION_ONLY",
+        }
+        structures.append(serialized)
+
     media = build_ortho_media_record(
         db,
         employer_id=employer_id,
@@ -294,12 +324,27 @@ def build_ortho_workbench_export(
             "case_id": case_id,
             "timepoint_id": request.timepoint,
             "evidence_revision": revision,
-            "source_record_id": analysis.image_original_path,
+            "source_evidence_id": cephalogram_source.evidence_id,
+            "source_record_id": cephalogram_source.source_record_id,
+            "source_provenance": cephalogram_source.model_dump(mode="json"),
         },
         "landmarks": {
             "authority": "LOT06_TYPED_EVIDENCE_CURRENT_LANDMARKS",
             "current_refs": list(raw_graph["current_landmark_refs"]),
             "items": current_landmarks,
+            "canonical_dependency_items": [
+                {
+                    "evidence_id": item.evidence_id,
+                    "landmark_id": item.landmark_id,
+                    "x": item.x,
+                    "y": item.y,
+                    "source_image_ref": item.source_image_ref,
+                    "origin": item.origin.value,
+                    "availability_status": item.availability_status.value,
+                }
+                for item in sorted(chain.landmarks.values(), key=lambda value: value.evidence_id)
+                if item.evidence_id not in set(raw_graph["current_landmark_refs"])
+            ],
         },
         "correction_history": {
             "authority": "BACKEND_CEPHALO_EVIDENCE_HISTORY",
