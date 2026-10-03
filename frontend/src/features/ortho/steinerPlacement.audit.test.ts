@@ -29,3 +29,16 @@ describe('LOT08 Steiner explicit landmark placement audit',()=>{
     expect(store).toContain('anglesData: { ...refreshedAngles');
   });
 });
+
+
+it('reference delta must remain visually neutral in Steiner mode', () => {
+  const source = read('components/CephaloAnalysisWorkbenchPanel.tsx');
+  expect(source).toContain("analysis === 'steiner' ? P.textMuted : clinicalTone");
+});
+
+
+it('capture harness derives historical references from the packaged source-locked profile', () => {
+  const source = fs.readFileSync(path.resolve(process.cwd(),'scripts','capture-ortho-studio-lot08-steiner-after.mjs'),'utf8');
+  expect(source).toContain("backend','data','cephalometry','steiner_protocol_profile_v1.json");
+  expect(source).not.toContain('const refs=[');
+});

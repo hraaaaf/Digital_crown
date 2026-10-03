@@ -35,9 +35,9 @@ export const STEINER_EXPLICIT_IDENTITIES = [
   { id: 'Gn_anatomic', label: 'Gn anatomique', help: 'Gnathion anatomique explicite' },
   { id: 'U1_facial_surface', label: 'U1 surface faciale', help: 'Point coronaire facial maxillaire' },
   { id: 'L1_facial_surface', label: 'L1 surface faciale', help: 'Point coronaire facial mandibulaire' },
-  { id: 'D_Steiner_1959', label: 'Point D Steiner', help: 'Point D explicite ? aucun alias D_point' },
-  { id: 'Occ_Steiner_Ant', label: 'Occlusal ant?rieur', help: 'Ancrage ant?rieur du plan occlusal Steiner' },
-  { id: 'Occ_Steiner_Post', label: 'Occlusal post?rieur', help: 'Ancrage post?rieur du plan occlusal Steiner' },
+  { id: 'D_Steiner_1959', label: 'Point D Steiner', help: 'Point D explicite — aucun alias D_point' },
+  { id: 'Occ_Steiner_Ant', label: 'Occlusal antérieur', help: 'Ancrage antérieur du plan occlusal Steiner' },
+  { id: 'Occ_Steiner_Post', label: 'Occlusal postérieur', help: 'Ancrage postérieur du plan occlusal Steiner' },
 ] as const;
 
 export const STEINER_EXPLICIT_ID_SET = new Set<string>(STEINER_EXPLICIT_IDENTITIES.map(item => item.id));
@@ -57,10 +57,10 @@ export const steinerProtocolRow = (anglesData: any, canonicalId: string): Steine
 
 export const steinerAvailabilityLabel = (status?: string | null) => {
   switch ((status || '').toUpperCase()) {
-    case 'AVAILABLE': return 'Calcul?e';
+    case 'AVAILABLE': return 'Calculée';
     case 'INVALID': return 'Invalide';
     case 'NOT_APPLICABLE': return 'Non applicable';
-    case 'MISSING': return 'Donn?e manquante';
+    case 'MISSING': return 'Donnée manquante';
     default: return 'Non calculable';
   }
 };

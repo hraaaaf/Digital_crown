@@ -8,16 +8,16 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-_PROFILE_PATH = Path(__file__).resolve().parents[2] / "docs" / "audits" / "schemas" / "ortho_lot08_steiner_protocol_profile_v1.json"
+_PROFILE_PATH = Path(__file__).resolve().parents[1] / "data" / "cephalometry" / "steiner_protocol_profile_v1.json"
 
 _LABELS = {
     "M_SNA_DEG_V1":"SNA","M_SNB_DEG_V1":"SNB","M_ANB_DEG_V1":"ANB",
-    "M_U1_NA_DEG_V1":"U1?NA angulaire","M_U1_NA_MM_V1":"U1?NA lin?aire",
-    "M_L1_NB_DEG_V1":"L1?NB angulaire","M_L1_NB_MM_V1":"L1?NB lin?aire",
-    "M_INTERINCISAL_DEG_V1":"Angle inter-incisif","M_OCCLUSAL_PLANE_SN_DEG_V1":"Plan occlusal?SN",
-    "M_SN_GOGN_DEG_V1":"GoGn?SN","M_L1_GOGN_DEG_V1":"L1?GoGn",
-    "M_SND_DEG_V1":"SND","M_POG_NB_MM_V1":"Pog?NB",
-    "M_L1_DLINE_MM_V1":"L1?D line lin?aire","M_L1_DLINE_DEG_V1":"L1?D line angulaire",
+    "M_U1_NA_DEG_V1":"U1–NA angulaire","M_U1_NA_MM_V1":"U1–NA linéaire",
+    "M_L1_NB_DEG_V1":"L1–NB angulaire","M_L1_NB_MM_V1":"L1–NB linéaire",
+    "M_INTERINCISAL_DEG_V1":"Angle inter-incisif","M_OCCLUSAL_PLANE_SN_DEG_V1":"Plan occlusal–SN",
+    "M_SN_GOGN_DEG_V1":"GoGn–SN","M_L1_GOGN_DEG_V1":"L1–GoGn",
+    "M_SND_DEG_V1":"SND","M_POG_NB_MM_V1":"Pog–NB",
+    "M_L1_DLINE_MM_V1":"L1–D line linéaire","M_L1_DLINE_DEG_V1":"L1–D line angulaire",
 }
 
 

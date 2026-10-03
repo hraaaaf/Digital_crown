@@ -66,16 +66,16 @@ type MetricRecord = {
 type MetricDefinition = {
   key: string;
   label: string;
-  unit: '\u00b0' | '?' | 'mm';
+  unit: '\u00b0' | 'mm';
   section: 'analyse_dentaire' | 'analyse_osseuse' | 'analyse_esthetique';
 };
 
 // Presentation metadata only. Scientific geometry is resolved exclusively through
 // cephaloCanonicalFocusAdapter from LOT06 canonical measurement identities.
 const DEFINITIONS: Record<string, MetricDefinition> = {
-  SNA: { key: 'SNA', label: 'SNA', unit: '?', section: 'analyse_osseuse' },
-  SNB: { key: 'SNB', label: 'SNB', unit: '?', section: 'analyse_osseuse' },
-  ANB: { key: 'ANB', label: 'ANB', unit: '?', section: 'analyse_osseuse' },
+  SNA: { key: 'SNA', label: 'SNA', unit: '\u00b0', section: 'analyse_osseuse' },
+  SNB: { key: 'SNB', label: 'SNB', unit: '\u00b0', section: 'analyse_osseuse' },
+  ANB: { key: 'ANB', label: 'ANB', unit: '\u00b0', section: 'analyse_osseuse' },
   'M_SNA_DEG_V1': { key: 'M_SNA_DEG_V1', label: 'SNA', unit: '\u00b0', section: 'analyse_osseuse' },
   'M_SNB_DEG_V1': { key: 'M_SNB_DEG_V1', label: 'SNB', unit: '\u00b0', section: 'analyse_osseuse' },
   'M_ANB_DEG_V1': { key: 'M_ANB_DEG_V1', label: 'ANB', unit: '\u00b0', section: 'analyse_osseuse' },
@@ -91,21 +91,21 @@ const DEFINITIONS: Record<string, MetricDefinition> = {
   'M_POG_NB_MM_V1': { key: 'M_POG_NB_MM_V1', label: 'Pog\u2013NB', unit: 'mm', section: 'analyse_osseuse' },
   'M_L1_DLINE_MM_V1': { key: 'M_L1_DLINE_MM_V1', label: 'L1\u2013D line lin\u00e9aire', unit: 'mm', section: 'analyse_dentaire' },
   'M_L1_DLINE_DEG_V1': { key: 'M_L1_DLINE_DEG_V1', label: 'L1\u2013D line angulaire', unit: '\u00b0', section: 'analyse_dentaire' },
-  IMPA: { key: 'IMPA', label: 'I / Mandibulaire', unit: '?', section: 'analyse_dentaire' },
-  I_Francfort: { key: 'I_Francfort', label: 'I / Francfort', unit: '?', section: 'analyse_dentaire' },
-  Inter_Incisif: { key: 'Inter_Incisif', label: 'Angle inter-incisif', unit: '?', section: 'analyse_dentaire' },
+  IMPA: { key: 'IMPA', label: 'I / Mandibulaire', unit: '\u00b0', section: 'analyse_dentaire' },
+  I_Francfort: { key: 'I_Francfort', label: 'I / Francfort', unit: '\u00b0', section: 'analyse_dentaire' },
+  Inter_Incisif: { key: 'Inter_Incisif', label: 'Angle inter-incisif', unit: '\u00b0', section: 'analyse_dentaire' },
   Surplomb: { key: 'Surplomb', label: 'Surplomb', unit: 'mm', section: 'analyse_dentaire' },
   Recouvrement: { key: 'Recouvrement', label: 'Recouvrement', unit: 'mm', section: 'analyse_dentaire' },
-  Angle_de_Tweed: { key: 'Angle_de_Tweed', label: 'Angle de Tweed', unit: '?', section: 'analyse_osseuse' },
-  Decalage_A_B: { key: 'Decalage_A_B', label: "D?calage osseux A'B'", unit: 'mm', section: 'analyse_osseuse' },
-  Situation_A: { key: 'Situation_A', label: 'Pt A ? verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
-  Situation_B: { key: 'Situation_B', label: 'Pt B ? verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
+  Angle_de_Tweed: { key: 'Angle_de_Tweed', label: 'Angle de Tweed', unit: '\u00b0', section: 'analyse_osseuse' },
+  Decalage_A_B: { key: 'Decalage_A_B', label: "Décalage osseux A'B'", unit: 'mm', section: 'analyse_osseuse' },
+  Situation_A: { key: 'Situation_A', label: 'Pt A → verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
+  Situation_B: { key: 'Situation_B', label: 'Pt B → verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
   Profondeur_Faciale: { key: 'Profondeur_Faciale', label: 'Profondeur faciale', unit: 'mm', section: 'analyse_osseuse' },
-  Ligne_E_Ls: { key: 'Ligne_E_Ls', label: 'L?vre sup. / ligne E', unit: 'mm', section: 'analyse_esthetique' },
-  Ligne_E_Li: { key: 'Ligne_E_Li', label: 'L?vre inf. / ligne E', unit: 'mm', section: 'analyse_esthetique' },
-  Co_A: { key: 'Co_A', label: 'Co?A', unit: 'mm', section: 'analyse_osseuse' },
-  Co_Gn: { key: 'Co_Gn', label: 'Co?Gn', unit: 'mm', section: 'analyse_osseuse' },
-  ANS_Me: { key: 'ANS_Me', label: 'ANS?Me', unit: 'mm', section: 'analyse_osseuse' },
+  Ligne_E_Ls: { key: 'Ligne_E_Ls', label: 'Lèvre sup. / ligne E', unit: 'mm', section: 'analyse_esthetique' },
+  Ligne_E_Li: { key: 'Ligne_E_Li', label: 'Lèvre inf. / ligne E', unit: 'mm', section: 'analyse_esthetique' },
+  Co_A: { key: 'Co_A', label: 'Co–A', unit: 'mm', section: 'analyse_osseuse' },
+  Co_Gn: { key: 'Co_Gn', label: 'Co–Gn', unit: 'mm', section: 'analyse_osseuse' },
+  ANS_Me: { key: 'ANS_Me', label: 'ANS–Me', unit: 'mm', section: 'analyse_osseuse' },
 };
 
 const ANALYSIS_METRICS: Record<CephaloAnalysisMode, string[]> = {
@@ -341,7 +341,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
                   <td className="px-2 py-3 text-[10px]" style={{ color: P.textMuted }}>{normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
-                  <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: deviation === null ? P.textDim : clinicalTone }}>
+                  <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone) }}>
                     {deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`}
                   </td>
                 </tr>

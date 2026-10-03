@@ -179,7 +179,7 @@ const queueAuditedLandmarkSave = (
         try {
           authoritativeRead = await cephaloRepository.getAnalysis(scheduledAnalysisId);
         } catch (readError) {
-          console.warn('Landmark sauvegard? mais relecture scientifique indisponible:', readError);
+          console.warn('Landmark sauvegardé mais relecture scientifique indisponible:', readError);
         }
         const current = get();
         if (

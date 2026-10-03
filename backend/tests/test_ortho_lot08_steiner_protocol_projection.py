@@ -34,3 +34,10 @@ def test_profile_json_keeps_manual_identities_and_no_treatment_authority():
     profile=json.loads((ROOT/"docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json").read_text(encoding="utf-8"))
     assert profile["explicit_manual_or_constructed_identities"]["D_Steiner_1959"].startswith("manual_explicit_only")
     assert profile["scope_resolutions"]["AUTONOMOUS_TREATMENT"]=="FORBIDDEN"
+
+
+def test_runtime_profile_copy_matches_frozen_audit_profile():
+    root=Path(__file__).resolve().parents[2]
+    runtime=root/"backend/data/cephalometry/steiner_protocol_profile_v1.json"
+    audit=root/"docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json"
+    assert runtime.read_bytes()==audit.read_bytes()
