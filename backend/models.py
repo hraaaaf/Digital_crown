@@ -928,6 +928,7 @@ from backend.models_platform import (
     WorkstationSecurityPolicy,
     WorkstationMode,
     WorkstationPairingCode,
+    WorkstationPatientSession,
     RevokedToken,
     AIFeedback,
     ProactiveAlert,
