@@ -1,7 +1,7 @@
 {
   "schema_version": "ORTHO_ANALYSIS_PROTOCOL_PROFILE_V1",
   "protocol_profile_id": "STEINER_STATIC_PROTOCOL_PROFILE_V1",
-  "status": "SOURCE_LOCKED_PRE_CODE",
+  "status": "SOURCE_LOCKED",
   "scientific_authority": "LOT06_CANONICAL_MEASUREMENT_REGISTRY",
   "sources": [
     {
@@ -110,5 +110,14 @@
       ],
       "reason": "serial superimposition semantics are not required to source-lock the static analysis profile"
     }
+  },
+  "pre_code_gate": {
+    "gate": "ORTHO_ANALYSIS_PROTOCOLS_SOURCE_LOCKED",
+    "scope": "STEINER_STATIC_PROTOCOL_PROFILE_V1",
+    "status": "SATISFIED"
+  },
+  "final_gate": {
+    "gate": "ORTHO_ANALYSIS_PROTOCOLS_VERIFIED",
+    "status": "OPEN"
   }
 }

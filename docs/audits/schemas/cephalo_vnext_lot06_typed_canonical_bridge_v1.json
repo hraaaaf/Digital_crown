@@ -259,6 +259,54 @@
       "canonical_measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
       "state": "MAPPED",
       "reason": "CANONICAL_V2_EXPLICIT_PT_RICKETTS_AND_CONSTRUCTED_GN"
+    },
+    {
+      "method_id": "STEINER_SND_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_SND_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_D"
+    },
+    {
+      "method_id": "STEINER_U1_NA_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_U1_NA_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_CROWN_SURFACE"
+    },
+    {
+      "method_id": "STEINER_L1_NB_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_L1_NB_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_CROWN_SURFACE"
+    },
+    {
+      "method_id": "STEINER_POG_NB_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_POG_NB_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_POG_HARD"
+    },
+    {
+      "method_id": "STEINER_L1_GOGN_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_L1_GOGN_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_GN_ANATOMIC"
+    },
+    {
+      "method_id": "STEINER_OCCLUSAL_SN_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_OCCLUSAL_PLANE_SN_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_OCCLUSAL_ANCHORS"
+    },
+    {
+      "method_id": "STEINER_L1_DLINE_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_L1_DLINE_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_D_AND_CROWN"
+    },
+    {
+      "method_id": "STEINER_L1_DLINE_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_L1_DLINE_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_D"
     }
   ]
 }
