@@ -25,6 +25,61 @@ permissions:
   contents: read
 
 jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'f98e61693ec795613604b17bb42ccc7fef410058' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+
+      - name: Preserve 03.2 capture harness
+        run: cp frontend/scripts/capture-v15-03-2-station-identity.mjs /tmp/capture-v15-03-2-station-identity.mjs
+
+      - name: Checkout exact BEFORE base
+        run: |
+          git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
+          git checkout --force "${EVALUATED_BASE}"
+          cp /tmp/capture-v15-03-2-station-identity.mjs frontend/scripts/capture-v15-03-2-station-identity.mjs
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start BEFORE frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4196 >/tmp/v15-03-2-before.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:4196 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v15-03-2-before.log
+          exit 1
+
+      - name: Capture BEFORE station identity matrix
+        working-directory: frontend
+        env:
+          V15_03_2_PHASE: before
+        run: node scripts/capture-v15-03-2-station-identity.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-03-2-station-identity-before
+          path: frontend/artifacts/v15-03-2-station-identity-before
+          if-no-files-found: error
+          retention-days: 14
+
   certify:
     runs-on: ubuntu-latest
     timeout-minutes: 40
