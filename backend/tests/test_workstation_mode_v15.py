@@ -872,3 +872,159 @@ def test_workstation_rename_and_revoke_are_tenant_scoped(client, db, dentiste):
         json={"ownerPin": "2468"},
     )
     assert cross_revoke.status_code == 404
+
+
+def test_pairing_hmac_uses_dedicated_configurable_pepper(monkeypatch):
+    import hashlib
+    import hmac
+    from backend.config import settings
+    from backend.routers import workstation_mode
+
+    monkeypatch.setattr(settings, "PAIRING_CODE_PEPPER", "pairing-pepper-test")
+    expected = hmac.new(
+        b"pairing-pepper-test",
+        b"42:123456",
+        hashlib.sha256,
+    ).hexdigest()
+    assert workstation_mode._pairing_code_hash(42, "123456") == expected
+
+
+def test_issuing_new_pairing_code_invalidates_previous_unused_code(client, db, dentiste):
+    from backend.routers import workstation_mode
+
+    token = _token(client, dentiste.email, "TestPass123!")
+    assert client.get("/api/workstation/state", headers=_headers(token)).status_code == 200
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+
+    first = client.post(
+        "/api/workstation/pairing-code",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert first.status_code == 200, first.text
+    second = client.post(
+        "/api/workstation/pairing-code",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert second.status_code == 200, second.text
+    assert first.json()["code"] != second.json()["code"]
+
+    active = (
+        db.query(models.WorkstationPairingCode)
+        .filter(
+            models.WorkstationPairingCode.employer_id == dentiste.id,
+            models.WorkstationPairingCode.used_at.is_(None),
+        )
+        .all()
+    )
+    assert len(active) == 1
+    assert active[0].code_hash == workstation_mode._pairing_code_hash(
+        dentiste.id,
+        second.json()["code"],
+    )
+    first_row = (
+        db.query(models.WorkstationPairingCode)
+        .filter(
+            models.WorkstationPairingCode.employer_id == dentiste.id,
+            models.WorkstationPairingCode.code_hash == workstation_mode._pairing_code_hash(
+                dentiste.id,
+                first.json()["code"],
+            ),
+        )
+        .one()
+    )
+    assert first_row.used_at is not None
+
+
+def test_pairing_short_code_is_failure_rate_limited(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+    assert client.get("/api/workstation/state", headers=_headers(token)).status_code == 200
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+    issued = client.post(
+        "/api/workstation/pairing-code",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert issued.status_code == 200, issued.text
+    wrong_code = f"{(int(issued.json()['code']) + 1) % 1_000_000:06d}"
+
+    client.cookies.delete("dc_workstation")
+    for _ in range(5):
+        wrong = client.post(
+            "/api/workstation/pair",
+            headers=_headers(token),
+            json={"code": wrong_code, "displayName": "Guess"},
+        )
+        assert wrong.status_code == 403, wrong.text
+
+    limited = client.post(
+        "/api/workstation/pair",
+        headers=_headers(token),
+        json={"code": wrong_code, "displayName": "Guess"},
+    )
+    assert limited.status_code == 429, limited.text
+    assert int(limited.headers["Retry-After"]) > 0
+
+
+def test_pairing_transaction_rolls_back_code_and_workstation_on_creation_failure(
+    client,
+    db,
+    dentiste,
+    monkeypatch,
+):
+    from backend.routers import workstation_mode
+
+    token = _token(client, dentiste.email, "TestPass123!")
+    initial = client.get("/api/workstation/state", headers=_headers(token))
+    assert initial.status_code == 200, initial.text
+    assert client.post(
+        "/api/workstation/owner-pin",
+        headers=_headers(token),
+        json={"accountPassword": "TestPass123!", "newPin": "2468"},
+    ).status_code == 200
+    issued = client.post(
+        "/api/workstation/pairing-code",
+        headers=_headers(token),
+        json={"ownerPin": "2468"},
+    )
+    assert issued.status_code == 200, issued.text
+    code = issued.json()["code"]
+    code_hash = workstation_mode._pairing_code_hash(dentiste.id, code)
+    before_count = db.query(models.WorkstationMode).filter(
+        models.WorkstationMode.employer_id == dentiste.id
+    ).count()
+
+    original_create = workstation_mode._create_workstation_row
+
+    def fail_after_flush(*args, **kwargs):
+        original_create(*args, **kwargs)
+        raise RuntimeError("simulated workstation creation failure")
+
+    monkeypatch.setattr(workstation_mode, "_create_workstation_row", fail_after_flush)
+    client.cookies.delete("dc_workstation")
+
+    failed = client.post(
+        "/api/workstation/pair",
+        headers=_headers(token),
+        json={"code": code, "displayName": "Accueil rollback"},
+    )
+    assert failed.status_code == 500, failed.text
+    assert failed.json()["detail"] == "Workstation pairing could not be committed"
+
+    db.expire_all()
+    pairing = db.query(models.WorkstationPairingCode).filter(
+        models.WorkstationPairingCode.code_hash == code_hash
+    ).one()
+    assert pairing.used_at is None
+    assert db.query(models.WorkstationMode).filter(
+        models.WorkstationMode.employer_id == dentiste.id
+    ).count() == before_count
