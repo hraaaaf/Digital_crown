@@ -18,7 +18,7 @@ def test_lot06_contract_entries_bind_existing_canonical_measurements():
     assert len(ids)==len(set(ids))
     for entry in data["measurements"]:
         canonical=CANONICAL_MEASUREMENTS[entry["measurement_id"]]
-        assert canonical.source_status=="GEOMETRY_COVERED"
+        assert canonical.source_status.startswith("GEOMETRY_COVERED")
         assert canonical.unit==entry["unit"]
         assert entry["required_landmarks"]
         assert entry["source_contracts"]
@@ -78,3 +78,12 @@ def test_lot06_non_promoted_entries_are_explicitly_fail_closed():
     assert "M_LS_EPLANE_MM_V1" in promoted
     assert "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1" in promoted
     assert "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1" in promoted
+
+
+def test_lot06_explicit_identity_gates_remain_fail_closed():
+    data=load_contract()
+    for entry in data["measurements"]:
+        canonical=CANONICAL_MEASUREMENTS[entry["measurement_id"]]
+        if canonical.source_status != "GEOMETRY_COVERED":
+            assert "EXPLICIT" in canonical.source_status or "REQUIRED" in canonical.source_status
+            assert any(token in entry["availability_gate"] for token in ("EXPLICIT","EXACT","VERIFIED"))

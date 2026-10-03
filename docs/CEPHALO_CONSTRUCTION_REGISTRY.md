@@ -175,3 +175,16 @@ Obtenir la preuve CI des golden tests puis séparer explicitement les constructi
 - Inputs: N, Pog_hard, Go, Me.
 - Rule: intersection of the infinite N-Pog_hard facial line and Go-Me mandibular line.
 - Purpose: explicit dependency for Ricketts facial axis; never interchangeable with `Gn_anatomic`.
+
+## Steiner LOT08 source-locked explicit constructions ? 2026-10-03
+
+These constructions extend the LOT06 deterministic authority without activating norms, diagnosis, or treatment. Explicit/manual identities fail closed when absent.
+
+- `STEINER_SND_1959_V1` ? SN/ND using explicit `D_Steiner_1959`; detector `D_point` is not an authorized alias.
+- `STEINER_U1_NA_LINEAR_V1` ? perpendicular U1 facial-crown surface to NA; requires `U1_facial_surface` and verified calibration.
+- `STEINER_L1_NB_LINEAR_V1` ? perpendicular L1 facial-crown surface to NB; requires `L1_facial_surface` and verified calibration.
+- `STEINER_POG_NB_1959_V1` ? perpendicular `Pog_hard` to NB with verified calibration.
+- `STEINER_L1_GOGN_V1` ? lower-incisor long axis vs Steiner Go-Gn using explicit `Gn_anatomic`.
+- `STEINER_OCCLUSAL_SN_1953_V1` ? SN vs version-scoped Steiner 1953 occlusal plane using explicit/constructed `Occ_Steiner_Ant` and `Occ_Steiner_Post`; Wits/Ricketts occlusal planes are not aliases.
+- `STEINER_L1_DLINE_LINEAR_1959_V1` ? L1 facial-crown surface to D-line; D-line passes through explicit `D_Steiner_1959` perpendicular to Go-Gn; verified calibration required.
+- `STEINER_L1_DLINE_ANGULAR_1959_V1` ? lower-incisor long axis vs D-line orientation; explicit Steiner D remains an evidence dependency even though line orientation is determined by Go-Gn.

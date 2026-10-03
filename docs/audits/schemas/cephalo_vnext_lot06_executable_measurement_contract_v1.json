@@ -1,6 +1,6 @@
 {
   "schema_version": "CEPHALO_LOT06_EXECUTABLE_MEASUREMENT_CONTRACT_V1",
-  "status": "PARTIAL_EXECUTABLE_26_DIRECT__1_EXPLICITLY_NON_PROMOTED",
+  "status": "EXECUTABLE_35_CANONICAL_MEASUREMENTS",
   "clinical_interpretation": false,
   "measurements": [
     {
@@ -511,6 +511,163 @@
         "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
       ],
       "availability_gate": "EXPLICIT_PT_RICKETTS_AND_CANONICAL_HARD_TISSUE_IDENTITIES"
+    },
+    {
+      "measurement_id": "M_SND_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "S",
+        "N",
+        "D_Steiner_1959"
+      ],
+      "required_constructions": [
+        "STEINER_SND_1959_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_snd_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "EXPLICIT_MANUAL_STEINER_D_REQUIRED"
+    },
+    {
+      "measurement_id": "M_U1_NA_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "U1_facial_surface",
+        "N",
+        "A"
+      ],
+      "required_constructions": [
+        "STEINER_U1_NA_LINEAR_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_u1_na_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXPLICIT_U1_CROWN_SURFACE"
+    },
+    {
+      "measurement_id": "M_L1_NB_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "L1_facial_surface",
+        "N",
+        "B"
+      ],
+      "required_constructions": [
+        "STEINER_L1_NB_LINEAR_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_l1_nb_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXPLICIT_L1_CROWN_SURFACE"
+    },
+    {
+      "measurement_id": "M_POG_NB_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Pog_hard",
+        "N",
+        "B"
+      ],
+      "required_constructions": [
+        "STEINER_POG_NB_1959_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_pog_nb_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_POG_HARD"
+    },
+    {
+      "measurement_id": "M_L1_GOGN_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "L1_apex",
+        "L1_incisal",
+        "Go",
+        "Gn_anatomic"
+      ],
+      "required_constructions": [
+        "STEINER_L1_GOGN_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_l1_gogn_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "EXACT_GN_ANATOMIC_REQUIRED"
+    },
+    {
+      "measurement_id": "M_OCCLUSAL_PLANE_SN_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "S",
+        "N",
+        "Occ_Steiner_Ant",
+        "Occ_Steiner_Post"
+      ],
+      "required_constructions": [
+        "STEINER_OCCLUSAL_SN_1953_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_occlusal_sn_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "EXPLICIT_STEINER_OCCLUSAL_ANCHORS_REQUIRED"
+    },
+    {
+      "measurement_id": "M_L1_DLINE_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "L1_facial_surface",
+        "D_Steiner_1959",
+        "Go",
+        "Gn_anatomic"
+      ],
+      "required_constructions": [
+        "STEINER_L1_DLINE_LINEAR_1959_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_l1_dline_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXPLICIT_STEINER_D_AND_CROWN_SURFACE"
+    },
+    {
+      "measurement_id": "M_L1_DLINE_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "L1_apex",
+        "L1_incisal",
+        "D_Steiner_1959",
+        "Go",
+        "Gn_anatomic"
+      ],
+      "required_constructions": [
+        "STEINER_L1_DLINE_ANGULAR_1959_V1"
+      ],
+      "implementation": "backend.services.cephalo_steiner_geometry:steiner_l1_dline_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json",
+        "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
+      ],
+      "availability_gate": "EXPLICIT_STEINER_D_AND_GN_ANATOMIC_REQUIRED"
     }
   ],
   "non_promoted_geometry_covered": []

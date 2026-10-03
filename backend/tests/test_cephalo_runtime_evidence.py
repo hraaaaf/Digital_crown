@@ -270,6 +270,13 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
         "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
         "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
         "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "STEINER_SND_CANONICAL_DEG_V2",
+        "STEINER_U1_NA_CANONICAL_MM_V2",
+        "STEINER_L1_NB_CANONICAL_MM_V2",
+        "STEINER_L1_GOGN_CANONICAL_DEG_V2",
+        "STEINER_OCCLUSAL_SN_CANONICAL_DEG_V2",
+        "STEINER_L1_DLINE_CANONICAL_MM_V2",
+        "STEINER_L1_DLINE_CANONICAL_DEG_V2",
     }
     blocked = [x for x in payload["measurements"] if x["method_id"] in explicit_identity_required]
     assert {x["method_id"] for x in blocked} == explicit_identity_required

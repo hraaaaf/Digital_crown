@@ -1,0 +1,114 @@
+{
+  "schema_version": "ORTHO_ANALYSIS_PROTOCOL_PROFILE_V1",
+  "protocol_profile_id": "STEINER_STATIC_PROTOCOL_PROFILE_V1",
+  "status": "SOURCE_LOCKED_PRE_CODE",
+  "scientific_authority": "LOT06_CANONICAL_MEASUREMENT_REGISTRY",
+  "sources": [
+    {
+      "id": "STEINER_1953",
+      "doi": "10.1016/0002-9416(53)90082-7",
+      "role": "BASE_ANALYSIS"
+    },
+    {
+      "id": "STEINER_1959",
+      "doi": "10.1043/0003-3219(1959)029<0008:CICP>2.0.CO;2",
+      "role": "CLINICAL_EXTENSION"
+    },
+    {
+      "id": "STEINER_1960",
+      "doi": "10.1016/0002-9416(60)90145-7",
+      "role": "PLANNING_ASSESSMENT_CONTEXT"
+    }
+  ],
+  "layers": {
+    "STEINER_1953_BASE": {
+      "required_measurement_ids": [
+        "M_SNA_DEG_V1",
+        "M_SNB_DEG_V1",
+        "M_ANB_DEG_V1",
+        "M_U1_NA_DEG_V1",
+        "M_U1_NA_MM_V1",
+        "M_L1_NB_DEG_V1",
+        "M_L1_NB_MM_V1",
+        "M_INTERINCISAL_DEG_V1",
+        "M_OCCLUSAL_PLANE_SN_DEG_V1",
+        "M_SN_GOGN_DEG_V1",
+        "M_L1_GOGN_DEG_V1"
+      ],
+      "optional_serial_or_auxiliary": [
+        "M_U6_NA_MM_V1",
+        "M_L6_NB_MM_V1"
+      ]
+    },
+    "STEINER_1959_EXTENSION": {
+      "required_measurement_ids": [
+        "M_SND_DEG_V1",
+        "M_POG_NB_MM_V1",
+        "M_L1_DLINE_MM_V1",
+        "M_L1_DLINE_DEG_V1"
+      ],
+      "derived_relationships": [
+        {
+          "relationship_id": "STEINER_L1_NB_VS_POG_NB_V1",
+          "inputs": [
+            "M_L1_NB_MM_V1",
+            "M_POG_NB_MM_V1"
+          ],
+          "kind": "COMPARE_LINEAR_DISTANCES",
+          "authority": "PROTOCOL_DERIVED_INTERPRETATION_ONLY",
+          "autonomous_treatment": false
+        }
+      ]
+    }
+  },
+  "explicit_manual_or_constructed_identities": {
+    "U1_facial_surface": "manual_or_structure_anchor_only",
+    "L1_facial_surface": "manual_or_structure_anchor_only",
+    "D_Steiner_1959": "manual_explicit_only; detector D_point alias forbidden",
+    "Occ_Steiner_Ant": "constructed_or_manual_anchor",
+    "Occ_Steiner_Post": "constructed_or_manual_anchor"
+  },
+  "execution_policy": {
+    "missing_required_identity": "FAIL_CLOSED_NOT_COMPUTABLE",
+    "unverified_detector_alias": "FORBIDDEN",
+    "parallel_formula_outside_LOT06": "FORBIDDEN"
+  },
+  "norm_sets": [
+    {
+      "norm_set_id": "STEINER_HISTORICAL_REFERENCE_SET_V1",
+      "authority": "REFERENCE_DISPLAY_ONLY",
+      "classification_authority": false,
+      "population": "UNSPECIFIED_HISTORICAL_ORTHODONTIC_SAMPLE",
+      "applicability": "NOT_VALIDATED_FOR_UNIVERSAL_MODERN_USE",
+      "out_of_domain_behavior": "DISPLAY_MEASUREMENT_AND_REFERENCE_WITHOUT_CLASSIFICATION",
+      "values": {
+        "M_SNA_DEG_V1": 82.0,
+        "M_SNB_DEG_V1": 80.0,
+        "M_ANB_DEG_V1": 2.0,
+        "M_U1_NA_DEG_V1": 22.0,
+        "M_U1_NA_MM_V1": 4.0,
+        "M_L1_NB_DEG_V1": 25.0,
+        "M_L1_NB_MM_V1": 4.0,
+        "M_SN_GOGN_DEG_V1": 32.0,
+        "M_OCCLUSAL_PLANE_SN_DEG_V1": 14.5,
+        "M_L1_GOGN_DEG_V1": 93.0
+      }
+    }
+  ],
+  "scope_resolutions": {
+    "U6_L6": "EXCLUDED_FROM_STATIC_REQUIRED_PROFILE; AUXILIARY_SERIAL_ONLY_UNTIL_EXACT_POINT_SEMANTICS_SOURCE_LOCKED",
+    "SL_SE_LE": "EXCLUDED_FROM_STATIC_PROFILE; DEFERRED_TO_STEINER_SERIAL_ASSESSMENT_V1",
+    "AUTONOMOUS_TREATMENT": "FORBIDDEN",
+    "EXTRACTION_NON_EXTRACTION": "CLINICIAN_ONLY"
+  },
+  "separate_profiles": {
+    "STEINER_SERIAL_ASSESSMENT_V1": {
+      "status": "DEFERRED_SEPARATE_PROFILE",
+      "measurement_ids": [
+        "M_SERIAL_INCISOR_DISPLACEMENT_V1",
+        "M_SERIAL_MOLAR_DISPLACEMENT_V1"
+      ],
+      "reason": "serial superimposition semantics are not required to source-lock the static analysis profile"
+    }
+  }
+}

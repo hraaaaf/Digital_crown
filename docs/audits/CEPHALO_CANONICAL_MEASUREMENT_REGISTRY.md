@@ -63,11 +63,11 @@ Une analyse **ne possède pas** une formule. Elle référence un `measurement_id
 | `M_SNA_DEG_V1` | SNA | angle SN / NA | S,N,A | angle ° | `GEOMETRY_COVERED` |
 | `M_SNB_DEG_V1` | SNB | angle SN / NB | S,N,B | angle ° | `GEOMETRY_COVERED` |
 | `M_ANB_DEG_V1` | ANB | angle NA / NB, compatible avec SNA−SNB selon convention verrouillée | S,N,A,B | angle ° | `GEOMETRY_COVERED` |
-| `M_SND_DEG_V1` | SND | angle SN / ND | S,N,D | angle ° | `BLOCKED_LANDMARK` |
+| `M_SND_DEG_V1` | SND | angle SN / ND | S,N,D_Steiner_1959 | angle ° | `GEOMETRY_COVERED_EXPLICIT_STEINER_D_REQUIRED` |
 | `M_A_NPERP_MM_V1` | A → N-perp | distance AP signée de A à la perpendiculaire à FH passant par N | A,N,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` |
 | `M_B_NPERP_MM_V1` | B → N-perp | même construction avec B | B,N,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` côté DC legacy |
 | `M_POG_NPERP_MM_V1` | Pog → N-perp | même construction avec Pog hard | Pog_hard,N,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` |
-| `M_POG_NB_MM_V1` | Pog → NB | distance perpendiculaire Pog hard → NB | Pog_hard,N,B | mm | `IMPLEMENTATION_MISSING` |
+| `M_POG_NB_MM_V1` | Pog → NB | distance perpendiculaire Pog hard → NB | Pog_hard,N,B | mm | `GEOMETRY_COVERED_EXPLICIT_IDENTITY_REQUIRED` |
 | `M_AB_PRIME_FH_MM_V1` | A′B′ | différence signée des projections de A et B sur FH | A,B,Po_anatomic,Or | mm signé | `GEOMETRY_COVERED` |
 | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | Convexité maxillaire | distance perpendiculaire signée A → N-Pog | A,N,Pog_hard | mm signé | `GEOMETRY_COVERED` |
 | `M_FACIAL_ANGLE_NPOG_FH_DEG_V1` | Facial Angle | angle N-Pog / FH | N,Pog_hard,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED + CONVENTION_COLLISION` — Downs = angle aigu d’axes; Ricketts `FACIAL_DEPTH` = angle postérieur dirigé; split/version requis avant promotion canonique |
@@ -82,7 +82,7 @@ Une analyse **ne possède pas** une formule. Elle référence un `measurement_id
 | `M_FH_SUBGO_M_DEG_V1` | FH–Sub.Go.-M | angle FH / plan mandibulaire Ricketts strict | Po_anatomic,Or,SubGo,M | angle ° | `IMPLEMENTATION_MISSING` |
 | `M_ANS_ME_MM_V1` | ANS–Me | longueur segment ANS-Me | ANS,Me | mm | `GEOMETRY_COVERED` |
 | `M_PALATAL_PLANE_FH_DEG_V1` | Plan palatin / FH | angle ANS-PNS / FH | ANS,PNS,Po_anatomic,Or | angle ° | `PRIMITIVE_AVAILABLE`; PNS auto non autoritaire |
-| `M_OCCLUSAL_PLANE_SN_DEG_V1` | Plan occlusal / SN | angle plan occlusal / SN | S,N + points occlusaux exacts | angle ° | `SOURCE_LOCK_REQUIRED` |
+| `M_OCCLUSAL_PLANE_SN_DEG_V1` | Plan occlusal / SN | angle plan occlusal Steiner 1953 / SN | S,N,Occ_Steiner_Ant,Occ_Steiner_Post | angle ° | `GEOMETRY_COVERED_EXPLICIT_STEINER_ANCHORS_REQUIRED` |
 | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | Oral gnomon | angle ANS-Xi-Pm | ANS,Xi,Pm | angle ° | `BLOCKED_LANDMARK` |
 | `M_BEND_OF_MANDIBLE_DEG_V1` | Bend of mandible | construction corpus/condyle Ricketts | Xi/Pm + condylar construction source-lockée | angle ° | `IMPLEMENTATION_MISSING` |
 
@@ -108,7 +108,7 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | ID canonique | Mesure | Géométrie canonique | Landmarks | Type/unité | État |
 |---|---|---|---|---|---|
 | `M_U1_NA_DEG_V1` | U1–NA angulaire | axe U1 / NA | U1_apex,U1_incisal,N,A | angle ° | `GEOMETRY_COVERED` |
-| `M_U1_NA_MM_V1` | U1–NA linéaire | surface faciale U1 → NA | U1_facial_surface,N,A | mm | `BLOCKED_LANDMARK` |
+| `M_U1_NA_MM_V1` | U1–NA linéaire | surface faciale U1 → NA | U1_facial_surface,N,A | mm | `GEOMETRY_COVERED_EXPLICIT_CROWN_SURFACE_REQUIRED` |
 | `M_U1_FH_DEG_V1` | U1–Frankfort | axe U1 / FH | U1_apex,U1_incisal,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED` côté DC/COM |
 | `M_U1_A_VERTICAL_MM_V1` | U1 → A vertical | surface faciale U1 → verticale par A parallèle à N-perp | U1_facial_surface,A,Po_anatomic,Or | mm | `BLOCKED_LANDMARK` |
 | `M_U6_NA_MM_V1` | U6–NA | position molaire U6 par rapport à NA selon point molaire source-locké | U6_exact,N,A | mm | `BLOCKED_LANDMARK` |
@@ -119,14 +119,14 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | ID canonique | Mesure | Géométrie canonique | Landmarks | Type/unité | État |
 |---|---|---|---|---|---|
 | `M_L1_NB_DEG_V1` | L1–NB angulaire | axe L1 / NB | L1_apex,L1_incisal,N,B | angle ° | `GEOMETRY_COVERED` |
-| `M_L1_NB_MM_V1` | L1–NB linéaire | surface faciale L1 → NB | L1_facial_surface,N,B | mm | `BLOCKED_LANDMARK` |
-| `M_L1_GOGN_DEG_V1` | L1–GoGn | axe L1 / Go-Gn | L1_apex,L1_incisal,Go,Gn_anatomic | angle ° | `IMPLEMENTATION_MISSING` |
+| `M_L1_NB_MM_V1` | L1–NB linéaire | surface faciale L1 → NB | L1_facial_surface,N,B | mm | `GEOMETRY_COVERED_EXPLICIT_CROWN_SURFACE_REQUIRED` |
+| `M_L1_GOGN_DEG_V1` | L1–GoGn | axe L1 / Go-Gn | L1_apex,L1_incisal,Go,Gn_anatomic | angle ° | `GEOMETRY_COVERED` |
 | `M_IMPA_GOME_DEG_V1` | IMPA | axe L1 / Go-Me | L1_apex,L1_incisal,Go,Me | angle ° | `GEOMETRY_COVERED` |
 | `M_FMIA_L1_FH_DEG_V1` | FMIA | axe L1 / FH Po-Or | L1_apex,L1_incisal,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED` |
 | `M_L1_FACIAL_SURFACE_APOG_MM_V1` | L1 surface → A-Pog | surface faciale L1 → A-Pog | L1_facial_surface,A,Pog_hard | mm | `BLOCKED_LANDMARK` |
 | `M_L1_EDGE_APOG_MM_V1` | L1 edge → A-Pog | bord incisif L1 → A-Pog | L1_incisal,A,Pog_hard | mm | `PRIMITIVE_AVAILABLE` |
-| `M_L1_DLINE_MM_V1` | L1–D line linéaire | surface L1 → D-line | L1_facial_surface,D,Go,Gn_anatomic | mm | `BLOCKED_LANDMARK` |
-| `M_L1_DLINE_DEG_V1` | L1–D line angulaire | axe L1 / D-line | L1_apex,L1_incisal,D,Go,Gn_anatomic | angle ° | `BLOCKED_LANDMARK` |
+| `M_L1_DLINE_MM_V1` | L1–D line linéaire | surface L1 → D-line | L1_facial_surface,D_Steiner_1959,Go,Gn_anatomic | mm | `GEOMETRY_COVERED_EXPLICIT_STEINER_D_AND_CROWN_REQUIRED` |
+| `M_L1_DLINE_DEG_V1` | L1–D line angulaire | axe L1 / D-line | L1_apex,L1_incisal,D_Steiner_1959,Go,Gn_anatomic | angle ° | `GEOMETRY_COVERED_EXPLICIT_STEINER_D_REQUIRED` |
 | `M_L6_NB_MM_V1` | L6–NB | position molaire L6 par rapport à NB selon point molaire source-locké | L6_exact,N,B | mm | `BLOCKED_LANDMARK` |
 
 # 7. Relations dentaires / occlusales
