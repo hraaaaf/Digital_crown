@@ -114,3 +114,69 @@ def test_google_oauth_success_consumes_state_cookie_once(client, monkeypatch, de
     assert "google=success" in callback.headers["location"]
     assert client.cookies.get("google_oauth_state") is None
     assert "google_oauth_state=" in callback.headers.get("set-cookie", "")
+
+def test_google_oauth_https_alias_normalizes_before_state_and_authenticates(client, monkeypatch, dentiste) -> None:
+    from urllib.parse import parse_qs, urlparse
+    from backend.routers import auth
+
+    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_ID", "synthetic-client")
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_SECRET", "synthetic-secret")
+
+    class FakeResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, data):
+            assert data["redirect_uri"] == "https://127.0.0.1:8005/api/auth/google/callback"
+            return FakeResponse(200, {"access_token": "google-access"})
+
+        async def get(self, url, headers):
+            return FakeResponse(200, {"email": dentiste.email, "name": dentiste.nom_complet})
+
+    monkeypatch.setattr(auth.httpx, "AsyncClient", FakeAsyncClient)
+
+    normalize = client.get(
+        "https://digitalcrown.local:8005/api/auth/google/authorize",
+        follow_redirects=False,
+    )
+    assert normalize.status_code in {302, 307}
+    assert normalize.headers["location"] == "https://127.0.0.1:8005/api/auth/google/authorize"
+    assert "google_oauth_state" not in normalize.headers.get("set-cookie", "")
+
+    authorize = client.get(normalize.headers["location"], follow_redirects=False)
+    state = parse_qs(urlparse(authorize.headers["location"]).query)["state"][0]
+    callback_url = f"https://127.0.0.1:8005/api/auth/google/callback?code=synthetic-code&state={state}"
+    callback = client.get(callback_url, follow_redirects=False)
+
+    assert callback.status_code in {302, 307}
+    assert callback.headers["location"] == "https://127.0.0.1:8005/login?google=success"
+    assert client.get("https://127.0.0.1:8005/api/auth/me").status_code == 200
+
+    replay = client.get(callback_url, follow_redirects=False)
+    assert replay.status_code in {302, 307}
+    assert replay.headers["location"] == "https://127.0.0.1:8005/login?error=google_state_invalid"
+
+
+def test_google_oauth_http_localhost_normalizes_to_loopback_before_state(client, monkeypatch) -> None:
+    from backend.routers import auth
+
+    monkeypatch.delenv("DIGITALCROWN_ENABLE_HTTPS", raising=False)
+    monkeypatch.setattr(auth.settings, "GOOGLE_CLIENT_ID", "synthetic-client")
+
+    response = client.get("http://localhost:8005/api/auth/google/authorize", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "http://127.0.0.1:8005/api/auth/google/authorize"
+    assert "google_oauth_state" not in response.headers.get("set-cookie", "")
