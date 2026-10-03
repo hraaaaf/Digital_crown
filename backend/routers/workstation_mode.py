@@ -594,6 +594,16 @@ def issue_pairing_code(
             record_rate_limit_failure(request, scope)
         raise
 
+    # Serialize code issuance per cabinet. The DB unique partial index is the
+    # final invariant; this row lock avoids turning a normal concurrent issue
+    # race into a uniqueness error on PostgreSQL.
+    (
+        db.query(models.WorkstationSecurityPolicy)
+        .filter(models.WorkstationSecurityPolicy.employer_id == employer_id)
+        .with_for_update()
+        .one()
+    )
+
     now = datetime.utcnow()
     for stale in db.query(models.WorkstationPairingCode).filter(
         models.WorkstationPairingCode.employer_id == employer_id,
