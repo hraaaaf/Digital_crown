@@ -4,6 +4,7 @@ export type WorkstationExperience = 'cabinet' | 'station' | 'control_center';
 
 export type WorkstationBootstrapState = {
   workstationId: string | null;
+  displayName?: string | null;
   defaultExperience: WorkstationExperience | null;
   stationLocked: boolean;
   stationEscapeAuthorized: boolean;
@@ -13,6 +14,15 @@ export type WorkstationBootstrapState = {
   pinConfigured?: boolean;
   canManage?: boolean;
   canConfigurePin?: boolean;
+};
+
+export type WorkstationRegistryEntry = {
+  workstationId: string;
+  displayName: string | null;
+  defaultExperience: WorkstationExperience | null;
+  revoked: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type WorkstationState = WorkstationBootstrapState & {
@@ -87,6 +97,36 @@ export const workstationModeService = {
     const { data } = await api.post<WorkstationState>('/workstation/enroll', { accountPassword });
     emitWorkstationChange();
     return data;
+  },
+
+  async issuePairingCode(ownerPin: string): Promise<{ code: string; expiresAt: string }> {
+    const { data } = await api.post<{ code: string; expiresAt: string }>('/workstation/pairing-code', { ownerPin });
+    return data;
+  },
+
+  async pairWorkstation(code: string, displayName: string): Promise<WorkstationState> {
+    const { data } = await api.post<WorkstationState>('/workstation/pair', { code, displayName });
+    emitWorkstationChange();
+    return data;
+  },
+
+  async listWorkstations(): Promise<WorkstationRegistryEntry[]> {
+    const { data } = await api.get<WorkstationRegistryEntry[]>('/workstation/registry');
+    return data;
+  },
+
+  async renameWorkstation(workstationId: string, displayName: string, ownerPin: string): Promise<{ workstationId: string; displayName: string }> {
+    const { data } = await api.patch<{ workstationId: string; displayName: string }>(
+      `/workstation/${workstationId}/name`,
+      { displayName, ownerPin },
+    );
+    emitWorkstationChange();
+    return data;
+  },
+
+  async revokeWorkstation(workstationId: string, ownerPin: string): Promise<void> {
+    await api.post(`/workstation/${workstationId}/revoke`, { ownerPin });
+    emitWorkstationChange();
   },
 
   async configureOwnerPin(accountPassword: string, newPin: string): Promise<void> {
