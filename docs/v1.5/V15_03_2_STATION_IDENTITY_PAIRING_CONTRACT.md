@@ -12,7 +12,7 @@ Give each Digital Crown Station a stable server-side identity, a human-editable 
 6. Pairing an additional or untrusted Station requires an authenticated user in the target tenant plus a valid unexpired pairing code. The existing first-owner-workstation bootstrap path remains unchanged.
 7. Pairing code generation, rename and revocation require admin authority; privileged mutations require the owner PIN where configured.
 8. Pairing-code consumption, workstation creation and the critical pairing audits form one atomic transaction; failure rolls the entire pairing back.
-9. Pairing claims are protected by a persistent tenant-wide 5-failures/10-minute DB throttle, independent of worker-local memory, plus the existing failure limiter as defense in depth.
+9. Pairing claims are protected by a persistent tenant-wide 5-failures/10-minute DB throttle that is authoritative across workers; pairing-code security does not depend on worker-local memory.
 10. Revocation is fail-closed: a revoked workstation identity can no longer authorize protected cabinet access.
 11. Station registry never exposes token hashes or pairing-code hashes.
 12. Multiple Stations may coexist in the same cabinet.
