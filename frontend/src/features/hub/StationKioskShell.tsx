@@ -116,6 +116,7 @@ export const StationKioskShell = ({
       data-workstation-experience="station"
       data-station-screen={screen}
       data-station-language={language}
+      lang={language}
       dir={dir}
       onPointerDown={noteActivity}
       onKeyDown={noteActivity}
@@ -135,12 +136,13 @@ export const StationKioskShell = ({
             <TabletSmartphone size={24} aria-hidden="true" />
           </button>
 
-          <div className="flex items-center gap-1.5 rounded-elite-sm border border-border-main bg-card-bg p-1 shadow-elite" aria-label="Langue">
+          <div role="group" aria-label="Langue / Language / اللغة" className="flex items-center gap-1.5 rounded-elite-sm border border-border-main bg-card-bg p-1 shadow-elite">
             <Languages size={17} className="mx-1 text-text-muted" aria-hidden="true" />
             {(['fr', 'ar', 'en'] as StationLanguage[]).map((locale) => (
               <button
                 key={locale}
                 type="button"
+                aria-label={COPY[locale].localeName}
                 aria-pressed={language === locale}
                 onClick={() => {
                   setLanguage(locale);
