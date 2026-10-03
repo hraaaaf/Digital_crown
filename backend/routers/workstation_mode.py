@@ -364,20 +364,20 @@ def _reset_pairing_failure_state(policy: models.WorkstationSecurityPolicy) -> No
     policy.pairing_locked_until = None
 
 
-def _enforce_persistent_pairing_limit(
+def _begin_persistent_pairing_attempt(
     db: Session,
     *,
     employer_id: int,
     user: models.User,
     request: Request,
-) -> None:
+) -> tuple[models.WorkstationSecurityPolicy, datetime]:
+    """Acquire the tenant policy lock and keep it through pairing verification."""
     now = datetime.utcnow()
     try:
         policy = _pairing_policy_for_update(db, employer_id)
         if _pairing_window_is_expired(policy, now):
             _reset_pairing_failure_state(policy)
 
-        retry_after = 0
         if int(policy.pairing_failed_attempts or 0) >= PAIRING_FAILURE_LIMIT:
             started = policy.pairing_failure_window_started_at or now
             locked_until = policy.pairing_locked_until or (
@@ -394,10 +394,17 @@ def _enforce_persistent_pairing_limit(
                 details="Pairing claim blocked by persistent tenant-wide failure limit.",
                 request=request,
             )
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many pairing attempts",
+                headers={"Retry-After": str(retry_after)},
+            )
 
-        db.commit()
+        # Do not commit here: the row lock intentionally remains held until the
+        # code attempt either records a failure or commits a successful pairing.
+        return policy, now
     except HTTPException:
-        db.rollback()
         raise
     except Exception as exc:
         db.rollback()
@@ -407,36 +414,17 @@ def _enforce_persistent_pairing_limit(
             detail="Pairing security state unavailable",
         ) from exc
 
-    if retry_after:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many pairing attempts",
-            headers={"Retry-After": str(retry_after)},
-        )
 
-
-def _record_persistent_pairing_failure(db: Session, *, employer_id: int) -> None:
-    now = datetime.utcnow()
-    try:
-        policy = _pairing_policy_for_update(db, employer_id)
-        if _pairing_window_is_expired(policy, now):
-            _reset_pairing_failure_state(policy)
-            policy.pairing_failure_window_started_at = now
-        elif policy.pairing_failure_window_started_at is None:
-            policy.pairing_failure_window_started_at = now
-
-        policy.pairing_failed_attempts = int(policy.pairing_failed_attempts or 0) + 1
-        if policy.pairing_failed_attempts >= PAIRING_FAILURE_LIMIT:
-            started = policy.pairing_failure_window_started_at or now
-            policy.pairing_locked_until = started + timedelta(seconds=PAIRING_FAILURE_WINDOW_SECONDS)
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        logger.exception("Persistent workstation pairing failure counter could not be updated")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Pairing security state unavailable",
-        ) from exc
+def _record_persistent_pairing_failure_locked(
+    policy: models.WorkstationSecurityPolicy,
+    now: datetime,
+) -> None:
+    if policy.pairing_failure_window_started_at is None:
+        policy.pairing_failure_window_started_at = now
+    policy.pairing_failed_attempts = int(policy.pairing_failed_attempts or 0) + 1
+    if policy.pairing_failed_attempts >= PAIRING_FAILURE_LIMIT:
+        started = policy.pairing_failure_window_started_at or now
+        policy.pairing_locked_until = started + timedelta(seconds=PAIRING_FAILURE_WINDOW_SECONDS)
 
 
 def _require_pin(db: Session, user: models.User, pin: str) -> models.WorkstationSecurityPolicy:
@@ -767,14 +755,12 @@ def pair_workstation(
     if _find_workstation(request, db, employer_id) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workstation is already paired")
 
-    _enforce_persistent_pairing_limit(
+    pairing_policy, now = _begin_persistent_pairing_attempt(
         db,
         employer_id=employer_id,
         user=current_user,
         request=request,
     )
-
-    now = datetime.utcnow()
     consumed = (
         db.query(models.WorkstationPairingCode)
         .filter(
@@ -789,8 +775,16 @@ def pair_workstation(
         )
     )
     if consumed != 1:
-        db.rollback()
-        _record_persistent_pairing_failure(db, employer_id=employer_id)
+        _record_persistent_pairing_failure_locked(pairing_policy, now)
+        try:
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            logger.exception("Persistent workstation pairing failure counter could not be committed")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Pairing security state unavailable",
+            ) from exc
         record_rate_limit_failure(request, scope)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or expired pairing code")
 
@@ -800,6 +794,7 @@ def pair_workstation(
             current_user,
             display_name=payload.displayName,
         )
+        _reset_pairing_failure_state(pairing_policy)
         _add_audit_entry(
             db,
             user=current_user,
