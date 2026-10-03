@@ -76,7 +76,8 @@
       "INTRA_OCCLUSAL_MAXILLARY",
       "INTRA_OCCLUSAL_MANDIBULAR"
     ],
-    "photo_reconstruction_gate": "ALL_5_STANDARDIZED_VIEWS_REQUIRED"
+    "photo_reconstruction_gate": "ALL_5_STANDARDIZED_VIEWS_REQUIRED",
+    "source_ref_namespace": "ORTHO_PHOTO_V1:<SLOT_ID>"
   },
   "legacy_slot_migration": {
     "radio": "LATERAL_CEPHALOGRAM_REQUIRES_MEDIA_VERIFICATION",
@@ -101,5 +102,19 @@
     "operator_or_device",
     "patient_record_id",
     "timepoint_id"
-  ]
+  ],
+  "model_protocol": {
+    "record_hooks": [
+      "MAXILLARY_ARCH",
+      "MANDIBULAR_ARCH",
+      "OCCLUSION_RELATION"
+    ],
+    "accepted_formats": [
+      "STL",
+      "PLY",
+      "OBJ"
+    ],
+    "import_gate": "VALIDATOR_NOT_IMPLEMENTED_FAIL_CLOSED",
+    "measurement_authority_before_validation": "NONE"
+  }
 }

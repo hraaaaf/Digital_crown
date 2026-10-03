@@ -4,13 +4,15 @@ import { fmtNum, calcDDMReelle, computeLocalImpa } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { OrthoMediaRecordPanel } from './OrthoMediaRecordPanel';
 
 
 interface Step2OcclusalProps {
   P: any;
+  patientId: number;
 }
 
-export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P }) => {
+export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P, patientId }) => {
   const store = useOrthoStore();
   const { etape2Data: data, ddm, setDdm: onDdmChange, setEtape2Data: onChange, local, anglesData, etape3Data } = store;
 
@@ -43,6 +45,8 @@ export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P }) => {
   , [ddmMaxReelle, ddmMandReelle]);
 
   return (
+    <>
+      <OrthoMediaRecordPanel patientId={patientId} P={P} />
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       
       {/* SECTION 1: DDM (MOULAGES) */}
@@ -176,6 +180,7 @@ export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P }) => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

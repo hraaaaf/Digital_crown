@@ -392,7 +392,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
                 <ClinicalScientificStudio patientId={patientId} analysisId={analysisId} P={P} />
               )}
               {step === 1 && renderStep1()}
-              {step === 2 && <Step2Occlusal P={P} />}
+              {step === 2 && <Step2Occlusal P={P} patientId={patientId} />}
               {step === 3 && <Step3Clinical P={P} />}
               {step === 4 && <Step4Documents P={P} />}
 
