@@ -14,7 +14,7 @@ def test_steiner_profile_is_precode_source_locked_and_lot06_authoritative():
     assert p["status"]=="SOURCE_LOCKED"
     assert p["pre_code_gate"]["gate"]=="ORTHO_ANALYSIS_PROTOCOLS_SOURCE_LOCKED"
     assert p["pre_code_gate"]["status"]=="SATISFIED"
-    assert p["final_gate"]["status"]=="OPEN"
+    assert p["final_gate"]["status"]=="SATISFIED"
     assert p["protocol_profile_id"]=="STEINER_STATIC_PROTOCOL_PROFILE_V1"
     assert p["scientific_authority"]=="LOT06_CANONICAL_MEASUREMENT_REGISTRY"
     assert p["execution_policy"]["parallel_formula_outside_LOT06"]=="FORBIDDEN"

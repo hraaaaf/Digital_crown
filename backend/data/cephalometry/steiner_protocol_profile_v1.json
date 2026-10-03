@@ -119,6 +119,6 @@
   },
   "final_gate": {
     "gate": "ORTHO_ANALYSIS_PROTOCOLS_VERIFIED",
-    "status": "OPEN"
+    "status": "SATISFIED"
   }
 }

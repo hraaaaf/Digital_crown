@@ -18,7 +18,7 @@ def test_projection_preserves_source_locked_composition_and_display_only_norms()
     out=project_steiner_static_protocol(rows)
     assert out["protocol_profile_id"]=="STEINER_STATIC_PROTOCOL_PROFILE_V1"
     assert out["source_lock_gate"]["status"]=="SATISFIED"
-    assert out["final_gate"]["status"]=="OPEN"
+    assert out["final_gate"]["status"]=="SATISFIED"
     assert len(out["rows"])==15
     sna=next(x for x in out["rows"] if x["canonical_measurement_id"]=="M_SNA_DEG_V1")
     assert sna["value"]==83.5 and sna["historical_reference"]==82.0 and sna["reference_delta"]==1.5
