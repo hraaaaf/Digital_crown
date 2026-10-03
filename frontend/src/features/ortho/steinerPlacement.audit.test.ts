@@ -42,3 +42,10 @@ it('capture harness derives historical references from the packaged source-locke
   expect(source).toContain("backend','data','cephalometry','steiner_protocol_profile_v1.json");
   expect(source).not.toContain('const refs=[');
 });
+
+
+it('Steiner delta must come from backend protocol projection, never frontend subtraction', () => {
+  const source = read('components/CephaloAnalysisWorkbenchPanel.tsx');
+  expect(source).toContain("analysis === 'steiner'");
+  expect(source).toContain("typeof metric?.reference_delta === 'number' ? metric.reference_delta : null");
+});

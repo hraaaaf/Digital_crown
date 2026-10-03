@@ -315,7 +315,9 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
               const metric = metricFromResults(anglesData, definition);
               const value = readValue(metric);
               const selected = activeKey === definition.key;
-              const deviation = typeof metric?.reference_delta === 'number' ? metric.reference_delta : (value !== null && typeof metric?.norm_mean === 'number' ? value - metric.norm_mean : null);
+              const deviation = analysis === 'steiner'
+                ? (typeof metric?.reference_delta === 'number' ? metric.reference_delta : null)
+                : (value !== null && typeof metric?.norm_mean === 'number' ? value - metric.norm_mean : null);
               const familyTone = cephaloMetricColor(definition.key);
               const clinicalTone = statusTone(metric);
               return (
