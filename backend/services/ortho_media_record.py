@@ -67,14 +67,18 @@ def _has_canonical_ortho_provenance(asset: ClinicalAsset, *, slot: str, patient_
 
 
 def _serialize(asset: ClinicalAsset, slot: str) -> dict:
+    provenance = asset.provenance_json if isinstance(asset.provenance_json, dict) else {}
     return {
         "slot_id": slot,
         "asset_id": int(asset.id),
+        "source_ref": asset.source_ref,
+        "sha256": asset.sha256,
         "mime_type": asset.mime_type,
         "captured_at": asset.captured_at,
         "created_at": asset.created_at,
         "source_kind": asset.source_kind,
         "timepoint": asset.timepoint,
+        "provenance_schema_version": provenance.get("schema_version"),
     }
 
 
