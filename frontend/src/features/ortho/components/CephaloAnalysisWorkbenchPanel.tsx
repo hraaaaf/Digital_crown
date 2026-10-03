@@ -288,8 +288,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                     title={identity.help}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-[9px] font-black" style={{ color: P.text }}>{identity.label}</span>
-                      <span className="block truncate text-[8px]" style={{ color: present ? P.accentSuccess : P.textDim }}>{placing ? 'Cliquez sur la t\u00e9l\u00e9radio' : (present ? 'Plac\u00e9e \u00b7 cliquer pour replacer' : '\u00c0 placer')}</span>
+                      <span className="block break-words text-[9px] font-black leading-tight" style={{ color: P.text }}>{identity.label}</span>
+                      <span className="mt-0.5 block break-words text-[8px] leading-tight" style={{ color: present ? P.accentSuccess : P.textDim }}>{placing ? 'Cliquez sur la t\u00e9l\u00e9radio' : (present ? 'Plac\u00e9e \u00b7 cliquer pour replacer' : '\u00c0 placer')}</span>
                     </span>
                     <MapPin size={12} style={{ color: placing ? P.accent : (present ? P.accentSuccess : P.textDim) }} />
                   </button>
