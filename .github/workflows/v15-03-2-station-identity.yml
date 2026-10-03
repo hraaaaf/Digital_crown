@@ -7,6 +7,8 @@ on:
   pull_request:
     branches: [master]
     paths:
+      - "backend/config.py"
+      - "backend/models.py"
       - "backend/models_platform.py"
       - "backend/routers/workstation_mode.py"
       - "backend/tests/test_workstation_mode_v15.py"
@@ -88,6 +90,7 @@ jobs:
       EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'f98e61693ec795613604b17bb42ccc7fef410058' }}
       ENVIRONMENT: test
       SECRET_KEY: v15-03-2-station-identity-secret-long-enough
+      PAIRING_CODE_PEPPER: v15-03-2-dedicated-pairing-pepper
       DATABASE_URL: sqlite:///./v15-03-2-cert.db
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
