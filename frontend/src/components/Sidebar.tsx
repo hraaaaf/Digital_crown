@@ -13,7 +13,6 @@ import {
   Store,
   PanelLeftClose,
   PanelLeftOpen,
-  Crown,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
@@ -24,6 +23,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 
 // --- OFFICIAL ASSET IMPORT (Digital Crown Logo) ---
 import Logo from '../assets/logo.png';
+import CompactLogo from '../assets/logo-compact.png';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -103,7 +103,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           50% { transform: scale(1.02); filter: drop-shadow(0 0 15px var(--primary)); }
         }
         .animate-logo-pulse-light { animation: logo-pulse-light 2s ease-in-out infinite; }
-        .sidebar-cabinet-compact { display: none; }
+        .sidebar-cabinet-compact,
+        .sidebar-brand-compact { display: none; }
         @media (min-width: 1024px) {
           .sidebar-shell {
             transition: width 340ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms ease-out;
@@ -271,8 +272,13 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             to="/dashboard" 
             className="transition-elite block w-full rounded-xl hover:opacity-85 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar" aria-label="Digital Crown — Tableau de bord"
           >
-            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 text-primary shadow-sm" aria-hidden="true">
-              <Crown size={22} strokeWidth={1.8} />
+            <span className="sidebar-brand-compact relative h-10 w-10 items-center justify-center rounded-xl border border-border-main bg-card-bg/80 shadow-sm" aria-hidden="true">
+              <img
+                src={CompactLogo}
+                alt=""
+                className="h-8 w-8 object-contain"
+                style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
+              />
             </span>
             <img 
               src={Logo} 

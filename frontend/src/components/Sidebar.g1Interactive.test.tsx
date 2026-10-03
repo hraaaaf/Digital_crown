@@ -123,14 +123,20 @@ describe('Sidebar G1 navigation matrix', () => {
     const shell = container.querySelector('.sidebar-shell');
     const surface = container.querySelector('.sidebar-shell > div');
     const toggle = container.querySelector('.sidebar-pin-toggle') as HTMLButtonElement;
-    const brandImages = container.querySelectorAll('.sidebar-logo-wrap img');
+    const brandImages = Array.from(container.querySelectorAll('.sidebar-logo-wrap img')) as HTMLImageElement[];
+    const compactBrandImage = container.querySelector('.sidebar-brand-compact img') as HTMLImageElement | null;
+    const expandedBrandImage = container.querySelector('.sidebar-logo') as HTMLImageElement | null;
 
     expect(shell).toBeTruthy();
     expect(surface?.className).not.toContain('lg:absolute');
     expect(toggle.className).toContain('right-2');
     expect(toggle.className).not.toContain('-right-3');
-    expect(brandImages).toHaveLength(1);
-    expect(container.querySelector('.sidebar-brand-compact svg.lucide-crown')).toBeTruthy();
+    expect(brandImages).toHaveLength(2);
+    expect(compactBrandImage).toBeTruthy();
+    expect(expandedBrandImage).toBeTruthy();
+    expect(compactBrandImage?.getAttribute('src')).toContain('logo-compact');
+    expect(expandedBrandImage?.getAttribute('src')).not.toContain('logo-compact');
+    expect(container.querySelector('.sidebar-brand-compact svg.lucide-crown')).toBeNull();
 
     fireEvent.click(toggle);
     expect(shell?.className).toContain('lg:w-72');
@@ -147,6 +153,7 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(nav?.className).toContain('px-2');
     expect(styleText).toContain('width 340ms cubic-bezier(0.16, 1, 0.3, 1)');
     expect(styleText).toContain('opacity 150ms ease 125ms');
+    expect(styleText).toContain('.sidebar-brand-compact { display: none; }');
     expect(styleText).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
