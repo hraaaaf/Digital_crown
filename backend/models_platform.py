@@ -2,7 +2,7 @@ import uuid
 import enum
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer, UniqueConstraint, Index
+from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer, UniqueConstraint, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.models_base import Base
 
@@ -61,6 +61,15 @@ class WorkstationMode(Base):
 
 class WorkstationPairingCode(Base):
     __tablename__ = "workstation_pairing_codes"
+    __table_args__ = (
+        Index(
+            "uq_workstation_pairing_codes_one_active",
+            "employer_id",
+            unique=True,
+            sqlite_where=text("used_at IS NULL"),
+            postgresql_where=text("used_at IS NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
