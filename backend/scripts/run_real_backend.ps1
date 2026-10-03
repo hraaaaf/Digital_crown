@@ -198,9 +198,12 @@ if ($httpsEnabled) { $uvicornArgs += @("--ssl-certfile", $TlsCertFile, "--ssl-ke
 
 Write-Host "Starting INSTALLABLE_CERTIFIED release (cwd = $releaseDir, no --reload)..." -ForegroundColor Cyan
 $env:DIGITALCROWN_ENV_FILE = $RealEnvFile
+$runtimeOldDontWriteBytecode = $env:PYTHONDONTWRITEBYTECODE
+$env:PYTHONDONTWRITEBYTECODE = "1"
 Push-Location $releaseDir
 try {
     & $VenvPython @uvicornArgs
 } finally {
     Pop-Location
+    $env:PYTHONDONTWRITEBYTECODE = $runtimeOldDontWriteBytecode
 }
