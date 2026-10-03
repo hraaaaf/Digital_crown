@@ -129,6 +129,12 @@ async function captureViewport(viewport,attempt){
       legacyMcNamaraLeakCount,
       selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
       horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+      componentOverflowDetails:[
+        ['stepper',document.querySelector('[data-tour="cephalo-stepper"]')],
+        ['layer-manager',document.querySelector('[data-ortho-layer-manager]')],
+        ['workbench-sidebar',document.querySelector('[data-r20-workbench-sidebar]')],
+        ['analysis-panel',document.querySelector('[data-r19-analysis-panel]')]
+      ].filter(([,el])=>Boolean(el)).map(([name,el])=>({name,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,overflow:el.scrollWidth>el.clientWidth+1})),
       componentHorizontalOverflow:[
         document.querySelector('[data-tour="cephalo-stepper"]'),
         document.querySelector('[data-ortho-layer-manager]'),

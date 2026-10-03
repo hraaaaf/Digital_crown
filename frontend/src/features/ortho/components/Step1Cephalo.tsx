@@ -102,7 +102,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
     <div
       data-r19-reference-layout
       data-r20-workbench-layout
-      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[168px_minmax(0,1fr)_minmax(332px,0.72fr)] xl:items-stretch"
+      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[208px_minmax(0,1fr)_minmax(332px,0.72fr)] xl:items-stretch"
     >
       <aside
         data-r20-workbench-sidebar
@@ -159,7 +159,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           className="mt-2 border-t pt-2 xl:mt-3 xl:pt-3"
           style={{ borderColor: props.P.border }}
         >
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Corrections</p>
             <span className="text-[9px] font-bold" style={{ color: props.P.textMuted }}>
               {landmarkEditTimeline.undoStack.length} modif.
@@ -208,7 +208,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           className="mt-2 border-t pt-2 xl:mt-3 xl:pt-3"
           style={{ borderColor: props.P.border }}
         >
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Couches</p>
             <button
               type="button"
