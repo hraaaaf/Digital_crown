@@ -25,7 +25,7 @@ jobs:
     env:
       EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'a518ad91bd2934d0f2f7c6c25f75d285e9e237fe' }}
-      V15_03_1_PHASE: before
+      V15_03_1_PHASE: after
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,6 +43,14 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
+
+      - name: Kiosk shell unit tests
+        working-directory: frontend
+        run: npx vitest run src/features/hub/StationKioskShell.test.tsx src/features/hub/WorkstationExperiencePage.test.tsx --maxWorkers=1 --fileParallelism=false
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
 
       - name: Start frontend
         working-directory: frontend
