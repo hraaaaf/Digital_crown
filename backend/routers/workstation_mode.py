@@ -203,6 +203,27 @@ def _find_workstation(request: Request, db: Session, employer_id: int | None = N
     return query.first()
 
 
+def _touch_workstation(db: Session, row: models.WorkstationMode) -> None:
+    now = datetime.utcnow()
+    if row.last_seen_at is not None and (now - row.last_seen_at).total_seconds() < 60:
+        return
+    try:
+        row.last_seen_at = now
+        db.commit()
+        db.refresh(row)
+    except Exception:
+        db.rollback()
+        logger.warning("Workstation heartbeat could not be persisted", exc_info=True)
+
+
+def _station_status(row: models.WorkstationMode) -> str:
+    if row.revoked_at is not None:
+        return "revoked"
+    if row.last_seen_at is None:
+        return "offline"
+    return "online" if (datetime.utcnow() - row.last_seen_at).total_seconds() <= 120 else "offline"
+
+
 def _tenant_has_workstations(db: Session, employer_id: int) -> bool:
     return (
         db.query(models.WorkstationMode.id)
@@ -406,6 +427,7 @@ def _state_payload(request: Request, row: models.WorkstationMode, user: models.U
     return {
         "workstationId": row.id,
         "displayName": row.display_name,
+        "lastSeenAt": row.last_seen_at,
         "defaultExperience": row.default_experience,
         "pinConfigured": bool(policy and policy.owner_pin_hash),
         "canManage": _authorized_admin(user),
@@ -450,6 +472,8 @@ async def bootstrap_state(
             **auth_context,
         }
 
+    _touch_workstation(db, row)
+
     # Escape authority is user- and access-session-bound. Anonymous bootstrap
     # may reveal only the workstation's non-sensitive routing mode.
     if current_user is not None:
@@ -490,6 +514,8 @@ def list_workstations(
             "displayName": row.display_name,
             "defaultExperience": row.default_experience,
             "revoked": row.revoked_at is not None,
+            "status": _station_status(row),
+            "lastSeenAt": row.last_seen_at,
             "createdAt": row.created_at,
             "updatedAt": row.updated_at,
         }
@@ -778,6 +804,7 @@ def get_state(
     current_user: models.User = Depends(get_current_user),
 ):
     row = _get_or_create_workstation(request, response, db, current_user)
+    _touch_workstation(db, row)
     return _state_payload(request, row, current_user, db)
 
 
