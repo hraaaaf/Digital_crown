@@ -1,4 +1,5 @@
-import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { Camera, Check, Cuboid, Loader2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
