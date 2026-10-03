@@ -8,6 +8,7 @@ import {
 } from '../cephaloAnalysisBridge';
 import { CEPHALO_SCIENTIFIC_COLORS } from '../cephaloVisualSemantics';
 import { ORTHO_LAYER_REGISTRY, type OrthoLayerId } from '../orthoLayerRegistry';
+import { landmarkSnapshotsEqual } from '../orthoLandmarkEditHistory';
 
 interface ThemePalette {
   bg: string;
@@ -70,6 +71,11 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const setLayerVisible = useOrthoStore(state => state.setLayerVisible);
   const setLayerOpacity = useOrthoStore(state => state.setLayerOpacity);
   const resetLayers = useOrthoStore(state => state.resetLayers);
+  const localLandmarks = useOrthoStore(state => state.local.landmarks);
+  const landmarkEditTimeline = useOrthoStore(state => state.landmarkEditTimeline);
+  const undoLandmarkEdit = useOrthoStore(state => state.undoLandmarkEdit);
+  const redoLandmarkEdit = useOrthoStore(state => state.redoLandmarkEdit);
+  const resetLandmarkEdits = useOrthoStore(state => state.resetLandmarkEdits);
   const [analysis, setAnalysis] = React.useState<CephaloAnalysisMode>('all');
 
   React.useEffect(() => {
@@ -146,6 +152,55 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             </button>
           </div>
         </div>
+
+        <section
+          data-ortho-edit-history
+          aria-label="Historique des corrections"
+          className="mt-2 border-t pt-2 xl:mt-3 xl:pt-3"
+          style={{ borderColor: props.P.border }}
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Corrections</p>
+            <span className="text-[9px] font-bold" style={{ color: props.P.textMuted }}>
+              {landmarkEditTimeline.undoStack.length} modif.
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5 xl:grid-cols-1">
+            <button
+              type="button"
+              aria-label="Annuler dernière correction"
+              disabled={landmarkEditTimeline.undoStack.length === 0}
+              onClick={undoLandmarkEdit}
+              className="min-h-9 rounded-xl border px-2 py-2 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
+              style={{ borderColor: props.P.border, background: props.P.bgInput, color: props.P.textMuted }}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              aria-label="Rétablir correction"
+              disabled={landmarkEditTimeline.redoStack.length === 0}
+              onClick={redoLandmarkEdit}
+              className="min-h-9 rounded-xl border px-2 py-2 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
+              style={{ borderColor: props.P.border, background: props.P.bgInput, color: props.P.textMuted }}
+            >
+              Rétablir
+            </button>
+            <button
+              type="button"
+              aria-label="Réinitialiser le tracé"
+              disabled={
+                landmarkEditTimeline.baseline.length === 0
+                || landmarkSnapshotsEqual(localLandmarks, landmarkEditTimeline.baseline)
+              }
+              onClick={resetLandmarkEdits}
+              className="min-h-9 rounded-xl border px-2 py-2 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
+              style={{ borderColor: props.P.border, background: props.P.bgInput, color: props.P.textMuted }}
+            >
+              Tracé initial
+            </button>
+          </div>
+        </section>
 
         <section
           data-ortho-layer-manager

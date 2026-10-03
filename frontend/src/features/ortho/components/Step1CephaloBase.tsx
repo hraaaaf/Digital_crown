@@ -97,7 +97,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     calibrationStep, calibrationDistance, applyCalibration, local, imgDim,
     updateLandmarksOptimistic, activePointId, setActivePointId, anglesData,
     performanceMode, isUploading, uploadError,
-    activeMorphing, setActiveMorphing, layerVisibility, layerOpacity, setLayerVisible
+    activeMorphing, setActiveMorphing, layerVisibility, layerOpacity, setLayerVisible, setLandmarkEditBaseline
   } = store;
 
   const calibrationData = anglesData?.__calibrationData ?? null;
@@ -314,7 +314,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         </div>
         
         <div className="flex items-center gap-2">
-          <button onClick={() => { setImageSrc(undefined); setLocal({ landmarks: [], version: 0 }); setAnglesData({}); }} className="p-2 rounded-full bg-slate-900/60 border border-slate-700/50 text-slate-300 hover:text-white hover:bg-slate-800 transition-all backdrop-blur-md" title="Changer d'image">
+          <button onClick={() => { setImageSrc(undefined); setLocal({ landmarks: [], version: 0 }); setLandmarkEditBaseline([]); setAnglesData({}); }} className="p-2 rounded-full bg-slate-900/60 border border-slate-700/50 text-slate-300 hover:text-white hover:bg-slate-800 transition-all backdrop-blur-md" title="Changer d'image">
             <RefreshCw size={14} />
           </button>
           <button onClick={() => setIsStep1Fullscreen((v: boolean) => !v)} className="p-2 rounded-full bg-slate-900/60 border border-slate-700/50 text-slate-300 hover:text-white hover:bg-slate-800 transition-all backdrop-blur-md" title={isStep1Fullscreen ? 'Quitter plein écran' : 'Plein écran'}>

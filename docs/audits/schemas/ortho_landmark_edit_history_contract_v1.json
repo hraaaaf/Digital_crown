@@ -1,0 +1,31 @@
+{
+  "schema_version": "ORTHO_LANDMARK_EDIT_HISTORY_V1",
+  "status": "PROJECT_LOCKED_LOT07",
+  "scientific_authority": "LOT06_CANONICAL_ENGINE",
+  "canonical_audit_authority": "BACKEND_CEPHALO_EVIDENCE_HISTORY",
+  "frontend_history_role": "SESSION_OPERATIONAL_UNDO_REDO_ONLY",
+  "invariants": [
+    "EVERY_COMMITTED_LANDMARK_CHANGE_USES_AUDITED_ANALYSIS_PUT",
+    "CLINICIAN_ID_COMES_FROM_SERVER_AUTHENTICATION_NOT_CLIENT_PAYLOAD",
+    "UNDO_REDO_RESET_ARE_NEW_PERSISTED_REVISIONS_NOT_HISTORY_REWRITES",
+    "NEW_EDIT_AFTER_UNDO_INVALIDATES_REDO_BRANCH",
+    "RESET_TO_BASELINE_IS_UNDOABLE",
+    "DISPLAY_LAYER_STATE_NEVER_ENTERS_LANDMARK_EDIT_HISTORY",
+    "LOT07_DOES_NOT_DEFINE_OR_CHANGE_CEPHALOMETRIC_FORMULAS"
+  ],
+  "baseline": {
+    "definition": "session baseline: landmarks returned when the active cephalometric analysis is loaded or freshly computed; it is not asserted to be the historical detector-original trace after a reopened corrected case",
+    "reset_behavior": "create a new edit transaction from current landmarks to the session baseline; never delete or rewrite backend evidence history"
+  },
+  "frontend_bounds": {
+    "undo_depth": 100,
+    "audit_event_window": 500,
+    "note": "frontend audit events are operational UX evidence only; persisted scientific audit remains backend evidence history"
+  },
+  "persistence": {
+    "endpoint": "PUT /api/ia/analyses/{analysis_id}",
+    "debounce_ms": 600,
+    "server_operator_binding": "authenticated current_user.id",
+    "failure_behavior": "surface sync error; do not claim persisted audit until server save succeeds"
+  }
+}
