@@ -32,13 +32,13 @@ describe('StationKioskShell', () => {
     expect(container.querySelector('[data-station-language="en"]')).toHaveAttribute('lang', 'en');
   });
 
-  it('keeps 03.1 actions bounded and returns to public home after inactivity', () => {
+  it('keeps the appointment flow bounded and returns to public home after inactivity', () => {
     vi.useFakeTimers();
     const { container } = render(<StationKioskShell onAdminTap={vi.fn()} idleTimeoutMs={1} />);
 
     fireEvent.click(screen.getByRole('button', { name: /J’ai rendez-vous/i }));
     expect(container.querySelector('[data-station-screen="appointment"]')).toBeInTheDocument();
-    expect(screen.getByText('Cette étape est en cours de construction.')).toBeInTheDocument();
+    expect(screen.getByText('Identification et arrivée au cabinet')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(29_999);
