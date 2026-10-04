@@ -225,6 +225,37 @@ jobs:
           pdftoppm -png -f 1 -singlefile -r 144 "$PDF" "$PNG"
           test -s "${PNG}.png"
 
+      - name: Certify Honoraires PDF stress matrix
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        working-directory: frontend
+        shell: bash
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          node scripts/certify-honoraires-pdf-stress.mjs
+          cd ../artifacts/t2-browser/honoraires-pdf-stress
+          command -v pdfinfo
+          command -v pdftoppm
+          : > render-manifest.txt
+          for pdf in *.pdf; do
+            stem="${pdf%.pdf}"
+            pages="$(pdfinfo "$pdf" | awk '/^Pages:/ {print $2}')"
+            test -n "$pages"
+            test "$pages" -ge 1
+            mkdir -p "renders/$stem"
+            pdftoppm -png -r 144 "$pdf" "renders/$stem/page"
+            rendered="$(find "renders/$stem" -maxdepth 1 -name 'page-*.png' | wc -l)"
+            test "$rendered" -eq "$pages"
+            printf '%s pages=%s rendered=%s\n' "$stem" "$pages" "$rendered" >> render-manifest.txt
+          done
+          grep -q '^baseline ' render-manifest.txt
+          grep -q '^long-text ' render-manifest.txt
+          grep -q '^many-lines ' render-manifest.txt
+          grep -q '^long-many-lines ' render-manifest.txt
+          grep -q '^extreme-pagination ' render-manifest.txt
+          awk '/^extreme-pagination / {split($2,a,"="); if (a[2] < 2) exit 1; found=1} END {if (!found) exit 1}' render-manifest.txt
+
       - name: Certify G4 remaining document actions
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
