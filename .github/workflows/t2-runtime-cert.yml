@@ -227,12 +227,12 @@ jobs:
 
       - name: Certify Honoraires PDF stress matrix
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
-        working-directory: frontend
         shell: bash
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          cd frontend
           node scripts/certify-honoraires-pdf-stress.mjs
           cd ../artifacts/t2-browser/honoraires-pdf-stress
           command -v pdfinfo
