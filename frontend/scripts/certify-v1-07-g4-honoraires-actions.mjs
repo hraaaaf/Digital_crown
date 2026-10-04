@@ -198,6 +198,55 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   });
   actions.push('accounting-action-dock-no-scroll');
 
+  // Persist the exact Honoraires preview PDF produced by Digital Crown as a
+  // review artifact. Run once on desktop during the full certification only.
+  if (!captureTreasuryGuardBeforeOnly && viewport.width === 1280) {
+    const previewResponsePromise = page.waitForResponse(response =>
+      response.url().includes('/documents/generate')
+      && response.request().method() === 'POST'
+      && response.url().includes('preview=true')
+    );
+    await actionDock.getByRole('button', { name: 'Aperçu', exact: true }).click();
+    const previewResponse = await previewResponsePromise;
+    if (!previewResponse.ok()) throw new Error('Honoraires preview generation failed: ' + previewResponse.status());
+    const previewPayload = await previewResponse.json();
+    if (!previewPayload?.pdf_url) throw new Error('Honoraires preview did not return pdf_url');
+
+    const cleanPdfPath = String(previewPayload.pdf_url).replace(/^\//, '');
+    const pdfResponse = await api.get('/api/' + cleanPdfPath.replace(/^api\//, ''), { headers });
+    if (!pdfResponse.ok()) throw new Error('Honoraires PDF download failed: ' + pdfResponse.status());
+    const pdfBytes = await pdfResponse.body();
+    if (pdfBytes.length < 5 || pdfBytes.subarray(0, 4).toString('ascii') !== '%PDF') {
+      throw new Error('Honoraires artifact is not a PDF');
+    }
+    const pdfFile = 'honoraires-before.pdf';
+    fs.writeFileSync(path.join(outDir, pdfFile), pdfBytes);
+
+    const pdfPage = await context.newPage();
+    await pdfPage.setExtraHTTPHeaders(headers);
+    const absolutePdfUrl = 'http://127.0.0.1:8005/api/' + cleanPdfPath.replace(/^api\//, '');
+    await pdfPage.goto(absolutePdfUrl, { waitUntil: 'load', timeout: 30000 });
+    await pdfPage.waitForTimeout(1500);
+    const renderFile = 'honoraires-before-page1.png';
+    await pdfPage.screenshot({
+      path: path.join(outDir, renderFile),
+      fullPage: false,
+      animations: 'disabled',
+    });
+    await pdfPage.close();
+
+    fs.writeFileSync(path.join(outDir, 'honoraires-before-metadata.json'), JSON.stringify({
+      productHead: process.env.PRODUCT_HEAD || null,
+      patientDossier: patient.numero_dossier,
+      sourcePdfUrl: previewPayload.pdf_url,
+      bytes: pdfBytes.length,
+      signature: pdfBytes.subarray(0, 4).toString('ascii'),
+      pdfFile,
+      renderFile,
+    }, null, 2));
+    actions.push('honoraires-pdf-artifact-captured');
+  }
+
   // The Treasury BEFORE-only probe certifies the partial-payment guard only.
   // Catalog creation/order/delete are already covered by the full G4 Honoraires run,
   // so do not duplicate that unrelated network dependency in this narrow probe.
@@ -348,7 +397,7 @@ await api.dispose();
 const expectedActionGroups = 14;
 if (!captureTreasuryGuardBeforeOnly) {
   for (const row of evidence) {
-    if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
+    const expectedForViewport = expectedActionGroups + (row.viewport.width === 1280 ? 1 : 0);\n    if (row.actions.length !== expectedForViewport) throw new Error('Honoraires action-group count mismatch');
   }
 }
 
