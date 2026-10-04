@@ -50,7 +50,7 @@
     {
       "order": 7,
       "measurement_id": "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
-      "state": "IMPLEMENTATION_MISSING"
+      "state": "EXECUTABLE"
     },
     {
       "order": 8,
@@ -61,7 +61,7 @@
     {
       "order": 9,
       "measurement_id": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
-      "state": "IMPLEMENTATION_MISSING"
+      "state": "EXECUTABLE"
     },
     {
       "order": 10,
