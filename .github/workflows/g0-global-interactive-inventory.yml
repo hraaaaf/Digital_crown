@@ -11,6 +11,10 @@ on:
       - frontend/src/**
   workflow_dispatch:
 
+concurrency:
+  group: g0-interactive-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   inventory:
     runs-on: ubuntu-latest
