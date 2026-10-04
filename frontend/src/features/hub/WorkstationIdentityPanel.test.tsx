@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkstationIdentityPanel } from './WorkstationIdentityPanel';
 import { workstationModeService } from '../../services/workstationMode';
+import { stationPatientSessionService } from '../../services/stationPatientSession';
 
 vi.mock('../../services/workstationMode', () => ({
   workstationModeService: {
@@ -9,6 +10,13 @@ vi.mock('../../services/workstationMode', () => ({
     issuePairingCode: vi.fn(),
     renameWorkstation: vi.fn(),
     revokeWorkstation: vi.fn(),
+  },
+}));
+
+vi.mock('../../services/stationPatientSession', () => ({
+  stationPatientSessionService: {
+    getConfig: vi.fn(),
+    updateConfig: vi.fn(),
   },
 }));
 
@@ -46,10 +54,11 @@ const registry = [
   },
 ];
 
-describe('WorkstationIdentityPanel V1.5-03.2', () => {
+describe('WorkstationIdentityPanel V1.5-03.2/03.3', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(workstationModeService.listWorkstations).mockResolvedValue(registry);
+    vi.mocked(stationPatientSessionService.getConfig).mockResolvedValue({ fallbackMode: 'phone_dob' });
   });
 
   it('renames a station without changing its technical id', async () => {
@@ -111,5 +120,23 @@ describe('WorkstationIdentityPanel V1.5-03.2', () => {
       'ws-other-87654321',
       '2468',
     ));
+  });
+
+  it('configures Station fallback only with owner PIN', async () => {
+    vi.mocked(stationPatientSessionService.updateConfig).mockResolvedValue({ fallbackMode: 'name_dob' });
+
+    render(<WorkstationIdentityPanel current={current} />);
+    await screen.findByText('Identification de secours Station');
+
+    fireEvent.change(screen.getByLabelText('Méthode d’identification de secours'), {
+      target: { value: 'name_dob' },
+    });
+    fireEvent.change(screen.getByLabelText('PIN propriétaire pour les actions sensibles'), {
+      target: { value: '2468' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(stationPatientSessionService.updateConfig).toHaveBeenCalledWith('name_dob', '2468'));
+    expect(await screen.findByRole('status')).toHaveTextContent('Identification de secours mise à jour');
   });
 });

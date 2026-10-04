@@ -708,6 +708,9 @@ class CabinetConfig(Base):
     clinical_tips_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
     hide_header: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
     hide_footer: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+    station_identification_fallback: Mapped[str] = mapped_column(
+        String(24), default="phone_dob", server_default="phone_dob", nullable=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
@@ -928,6 +931,7 @@ from backend.models_platform import (
     WorkstationSecurityPolicy,
     WorkstationMode,
     WorkstationPairingCode,
+    WorkstationPatientSession,
     RevokedToken,
     AIFeedback,
     ProactiveAlert,

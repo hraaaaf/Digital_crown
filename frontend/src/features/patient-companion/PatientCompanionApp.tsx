@@ -59,6 +59,8 @@ export const PatientCompanionApp = () => {
   const [agendaSlots, setAgendaSlots] = useState<PatientAgendaSlot[]>([]);
   const [agendaSlotRef, setAgendaSlotRef] = useState('');
   const [agendaLoading, setAgendaLoading] = useState(false);
+  const [stationHandoffToken, setStationHandoffToken] = useState<string | null>(null);
+  const [stationHandoffMessage, setStationHandoffMessage] = useState('');
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -81,14 +83,34 @@ export const PatientCompanionApp = () => {
       .then(state => {
         if (cancelled) return;
         setVault(state);
-        setSelectingContext(state.pairings.length > 1);
-        const urlToken = new URLSearchParams(window.location.search).get('token')?.trim();
+        const params = new URLSearchParams(window.location.search);
+        const urlToken = params.get('token')?.trim();
+        const stationSession = params.get('stationSession')?.trim();
         if (urlToken) {
           window.history.replaceState({}, '', '/companion');
           setPhase('pairing');
           void pairDevice(urlToken, false);
           return;
         }
+        if (stationSession) {
+          window.history.replaceState({}, '', '/companion');
+          if (!state.pairings.length) {
+            setError('Appairez d’abord Patient Companion à votre cabinet avant d’utiliser la borne.');
+            setPhase('error');
+            return;
+          }
+          setStationHandoffToken(stationSession);
+          if (state.pairings.length === 1) {
+            setSelectingContext(false);
+            setPhase('home');
+            void claimStationSession(stationSession, state.pairings[0]);
+            return;
+          }
+          setSelectingContext(true);
+          setPhase('home');
+          return;
+        }
+        setSelectingContext(state.pairings.length > 1);
         setPhase(state.pairings.length ? 'home' : 'welcome');
       })
       .catch(() => {
@@ -270,6 +292,31 @@ export const PatientCompanionApp = () => {
     }
   }
 
+  async function claimStationSession(token: string, pairing: PatientPairing) {
+    setStationHandoffMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/workstation/patient-session/claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${pairing.accessToken}`,
+        },
+        body: JSON.stringify({
+          token,
+          accessId: pairing.context.access_id,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || 'Session borne invalide ou expirée.');
+      setStationHandoffToken(null);
+      setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez revenir à la borne.');
+      return true;
+    } catch (err) {
+      setStationHandoffMessage(err instanceof Error ? err.message : 'Session borne invalide ou expirée.');
+      return false;
+    }
+  }
+
   const checkCabinet = async () => {
     if (!activePairing) return;
     setCabinetReachability('checking');
@@ -414,6 +461,10 @@ export const PatientCompanionApp = () => {
     try {
       const next = await PatientCompanionStorage.setActive(accessId);
       setVault(next);
+      const selected = next.pairings.find(item => item.context.access_id === accessId);
+      if (stationHandoffToken && selected) {
+        await claimStationSession(stationHandoffToken, selected);
+      }
       setSelectingContext(false);
     } catch {
       setError('Impossible d’ouvrir ce contexte patient.');
@@ -631,6 +682,11 @@ export const PatientCompanionApp = () => {
 
         {phase === 'home' && activePairing && !selectingContext && (
           <>
+            {stationHandoffMessage && (
+              <div data-station-handoff-status role="status" className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-black text-primary">
+                {stationHandoffMessage}
+              </div>
+            )}
             <Card title="Mon espace" icon={<CheckCircle2 size={20} />}>
               <p className="text-xl font-black">{activePairing.context.patient.display_name || `${activePairing.context.patient.prenom || ''} ${activePairing.context.patient.nom || ''}`.trim()}</p>
               <p className="mt-1 text-xs font-bold text-text-muted">{relationshipLabel(activePairing.context.relationship_type)}</p>
