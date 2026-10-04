@@ -1,7 +1,17 @@
 name: Agenda A5 Visual Evidence
 on:
   pull_request:
+    paths:
+      - "frontend/src/pages/AgendaPage.tsx"
+      - "frontend/src/features/agenda/**"
+      - "frontend/src/services/appointmentService.ts"
+      - ".github/workflows/agenda-a5-visual-evidence.yml"
   workflow_dispatch:
+
+concurrency:
+  group: agenda-a5-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:
