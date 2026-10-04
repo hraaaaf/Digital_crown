@@ -28,3 +28,49 @@ def test_ricketts_l1_apog_inclination_uses_incisal_to_apex_axis():
 def test_ricketts_new_angles_fail_closed_on_degenerate_axes():
     assert ricketts_maxillary_depth_deg_v1((0, 0), (0, 0), (0, 0), (0, 10)) is None
     assert ricketts_l1_apog_inclination_deg_v1((0, 0), (0, 0), (0, 0), (0, 10)) is None
+
+
+from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin
+from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
+from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
+
+
+def _lm(landmark_id, x, y):
+    return LandmarkEvidence(
+        evidence_id=f"landmark:gregoret:{landmark_id}",
+        landmark_id=landmark_id,
+        x=float(x),
+        y=float(y),
+        source_image_ref="source:ceph",
+        origin=LandmarkOrigin.MANUAL,
+        evidence_refs=["source:ceph"],
+        evidence_status=EvidenceStatus.OBSERVED,
+    )
+
+
+def test_gregoret_new_angles_materialize_through_canonical_v2_bridge():
+    pts = {
+        "S": (0, 0), "N": (0, 0), "A": (0, 10), "Go": (0, 20), "Me": (15, 20),
+        "Ba": (-8, -4), "Pt_Ricketts": (5, 6), "Or": (10, 0), "Po_anatomic": (0, 0),
+        "Co_anatomic": (-5, 5), "Gn_anatomic": (15, 18), "Pog_hard": (0, 20),
+        "L1_incisal": (0, 0), "L1_apex": (-math.sin(math.radians(22)), math.cos(math.radians(22))),
+        "Prn": (18, 4), "Pog_soft": (17, 9), "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    by_method = {item.method_id: item for item in out}
+    max_depth = by_method["RICKETTS_MAXILLARY_DEPTH_CANONICAL_DEG_V2"]
+    l1_apog = by_method["RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2"]
+    assert max_depth.availability_status.value == "AVAILABLE"
+    assert max_depth.value == pytest.approx(90.0)
+    assert l1_apog.availability_status.value == "AVAILABLE"
+    assert l1_apog.value == pytest.approx(22.0)
