@@ -65,7 +65,6 @@ export interface CephaloTracingLayerProps {
   performanceMode?: boolean;
   vto?: VTOSettings;
   activeAnalysis?: string;
-  tweedPoAnatomicCertified?: boolean;
   layerPresentation?: {
     visibility: OrthoLayerVisibility;
     opacity: OrthoLayerOpacity;
@@ -165,7 +164,6 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   performanceMode = false,
   vto = { enabled: false, showGhostFace: true, showSoftTissue: true },
   activeAnalysis = 'all',
-  tweedPoAnatomicCertified = false,
   layerPresentation,
 }) => {
   const P = getTracingPalette(uiMode);
@@ -514,13 +512,16 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   };
 
   const po = getPoint(landmarks, 'Po');
+  const poAnatomic = getPoint(landmarks, 'Po_anatomic');
   const or_ = getPoint(landmarks, 'Or');
+  const activeAnalysisKey = activeAnalysis.toLowerCase();
+  const activeFrankfortPo = ['all', 'tweed', 'mcnamara'].includes(activeAnalysisKey) ? poAnatomic : po;
   let francfortLineExtended: { x1: number; y1: number; x2: number; y2: number } | null = null;
-  if (po && or_) {
-    const dx = or_.x - po.x;
-    const dy = or_.y - po.y;
+  if (activeFrankfortPo && or_) {
+    const dx = or_.x - activeFrankfortPo.x;
+    const dy = or_.y - activeFrankfortPo.y;
     francfortLineExtended = {
-      x1: po.x - dx * 10, y1: po.y - dy * 10,
+      x1: activeFrankfortPo.x - dx * 10, y1: activeFrankfortPo.y - dy * 10,
       x2: or_.x + dx * 10, y2: or_.y + dy * 10,
     };
   }
@@ -528,10 +529,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const n0 = getPoint(landmarks, 'N');
   const ptA = getPoint(landmarks, 'A');
   const ptB = getPoint(landmarks, 'B');
-  const francfortAngle = (po && or_) ? toDeg(Math.atan2(or_.y - po.y, or_.x - po.x)) : 0;
-  const nPrime = (po && or_ && n0) ? projectPointOnLine(n0.x, n0.y, po.x, po.y, or_.x, or_.y) : null;
-  const aPrime = (po && or_ && ptA) ? projectPointOnLine(ptA.x, ptA.y, po.x, po.y, or_.x, or_.y) : null;
-  const bPrime = (po && or_ && ptB) ? projectPointOnLine(ptB.x, ptB.y, po.x, po.y, or_.x, or_.y) : null;
+  const francfortAngle = (activeFrankfortPo && or_) ? toDeg(Math.atan2(or_.y - activeFrankfortPo.y, or_.x - activeFrankfortPo.x)) : 0;
+  const nPrime = (activeFrankfortPo && or_ && n0) ? projectPointOnLine(n0.x, n0.y, activeFrankfortPo.x, activeFrankfortPo.y, or_.x, or_.y) : null;
+  const aPrime = (activeFrankfortPo && or_ && ptA) ? projectPointOnLine(ptA.x, ptA.y, activeFrankfortPo.x, activeFrankfortPo.y, or_.x, or_.y) : null;
+  const bPrime = (activeFrankfortPo && or_ && ptB) ? projectPointOnLine(ptB.x, ptB.y, activeFrankfortPo.x, activeFrankfortPo.y, or_.x, or_.y) : null;
 
   let mcNamaraLine: { x1: number; y1: number; x2: number; y2: number } | null = null;
   if (n0 && nPrime) {
@@ -550,13 +551,13 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const dragId = activeDragId ?? '';
   const l1Dragged = ['L1_incisal', 'L1_apex', 'L1i', 'L1a'].includes(dragId);
   const u1Dragged = ['U1_incisal', 'U1_apex', 'U1i', 'U1a'].includes(dragId);
-  const frkDragged = dragId === 'Po' || dragId === 'Or';
+  const frkDragged = dragId === (['all', 'tweed', 'mcnamara'].includes(activeAnalysisKey) ? 'Po_anatomic' : 'Po') || dragId === 'Or';
   const mandDragged = dragId === 'Go' || dragId === 'Me';
   const wL1i = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_incisal') ?? getPoint(landmarks, 'L1i')) : null;
   const wL1a = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_apex') ?? getPoint(landmarks, 'L1a')) : null;
   const wU1i = (u1Dragged || frkDragged) ? (getPoint(landmarks, 'U1_incisal') ?? getPoint(landmarks, 'U1i')) : null;
   const wU1a = (u1Dragged || frkDragged) ? (getPoint(landmarks, 'U1_apex') ?? getPoint(landmarks, 'U1a')) : null;
-  const wPo = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Po') : null;
+  const wPo = (u1Dragged || frkDragged) ? activeFrankfortPo : null;
   const wOr = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Or') : null;
   const wGo = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Go') : null;
   const wMe = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Me') : null;

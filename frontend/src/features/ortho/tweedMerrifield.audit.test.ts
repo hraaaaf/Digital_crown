@@ -12,6 +12,9 @@ describe('LOT08 Tweed-Merrifield authority audit', () => {
     expect(tracing).not.toContain("tweedPoAnatomicCertified ? po");
     expect(tracing).toContain("showTweed || showMcNamara ? seg(poAnatomic, or_, 'fh'");
     expect(tracing).not.toContain("showTweed || showMcNamara ? seg(po, or_, 'fh'");
+    expect(tracing).toContain("const activeFrankfortPo = ['all', 'tweed', 'mcnamara'].includes(activeAnalysisKey) ? poAnatomic : po");
+    expect(tracing).toContain('if (activeFrankfortPo && or_)');
+    expect(tracing).toContain('const wPo = (u1Dragged || frkDragged) ? activeFrankfortPo : null');
   });
 
   it('renders the lower-incisor axis used by the canonical Tweed triangle', () => {
