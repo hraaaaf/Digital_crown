@@ -122,6 +122,16 @@ describe('WorkstationIdentityPanel V1.5-03.2/03.3', () => {
     ));
   });
 
+  it('keeps the station registry usable when fallback config is unavailable', async () => {
+    vi.mocked(stationPatientSessionService.getConfig).mockRejectedValue(new Error('offline'));
+
+    render(<WorkstationIdentityPanel current={current} />);
+
+    expect(await screen.findByText('Borne entrée')).toBeInTheDocument();
+    expect(screen.getByLabelText('Méthode d’identification de secours')).toHaveValue('disabled');
+    expect(screen.getByRole('status')).toHaveTextContent('Configuration de secours indisponible');
+  });
+
   it('configures Station fallback only with owner PIN', async () => {
     vi.mocked(stationPatientSessionService.updateConfig).mockResolvedValue({ fallbackMode: 'name_dob' });
 
