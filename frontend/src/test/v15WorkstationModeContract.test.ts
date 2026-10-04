@@ -27,4 +27,9 @@ describe('V1.5-00.3 workstation mode trust contract', () => {
     expect(gate).not.toContain('appMode');
     expect(service).not.toContain('appMode');
   });
+
+  it('routes missing workstation identity to enrollment recovery instead of setup', () => {
+    expect(app).toContain("detail === 'WORKSTATION_IDENTITY_REQUIRED'");
+    expect(app).toContain('return <Navigate to="/hub?enroll=1" replace />');
+  });
 });
