@@ -65,6 +65,7 @@ def test_station_patient_session_migration_roundtrip(tmp_path):
 
             indexes = {index["name"]: index for index in inspector.get_indexes("workstation_patient_sessions")}
             assert bool(indexes["ix_workstation_patient_sessions_claim_token_hash"]["unique"])
+            assert bool(indexes["uq_workstation_patient_sessions_one_active"]["unique"])
 
             config_columns = {column["name"]: column for column in inspector.get_columns("cabinet_configs")}
             assert "station_identification_fallback" in config_columns
