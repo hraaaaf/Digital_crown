@@ -658,9 +658,19 @@ def test_no_appointment_staff_assistance_is_durable_idempotent_and_acknowledgeab
         severity="WARNING",
         details="foreign tenant sentinel",
     )
-    db.add(foreign)
+    collision = models.AuditLog(
+        user_id=None,
+        employer_id=dentiste.id,
+        action="STATION_STAFF_ASSISTANCE_REQUESTED",
+        resource_type="UnrelatedResource",
+        resource_id="collision-sentinel",
+        severity="WARNING",
+        details="same action name but not a station-session signal",
+    )
+    db.add_all([foreign, collision])
     db.commit()
     db.refresh(foreign)
+    db.refresh(collision)
 
     # An unresolved request must survive a local-day rollover until staff explicitly acknowledges it.
     requests[0].timestamp = datetime.now() - timedelta(days=1)
@@ -687,6 +697,10 @@ def test_no_appointment_staff_assistance_is_durable_idempotent_and_acknowledgeab
 
     assert client.post(
         f"/api/workstation/staff-assistance/{foreign.id}/acknowledge",
+        headers=headers,
+    ).status_code == 404
+    assert client.post(
+        f"/api/workstation/staff-assistance/{collision.id}/acknowledge",
         headers=headers,
     ).status_code == 404
 
