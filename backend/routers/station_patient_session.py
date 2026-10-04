@@ -489,11 +489,9 @@ def list_station_staff_assistance(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = int(current_user.get_employer_id())
-    day_start = datetime.combine(datetime.now().date(), datetime.min.time())
     requests = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == employer_id,
         models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
-        models.AuditLog.timestamp >= day_start,
     ).order_by(models.AuditLog.timestamp.asc(), models.AuditLog.id.asc()).all()
     if not requests:
         response.headers["Cache-Control"] = "no-store"
