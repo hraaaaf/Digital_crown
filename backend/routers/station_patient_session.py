@@ -10,6 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -443,20 +444,31 @@ def request_station_staff_assistance(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    # The cabinet deployment uses SQLite/SQLCipher, where SELECT ... FOR UPDATE is
+    # ignored. Acquire the database write lock before the read-then-insert sequence
+    # so concurrent assistance requests cannot both create the one-shot audit event.
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite:
+        db.commit()
+        db.execute(text("BEGIN IMMEDIATE"))
+
     workstation, row = _identified_station_session_or_error(session_id, request, db, current_user)
+
+    if not sqlite:
+        db.query(models.WorkstationPatientSession).filter(
+            models.WorkstationPatientSession.id == row.id,
+            models.WorkstationPatientSession.employer_id == workstation.employer_id,
+        ).with_for_update().one()
+
     appointments = list_station_patient_appointments_for_today(
         db,
         employer_id=workstation.employer_id,
         patient_id=row.patient_id,
     )
     if appointments:
+        if sqlite:
+            db.rollback()
         raise HTTPException(status_code=409, detail="STATION_STAFF_ASSISTANCE_NOT_REQUIRED")
-
-    # Serialize requests for one station session so the audit signal is truly one-shot.
-    db.query(models.WorkstationPatientSession).filter(
-        models.WorkstationPatientSession.id == row.id,
-        models.WorkstationPatientSession.employer_id == workstation.employer_id,
-    ).with_for_update().one()
 
     existing = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == workstation.employer_id,
