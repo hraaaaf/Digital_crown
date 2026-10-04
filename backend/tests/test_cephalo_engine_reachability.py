@@ -35,3 +35,9 @@ def test_legacy_cephalo_engine_has_single_runtime_import_boundary():
 
 def test_safe_adapter_is_the_only_allowed_runtime_consumer():
     assert _imports_legacy_engine(next(iter(ALLOWED_RUNTIME)))
+
+
+def test_ortho_export_fixture_respects_safe_engine_boundary():
+    fixture = REPO_ROOT / "backend/scripts/generate_ortho_workbench_export_fixture.py"
+    assert fixture.exists()
+    assert _imports_legacy_engine(fixture) is False
