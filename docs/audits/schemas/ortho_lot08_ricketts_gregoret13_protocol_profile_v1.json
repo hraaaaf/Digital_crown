@@ -67,7 +67,7 @@
       "order": 10,
       "measurement_id": "M_U6_PTV_MM_V1",
       "state": "BLOCKED_LANDMARK",
-      "gate": "EXPLICIT_U6_DISTAL_AND_RICKETTS_PTV_CONSTRUCTION_REQUIRED"
+      "gate": "EXPLICIT_U6_DISTAL_AND_PR_RICKETTS_PTV_CONSTRUCTION_REQUIRED"
     },
     {
       "order": 11,
