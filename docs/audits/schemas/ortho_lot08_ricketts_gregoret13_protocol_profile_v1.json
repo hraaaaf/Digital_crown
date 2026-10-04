@@ -1,0 +1,96 @@
+{
+  "schema_version": "ORTHO_LOT08_RICKETTS_GREGORET13_PROTOCOL_PROFILE_V1",
+  "protocol_id": "RICKETTS_GREGORET_1997_SUMMARIZED_13_PROTOCOL_V1",
+  "status": "COMPOSITION_SOURCE_LOCKED__EXECUTION_PARTIAL_FAIL_CLOSED",
+  "source_contracts": [
+    "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+    "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+  ],
+  "rules": {
+    "no_parallel_formula_authority": true,
+    "historical_norms_reference_only": true,
+    "unsupported_measurements_fail_closed": true,
+    "ricketts_specific_method_required": true
+  },
+  "measurements": [
+    {
+      "order": 1,
+      "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "EXPLICIT_PT_RICKETTS_AND_CONSTRUCTED_GN"
+    },
+    {
+      "order": 2,
+      "measurement_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+      "state": "EXECUTABLE"
+    },
+    {
+      "order": 3,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
+      "state": "BLOCKED_CONSTRUCTION"
+    },
+    {
+      "order": 4,
+      "measurement_id": "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",
+      "state": "BLOCKED_LANDMARK",
+      "gate": "XI_PM_REQUIRED"
+    },
+    {
+      "order": 5,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+      "state": "BLOCKED_LANDMARK",
+      "gate": "DC_XI_PM_REQUIRED"
+    },
+    {
+      "order": 6,
+      "measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "state": "EXECUTABLE",
+      "gate": "VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 7,
+      "measurement_id": "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
+      "state": "IMPLEMENTATION_MISSING"
+    },
+    {
+      "order": 8,
+      "measurement_id": "M_L1_EDGE_APOG_MM_V1",
+      "state": "PRIMITIVE_AVAILABLE",
+      "gate": "SOURCE_SPECIFIC_METHOD_BINDING_REQUIRED"
+    },
+    {
+      "order": 9,
+      "measurement_id": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+      "state": "IMPLEMENTATION_MISSING"
+    },
+    {
+      "order": 10,
+      "measurement_id": "M_U6_PTV_MM_V1",
+      "state": "BLOCKED_LANDMARK",
+      "gate": "U6_DISTAL_AND_PTV_REQUIRED"
+    },
+    {
+      "order": 11,
+      "measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
+      "state": "BLOCKED_CONSTRUCTION",
+      "gate": "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED"
+    },
+    {
+      "order": 12,
+      "measurement_id": "M_INTERINCISAL_DEG_V1",
+      "state": "EXECUTABLE"
+    },
+    {
+      "order": 13,
+      "measurement_id": "M_LI_EPLANE_MM_V1",
+      "state": "EXECUTABLE",
+      "gate": "VERIFIED_CALIBRATION_AND_CANONICAL_SOFT_IDENTITIES"
+    }
+  ],
+  "normative_state": {
+    "universal_classification": false,
+    "historical_reference_display_only": true,
+    "vert_enabled": false,
+    "reason": "Population/age/sex applicability is not yet validated; mandibular-arc age delta has a source transcription conflict."
+  }
+}
