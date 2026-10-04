@@ -8,11 +8,13 @@ vi.mock('../../services/stationPatientSession', () => ({
     create: vi.fn(),
     status: vi.fn(),
     fallback: vi.fn(),
+    todayAppointments: vi.fn(),
+    arrive: vi.fn(),
     purge: vi.fn(),
   },
 }));
 
-describe('StationPatientIdentity V1.5-03.3', () => {
+describe('StationPatientIdentity V1.5-03.3/03.4', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(stationPatientSessionService.create).mockResolvedValue({
@@ -23,10 +25,15 @@ describe('StationPatientIdentity V1.5-03.3', () => {
       expiresAt: new Date(Date.now() + 120_000).toISOString(),
       fallbackMode: 'phone_dob',
     });
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
+      status: 'none',
+      appointments: [],
+      staffActionRequired: true,
+    });
     vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
   });
 
-  it('shows one-shot QR/NFC handoff and never claims arrival', async () => {
+  it('shows one-shot QR/NFC handoff and never claims arrival before identification', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'pending',
       sessionId: 'session-1',
@@ -41,10 +48,9 @@ describe('StationPatientIdentity V1.5-03.3', () => {
     );
     expect(screen.getByText(/NFC utilise le même lien sécurisé/i)).toBeInTheDocument();
     expect(screen.queryByText(/ARRIVED/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/file d’attente/i)).not.toBeInTheDocument();
   });
 
-  it('uses configured phone + birth date fallback with a generic failure surface', async () => {
+  it('uses configured phone + birth date fallback then resolves today only after identity', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'pending',
       sessionId: 'session-1',
@@ -69,10 +75,11 @@ describe('StationPatientIdentity V1.5-03.3', () => {
       { birthDate: '1992-05-04', phone: '+212612345678' },
     ));
     expect(await screen.findByText('Aya Audit')).toBeInTheDocument();
-    expect(screen.getByText('Aucune arrivée n’a encore été enregistrée.')).toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.todayAppointments).toHaveBeenCalledWith('session-1'));
+    expect(await screen.findByText("Aucun rendez-vous retrouvé aujourd’hui")).toBeInTheDocument();
   });
 
-  it('renders identified proof then purges before returning', async () => {
+  it('resolves the appointment bridge after QR identity then purges before returning', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'identified',
       sessionId: 'session-1',
@@ -85,7 +92,7 @@ describe('StationPatientIdentity V1.5-03.3', () => {
 
     expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
     expect(screen.getByText('Aya Audit')).toBeInTheDocument();
-    expect(screen.getByText('Aucune arrivée n’a encore été enregistrée.')).toBeInTheDocument();
+    expect(await screen.findByText("Aucun rendez-vous retrouvé aujourd’hui")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
