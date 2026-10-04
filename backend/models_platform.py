@@ -83,6 +83,39 @@ class WorkstationPairingCode(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
 
 
+class WorkstationPatientSession(Base):
+    """Short-lived patient identity handoff bound to one registered Station."""
+
+    __tablename__ = "workstation_patient_sessions"
+    __table_args__ = (
+        Index(
+            "uq_workstation_patient_sessions_one_active",
+            "workstation_id",
+            unique=True,
+            sqlite_where=text("purged_at IS NULL"),
+            postgresql_where=text("purged_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    workstation_id: Mapped[str] = mapped_column(
+        ForeignKey("workstation_modes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    claim_token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    patient_access_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    patient_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    fallback_failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    purged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
 class RevokedToken(Base):
     """
     Stockage persistant des tokens révoqués (JTI Blacklist).

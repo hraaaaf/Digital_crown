@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link2, Pencil, RefreshCw, ShieldX } from 'lucide-react';
+import { stationPatientSessionService, type StationFallbackMode } from '../../services/stationPatientSession';
 import {
   workstationModeService,
   type WorkstationRegistryEntry,
@@ -16,11 +17,20 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [fallbackMode, setFallbackMode] = useState<StationFallbackMode>('disabled');
 
   const refresh = async () => {
     const next = await workstationModeService.listWorkstations();
     setItems(next);
     setNames(Object.fromEntries(next.map((item) => [item.workstationId, item.displayName || ''])));
+
+    try {
+      const fallback = await stationPatientSessionService.getConfig();
+      setFallbackMode(fallback.fallbackMode);
+    } catch {
+      setFallbackMode('disabled');
+      setFeedback('Liste des postes chargée. Configuration de secours indisponible.');
+    }
   };
 
   useEffect(() => {
@@ -47,6 +57,21 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
       setFeedback('Code généré. Il est à usage unique et expire dans 10 minutes.');
     } catch {
       setFeedback('Impossible de générer le code d’appairage.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const saveFallbackMode = async () => {
+    if (!requirePin()) return;
+    setBusy('fallback');
+    setFeedback('');
+    try {
+      const saved = await stationPatientSessionService.updateConfig(fallbackMode, ownerPin);
+      setFallbackMode(saved.fallbackMode);
+      setFeedback('Identification de secours mise à jour pour les Stations.');
+    } catch {
+      setFeedback('Configuration de l’identification de secours refusée.');
     } finally {
       setBusy(null);
     }
@@ -146,6 +171,36 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
           <p className="mt-1 text-xs font-semibold text-text-muted">Usage unique · expiration automatique dans 10 minutes.</p>
         </div>
       )}
+
+      <div data-station-fallback-config className="mt-5 rounded-elite-sm border border-border-main bg-main-bg p-4">
+        <p className="text-xs font-black uppercase tracking-widest text-primary">Identification de secours Station</p>
+        <p className="mt-1 text-xs font-semibold text-text-muted">
+          Le QR/NFC reste prioritaire. Choisissez uniquement le fallback accepté si le patient n’a pas son téléphone.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="text-xs font-black text-text-muted">
+            Méthode de secours
+            <select
+              aria-label="Méthode d’identification de secours"
+              value={fallbackMode}
+              onChange={(event) => setFallbackMode(event.target.value as StationFallbackMode)}
+              className="mt-2 min-h-11 w-full rounded-elite-sm border border-border-main bg-card-bg px-3 text-sm font-semibold text-main"
+            >
+              <option value="phone_dob">Téléphone + date de naissance</option>
+              <option value="name_dob">Nom + prénom + date de naissance</option>
+              <option value="disabled">Désactivée</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={busy !== null || !current.pinConfigured}
+            onClick={() => void saveFallbackMode()}
+            className="self-end min-h-11 rounded-elite-sm border border-border-main bg-card-bg px-4 text-xs font-black text-main disabled:opacity-50"
+          >
+            {busy === 'fallback' ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </div>
+      </div>
 
       <div className="mt-5 space-y-3">
         {items.map((item) => (
