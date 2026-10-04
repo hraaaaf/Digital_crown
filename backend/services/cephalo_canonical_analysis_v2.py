@@ -18,6 +18,8 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_e_line_perpendicular_signed_distance_px_v2,
     ricketts_facial_axis_deg_v1,
     ricketts_facial_depth_deg_v1,
+    ricketts_l1_apog_inclination_deg_v1,
+    ricketts_maxillary_depth_deg_v1,
 )
 from backend.services.cephalo_tweed_merrifield_geometry import (
     merrifield_z_angle_deg_v1, tweed_fma_deg_v1, tweed_fmia_deg_v1,
@@ -36,6 +38,8 @@ CANONICAL_V2_METHOD_IDS = {
     "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
     "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2",
     "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+    "RICKETTS_MAXILLARY_DEPTH_CANONICAL_DEG_V2",
+    "RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2",
     "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
     "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
     "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
@@ -140,6 +144,12 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
     angular("RICKETTS_FACIAL_DEPTH","RICKETTS","RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2",
         "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
         ("Po_anatomic","Or","N","Pog_hard"),ricketts_facial_depth_deg_v1)
+    angular("RICKETTS_MAXILLARY_DEPTH","RICKETTS","RICKETTS_MAXILLARY_DEPTH_CANONICAL_DEG_V2",
+        "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
+        ("Po_anatomic","Or","N","A"),ricketts_maxillary_depth_deg_v1)
+    angular("RICKETTS_L1_APOG_INCLINATION","RICKETTS","RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2",
+        "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+        ("L1_incisal","L1_apex","A","Pog_hard"),ricketts_l1_apog_inclination_deg_v1)
 
     facial_axis_ids=("Ba","N","Pt_Ricketts")
     facial_axis_deps,facial_axis_status=_deps(landmarks,facial_axis_ids)
