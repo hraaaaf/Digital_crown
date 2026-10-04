@@ -8,7 +8,7 @@ on:
       - 'frontend/src/services/stationPatientSession.ts'
       - 'frontend/src/services/stationStaffAssistance.ts'
       - 'frontend/src/test/v15StationPatientSessionContract.test.ts'
-      - 'frontend/scripts/capture-v15-03-*/**'
+      - 'frontend/scripts/capture-v15-03-*'
       - 'docs/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
