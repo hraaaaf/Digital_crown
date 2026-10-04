@@ -206,14 +206,18 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       && response.request().method() === 'POST'
       && response.url().includes('preview=true')
     );
+    const pdfResponsePromise = page.waitForResponse(response =>
+      response.request().method() === 'GET'
+      && (response.headers()['content-type'] || '').includes('application/pdf'),
+      { timeout: 30000 }
+    );
     await actionDock.getByRole('button', { name: 'Aperçu', exact: true }).click();
     const previewResponse = await previewResponsePromise;
     if (!previewResponse.ok()) throw new Error('Honoraires preview generation failed: ' + previewResponse.status());
     const previewPayload = await previewResponse.json();
     if (!previewPayload?.pdf_url) throw new Error('Honoraires preview did not return pdf_url');
 
-    const cleanPdfPath = String(previewPayload.pdf_url).replace(/^\//, '');
-    const pdfResponse = await api.get('/api/' + cleanPdfPath.replace(/^api\//, ''), { headers });
+    const pdfResponse = await pdfResponsePromise;
     if (!pdfResponse.ok()) throw new Error('Honoraires PDF download failed: ' + pdfResponse.status());
     const pdfBytes = await pdfResponse.body();
     if (pdfBytes.length < 5 || pdfBytes.subarray(0, 4).toString('ascii') !== '%PDF') {
@@ -225,7 +229,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     const renderFile = 'honoraires-before-page1.png';\n\n    fs.writeFileSync(path.join(outDir, 'honoraires-before-metadata.json'), JSON.stringify({
       productHead: process.env.PRODUCT_HEAD || null,
       patientDossier: patient.numero_dossier,
-      sourcePdfUrl: previewPayload.pdf_url,
+      sourcePdfUrl: previewPayload.pdf_url,\n      observedPdfResponseUrl: pdfResponse.url(),\n      contentType: pdfResponse.headers()['content-type'],
       bytes: pdfBytes.length,
       signature: pdfBytes.subarray(0, 4).toString('ascii'),
       pdfFile,
