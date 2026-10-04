@@ -1,7 +1,7 @@
 # V1.5-03.4 — Station arrival / today's appointment bridge contract
 
 ## Goal
-After V1.5-03.3 securely identifies an existing patient on a registered Station, resolve only that patient's appointments for the cabinet-local current day and allow an explicit arrival confirmation without introducing autonomous queue logic.
+After V1.5-03.3 securely identifies an existing patient on a registered Station, resolve only that patient's appointments for the current calendar day using the application's existing naive Agenda datetime convention and allow an explicit arrival confirmation without introducing autonomous queue logic.
 
 ## Existing-state audit — master@c86ba39bdf27e99735f9dbe85fdf70fc48155488
 - Canonical appointment persistence is `backend.models.Appointment` in table `appointments`.
@@ -14,7 +14,7 @@ After V1.5-03.3 securely identifies an existing patient on a registered Station,
 
 ## Contract
 1. The Station may resolve today's appointments only after the 03.3 session is identified, unexpired, unpurged, tenant-bound, and bound to the exact registered Station.
-2. "Today" uses the same naive cabinet-local calendar-day representation already used by the agenda database.
+2. "Today" follows the existing Agenda convention at this HEAD: naive appointment datetimes and the backend process local calendar day when no explicit date is supplied. 03.4 does not introduce or claim a separate per-cabinet timezone configuration.
 3. Resolution is restricted to the session's `patient_id`, same `employer_id`, non-deleted appointments, and Station-relevant states only: `PREVU`, `CONFIRME`, or already-arrived `EN_SALLE_ATTENTE`.
 4. Zero matches returns `none` and sets `staffActionRequired=true`. The Station then creates one idempotent, tenant-scoped staff-assistance audit signal for that session. It must not create an appointment or patient.
 5. One match returns `single` and the Station proposes it directly.
