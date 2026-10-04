@@ -314,7 +314,26 @@ def test_auto_verified_success_does_not_require_clinician_confirmation(monkeypat
     assert graph["revision_reason"] == "AUTO_CALIBRATION"
     assert graph["landmarks"] == previous_graph["landmarks"]
     assert graph["constructions"] == previous_graph["constructions"]
-    assert all(item["availability_status"] == "AVAILABLE" for item in graph["measurements"])
+
+    explicit_identity_required = {
+        "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+        "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+    }
+    blocked = [
+        item
+        for item in graph["measurements"]
+        if item["method_id"] in explicit_identity_required
+    ]
+    assert {item["method_id"] for item in blocked} == explicit_identity_required
+    assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
+    assert all(item["value"] is None for item in blocked)
+    assert all(
+        item["availability_status"] == "AVAILABLE"
+        for item in graph["measurements"]
+        if item["requires_calibration"]
+        and item["method_id"] not in explicit_identity_required
+    )
 
 
 def test_optional_confirmation_changes_only_audit_state_not_ratio_or_values(monkeypatch):
