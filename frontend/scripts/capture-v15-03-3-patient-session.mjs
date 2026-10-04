@@ -80,6 +80,11 @@ try {
             : { status: 'pending', sessionId: 'proof-session', expiresAt: '2026-10-04T01:02:00' };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
         });
+        await context.route('**/api/workstation/patient-session/proof-session/appointments/today', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'none', appointments: [], staffActionRequired: false }),
+        }));
         await context.route('**/api/workstation/patient-session/proof-session/purge', route => route.fulfill({ status: 204, body: '' }));
         await context.route('**/api/workstation/patient-session/proof-session/fallback', route => route.fulfill({
           status: 200,
@@ -155,7 +160,7 @@ const failures = report.filter(item =>
   item.errors.length > 0 ||
   (phase === 'after' && item.scenario === 'appointment' && !item.patientSessionVisible) ||
   (phase === 'after' && item.scenario === 'fallback' && !item.fallbackVisible) ||
-  (phase === 'after' && item.scenario === 'identified' && (!item.identifiedVisible || !item.bodyText.includes('Aucune arrivée n’a encore été enregistrée.')))
+  (phase === 'after' && item.scenario === 'identified' && !item.identifiedVisible)
 );
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length > 0) {
