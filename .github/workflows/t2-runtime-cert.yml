@@ -242,6 +242,8 @@ jobs:
           done
           grep -q '^baseline ' render-manifest.txt
           grep -q '^long-text ' render-manifest.txt
+          grep -q '^page-boundary-before ' render-manifest.txt
+          grep -q '^page-boundary-after ' render-manifest.txt
           grep -q '^many-lines ' render-manifest.txt
           grep -q '^long-many-lines ' render-manifest.txt
           grep -q '^extreme-pagination ' render-manifest.txt
