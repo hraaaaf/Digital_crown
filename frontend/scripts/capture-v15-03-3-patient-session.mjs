@@ -26,6 +26,7 @@ const viewports = [
   { width: 768, height: 1024, label: '768x1024' },
   { width: 1280, height: 900, label: '1280x900' },
 ];
+const languages = phase === 'after' ? ['fr', 'en', 'ar'] : ['fr'];
 const scales = [
   { label: 'normal', rootFontSize: null },
   { label: 'text200', rootFontSize: '200%' },
@@ -45,6 +46,7 @@ const report = [];
 
 try {
   for (const scenario of scenarios) {
+    for (const language of languages) {
     for (const vp of viewports) {
       for (const scale of scales) {
         const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
@@ -110,6 +112,10 @@ try {
           await page.waitForTimeout(100);
         }
 
+        if (language !== 'fr') {
+          const label = language === 'en' ? 'English' : 'العربية';
+          await page.getByRole('button', { name: label }).click();
+        }
         await page.locator('[data-station-action="appointment"]').click();
 
         if (phase === 'before') {
@@ -139,11 +145,12 @@ try {
           bodyText: document.body.textContent || '',
         }));
 
-        const filename = `${phase}-${scenario.name}-${vp.label}-${scale.label}.png`;
+        const filename = `${phase}-${scenario.name}-${language}-${vp.label}-${scale.label}.png`;
         await page.screenshot({ path: path.join(out, filename), fullPage: true, animations: 'disabled' });
         report.push({ phase, scenario: scenario.name, viewport: vp.label, scale: scale.label, filename, ...meta, errors });
         await context.close();
       }
+    }
     }
   }
 } finally {
