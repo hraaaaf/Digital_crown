@@ -649,6 +649,19 @@ def test_no_appointment_staff_assistance_is_durable_idempotent_and_acknowledgeab
     assert "patient_id" not in (requests[0].details or "")
     assert db.query(models.Appointment).filter(models.Appointment.employer_id == dentiste.id).count() == 0
 
+    foreign = models.AuditLog(
+        user_id=None,
+        employer_id=dentiste.id + 99999,
+        action="STATION_STAFF_ASSISTANCE_REQUESTED",
+        resource_type="WorkstationPatientSession",
+        resource_id="foreign-session",
+        severity="WARNING",
+        details="foreign tenant sentinel",
+    )
+    db.add(foreign)
+    db.commit()
+    db.refresh(foreign)
+
     feed = client.get("/api/workstation/staff-assistance", headers=headers)
     assert feed.status_code == 200, feed.text
     assert feed.json()["alerts"] == [{
@@ -667,6 +680,11 @@ def test_no_appointment_staff_assistance_is_durable_idempotent_and_acknowledgeab
         headers=headers,
     ).status_code == 200
     assert client.get("/api/workstation/staff-assistance", headers=headers).json()["alerts"] == []
+
+    assert client.post(
+        f"/api/workstation/staff-assistance/{foreign.id}/acknowledge",
+        headers=headers,
+    ).status_code == 404
 
     acknowledgements = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == dentiste.id,
@@ -708,3 +726,21 @@ def test_staff_assistance_fails_closed_when_today_appointment_exists(client, db,
         models.AuditLog.employer_id == dentiste.id,
         models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
     ).count() == 0
+
+
+def test_staff_assistance_feed_requires_agenda_permission(client, db, dentiste):
+    restricted = models.User(
+        email="station.no.agenda@cabinet.ma",
+        hashed_password=get_password_hash("TestPass123!"),
+        role=models.UserRole.SECRETAIRE,
+        nom_complet="Restricted Staff",
+        is_active=True,
+        is_licensed=True,
+        employer_id=dentiste.id,
+        permissions={"agenda": False},
+        approval_status=models.ApprovalStatus.APPROVED.value,
+    )
+    db.add(restricted)
+    db.commit()
+    restricted_headers = _login(client, restricted.email)
+    assert client.get("/api/workstation/staff-assistance", headers=restricted_headers).status_code == 403
