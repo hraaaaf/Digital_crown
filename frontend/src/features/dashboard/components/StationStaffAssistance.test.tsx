@@ -27,6 +27,13 @@ describe('StationStaffAssistance V1.5-03.4', () => {
     await waitFor(() => expect(screen.queryByText('Assistance demandée à la station')).not.toBeInTheDocument());
   });
 
+  it('fails visibly when the staff feed cannot be checked', async () => {
+    vi.mocked(stationStaffAssistanceService.list).mockRejectedValue(new Error('offline'));
+    render(<StationStaffAssistance visible />);
+    expect(await screen.findByText('Signal station indisponible')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Vérifiez directement la station/);
+  });
+
   it('renders nothing when the staff feed is empty', async () => {
     vi.mocked(stationStaffAssistanceService.list).mockResolvedValue([]);
     const { container } = render(<StationStaffAssistance visible />);
