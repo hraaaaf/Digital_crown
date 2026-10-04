@@ -188,3 +188,14 @@ These constructions extend the LOT06 deterministic authority without activating 
 - `STEINER_OCCLUSAL_SN_1953_V1` ? SN vs version-scoped Steiner 1953 occlusal plane using explicit/constructed `Occ_Steiner_Ant` and `Occ_Steiner_Post`; Wits/Ricketts occlusal planes are not aliases.
 - `STEINER_L1_DLINE_LINEAR_1959_V1` ? L1 facial-crown surface to D-line; D-line passes through explicit `D_Steiner_1959` perpendicular to Go-Gn; verified calibration required.
 - `STEINER_L1_DLINE_ANGULAR_1959_V1` ? lower-incisor long axis vs D-line orientation; explicit Steiner D remains an evidence dependency even though line orientation is determined by Go-Gn.
+
+
+## RICKETTS_PTV_PT_RICKETTS_PERP_FH_V1
+
+- Purpose: Ricketts pterygoid vertical construction for upper-molar position.
+- Required landmarks: `Pt_Ricketts`, `Po_anatomic`, `Or`.
+- Rule: infinite line through `Pt_Ricketts`, perpendicular to anatomical Frankfort `Po_anatomic-Or`.
+- Coordinate space: source-image pixels.
+- Evidence gate: all identities available from one source image; degenerate Frankfort => INVALID.
+- Forbidden alias: generic `PT_point` must not be promoted by name.
+- Downstream measurement `M_U6_PTV_MM_V1` remains blocked until exact `U6_distal` authority exists.
