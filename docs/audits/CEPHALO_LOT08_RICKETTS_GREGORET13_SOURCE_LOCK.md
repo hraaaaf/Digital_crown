@@ -102,9 +102,11 @@ Used only for canonical mapping and executable/blocking status.
 - Age behavior: described as stable in Gregoret material.
 - LOT06: `M_L1_FACIAL_SURFACE_APOG_MM_V1` is related but uses a facial-surface identity; the Gregoret summarized definition recovered here uses the incisal edge.
 - Critical rule: do **not** substitute facial-surface and incisal-edge variants.
-- Candidate primitive: `M_L1_EDGE_APOG_MM_V1` exists as `PRIMITIVE_AVAILABLE`.
-- Runtime: **CANONICAL_VARIANT_ALIGNMENT_REQUIRED**.
-- Profile status: **SOURCE_LOCKED / EXECUTION_BLOCKED_BY_ID_VARIANT**.
+- LOT06: `M_L1_EDGE_APOG_MM_V1`.
+- Runtime: **EXECUTABLE** through `RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2`.
+- Geometry: shortest/perpendicular distance from `L1_incisal` to `A-Pog_hard`; sign positive anterior, negative posterior. Frankfort Po→Or is used only to orient the sign, not the magnitude.
+- Calibration: required for mm output.
+- Profile status: **SOURCE_LOCKED / EXECUTABLE**.
 
 ### 9. Lower incisor inclination to A-Pog
 - Definition: angle between the long axis of the lower central incisor and `A-Pog`.
@@ -156,9 +158,9 @@ Used only for canonical mapping and executable/blocking status.
 All **13/13 rows are composition-locked** to the Gregoret summarized profile.
 
 Execution status:
-- Exact executable now: 6 — facial depth, convexity, maxillary depth, L1/A-Pog inclination, interincisal angle, lower lip/E-plane.
+- Exact executable now: 7 — facial depth, convexity, maxillary depth, L1/A-Pog distance, L1/A-Pog inclination, interincisal angle, lower lip/E-plane.
 - Conditional executable: 1 — facial axis.
-- Existing canonical/primitive but identity or construction blocked: 4 — lower facial height, lower incisor/A-Pog distance, U6/PTV, mandibular plane.
+- Existing canonical but identity or construction blocked: 3 — lower facial height, U6/PTV, mandibular plane.
 - New source-specific execution contracts still required: 2 — lower-incisor extrusion and mandibular arc.
 
 ## Normative gate
@@ -222,11 +224,10 @@ Therefore the **composition pre-code gate is closed**, while implementation rema
 
 Create the missing LOT06-compatible scientific contracts **without UI activation**:
 1. Ricketts mandibular-plane angle method/ID.
-2. Exact incisal-edge A-Pog distance variant binding.
-3. Ricketts lower-incisor extrusion to functional occlusal plane.
-4. Ricketts mandibular arc.
-5. PTV + functional occlusal plane construction contracts.
-6. Xi/Pm/DC manual scientific identity contracts first; auto authority remains fail-closed.
+2. Ricketts lower-incisor extrusion to functional occlusal plane.
+3. Ricketts mandibular arc.
+4. PTV + functional occlusal plane construction contracts.
+5. Xi/Pm/DC manual scientific identity contracts first; auto authority remains fail-closed.
 
 Already implemented and source-locked in this branch:
 - Ricketts maxillary depth.
@@ -246,3 +247,20 @@ Confirmation review detected and corrected a documentation/runtime contradiction
 This finding was **MAJOR** because stale scientific documentation could misstate canonical authority even when runtime behavior is correct.
 
 After this correction, prior confirmation confidence is invalidated until CI + two reviews + confirmation are rerun on the new HEAD.
+
+
+## A4 L1 edge–A-Pog binding — 2026-10-04
+
+The Gregoret lower-incisor protrusion row is now bound to the exact canonical identity `M_L1_EDGE_APOG_MM_V1`.
+
+Source-locked semantics:
+- point: mandibular incisal edge/tip, not facial crown surface;
+- reference: A–Pog hard-tissue line;
+- magnitude: shortest/perpendicular distance;
+- sign: positive anterior to A–Pog, negative posterior;
+- unit: mm with verified calibration;
+- Frankfort Po→Or is a computational sign-orientation dependency only and does not alter the distance magnitude.
+
+Runtime method: `RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2`.
+
+No historical norm/classification is activated by this binding.
