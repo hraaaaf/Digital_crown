@@ -19,6 +19,84 @@ if (!patientsResponse.ok()) throw new Error('G4 ordonnance patient list failed')
 const patient = (await patientsResponse.json()).find(row => row.numero_dossier === 'T2-0001');
 if (!patient) throw new Error('G4 ordonnance fixture patient missing');
 
+const ordonnanceGateDir = path.resolve('../artifacts/t2-browser/ordonnance-pdf-gate');
+fs.mkdirSync(ordonnanceGateDir, { recursive: true });
+
+const med = (i, overrides = {}) => ({
+  nom: 'MEDICAMENT TEST ' + String(i).padStart(2, '0'),
+  dosage: 'DOSAGE TEST',
+  forme: 'COMPRIME',
+  posologie: 'Instruction synthétique de mise en page ' + String(i).padStart(2, '0'),
+  type: 'MEDICAMENT',
+  quantite: 1,
+  quantite_explicit: true,
+  ...overrides,
+});
+const longInstruction = 'Instruction synthétique volontairement longue pour éprouver le retour à la ligne, la lisibilité typographique, les espacements verticaux et la stabilité de la composition sans introduire de recommandation clinique réelle.';
+const ordonnanceScenarios = [
+  {
+    id: 'standard',
+    medications: [
+      med(1, { nom: 'MEDICAMENT TEST ALPHA', dosage: 'DOSAGE A', forme: 'COMPRIME', posologie: 'Instruction synthétique courte A.' }),
+      med(2, { nom: 'MEDICAMENT TEST BETA', dosage: 'DOSAGE B', forme: 'GELULE', posologie: 'Instruction synthétique courte B.' }),
+    ],
+  },
+  {
+    id: 'dense-8-lignes',
+    medications: Array.from({ length: 8 }, (_, i) => med(i + 1, {
+      posologie: 'Instruction synthétique dense ' + String(i + 1).padStart(2, '0') + ' — matin / midi / soir — durée test.',
+    })),
+  },
+  {
+    id: 'stress-texte-long',
+    medications: [
+      med(1, { nom: 'MEDICAMENT TEST AU NOM VOLONTAIREMENT TRES LONG POUR VALIDATION VISUELLE', dosage: 'DOSAGE TEST LONG', forme: 'FORME TEST LONGUE', posologie: longInstruction, quantite: 12 }),
+      med(2, { nom: 'MEDICAMENT TEST COMPLEMENTAIRE LONG', dosage: 'DOSAGE B', forme: 'COMPRIME', posologie: longInstruction }),
+      { nom: 'EXAMEN RADIO TEST COMPLEXE', dosage: '', forme: '', posologie: longInstruction, type: 'EXAMEN', quantite: null, quantite_explicit: false },
+    ],
+  },
+];
+const ordonnanceGateReport = {
+  productHead: process.env.PRODUCT_HEAD || null,
+  patientDossier: patient.numero_dossier,
+  scenarios: [],
+};
+for (const scenario of ordonnanceScenarios) {
+  const response = await api.post('/api/documents/generate?archive=false&preview=true&force=false', {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    data: {
+      type: 'ordonnance',
+      patient_id: patient.id,
+      is_accounted: false,
+      payment_status: 'EN_ATTENTE',
+      data: {
+        medications: scenario.medications,
+        doc_date: '2026-09-20',
+        show_legal_annotations: true,
+      },
+    },
+  });
+  if (!response.ok()) throw new Error('ordonnance gate ' + scenario.id + ' generation failed ' + response.status() + ' ' + await response.text());
+  const payload = await response.json();
+  if (!payload.pdf_url) throw new Error('ordonnance gate ' + scenario.id + ' missing pdf_url');
+  const clean = String(payload.pdf_url).replace(/^\//, '').replace(/^api\//, '');
+  const pdf = await api.get('/api/' + clean, { headers });
+  if (!pdf.ok()) throw new Error('ordonnance gate ' + scenario.id + ' fetch failed ' + pdf.status());
+  const bytes = await pdf.body();
+  if (bytes.length < 5 || bytes.subarray(0,4).toString('ascii') !== '%PDF') throw new Error('ordonnance gate ' + scenario.id + ' invalid PDF');
+  const file = scenario.id + '.pdf';
+  fs.writeFileSync(path.join(ordonnanceGateDir, file), bytes);
+  ordonnanceGateReport.scenarios.push({
+    id: scenario.id,
+    medicationCount: scenario.medications.length,
+    bytes: bytes.length,
+    signature: bytes.subarray(0,4).toString('ascii'),
+    pdfFile: file,
+  });
+}
+fs.writeFileSync(path.join(ordonnanceGateDir, 'gate-matrix.json'), JSON.stringify(ordonnanceGateReport, null, 2));
+console.log('ORDONNANCE_PDF_GATE_PASS', JSON.stringify(ordonnanceGateReport));
+
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
 
