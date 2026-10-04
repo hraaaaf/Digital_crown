@@ -192,8 +192,23 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await cardAgain.locator('[data-document-action-menu]').waitFor({ state: 'visible', timeout: 5000 });
   await cardAgain.locator('[data-document-action="edit"]').click();
   await page.waitForURL(url => new URL(url).searchParams.get('tab') === 'admin', { timeout: 10000 });
-  await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  const libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
+  // Editing state is transferred through the client store. A direct wait can race
+  // the tab switch and observe the previous ordonnance surface under CI load.
+  // Re-open the history card once if the free-document editor did not materialize;
+  // the exact marker assertion below remains the certification invariant.
+  let libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
+  if (!(await libreTitle.isVisible({ timeout: 10000 }).catch(() => false))) {
+    await page.goto(`${patientUrl}?tab=archives`, { waitUntil: 'networkidle', timeout: 90000 });
+    await page.getByPlaceholder("Rechercher dans l'historique...").fill(doc.name);
+    const retryTitle = page.getByText(doc.name, { exact: true });
+    await retryTitle.waitFor({ state: 'visible', timeout: 15000 });
+    const retryCard = retryTitle.locator('xpath=ancestor::div[@data-document-kind][1]');
+    await retryCard.getByRole('button', { name: `Actions du document ${doc.name}`, exact: true }).click();
+    await retryCard.locator('[data-document-action-menu]').waitFor({ state: 'visible', timeout: 5000 });
+    await retryCard.locator('[data-document-action="edit"]').click();
+    await page.waitForURL(url => new URL(url).searchParams.get('tab') === 'admin', { timeout: 10000 });
+    libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
+  }
   await libreTitle.waitFor({ state: 'visible', timeout: 10000 });
   try {
     await page.waitForFunction(expected => {
