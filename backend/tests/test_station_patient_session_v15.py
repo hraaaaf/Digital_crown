@@ -617,3 +617,94 @@ def test_station_bridge_requires_live_identified_patient(client, db, dentiste):
     assert denied.status_code == 409
     assert denied.json()["detail"] == "STATION_SESSION_PATIENT_UNAVAILABLE"
 
+
+
+def test_no_appointment_staff_assistance_is_durable_idempotent_and_acknowledgeable(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    created = client.post("/api/workstation/patient-session", headers=headers).json()
+    raw = created["handoffUrl"].split("stationSession=", 1)[1]
+    _, access, patient_headers = _patient_context(db, dentiste, dossier="ST034-STAFF", name="Staff")
+
+    assert client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={"token": raw, "accessId": access.public_id},
+    ).status_code == 200
+
+    url = f"/api/workstation/patient-session/{created['sessionId']}/staff-assistance"
+    first = client.post(url, headers=headers)
+    second = client.post(url, headers=headers)
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json()["status"] == "STAFF_NOTIFIED"
+    assert second.json()["alertId"] == first.json()["alertId"]
+
+    requests = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == dentiste.id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.resource_id == created["sessionId"],
+    ).all()
+    assert len(requests) == 1
+    assert "Staff" not in (requests[0].details or "")
+    assert "patient_id" not in (requests[0].details or "")
+    assert db.query(models.Appointment).filter(models.Appointment.employer_id == dentiste.id).count() == 0
+
+    feed = client.get("/api/workstation/staff-assistance", headers=headers)
+    assert feed.status_code == 200, feed.text
+    assert feed.json()["alerts"] == [{
+        "alertId": first.json()["alertId"],
+        "requestedAt": feed.json()["alerts"][0]["requestedAt"],
+    }]
+
+    ack = client.post(
+        f"/api/workstation/staff-assistance/{first.json()['alertId']}/acknowledge",
+        headers=headers,
+    )
+    assert ack.status_code == 200, ack.text
+    assert ack.json()["status"] == "ACKNOWLEDGED"
+    assert client.post(
+        f"/api/workstation/staff-assistance/{first.json()['alertId']}/acknowledge",
+        headers=headers,
+    ).status_code == 200
+    assert client.get("/api/workstation/staff-assistance", headers=headers).json()["alerts"] == []
+
+    acknowledgements = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == dentiste.id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_ACKNOWLEDGED",
+        models.AuditLog.resource_id == str(first.json()["alertId"]),
+    ).all()
+    assert len(acknowledgements) == 1
+
+
+def test_staff_assistance_fails_closed_when_today_appointment_exists(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    created = client.post("/api/workstation/patient-session", headers=headers).json()
+    raw = created["handoffUrl"].split("stationSession=", 1)[1]
+    patient, access, patient_headers = _patient_context(db, dentiste, dossier="ST034-NO-ALERT", name="Booked")
+
+    db.add(models.Appointment(
+        patient_id=patient.id,
+        patient_name="Booked Audit",
+        datetime_start=datetime.now().replace(hour=10, minute=0, second=0, microsecond=0),
+        duration_minutes=30,
+        status=models.AppointmentStatus.PREVU,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        employer_id=dentiste.id,
+    ))
+    db.commit()
+    assert client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={"token": raw, "accessId": access.public_id},
+    ).status_code == 200
+
+    denied = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/staff-assistance",
+        headers=headers,
+    )
+    assert denied.status_code == 409
+    assert denied.json()["detail"] == "STATION_STAFF_ASSISTANCE_NOT_REQUIRED"
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == dentiste.id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+    ).count() == 0
