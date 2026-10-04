@@ -18,6 +18,10 @@ on:
       - ".github/workflows/v15-03-3-patient-session-visual.yml"
   workflow_dispatch:
 
+concurrency:
+  group: v15-03-3-patient-session-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
