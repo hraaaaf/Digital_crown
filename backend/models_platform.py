@@ -100,6 +100,7 @@ class WorkstationPatientSession(Base):
     patient_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    fallback_failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)

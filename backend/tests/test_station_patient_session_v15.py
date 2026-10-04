@@ -203,3 +203,168 @@ def test_expired_station_session_purges_patient_references(client, db, dentiste)
     assert row.purged_at is not None
     assert row.patient_id is None
     assert row.patient_access_id is None
+
+
+def _cabinet_config(db, owner):
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == owner.id).first()
+    if config is None:
+        config = models.CabinetConfig(
+            owner_id=owner.id,
+            nom_cabinet="Cabinet Test",
+            nom_praticien=owner.nom_complet or "Dr Test",
+            is_initialized=True,
+        )
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+    return config
+
+
+def test_fallback_phone_and_birth_date_identifies_without_exposing_arrival(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    patient = models.Patient(
+        numero_dossier="ST03-FB-PHONE",
+        nom="Fallback",
+        prenom="Aya",
+        date_naissance=datetime(1992, 5, 4),
+        sexe="F",
+        employer_id=dentiste.id,
+        telephone="+212612345678",
+    )
+    db.add(patient)
+    db.commit()
+
+    created_response = client.post("/api/workstation/patient-session", headers=headers)
+    assert created_response.status_code == 201, created_response.text
+    created = created_response.json()
+    assert created["fallbackMode"] == "phone_dob"
+
+    identified = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/fallback",
+        headers=headers,
+        json={"birthDate": "1992-05-04", "phone": "+212 612-345-678"},
+    )
+    assert identified.status_code == 200, identified.text
+    assert identified.json()["status"] == "identified"
+    assert identified.json()["displayName"] == "Aya Fallback"
+    assert "arriv" not in identified.text.lower()
+
+    replay = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/fallback",
+        headers=headers,
+        json={"birthDate": "1992-05-04", "phone": "+212612345678"},
+    )
+    assert replay.status_code == 409
+
+    audit = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == dentiste.id,
+        models.AuditLog.action == "STATION_PATIENT_FALLBACK_IDENTIFIED",
+    ).one()
+    assert "credentials not logged" in audit.details
+
+
+def test_fallback_collision_fails_generically_and_locks_after_five_attempts(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    for dossier, name in (("ST03-COLLIDE-1", "Aya"), ("ST03-COLLIDE-2", "Nora")):
+        db.add(models.Patient(
+            numero_dossier=dossier,
+            nom="Collision",
+            prenom=name,
+            date_naissance=datetime(1990, 6, 7),
+            sexe="F",
+            employer_id=dentiste.id,
+            telephone="0612345678",
+        ))
+    db.commit()
+
+    created = client.post("/api/workstation/patient-session", headers=headers).json()
+    url = f"/api/workstation/patient-session/{created['sessionId']}/fallback"
+
+    for attempt in range(1, 6):
+        response = client.post(
+            url,
+            headers=headers,
+            json={"birthDate": "1990-06-07", "phone": "0612345678"},
+        )
+        assert response.status_code == (429 if attempt == 5 else 403)
+        if attempt < 5:
+            assert response.json()["detail"] == "IDENTIFICATION_NOT_CONFIRMED"
+
+    db.expire_all()
+    row = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == created["sessionId"]
+    ).one()
+    assert row.fallback_failed_attempts == 5
+    assert row.patient_id is None
+    assert row.claimed_at is None
+
+
+def test_fallback_mode_is_owner_pin_configurable_and_name_mode_normalizes_text(client, db, dentiste):
+    config = _cabinet_config(db, dentiste)
+    config.station_identification_fallback = "phone_dob"
+    db.commit()
+
+    headers, _ = _station(client, dentiste)
+    current = client.get("/api/workstation/patient-session/config", headers=headers)
+    assert current.status_code == 200
+    assert current.json()["fallbackMode"] == "phone_dob"
+
+    wrong = client.patch(
+        "/api/workstation/patient-session/config",
+        headers=headers,
+        json={"fallbackMode": "name_dob", "ownerPin": "0000"},
+    )
+    assert wrong.status_code == 403
+
+    changed = client.patch(
+        "/api/workstation/patient-session/config",
+        headers=headers,
+        json={"fallbackMode": "name_dob", "ownerPin": "2468"},
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["fallbackMode"] == "name_dob"
+
+    patient = models.Patient(
+        numero_dossier="ST03-FB-NAME",
+        nom="Benmoussa",
+        prenom="Élodie",
+        date_naissance=datetime(1988, 2, 3),
+        sexe="F",
+        employer_id=dentiste.id,
+    )
+    db.add(patient)
+    db.commit()
+
+    created = client.post("/api/workstation/patient-session", headers=headers).json()
+    assert created["fallbackMode"] == "name_dob"
+    identified = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/fallback",
+        headers=headers,
+        json={"birthDate": "1988-02-03", "firstName": "elodie", "lastName": " BENMOUSSA "},
+    )
+    assert identified.status_code == 200, identified.text
+    assert identified.json()["displayName"] == "Élodie Benmoussa"
+
+
+def test_fallback_can_be_disabled_by_cabinet(client, db, dentiste):
+    config = _cabinet_config(db, dentiste)
+    config.station_identification_fallback = "phone_dob"
+    db.commit()
+    headers, _ = _station(client, dentiste)
+
+    changed = client.patch(
+        "/api/workstation/patient-session/config",
+        headers=headers,
+        json={"fallbackMode": "disabled", "ownerPin": "2468"},
+    )
+    assert changed.status_code == 200
+
+    created = client.post("/api/workstation/patient-session", headers=headers).json()
+    assert created["fallbackMode"] == "disabled"
+    denied = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/fallback",
+        headers=headers,
+        json={"birthDate": "1992-05-04", "phone": "0612345678"},
+    )
+    assert denied.status_code == 403
+    assert denied.json()["detail"] == "STATION_FALLBACK_DISABLED"

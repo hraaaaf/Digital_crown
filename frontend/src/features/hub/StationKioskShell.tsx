@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarCheck2, ChevronLeft, FileDown, HandHelping, Languages, ShieldCheck, TabletSmartphone } from 'lucide-react';
+import { StationPatientIdentity } from './StationPatientIdentity';
 
 type StationLanguage = 'fr' | 'ar' | 'en';
 type StationScreen = 'home' | 'appointment' | 'documents' | 'help';
@@ -191,6 +192,8 @@ export const StationKioskShell = ({
                 </button>
               ))}
             </div>
+          ) : screen === 'appointment' ? (
+            <StationPatientIdentity onBack={() => setScreen('home')} backLabel={copy.back} />
           ) : (
             <div className="mx-auto mt-9 w-full max-w-xl rounded-elite-lg border border-border-main bg-card-bg p-6 text-center shadow-elite sm:p-8">
               <button

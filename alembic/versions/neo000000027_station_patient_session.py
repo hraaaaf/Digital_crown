@@ -21,6 +21,7 @@ def upgrade():
         sa.Column("claim_token_hash", sa.String(length=64), nullable=False),
         sa.Column("patient_access_id", sa.Integer(), sa.ForeignKey("patient_companion_accesses.id", ondelete="SET NULL"), nullable=True),
         sa.Column("patient_id", sa.Integer(), sa.ForeignKey("patients.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("fallback_failed_attempts", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.Column("claimed_at", sa.DateTime(), nullable=True),
@@ -34,7 +35,12 @@ def upgrade():
     op.create_index("ix_workstation_patient_sessions_expires_at", "workstation_patient_sessions", ["expires_at"])
     op.create_index("ix_workstation_patient_sessions_claimed_at", "workstation_patient_sessions", ["claimed_at"])
     op.create_index("ix_workstation_patient_sessions_purged_at", "workstation_patient_sessions", ["purged_at"])
+    op.add_column(
+        "cabinet_configs",
+        sa.Column("station_identification_fallback", sa.String(length=24), nullable=False, server_default="phone_dob"),
+    )
 
 
 def downgrade():
+    op.drop_column("cabinet_configs", "station_identification_fallback")
     op.drop_table("workstation_patient_sessions")
