@@ -212,6 +212,19 @@ jobs:
           set -o pipefail
           node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-honoraires-actions-runner.log
 
+      - name: Render Honoraires PDF review page
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PDF=artifacts/t2-browser/g4-honoraires-actions/honoraires-before.pdf
+          PNG=artifacts/t2-browser/g4-honoraires-actions/honoraires-before-page1
+          test -s "$PDF"
+          head -c 4 "$PDF" | grep -q '%PDF'
+          command -v pdftoppm
+          pdftoppm -png -f 1 -singlefile -r 144 "$PDF" "$PNG"
+          test -s "${PNG}.png"
+
       - name: Certify G4 remaining document actions
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
