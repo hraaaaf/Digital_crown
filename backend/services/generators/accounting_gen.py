@@ -380,7 +380,7 @@ class AccountingGenerator:
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         cloture_style = ParagraphStyle(
             name='Cloture', parent=self.styles['Normal'], fontName=self.base_template.premium_font,
-            fontSize=9.0, textColor=p_color, alignment=TA_CENTER, leading=12,
+            fontSize=9.0, textColor=p_color, alignment=TA_LEFT, leading=12,
         )
         from backend.services.base_template import PinnedCloture
         # Preserve normal spaces so the pinned closing sentence can wrap naturally.
