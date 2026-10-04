@@ -14,7 +14,7 @@ Identify a patient on one registered Station through a short-lived, one-shot han
 8. Creating a new session purges any prior non-purged session for that Station.
 9. The Station never receives Patient Companion access tokens.
 10. A cabinet may configure fallback as phone + birth date, name + birth date, or disabled.
-11. Fallback matching is tenant-scoped, requires exactly one active patient match, emits only generic failure responses, and locks the session after five failed attempts.
+11. Fallback matching is tenant-scoped, requires exactly one active patient match, emits only generic failure responses, and locks Station fallback after five failed attempts within a rolling 15-minute window, including across regenerated sessions.
 12. Fallback credentials are never written to audit logs; only the selected mode is recorded on successful identification.
 13. Patient Companion deep-link claim requires explicit context selection when several patient contexts exist on the phone.
 14. This lot does not mark ARRIVED and does not create/reorder queue state; those belong to 03.4+.
