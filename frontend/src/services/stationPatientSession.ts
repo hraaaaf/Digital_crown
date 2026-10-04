@@ -58,6 +58,11 @@ export const stationPatientSessionService = {
     return data;
   },
 
+  async requestStaffAssistance(sessionId: string): Promise<{ status: 'STAFF_NOTIFIED'; alertId: number }> {
+    const { data } = await api.post(`/workstation/patient-session/${sessionId}/staff-assistance`);
+    return data;
+  },
+
   async arrive(sessionId: string, appointmentId: number): Promise<{ status: 'ARRIVED'; appointmentId: number }> {
     const { data } = await api.post(`/workstation/patient-session/${sessionId}/appointments/${appointmentId}/arrive`);
     return data;
