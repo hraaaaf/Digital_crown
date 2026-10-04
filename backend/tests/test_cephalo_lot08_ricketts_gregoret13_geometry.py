@@ -84,3 +84,30 @@ def test_ricketts_l1_edge_apog_signed_distance_is_positive_anterior():
 def test_ricketts_l1_edge_apog_fail_closed_on_degenerate_apog_or_fh():
     assert ricketts_l1_edge_apog_signed_distance_px_v1((2,5),(0,0),(0,0),(0,0),(10,0)) is None
     assert ricketts_l1_edge_apog_signed_distance_px_v1((2,5),(0,0),(0,10),(0,0),(0,0)) is None
+
+
+def test_gregoret_l1_edge_apog_materializes_with_calibration_and_correct_sign():
+    pts = {
+        "S": (0, 0), "N": (0, 0), "A": (0, 0), "Go": (0, 20), "Me": (15, 20),
+        "Ba": (-8, -4), "Pt_Ricketts": (5, 6), "Or": (10, 0), "Po_anatomic": (0, 0),
+        "Co_anatomic": (-5, 5), "Gn_anatomic": (15, 18), "Pog_hard": (0, 10),
+        "L1_incisal": (2, 5), "L1_apex": (1, 6),
+        "Prn": (18, 4), "Pog_soft": (17, 9), "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    by_method = {item.method_id: item for item in out}
+    item = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
+    assert item.availability_status.value == "AVAILABLE"
+    assert item.value == pytest.approx(1.0)
+    assert item.calibration_ref == "source:calibration"
+    assert item.requires_calibration is True
