@@ -97,7 +97,7 @@ jobs:
             total_appointments:2,
           };
           const fixtures={
-            '/api/workstation/staff-assistance':[],
+            '/api/workstation/staff-assistance':{alerts:[]},
             '/api/admin/dashboard/stats':{total_patients:184,total_analyses:326,in_waiting:2,weekly_activity:[38,55,47,72,61,84,66],weekly_patient_counts:[4,7,5,9,6,10,8],weekly_patients:49,recent_patients:[{id:101,nom:'EL AMRANI',prenom:'Sara',acte:'Consultation',time:'09:20',type:'patient'},{id:102,nom:'BENALI',prenom:'Youssef',acte:'Contrôle',time:'10:05',type:'patient'}]},
             '/api/admin/cabinet/me':{header_lines_fr:['Clinique P1']},
             '/api/clinics/me':{nom_praticien:'Dr Lina Alaoui',nom_cabinet:'Clinique P1',header_lines_fr:['Dr Lina Alaoui'],specialty_ids:[],contacts_json:{}},
