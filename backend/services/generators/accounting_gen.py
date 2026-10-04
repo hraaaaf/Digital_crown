@@ -335,7 +335,7 @@ class AccountingGenerator:
             name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold,
             fontSize=10.5, textColor=p_color, alignment=TA_CENTER,
         )
-        total_amount_text = f"<b>{total:.2f}\u00A0MAD</b>"
+        total_amount_text = f"<b>{self._format_mad_amount(total)}\u00A0MAD</b>"
         total_amount_style = self.base_template.get_adaptive_style(
             total_amount_style, total_amount_text, hon_w - 0.22*cm, min_fs=readable_floor
         )
