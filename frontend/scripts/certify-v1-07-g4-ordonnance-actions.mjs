@@ -128,30 +128,41 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   const name = page.getByPlaceholder('NOM OU DCI DU MÉDICAMENT...').first();
   await name.fill('G4 MANUAL');
   await page.waitForTimeout(700);
-  const formTrigger = page.getByTitle('Choisir la forme manuellement').first();
+
+  const formTrigger = page.getByRole('button', { name: 'Forme', exact: true }).first();
   await formTrigger.click();
-  const menu = page.getByRole('menu', { name: 'Choisir la forme' });
+  const menu = page.getByRole('menu', { name: 'Options Forme' });
   await menu.waitFor({ state: 'visible', timeout: 10000 });
-  const options = menu.getByRole('menuitemradio');
+  const options = menu.getByRole('menuitem').filter({ hasNotText: /Modifier manuellement/i });
   if (await options.count() !== 11) throw new Error('Manual form chooser does not expose 11 canonical forms');
   const heights = await options.evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
   if (Math.min(...heights) < 43.5) throw new Error('Manual form chooser touch target below 44px');
   const openScene = await snapshot(page, viewport, 'forme-open');
-  await menu.getByRole('menuitemradio', { name: 'COMPRIMÉS', exact: true }).click();
+  await options.filter({ hasText: 'COMPRIMÉS' }).click();
   if (!/COMPRIMÉS/.test(await formTrigger.innerText())) throw new Error('Manual form selection not applied');
   actions.push('manual-form');
 
-  const dose = page.getByLabel('Dose').first();
-  await dose.fill('500 MG');
-  const ns = page.getByTitle('Non substituable').first();
+  const dose = page.getByRole('button', { name: 'Dose', exact: true }).first();
+  await dose.click();
+  const doseMenu = page.getByRole('menu', { name: 'Options Dose' });
+  await doseMenu.getByRole('menuitem', { name: /Modifier manuellement/i }).click();
+  const customDose = page.getByRole('textbox', { name: 'Valeur personnalisée' });
+  await customDose.fill('500 MG');
+  await customDose.press('Enter');
+  if (!/500 MG/.test(await dose.innerText())) throw new Error('Manual dose edit failed');
+
+  const ns = page.getByRole('button', { name: 'Non substituable' }).first();
   const nsBefore = await ns.getAttribute('aria-pressed');
   await ns.click();
   if (await ns.getAttribute('aria-pressed') === nsBefore) throw new Error('NS toggle failed');
 
   for (const label of ['Prise', 'Rythme', 'Durée ou limite', 'Moment ou condition']) {
-    const select = page.getByLabel(label).first();
-    await select.selectOption({ index: 1 });
-    if (!(await select.inputValue())) throw new Error(`Structured posology field failed: ${label}`);
+    const trigger = page.getByRole('button', { name: label, exact: true }).first();
+    await trigger.click();
+    const choiceMenu = page.getByRole('menu', { name: `Options ${label}` });
+    const option = choiceMenu.getByRole('menuitem').filter({ hasNotText: /Modifier manuellement/i }).first();
+    await option.click();
+    if (!(await trigger.innerText()).trim()) throw new Error(`Structured posology field failed: ${label}`);
   }
   const freePosology = page.getByLabel('Posologie en texte libre').first();
   await freePosology.fill('Saisie praticien G4');
