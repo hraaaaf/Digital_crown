@@ -37,7 +37,7 @@ def upgrade():
     op.create_index("ix_workstation_patient_sessions_purged_at", "workstation_patient_sessions", ["purged_at"])
     op.add_column(
         "cabinet_configs",
-        sa.Column("station_identification_fallback", sa.String(length=24), nullable=False, server_default="phone_dob"),
+        sa.Column("station_identification_fallback", sa.String(length=24), nullable=False, server_default="disabled"),
     )
 
 
