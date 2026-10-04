@@ -76,6 +76,17 @@ def seed() -> None:
         if owner is None:
             raise RuntimeError("Canonical T2 fixture requires the isolated T2 certification user")
 
+        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == owner.id).first()
+        if config is None:
+            config = models.CabinetConfig(owner_id=owner.id)
+            db.add(config)
+        config.nom_cabinet = "Cabinet T2 Certification"
+        config.nom_praticien = "Dr Test Certification"
+        config.logo_path = "t2-cabinet-logo.svg"
+        config.header_lines_fr = ["Dr Test Certification", "Chirurgien Dentiste"]
+        config.header_customized = True
+        config.selected_template = "swiss"
+
         ids = {}
         for row in PATIENTS:
             patient = db.query(models.Patient).filter(
