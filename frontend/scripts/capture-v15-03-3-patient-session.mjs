@@ -80,6 +80,16 @@ try {
             : { status: 'pending', sessionId: 'proof-session', expiresAt: '2026-10-04T01:02:00' };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
         });
+        await context.route('**/api/workstation/patient-session/proof-session/appointments/today', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'none', appointments: [], staffActionRequired: scenario.mode === 'identified' }),
+        }));
+        await context.route('**/api/workstation/patient-session/proof-session/staff-assistance', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'STAFF_NOTIFIED', alertId: 3401 }),
+        }));
         await context.route('**/api/workstation/patient-session/proof-session/purge', route => route.fulfill({ status: 204, body: '' }));
         await context.route('**/api/workstation/patient-session/proof-session/fallback', route => route.fulfill({
           status: 200,
@@ -109,7 +119,8 @@ try {
           await page.locator('[data-station-fallback-toggle]').click();
           await page.locator('[data-station-fallback-form]').waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'identified') {
-          await page.locator('[data-station-patient-identified]').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-arrival-bridge]').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-staff-notified]').waitFor({ timeout: 10000 });
         } else {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
         }
@@ -120,7 +131,7 @@ try {
           stationVisible: Boolean(document.querySelector('[data-workstation-experience="station"]')),
           patientSessionVisible: Boolean(document.querySelector('[data-station-patient-session]')),
           fallbackVisible: Boolean(document.querySelector('[data-station-fallback-form]')),
-          identifiedVisible: Boolean(document.querySelector('[data-station-patient-identified]')),
+          identifiedVisible: Boolean(document.querySelector('[data-station-arrival-bridge]')),
           cameraInputs: document.querySelectorAll('input[accept*="image"], video').length,
           clinicalLinks: Array.from(document.querySelectorAll('a'))
             .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
@@ -155,7 +166,7 @@ const failures = report.filter(item =>
   item.errors.length > 0 ||
   (phase === 'after' && item.scenario === 'appointment' && !item.patientSessionVisible) ||
   (phase === 'after' && item.scenario === 'fallback' && !item.fallbackVisible) ||
-  (phase === 'after' && item.scenario === 'identified' && (!item.identifiedVisible || !item.bodyText.includes('Aucune arrivée n’a encore été enregistrée.')))
+  (phase === 'after' && item.scenario === 'identified' && !item.identifiedVisible)
 );
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length > 0) {

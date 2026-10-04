@@ -10,12 +10,13 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend import models
 from backend.models_patient_companion import PatientCompanionAccess
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.routers.patient_companion_common import (
     get_db,
     patient_identity,
@@ -23,6 +24,12 @@ from backend.routers.patient_companion_common import (
 )
 from backend.routers.workstation_mode import _find_workstation, _require_pin
 from backend.services.qr_service import qr_service
+from backend.services.station_arrival_bridge import (
+    list_station_patient_appointments_for_today,
+    mark_station_appointment_arrived,
+    serialize_station_appointment,
+    station_appointment_for_today,
+)
 
 router = APIRouter()
 SESSION_TTL_SECONDS = 120
@@ -127,6 +134,31 @@ def _expire_and_purge(db: Session, row: models.WorkstationPatientSession, now: d
     row.purged_at = now
     db.commit()
     return True
+
+
+def _identified_station_session_or_error(session_id: str, request: Request, db: Session, current_user: models.User):
+    workstation = _station_or_423(request, db, current_user)
+    row = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == session_id,
+        models.WorkstationPatientSession.employer_id == workstation.employer_id,
+        models.WorkstationPatientSession.workstation_id == workstation.id,
+        models.WorkstationPatientSession.purged_at.is_(None),
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="STATION_SESSION_NOT_FOUND")
+    now = datetime.utcnow()
+    if _expire_and_purge(db, row, now):
+        raise HTTPException(status_code=409, detail="STATION_SESSION_INVALID_OR_USED")
+    if row.claimed_at is None or row.patient_id is None:
+        raise HTTPException(status_code=409, detail="STATION_PATIENT_NOT_IDENTIFIED")
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == row.patient_id,
+        models.Patient.employer_id == workstation.employer_id,
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=409, detail="STATION_SESSION_PATIENT_UNAVAILABLE")
+    return workstation, row
 
 
 @router.get("/patient-session/config")
@@ -378,6 +410,214 @@ def fallback_station_patient_session(
         "sessionId": row.id,
         "displayName": f"{patient.prenom or ''} {patient.nom or ''}".strip(),
     }
+
+
+@router.get("/patient-session/{session_id}/appointments/today")
+def station_patient_today_appointments(
+    session_id: str,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    workstation, row = _identified_station_session_or_error(session_id, request, db, current_user)
+    appointments = list_station_patient_appointments_for_today(
+        db,
+        employer_id=workstation.employer_id,
+        patient_id=row.patient_id,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    if not appointments:
+        return {"status": "none", "appointments": [], "staffActionRequired": True}
+    return {
+        "status": "single" if len(appointments) == 1 else "multiple",
+        "appointments": [serialize_station_appointment(item) for item in appointments],
+        "staffActionRequired": False,
+    }
+
+
+@router.post("/patient-session/{session_id}/staff-assistance")
+def request_station_staff_assistance(
+    session_id: str,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # The cabinet deployment uses SQLite/SQLCipher, where SELECT ... FOR UPDATE is
+    # ignored. Acquire the database write lock before the read-then-insert sequence
+    # so concurrent assistance requests cannot both create the one-shot audit event.
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite:
+        db.commit()
+        db.execute(text("BEGIN IMMEDIATE"))
+
+    workstation, row = _identified_station_session_or_error(session_id, request, db, current_user)
+
+    if not sqlite:
+        db.query(models.WorkstationPatientSession).filter(
+            models.WorkstationPatientSession.id == row.id,
+            models.WorkstationPatientSession.employer_id == workstation.employer_id,
+        ).with_for_update().one()
+
+    appointments = list_station_patient_appointments_for_today(
+        db,
+        employer_id=workstation.employer_id,
+        patient_id=row.patient_id,
+    )
+    if appointments:
+        if sqlite:
+            db.rollback()
+        raise HTTPException(status_code=409, detail="STATION_STAFF_ASSISTANCE_NOT_REQUIRED")
+
+    existing = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == workstation.employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.resource_type == "WorkstationPatientSession",
+        models.AuditLog.resource_id == row.id,
+    ).first()
+    if existing is None:
+        existing = models.AuditLog(
+            user_id=current_user.id,
+            employer_id=workstation.employer_id,
+            action="STATION_STAFF_ASSISTANCE_REQUESTED",
+            resource_type="WorkstationPatientSession",
+            resource_id=row.id,
+            severity="WARNING",
+            details="Identified station visitor has no appointment today; staff assistance requested.",
+            ip_address=request.client.host if request.client else None,
+        )
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+    response.headers["Cache-Control"] = "no-store"
+    return {"status": "STAFF_NOTIFIED", "alertId": existing.id}
+
+
+@router.get("/staff-assistance")
+def list_station_staff_assistance(
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = int(current_user.get_employer_id())
+    requests = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.resource_type == "WorkstationPatientSession",
+    ).order_by(models.AuditLog.timestamp.asc(), models.AuditLog.id.asc()).all()
+    if not requests:
+        response.headers["Cache-Control"] = "no-store"
+        return {"alerts": []}
+
+    request_ids = {str(item.id) for item in requests}
+    acknowledged = db.query(models.AuditLog.resource_id).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_ACKNOWLEDGED",
+        models.AuditLog.resource_type == "AuditLog",
+        models.AuditLog.resource_id.in_(request_ids),
+    ).all()
+    acknowledged_ids = {str(item[0]) for item in acknowledged}
+    alerts = [{
+        "alertId": item.id,
+        "requestedAt": item.timestamp,
+    } for item in requests if str(item.id) not in acknowledged_ids]
+    response.headers["Cache-Control"] = "no-store"
+    return {"alerts": alerts}
+
+
+@router.post("/staff-assistance/{alert_id}/acknowledge")
+def acknowledge_station_staff_assistance(
+    alert_id: int,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = int(current_user.get_employer_id())
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite:
+        db.commit()
+        db.execute(text("BEGIN IMMEDIATE"))
+
+    requested = db.query(models.AuditLog).filter(
+        models.AuditLog.id == alert_id,
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.resource_type == "WorkstationPatientSession",
+    ).first()
+    if requested is None:
+        if sqlite:
+            db.rollback()
+        raise HTTPException(status_code=404, detail="STATION_STAFF_ASSISTANCE_NOT_FOUND")
+
+    if not sqlite:
+        requested = db.query(models.AuditLog).filter(
+            models.AuditLog.id == requested.id,
+            models.AuditLog.employer_id == employer_id,
+        ).with_for_update().one()
+
+    existing = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_ACKNOWLEDGED",
+        models.AuditLog.resource_type == "AuditLog",
+        models.AuditLog.resource_id == str(alert_id),
+    ).first()
+    if existing is None:
+        db.add(models.AuditLog(
+            user_id=current_user.id,
+            employer_id=employer_id,
+            action="STATION_STAFF_ASSISTANCE_ACKNOWLEDGED",
+            resource_type="AuditLog",
+            resource_id=str(alert_id),
+            details="Station staff assistance acknowledged.",
+            ip_address=request.client.host if request.client else None,
+        ))
+        db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {"status": "ACKNOWLEDGED", "alertId": alert_id}
+
+
+@router.post("/patient-session/{session_id}/appointments/{appointment_id}/arrive")
+def station_patient_arrive(
+    session_id: str,
+    appointment_id: int,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    workstation, row = _identified_station_session_or_error(session_id, request, db, current_user)
+    appointment = station_appointment_for_today(
+        db,
+        appointment_id=appointment_id,
+        employer_id=workstation.employer_id,
+        patient_id=row.patient_id,
+    )
+    if appointment is None:
+        raise HTTPException(status_code=404, detail="STATION_APPOINTMENT_NOT_FOUND")
+    try:
+        appointment, changed = mark_station_appointment_arrived(
+            db,
+            appointment=appointment,
+            employer_id=workstation.employer_id,
+            patient_id=row.patient_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    if changed:
+        db.add(models.AuditLog(
+            user_id=current_user.id,
+            employer_id=workstation.employer_id,
+            action="STATION_APPOINTMENT_ARRIVED",
+            resource_type="Appointment",
+            resource_id=str(appointment.id),
+            details="Arrival confirmed from registered Station; queue state not assigned.",
+            ip_address=request.client.host if request.client else None,
+        ))
+        db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {"status": "ARRIVED", "appointmentId": appointment.id}
 
 
 @router.get("/patient-session/{session_id}")
