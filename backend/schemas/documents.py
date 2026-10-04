@@ -19,6 +19,13 @@ class MedicationItem(BaseModel):
     type: Optional[str] = "MEDICAMENT"
     quantite: Optional[int] = Field(default=None, ge=1)
     quantite_explicit: bool = False
+    non_substituable: bool = False
+    catalog_presentation_id: Optional[str] = None
+    catalog_dci: Optional[str] = None
+    catalog_source_id: Optional[str] = None
+    catalog_source_label: Optional[str] = None
+    catalog_snapshot_date: Optional[str] = None
+    catalog_marketing_status_verified: Optional[bool] = None
 
 
 class OrdonnanceData(BaseModel):
