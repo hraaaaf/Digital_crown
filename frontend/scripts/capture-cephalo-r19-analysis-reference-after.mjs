@@ -65,8 +65,8 @@ function modeContract(mode, metrics) {
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
   if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
-  if (mode === 'steiner') return metrics.panelRows === 3 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
-  if (mode === 'tweed') return metrics.panelRows === 2 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
+  if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
+  if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
   if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N');
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
