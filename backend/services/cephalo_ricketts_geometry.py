@@ -215,3 +215,38 @@ def ricketts_l1_apog_inclination_deg_v1(
         (l1_apex[0] - l1_incisal[0], l1_apex[1] - l1_incisal[1]),
         (pog[0] - a[0], pog[1] - a[1]),
     )
+
+
+def ricketts_l1_edge_apog_signed_distance_px_v1(
+    l1_incisal: Point,
+    a: Point,
+    pog: Point,
+    po: Point,
+    or_: Point,
+) -> Optional[float]:
+    """Signed perpendicular distance from lower incisal edge to A-Pog.
+
+    Magnitude is the shortest point-to-line distance. Frankfort Po->Or is used
+    only to orient the sign: positive anterior to A-Pog, negative posterior.
+    No norm or classification is applied here.
+    """
+    if not _finite_points(l1_incisal, a, pog, po, or_):
+        return None
+    apog = (pog[0] - a[0], pog[1] - a[1])
+    apog_len_sq = apog[0] ** 2 + apog[1] ** 2
+    fh = (or_[0] - po[0], or_[1] - po[1])
+    fh_len = math.hypot(*fh)
+    if apog_len_sq <= _EPS or fh_len <= _EPS:
+        return None
+    t = ((l1_incisal[0] - a[0]) * apog[0] + (l1_incisal[1] - a[1]) * apog[1]) / apog_len_sq
+    projection = (a[0] + t * apog[0], a[1] + t * apog[1])
+    residual = (l1_incisal[0] - projection[0], l1_incisal[1] - projection[1])
+    magnitude = math.hypot(*residual)
+    if not math.isfinite(magnitude):
+        return None
+    if magnitude <= _EPS:
+        return 0.0
+    anterior_score = residual[0] * (fh[0] / fh_len) + residual[1] * (fh[1] / fh_len)
+    if not math.isfinite(anterior_score) or abs(anterior_score) <= _EPS:
+        return None
+    return math.copysign(magnitude, anterior_score)
