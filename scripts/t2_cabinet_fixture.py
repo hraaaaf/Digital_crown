@@ -86,6 +86,11 @@ def seed() -> None:
         config.header_lines_fr = ["Dr Test Certification", "Chirurgien Dentiste"]
         config.header_customized = True
         config.selected_template = "swiss"
+        config.qr_code_enabled = True
+        config.qr_code_type = models.QRCodeType.VCARD
+        config.qr_code_value = ""
+        config.qr_code_label = "Scanner le QR code"
+        config.qr_code_style = "classic"
 
         ids = {}
         for row in PATIENTS:
