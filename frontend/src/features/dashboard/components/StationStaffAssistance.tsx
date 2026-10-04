@@ -9,6 +9,7 @@ export const StationStaffAssistance = ({ visible }: { visible: boolean }) => {
   const [alerts, setAlerts] = useState<StationStaffAssistanceAlert[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [feedError, setFeedError] = useState(false);
+  const [ackErrorId, setAckErrorId] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     if (!visible) return;
@@ -32,9 +33,12 @@ export const StationStaffAssistance = ({ visible }: { visible: boolean }) => {
 
   const acknowledge = async (alertId: number) => {
     setBusyId(alertId);
+    setAckErrorId(null);
     try {
       await stationStaffAssistanceService.acknowledge(alertId);
       setAlerts((current) => current.filter((item) => item.alertId !== alertId));
+    } catch {
+      setAckErrorId(alertId);
     } finally {
       setBusyId(null);
     }
@@ -66,6 +70,7 @@ export const StationStaffAssistance = ({ visible }: { visible: boolean }) => {
                   <Check size={16} aria-hidden="true" />
                   {busyId === alert.alertId ? 'Acquittement…' : 'Pris en charge'}
                 </button>
+                {ackErrorId === alert.alertId && <p role="alert" className="w-full text-xs font-bold text-rose-700">Acquittement non enregistré. La demande reste active.</p>}
               </div>
             ))}
           </div>
