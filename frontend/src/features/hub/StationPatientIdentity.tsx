@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Nfc, QrCode, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Nfc, QrCode, RefreshCw, ShieldCheck } from 'lucide-react';
 import {
   stationPatientSessionService,
   type StationPatientSessionCreated,
 } from '../../services/stationPatientSession';
+import { StationAppointmentArrival } from './StationAppointmentArrival';
 
 const apiErrorDetail = (error: unknown): string => {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -122,17 +123,14 @@ export const StationPatientIdentity = ({
     onBack();
   };
 
-  if (status === 'identified') {
+  if (status === 'identified' && session) {
     return (
-      <section data-station-patient-identified className="mx-auto mt-9 w-full max-w-xl rounded-elite-lg border border-emerald-200 bg-card-bg p-6 text-center shadow-elite sm:p-8">
-        <CheckCircle2 className="mx-auto text-emerald-600" size={42} aria-hidden="true" />
-        <h2 className="mt-4 text-2xl font-black">Identité confirmée</h2>
-        <p className="mt-2 text-base font-bold text-text-muted">{displayName}</p>
-        <p className="mt-3 text-sm font-semibold text-text-muted">Aucune arrivée n’a encore été enregistrée.</p>
-        <button type="button" onClick={() => void leave()} className="mt-6 min-h-12 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg">
-          {backLabel}
-        </button>
-      </section>
+      <StationAppointmentArrival
+        sessionId={session.sessionId}
+        displayName={displayName}
+        onLeave={leave}
+        backLabel={backLabel}
+      />
     );
   }
 
