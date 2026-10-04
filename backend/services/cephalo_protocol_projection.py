@@ -9,6 +9,12 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 _PROFILE_PATH = Path(__file__).resolve().parents[1] / "data" / "cephalometry" / "steiner_protocol_profile_v1.json"
+_TWEED_MERRIFIELD_PROFILE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "cephalometry"
+    / "tweed_merrifield_protocol_profile_v1.json"
+)
 
 _LABELS = {
     "M_SNA_DEG_V1":"SNA","M_SNB_DEG_V1":"SNB","M_ANB_DEG_V1":"ANB",
@@ -25,6 +31,13 @@ def _load_profile() -> dict[str, Any]:
     data=json.loads(_PROFILE_PATH.read_text(encoding="utf-8"))
     if data.get("status")!="SOURCE_LOCKED" or data.get("pre_code_gate",{}).get("status")!="SATISFIED":
         raise ValueError("Steiner protocol profile is not source-locked")
+    return data
+
+
+def _load_tweed_merrifield_profile() -> dict[str, Any]:
+    data=json.loads(_TWEED_MERRIFIELD_PROFILE_PATH.read_text(encoding="utf-8"))
+    if data.get("status")!="SOURCE_LOCKED" or data.get("pre_code_gate",{}).get("status")!="SATISFIED":
+        raise ValueError("Tweed-Merrifield protocol profile is not source-locked")
     return data
 
 
@@ -72,4 +85,51 @@ def project_steiner_static_protocol(canonical_measurements: Sequence[Mapping[str
         "rows":rows,
         "required_manual_identities":dict(profile["explicit_manual_or_constructed_identities"]),
         "scope_resolutions":dict(profile["scope_resolutions"]),
+    }
+
+
+_TWEED_MERRIFIELD_LABELS = {
+    "M_FH_GOME_DEG_V1": "FMA",
+    "M_IMPA_GOME_DEG_V1": "IMPA",
+    "M_FMIA_L1_FH_DEG_V1": "FMIA",
+    "M_MERRIFIELD_Z_FH_DEG_V1": "Angle Z de Merrifield",
+}
+
+
+def project_tweed_merrifield_protocol(
+    canonical_measurements: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    profile = _load_tweed_merrifield_profile()
+    by_id = {
+        str(item.get("canonical_measurement_id")): dict(item)
+        for item in canonical_measurements
+    }
+    rows: list[dict[str, Any]] = []
+    for section_id, section in profile["profiles"].items():
+        for canonical_id in section.get("required_measurement_ids", []):
+            projected = by_id.get(canonical_id, {})
+            status = str(projected.get("availability_status") or "NOT_COMPUTABLE")
+            rows.append(
+                {
+                    "canonical_measurement_id": canonical_id,
+                    "label": _TWEED_MERRIFIELD_LABELS.get(canonical_id, canonical_id),
+                    "profile_section": section_id,
+                    "value": projected.get("value") if status == "AVAILABLE" else None,
+                    "unit": projected.get("unit"),
+                    "availability_status": status,
+                    "measurement_refs": list(projected.get("measurement_refs") or []),
+                    "value_authority_method_id": projected.get("value_authority_method_id"),
+                    "reference_authority": "CONTEXT_ONLY_NO_RUNTIME_DELTA",
+                    "classification_authority": False,
+                    "interpretation_status": "RAW_MEASUREMENT_WITH_SOURCE_CONTEXT_ONLY",
+                }
+            )
+    return {
+        "protocol_profile_id": profile["protocol_profile_id"],
+        "source_lock_gate": dict(profile["pre_code_gate"]),
+        "final_gate": dict(profile["final_gate"]),
+        "rows": rows,
+        "reference_contexts": list(profile["reference_contexts"]),
+        "historical_geometry_resolution": dict(profile["historical_geometry_resolution"]),
+        "scope_resolutions": dict(profile["scope_resolutions"]),
     }

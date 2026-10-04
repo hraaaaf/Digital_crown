@@ -1,0 +1,129 @@
+{
+  "schema_version": "ORTHO_ANALYSIS_PROTOCOL_PROFILE_V1",
+  "protocol_profile_id": "TWEED_MERRIFIELD_DC_PROTOCOL_PROFILE_V1",
+  "status": "SOURCE_LOCKED",
+  "scientific_authority": "LOT06_CANONICAL_MEASUREMENT_REGISTRY",
+  "sources": [
+    {
+      "id": "TWEED_1946_FMA",
+      "doi": "10.1016/0096-6347(46)90001-4",
+      "role": "HISTORICAL_FMA_CONTEXT"
+    },
+    {
+      "id": "TWEED_1954_FMIA",
+      "citation": "Tweed CH. The Frankfort-mandibular incisor angle (FMIA) in orthodontic diagnosis, treatment planning and prognosis. Angle Orthod. 1954;24(3):121-169.",
+      "url": "https://tweedortho.com/wp-content/uploads/2024/12/frankfort-mandibular-incisor-angle.pdf",
+      "role": "DIAGNOSTIC_TRIANGLE_SOURCE"
+    },
+    {
+      "id": "TWEED_1969_TRIANGLE",
+      "doi": "10.1016/0002-9416(69)90041-4",
+      "role": "DIAGNOSTIC_TRIANGLE_TREATMENT_OBJECTIVES_CONTEXT"
+    },
+    {
+      "id": "MERRIFIELD_1966_PROFILE_LINE",
+      "doi": "10.1016/0002-9416(66)90250-8",
+      "role": "PROFILE_LINE_AND_Z_ANGLE"
+    }
+  ],
+  "profiles": {
+    "TWEED_DC_DIAGNOSTIC_TRIANGLE_V1": {
+      "required_measurement_ids": [
+        "M_FH_GOME_DEG_V1",
+        "M_IMPA_GOME_DEG_V1",
+        "M_FMIA_L1_FH_DEG_V1"
+      ],
+      "geometry_contract": {
+        "variant": "DC_TWEED_ANATOMICAL_FH_VARIANT",
+        "frankfort_plane": "Po_anatomic-Or",
+        "mandibular_plane": "Go-Me",
+        "lower_incisor_axis": "L1_apex-L1_incisal",
+        "historical_strict_equivalence": false
+      }
+    },
+    "MERRIFIELD_PROFILE_LINE_1966_V1": {
+      "required_measurement_ids": [
+        "M_MERRIFIELD_Z_FH_DEG_V1"
+      ],
+      "context_measurement_ids": [
+        "M_FH_GOME_DEG_V1",
+        "M_IMPA_GOME_DEG_V1",
+        "M_FMIA_L1_FH_DEG_V1",
+        "M_ANB_DEG_V1"
+      ],
+      "geometry_contract": {
+        "frankfort_plane": "Po_anatomic-Or",
+        "profile_line": "Pog_soft-most_protrusive(Ls_soft,Li_soft)",
+        "lip_selection": "MOST_ANTERIOR_ALONG_FRANKFORT",
+        "z_angle": "INFERIOR_NON_REFLEX_ANGLE_PROFILE_LINE_TO_FRANKFORT"
+      }
+    }
+  },
+  "historical_geometry_resolution": {
+    "TWEED_1954_STRICT_EAR_ROD_FH": {
+      "status": "HISTORICAL_NOT_SELECTED",
+      "definition": "point 4.5 mm above geometric center of ear rod to inferior orbital border",
+      "selected_dc_replacement": "DC_TWEED_ANATOMICAL_FH_VARIANT",
+      "equivalence_claim": "FORBIDDEN"
+    },
+    "TWEED_DC_MP_GO_ME_V1": {
+      "status": "SELECTED_DC_CONTRACT",
+      "definition": "Go-Me",
+      "historical_strict_equivalence": false
+    }
+  },
+  "explicit_required_identities": {
+    "Po_anatomic": "canonical_explicit_only",
+    "Or": "canonical_or_observed_exact_identity",
+    "Go": "canonical_or_observed_exact_identity",
+    "Me": "canonical_or_observed_exact_identity",
+    "L1_apex": "canonical_or_observed_exact_identity",
+    "L1_incisal": "canonical_or_observed_exact_identity",
+    "Pog_soft": "canonical_or_observed_exact_identity",
+    "Ls_soft": "canonical_or_observed_exact_identity",
+    "Li_soft": "canonical_or_observed_exact_identity"
+  },
+  "execution_policy": {
+    "missing_required_identity": "FAIL_CLOSED_NOT_COMPUTABLE",
+    "unverified_detector_alias": "FORBIDDEN",
+    "parallel_formula_outside_LOT06": "FORBIDDEN"
+  },
+  "reference_contexts": [
+    {
+      "reference_id": "TWEED_1954_HISTORICAL_CONTEXT_V1",
+      "authority": "HISTORICAL_CONTEXT_ONLY",
+      "classification_authority": false,
+      "runtime_delta_authority": false,
+      "geometry_compatibility": "NOT_STRICTLY_COMPATIBLE_WITH_SELECTED_DC_VARIANT",
+      "reason": "The selected Digital Crown Po-Or/Go-Me variant is explicitly not the strict 1954 ear-rod/lower-border construction.",
+      "out_of_domain_behavior": "DISPLAY_RAW_MEASUREMENTS_WITH_SOURCE_CONTEXT_ONLY"
+    },
+    {
+      "reference_id": "MERRIFIELD_1966_Z_CONTEXT_V1",
+      "authority": "REFERENCE_DISPLAY_ONLY",
+      "classification_authority": false,
+      "runtime_delta_authority": false,
+      "adult_reference_deg": 80.0,
+      "age_11_15_reference_deg": 78.0,
+      "applicability_condition": "SOURCE_REQUIRES_NORMAL_FMA_IMPA_FMIA_ANB_CONTEXT; NOT_AUTO_PROVEN",
+      "out_of_domain_behavior": "DISPLAY_RAW_Z_ANGLE_AND_SOURCE_CONTEXT_WITHOUT_CLASSIFICATION"
+    }
+  ],
+  "scope_resolutions": {
+    "STRICT_TWEED_1954_GEOMETRY": "HISTORICAL_NON_SELECTED_VARIANT; NOT_A_PRODUCT_BLOCKER",
+    "DC_TWEED_VARIANT": "SELECTED_CLINICAL_CONTRACT_2026_09_15",
+    "HISTORICAL_TWEED_NORMS": "CONTEXT_ONLY; NO_RUNTIME_DELTA_OR_CLASSIFICATION",
+    "MERRIFIELD_1966_REFERENCES": "REFERENCE_DISPLAY_ONLY; NO_AUTOMATIC_APPLICABILITY_INFERENCE",
+    "AUTONOMOUS_TREATMENT": "FORBIDDEN",
+    "EXTRACTION_NON_EXTRACTION": "CLINICIAN_ONLY"
+  },
+  "pre_code_gate": {
+    "gate": "ORTHO_ANALYSIS_PROTOCOLS_SOURCE_LOCKED",
+    "scope": "TWEED_MERRIFIELD_DC_PROTOCOL_PROFILE_V1",
+    "status": "SATISFIED"
+  },
+  "final_gate": {
+    "gate": "ORTHO_ANALYSIS_PROTOCOLS_VERIFIED",
+    "status": "OPEN"
+  }
+}

@@ -21,6 +21,10 @@ import {
   steinerAvailabilityLabel,
   steinerProtocolRow,
 } from '../cephaloSteinerProtocol';
+import {
+  readTweedMerrifieldProtocolProjection,
+  tweedMerrifieldProtocolRow,
+} from '../cephaloTweedMerrifieldProtocol';
 
 interface ThemePalette {
   bg: string;
@@ -97,6 +101,10 @@ const DEFINITIONS: Record<string, MetricDefinition> = {
   Surplomb: { key: 'Surplomb', label: 'Surplomb', unit: 'mm', section: 'analyse_dentaire' },
   Recouvrement: { key: 'Recouvrement', label: 'Recouvrement', unit: 'mm', section: 'analyse_dentaire' },
   Angle_de_Tweed: { key: 'Angle_de_Tweed', label: 'Angle de Tweed', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_FH_GOME_DEG_V1': { key: 'M_FH_GOME_DEG_V1', label: 'FMA', unit: '\u00b0', section: 'analyse_osseuse' },
+  'M_IMPA_GOME_DEG_V1': { key: 'M_IMPA_GOME_DEG_V1', label: 'IMPA', unit: '\u00b0', section: 'analyse_dentaire' },
+  'M_FMIA_L1_FH_DEG_V1': { key: 'M_FMIA_L1_FH_DEG_V1', label: 'FMIA', unit: '\u00b0', section: 'analyse_dentaire' },
+  'M_MERRIFIELD_Z_FH_DEG_V1': { key: 'M_MERRIFIELD_Z_FH_DEG_V1', label: 'Angle Z de Merrifield', unit: '\u00b0', section: 'analyse_esthetique' },
   Decalage_A_B: { key: 'Decalage_A_B', label: "Décalage osseux A'B'", unit: 'mm', section: 'analyse_osseuse' },
   Situation_A: { key: 'Situation_A', label: 'Pt A → verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
   Situation_B: { key: 'Situation_B', label: 'Pt B → verticale Nasion', unit: 'mm', section: 'analyse_osseuse' },
@@ -111,14 +119,14 @@ const DEFINITIONS: Record<string, MetricDefinition> = {
 const ANALYSIS_METRICS: Record<CephaloAnalysisMode, string[]> = {
   all: ['SNA','SNB','ANB','IMPA','I_Francfort','Inter_Incisif','Surplomb','Recouvrement','Angle_de_Tweed','Decalage_A_B','Situation_A','Situation_B','Profondeur_Faciale','Ligne_E_Ls','Ligne_E_Li'],
   steiner: ['M_SNA_DEG_V1','M_SNB_DEG_V1','M_ANB_DEG_V1','M_U1_NA_DEG_V1','M_U1_NA_MM_V1','M_L1_NB_DEG_V1','M_L1_NB_MM_V1','M_INTERINCISAL_DEG_V1','M_OCCLUSAL_PLANE_SN_DEG_V1','M_SN_GOGN_DEG_V1','M_L1_GOGN_DEG_V1','M_SND_DEG_V1','M_POG_NB_MM_V1','M_L1_DLINE_MM_V1','M_L1_DLINE_DEG_V1'],
-  tweed: ['IMPA','Angle_de_Tweed'],
+  tweed: ['M_FH_GOME_DEG_V1','M_IMPA_GOME_DEG_V1','M_FMIA_L1_FH_DEG_V1','M_MERRIFIELD_Z_FH_DEG_V1'],
   mcnamara: ['Co_A','Co_Gn','ANS_Me'],
   com: ['Surplomb','Recouvrement','IMPA','I_Francfort','Inter_Incisif','Angle_de_Tweed','Decalage_A_B','Situation_A','Situation_B','Profondeur_Faciale'],
   ricketts: ['Ligne_E_Ls','Ligne_E_Li'],
 };
 
 const ANALYSIS_LABELS: Record<CephaloAnalysisMode, string> = {
-  all: 'Toutes analyses', steiner: 'Steiner', tweed: 'Tweed', mcnamara: 'McNamara', com: 'COM', ricketts: 'Ricketts',
+  all: 'Toutes analyses', steiner: 'Steiner', tweed: 'Tweed–Merrifield', mcnamara: 'McNamara', com: 'COM', ricketts: 'Ricketts',
 };
 
 const FAMILY_LEGEND = [
@@ -154,23 +162,38 @@ const statusLabel = (metric?: MetricRecord) => {
 
 const metricFromResults = (anglesData: any, definition: MetricDefinition): MetricRecord | undefined => {
   if (definition.key.startsWith('M_')) {
-    const row = steinerProtocolRow(anglesData, definition.key);
-    if (!row) return undefined;
+    const steinerRow = steinerProtocolRow(anglesData, definition.key);
+    if (steinerRow) {
+      return {
+        value: steinerRow.value,
+        norm_mean: steinerRow.historical_reference,
+        status: steinerAvailabilityLabel(steinerRow.availability_status),
+        interpretation: steinerRow.interpretation_status === 'REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION'
+          ? 'R\u00e9f\u00e9rence historique affich\u00e9e sans classification clinique.'
+          : null,
+        unit: steinerRow.unit,
+        measurement_id: steinerRow.measurement_refs?.[0] ?? null,
+        canonical_measurement_id: steinerRow.canonical_measurement_id,
+        availability_status: steinerRow.availability_status,
+        reference_delta: steinerRow.reference_delta,
+        reference_authority: steinerRow.reference_authority,
+        classification_authority: steinerRow.classification_authority,
+        interpretation_status: steinerRow.interpretation_status,
+      };
+    }
+    const tweedRow = tweedMerrifieldProtocolRow(anglesData, definition.key);
+    if (!tweedRow) return undefined;
     return {
-      value: row.value,
-      norm_mean: row.historical_reference,
-      status: steinerAvailabilityLabel(row.availability_status),
-      interpretation: row.interpretation_status === 'REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION'
-        ? 'R\u00e9f\u00e9rence historique affich\u00e9e sans classification clinique.'
-        : null,
-      unit: row.unit,
-      measurement_id: row.measurement_refs?.[0] ?? null,
-      canonical_measurement_id: row.canonical_measurement_id,
-      availability_status: row.availability_status,
-      reference_delta: row.reference_delta,
-      reference_authority: row.reference_authority,
-      classification_authority: row.classification_authority,
-      interpretation_status: row.interpretation_status,
+      value: tweedRow.value,
+      status: steinerAvailabilityLabel(tweedRow.availability_status),
+      interpretation: 'Mesure brute sur la variante Digital Crown s\u00e9lectionn\u00e9e; contexte historique sans classification automatique.',
+      unit: tweedRow.unit,
+      measurement_id: tweedRow.measurement_refs?.[0] ?? null,
+      canonical_measurement_id: tweedRow.canonical_measurement_id,
+      availability_status: tweedRow.availability_status,
+      reference_authority: tweedRow.reference_authority,
+      classification_authority: tweedRow.classification_authority,
+      interpretation_status: tweedRow.interpretation_status,
     };
   }
   const metrics = anglesData?.metrics ?? anglesData?.result?.metrics ?? {};
@@ -192,6 +215,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
   const activePointId = useOrthoStore(state => state.activePointId);
   const setActivePointId = useOrthoStore(state => state.setActivePointId);
   const steinerProfile = React.useMemo(() => readSteinerProtocolProjection(anglesData), [anglesData]);
+  const tweedMerrifieldProfile = React.useMemo(() => readTweedMerrifieldProtocolProjection(anglesData), [anglesData]);
   const definitions = React.useMemo(() => ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]), [analysis]);
   const [selectedKey, setSelectedKey] = React.useState(definitions[0]?.key ?? '');
   const [hoverKey, setHoverKey] = React.useState<string | null>(null);
@@ -242,7 +266,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
   return (
     <aside
       data-r19-analysis-panel={analysis}
-      data-lot08-protocol-profile={analysis === 'steiner' ? steinerProfile?.protocol_profile_id ?? 'UNAVAILABLE' : undefined}
+      data-lot08-protocol-profile={analysis === 'steiner' ? steinerProfile?.protocol_profile_id ?? 'UNAVAILABLE' : analysis === 'tweed' ? tweedMerrifieldProfile?.protocol_profile_id ?? 'UNAVAILABLE' : undefined}
       className="flex min-h-0 flex-col overflow-hidden rounded-3xl border"
       style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadowLg }}
     >
@@ -253,7 +277,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
           </div>
           <div className="min-w-0">
             <h3 className="break-words text-sm font-black leading-tight" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
-            <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
+            <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : analysis === 'tweed' ? 'Triangle DC Po-Or/Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5" aria-label="Code couleur céphalométrique">
@@ -264,6 +288,16 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             </span>
           ))}
         </div>
+        {analysis === 'tweed' && (
+          <div className="mt-3 rounded-xl border px-3 py-2" data-lot08-tweed-contract style={{ borderColor: P.border, background: `${P.accent}0d` }}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]" style={{ color: tweedMerrifieldProfile?.source_lock_gate?.status === 'SATISFIED' ? P.accentSuccess : P.accentWarning }}>
+                <ShieldCheck size={12} /> Source-lock {tweedMerrifieldProfile?.source_lock_gate?.status === 'SATISFIED' ? 'validé' : 'non vérifié'}
+              </span>
+              <span className="text-[9px] leading-relaxed" style={{ color: P.textMuted }}>Variante Digital Crown Po-Or/Go-Me · aucune revendication de reproduction stricte Tweed 1954 · références historiques sans classification automatique.</span>
+            </div>
+          </div>
+        )}
         {analysis === 'steiner' && (
           <div className="mt-3 space-y-2" data-lot08-steiner-contract>
             <div className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: P.border, background: `${P.accent}0d` }}>
@@ -306,8 +340,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             <tr className="border-b text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
               <th className="w-[39%] px-4 py-3">Mesure</th>
               <th className="w-[20%] px-2 py-3">Valeur</th>
-              <th className="w-[25%] px-2 py-3">{analysis === 'steiner' ? 'R\u00e9f. hist.' : 'Norme'}</th>
-              <th className="w-[16%] px-2 py-3 text-right">{analysis === 'steiner' ? '\u0394 r\u00e9f.' : '\u00c9cart'}</th>
+              <th className="w-[25%] px-2 py-3">{analysis === 'steiner' ? 'R\u00e9f. hist.' : analysis === 'tweed' ? 'Contexte' : 'Norme'}</th>
+              <th className="w-[16%] px-2 py-3 text-right">{analysis === 'steiner' ? '\u0394 r\u00e9f.' : analysis === 'tweed' ? 'Type' : '\u00c9cart'}</th>
             </tr>
           </thead>
           <tbody>
@@ -342,9 +376,9 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                   <td className="px-2 py-3 font-mono text-[11px] font-black tabular-nums" style={{ color: value === null ? P.textDim : P.text }}>
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
-                  <td className="px-2 py-3 text-[10px]" style={{ color: P.textMuted }}>{normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
-                  <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone) }}>
-                    {deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`}
+                  <td className="px-2 py-3 text-[10px]" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
+                  <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: analysis === 'tweed' ? P.textMuted : (deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone)) }}>
+                    {analysis === 'tweed' ? 'brute' : (deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`)}
                   </td>
                 </tr>
               );

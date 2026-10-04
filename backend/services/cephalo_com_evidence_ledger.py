@@ -21,6 +21,12 @@ from typing import Mapping, Optional, Tuple
 class ComEvidenceState(str, Enum):
     SOURCE_LOCKED_CONSTRUCTION_BLOCKED = "SOURCE_LOCKED_CONSTRUCTION_BLOCKED"
     SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED = "SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED"
+    SOURCE_LOCKED_SELECTED_DC_CONTRACT_AVAILABLE = (
+        "SOURCE_LOCKED_SELECTED_DC_CONTRACT_AVAILABLE"
+    )
+    SOURCE_LOCKED_RULE_REFERENCE_ONLY_SELECTED_DC_CONTRACT = (
+        "SOURCE_LOCKED_RULE_REFERENCE_ONLY_SELECTED_DC_CONTRACT"
+    )
     SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE = (
         "SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE"
     )
@@ -193,23 +199,23 @@ COM_EVIDENCE_DEBTS: Tuple[ComEvidenceDebt, ...] = (
         "COM_IMPA_90_PM5",
         "IMPA",
         "90 +/- 5 deg",
-        ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED,
+        ComEvidenceState.SOURCE_LOCKED_SELECTED_DC_CONTRACT_AVAILABLE,
         ("TWEED_1954_FMIA",),
-        "TWEED_MANDIBULAR_PLANE_EXACT_REQUIRED",
+        "DC_TWEED_ANATOMICAL_FH_VARIANT",
         "TWEED_HISTORICAL_CONTEXT_ONLY",
-        "Primary Tweed numeric evidence is locked, but the source-specific lower-border tangent and historical Frankfort construction are not represented; current Go-Me/Go-Gn and unproved generic Po-Or substitutions are forbidden.",
-        "Version a clinician-audited source-specific Tweed tracing contract for the historical Frankfort reference and lower-border tangent before binding the 85-95 degree historical range.",
+        "The historical Tweed reference is source-locked, while Digital Crown deliberately uses the clinician-selected Po_anatomic-Or + Go-Me variant. Raw IMPA is available; strict-1954 geometric equivalence and historical-norm classification remain forbidden.",
+        "Keep the 85-95 degree historical range as source context only; do not compute a patient delta or classification from the selected DC geometric variant.",
     ),
     ComEvidenceDebt(
         "COM_IMPA_DYNAMIC_COMPENSATION",
         "Compensation IMPA",
         "dynamic rule; historical shorthand 80-100 deg not accepted",
-        ComEvidenceState.SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED,
+        ComEvidenceState.SOURCE_LOCKED_RULE_REFERENCE_ONLY_SELECTED_DC_CONTRACT,
         ("TWEED_1954_FMIA",),
-        "TWEED_FMA_AND_MANDIBULAR_PLANE_EXACT_REQUIRED",
+        "DC_TWEED_ANATOMICAL_FH_VARIANT",
         "TWEED_HISTORICAL_CONTEXT_ONLY",
-        "Tweed directly describes a dynamic rule, not a universal fixed 80-100 degree interval; source-specific historical Frankfort and lower-border tangent geometry are still unbound.",
-        "After the exact Tweed tracing contract is versioned, encode the source-specific rule: target IMPA decreases one degree for each degree FMA exceeds 25; include FMA 35 -> IMPA 80 golden.",
+        "The dynamic Tweed rule is source-locked but belongs to the strict historical construction context; the selected DC geometry must not silently inherit treatment or classification authority.",
+        "Preserve the FMA-dependent compensation rule as read-only historical context; clinician judgment owns any treatment use and runtime classification stays inactive.",
     ),
     ComEvidenceDebt(
         "COM_U1_FH_107_PM5",

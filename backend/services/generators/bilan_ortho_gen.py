@@ -112,6 +112,18 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         protocol_profiles = dict(projection.get("protocol_profiles") or {})
         steiner_profile = dict(protocol_profiles.get("steiner") or {})
         steiner_rows = [self._protocol_row_display(row) for row in steiner_profile.get("rows", [])]
+        tweed_merrifield_profile = dict(protocol_profiles.get("tweed_merrifield") or {})
+        tweed_merrifield_rows = []
+        for row in tweed_merrifield_profile.get("rows", []):
+            value = row.get("value")
+            unit = str(row.get("unit") or "")
+            tweed_merrifield_rows.append({
+                "label": str(row.get("label") or row.get("canonical_measurement_id") or "Mesure"),
+                "value": f"{value:g} {unit}".strip() if isinstance(value, (int, float)) else "Non calculable",
+                "profile_section": str(row.get("profile_section") or ""),
+                "reference_authority": str(row.get("reference_authority") or ""),
+                "interpretation_status": str(row.get("interpretation_status") or ""),
+            })
         stages = []
         for stage in projection.get("stages", []):
             stages.append({
@@ -152,6 +164,13 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 "norm_set": dict(steiner_profile.get("norm_set") or {}),
                 "rows": steiner_rows,
             } if steiner_profile else None,
+            "tweed_merrifield_protocol": {
+                "protocol_profile_id": tweed_merrifield_profile.get("protocol_profile_id"),
+                "source_lock_status": (tweed_merrifield_profile.get("source_lock_gate") or {}).get("status"),
+                "final_gate_status": (tweed_merrifield_profile.get("final_gate") or {}).get("status"),
+                "rows": tweed_merrifield_rows,
+                "reference_contexts": list(tweed_merrifield_profile.get("reference_contexts") or []),
+            } if tweed_merrifield_profile else None,
             "stages": stages,
         }
 
@@ -272,6 +291,32 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
                 ("FONTSIZE", (0, 0), (-1, -1), 7.0),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            elements.extend([protocol_table, Spacer(1, 0.4*cm)])
+
+        if context["tweed_merrifield_protocol"]:
+            tweed = context["tweed_merrifield_protocol"]
+            elements.append(Paragraph("Analyse protocolaire Tweed–Merrifield", h2))
+            elements.append(Paragraph(
+                f"{escape(str(tweed.get('protocol_profile_id') or 'Tweed-Merrifield'))} — "
+                f"source-lock {escape(str(tweed.get('source_lock_status') or 'non vérifié'))}. "
+                "Variante Digital Crown Po-Or/Go-Me; aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée. "
+                "Références historiques affichées comme contexte uniquement; aucune classification automatique.",
+                body,
+            ))
+            protocol_rows = [["Mesure", "Valeur", "Profil", "Autorité", "Statut"]]
+            for row in tweed.get("rows", []):
+                protocol_rows.append([
+                    row["label"], row["value"], row["profile_section"],
+                    row["reference_authority"], row["interpretation_status"],
+                ])
+            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.0*cm, 2.4*cm, 4.2*cm, 3.2*cm, 3.4*cm])
+            protocol_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), p_color),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("FONTSIZE", (0, 0), (-1, -1), 6.6),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
             elements.extend([protocol_table, Spacer(1, 0.4*cm)])

@@ -18,7 +18,10 @@ from backend.schemas.cephalo_evidence import (
     SourceEvidence,
 )
 from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
-from backend.services.cephalo_protocol_projection import project_steiner_static_protocol
+from backend.services.cephalo_protocol_projection import (
+    project_steiner_static_protocol,
+    project_tweed_merrifield_protocol,
+)
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_typed_read import (
     CephaloTypedReadError,
@@ -180,6 +183,7 @@ def project_runtime_chain_read_path(
         "unmapped_method_ids": canonical_projection["unmapped_method_ids"],
         "protocol_profiles": {
             "steiner": project_steiner_static_protocol(canonical_projection["measurements"]),
+            "tweed_merrifield": project_tweed_merrifield_protocol(canonical_projection["measurements"]),
         },
     }
     return projected

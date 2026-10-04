@@ -65,6 +65,7 @@ export interface CephaloTracingLayerProps {
   performanceMode?: boolean;
   vto?: VTOSettings;
   activeAnalysis?: string;
+  tweedPoAnatomicCertified?: boolean;
   layerPresentation?: {
     visibility: OrthoLayerVisibility;
     opacity: OrthoLayerOpacity;
@@ -164,6 +165,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   performanceMode = false,
   vto = { enabled: false, showGhostFace: true, showSoftTissue: true },
   activeAnalysis = 'all',
+  tweedPoAnatomicCertified = false,
   layerPresentation,
 }) => {
   const P = getTracingPalette(uiMode);
@@ -235,6 +237,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
     const finalPts = applyVTO(pts);
     const po = getPoint(finalPts, 'Po');
+    const poAnatomic = getPoint(finalPts, 'Po_anatomic');
     const or_ = getPoint(finalPts, 'Or');
     const a = getPoint(finalPts, 'A');
     const b = getPoint(finalPts, 'B');
@@ -347,8 +350,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
     return (
       <g key={isGhost ? `ghost-${layerOp}` : 'main-layer'}>
-        {showTweed || showMcNamara ? seg(po, or_, 'fh', P.francfort) : null}
+        {showTweed || showMcNamara ? seg(poAnatomic, or_, 'fh', P.francfort) : null}
         {showTweed ? seg(go, me, 'mp', P.mandibule) : null}
+        {showTweed ? seg(l1a, l1i, 'l1', P.l1) : null}
 
         {showSteiner && (
           <>

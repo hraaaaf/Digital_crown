@@ -15,6 +15,15 @@ describe('CephaloAnalysisWorkbenchPanel R19 contract', () => {
     ]);
   });
 
+  it('exposes Tweed-Merrifield only through canonical LOT06 identities', () => {
+    expect(cephaloAnalysisMetricKeys.tweed).toEqual([
+      'M_FH_GOME_DEG_V1',
+      'M_IMPA_GOME_DEG_V1',
+      'M_FMIA_L1_FH_DEG_V1',
+      'M_MERRIFIELD_Z_FH_DEG_V1',
+    ]);
+  });
+
   it('keeps COM autonomous with the ten source-locked rows', () => {
     expect(cephaloAnalysisMetricKeys.com).toEqual([
       'Surplomb',

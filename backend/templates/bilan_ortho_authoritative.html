@@ -82,6 +82,22 @@ Les données absentes, non calculables ou non validées restent explicitement no
 </table>
 {% endif %}
 
+{% if tweed_merrifield_protocol %}
+<h2>Analyse protocolaire Tweed–Merrifield</h2>
+<div class="notice">
+<strong>{{ tweed_merrifield_protocol.protocol_profile_id }}</strong> - source-lock {{ tweed_merrifield_protocol.source_lock_status }}.<br>
+<span class="small">Variante Digital Crown Po-Or/Go-Me. Aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée; les références historiques restent contextuelles et non classificatoires.</span>
+</div>
+<table>
+<thead><tr><th>Mesure</th><th>Valeur</th><th>Profil</th><th>Autorité</th><th>État</th></tr></thead>
+<tbody>
+{% for row in tweed_merrifield_protocol.rows %}
+<tr><td>{{ row.label }}</td><td>{{ row.value }}</td><td>{{ row.profile_section }}</td><td>{{ row.reference_authority }}</td><td>{{ row.interpretation_status }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
+
 <h2>Chaîne clinique R11 → R14</h2>
 {% for stage in stages %}
 <div class="stage">

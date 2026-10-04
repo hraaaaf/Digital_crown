@@ -189,3 +189,47 @@ def test_reportlab_steiner_wording_preserves_clinical_safety_semantics():
     assert "Écart réf." in source
     assert "R?f" not in source
     assert "v?rifi" not in source
+
+
+def test_tweed_merrifield_renderer_preserves_dc_variant_without_fake_norms(tmp_path):
+    generator = BilanOrthoPDFGenerator(str(tmp_path))
+    projection = _projection()
+    projection["protocol_profiles"] = {
+        "tweed_merrifield": {
+            "protocol_profile_id": "TWEED_MERRIFIELD_DC_PROTOCOL_PROFILE_V1",
+            "source_lock_gate": {"status": "SATISFIED"},
+            "final_gate": {"status": "OPEN"},
+            "reference_contexts": [{"authority": "HISTORICAL_CONTEXT_ONLY"}],
+            "rows": [{
+                "canonical_measurement_id": "M_FH_GOME_DEG_V1",
+                "label": "FMA",
+                "profile_section": "TWEED_DC_DIAGNOSTIC_TRIANGLE_V1",
+                "value": 24.5,
+                "unit": "deg",
+                "availability_status": "AVAILABLE",
+                "reference_authority": "CONTEXT_ONLY_NO_RUNTIME_DELTA",
+                "classification_authority": False,
+                "interpretation_status": "RAW_MEASUREMENT_WITH_SOURCE_CONTEXT_ONLY",
+            }],
+        }
+    }
+    context = generator._shared_context(_vm(), projection)
+    tweed = context["tweed_merrifield_protocol"]
+    assert tweed["protocol_profile_id"] == "TWEED_MERRIFIELD_DC_PROTOCOL_PROFILE_V1"
+    assert tweed["rows"][0]["value"] == "24.5 deg"
+    assert tweed["rows"][0]["reference_authority"] == "CONTEXT_ONLY_NO_RUNTIME_DELTA"
+    html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
+    assert "Analyse protocolaire Tweed–Merrifield" in html
+    assert "Variante Digital Crown Po-Or/Go-Me" in html
+    assert "Aucune équivalence géométrique stricte avec Tweed 1954" in html
+    assert "non classificatoires" in html.lower()
+
+
+def test_reportlab_tweed_merrifield_wording_preserves_variant_and_clinician_authority():
+    import inspect
+    source = inspect.getsource(BilanOrthoPDFGenerator._generate_reportlab)
+    assert 'context["tweed_merrifield_protocol"]' in source
+    assert "Analyse protocolaire Tweed–Merrifield" in source
+    assert "Variante Digital Crown Po-Or/Go-Me" in source
+    assert "aucune équivalence géométrique stricte avec Tweed 1954" in source
+    assert "aucune classification automatique" in source
