@@ -27,7 +27,7 @@ def _lm(landmark_id, x, y):
 def _landmarks():
     pts = {
         "S": (0, 0), "N": (10, 0), "A": (12, 4), "Go": (0, 20), "Me": (15, 20),
-        "Ba": (-8, -4), "Pt_Ricketts": (5, 6),
+        "Ba": (-8, -4), "Pt_Ricketts": (5, 6), "PR_Ricketts_PTV": (4, 7),
         "Or": (20, 10), "Po_anatomic": (0, 10), "Co_anatomic": (-5, 5),
         "Gn_anatomic": (15, 18), "Pog_hard": (16, 8), "L1_apex": (7, 18),
         "L1_incisal": (9, 8), "Prn": (18, 4), "Pog_soft": (17, 9),
@@ -96,16 +96,16 @@ def test_ricketts_facial_axis_requires_explicit_pt_ricketts_and_constructed_gn()
     assert facial_axis.value is None
 
 
-def test_ricketts_ptv_requires_explicit_pt_ricketts_and_anatomical_frankfort():
+def test_ricketts_ptv_requires_explicit_pr_ricketts_ptv_and_anatomical_frankfort():
     landmarks = _landmarks()
     constructions = materialize_canonical_constructions_v2(
         landmarks, construction_namespace="construction:test"
     )
     ptv = constructions[RICKETTS_PTV_CONSTRUCTION_ID]
     assert ptv.availability_status.value == "AVAILABLE"
-    assert ptv.geometry["construction_rule"] == "line_through_Pt_Ricketts_perpendicular_to_Frankfort_Po_anatomic_Or"
-    assert ptv.geometry["point_x"] == pytest.approx(landmarks["Pt_Ricketts"].x)
-    assert ptv.geometry["point_y"] == pytest.approx(landmarks["Pt_Ricketts"].y)
+    assert ptv.geometry["construction_rule"] == "line_through_PR_Ricketts_PTV_perpendicular_to_Frankfort_Po_anatomic_Or"
+    assert ptv.geometry["point_x"] == pytest.approx(landmarks["PR_Ricketts_PTV"].x)
+    assert ptv.geometry["point_y"] == pytest.approx(landmarks["PR_Ricketts_PTV"].y)
     dx = ptv.geometry["direction_x"]
     dy = ptv.geometry["direction_y"]
     fhx = landmarks["Or"].x - landmarks["Po_anatomic"].x
@@ -113,15 +113,15 @@ def test_ricketts_ptv_requires_explicit_pt_ricketts_and_anatomical_frankfort():
     assert dx * fhx + dy * fhy == pytest.approx(0.0, abs=1e-12)
 
 
-def test_ricketts_ptv_does_not_promote_generic_pt_point():
+def test_ricketts_ptv_does_not_promote_facial_axis_pt_or_generic_pt_point():
     landmarks = _landmarks()
     landmarks["PT_point"] = _lm("PT_point", 5, 6)
-    landmarks.pop("Pt_Ricketts")
+    landmarks.pop("PR_Ricketts_PTV")
     ptv = materialize_canonical_constructions_v2(
         landmarks, construction_namespace="construction:test"
     )[RICKETTS_PTV_CONSTRUCTION_ID]
     assert ptv.availability_status.value == "NOT_COMPUTABLE"
-    assert "Pt_Ricketts" in ptv.missing_landmark_ids
+    assert "PR_Ricketts_PTV" in ptv.missing_landmark_ids
 
 
 def test_ricketts_ptv_fails_closed_on_degenerate_frankfort():
@@ -131,3 +131,14 @@ def test_ricketts_ptv_fails_closed_on_degenerate_frankfort():
         landmarks, construction_namespace="construction:test"
     )[RICKETTS_PTV_CONSTRUCTION_ID]
     assert ptv.availability_status.value == "INVALID"
+
+
+def test_ricketts_ptv_does_not_promote_ptm_or_facial_axis_pt():
+    landmarks = _landmarks()
+    landmarks.pop("PR_Ricketts_PTV")
+    landmarks["Ptm"] = _lm("Ptm", 4, 7)
+    ptv = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:test"
+    )[RICKETTS_PTV_CONSTRUCTION_ID]
+    assert ptv.availability_status.value == "NOT_COMPUTABLE"
+    assert "PR_Ricketts_PTV" in ptv.missing_landmark_ids
