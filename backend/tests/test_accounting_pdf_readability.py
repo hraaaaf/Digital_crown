@@ -43,3 +43,12 @@ def test_honoraires_total_row_uses_same_french_amount_formatter():
 
     assert 'amount_text = self._format_mad_amount(p.montant)' in source
     assert 'total_amount_text = f"<b>{self._format_mad_amount(total)}' in source
+
+
+def test_devis_amounts_and_alignment_match_accounting_pdf_contract():
+    source = inspect.getsource(AccountingGenerator.generate_devis)
+
+    assert "price_text = self._format_mad_amount(item.prix_unitaire)" in source
+    assert 'total_amount_text = f"<b>{self._format_mad_amount(total)}' in source
+    assert "alignment=TA_CENTER, leading=base_fs * 1.25" in source
+    assert "fontSize=9.0, textColor=p_color, alignment=TA_LEFT, leading=12" in source
