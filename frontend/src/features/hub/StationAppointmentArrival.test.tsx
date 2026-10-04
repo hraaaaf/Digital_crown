@@ -61,4 +61,21 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     fireEvent.click(confirm);
     await waitFor(() => expect(stationPatientSessionService.arrive).toHaveBeenCalledWith('s-2', 2));
   });
+  it('renders English and Arabic terminal staff-notification copy without falling back to French', async () => {
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({ status: 'none', appointments: [], staffActionRequired: true });
+
+    const english = render(<StationAppointmentArrival sessionId="s-en" displayName="Aya Audit" onLeave={vi.fn()} backLabel="Back" language="en" />);
+    expect(await screen.findByText('Identity confirmed')).toBeInTheDocument();
+    expect(await screen.findByText('No appointment found today')).toBeInTheDocument();
+    expect(await screen.findByText(/reception team has been notified/i)).toBeInTheDocument();
+    expect(screen.queryByText('Identité confirmée')).not.toBeInTheDocument();
+    english.unmount();
+
+    render(<StationAppointmentArrival sessionId="s-ar" displayName="Aya Audit" onLeave={vi.fn()} backLabel="العودة" language="ar" />);
+    expect(await screen.findByText('تم تأكيد الهوية')).toBeInTheDocument();
+    expect(await screen.findByText('لم يتم العثور على موعد اليوم')).toBeInTheDocument();
+    expect(await screen.findByText(/تم إبلاغ فريق الاستقبال/)).toBeInTheDocument();
+    expect(screen.queryByText('Identité confirmée')).not.toBeInTheDocument();
+  });
+
 });
