@@ -11,7 +11,7 @@ Identify a patient on one registered Station through a short-lived, one-shot han
 5. Claim is atomic. Replay or concurrent second claim fails closed.
 6. Station status is readable only by the exact registered Station that created the session.
 7. Expiry or explicit purge clears patient/access references.
-8. Creating a new session purges any prior non-purged session for that Station.
+8. Creating a new session purges any prior non-purged session for that Station; the database enforces at most one non-purged session per Station under concurrency.
 9. The Station never receives Patient Companion access tokens.
 10. A cabinet may configure fallback as phone + birth date, name + birth date, or disabled; fallback is disabled by default until explicitly enabled.
 11. Fallback matching is tenant-scoped, requires exactly one active patient match, emits only generic failure responses, and locks Station fallback after five failed attempts within a rolling 15-minute window, including across regenerated sessions.
