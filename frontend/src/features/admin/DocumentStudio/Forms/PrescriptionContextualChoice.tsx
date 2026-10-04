@@ -82,6 +82,7 @@ export function PrescriptionContextualChoice({
       {open && (
         <div
           role="menu"
+          aria-label={`Options ${ariaLabel}`}
           className="absolute left-0 top-full z-[130] mt-1.5 min-w-[13rem] overflow-hidden rounded-xl border border-border-main bg-card py-1.5 shadow-2xl"
         >
           {!manual ? (
@@ -95,7 +96,7 @@ export function PrescriptionContextualChoice({
                     onSelect(option.value);
                     setOpen(false);
                   }}
-                  className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left hover:bg-primary/5"
+                  className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left hover:bg-primary/5"
                 >
                   <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary">
                     {option.value === value ? <Check size={13} /> : null}
@@ -141,13 +142,13 @@ export function PrescriptionContextualChoice({
                     setManual(false);
                   }
                 }}
-                className="mt-1.5 min-h-10 w-full rounded-lg border border-border-main bg-background px-2.5 text-xs font-bold text-text-main outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                className="mt-1.5 min-h-11 w-full rounded-lg border border-border-main bg-background px-2.5 text-xs font-bold text-text-main outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
               />
               <div className="mt-2 flex justify-end gap-1.5">
                 <button
                   type="button"
                   onClick={() => setManual(false)}
-                  className="min-h-9 rounded-lg px-2.5 text-[10px] font-bold text-text-muted hover:bg-background"
+                  className="min-h-11 rounded-lg px-2.5 text-[10px] font-bold text-text-muted hover:bg-background"
                 >
                   Retour
                 </button>
@@ -155,7 +156,7 @@ export function PrescriptionContextualChoice({
                   type="button"
                   onClick={submitManual}
                   disabled={!draft.trim()}
-                  className="min-h-9 rounded-lg bg-primary px-3 text-[10px] font-black text-white disabled:opacity-40"
+                  className="min-h-11 rounded-lg bg-primary px-3 text-[10px] font-black text-white disabled:opacity-40"
                 >
                   Appliquer
                 </button>

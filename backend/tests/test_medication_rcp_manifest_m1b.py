@@ -6,7 +6,7 @@ import pytest
 from backend.services import medication_dict, medication_rcp_manifest
 
 
-CURRENT_SOURCE_ID = "ammps-medications-current-2026-09-15"
+CURRENT_SOURCE_ID = "ammps-medications-current-2026-10-01"
 OFFICIAL_SOURCE_PAGE = "https://www.ammps.gov.ma/recherche-medicaments?page=42"
 
 

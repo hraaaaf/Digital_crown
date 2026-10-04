@@ -80,7 +80,8 @@ describe('DrugRow — Prescription Intelligence V1', () => {
       expect(api.get).toHaveBeenCalledWith('/medications/neo/search', { params: { q: 'PARACE' } });
     });
     expect(await screen.findByText('PARACETAMOL TEST 500 MG')).toBeInTheDocument();
-      });
+    expect(await screen.findByText(/CNOPS Open Data — Référentiel des médicaments · 2021-12-13/)).toBeInTheDocument();
+  });
 
   it('sélectionne explicitement une présentation et n injecte aucune posologie', async () => {
     const { onUpdateDrug } = renderDrugRow();

@@ -4,7 +4,7 @@ from pathlib import Path
 from backend.services import medication_dict
 
 
-CURRENT_SOURCE_ID = "ammps-medications-current-2026-09-15"
+CURRENT_SOURCE_ID = "ammps-medications-current-2026-10-01"
 
 
 def test_regulatory_identity_distinguishes_ammps_packaging_without_breaking_legacy_id():
@@ -74,7 +74,7 @@ def test_catalog_metadata_preserves_cnops_contract_and_exposes_current_ammps_sou
     current = next(source for source in metadata["sources"] if source["id"] == CURRENT_SOURCE_ID)
     assert current["record_count"] == 9931
     assert current["current_marketing_status_verified"] is True
-    assert current["snapshot_date"] == "2026-09-15"
+    assert current["snapshot_date"] == "2026-10-01"
 
 
 def test_m1_seed_is_documentary_only_and_rcp_validation_is_fail_closed():
@@ -84,6 +84,9 @@ def test_m1_seed_is_documentary_only_and_rcp_validation_is_fail_closed():
     )
 
     forbidden_clinical_fields = {"regimen", "posology", "duration", "dose_per_day", "automation_tier"}
+    assert {row["source_snapshot_date"] for row in rows} == {"2026-10-01"}
+    assert medication_dict.AMMPS_CURRENT_SOURCE["snapshot_date"] == "2026-10-01"
+    assert medication_dict.AMMPS_CURRENT_SOURCE["id"].endswith("2026-10-01")
     for row in rows:
         assert forbidden_clinical_fields.isdisjoint(row)
         assert row["market_status_checked_at"] == "2026-10-01"

@@ -387,7 +387,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'relative min-w-0 rounded-2xl border bg-card/95 p-3 text-text-main shadow-sm transition-all sm:p-4',
+        'relative min-w-0 rounded-2xl border bg-card/95 p-3 text-text-main shadow-sm transition-all focus-within:z-50 sm:p-4',
         fieldError
           ? 'border-red-300 bg-red-50/40'
           : 'border-border-main/90 hover:border-border-hover hover:shadow-elite',
@@ -492,7 +492,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                           <span className="mt-0.5 block truncate text-[9px] font-semibold text-text-muted">
                             {presentation.dci || 'DCI non renseignée'}
                           </span>
-
+                          <span className="mt-0.5 block truncate text-[8px] font-semibold text-text-muted/90">
+                            {presentation.source.label} · {presentation.source.snapshot_date}
+                          </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           <span className="text-right">
