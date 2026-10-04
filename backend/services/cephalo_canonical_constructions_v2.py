@@ -12,8 +12,8 @@ from backend.services.cephalo_ricketts_geometry import ricketts_constructed_gn_v
 
 RICKETTS_GN_CONSTRUCTION_ID = "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
 RICKETTS_GN_REQUIRED_LANDMARKS = ("N", "Pog_hard", "Go", "Me")
-RICKETTS_PTV_CONSTRUCTION_ID = "RICKETTS_PTV_PT_RICKETTS_PERP_FH_V1"
-RICKETTS_PTV_REQUIRED_LANDMARKS = ("Pt_Ricketts", "Po_anatomic", "Or")
+RICKETTS_PTV_CONSTRUCTION_ID = "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+RICKETTS_PTV_REQUIRED_LANDMARKS = ("PR_Ricketts_PTV", "Po_anatomic", "Or")
 
 
 def materialize_canonical_constructions_v2(
@@ -100,7 +100,7 @@ def materialize_canonical_constructions_v2(
 
     ptv_geometry: dict[str, object] = {
         "kind": "constructed_line",
-        "construction_rule": "line_through_Pt_Ricketts_perpendicular_to_Frankfort_Po_anatomic_Or",
+        "construction_rule": "line_through_PR_Ricketts_PTV_perpendicular_to_Frankfort_Po_anatomic_Or",
         "required_landmark_ids": list(RICKETTS_PTV_REQUIRED_LANDMARKS),
         "coordinate_space": "source_image_pixels",
     }
@@ -112,7 +112,7 @@ def materialize_canonical_constructions_v2(
     else:
         po = landmarks["Po_anatomic"]
         or_ = landmarks["Or"]
-        pt = landmarks["Pt_Ricketts"]
+        pt = landmarks["PR_Ricketts_PTV"]
         fh_x = or_.x - po.x
         fh_y = or_.y - po.y
         norm = (fh_x * fh_x + fh_y * fh_y) ** 0.5
