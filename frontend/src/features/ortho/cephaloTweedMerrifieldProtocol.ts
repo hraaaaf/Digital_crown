@@ -43,3 +43,20 @@ export const tweedMerrifieldProtocolRow = (
   const profile = readTweedMerrifieldProtocolProjection(anglesData);
   return profile?.rows.find(row => row.canonical_measurement_id === canonicalId) ?? null;
 };
+
+
+const TWEED_PO_DEPENDENT_MEASUREMENT_IDS = new Set([
+  'M_FH_GOME_DEG_V1',
+  'M_FMIA_L1_FH_DEG_V1',
+  'M_MERRIFIELD_Z_FH_DEG_V1',
+]);
+
+export const hasCertifiedTweedPoAnatomic = (anglesData: any): boolean => {
+  const profile = readTweedMerrifieldProtocolProjection(anglesData);
+  if (!profile) return false;
+  return profile.rows.some(
+    row =>
+      TWEED_PO_DEPENDENT_MEASUREMENT_IDS.has(row.canonical_measurement_id) &&
+      row.availability_status === 'AVAILABLE',
+  );
+};

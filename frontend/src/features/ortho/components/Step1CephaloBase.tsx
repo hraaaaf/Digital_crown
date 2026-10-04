@@ -11,6 +11,7 @@ import { useOrthoStore } from '../stores/useOrthoStore';
 import { cephaloRepository } from '../cephaloRepository';
 import { calibrationUiLabel, calibrationUiTone, deriveCalibrationUiState } from '../cephaloCalibration';
 import { STEINER_EXPLICIT_ID_SET, STEINER_EXPLICIT_IDENTITIES } from '../cephaloSteinerProtocol';
+import { hasCertifiedTweedPoAnatomic } from '../cephaloTweedMerrifieldProtocol';
 import { scienceArticles } from '../../../data/science_articles';
 import { ClinicalTipBubble } from '../../clinical_tips/components/ClinicalTipBubble';
 
@@ -264,6 +265,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   const activeSteinerPlacement = activePointId && STEINER_EXPLICIT_ID_SET.has(activePointId)
     ? STEINER_EXPLICIT_IDENTITIES.find(item => item.id === activePointId) ?? null
     : null;
+  const tweedPoAnatomicCertified = React.useMemo(
+    () => hasCertifiedTweedPoAnatomic(anglesData),
+    [anglesData],
+  );
 
   const handleSteinerExplicitPointPlacement = (p: { x: number; y: number }) => {
     if (!activeSteinerPlacement) return;
@@ -286,6 +291,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           onUpdateLandmarks={updateLandmarksOptimistic}
           activePointId={activePointId}
           focusedPointId={null}
+          tweedPoAnatomicCertified={tweedPoAnatomicCertified}
           onPointMouseDown={setActivePointId}
           onEmptyAreaClick={activeSteinerPlacement ? handleSteinerExplicitPointPlacement : undefined}
           visualDebug={anglesData?.visual_debug ?? null}

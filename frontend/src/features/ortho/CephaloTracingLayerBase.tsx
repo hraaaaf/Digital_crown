@@ -65,6 +65,7 @@ export interface CephaloTracingLayerProps {
   performanceMode?: boolean;
   vto?: VTOSettings;
   activeAnalysis?: string;
+  tweedPoAnatomicCertified?: boolean;
   layerPresentation?: {
     visibility: OrthoLayerVisibility;
     opacity: OrthoLayerOpacity;
@@ -164,6 +165,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   performanceMode = false,
   vto = { enabled: false, showGhostFace: true, showSoftTissue: true },
   activeAnalysis = 'all',
+  tweedPoAnatomicCertified = false,
   layerPresentation,
 }) => {
   const P = getTracingPalette(uiMode);
@@ -235,7 +237,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
     const finalPts = applyVTO(pts);
     const po = getPoint(finalPts, 'Po');
-    const poAnatomic = getPoint(finalPts, 'Po_anatomic');
+    const poAnatomic = getPoint(finalPts, 'Po_anatomic') ?? (tweedPoAnatomicCertified ? po : undefined);
     const or_ = getPoint(finalPts, 'Or');
     const a = getPoint(finalPts, 'A');
     const b = getPoint(finalPts, 'B');
@@ -348,7 +350,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
     return (
       <g key={isGhost ? `ghost-${layerOp}` : 'main-layer'}>
-        {showTweed || showMcNamara ? seg(poAnatomic, or_, 'fh', P.francfort) : null}
+        {showTweed ? seg(poAnatomic, or_, 'fh', P.francfort) : null}
+        {showMcNamara ? seg(po, or_, 'fh', P.francfort) : null}
         {showTweed ? seg(go, me, 'mp', P.mandibule) : null}
         {showTweed ? seg(l1a, l1i, 'l1', P.l1) : null}
 
@@ -512,10 +515,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   };
 
   const po = getPoint(landmarks, 'Po');
-  const poAnatomic = getPoint(landmarks, 'Po_anatomic');
+  const poAnatomic = getPoint(landmarks, 'Po_anatomic') ?? (tweedPoAnatomicCertified ? po : undefined);
   const or_ = getPoint(landmarks, 'Or');
   const activeAnalysisKey = activeAnalysis.toLowerCase();
-  const activeFrankfortPo = ['all', 'tweed', 'mcnamara'].includes(activeAnalysisKey) ? poAnatomic : po;
+  const activeFrankfortPo = activeAnalysisKey === 'tweed' ? poAnatomic : po;
   let francfortLineExtended: { x1: number; y1: number; x2: number; y2: number } | null = null;
   if (activeFrankfortPo && or_) {
     const dx = or_.x - activeFrankfortPo.x;
@@ -551,7 +554,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const dragId = activeDragId ?? '';
   const l1Dragged = ['L1_incisal', 'L1_apex', 'L1i', 'L1a'].includes(dragId);
   const u1Dragged = ['U1_incisal', 'U1_apex', 'U1i', 'U1a'].includes(dragId);
-  const frkDragged = dragId === (['all', 'tweed', 'mcnamara'].includes(activeAnalysisKey) ? 'Po_anatomic' : 'Po') || dragId === 'Or';
+  const frkDragged = dragId === 'Po' || (activeAnalysisKey === 'tweed' && dragId === 'Po_anatomic') || dragId === 'Or';
   const mandDragged = dragId === 'Go' || dragId === 'Me';
   const wL1i = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_incisal') ?? getPoint(landmarks, 'L1i')) : null;
   const wL1a = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_apex') ?? getPoint(landmarks, 'L1a')) : null;

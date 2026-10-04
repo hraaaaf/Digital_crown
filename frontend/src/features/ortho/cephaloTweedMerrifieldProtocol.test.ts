@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  hasCertifiedTweedPoAnatomic,
   readTweedMerrifieldProtocolProjection,
   tweedMerrifieldProtocolRow,
 } from './cephaloTweedMerrifieldProtocol';
@@ -12,7 +13,7 @@ const profile = {
     {
       canonical_measurement_id: 'M_FH_GOME_DEG_V1',
       label: 'FMA',
-      profile_section: 'TWEED_DC_DIAGNOSTIC_TRIANGLE_V1',
+      profile_section: 'TWEED_1954_TRIANGLE_DC_PO_OR_V1',
       value: 24.5,
       unit: 'deg',
       availability_status: 'AVAILABLE',
@@ -39,5 +40,27 @@ describe('Tweed-Merrifield protocol projection reader', () => {
     };
     expect(readTweedMerrifieldProtocolProjection(anglesData)?.protocol_profile_id).toBe('TWEED_MERRIFIELD_DC_PROTOCOL_PROFILE_V1');
     expect(tweedMerrifieldProtocolRow(anglesData, 'M_FH_GOME_DEG_V1')?.value).toBe(24.5);
+    expect(hasCertifiedTweedPoAnatomic(anglesData)).toBe(true);
+  });
+
+  it('fails closed for the visual Po bridge without a verified available Po-dependent canonical row', () => {
+    const unavailable = {
+      ...profile,
+      rows: profile.rows.map(row => ({ ...row, availability_status: 'NOT_COMPUTABLE', value: null })),
+    };
+    expect(hasCertifiedTweedPoAnatomic({
+      scientific_read_path: {
+        authority: 'EVIDENCE_GRAPH_V1',
+        active_chain: 'VERIFIED',
+        protocol_profiles: { tweed_merrifield: unavailable },
+      },
+    })).toBe(false);
+    expect(hasCertifiedTweedPoAnatomic({
+      scientific_read_path: {
+        authority: 'LEGACY',
+        active_chain: 'VERIFIED',
+        protocol_profiles: { tweed_merrifield: profile },
+      },
+    })).toBe(false);
   });
 });
