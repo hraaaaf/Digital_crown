@@ -198,6 +198,40 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   });
   actions.push('accounting-action-dock-no-scroll');
 
+  // The Treasury BEFORE-only probe certifies the partial-payment guard only.
+  // Catalog creation/order/delete are already covered by the full G4 Honoraires run,
+  // so do not duplicate that unrelated network dependency in this narrow probe.
+  if (!captureTreasuryGuardBeforeOnly) {
+    await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
+    const catalogDialog = page.getByRole('dialog', { name: 'Ajouter un acte au catalogue' });
+    await catalogDialog.waitFor({ state: 'visible', timeout: 10000 });
+    const specialtySelect = catalogDialog.getByRole('combobox').first();
+    await specialtySelect.selectOption({ index: 1 });
+    await catalogDialog.getByPlaceholder("Nom de l'acte").fill('G4 Honoraires manuel');
+    await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
+    await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
+    await catalogDialog.waitFor({ state: 'hidden', timeout: 10000 });
+    // Validate the catalog mutation from the authoritative API instead of
+    // racing Playwright's response event. The UI close alone is not enough.
+    const catalogCheck = await api.get('/api/catalog/specialties', { headers });
+    if (!catalogCheck.ok()) throw new Error(`Manual honorarium catalog verification failed: ${catalogCheck.status()}`);
+    const catalogRows = await catalogCheck.json();
+    const catalogActExists = catalogRows.some(specialty =>
+      Array.isArray(specialty.acts) && specialty.acts.some(act => act.name === 'G4 Honoraires manuel')
+    );
+    if (!catalogActExists) throw new Error('Manual honorarium catalog act was not persisted');
+    const manualLine = page.getByText('G4 Honoraires manuel', { exact: true });
+    if (await manualLine.count()) {
+      await page.getByRole('button', { name: 'Monter G4 Honoraires manuel' }).click();
+      await page.getByRole('button', { name: 'Descendre G4 Honoraires manuel' }).click();
+      await page.getByRole('button', { name: 'Supprimer G4 Honoraires manuel' }).click();
+      if (await manualLine.count()) throw new Error('Manual honorarium line removal failed');
+      actions.push('manual-line-order-delete');
+    } else {
+      actions.push('manual-catalog-act-created');
+    }
+  }
+
   // Persist the exact Honoraires preview PDF produced by Digital Crown as a
   // review artifact. Run once on desktop during the full certification only.
   if (!captureTreasuryGuardBeforeOnly && viewport.width === 1280) {
@@ -240,40 +274,6 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       renderFile,
     }, null, 2));
     actions.push('honoraires-pdf-artifact-captured');
-  }
-
-  // The Treasury BEFORE-only probe certifies the partial-payment guard only.
-  // Catalog creation/order/delete are already covered by the full G4 Honoraires run,
-  // so do not duplicate that unrelated network dependency in this narrow probe.
-  if (!captureTreasuryGuardBeforeOnly) {
-    await page.getByRole('button', { name: /Ligne Manuelle/i }).last().click();
-    const catalogDialog = page.getByRole('dialog', { name: 'Ajouter un acte au catalogue' });
-    await catalogDialog.waitFor({ state: 'visible', timeout: 10000 });
-    const specialtySelect = catalogDialog.getByRole('combobox').first();
-    await specialtySelect.selectOption({ index: 1 });
-    await catalogDialog.getByPlaceholder("Nom de l'acte").fill('G4 Honoraires manuel');
-    await catalogDialog.getByPlaceholder('Tarif à définir').fill('321');
-    await catalogDialog.getByRole('button', { name: 'Créer et ajouter', exact: true }).click();
-    await catalogDialog.waitFor({ state: 'hidden', timeout: 10000 });
-    // Validate the catalog mutation from the authoritative API instead of
-    // racing Playwright's response event. The UI close alone is not enough.
-    const catalogCheck = await api.get('/api/catalog/specialties', { headers });
-    if (!catalogCheck.ok()) throw new Error(`Manual honorarium catalog verification failed: ${catalogCheck.status()}`);
-    const catalogRows = await catalogCheck.json();
-    const catalogActExists = catalogRows.some(specialty =>
-      Array.isArray(specialty.acts) && specialty.acts.some(act => act.name === 'G4 Honoraires manuel')
-    );
-    if (!catalogActExists) throw new Error('Manual honorarium catalog act was not persisted');
-    const manualLine = page.getByText('G4 Honoraires manuel', { exact: true });
-    if (await manualLine.count()) {
-      await page.getByRole('button', { name: 'Monter G4 Honoraires manuel' }).click();
-      await page.getByRole('button', { name: 'Descendre G4 Honoraires manuel' }).click();
-      await page.getByRole('button', { name: 'Supprimer G4 Honoraires manuel' }).click();
-      if (await manualLine.count()) throw new Error('Manual honorarium line removal failed');
-      actions.push('manual-line-order-delete');
-    } else {
-      actions.push('manual-catalog-act-created');
-    }
   }
 
   await page.getByRole('button', { name: /Échéances & options/i }).click();
