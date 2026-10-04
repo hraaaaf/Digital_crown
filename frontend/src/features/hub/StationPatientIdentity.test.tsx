@@ -11,6 +11,7 @@ vi.mock('../../services/stationPatientSession', () => ({
     todayAppointments: vi.fn(),
     arrive: vi.fn(),
     purge: vi.fn(),
+    requestStaffAssistance: vi.fn(),
   },
 }));
 
@@ -31,6 +32,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       staffActionRequired: true,
     });
     vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
+    vi.mocked(stationPatientSessionService.requestStaffAssistance).mockResolvedValue({ status: 'STAFF_NOTIFIED', alertId: 7 });
   });
 
   it('shows one-shot QR/NFC handoff and never claims arrival before identification', async () => {
@@ -98,4 +100,23 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
     expect(onBack).toHaveBeenCalled();
   });
+  it('localizes pending identity UI in English and Arabic', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending',
+      sessionId: 'session-1',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+
+    const english = render(<StationPatientIdentity onBack={vi.fn()} backLabel='Back' language='en' />);
+    expect(await screen.findByAltText('Patient Companion identification QR code')).toBeInTheDocument();
+    expect(screen.getByText('Scan with your phone')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'I do not have my phone' })).toBeInTheDocument();
+    english.unmount();
+
+    render(<StationPatientIdentity onBack={vi.fn()} backLabel='العودة' language='ar' />);
+    expect(await screen.findByAltText('رمز QR للتعرّف عبر Patient Companion')).toBeInTheDocument();
+    expect(screen.getByText('امسحوا الرمز بهاتفكم')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ليس لدي هاتفي' })).toBeInTheDocument();
+  });
+
 });

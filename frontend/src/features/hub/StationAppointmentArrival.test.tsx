@@ -61,4 +61,41 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     fireEvent.click(confirm);
     await waitFor(() => expect(stationPatientSessionService.arrive).toHaveBeenCalledWith('s-2', 2));
   });
+  it('renders English and Arabic terminal staff-notification copy without falling back to French', async () => {
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({ status: 'none', appointments: [], staffActionRequired: true });
+
+    const english = render(<StationAppointmentArrival sessionId="s-en" displayName="Aya Audit" onLeave={vi.fn()} backLabel="Back" language="en" />);
+    expect(await screen.findByText('Identity confirmed')).toBeInTheDocument();
+    expect(await screen.findByText('No appointment found today')).toBeInTheDocument();
+    expect(await screen.findByText(/reception team has been notified/i)).toBeInTheDocument();
+    expect(screen.queryByText('Identité confirmée')).not.toBeInTheDocument();
+    english.unmount();
+
+    render(<StationAppointmentArrival sessionId="s-ar" displayName="Aya Audit" onLeave={vi.fn()} backLabel="العودة" language="ar" />);
+    expect(await screen.findByText('تم تأكيد الهوية')).toBeInTheDocument();
+    expect(await screen.findByText('لم يتم العثور على موعد اليوم')).toBeInTheDocument();
+    expect(await screen.findByText(/تم إبلاغ فريق الاستقبال/)).toBeInTheDocument();
+    expect(screen.queryByText('Identité confirmée')).not.toBeInTheDocument();
+  });
+
+  it('localizes known appointment statuses and never leaks an unknown raw status', async () => {
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
+      status: 'multiple', staffActionRequired: false,
+      appointments: [
+        { appointmentId: 11, datetimeStart: '2026-10-04T09:00:00', durationMinutes: 30, schedulingType: 'EXACT_TIME', status: 'PRÉVU' },
+        { appointmentId: 12, datetimeStart: '2026-10-04T11:00:00', durationMinutes: 30, schedulingType: 'EXACT_TIME', status: 'INTERNAL_FUTURE_STATUS' },
+      ],
+    });
+    const english = render(<StationAppointmentArrival sessionId="s-status-en" displayName="Aya" onLeave={vi.fn()} backLabel="Back" language="en" />);
+    expect(await screen.findByText(/Status : Scheduled/)).toBeInTheDocument();
+    expect(screen.queryByText(/PRÉVU/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/INTERNAL_FUTURE_STATUS/)).not.toBeInTheDocument();
+    english.unmount();
+
+    render(<StationAppointmentArrival sessionId="s-status-ar" displayName="Aya" onLeave={vi.fn()} backLabel="العودة" language="ar" />);
+    expect(await screen.findByText(/الحالة : مجدول/)).toBeInTheDocument();
+    expect(screen.queryByText(/PRÉVU/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/INTERNAL_FUTURE_STATUS/)).not.toBeInTheDocument();
+  });
+
 });
