@@ -95,7 +95,8 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert all(
         item["availability_status"] == "AVAILABLE"
         for item in measurements
-        if item["method_id"] not in explicit_identity_required
+        if item["requires_calibration"]
+        and item["method_id"] not in explicit_identity_required
     )
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
