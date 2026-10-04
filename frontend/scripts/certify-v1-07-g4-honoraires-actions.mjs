@@ -325,7 +325,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     fullPage: false,
     animations: 'disabled',
   });
-  await treasuryTopClose.click();
+  // A transient toast from the preceding local-only apply can overlap the
+  // modal close button even though the button itself is otherwise actionable.
+  // Wait for toast pointer interception to clear; do not force the click.
+  await page.locator('[data-rht-toaster] > div').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+  await treasuryTopClose.click({ timeout: 10000 });
   await page.getByText('Encaissement', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
 
   await page.getByRole('button', { name: /Échéances & options/i }).click();
