@@ -301,7 +301,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             elements.append(Paragraph(
                 f"{escape(str(tweed.get('protocol_profile_id') or 'Tweed-Merrifield'))} — "
                 f"source-lock {escape(str(tweed.get('source_lock_status') or 'non vérifié'))}. "
-                "Variante Digital Crown Po-Or/Go-Me; aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée. "
+                "Variante Digital Crown Po_anatomic-Or / Go-Me; aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée. "
                 "Références historiques affichées comme contexte uniquement; aucune classification automatique.",
                 body,
             ))

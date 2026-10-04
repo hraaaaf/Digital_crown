@@ -266,14 +266,14 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       p2: Landmark | undefined,
       lineKey: string,
       defColor: string,
-      opts?: { dash?: string; op?: number },
+      opts?: { dash?: string; op?: number; renderKey?: string },
     ) => {
       if (!p1 || !p2 || !isLayerVisible('plans')) return null;
 
       if (activeAnalysis !== 'all' && !isGhost) {
         const analysis = activeAnalysis.toLowerCase();
         if (analysis === 'steiner' && !['sn', 'na', 'nb'].includes(lineKey)) return null;
-        if (analysis === 'tweed' && !['fh', 'mp', 'u1', 'l1'].includes(lineKey)) return null;
+        if (analysis === 'tweed' && !['fh', 'mp', 'u1', 'l1', 'zprofile'].includes(lineKey)) return null;
         if (analysis === 'mcnamara' && !['fh', 'mcnamara_perp', 'coa', 'cogn', 'ansme'].includes(lineKey)) return null;
         if (analysis === 'wits' && !['occ'].includes(lineKey)) return null;
         if (analysis === 'esthetique' && !['eline'].includes(lineKey)) return null;
@@ -285,7 +285,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       const opacity = (opts?.op ?? 1) * layerOp * layerOpacityFor('plans');
       return (
         <motion.line
-          key={`${lineKey}-${isGhost}`}
+          key={`${opts?.renderKey ?? lineKey}-${isGhost}`}
+          data-cephalo-line-key={lineKey}
           x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
           stroke={color}
           strokeDasharray={opts?.dash ?? ghostDash}
@@ -347,13 +348,32 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     const showWits = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'wits';
 
     const softTissueColor = CEPHALO_SCIENTIFIC_COLORS.soft_tissue;
+    // Presentation-only reconstruction of the LOT06 Merrifield profile line.
+    // The clinical Z-angle value remains exclusively backend-authoritative.
+    const merrifieldProfileLip = (() => {
+      if (!poAnatomic || !or_ || !ls || !li) return undefined;
+      const dx = or_.x - poAnatomic.x;
+      const dy = or_.y - poAnatomic.y;
+      const length = Math.hypot(dx, dy);
+      if (!Number.isFinite(length) || length <= 1e-9) return undefined;
+      const ux = dx / length;
+      const uy = dy / length;
+      const lsScore = ls.x * ux + ls.y * uy;
+      const liScore = li.x * ux + li.y * uy;
+      if (!Number.isFinite(lsScore) || !Number.isFinite(liScore)) return undefined;
+      if (Math.abs(lsScore - liScore) <= 1e-9) {
+        return Math.abs(ls.x - li.x) <= 1e-9 && Math.abs(ls.y - li.y) <= 1e-9 ? ls : undefined;
+      }
+      return lsScore > liScore ? ls : li;
+    })();
 
     return (
       <g key={isGhost ? `ghost-${layerOp}` : 'main-layer'}>
-        {showTweed ? seg(poAnatomic, or_, 'fh', P.francfort) : null}
-        {showMcNamara ? seg(po, or_, 'fh', P.francfort) : null}
+        {showTweed ? seg(poAnatomic, or_, 'fh', P.francfort, { renderKey: 'fh-tweed' }) : null}
+        {showMcNamara ? seg(po, or_, 'fh', P.francfort, { renderKey: 'fh-mcnamara' }) : null}
         {showTweed ? seg(go, me, 'mp', P.mandibule) : null}
         {showTweed ? seg(l1a, l1i, 'l1', P.l1) : null}
+        {showTweed ? seg(pogSoft, merrifieldProfileLip, 'zprofile', softTissueColor, { dash: '3,2', op: 0.9 }) : null}
 
         {showSteiner && (
           <>

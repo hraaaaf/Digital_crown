@@ -277,7 +277,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
           </div>
           <div className="min-w-0">
             <h3 className="break-words text-sm font-black leading-tight" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
-            <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : analysis === 'tweed' ? 'Triangle DC Po-Or/Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
+            <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : analysis === 'tweed' ? 'Triangle DC Po_anatomic-Or / Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5" aria-label="Code couleur céphalométrique">
@@ -294,7 +294,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
               <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]" style={{ color: tweedMerrifieldProfile?.source_lock_gate?.status === 'SATISFIED' ? P.accentSuccess : P.accentWarning }}>
                 <ShieldCheck size={12} /> Source-lock {tweedMerrifieldProfile?.source_lock_gate?.status === 'SATISFIED' ? 'validé' : 'non vérifié'}
               </span>
-              <span className="text-[9px] leading-relaxed" style={{ color: P.textMuted }}>Variante Digital Crown Po-Or/Go-Me · aucune revendication de reproduction stricte Tweed 1954 · références historiques sans classification automatique.</span>
+              <span className="text-[9px] leading-relaxed" style={{ color: P.textMuted }}>Variante Digital Crown Po_anatomic-Or / Go-Me · aucune revendication de reproduction stricte Tweed 1954 · références historiques sans classification automatique.</span>
             </div>
           </div>
         )}

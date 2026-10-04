@@ -40,6 +40,7 @@ const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
     'po', 'po_anatomic', 'or', 'go', 'me',
     'u1_incisal', 'u1i', 'u1_apex', 'u1a',
     'l1_incisal', 'l1i', 'l1_apex', 'l1a',
+    'ls_soft', 'ls', 'li_soft', 'li', 'pog_soft', 'stpog', 'soft_pogonion',
   ]),
   mcnamara: new Set([
     'po', 'or', 'n', 'a', 'b', 'co', 'gn', 'ans', 'me',

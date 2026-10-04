@@ -95,7 +95,7 @@
       "classification_authority": false,
       "runtime_delta_authority": false,
       "geometry_compatibility": "NOT_STRICTLY_COMPATIBLE_WITH_SELECTED_DC_VARIANT",
-      "reason": "The selected Digital Crown Po-Or/Go-Me variant is explicitly not the strict 1954 ear-rod/lower-border construction.",
+      "reason": "The selected Digital Crown Po_anatomic-Or / Go-Me variant is explicitly not the strict 1954 ear-rod/lower-border construction.",
       "out_of_domain_behavior": "DISPLAY_RAW_MEASUREMENTS_WITH_SOURCE_CONTEXT_ONLY"
     },
     {

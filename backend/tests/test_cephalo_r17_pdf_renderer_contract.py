@@ -220,7 +220,7 @@ def test_tweed_merrifield_renderer_preserves_dc_variant_without_fake_norms(tmp_p
     assert tweed["rows"][0]["reference_authority"] == "CONTEXT_ONLY_NO_RUNTIME_DELTA"
     html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
     assert "Analyse protocolaire Tweed–Merrifield" in html
-    assert "Variante Digital Crown Po-Or/Go-Me" in html
+    assert "Variante Digital Crown Po_anatomic-Or / Go-Me" in html
     assert "Aucune équivalence géométrique stricte avec Tweed 1954" in html
     assert "non classificatoires" in html.lower()
 
@@ -230,6 +230,6 @@ def test_reportlab_tweed_merrifield_wording_preserves_variant_and_clinician_auth
     source = inspect.getsource(BilanOrthoPDFGenerator._generate_reportlab)
     assert 'context["tweed_merrifield_protocol"]' in source
     assert "Analyse protocolaire Tweed–Merrifield" in source
-    assert "Variante Digital Crown Po-Or/Go-Me" in source
+    assert "Variante Digital Crown Po_anatomic-Or / Go-Me" in source
     assert "aucune équivalence géométrique stricte avec Tweed 1954" in source
     assert "aucune classification automatique" in source
