@@ -33,6 +33,7 @@ describe('Ordonnance Fidelity V3 U4 medication cards', () => {
     expect(drugRow.match(/h-11 w-11/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(drugRow.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(drugRow).toContain('PrescriptionContextualChoice');
+    expect(drugRow).toContain('focus-within:z-50');
   });
 
   it('preserves medication behavior callbacks', () => {
