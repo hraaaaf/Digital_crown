@@ -45,3 +45,12 @@ After V1.5-03.3 securely identifies an existing patient on a registered Station,
 - audit evidence is written without patient credentials;
 - frontend single/multiple/none flows and explicit confirmation are covered;
 - 03.3 identification behavior remains non-regressed.
+
+
+## Staff assistance signal for zero appointments
+
+When the identified station session resolves to zero eligible appointments, the station explicitly requests staff assistance. The request is persisted in `AuditLog` as `STATION_STAFF_ASSISTANCE_REQUESTED`, scoped to the cabinet and station session, and is idempotent for that session. It contains no patient identity or clinical data.
+
+Authenticated staff with agenda access sees unresolved station assistance on the dashboard. The dashboard refreshes the assistance feed periodically and staff can acknowledge a request. Acknowledgement is persisted separately as `STATION_STAFF_ASSISTANCE_ACKNOWLEDGED`; the original audit event is immutable.
+
+The signal is assistance-only. It MUST NOT create an appointment or patient, assign a ticket, rank, priority, queue position, or estimated waiting time.
