@@ -222,20 +222,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     const pdfFile = 'honoraires-before.pdf';
     fs.writeFileSync(path.join(outDir, pdfFile), pdfBytes);
 
-    const pdfPage = await context.newPage();
-    await pdfPage.setExtraHTTPHeaders(headers);
-    const absolutePdfUrl = 'http://127.0.0.1:8005/api/' + cleanPdfPath.replace(/^api\//, '');
-    await pdfPage.goto(absolutePdfUrl, { waitUntil: 'load', timeout: 30000 });
-    await pdfPage.waitForTimeout(1500);
-    const renderFile = 'honoraires-before-page1.png';
-    await pdfPage.screenshot({
-      path: path.join(outDir, renderFile),
-      fullPage: false,
-      animations: 'disabled',
-    });
-    await pdfPage.close();
-
-    fs.writeFileSync(path.join(outDir, 'honoraires-before-metadata.json'), JSON.stringify({
+    const renderFile = 'honoraires-before-page1.png';\n\n    fs.writeFileSync(path.join(outDir, 'honoraires-before-metadata.json'), JSON.stringify({
       productHead: process.env.PRODUCT_HEAD || null,
       patientDossier: patient.numero_dossier,
       sourcePdfUrl: previewPayload.pdf_url,
