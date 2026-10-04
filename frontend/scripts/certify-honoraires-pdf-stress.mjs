@@ -40,7 +40,7 @@ function rows(count, long = false) {
 }
 
 const scenarios = [
-  { id: 'baseline', hasLongText: false, payments: rows(3) },
+  { id: 'baseline', hasLongText: true, payments: [{ date:'2026-09-20', acte: longA, dent:'11, 12', montant:750, mode_reglement:'Espèces' }, ...rows(2) ] },
   { id: 'long-text', hasLongText: true, payments: [{ date:'2026-09-20', acte: longA + ' avec contrôle radiographique comparatif et suivi clinique documenté à moyen terme afin de confirmer la stabilité du résultat thérapeutique', dent:'11, 12, 13', montant:1250, mode_reglement:'Virement' }] },
   { id: 'page-boundary-before', hasLongText: false, payments: rows(17) },
   { id: 'page-boundary-after', hasLongText: false, payments: rows(18) },
