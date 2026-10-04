@@ -57,7 +57,7 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     render(<StationAppointmentArrival sessionId="s-2" displayName="Aya Audit" onLeave={vi.fn()} backLabel="Retour" />);
     const confirm = await screen.findByRole('button', { name: 'Confirmer mon arrivée' });
     expect(confirm).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /11:00 · 45 min/i }));
+    fireEvent.click(screen.getAllByRole('button').find((button) => button.getAttribute('data-station-appointment-id') === '2')!);
     fireEvent.click(confirm);
     await waitFor(() => expect(stationPatientSessionService.arrive).toHaveBeenCalledWith('s-2', 2));
   });
