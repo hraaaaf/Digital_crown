@@ -18,6 +18,37 @@ if (!patientsResponse.ok()) throw new Error('patients failed');
 const patient = (await patientsResponse.json()).find(row => row.numero_dossier === 'T2-0001');
 if (!patient) throw new Error('fixture patient missing');
 
+const devisGateDir = path.resolve('../artifacts/t2-browser/devis-pdf-gate');
+fs.mkdirSync(devisGateDir, { recursive: true });
+const longDevisA = 'Réhabilitation prothétique complexe avec préparation périphérique atraumatique, empreinte de précision, contrôle occlusal dynamique et ajustements fonctionnels successifs';
+const longDevisB = 'Traitement conservateur plurifactoriel avec isolation opératoire, reconstruction anatomique stratifiée, finition, polissage et vérification des contacts proximaux et occlusaux';
+const devisRows = count => Array.from({ length: count }, (_, i) => ({ acte: 'Acte de devis ' + String(i + 1).padStart(2, '0'), dent: String([11,12,13,14,15,16,21,22,23,24][i % 10]), prix_unitaire: 100 + i * 7 }));
+const devisScenarios = [
+  { id: 'standard', items: devisRows(3) },
+  { id: 'dense-12-actes', items: devisRows(12) },
+  { id: 'stress-texte-montant', items: [{ acte: longDevisA + ' — ' + longDevisB, dent: '11, 12', prix_unitaire: 999999.99 }] },
+];
+const devisGateReport = { productHead: process.env.PRODUCT_HEAD || null, patientDossier: patient.numero_dossier, scenarios: [] };
+for (const scenario of devisScenarios) {
+  const response = await api.post('/api/documents/generate?archive=false&preview=true&force=false', {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    data: { type: 'devis', patient_id: patient.id, is_accounted: false, payment_status: 'EN_ATTENTE', data: { items: scenario.items, doc_date: '2026-09-20', teeth_data: [], installments: [] } },
+  });
+  if (!response.ok()) throw new Error('devis gate ' + scenario.id + ' generation failed ' + response.status());
+  const payload = await response.json();
+  if (!payload.pdf_url) throw new Error('devis gate ' + scenario.id + ' missing pdf_url');
+  const clean = String(payload.pdf_url).replace(/^\//, '').replace(/^api\//, '');
+  const pdf = await api.get('/api/' + clean, { headers });
+  if (!pdf.ok()) throw new Error('devis gate ' + scenario.id + ' fetch failed ' + pdf.status());
+  const bytes = await pdf.body();
+  if (bytes.length < 5 || bytes.subarray(0,4).toString('ascii') !== '%PDF') throw new Error('devis gate ' + scenario.id + ' invalid PDF');
+  const file = scenario.id + '.pdf';
+  fs.writeFileSync(path.join(devisGateDir, file), bytes);
+  devisGateReport.scenarios.push({ id: scenario.id, rowCount: scenario.items.length, bytes: bytes.length, signature: bytes.subarray(0,4).toString('ascii'), pdfFile: file, expectedTotal: scenario.items.reduce((sum,item) => sum + item.prix_unitaire, 0) });
+}
+fs.writeFileSync(path.join(devisGateDir, 'gate-matrix.json'), JSON.stringify(devisGateReport, null, 2));
+console.log('DEVIS_PDF_GATE_PASS', JSON.stringify(devisGateReport));
+
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
 
@@ -195,10 +226,20 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   const libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
   await libreTitle.waitFor({ state: 'visible', timeout: 10000 });
-  await page.waitForFunction(expected => {
-    const input = document.querySelector('input[placeholder="Ex: ORDONNANCE, LETTRE..."]');
-    return input instanceof HTMLInputElement && input.value === expected;
-  }, marker, { timeout: 30000 });
+  try {
+    await page.waitForFunction(expected => {
+      const input = document.querySelector('input[placeholder="Ex: ORDONNANCE, LETTRE..."]');
+      return input instanceof HTMLInputElement && input.value === expected;
+    }, marker, { timeout: 30000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(expected => {
+      const input = document.querySelector('input[placeholder="Ex: ORDONNANCE, LETTRE..."]');
+      return { expected, actualTitle: input instanceof HTMLInputElement ? input.value : null, url: window.location.href };
+    }, marker);
+    fs.writeFileSync(path.join(outDir, `history-edit-diagnostic-${viewport.width}x${viewport.height}.json`), JSON.stringify(diagnostic, null, 2));
+    console.error('G4_HISTORY_EDIT_DIAGNOSTIC', JSON.stringify(diagnostic));
+    throw error;
+  }
   actions.push('history-edit');
 
   await page.goto(`${patientUrl}?tab=archives`, { waitUntil: 'networkidle', timeout: 90000 });
