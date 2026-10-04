@@ -10,17 +10,17 @@ export type StationFlowLanguage = 'fr' | 'ar' | 'en';
 
 const COPY = {
   fr: {
-    loadError: '__COPY_LOAD__',
-    arrivalError: '__COPY_ARRIVAL__',
-    arrived: '{copy.arrived}',
-    arrivedHint: '{copy.arrivedHint}',
-    identified: '{copy.identified}',
-    searching: '{copy.searching}',
-    retry: '{copy.retry}',
-    none: '{copy.none}',
-    notifying: '{copy.notifying}',
-    notified: '{copy.notified}',
-    notifyFailed: '{copy.notifyFailed}',
+    loadError: 'Impossible de vérifier les rendez-vous. Prévenez l’équipe d’accueil.',
+    arrivalError: 'Arrivée non confirmée. Prévenez l’équipe d’accueil.',
+    arrived: 'Arrivée confirmée',
+    arrivedHint: 'Le cabinet sait que vous êtes arrivé(e). Aucun numéro de file ni ordre de passage n’a été attribué.',
+    identified: 'Identité confirmée',
+    searching: 'Recherche de votre rendez-vous aujourd’hui…',
+    retry: 'Réessayer',
+    none: 'Aucun rendez-vous retrouvé aujourd’hui',
+    notifying: 'Prévenance de l’équipe d’accueil…',
+    notified: 'L’équipe d’accueil a été prévenue. La station ne crée pas automatiquement de rendez-vous.',
+    notifyFailed: 'Le signal n’a pas pu être transmis. Veuillez prévenir directement l’équipe d’accueil.',
     choose: 'Choisissez votre rendez-vous',
     yours: 'Votre rendez-vous',
     status: 'Statut',
@@ -113,7 +113,7 @@ export const StationAppointmentArrival = ({
       setStaffSignal('failed');
       setState('error');
     }
-  }, [sessionId]);
+  }, [copy.loadError, sessionId]);
 
   useEffect(() => { void load(); }, [load]);
 
