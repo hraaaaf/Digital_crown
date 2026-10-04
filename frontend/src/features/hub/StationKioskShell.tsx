@@ -170,7 +170,7 @@ export const StationKioskShell = ({
               {screen === 'home' ? copy.title : copy[ACTIONS.find((action) => action.id === screen)?.title ?? 'appointment']}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-relaxed text-text-muted sm:text-lg">
-              {screen === 'home' ? copy.subtitle : copy.building}
+              {screen === 'home' ? copy.subtitle : screen === 'appointment' ? copy.appointmentHint : copy.building}
             </p>
           </div>
 
