@@ -225,3 +225,22 @@ Correct target:
 6. Only then implement Ricketts UI/report/tracing.
 
 No merge. No deployment.
+
+
+## A1 supersession — 2026-10-04
+
+The A0 product labels `RICKETTS_COMPREHENSIVE_32_PROTOCOL_V1` and `RICKETTS_SIMPLIFIED_13_PROTOCOL_V1` are superseded as **scientific profile IDs** by the source-lock pass in:
+`docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md`.
+
+Reason:
+- official Facad material proves the vendor labels 32 F / 13 F and cites the 2009 Atlas;
+- the publicly indexed 2009 Atlas chapter itself describes **33 factors** in the complete analysis and a **12-factor** summary;
+- a separate Gregoret 1997 lineage supports a distinct **13-factor** summarized profile.
+
+Canonical source-qualified targets are therefore:
+- `RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1` — main complete profile;
+- `RICKETTS_GREGORET_1997_SUMMARIZED_13_PROTOCOL_V1` — main practical summary;
+- `RICKETTS_ATLAS_2009_SUMMARY_12_PROTOCOL_V1` — optional distinct summary;
+- Facad 32F/13F remain compatibility targets until their exact row membership is independently observed.
+
+This delta does not authorize code. `RICKETTS_SOURCE_LOCK` remains OPEN.
