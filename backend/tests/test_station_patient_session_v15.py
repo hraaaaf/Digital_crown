@@ -662,6 +662,10 @@ def test_no_appointment_staff_assistance_is_durable_idempotent_and_acknowledgeab
     db.commit()
     db.refresh(foreign)
 
+    # An unresolved request must survive a local-day rollover until staff explicitly acknowledges it.
+    requests[0].timestamp = datetime.now() - timedelta(days=1)
+    db.commit()
+
     feed = client.get("/api/workstation/staff-assistance", headers=headers)
     assert feed.status_code == 200, feed.text
     assert feed.json()["alerts"] == [{
