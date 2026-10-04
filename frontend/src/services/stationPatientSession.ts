@@ -23,6 +23,20 @@ export type StationPatientFallbackPayload = {
   lastName?: string;
 };
 
+export type StationAppointmentSummary = {
+  appointmentId: number;
+  datetimeStart: string;
+  durationMinutes: number;
+  schedulingType: 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY';
+  status: string;
+};
+
+export type StationTodayAppointments = {
+  status: 'none' | 'single' | 'multiple';
+  appointments: StationAppointmentSummary[];
+  staffActionRequired: boolean;
+};
+
 export const stationPatientSessionService = {
   async create(): Promise<StationPatientSessionCreated> {
     const { data } = await api.post<StationPatientSessionCreated>('/workstation/patient-session');
@@ -36,6 +50,16 @@ export const stationPatientSessionService = {
 
   async fallback(sessionId: string, payload: StationPatientFallbackPayload): Promise<{ status: 'identified'; sessionId: string; displayName: string }> {
     const { data } = await api.post(`/workstation/patient-session/${sessionId}/fallback`, payload);
+    return data;
+  },
+
+  async todayAppointments(sessionId: string): Promise<StationTodayAppointments> {
+    const { data } = await api.get<StationTodayAppointments>(`/workstation/patient-session/${sessionId}/appointments/today`);
+    return data;
+  },
+
+  async arrive(sessionId: string, appointmentId: number): Promise<{ status: 'ARRIVED'; appointmentId: number }> {
+    const { data } = await api.post(`/workstation/patient-session/${sessionId}/appointments/${appointmentId}/arrive`);
     return data;
   },
 
