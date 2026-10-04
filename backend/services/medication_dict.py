@@ -48,11 +48,11 @@ AMMPS_RMMG_SOURCE: Dict[str, Any] = {
 }
 
 AMMPS_CURRENT_SOURCE: Dict[str, Any] = {
-    "id": "ammps-medications-current-2026-09-15",
+    "id": "ammps-medications-current-2026-10-01",
     "label": "AMMPS — Base de données des médicaments, snapshot courant",
     "license": "non_specifiee",
     "source_url": "https://www.ammps.gov.ma/recherche-medicaments",
-    "snapshot_date": "2026-09-15",
+    "snapshot_date": "2026-10-01",
     "freshness": "current_snapshot",
     "current_marketing_status_verified": True,
 }
