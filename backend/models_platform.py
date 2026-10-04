@@ -87,6 +87,15 @@ class WorkstationPatientSession(Base):
     """Short-lived patient identity handoff bound to one registered Station."""
 
     __tablename__ = "workstation_patient_sessions"
+    __table_args__ = (
+        Index(
+            "uq_workstation_patient_sessions_one_active",
+            "workstation_id",
+            unique=True,
+            sqlite_where=text("purged_at IS NULL"),
+            postgresql_where=text("purged_at IS NULL"),
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
