@@ -202,6 +202,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     }, marker, { timeout: 30000 });
   } catch (error) {
     const actualTitle = await libreTitle.inputValue().catch(() => '<unavailable>');
+    await page.screenshot({
+      path: path.join(outDir, `g4-devis-history-${viewport.width}x${viewport.height}-history-edit-timeout.png`),
+      fullPage: false,
+      animations: 'disabled',
+    }).catch(() => {});
     throw new Error(`history edit hydration timeout: expected="${marker}" actual="${actualTitle}" url="${page.url()}" cause="${error instanceof Error ? error.message : String(error)}"`);
   }
   actions.push('history-edit');
