@@ -24,7 +24,7 @@ PATIENTS = (
         "date_naissance": datetime(1990, 1, 1),
         "sexe": "M",
         "telephone": "0600000000",
-        "email": "patient-0001@digitalcrown.invalid",
+        "email": "patient-0001@example.com",
         "assurance": "AUCUNE",
     },
     {
@@ -34,7 +34,7 @@ PATIENTS = (
         "date_naissance": datetime(1992, 2, 2),
         "sexe": "F",
         "telephone": "0611111111",
-        "email": "patient-0002@digitalcrown.invalid",
+        "email": "patient-0002@example.com",
         "assurance": "AUCUNE",
     },
     {
@@ -44,7 +44,7 @@ PATIENTS = (
         "date_naissance": datetime(1985, 3, 3),
         "sexe": "F",
         "telephone": "0622222222",
-        "email": "patient-0003@digitalcrown.invalid",
+        "email": "patient-0003@example.com",
         "assurance": "AUCUNE",
     },
     {
@@ -54,7 +54,7 @@ PATIENTS = (
         "date_naissance": datetime(1978, 4, 4),
         "sexe": "M",
         "telephone": "0633333333",
-        "email": "patient-0004@digitalcrown.invalid",
+        "email": "patient-0004@example.com",
         "assurance": "AUCUNE",
     },
     {
@@ -64,7 +64,7 @@ PATIENTS = (
         "date_naissance": datetime(2001, 5, 5),
         "sexe": "F",
         "telephone": "0644444444",
-        "email": "patient-0005@digitalcrown.invalid",
+        "email": "patient-0005@example.com",
         "assurance": "AUCUNE",
     },
 )
