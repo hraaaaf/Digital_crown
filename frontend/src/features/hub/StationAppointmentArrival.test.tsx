@@ -24,6 +24,15 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
   });
 
+  it('fails visibly and tells the visitor to contact reception when staff signaling fails', async () => {
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({ status: 'none', appointments: [], staffActionRequired: true });
+    vi.mocked(stationPatientSessionService.requestStaffAssistance).mockRejectedValue(new Error('offline'));
+    render(<StationAppointmentArrival sessionId="s-fail" displayName="Aya Audit" onLeave={vi.fn()} backLabel="Retour" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/signal n’a pas pu être transmis/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/prévenir directement l’équipe d’accueil/i);
+    expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
+  });
+
   it('preselects a single appointment and confirms explicitly', async () => {
     vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
       status: 'single', staffActionRequired: false,
