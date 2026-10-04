@@ -221,6 +221,9 @@ def _cabinet_config(db, owner):
 
 
 def test_fallback_phone_and_birth_date_identifies_without_exposing_arrival(client, db, dentiste):
+    config = _cabinet_config(db, dentiste)
+    config.station_identification_fallback = "phone_dob"
+    db.commit()
     headers, _ = _station(client, dentiste)
     patient = models.Patient(
         numero_dossier="ST03-FB-PHONE",
@@ -264,6 +267,9 @@ def test_fallback_phone_and_birth_date_identifies_without_exposing_arrival(clien
 
 
 def test_fallback_collision_fails_generically_and_locks_after_five_attempts(client, db, dentiste):
+    config = _cabinet_config(db, dentiste)
+    config.station_identification_fallback = "phone_dob"
+    db.commit()
     headers, _ = _station(client, dentiste)
     for dossier, name in (("ST03-COLLIDE-1", "Aya"), ("ST03-COLLIDE-2", "Nora")):
         db.add(models.Patient(
@@ -300,6 +306,9 @@ def test_fallback_collision_fails_generically_and_locks_after_five_attempts(clie
 
 
 def test_fallback_lock_survives_session_regeneration(client, db, dentiste):
+    config = _cabinet_config(db, dentiste)
+    config.station_identification_fallback = "phone_dob"
+    db.commit()
     headers, _ = _station(client, dentiste)
     patient = models.Patient(
         numero_dossier="ST03-REGEN-LOCK",
@@ -379,6 +388,25 @@ def test_fallback_mode_is_owner_pin_configurable_and_name_mode_normalizes_text(c
     )
     assert identified.status_code == 200, identified.text
     assert identified.json()["displayName"] == "Élodie Benmoussa"
+
+
+def test_fallback_invalid_config_fails_closed(client, db, dentiste):
+    config = _cabinet_config(db, dentiste)
+    config.station_identification_fallback = "unexpected"
+    db.commit()
+    headers, _ = _station(client, dentiste)
+
+    created = client.post("/api/workstation/patient-session", headers=headers)
+    assert created.status_code == 201, created.text
+    assert created.json()["fallbackMode"] == "disabled"
+
+    denied = client.post(
+        f"/api/workstation/patient-session/{created.json()['sessionId']}/fallback",
+        headers=headers,
+        json={"birthDate": "1992-05-04", "phone": "0612345678"},
+    )
+    assert denied.status_code == 403
+    assert denied.json()["detail"] == "STATION_FALLBACK_DISABLED"
 
 
 def test_fallback_can_be_disabled_by_cabinet(client, db, dentiste):
