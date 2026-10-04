@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarCheck2, CheckCircle2, Clock3, RefreshCw, Users } from 'lucide-react';
 import {
   stationPatientSessionService,
@@ -26,22 +26,35 @@ export const StationAppointmentArrival = ({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'arriving' | 'arrived' | 'error'>('loading');
   const [error, setError] = useState('');
+  const [staffSignal, setStaffSignal] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setState('loading'); setError('');
     try {
       const next = await stationPatientSessionService.todayAppointments(sessionId);
       setResult(next);
       setSelectedId(next.status === 'single' ? next.appointments[0]?.appointmentId ?? null : null);
+      if (next.status === 'none' && next.staffActionRequired) {
+        setStaffSignal('sending');
+        try {
+          const signal = await stationPatientSessionService.requestStaffAssistance(sessionId);
+          setStaffSignal(signal.status === 'STAFF_NOTIFIED' ? 'sent' : 'failed');
+        } catch {
+          setStaffSignal('failed');
+        }
+      } else {
+        setStaffSignal('idle');
+      }
       setState('ready');
     } catch {
       setResult(null); setSelectedId(null);
       setError('Impossible de vérifier les rendez-vous. Prévenez l’équipe d’accueil.');
+      setStaffSignal('failed');
       setState('error');
     }
-  };
+  }, [sessionId]);
 
-  useEffect(() => { void load(); }, [sessionId]);
+  useEffect(() => { void load(); }, [load]);
 
   const selected = useMemo(
     () => result?.appointments.find((item) => item.appointmentId === selectedId) ?? null,
@@ -93,7 +106,9 @@ export const StationAppointmentArrival = ({
             <Users className="mt-0.5 shrink-0 text-amber-700" size={20} aria-hidden="true" />
             <div>
               <p className="font-black text-amber-900">Aucun rendez-vous retrouvé aujourd’hui</p>
-              <p className="mt-2 text-sm font-semibold leading-relaxed text-amber-800">Veuillez prévenir l’équipe d’accueil. La station ne crée pas automatiquement de rendez-vous.</p>
+              {staffSignal === 'sending' && <p className="mt-2 text-sm font-semibold leading-relaxed text-amber-800">Prévenance de l’équipe d’accueil…</p>}
+              {staffSignal === 'sent' && <p data-station-staff-notified className="mt-2 text-sm font-semibold leading-relaxed text-amber-800">L’équipe d’accueil a été prévenue. La station ne crée pas automatiquement de rendez-vous.</p>}
+              {staffSignal === 'failed' && <p role="alert" className="mt-2 text-sm font-semibold leading-relaxed text-rose-700">Le signal n’a pas pu être transmis. Veuillez prévenir directement l’équipe d’accueil.</p>}
             </div>
           </div>
         </div>
