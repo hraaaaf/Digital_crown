@@ -452,6 +452,12 @@ def request_station_staff_assistance(
     if appointments:
         raise HTTPException(status_code=409, detail="STATION_STAFF_ASSISTANCE_NOT_REQUIRED")
 
+    # Serialize requests for one station session so the audit signal is truly one-shot.
+    db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == row.id,
+        models.WorkstationPatientSession.employer_id == workstation.employer_id,
+    ).with_for_update().one()
+
     existing = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == workstation.employer_id,
         models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
@@ -525,6 +531,12 @@ def acknowledge_station_staff_assistance(
     ).first()
     if requested is None:
         raise HTTPException(status_code=404, detail="STATION_STAFF_ASSISTANCE_NOT_FOUND")
+
+    # Serialize acknowledgements for this immutable request audit row.
+    requested = db.query(models.AuditLog).filter(
+        models.AuditLog.id == requested.id,
+        models.AuditLog.employer_id == employer_id,
+    ).with_for_update().one()
 
     existing = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == employer_id,
