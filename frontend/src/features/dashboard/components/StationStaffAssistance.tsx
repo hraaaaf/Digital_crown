@@ -8,13 +8,15 @@ import {
 export const StationStaffAssistance = ({ visible }: { visible: boolean }) => {
   const [alerts, setAlerts] = useState<StationStaffAssistanceAlert[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [feedError, setFeedError] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!visible) return;
     try {
       setAlerts(await stationStaffAssistanceService.list());
+      setFeedError(false);
     } catch {
-      // Fail closed visually: do not invent an alert when the staff feed is unavailable.
+      setFeedError(true);
     }
   }, [visible]);
 
@@ -38,17 +40,19 @@ export const StationStaffAssistance = ({ visible }: { visible: boolean }) => {
     }
   };
 
-  if (!visible || alerts.length === 0) return null;
+  if (!visible) return null;
+  if (alerts.length === 0 && !feedError) return null;
 
   return (
     <section data-station-staff-assistance role="status" className="rounded-elite-lg border border-amber-200 bg-amber-50 p-5 shadow-elite">
       <div className="flex items-start gap-3">
         <BellRing className="mt-0.5 shrink-0 text-amber-700" size={22} aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <h2 className="font-black text-amber-950">Assistance demandée à la station</h2>
-          <p className="mt-1 text-sm font-semibold text-amber-800">
+          <h2 className="font-black text-amber-950">{feedError && alerts.length === 0 ? 'Signal station indisponible' : 'Assistance demandée à la station'}</h2>
+          {feedError && <p role="alert" className="mt-1 text-sm font-bold text-rose-700">Impossible de vérifier les nouvelles demandes. Vérifiez directement la station.</p>}
+          {alerts.length > 0 && <p className="mt-1 text-sm font-semibold text-amber-800">
             {alerts.length === 1 ? 'Une personne identifiée' : `${alerts.length} personnes identifiées`} n’a pas de rendez-vous retrouvé aujourd’hui.
-          </p>
+          </p>}
           <div className="mt-4 grid gap-2">
             {alerts.map((alert) => (
               <div key={alert.alertId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white/80 px-4 py-3">
