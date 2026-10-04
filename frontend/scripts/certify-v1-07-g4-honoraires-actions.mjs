@@ -226,10 +226,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     const pdfFile = 'honoraires-before.pdf';
     fs.writeFileSync(path.join(outDir, pdfFile), pdfBytes);
 
-    const renderFile = 'honoraires-before-page1.png';\n\n    fs.writeFileSync(path.join(outDir, 'honoraires-before-metadata.json'), JSON.stringify({
+    const renderFile = 'honoraires-before-page1.png';
+
+    fs.writeFileSync(path.join(outDir, 'honoraires-before-metadata.json'), JSON.stringify({
       productHead: process.env.PRODUCT_HEAD || null,
       patientDossier: patient.numero_dossier,
-      sourcePdfUrl: previewPayload.pdf_url,\n      observedPdfResponseUrl: pdfResponse.url(),\n      contentType: pdfResponse.headers()['content-type'],
+      sourcePdfUrl: previewPayload.pdf_url,
+      observedPdfResponseUrl: pdfResponse.url(),
+      contentType: pdfResponse.headers()['content-type'],
       bytes: pdfBytes.length,
       signature: pdfBytes.subarray(0, 4).toString('ascii'),
       pdfFile,
@@ -388,7 +392,8 @@ await api.dispose();
 const expectedActionGroups = 14;
 if (!captureTreasuryGuardBeforeOnly) {
   for (const row of evidence) {
-    const expectedForViewport = expectedActionGroups + (row.viewport.width === 1280 ? 1 : 0);\n    if (row.actions.length !== expectedForViewport) throw new Error('Honoraires action-group count mismatch');
+    const expectedForViewport = expectedActionGroups + (row.viewport.width === 1280 ? 1 : 0);
+    if (row.actions.length !== expectedForViewport) throw new Error('Honoraires action-group count mismatch');
   }
 }
 
