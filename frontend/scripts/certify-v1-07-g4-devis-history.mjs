@@ -47,6 +47,9 @@ for (const scenario of devisScenarios) {
   fs.writeFileSync(path.join(devisGateDir, file), bytes);
   devisGateReport.scenarios.push({ id: scenario.id, rowCount: scenario.items.length, bytes: bytes.length, signature: bytes.subarray(0,4).toString('ascii'), pdfFile: file, expectedTotal: scenario.items.reduce((sum,item) => sum + item.prix_unitaire, 0) });
 }
+for (const scenario of devisGateReport.scenarios) {
+  if (scenario.signature !== '%PDF') throw new Error('devis gate ' + scenario.id + ' missing PDF signature');
+}
 fs.writeFileSync(path.join(devisGateDir, 'gate-matrix.json'), JSON.stringify(devisGateReport, null, 2));
 console.log('DEVIS_PDF_GATE_PASS', JSON.stringify(devisGateReport));
 
