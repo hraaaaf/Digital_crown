@@ -110,6 +110,11 @@ class AccountingGenerator:
             res += " Centime" if centimes <= 1 else " Centimes"
         return res
 
+    @staticmethod
+    def _format_mad_amount(amount):
+        """Format a MAD amount for French-language financial documents."""
+        return f"{float(amount):,.2f}".replace(",", " ").replace(".", ",")
+
     def _calculate_age(self, born):
         today = date.today()
         birth = born.date() if isinstance(born, datetime) else born
@@ -310,7 +315,7 @@ class AccountingGenerator:
                 dent_display = ', '.join(str(d) for d in p.dents)
             dent_text = str(dent_display)
             mode_text = str(getattr(p, 'mode_reglement', 'Espèces'))
-            amount_text = f"{p.montant:.2f}"
+            amount_text = self._format_mad_amount(p.montant)
             dent_style = self.base_template.get_adaptive_style(text_style, dent_text, dent_w - 0.22*cm, min_fs=readable_floor)
             mode_style = self.base_template.get_adaptive_style(text_style, mode_text, pay_w - 0.22*cm, min_fs=readable_floor)
             amount_style = self.base_template.get_adaptive_style(text_style, amount_text, hon_w - 0.22*cm, min_fs=readable_floor)
