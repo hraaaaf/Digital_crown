@@ -709,7 +709,7 @@ class CabinetConfig(Base):
     hide_header: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
     hide_footer: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
     station_identification_fallback: Mapped[str] = mapped_column(
-        String(24), default="phone_dob", server_default="phone_dob", nullable=False
+        String(24), default="disabled", server_default="disabled", nullable=False
     )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
