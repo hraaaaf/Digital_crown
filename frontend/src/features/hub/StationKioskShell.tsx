@@ -193,7 +193,7 @@ export const StationKioskShell = ({
               ))}
             </div>
           ) : screen === 'appointment' ? (
-            <StationPatientIdentity onBack={() => setScreen('home')} backLabel={copy.back} />
+            <StationPatientIdentity onBack={() => setScreen('home')} backLabel={copy.back} language={language} />
           ) : (
             <div className="mx-auto mt-9 w-full max-w-xl rounded-elite-lg border border-border-main bg-card-bg p-6 text-center shadow-elite sm:p-8">
               <button
