@@ -91,9 +91,9 @@ Used only for canonical mapping and executable/blocking status.
 - Unit: degrees.
 - Historical reference: 90° ± 3°.
 - Age behavior: no normal-growth adjustment in Gregoret summarized material.
-- LOT06: no exact canonical ID.
-- Runtime: **NEW_CANONICAL_ID_REQUIRED**.
-- Profile status: **SOURCE_LOCKED_MEANING / EXECUTION_MISSING**.
+- LOT06: `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1`.
+- Runtime: **EXECUTABLE** through `RICKETTS_MAXILLARY_DEPTH_CANONICAL_DEG_V2`.
+- Profile status: **SOURCE_LOCKED / EXECUTABLE**.
 
 ### 8. Lower incisor protrusion to A-Pog
 - Definition: perpendicular distance from the lower incisal edge to `A-Pog`.
@@ -111,9 +111,9 @@ Used only for canonical mapping and executable/blocking status.
 - Unit: degrees.
 - Historical reference: 22° ± 4°.
 - Age behavior: stable in summarized Gregoret material.
-- LOT06: no exact canonical ID.
-- Runtime: **NEW_CANONICAL_ID_REQUIRED**.
-- Profile status: **SOURCE_LOCKED_MEANING / EXECUTION_MISSING**.
+- LOT06: `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1`.
+- Runtime: **EXECUTABLE** through `RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2`.
+- Profile status: **SOURCE_LOCKED / EXECUTABLE**.
 
 ### 10. Upper first molar to PTV
 - Definition: linear distance from the distal surface of the upper first molar to pterygoid vertical.
@@ -156,10 +156,10 @@ Used only for canonical mapping and executable/blocking status.
 All **13/13 rows are composition-locked** to the Gregoret summarized profile.
 
 Execution status:
-- Exact executable now: 4 — facial depth, convexity, interincisal angle, lower lip/E-plane.
+- Exact executable now: 6 — facial depth, convexity, maxillary depth, L1/A-Pog inclination, interincisal angle, lower lip/E-plane.
 - Conditional executable: 1 — facial axis.
-- Existing canonical/primitive but identity or construction blocked: 4 — lower facial height, lower incisor/A-Pog distance, U6/PTV, mandibular plane nearest geometry.
-- New source-specific canonical IDs/contracts required: 4 — maxillary depth, lower incisor/A-Pog angle, lower-incisor extrusion, mandibular arc.
+- Existing canonical/primitive but identity or construction blocked: 4 — lower facial height, lower incisor/A-Pog distance, U6/PTV, mandibular plane.
+- New source-specific execution contracts still required: 2 — lower-incisor extrusion and mandibular arc.
 
 ## Normative gate
 
@@ -222,14 +222,27 @@ Therefore the **composition pre-code gate is closed**, while implementation rema
 
 Create the missing LOT06-compatible scientific contracts **without UI activation**:
 1. Ricketts mandibular-plane angle method/ID.
-2. Ricketts maxillary depth.
-3. Ricketts lower-incisor A-Pog angle.
-4. Ricketts lower-incisor extrusion to functional occlusal plane.
-5. Ricketts mandibular arc.
-6. Exact incisal-edge A-Pog distance variant binding.
-7. PTV + functional occlusal plane construction contracts.
-8. Xi/Pm/DC manual scientific identity contracts first; auto authority remains fail-closed.
+2. Exact incisal-edge A-Pog distance variant binding.
+3. Ricketts lower-incisor extrusion to functional occlusal plane.
+4. Ricketts mandibular arc.
+5. PTV + functional occlusal plane construction contracts.
+6. Xi/Pm/DC manual scientific identity contracts first; auto authority remains fail-closed.
+
+Already implemented and source-locked in this branch:
+- Ricketts maxillary depth.
+- Ricketts lower-incisor A-Pog inclination.
 
 Then tests → two fresh reviews → confirmation → only then UI/report/tracing.
 
 No merge. No deployment.
+
+
+## A3 execution synchronization — 2026-10-04
+
+Confirmation review detected and corrected a documentation/runtime contradiction:
+- Maxillary depth and L1/A-Pog inclination were already executable in code/profile/LOT06 contract but still described above as missing in the source-lock document.
+- The execution summary and Next exact have now been synchronized.
+
+This finding was **MAJOR** because stale scientific documentation could misstate canonical authority even when runtime behavior is correct.
+
+After this correction, prior confirmation confidence is invalidated until CI + two reviews + confirmation are rerun on the new HEAD.
