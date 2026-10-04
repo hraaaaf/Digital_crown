@@ -117,6 +117,11 @@ try {
           contentType: 'application/json',
           body: JSON.stringify(registry),
         }));
+        await context.route('**/api/workstation/patient-session/config', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ fallbackMode: 'disabled' }),
+        }));
         await context.route('**/api/workstation/pairing-code', route => route.fulfill({
           status: 200,
           contentType: 'application/json',
