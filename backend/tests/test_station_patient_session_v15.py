@@ -299,6 +299,41 @@ def test_fallback_collision_fails_generically_and_locks_after_five_attempts(clie
     assert row.claimed_at is None
 
 
+def test_fallback_lock_survives_session_regeneration(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    patient = models.Patient(
+        numero_dossier="ST03-REGEN-LOCK",
+        nom="Target",
+        prenom="Nora",
+        date_naissance=datetime(1991, 7, 8),
+        sexe="F",
+        employer_id=dentiste.id,
+        telephone="0611223344",
+    )
+    db.add(patient)
+    db.commit()
+
+    for attempt in range(1, 6):
+        created = client.post("/api/workstation/patient-session", headers=headers)
+        assert created.status_code == 201, created.text
+        response = client.post(
+            f"/api/workstation/patient-session/{created.json()['sessionId']}/fallback",
+            headers=headers,
+            json={"birthDate": "1991-07-08", "phone": "0699999999"},
+        )
+        assert response.status_code == (429 if attempt == 5 else 403), response.text
+
+    regenerated = client.post("/api/workstation/patient-session", headers=headers)
+    assert regenerated.status_code == 201, regenerated.text
+    locked = client.post(
+        f"/api/workstation/patient-session/{regenerated.json()['sessionId']}/fallback",
+        headers=headers,
+        json={"birthDate": "1991-07-08", "phone": "0611223344"},
+    )
+    assert locked.status_code == 429
+    assert locked.json()["detail"] == "STATION_FALLBACK_LOCKED"
+
+
 def test_fallback_mode_is_owner_pin_configurable_and_name_mode_normalizes_text(client, db, dentiste):
     config = _cabinet_config(db, dentiste)
     config.station_identification_fallback = "phone_dob"
