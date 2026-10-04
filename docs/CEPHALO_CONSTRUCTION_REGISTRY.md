@@ -190,12 +190,12 @@ These constructions extend the LOT06 deterministic authority without activating 
 - `STEINER_L1_DLINE_ANGULAR_1959_V1` ? lower-incisor long axis vs D-line orientation; explicit Steiner D remains an evidence dependency even though line orientation is determined by Go-Gn.
 
 
-## RICKETTS_PTV_PT_RICKETTS_PERP_FH_V1
+## RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1
 
 - Purpose: Ricketts pterygoid vertical construction for upper-molar position.
-- Required landmarks: `Pt_Ricketts`, `Po_anatomic`, `Or`.
-- Rule: infinite line through `Pt_Ricketts`, perpendicular to anatomical Frankfort `Po_anatomic-Or`.
+- Required landmarks: `PR_Ricketts_PTV`, `Po_anatomic`, `Or`.
+- Rule: infinite line through `PR_Ricketts_PTV`, perpendicular to anatomical Frankfort `Po_anatomic-Or`.
 - Coordinate space: source-image pixels.
 - Evidence gate: all identities available from one source image; degenerate Frankfort => INVALID.
-- Forbidden alias: generic `PT_point` must not be promoted by name.
+- Forbidden alias: generic `PT_point`, `Ptm`, and facial-axis `Pt_Ricketts` must not be promoted by name.
 - Downstream measurement `M_U6_PTV_MM_V1` remains blocked until exact `U6_distal` authority exists.
