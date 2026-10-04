@@ -1,5 +1,8 @@
 from datetime import datetime, timedelta
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from backend import models
 from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
 from backend.routers.patient_companion_common import create_patient_device_token
@@ -87,6 +90,24 @@ def test_station_patient_session_is_station_bound_opaque_and_short_lived(client,
     status = client.get(f"/api/workstation/patient-session/{row.id}", headers=headers)
     assert status.status_code == 200
     assert status.json()["status"] == "pending"
+
+
+def test_station_patient_session_db_enforces_single_active_session(client, db, dentiste):
+    headers, workstation_id = _station(client, dentiste)
+    created = client.post("/api/workstation/patient-session", headers=headers)
+    assert created.status_code == 201, created.text
+
+    duplicate = models.WorkstationPatientSession(
+        employer_id=dentiste.id,
+        workstation_id=workstation_id,
+        claim_token_hash="f" * 64,
+        created_at=datetime.utcnow(),
+        expires_at=datetime.utcnow() + timedelta(seconds=120),
+    )
+    db.add(duplicate)
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
 
 
 def test_patient_companion_claim_is_atomic_one_shot_and_purgeable(client, db, dentiste):
