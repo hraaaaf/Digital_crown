@@ -78,7 +78,7 @@ jobs:
           import fs from 'node:fs/promises';
           const output=process.env.OUTPUT_DIR||'visual-artifacts'; await fs.mkdir(output,{recursive:true});
           const fixtures={
-            '/api/workstation/staff-assistance':[],
+            '/api/workstation/staff-assistance':{alerts:[]},
             '/api/admin/dashboard/stats':{total_patients:184,total_analyses:326,in_waiting:2,weekly_activity:[38,55,47,72,61,84,66],weekly_patient_counts:[4,7,5,9,6,10,8],weekly_patients:49,recent_patients:[{id:101,nom:'EL AMRANI',prenom:'Sara',acte:'Consultation',time:'09:20',type:'patient'},{id:102,nom:'BENALI',prenom:'Youssef',acte:'Contrôle',time:'10:05',type:'patient'},{id:103,nom:'TAZI',prenom:'Meryem',acte:'Détartrage',time:'11:30',type:'patient'}]},
             '/api/admin/cabinet/me':{header_lines_fr:['Dr Visual Cert']},
             '/api/intelligence/alerts/today':{alerts:[{id:1,patient_id:101,nom:'EL AMRANI',prenom:'Sara',type:'followup',title:'Contrôle à planifier',message:'',action:'Contacter la patiente',priority:2}]},
