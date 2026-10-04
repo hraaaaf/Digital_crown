@@ -504,6 +504,7 @@ def list_station_staff_assistance(
     requests = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == employer_id,
         models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.resource_type == "WorkstationPatientSession",
     ).order_by(models.AuditLog.timestamp.asc(), models.AuditLog.id.asc()).all()
     if not requests:
         response.headers["Cache-Control"] = "no-store"
@@ -543,6 +544,7 @@ def acknowledge_station_staff_assistance(
         models.AuditLog.id == alert_id,
         models.AuditLog.employer_id == employer_id,
         models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.resource_type == "WorkstationPatientSession",
     ).first()
     if requested is None:
         if sqlite:
