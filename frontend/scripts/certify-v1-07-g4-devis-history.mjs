@@ -18,6 +18,7 @@ if (!patientsResponse.ok()) throw new Error('patients failed');
 const patient = (await patientsResponse.json()).find(row => row.numero_dossier === 'T2-0001');
 if (!patient) throw new Error('fixture patient missing');
 
+// Canonical synthetic Devis PDF human-review gate.
 const devisGateDir = path.resolve('../artifacts/t2-browser/devis-pdf-gate');
 fs.mkdirSync(devisGateDir, { recursive: true });
 const longDevisA = 'Réhabilitation prothétique complexe avec préparation périphérique atraumatique, empreinte de précision, contrôle occlusal dynamique et ajustements fonctionnels successifs';
