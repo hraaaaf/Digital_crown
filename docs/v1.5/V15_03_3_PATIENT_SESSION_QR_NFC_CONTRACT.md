@@ -13,7 +13,7 @@ Identify a patient on one registered Station through a short-lived, one-shot han
 7. Expiry or explicit purge clears patient/access references.
 8. Creating a new session purges any prior non-purged session for that Station.
 9. The Station never receives Patient Companion access tokens.
-10. A cabinet may configure fallback as phone + birth date, name + birth date, or disabled.
+10. A cabinet may configure fallback as phone + birth date, name + birth date, or disabled; fallback is disabled by default until explicitly enabled.
 11. Fallback matching is tenant-scoped, requires exactly one active patient match, emits only generic failure responses, and locks Station fallback after five failed attempts within a rolling 15-minute window, including across regenerated sessions.
 12. Fallback credentials are never written to audit logs; only the selected mode is recorded on successful identification.
 13. Patient Companion deep-link claim requires explicit context selection when several patient contexts exist on the phone.
