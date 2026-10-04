@@ -1,0 +1,86 @@
+{
+  "clinical_detail": {
+    "ANB": {
+      "decision": "FAIL",
+      "eligible_n": 129,
+      "not_computable_count": 0,
+      "p95_abs": 4.699272749996128,
+      "signed_bias": 1.2507772502481718,
+      "tolerance": 1.0771932600248784,
+      "valid_n": 129
+    },
+    "Co-A": {
+      "decision": "FAIL",
+      "eligible_n": 129,
+      "not_computable_count": 0,
+      "p95_abs": 6.259116659915602,
+      "signed_bias": 2.0258290431959862,
+      "tolerance": 1.450271131616148,
+      "valid_n": 129
+    },
+    "Co-Gn": {
+      "decision": "FAIL",
+      "eligible_n": 132,
+      "not_computable_count": 0,
+      "p95_abs": 5.110257940802912,
+      "signed_bias": 1.07896442634685,
+      "tolerance": 1.3207334508174582,
+      "valid_n": 132
+    },
+    "FMA": {
+      "decision": "FAIL",
+      "eligible_n": 83,
+      "not_computable_count": 0,
+      "p95_abs": 5.5561257250032385,
+      "signed_bias": 2.4550898693039525,
+      "tolerance": 2.2455624753832857,
+      "valid_n": 83
+    },
+    "FMIA": {
+      "decision": "FAIL",
+      "eligible_n": 95,
+      "not_computable_count": 0,
+      "p95_abs": 9.576899805387592,
+      "signed_bias": 0.7557464515404037,
+      "tolerance": 3.964632131510949,
+      "valid_n": 95
+    },
+    "IMPA": {
+      "decision": "FAIL",
+      "eligible_n": 102,
+      "not_computable_count": 0,
+      "p95_abs": 9.141042517156396,
+      "signed_bias": 0.5944969862238051,
+      "tolerance": 3.734074175863931,
+      "valid_n": 102
+    },
+    "SN-GoGn": {
+      "decision": "FAIL",
+      "eligible_n": 115,
+      "not_computable_count": 0,
+      "p95_abs": 6.977299466928088,
+      "signed_bias": 0.2130173505179548,
+      "tolerance": 2.2679704188558008,
+      "valid_n": 115
+    },
+    "SNA": {
+      "decision": "FAIL",
+      "eligible_n": 138,
+      "not_computable_count": 0,
+      "p95_abs": 7.0502360037428575,
+      "signed_bias": 0.7017307453701711,
+      "tolerance": 1.4764091546046298,
+      "valid_n": 138
+    },
+    "SNB": {
+      "decision": "FAIL",
+      "eligible_n": 135,
+      "not_computable_count": 0,
+      "p95_abs": 5.492760934166796,
+      "signed_bias": -0.6724942750219766,
+      "tolerance": 1.2619791879778826,
+      "valid_n": 135
+    }
+  },
+  "source_results_sha256": "673c12d234cffa43661e3658ee84681f081284f77865094d2733df97ff6bc700"
+}

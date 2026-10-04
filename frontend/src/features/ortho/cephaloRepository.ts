@@ -63,6 +63,16 @@ export const cephaloRepository = {
   },
 
   /**
+   * Exporte le snapshot canonique du Workbench.
+   * Le payload client ne transporte que l'état de présentation LOT07;
+   * le backend résout toute l'autorité scientifique depuis LOT06.
+   */
+  async exportWorkbench(analysisId: number, presentationState: unknown) {
+    const res = await api.post(`/ia/analyses/${analysisId}/ortho-workbench-export`, presentationState);
+    return res.data;
+  },
+
+  /**
    * Génère le rapport PDF complet.
    */
   async generatePDF(patientId: number | string, payload: any) {

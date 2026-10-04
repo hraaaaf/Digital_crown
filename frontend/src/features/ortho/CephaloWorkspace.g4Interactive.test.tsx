@@ -24,6 +24,7 @@ const state = vi.hoisted(() => ({
   setAnalysisId: vi.fn(),
   setImageSrc: vi.fn(),
   setLocal: vi.fn(),
+  setLandmarkEditBaseline: vi.fn(),
   setAnglesData: vi.fn(),
   setVisionMetadata: vi.fn(),
   setIsCalibrated: vi.fn(),
@@ -170,6 +171,7 @@ describe('CephaloWorkspace G4 shell matrix',()=>{
     expect(state.setAnalysisId).toHaveBeenCalledWith(42);
     expect(state.setImageSrc).toHaveBeenCalledWith('http://api.test/ceph/42.png');
     expect(state.setLocal).toHaveBeenCalledWith(expect.objectContaining({landmarks:[{id:'S',x:1,y:2}]}));
+    expect(state.setLandmarkEditBaseline).toHaveBeenCalledWith([{id:'S',x:1,y:2}]);
     expect(state.setAnglesData).toHaveBeenCalledWith(expect.objectContaining({SNA:82,__calibrationData:{mm_per_pixel:0.1}}));
     expect(state.setVisionMetadata).toHaveBeenCalledWith({model:'onnx'});
     expect(state.setIsCalibrated).toHaveBeenCalledWith(true);

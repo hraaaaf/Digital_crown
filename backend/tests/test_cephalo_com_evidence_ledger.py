@@ -49,22 +49,23 @@ def test_every_debt_has_explicit_blocker_and_next_exact():
         assert item.state in set(ComEvidenceState)
 
 
-def test_tweed_impa_numeric_evidence_is_source_locked_but_geometry_blocked():
+def test_tweed_impa_numeric_evidence_uses_selected_dc_contract_without_norm_activation():
     item = COM_EVIDENCE_DEBT_BY_ID["COM_IMPA_90_PM5"]
-    assert item.state == ComEvidenceState.SOURCE_LOCKED_CONSTRUCTION_BLOCKED
+    assert item.state == ComEvidenceState.SOURCE_LOCKED_SELECTED_DC_CONTRACT_AVAILABLE
     assert item.source_ids == ("TWEED_1954_FMIA",)
-    assert item.construction_gate == "TWEED_MANDIBULAR_PLANE_EXACT_REQUIRED"
-    assert "Go-Me/Go-Gn" in item.blocker
-    assert "generic Po-Or" in item.blocker
+    assert item.construction_gate == "DC_TWEED_ANATOMICAL_FH_VARIANT"
+    assert "Raw IMPA is available" in item.blocker
+    assert "classification" in item.next_exact
     assert COM_SOURCE_INDEX["TWEED_1954_FMIA"]["source_level"] == "PRIMARY"
 
 
-def test_tweed_compensation_is_dynamic_rule_not_fake_fixed_norm():
+def test_tweed_compensation_is_dynamic_historical_context_not_runtime_classification():
     item = COM_EVIDENCE_DEBT_BY_ID["COM_IMPA_DYNAMIC_COMPENSATION"]
-    assert item.state == ComEvidenceState.SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED
+    assert item.state == ComEvidenceState.SOURCE_LOCKED_RULE_REFERENCE_ONLY_SELECTED_DC_CONTRACT
     assert "dynamic rule" in item.historical_value
     assert "80-100" in item.historical_value
-    assert "FMA 35 -> IMPA 80" in item.next_exact
+    assert item.construction_gate == "DC_TWEED_ANATOMICAL_FH_VARIANT"
+    assert "runtime classification stays inactive" in item.next_exact
 
 
 def test_ricketts_fma_has_source_locked_v2_geometry_without_norm_activation():

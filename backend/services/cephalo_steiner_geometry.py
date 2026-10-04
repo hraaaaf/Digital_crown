@@ -111,3 +111,90 @@ def steiner_sn_mp_deg_v1(
 ) -> Optional[float]:
     """Smallest angle between Steiner's SN reference and mandibular plane Go-Gn."""
     return _axis_angle_deg(sella, nasion, gonion, gnathion)
+
+
+def _point_line_distance_mm_v1(
+    point: Optional[Point], line_a: Optional[Point], line_b: Optional[Point],
+    mm_per_pixel: Optional[float],
+) -> Optional[float]:
+    """Unsigned perpendicular point-to-infinite-line distance in mm."""
+    if point is None or line_a is None or line_b is None or mm_per_pixel is None:
+        return None
+    if not math.isfinite(mm_per_pixel) or mm_per_pixel <= 0:
+        return None
+    dx=line_b[0]-line_a[0]; dy=line_b[1]-line_a[1]
+    den=math.hypot(dx,dy)
+    if not math.isfinite(den) or den <= _EPS:
+        return None
+    num=abs(dy*point[0]-dx*point[1]+line_b[0]*line_a[1]-line_b[1]*line_a[0])
+    value=(num/den)*mm_per_pixel
+    return value if math.isfinite(value) else None
+
+
+def steiner_u1_na_mm_v1(u1_facial_surface: Optional[Point], nasion: Optional[Point],
+                         point_a: Optional[Point], mm_per_pixel: Optional[float]) -> Optional[float]:
+    """Steiner linear U1-to-NA using an explicit facial crown-surface point."""
+    return _point_line_distance_mm_v1(u1_facial_surface,nasion,point_a,mm_per_pixel)
+
+
+def steiner_l1_nb_mm_v1(l1_facial_surface: Optional[Point], nasion: Optional[Point],
+                         point_b: Optional[Point], mm_per_pixel: Optional[float]) -> Optional[float]:
+    """Steiner linear L1-to-NB using an explicit facial crown-surface point."""
+    return _point_line_distance_mm_v1(l1_facial_surface,nasion,point_b,mm_per_pixel)
+
+
+def steiner_pog_nb_mm_v1(pogonion: Optional[Point], nasion: Optional[Point],
+                          point_b: Optional[Point], mm_per_pixel: Optional[float]) -> Optional[float]:
+    """Perpendicular Pog-to-NB distance for the Steiner/Holdaway relationship."""
+    return _point_line_distance_mm_v1(pogonion,nasion,point_b,mm_per_pixel)
+
+
+def steiner_l1_gogn_deg_v1(l1_apex: Optional[Point], l1_incisal: Optional[Point],
+                            gonion: Optional[Point], gnathion: Optional[Point]) -> Optional[float]:
+    """Smallest angle between the lower-incisor axis and Steiner Go-Gn."""
+    return _axis_angle_deg(l1_apex,l1_incisal,gonion,gnathion)
+
+
+def steiner_occlusal_sn_deg_v1(sella: Optional[Point], nasion: Optional[Point],
+                                occ_ant: Optional[Point], occ_post: Optional[Point]) -> Optional[float]:
+    """Angle between SN and explicit Steiner-1953 occlusal-plane anchors."""
+    return _axis_angle_deg(sella,nasion,occ_ant,occ_post)
+
+
+def steiner_snd_deg_v1(sella: Optional[Point], nasion: Optional[Point],
+                        d_steiner_1959: Optional[Point]) -> Optional[float]:
+    """SND at N using an explicit Steiner-1959 D identity."""
+    return _ray_angle_deg(nasion,sella,nasion,d_steiner_1959)
+
+
+def steiner_l1_dline_mm_v1(l1_facial_surface: Optional[Point], d_steiner_1959: Optional[Point],
+                            gonion: Optional[Point], gnathion: Optional[Point],
+                            mm_per_pixel: Optional[float]) -> Optional[float]:
+    """Distance from L1 facial crown point to Steiner D-line (D perpendicular to Go-Gn)."""
+    if None in (l1_facial_surface,d_steiner_1959,gonion,gnathion) or mm_per_pixel is None:
+        return None
+    assert l1_facial_surface and d_steiner_1959 and gonion and gnathion
+    dx=gnathion[0]-gonion[0]; dy=gnathion[1]-gonion[1]
+    den=math.hypot(dx,dy)
+    if not math.isfinite(den) or den <= _EPS:
+        return None
+    # D-line direction is perpendicular to Go-Gn; distance to D-line equals
+    # absolute projection of (L1-D) along Go-Gn.
+    ux,uy=dx/den,dy/den
+    px=l1_facial_surface[0]-d_steiner_1959[0]; py=l1_facial_surface[1]-d_steiner_1959[1]
+    if not math.isfinite(mm_per_pixel) or mm_per_pixel <= 0:
+        return None
+    value=abs(px*ux+py*uy)*mm_per_pixel
+    return value if math.isfinite(value) else None
+
+
+def steiner_l1_dline_deg_v1(l1_apex: Optional[Point], l1_incisal: Optional[Point],
+                             gonion: Optional[Point], gnathion: Optional[Point]) -> Optional[float]:
+    """Smallest angle between L1 axis and D-line (perpendicular to Go-Gn)."""
+    if gonion is None or gnathion is None:
+        return None
+    dx=gnathion[0]-gonion[0]; dy=gnathion[1]-gonion[1]
+    if not all(math.isfinite(v) for v in (dx,dy)) or math.hypot(dx,dy) <= _EPS:
+        return None
+    d0=(0.0,0.0); d1=(-dy,dx)
+    return _axis_angle_deg(l1_apex,l1_incisal,d0,d1)

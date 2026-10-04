@@ -58,7 +58,9 @@ Le runtime refuse :
 
 Une fois ces gates satisfaits, Digital Crown peut produire **le FMA brut en degrés seulement**. La référence historique `26±4° à 9 ans`, sa règle d'âge et toute classification patient restent séparées et inactives dans ce lot.
 
-## TWEED — GATE SOURCE-EXACT MAINTENU
+## TWEED — GATE SOURCE-EXACT HISTORIQUE (SUPERCÉDÉ POUR LE PRODUIT)
+
+> **Mise à jour canonique 2026-10-03.** Ce gate reste valable uniquement pour toute revendication de reproduction **stricte** du Tweed 1954. Il ne bloque plus le profil produit Digital Crown : la décision clinique du 2026-09-15 a sélectionné et versionné `DC_TWEED_ANATOMICAL_FH_VARIANT = Po_anatomic-Or` avec `TWEED_DC_MP_GO_ME_V1 = Go-Me`. Cette variante doit être nommée comme telle et ne peut hériter silencieusement des normes historiques de la géométrie stricte 1954.
 
 La littérature Tweed décrit le plan mandibulaire comme une **tangente au bord inférieur de la mandibule**, et non comme un simple segment Go-Me. Des descriptions de la méthode précisent une construction passant antérieurement par Menton et tangentant/postérieurement le bord inférieur dans la région goniale.
 
@@ -69,8 +71,8 @@ Décision :
 - `Go-Me` reste interdit comme « Tweed exact » ;
 - `Go-Gn` reste interdit comme « Tweed exact » ;
 - le `Po-Or` Digital Crown générique n'est pas déclaré source-exact Tweed ;
-- IMPA `90±5°` et la règle dynamique Tweed restent source-lockés numériquement mais géométriquement bloqués ;
-- prochaine fermeture : contrat de tracing manuel/audité dédié au Frankfort historique et à la tangente basilaire Tweed.
+- IMPA `90±5°` et la règle dynamique Tweed restent source-lockés **comme contexte historique uniquement** ; ils ne reçoivent aucune autorité de classification sur la variante DC ;
+- le contrat strict historique reste documenté et non sélectionné ; il n'est plus un blocker produit tant que Digital Crown ne revendique pas l'équivalence stricte.
 
 Sources primaires verrouillées pour le gate Tweed :
 
@@ -89,20 +91,20 @@ Sources primaires verrouillées pour le gate Tweed :
 - axes dégénérés/non finis ;
 - invariance de l'angle de ligne à l'orientation des vecteurs ;
 - production du FMA brut sans classification ;
-- maintien du blocker Tweed et interdiction des substitutions.
+- maintien de l'interdiction d'équivalence stricte Tweed 1954, tout en validant le contrat produit DC sélectionné séparément.
 
 ## ÉTAT APRÈS CE LOT
 
 - Ricketts FMA : `SOURCE_LOCKED_MANUAL_CONSTRUCTION_AVAILABLE`, uniquement via le contrat V2 source-spécifique ;
-- Tweed IMPA/FMA : `SOURCE_LOCKED_CONSTRUCTION_BLOCKED` / `SOURCE_LOCKED_RULE_CONSTRUCTION_BLOCKED` ;
+- Tweed IMPA/FMA produit DC : `SOURCE_LOCKED_SELECTED_DC_CONTRACT_AVAILABLE` ; compensation historique : `SOURCE_LOCKED_RULE_REFERENCE_ONLY_SELECTED_DC_CONTRACT` ;
 - `patient_classification_references()` : doit rester vide ;
 - aucune mesure supprimée ;
 - aucune approximation silencieuse.
 
 ## NEXT EXACT
 
-1. aligner le ledger COM sur le contrat Ricketts V2 ;
-2. certifier le chemin Ricketts exact-head CI/T2 ;
-3. verrouiller un contrat de tracing source-spécifique Tweed, ou documenter l'impossibilité image-par-image lorsque le repère historique requis n'est pas observable ;
-4. seulement après source + géométrie + contexte + tests, évaluer séparément l'activation normative ;
+1. conserver Ricketts V2 séparé de Tweed ;
+2. exposer Tweed uniquement via `DC_TWEED_ANATOMICAL_FH_VARIANT` et les identités canoniques LOT06 ;
+3. conserver `TWEED_1954_STRICT_EAR_ROD_FH` comme variante historique non sélectionnée, sans équivalence silencieuse ;
+4. maintenir normes/règles historiques hors classification runtime jusqu'à validation dédiée de compatibilité/applicabilité ;
 5. poursuivre la récupération primaire U1-FH et CRANIOM sans mélanger leurs conventions.

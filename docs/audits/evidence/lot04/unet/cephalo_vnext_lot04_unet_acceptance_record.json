@@ -1,0 +1,1858 @@
+{
+  "candidate_model_sha256": "b391e7925522185f993a88048ca7ace2d209ae0864116bdd255660f7a993eb71",
+  "clinical_measurements": [
+    {
+      "absolute_error": 79.63643683276081,
+      "decision": "FAIL",
+      "measurement_id": "SNA",
+      "n": 137,
+      "signed_bias": -14.482592269984842
+    },
+    {
+      "absolute_error": 83.81954228996271,
+      "decision": "FAIL",
+      "measurement_id": "SNB",
+      "n": 127,
+      "signed_bias": -4.432616534188726
+    },
+    {
+      "absolute_error": 101.69320362390255,
+      "decision": "FAIL",
+      "measurement_id": "ANB",
+      "n": 121,
+      "signed_bias": -11.884598751499944
+    },
+    {
+      "absolute_error": 62.75230523302577,
+      "decision": "FAIL",
+      "measurement_id": "FMA",
+      "n": 83,
+      "signed_bias": 20.538824220698636
+    },
+    {
+      "absolute_error": 74.00525189325852,
+      "decision": "FAIL",
+      "measurement_id": "IMPA",
+      "n": 102,
+      "signed_bias": -25.244419923612394
+    },
+    {
+      "absolute_error": 53.32439471196899,
+      "decision": "FAIL",
+      "measurement_id": "FMIA",
+      "n": 95,
+      "signed_bias": -12.956083163390437
+    },
+    {
+      "absolute_error": 56.09242893091596,
+      "decision": "FAIL",
+      "measurement_id": "SN-GoGn",
+      "n": 115,
+      "signed_bias": 11.644540564330875
+    },
+    {
+      "absolute_error": 95.95126572193912,
+      "decision": "FAIL",
+      "measurement_id": "Co-A",
+      "n": 129,
+      "signed_bias": 4.654960515503112
+    },
+    {
+      "absolute_error": 104.65833408598348,
+      "decision": "FAIL",
+      "measurement_id": "Co-Gn",
+      "n": 132,
+      "signed_bias": -16.751928998271257
+    }
+  ],
+  "decision_reasons": [
+    "REFERENCE_EQUIVALENCE_V1 applied without post-result retuning",
+    "Device policy: n>=59 hard p95 gate; n<59 descriptive only; no post-hoc pooling",
+    "Only anatomy-compatible Aariz mappings scored",
+    "Later human-review and clinical-validation gates remain mandatory"
+  ],
+  "device_strata": [
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.2972652755088667,
+      "landmark_id": "A",
+      "n": 49,
+      "p95_mm": 119.4832996807679
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.7099656583419731,
+      "landmark_id": "A",
+      "n": 21,
+      "p95_mm": 6.025699370702622
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.011935274609992,
+      "landmark_id": "A",
+      "n": 6,
+      "p95_mm": 79.49563867132842
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.0200124484349393,
+      "landmark_id": "A",
+      "n": 20,
+      "p95_mm": 57.49333981156531
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.0990954596270077,
+      "landmark_id": "A",
+      "n": 12,
+      "p95_mm": 111.33222219554094
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.8807637359535658,
+      "landmark_id": "A",
+      "n": 9,
+      "p95_mm": 2.085967586986469
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.0966713272444029,
+      "landmark_id": "A",
+      "n": 26,
+      "p95_mm": 89.4063171703642
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.2003676073131953,
+      "landmark_id": "ANS",
+      "n": 50,
+      "p95_mm": 148.96761747425145
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.2085826289317536,
+      "landmark_id": "ANS",
+      "n": 20,
+      "p95_mm": 10.892885817448805
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.112,
+      "landmark_id": "ANS",
+      "n": 6,
+      "p95_mm": 195.30861518348007
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.7443090943908652,
+      "landmark_id": "ANS",
+      "n": 18,
+      "p95_mm": 21.254600565840455
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 8.28232774311105,
+      "landmark_id": "ANS",
+      "n": 10,
+      "p95_mm": 126.97651541046409
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.5083095189484526,
+      "landmark_id": "ANS",
+      "n": 9,
+      "p95_mm": 15.40249338820672
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.160965115754991,
+      "landmark_id": "ANS",
+      "n": 26,
+      "p95_mm": 117.42780995279216
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.4728519832893707,
+      "landmark_id": "Ar",
+      "n": 45,
+      "p95_mm": 107.12308732670388
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.7413625057130876,
+      "landmark_id": "Ar",
+      "n": 21,
+      "p95_mm": 21.47492353936729
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.554067244362354,
+      "landmark_id": "Ar",
+      "n": 5,
+      "p95_mm": 117.62097750620998
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.3900000000000001,
+      "landmark_id": "Ar",
+      "n": 19,
+      "p95_mm": 103.28160132829206
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 6.306110983682309,
+      "landmark_id": "Ar",
+      "n": 7,
+      "p95_mm": 100.59916612356291
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.4123105625617661,
+      "landmark_id": "Ar",
+      "n": 9,
+      "p95_mm": 18.153913826264922
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.137231646700023,
+      "landmark_id": "Ar",
+      "n": 26,
+      "p95_mm": 60.37648804919033
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.3016296649832007,
+      "landmark_id": "B",
+      "n": 53,
+      "p95_mm": 139.36106764615826
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.169592812493676,
+      "landmark_id": "B",
+      "n": 20,
+      "p95_mm": 30.763283436341755
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.427530638323644,
+      "landmark_id": "B",
+      "n": 6,
+      "p95_mm": 167.24188356514568
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.5476392401681034,
+      "landmark_id": "B",
+      "n": 14,
+      "p95_mm": 92.37702928254376
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.917670401182532,
+      "landmark_id": "B",
+      "n": 11,
+      "p95_mm": 87.38402555249883
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.4022156324197554,
+      "landmark_id": "B",
+      "n": 9,
+      "p95_mm": 24.061165718732067
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.029262297867975,
+      "landmark_id": "B",
+      "n": 25,
+      "p95_mm": 83.41504615029075
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.8856127205741804,
+      "landmark_id": "Co",
+      "n": 46,
+      "p95_mm": 121.69627567428262
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.5033991576178933,
+      "landmark_id": "Co",
+      "n": 20,
+      "p95_mm": 7.3775735458927265
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.3900000000000001,
+      "landmark_id": "Co",
+      "n": 6,
+      "p95_mm": 124.7378505330312
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.9642320429806794,
+      "landmark_id": "Co",
+      "n": 20,
+      "p95_mm": 134.05313166316142
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 6.0511196503187685,
+      "landmark_id": "Co",
+      "n": 8,
+      "p95_mm": 123.8964542997504
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.6138470100136804,
+      "landmark_id": "Co",
+      "n": 8,
+      "p95_mm": 2.9567529465341877
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.6138099598106397,
+      "landmark_id": "Co",
+      "n": 26,
+      "p95_mm": 17.305461962939866
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.4317821063276355,
+      "landmark_id": "Gn",
+      "n": 55,
+      "p95_mm": 132.33669480743924
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.7624375340261088,
+      "landmark_id": "Gn",
+      "n": 21,
+      "p95_mm": 1.1712247668451978
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.1794541110191612,
+      "landmark_id": "Gn",
+      "n": 6,
+      "p95_mm": 106.42191764316459
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.3900000000000001,
+      "landmark_id": "Gn",
+      "n": 19,
+      "p95_mm": 1.8783133796363685
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.603018324141563,
+      "landmark_id": "Gn",
+      "n": 11,
+      "p95_mm": 2.8395575713653134
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.541233375137029,
+      "landmark_id": "Gn",
+      "n": 9,
+      "p95_mm": 1.9899559096603459
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.0580029246939955,
+      "landmark_id": "Gn",
+      "n": 26,
+      "p95_mm": 60.47665677828631
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.581196349185476,
+      "landmark_id": "Go",
+      "n": 40,
+      "p95_mm": 74.68693719959161
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.071337339576515,
+      "landmark_id": "Go",
+      "n": 21,
+      "p95_mm": 42.648698888486244
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.8924026344891893,
+      "landmark_id": "Go",
+      "n": 6,
+      "p95_mm": 31.388361602754436
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.3119064774737907,
+      "landmark_id": "Go",
+      "n": 14,
+      "p95_mm": 21.289306443025986
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 8.103784049280645,
+      "landmark_id": "Go",
+      "n": 4,
+      "p95_mm": 158.39654300670406
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.5414209231650386,
+      "landmark_id": "Go",
+      "n": 9,
+      "p95_mm": 43.96131639541915
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.880829091572108,
+      "landmark_id": "Go",
+      "n": 26,
+      "p95_mm": 93.24517847233389
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.6670821203566493,
+      "landmark_id": "L1_apex",
+      "n": 41,
+      "p95_mm": 138.87449282164715
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.2819736042627397,
+      "landmark_id": "L1_apex",
+      "n": 21,
+      "p95_mm": 3.836585997634946
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.6210046267669938,
+      "landmark_id": "L1_apex",
+      "n": 5,
+      "p95_mm": 93.16897091543207
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.2161861912588887,
+      "landmark_id": "L1_apex",
+      "n": 19,
+      "p95_mm": 107.93433797084359
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.0478746313095084,
+      "landmark_id": "L1_apex",
+      "n": 13,
+      "p95_mm": 92.50987001248562
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.8873463590236825,
+      "landmark_id": "L1_apex",
+      "n": 9,
+      "p95_mm": 38.29118722289782
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.335312311318688,
+      "landmark_id": "L1_apex",
+      "n": 26,
+      "p95_mm": 76.6729372106861
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.4013604768913608,
+      "landmark_id": "L1_incisal",
+      "n": 55,
+      "p95_mm": 114.08056031243304
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.6293250352560273,
+      "landmark_id": "L1_incisal",
+      "n": 21,
+      "p95_mm": 3.5849991248609894
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.1462233639217096,
+      "landmark_id": "L1_incisal",
+      "n": 6,
+      "p95_mm": 8.136969043030959
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.9370221911191452,
+      "landmark_id": "L1_incisal",
+      "n": 19,
+      "p95_mm": 35.97822107440012
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.513245056986426,
+      "landmark_id": "L1_incisal",
+      "n": 13,
+      "p95_mm": 68.18039445925004
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.3692209743417543,
+      "landmark_id": "L1_incisal",
+      "n": 9,
+      "p95_mm": 69.10720666990684
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.9107359661284933,
+      "landmark_id": "L1_incisal",
+      "n": 26,
+      "p95_mm": 106.41139548208658
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.471367223981531,
+      "landmark_id": "Li_soft",
+      "n": 55,
+      "p95_mm": 119.01543629475324
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.5607334676786286,
+      "landmark_id": "Li_soft",
+      "n": 21,
+      "p95_mm": 0.9835339707372787
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.6210046267669938,
+      "landmark_id": "Li_soft",
+      "n": 6,
+      "p95_mm": 46.37996614295531
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.0340421037123018,
+      "landmark_id": "Li_soft",
+      "n": 20,
+      "p95_mm": 3.2979894247124673
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.0953061825069135,
+      "landmark_id": "Li_soft",
+      "n": 13,
+      "p95_mm": 17.7523233916776
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.5127634042946956,
+      "landmark_id": "Li_soft",
+      "n": 9,
+      "p95_mm": 1.5302885668766444
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.45536798306424664,
+      "landmark_id": "Li_soft",
+      "n": 26,
+      "p95_mm": 82.42083417647889
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.917850462750402,
+      "landmark_id": "Ls_soft",
+      "n": 54,
+      "p95_mm": 146.082253801514
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.27847144198972845,
+      "landmark_id": "Ls_soft",
+      "n": 21,
+      "p95_mm": 0.8880041708633485
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.6950000000000001,
+      "landmark_id": "Ls_soft",
+      "n": 6,
+      "p95_mm": 2.6403997783897872
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.7087637123893971,
+      "landmark_id": "Ls_soft",
+      "n": 20,
+      "p95_mm": 4.085408032810385
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.7871156855722765,
+      "landmark_id": "Ls_soft",
+      "n": 13,
+      "p95_mm": 5.033080744257591
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.24247717423115664,
+      "landmark_id": "Ls_soft",
+      "n": 9,
+      "p95_mm": 45.00327542894626
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.3439950310079745,
+      "landmark_id": "Ls_soft",
+      "n": 26,
+      "p95_mm": 51.50510215155094
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.10772163427039,
+      "landmark_id": "Me",
+      "n": 50,
+      "p95_mm": 133.70203373068892
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.2745467773020482,
+      "landmark_id": "Me",
+      "n": 21,
+      "p95_mm": 0.8277586532320205
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.241307654026997,
+      "landmark_id": "Me",
+      "n": 6,
+      "p95_mm": 48.50716019062043
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.318274049871615,
+      "landmark_id": "Me",
+      "n": 18,
+      "p95_mm": 2.3757482826917222
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.749337622366907,
+      "landmark_id": "Me",
+      "n": 8,
+      "p95_mm": 2.9291517046009448
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.0811330641592,
+      "landmark_id": "Me",
+      "n": 9,
+      "p95_mm": 4.380860092554347
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.8775302926983628,
+      "landmark_id": "Me",
+      "n": 25,
+      "p95_mm": 91.78417232375386
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.5739931843240675,
+      "landmark_id": "N",
+      "n": 55,
+      "p95_mm": 174.09623353929436
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.1847090943491265,
+      "landmark_id": "N",
+      "n": 20,
+      "p95_mm": 56.88708912759699
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.3900000000000001,
+      "landmark_id": "N",
+      "n": 6,
+      "p95_mm": 195.6196173979434
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.7494460267075063,
+      "landmark_id": "N",
+      "n": 18,
+      "p95_mm": 113.66879233715997
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 5.742526547734007,
+      "landmark_id": "N",
+      "n": 11,
+      "p95_mm": 159.47751552705452
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.0604580455378942,
+      "landmark_id": "N",
+      "n": 9,
+      "p95_mm": 67.22010820804768
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.451388418766909,
+      "landmark_id": "N",
+      "n": 25,
+      "p95_mm": 100.35661553448506
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.9351192712878644,
+      "landmark_id": "N_soft",
+      "n": 54,
+      "p95_mm": 174.20486453829682
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.7175409395985708,
+      "landmark_id": "N_soft",
+      "n": 21,
+      "p95_mm": 36.0653683017579
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.181567289904589,
+      "landmark_id": "N_soft",
+      "n": 6,
+      "p95_mm": 190.72975995209714
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.2627560628578594,
+      "landmark_id": "N_soft",
+      "n": 18,
+      "p95_mm": 170.2148920363585
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 5.012656178582962,
+      "landmark_id": "N_soft",
+      "n": 11,
+      "p95_mm": 133.246091737592
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.4242640687119285,
+      "landmark_id": "N_soft",
+      "n": 9,
+      "p95_mm": 53.69326670268031
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.45536798306424664,
+      "landmark_id": "N_soft",
+      "n": 26,
+      "p95_mm": 101.25575153031026
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.575621838724352,
+      "landmark_id": "Or",
+      "n": 46,
+      "p95_mm": 158.53829034050102
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.383430986568591,
+      "landmark_id": "Or",
+      "n": 20,
+      "p95_mm": 37.701954541972555
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.7219099949067225,
+      "landmark_id": "Or",
+      "n": 6,
+      "p95_mm": 108.94396586514581
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 3.407972517984871,
+      "landmark_id": "Or",
+      "n": 17,
+      "p95_mm": 107.59118258727506
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.250612587083574,
+      "landmark_id": "Or",
+      "n": 13,
+      "p95_mm": 156.3308439316317
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.6642324583425998,
+      "landmark_id": "Or",
+      "n": 8,
+      "p95_mm": 58.194728212708725
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.534376358525349,
+      "landmark_id": "Or",
+      "n": 23,
+      "p95_mm": 78.3776646867141
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.9164658342969666,
+      "landmark_id": "PNS",
+      "n": 52,
+      "p95_mm": 117.31759056598095
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.47585170105147395,
+      "landmark_id": "PNS",
+      "n": 21,
+      "p95_mm": 22.7733076051174
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.9828784258493012,
+      "landmark_id": "PNS",
+      "n": 6,
+      "p95_mm": 82.33473720338917
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.3140616756945978,
+      "landmark_id": "PNS",
+      "n": 20,
+      "p95_mm": 79.37732728748497
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.6355558946663833,
+      "landmark_id": "PNS",
+      "n": 12,
+      "p95_mm": 78.07146388688118
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.0,
+      "landmark_id": "PNS",
+      "n": 9,
+      "p95_mm": 2.6944469254848165
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.882881436716053,
+      "landmark_id": "PNS",
+      "n": 25,
+      "p95_mm": 31.85162587242192
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.33848704300953,
+      "landmark_id": "Po",
+      "n": 39,
+      "p95_mm": 141.5794890841422
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.8139371170638456,
+      "landmark_id": "Po",
+      "n": 21,
+      "p95_mm": 21.353762768415187
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.5020000000000002,
+      "landmark_id": "Po",
+      "n": 6,
+      "p95_mm": 127.3693655422792
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.0205726025695085,
+      "landmark_id": "Po",
+      "n": 13,
+      "p95_mm": 121.36612659113845
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 11.75445780804524,
+      "landmark_id": "Po",
+      "n": 7,
+      "p95_mm": 141.40567453960244
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.202951619442817,
+      "landmark_id": "Po",
+      "n": 9,
+      "p95_mm": 7.330441510510559
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.4260986888216487,
+      "landmark_id": "Po",
+      "n": 22,
+      "p95_mm": 73.72667145092073
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.6641996109705086,
+      "landmark_id": "Pog",
+      "n": 54,
+      "p95_mm": 131.28477958809538
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.6885335025657261,
+      "landmark_id": "Pog",
+      "n": 21,
+      "p95_mm": 1.2968359162973657
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.8455039917114525,
+      "landmark_id": "Pog",
+      "n": 6,
+      "p95_mm": 112.13598740370615
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.3920798134007413,
+      "landmark_id": "Pog",
+      "n": 20,
+      "p95_mm": 4.0094346393067966
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.3080577774004474,
+      "landmark_id": "Pog",
+      "n": 13,
+      "p95_mm": 4.183206950321187
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.33845663748649796,
+      "landmark_id": "Pog",
+      "n": 9,
+      "p95_mm": 1.7728525892961033
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.7342588099573608,
+      "landmark_id": "Pog",
+      "n": 26,
+      "p95_mm": 39.20077745585196
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.151367839198112,
+      "landmark_id": "Pog_soft",
+      "n": 54,
+      "p95_mm": 145.72317252468122
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.1990100499974813,
+      "landmark_id": "Pog_soft",
+      "n": 21,
+      "p95_mm": 4.206822354069503
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.4395565947634048,
+      "landmark_id": "Pog_soft",
+      "n": 6,
+      "p95_mm": 10.964735556150918
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.1689126827785619,
+      "landmark_id": "Pog_soft",
+      "n": 20,
+      "p95_mm": 20.31459705700636
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.9105061932588572,
+      "landmark_id": "Pog_soft",
+      "n": 13,
+      "p95_mm": 82.12149202563725
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.33460498941515315,
+      "landmark_id": "Pog_soft",
+      "n": 9,
+      "p95_mm": 1.5718682294951272
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.593727210088943,
+      "landmark_id": "Pog_soft",
+      "n": 26,
+      "p95_mm": 88.63025056238409
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.5451017575126973,
+      "landmark_id": "Prn",
+      "n": 55,
+      "p95_mm": 155.01049618913777
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.49761402538434,
+      "landmark_id": "Prn",
+      "n": 21,
+      "p95_mm": 0.8294375788844058
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.9324403466174125,
+      "landmark_id": "Prn",
+      "n": 6,
+      "p95_mm": 2.8444372757484055
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.646169696339891,
+      "landmark_id": "Prn",
+      "n": 20,
+      "p95_mm": 32.513040092737725
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.691872000537636,
+      "landmark_id": "Prn",
+      "n": 12,
+      "p95_mm": 45.46674621420508
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.6362920181553019,
+      "landmark_id": "Prn",
+      "n": 9,
+      "p95_mm": 9.560373485720737
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.8639999999999999,
+      "landmark_id": "Prn",
+      "n": 26,
+      "p95_mm": 42.872022398612046
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.7660462894661986,
+      "landmark_id": "S",
+      "n": 55,
+      "p95_mm": 102.40982742143854
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.0801000000000005,
+      "landmark_id": "S",
+      "n": 21,
+      "p95_mm": 1.0712363233728146
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.0,
+      "landmark_id": "S",
+      "n": 6,
+      "p95_mm": 121.5142957428858
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.0,
+      "landmark_id": "S",
+      "n": 20,
+      "p95_mm": 125.75704087548706
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.19882694782833063,
+      "landmark_id": "S",
+      "n": 13,
+      "p95_mm": 170.34992936922956
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.149639900388576,
+      "landmark_id": "S",
+      "n": 9,
+      "p95_mm": 0.5282588052697443
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.0,
+      "landmark_id": "S",
+      "n": 26,
+      "p95_mm": 1.5896502012134115
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.6781128874149276,
+      "landmark_id": "Sn_soft",
+      "n": 54,
+      "p95_mm": 143.23735861239675
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.3980200999949626,
+      "landmark_id": "Sn_soft",
+      "n": 21,
+      "p95_mm": 1.187161339969905
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.8340000000000001,
+      "landmark_id": "Sn_soft",
+      "n": 6,
+      "p95_mm": 2.7145662667076746
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.2043077030663607,
+      "landmark_id": "Sn_soft",
+      "n": 20,
+      "p95_mm": 2.340071479726861
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.9477694782833084,
+      "landmark_id": "Sn_soft",
+      "n": 12,
+      "p95_mm": 10.890355481037433
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.3246049894151537,
+      "landmark_id": "Sn_soft",
+      "n": 9,
+      "p95_mm": 1.8070460156375732
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.6591900620159507,
+      "landmark_id": "Sn_soft",
+      "n": 26,
+      "p95_mm": 71.82697204486615
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.63356368948448,
+      "landmark_id": "U1_apex",
+      "n": 39,
+      "p95_mm": 98.54917081179023
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.157,
+      "landmark_id": "U1_apex",
+      "n": 21,
+      "p95_mm": 4.14354309759493
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.300859404657312,
+      "landmark_id": "U1_apex",
+      "n": 6,
+      "p95_mm": 117.94124940155021
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.195353090500391,
+      "landmark_id": "U1_apex",
+      "n": 19,
+      "p95_mm": 61.092569032761645
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 4.9028712589116825,
+      "landmark_id": "U1_apex",
+      "n": 7,
+      "p95_mm": 108.98869555001161
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.105885890421843,
+      "landmark_id": "U1_apex",
+      "n": 9,
+      "p95_mm": 13.031063391228436
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.5905319864749654,
+      "landmark_id": "U1_apex",
+      "n": 26,
+      "p95_mm": 92.23846225541374
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ART Plus",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 1.140175425099138,
+      "landmark_id": "U1_incisal",
+      "n": 55,
+      "p95_mm": 133.5596034500064
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Hyperion X5",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.45293146303878207,
+      "landmark_id": "U1_incisal",
+      "n": 21,
+      "p95_mm": 1.5596342955331621
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.8791131895268096,
+      "landmark_id": "U1_incisal",
+      "n": 6,
+      "p95_mm": 136.85066207115526
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "ProMax with ProTouch",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.088599708548503,
+      "landmark_id": "U1_incisal",
+      "n": 18,
+      "p95_mm": 4.173797667205644
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Rotograph EVO",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 2.358054626116968,
+      "landmark_id": "U1_incisal",
+      "n": 11,
+      "p95_mm": 5.569436687253814
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Smart3D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.5132455532033668,
+      "landmark_id": "U1_incisal",
+      "n": 9,
+      "p95_mm": 73.09534432580287
+    },
+    {
+      "decision": "DESCRIPTIVE_ONLY",
+      "device": "Veraviewepocs 2D",
+      "gate_status": "INSUFFICIENT_N_FOR_P95_GATE",
+      "human_device_p95_mm": 0.8244696095415216,
+      "landmark_id": "U1_incisal",
+      "n": 26,
+      "p95_mm": 114.63422473520171
+    }
+  ],
+  "executed_at": "2026-10-02T19:15:25Z",
+  "landmarks": [
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.9657010231233025,
+      "landmark_id": "A",
+      "median_mm": 19.46620632406298,
+      "n": 143,
+      "p95_mm": 113.1684513155217,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.246470841489226,
+      "landmark_id": "ANS",
+      "median_mm": 24.411123126960817,
+      "n": 139,
+      "p95_mm": 136.7396324892952,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.220360331117452,
+      "landmark_id": "Ar",
+      "median_mm": 3.5458364345914246,
+      "n": 132,
+      "p95_mm": 108.99731048121889,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.9266083568619714,
+      "landmark_id": "B",
+      "median_mm": 32.10181321592617,
+      "n": 138,
+      "p95_mm": 133.5921490451792,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 3.40147027033899,
+      "landmark_id": "Co",
+      "median_mm": 4.324901464660533,
+      "n": 134,
+      "p95_mm": 125.43110842246553,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.4177144055576139,
+      "landmark_id": "Gn",
+      "median_mm": 1.6909799976756266,
+      "n": 147,
+      "p95_mm": 123.6914911107261,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 4.142124257947273,
+      "landmark_id": "Go",
+      "median_mm": 7.705077871593486,
+      "n": 120,
+      "p95_mm": 82.08716328266006,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.985317048798788,
+      "landmark_id": "L1_apex",
+      "median_mm": 9.517018590056487,
+      "n": 134,
+      "p95_mm": 119.88801802356618,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.4327531312481812,
+      "landmark_id": "L1_incisal",
+      "median_mm": 5.7275944961435235,
+      "n": 149,
+      "p95_mm": 103.56171752198938,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.1704699910719627,
+      "landmark_id": "Li_soft",
+      "median_mm": 2.1475726392364143,
+      "n": 150,
+      "p95_mm": 94.66367984098193,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 0.7087637123893971,
+      "landmark_id": "Ls_soft",
+      "median_mm": 1.7199824905890444,
+      "n": 149,
+      "p95_mm": 134.28339627051608,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 2.3243801130732997,
+      "landmark_id": "Me",
+      "median_mm": 1.858724784962236,
+      "n": 137,
+      "p95_mm": 129.8301586635526,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.8912056686307173,
+      "landmark_id": "N",
+      "median_mm": 60.59005849722685,
+      "n": 144,
+      "p95_mm": 169.09227505987604,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.5524174696260025,
+      "landmark_id": "N_soft",
+      "median_mm": 31.74336702035659,
+      "n": 145,
+      "p95_mm": 167.78659550906778,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 3.4552093187516633,
+      "landmark_id": "Or",
+      "median_mm": 39.86172438064656,
+      "n": 133,
+      "p95_mm": 142.76421414192478,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 0.9852126552617689,
+      "landmark_id": "PNS",
+      "median_mm": 9.735810394020639,
+      "n": 145,
+      "p95_mm": 84.42896804396162,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 4.342256126468342,
+      "landmark_id": "Po",
+      "median_mm": 12.978725538507863,
+      "n": 117,
+      "p95_mm": 134.23234487513218,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.39034663556679,
+      "landmark_id": "Pog",
+      "median_mm": 2.477497207551493,
+      "n": 149,
+      "p95_mm": 124.24360946896866,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.3341664064126335,
+      "landmark_id": "Pog_soft",
+      "median_mm": 3.4576684617537077,
+      "n": 149,
+      "p95_mm": 132.19071953727502,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.2826328696375513,
+      "landmark_id": "Prn",
+      "median_mm": 1.7915773705509932,
+      "n": 149,
+      "p95_mm": 139.35242555353858,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 0.45656356730278175,
+      "landmark_id": "S",
+      "median_mm": 0.9931561841187112,
+      "n": 150,
+      "p95_mm": 119.7320924700571,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.2092655622318846,
+      "landmark_id": "Sn_soft",
+      "median_mm": 2.2241199392071684,
+      "n": 148,
+      "p95_mm": 137.4742241491443,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 3.7000675552332174,
+      "landmark_id": "U1_apex",
+      "median_mm": 16.321095499407544,
+      "n": 127,
+      "p95_mm": 96.19667409161325,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    },
+    {
+      "decision": "FAIL",
+      "failure_rate": 0.0,
+      "human_reference_uncertainty_mm": 1.3912106781186537,
+      "landmark_id": "U1_incisal",
+      "median_mm": 5.569436687253814,
+      "n": 146,
+      "p95_mm": 125.8186455169207,
+      "status": "VALIDATION_REQUIRED",
+      "tolerance_version": "REFERENCE_EQUIVALENCE_V1"
+    }
+  ],
+  "manifest_sha256": "edfa42fc8bcb98ad52a788a335616952700c92ab6bc3e9175412bd48aac0e66d",
+  "overall_decision": "FAIL",
+  "schema_version": "CEPHALO_LOT04_ACCEPTANCE_RECORD_V1"
+}

@@ -176,11 +176,13 @@ Présence d'un landmark homonyme ≠ autorisation de substitution historique.
 
 | MEASURE | SOURCE | LANDMARKS | PLAN/LINE | FORMULA | UNIT | NORM | DEPENDENCE | BACKEND | TRACING | UI | STATUS |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| FMA | Tweed 1954/1969 | historical FH+MP | FH/MP | angle | ° | historical only | pop | DC Po-Or/Go-Me engine+typed | yes | row | NON SOURCE-LOCKED for exact historical Tweed |
+| FMA | Tweed 1954/1969 | historical FH+MP | FH/MP | angle | ° | historical only | pop | DC Po_anatomic-Or / Go-Me engine+typed | yes | row | NON SOURCE-LOCKED for exact historical Tweed |
 | IMPA | Tweed 1954 | L1+historical MP | L1/MP | angle | ° | historical only | pop | DC Go-Me engine+typed | yes | row | NON SOURCE-LOCKED for exact historical Tweed |
-| FMIA | Tweed 1954 | L1+FH | L1/FH | angle | ° | historical only | pop | typed `TWEED_FMIA_DEG_V1` | geometry visible | absent | CALCULATED BUT NOT DISPLAYED |
-| Triangle invariant | Tweed | same 3 axes | FH/MP/L1 | FMA+IMPA+FMIA=180 only under one coherent internal-angle convention | ° | n/a | n/a | invariant test not certified here | n/a | n/a | MISSING |
-| Z-angle | Merrifield 1966 | soft Pog/lip/FH | profile/FH | separate method | ° | — | pop | `analysis_id=MERRIFIELD` | absent | absent | COMPLETE AS SEPARATE VARIANT |
+| FMIA | Tweed 1954 | L1+FH | L1/FH | angle | ° | historical only | pop | typed `TWEED_FMIA_DEG_V1` | geometry visible | row | DISPLAYED RAW IN SELECTED DC VARIANT; historical norm non-source-locked |
+| Triangle invariant | Tweed | same 3 axes | FH/MP/L1 | FMA+IMPA+FMIA=180 only under one coherent internal-angle convention | ° | n/a | n/a | certified in `test_cephalo_r6_tweed_merrifield.py` for selected DC geometry | visible | n/a | CERTIFIED FOR SELECTED DC VARIANT; no strict historical-equivalence claim |
+| Z-angle | Merrifield 1966 | soft Pog/lip/FH | profile/FH | separate method | ° | historical context only | pop | `analysis_id=MERRIFIELD` | profile line visible | row | COMPLETE AS SEPARATE DC VARIANT; historical norms context-only |
+
+> **LOT08 update — 2026-10-04:** the product slice now exposes the source-locked Digital Crown Tweed variant through the canonical LOT06 IDs `M_FH_GOME_DEG_V1`, `M_IMPA_GOME_DEG_V1`, `M_FMIA_L1_FH_DEG_V1`, plus `M_MERRIFIELD_Z_FH_DEG_V1` as a separate Merrifield section. The historical-exact Tweed status in the table above remains intentionally unchanged: the product does not claim strict 1954 ear-rod/lower-border equivalence, and historical norms remain non-classificatory context only.
 
 ### McNamara
 
@@ -230,7 +232,7 @@ Présence d'un landmark homonyme ≠ autorisation de substitution historique.
 | IMPA | DC geometry + Tweed lineage | raw/typed | row + hardcoded norm wedge | geometry exists; norm binding NON SOURCE-LOCKED |
 | U1/FH | DC geometry + Eastman/Ballard debt | raw CRANIOM | row + hardcoded norm wedge | NON SOURCE-LOCKED |
 | Interincisal | multiple lineages | raw CRANIOM | row | NON SOURCE-LOCKED for universal norm |
-| FMA | DC Po-Or/Go-Me | engine | row | NON SOURCE-LOCKED for historical Tweed/Ricketts norms |
+| FMA | DC Po_anatomic-Or / Go-Me | engine | row | NON SOURCE-LOCKED for historical Tweed/Ricketts norms |
 | A'B', A/Nvert, B/Nvert | CRANIOM | versioned | rows | geometry COMPLETE; norms gated |
 | `Profondeur_Faciale` COM | CRANIOM S→N-vertical magnitude | versioned | row | COMPLETE pour CRANIOM ; **pas** le facial-depth angle Ricketts |
 

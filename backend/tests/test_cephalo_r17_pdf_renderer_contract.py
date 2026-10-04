@@ -121,3 +121,115 @@ def test_html_renderer_autoescapes_authoritative_text(tmp_path):
     assert "&lt;reason&amp;unsafe&gt;" in html
     assert "&lt;summary&amp;unsafe&gt;" in html
     assert "&lt;value&amp;unsafe&gt;" in html
+
+
+def test_steiner_protocol_renderer_preserves_display_only_reference_contract(tmp_path):
+    generator = BilanOrthoPDFGenerator(str(tmp_path))
+    projection = _projection()
+    projection["protocol_profiles"] = {
+        "steiner": {
+            "protocol_profile_id": "STEINER_STATIC_PROTOCOL_PROFILE_V1",
+            "source_lock_gate": {"status": "SATISFIED"},
+            "final_gate": {"status": "OPEN"},
+            "norm_set": {
+                "authority": "REFERENCE_DISPLAY_ONLY",
+                "applicability": "NOT_VALIDATED_FOR_UNIVERSAL_MODERN_USE",
+            },
+            "rows": [{
+                "canonical_measurement_id": "M_SNA_DEG_V1",
+                "label": "SNA",
+                "layer": "STEINER_1953_BASE",
+                "value": 83.5,
+                "unit": "\u00b0",
+                "availability_status": "AVAILABLE",
+                "historical_reference": 82.0,
+                "reference_delta": 1.5,
+                "reference_authority": "REFERENCE_DISPLAY_ONLY",
+                "interpretation_status": "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION",
+            }],
+        }
+    }
+    context = generator._shared_context(_vm(), projection)
+    steiner = context["steiner_protocol"]
+    assert steiner["protocol_profile_id"] == "STEINER_STATIC_PROTOCOL_PROFILE_V1"
+    assert steiner["norm_set"]["authority"] == "REFERENCE_DISPLAY_ONLY"
+    assert steiner["rows"][0]["value"].startswith("83.5")
+    assert steiner["rows"][0]["reference"].startswith("82")
+    assert steiner["rows"][0]["delta"].startswith("1.5")
+    html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
+    assert "Analyse protocolaire Steiner" in html
+    assert "classification clinique universelle" in html
+    assert "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION" not in html
+    assert "aucune classification clinique" in html
+
+
+def test_reportlab_renderer_contains_steiner_protocol_section():
+    import inspect
+    source = inspect.getsource(BilanOrthoPDFGenerator._generate_reportlab)
+    assert 'context["steiner_protocol"]' in source
+    assert 'Analyse protocolaire Steiner' in source
+    assert 'protocol_table = Table' in source
+
+
+def test_reportlab_steiner_wording_preserves_clinical_safety_semantics():
+    import inspect
+    row = BilanOrthoPDFGenerator._protocol_row_display({
+        "availability_status": "AVAILABLE",
+        "value": 83.5,
+        "unit": "°",
+        "historical_reference": 82.0,
+        "reference_delta": 1.5,
+        "interpretation_status": "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION",
+    })
+    assert row["interpretation_status"] == "Référence historique — aucune classification clinique"
+    source = inspect.getsource(BilanOrthoPDFGenerator._generate_reportlab)
+    assert "Références historiques affichées à titre comparatif uniquement" in source
+    assert "non vérifié" in source
+    assert "Réf. hist." in source
+    assert "Écart réf." in source
+    assert "R?f" not in source
+    assert "v?rifi" not in source
+
+
+def test_tweed_merrifield_renderer_preserves_dc_variant_without_fake_norms(tmp_path):
+    generator = BilanOrthoPDFGenerator(str(tmp_path))
+    projection = _projection()
+    projection["protocol_profiles"] = {
+        "tweed_merrifield": {
+            "protocol_profile_id": "TWEED_MERRIFIELD_DC_PROTOCOL_PROFILE_V1",
+            "source_lock_gate": {"status": "SATISFIED"},
+            "final_gate": {"status": "OPEN"},
+            "reference_contexts": [{"authority": "HISTORICAL_CONTEXT_ONLY"}],
+            "rows": [{
+                "canonical_measurement_id": "M_FH_GOME_DEG_V1",
+                "label": "FMA",
+                "profile_section": "TWEED_DC_DIAGNOSTIC_TRIANGLE_V1",
+                "value": 24.5,
+                "unit": "deg",
+                "availability_status": "AVAILABLE",
+                "reference_authority": "CONTEXT_ONLY_NO_RUNTIME_DELTA",
+                "classification_authority": False,
+                "interpretation_status": "RAW_MEASUREMENT_WITH_SOURCE_CONTEXT_ONLY",
+            }],
+        }
+    }
+    context = generator._shared_context(_vm(), projection)
+    tweed = context["tweed_merrifield_protocol"]
+    assert tweed["protocol_profile_id"] == "TWEED_MERRIFIELD_DC_PROTOCOL_PROFILE_V1"
+    assert tweed["rows"][0]["value"] == "24.5 deg"
+    assert tweed["rows"][0]["reference_authority"] == "CONTEXT_ONLY_NO_RUNTIME_DELTA"
+    html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
+    assert "Analyse protocolaire Tweed–Merrifield" in html
+    assert "Variante Digital Crown Po_anatomic-Or / Go-Me" in html
+    assert "Aucune équivalence géométrique stricte avec Tweed 1954" in html
+    assert "non classificatoires" in html.lower()
+
+
+def test_reportlab_tweed_merrifield_wording_preserves_variant_and_clinician_authority():
+    import inspect
+    source = inspect.getsource(BilanOrthoPDFGenerator._generate_reportlab)
+    assert 'context["tweed_merrifield_protocol"]' in source
+    assert "Analyse protocolaire Tweed–Merrifield" in source
+    assert "Variante Digital Crown Po_anatomic-Or / Go-Me" in source
+    assert "aucune équivalence géométrique stricte avec Tweed 1954" in source
+    assert "aucune classification automatique" in source

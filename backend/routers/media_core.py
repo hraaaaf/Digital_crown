@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
@@ -21,6 +22,15 @@ from backend.services.clinical_asset_service import (
 from backend.services.clinical_asset_storage import (
     ClinicalAssetStorageError,
     read_clinical_asset_bytes,
+)
+from backend.services.ortho_media_record import (
+    ORTHO_MEDIA_SCHEMA_VERSION,
+    ORTHO_PHOTO_SOURCE_PREFIX,
+    OrthoMediaRecordError,
+    build_ortho_media_record,
+    ortho_photo_source_ref,
+    validate_ortho_photo_slot,
+    validate_ortho_timepoint,
 )
 from backend.utils.access_control import assert_patient_access
 
@@ -81,6 +91,87 @@ def _thumbnail_map(db: Session, *, employer_id: int, patient_id: int, parent_ids
         if asset.parent_asset_id is not None and asset.parent_asset_id not in result:
             result[int(asset.parent_asset_id)] = int(asset.id)
     return result
+
+
+@router.get("/{patient_id}/ortho-media-record")
+def get_ortho_media_record(
+    patient_id: int,
+    timepoint: str = Query("T0", max_length=16),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _require_patient_permission(current_user)
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = int(current_user.get_employer_id())
+    try:
+        return build_ortho_media_record(
+            db, employer_id=employer_id, patient_id=patient_id, timepoint=timepoint
+        )
+    except OrthoMediaRecordError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/{patient_id}/ortho-media-record/photos/{slot_id}", status_code=201)
+async def import_ortho_photo_slot(
+    patient_id: int,
+    slot_id: str,
+    file: UploadFile = File(...),
+    timepoint: str = Form("T0"),
+    acquired_at: datetime = Form(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _require_patient_permission(current_user)
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = int(current_user.get_employer_id())
+    try:
+        slot = validate_ortho_photo_slot(slot_id)
+        tp = validate_ortho_timepoint(timepoint)
+        content = await file.read(MAX_IMPORT_BYTES + 1)
+        if len(content) > MAX_IMPORT_BYTES:
+            raise HTTPException(status_code=413, detail="Clinical media exceeds the import size limit")
+        result = ingest_clinical_asset_bytes(
+            db,
+            employer_id=employer_id,
+            patient_id=patient_id,
+            asset_type="PHOTO",
+            source_kind="UPLOAD",
+            content=content,
+            original_filename=file.filename,
+            claimed_mime_type=file.content_type,
+            source_ref=ortho_photo_source_ref(slot),
+            timepoint=tp,
+            captured_at=acquired_at,
+            created_by=current_user.id,
+            provenance_json={
+                "ingestion_channel": "ORTHO_STUDIO",
+                "schema_version": ORTHO_MEDIA_SCHEMA_VERSION,
+                "slot_id": slot,
+                "source_type": "CLINICIAN_UPLOAD",
+                "acquired_at": acquired_at.isoformat(),
+                "operator_or_device": f"user:{current_user.id}",
+                "patient_record_id": str(patient_id),
+                "timepoint_id": tp,
+            },
+        )
+        db.commit()
+        db.refresh(result.asset)
+        return {
+            "schema_version": ORTHO_MEDIA_SCHEMA_VERSION,
+            "slot_id": slot,
+            "asset": _asset_response(result),
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except (OrthoMediaRecordError, ClinicalAssetIngestionError, ClinicalAssetInvariantError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ClinicalAssetStorageError, OSError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Clinical media storage unavailable") from exc
+    finally:
+        await file.close()
 
 
 @router.get("/{patient_id}/assets")
@@ -202,6 +293,8 @@ async def import_clinical_asset(
     employer_id = int(current_user.get_employer_id())
 
     try:
+        if source_ref and source_ref.strip().upper().startswith(ORTHO_PHOTO_SOURCE_PREFIX):
+            raise HTTPException(status_code=422, detail="Reserved orthodontic source_ref namespace")
         content = await file.read(MAX_IMPORT_BYTES + 1)
         if len(content) > MAX_IMPORT_BYTES:
             raise HTTPException(status_code=413, detail="Clinical media exceeds the import size limit")

@@ -106,6 +106,36 @@ Le champ historique `Angle_de_Tweed` est actuellement calculé avec `Go-Me`. **I
 
 Même règle pour `IMPA` : l'axe incisif est disponible, mais la construction du plan mandibulaire doit être rattachée explicitement à l'analyse choisie avant toute norme/interprétation.
 
+## CONSTRUCTIONS MANDIBULAIRES VERSIONNÉES — DÉCISION SCIENTIFIQUE ACTIVE
+
+Les source-locks plus récents de Céphalo-N ont fermé la géométrie Steiner et la variante Tweed Digital Crown sans réinterpréter les normes historiques.
+
+### `STEINER_MP_GO_GN_V1`
+
+**Nom :** plan mandibulaire Steiner Go-Gn.  
+**Dépendances :** `Go`, `Gn_anatomic`.  
+**Définition :** droite passant par Gonion et le Gnathion anatomique utilisé par le contrat Steiner 1953.  
+**Usages autorisés :** SN-GoGn et mesures explicitement rattachées à la version Steiner correspondante.  
+**Échec :** `NOT_COMPUTABLE` si Go manque, si Gn n'est pas explicitement anatomique, ou si les deux points sont confondus.  
+**État :** `SOURCE_LOCKED_GEOMETRY`.  
+**Source contractuelle :** `docs/audits/CEPHALO_PRIMARY_LANDMARK_CONSTRUCTIONS.md` + `docs/audits/CEPHALO_LANDMARKS_PLANES_SOURCE_LOCK.md`.
+
+### `TWEED_DC_MP_GO_ME_V1`
+
+**Nom :** plan mandibulaire Tweed — variante Digital Crown active.  
+**Dépendances :** `Go`, `Me`.  
+**Définition :** droite Go-Me utilisée par le contrat Digital Crown actif.  
+**Usages autorisés :** `M_FH_GOME_DEG_V1` et `M_IMPA_GOME_DEG_V1` lorsque la variante est explicitement identifiée comme `DC_TWEED_ANATOMICAL_FH_VARIANT`.  
+**Frankfort associé :** `FH_PO_OR_V1`.  
+**Échec :** `NOT_COMPUTABLE` si Go/Me absents ou confondus.  
+**État :** `SELECTED_DC_GEOMETRY`.  
+**Limite :** cette construction ne doit pas être présentée comme reproduction stricte du Frankfort ear-rod de Tweed 1954 et n'active aucune norme historique Tweed par héritage de nom.  
+**Source contractuelle :** `docs/audits/CEPHALO_PRIMARY_LANDMARK_CONSTRUCTIONS.md` + `docs/audits/CEPHALO_LANDMARKS_PLANES_SOURCE_LOCK.md`.
+
+### Harmonisation de l'ancien avertissement
+
+L'avertissement historique ci-dessus reste utile pour interdire les substitutions entre plans mandibulaires. En revanche, pour la **géométrie Digital Crown active**, la décision clinique/source-lock du 2026-09-15 ferme désormais explicitement le couple `Po-Or + Go-Me` sous le nom versionné `DC_TWEED_ANATOMICAL_FH_VARIANT`. Les normes/interprétations Tweed historiques restent un chantier distinct.
+
 ## CONSTRUCTIONS NON COMPUTABLES OU NON CERTIFIÉES
 
 ### CRANIOM `Gi/Gs`
@@ -139,3 +169,22 @@ Tests :
 ## NEXT EXACT
 
 Obtenir la preuve CI des golden tests puis séparer explicitement les constructions `TWEED_MP`, `DOWNS_MP` et les besoins `CRANIOM_Gi/Gs` avant d'activer IMPA/FMA comme mesures attribuées à une école.
+### RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1
+- ID: `RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1`
+- Output: `Gn_constructed_Ricketts`
+- Inputs: N, Pog_hard, Go, Me.
+- Rule: intersection of the infinite N-Pog_hard facial line and Go-Me mandibular line.
+- Purpose: explicit dependency for Ricketts facial axis; never interchangeable with `Gn_anatomic`.
+
+## Steiner LOT08 source-locked explicit constructions ? 2026-10-03
+
+These constructions extend the LOT06 deterministic authority without activating norms, diagnosis, or treatment. Explicit/manual identities fail closed when absent.
+
+- `STEINER_SND_1959_V1` ? SN/ND using explicit `D_Steiner_1959`; detector `D_point` is not an authorized alias.
+- `STEINER_U1_NA_LINEAR_V1` ? perpendicular U1 facial-crown surface to NA; requires `U1_facial_surface` and verified calibration.
+- `STEINER_L1_NB_LINEAR_V1` ? perpendicular L1 facial-crown surface to NB; requires `L1_facial_surface` and verified calibration.
+- `STEINER_POG_NB_1959_V1` ? perpendicular `Pog_hard` to NB with verified calibration.
+- `STEINER_L1_GOGN_V1` ? lower-incisor long axis vs Steiner Go-Gn using explicit `Gn_anatomic`.
+- `STEINER_OCCLUSAL_SN_1953_V1` ? SN vs version-scoped Steiner 1953 occlusal plane using explicit/constructed `Occ_Steiner_Ant` and `Occ_Steiner_Post`; Wits/Ricketts occlusal planes are not aliases.
+- `STEINER_L1_DLINE_LINEAR_1959_V1` ? L1 facial-crown surface to D-line; D-line passes through explicit `D_Steiner_1959` perpendicular to Go-Gn; verified calibration required.
+- `STEINER_L1_DLINE_ANGULAR_1959_V1` ? lower-incisor long axis vs D-line orientation; explicit Steiner D remains an evidence dependency even though line orientation is determined by Go-Gn.

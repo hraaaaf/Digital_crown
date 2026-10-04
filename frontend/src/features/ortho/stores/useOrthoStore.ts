@@ -7,6 +7,22 @@ import {
 } from '../cephaloUtils';
 import type { Landmark, SyncState, ImageFilters, UIMode, VTOSettings, StepId } from '../cephaloShared';
 import type { LocalState, DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, PhotoUpload, ProfilFacial } from '../cephaloTypes';
+import {
+  clampLayerOpacity,
+  createDefaultLayerOpacity,
+  createDefaultLayerVisibility,
+  type OrthoLayerId,
+  type OrthoLayerOpacity,
+  type OrthoLayerVisibility,
+} from '../orthoLayerRegistry';
+import {
+  applyLandmarkEdit,
+  createLandmarkEditTimeline,
+  redoLandmarkEdit,
+  resetLandmarksToBaseline,
+  undoLandmarkEdit,
+  type LandmarkEditTimeline,
+} from '../orthoLandmarkEditHistory';
 
 const normalizeProfilFacial = (value?: string | null): ProfilFacial | '' => {
   const normalized = (value || '').trim().toLowerCase();
@@ -54,11 +70,22 @@ interface OrthoState {
   isPreviewLoading: boolean;
   syncState: SyncState;
   photos: PhotoUpload[];
+  layerVisibility: OrthoLayerVisibility;
+  layerOpacity: OrthoLayerOpacity;
+  landmarkEditTimeline: LandmarkEditTimeline;
   dateConsultation: string;
   sexePatient: 'M' | 'F' | null;
   setStep: (step: StepId) => void;
   setCompletedSteps: (updater: Set<number> | ((prev: Set<number>) => Set<number>)) => void;
   setPhotos: (updater: PhotoUpload[] | ((prev: PhotoUpload[]) => PhotoUpload[])) => void;
+  setLayerVisible: (id: OrthoLayerId, visible: boolean) => void;
+  toggleLayer: (id: OrthoLayerId) => void;
+  setLayerOpacity: (id: OrthoLayerId, opacity: number) => void;
+  resetLayers: () => void;
+  setLandmarkEditBaseline: (landmarks: Landmark[]) => void;
+  undoLandmarkEdit: () => void;
+  redoLandmarkEdit: () => void;
+  resetLandmarkEdits: () => void;
   setDateConsultation: (date: string) => void;
   setSexePatient: (sexe: 'M' | 'F' | null) => void;
   setPatientInfo: (id: number, name: string) => void;
@@ -106,7 +133,99 @@ interface OrthoState {
   goToStep: (target: StepId) => Promise<void>;
 }
 
-let syncTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+let landmarkSaveGeneration = 0;
+let landmarkSaveChain: Promise<void> = Promise.resolve();
+
+const queueAuditedLandmarkSave = (
+  landmarks: Landmark[],
+  get: () => OrthoState,
+  set: (partial: Partial<OrthoState>) => void,
+) => {
+  const state = get();
+  if (!state.analysisId || state.patientId === null) return;
+
+  const scheduledAnalysisId = state.analysisId;
+  const scheduledPatientId = state.patientId;
+  const generation = ++landmarkSaveGeneration;
+  const max = state.ddm.maxillaire === '' ? null : Number(state.ddm.maxillaire);
+  const mand = state.ddm.mandibulaire === '' ? null : Number(state.ddm.mandibulaire);
+  const impa = computeLocalImpa(landmarks);
+  const ceph = calcDDMCephalo(impa);
+  const real = (mand !== null && ceph !== null) ? mand + ceph : null;
+  const projections = computeMcNamaraProjections(landmarks);
+  const payload = buildPayload(
+    landmarks,
+    max,
+    mand,
+    real,
+    state.diag,
+    projections,
+    state.mmPerPixel,
+    state.etape2Data,
+    state.etape3Data,
+  );
+
+  set({ syncState: 'syncing' });
+
+  // Each pointer-up / undo / redo / reset is already a committed clinical edit.
+  // Persist every transaction in FIFO order so backend evidence revisions cannot
+  // be collapsed by debounce or reordered by concurrent requests.
+  landmarkSaveChain = landmarkSaveChain
+    .catch(() => undefined)
+    .then(async () => {
+      try {
+        await cephaloRepository.saveAnalysis(scheduledAnalysisId, payload);
+        let authoritativeRead: any = null;
+        try {
+          authoritativeRead = await cephaloRepository.getAnalysis(scheduledAnalysisId);
+        } catch (readError) {
+          console.warn('Landmark sauvegardé mais relecture scientifique indisponible:', readError);
+        }
+        const current = get();
+        if (
+          generation === landmarkSaveGeneration
+          && current.analysisId === scheduledAnalysisId
+          && current.patientId === scheduledPatientId
+        ) {
+          if (authoritativeRead) {
+            const refreshedAngles = authoritativeRead.angles_data || {};
+            set({
+              anglesData: { ...refreshedAngles, __calibrationData: authoritativeRead.calibration_data || null },
+              visionMetadata: refreshedAngles.vision_metadata || {},
+              isCalibrated: Boolean(authoritativeRead.is_calibrated),
+              mmPerPixel: typeof authoritativeRead.mm_per_pixel === 'number' ? authoritativeRead.mm_per_pixel : null,
+            });
+          }
+          set({ syncState: 'success' });
+          setTimeout(() => {
+            const latest = get();
+            if (
+              generation === landmarkSaveGeneration
+              && latest.analysisId === scheduledAnalysisId
+              && latest.patientId === scheduledPatientId
+            ) set({ syncState: 'idle' });
+          }, 1500);
+        }
+      } catch {
+        const current = get();
+        if (
+          generation === landmarkSaveGeneration
+          && current.analysisId === scheduledAnalysisId
+          && current.patientId === scheduledPatientId
+        ) {
+          set({ syncState: 'error' });
+          setTimeout(() => {
+            const latest = get();
+            if (
+              generation === landmarkSaveGeneration
+              && latest.analysisId === scheduledAnalysisId
+              && latest.patientId === scheduledPatientId
+            ) set({ syncState: 'idle' });
+          }, 2500);
+        }
+      }
+    });
+};
 
 export const useOrthoStore = create<OrthoState>((set, get) => ({
   patientId: null,
@@ -170,6 +289,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   previewPdfUrl: null,
   isPreviewLoading: false,
   syncState: 'idle',
+  layerVisibility: createDefaultLayerVisibility(),
+  layerOpacity: createDefaultLayerOpacity(),
+  landmarkEditTimeline: createLandmarkEditTimeline(),
   photos: [
     { id: 'radio', type: 'radio', file: null, preview: null, label: 'Radiographie Céphalométrique' },
     { id: 'moulage_max', type: 'moulage_max', file: null, preview: null, label: 'Moulage Maxillaire' },
@@ -185,15 +307,65 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setStep: (step) => set({ step }),
   setCompletedSteps: (updater) => set((state) => ({ completedSteps: typeof updater === 'function' ? updater(state.completedSteps) : updater })),
   setPhotos: (updater) => set((state) => ({ photos: typeof updater === 'function' ? updater(state.photos) : updater })),
+  setLayerVisible: (id, visible) => set((state) => ({
+    layerVisibility: { ...state.layerVisibility, [id]: visible },
+  })),
+  toggleLayer: (id) => set((state) => ({
+    layerVisibility: { ...state.layerVisibility, [id]: !state.layerVisibility[id] },
+  })),
+  setLayerOpacity: (id, opacity) => set((state) => ({
+    layerOpacity: { ...state.layerOpacity, [id]: clampLayerOpacity(opacity) },
+  })),
+  resetLayers: () => set((state) => ({
+    layerVisibility: createDefaultLayerVisibility(),
+    layerOpacity: createDefaultLayerOpacity(),
+    activeMorphing: 'none',
+    vtoSettings: { ...state.vtoSettings, showSoftTissue: true },
+  })),
+  setLandmarkEditBaseline: (landmarks) => set({
+    landmarkEditTimeline: createLandmarkEditTimeline(landmarks),
+  }),
+  undoLandmarkEdit: () => {
+    const state = get();
+    const transition = undoLandmarkEdit(state.landmarkEditTimeline, state.local.landmarks);
+    if (!transition.changed) return;
+    set({
+      local: { landmarks: transition.landmarks, version: state.local.version + 1 },
+      landmarkEditTimeline: transition.timeline,
+    });
+    queueAuditedLandmarkSave(transition.landmarks, get, set);
+  },
+  redoLandmarkEdit: () => {
+    const state = get();
+    const transition = redoLandmarkEdit(state.landmarkEditTimeline, state.local.landmarks);
+    if (!transition.changed) return;
+    set({
+      local: { landmarks: transition.landmarks, version: state.local.version + 1 },
+      landmarkEditTimeline: transition.timeline,
+    });
+    queueAuditedLandmarkSave(transition.landmarks, get, set);
+  },
+  resetLandmarkEdits: () => {
+    const state = get();
+    const transition = resetLandmarksToBaseline(state.landmarkEditTimeline, state.local.landmarks);
+    if (!transition.changed) return;
+    set({
+      local: { landmarks: transition.landmarks, version: state.local.version + 1 },
+      landmarkEditTimeline: transition.timeline,
+    });
+    queueAuditedLandmarkSave(transition.landmarks, get, set);
+  },
   setDateConsultation: (date) => set({ dateConsultation: date }),
   setSexePatient: (sexe) => set({ sexePatient: sexe }),
   setPatientInfo: (id, name) => {
     const current = get();
     if (current.patientId !== null && current.patientId !== id) {
+      landmarkSaveGeneration += 1;
       set({
         imageSrc: undefined,
         analysisId: undefined,
         local: { landmarks: [], version: 0 },
+        landmarkEditTimeline: createLandmarkEditTimeline(),
         anglesData: {},
         isCalibrated: false,
         mmPerPixel: null,
@@ -277,7 +449,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setIsPreviewLoading: (loading) => set({ isPreviewLoading: loading }),
   setSyncState: (s) => set({ syncState: s }),
   clearSyncTimer: () => {
-    if (syncTimer) { clearTimeout(syncTimer); syncTimer = undefined; }
+    // Legacy lifecycle hook name retained for callers. Serial clinical revisions
+    // are never cancelled; only stale UI success/error state is invalidated.
+    landmarkSaveGeneration += 1;
   },
   handlePhotoUpload: (id, file) => {
     const url = URL.createObjectURL(file);
@@ -371,7 +545,10 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
           setTimeout(() => set({ autoCalibMessage: null }), 8000);
         }
       }
-      if (data.landmarks) set({ local: { landmarks: data.landmarks, version: 1 } });
+      if (data.landmarks) set({
+        local: { landmarks: data.landmarks, version: 1 },
+        landmarkEditTimeline: createLandmarkEditTimeline(data.landmarks),
+      });
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
         set(s => ({
@@ -433,28 +610,19 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     }
   },
   updateLandmarksOptimistic: (newLms: Landmark[]) => {
-    set(s => ({ local: { landmarks: newLms, version: s.local.version + 1 } }));
-    const s = get();
-    if (!s.analysisId) return;
-    if (syncTimer) clearTimeout(syncTimer);
-    set({ syncState: 'syncing' });
-    syncTimer = setTimeout(async () => {
-      const currentS = get();
-      const max = currentS.ddm.maxillaire === '' ? null : Number(currentS.ddm.maxillaire);
-      const mand = currentS.ddm.mandibulaire === '' ? null : Number(currentS.ddm.mandibulaire);
-      const impa = computeLocalImpa(newLms);
-      const ceph = calcDDMCephalo(impa);
-      const real = (mand !== null && ceph !== null) ? mand + ceph : null;
-      try {
-        const projections = computeMcNamaraProjections(newLms);
-        await cephaloRepository.saveAnalysis(currentS.analysisId!, buildPayload(newLms, max, mand, real, currentS.diag, projections, currentS.mmPerPixel, currentS.etape2Data, currentS.etape3Data));
-        set({ syncState: 'success' });
-        setTimeout(() => set({ syncState: 'idle' }), 1500);
-      } catch {
-        set({ syncState: 'error' });
-        setTimeout(() => set({ syncState: 'idle' }), 2500);
-      }
-    }, 600);
+    const state = get();
+    const transition = applyLandmarkEdit(
+      state.landmarkEditTimeline,
+      state.local.landmarks,
+      newLms,
+      'POINTER_DRAG',
+    );
+    if (!transition.changed) return;
+    set({
+      local: { landmarks: transition.landmarks, version: state.local.version + 1 },
+      landmarkEditTimeline: transition.timeline,
+    });
+    queueAuditedLandmarkSave(transition.landmarks, get, set);
   },
   applyCalibration: async () => {
     const s = get();

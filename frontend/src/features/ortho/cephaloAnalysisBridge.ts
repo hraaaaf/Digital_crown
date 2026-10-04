@@ -4,6 +4,11 @@ export interface CephaloMetricFocus {
   key: string;
   points: string[];
   lines: string[];
+  canonicalMeasurementId?: string;
+  constructionIds?: string[];
+  sourceContracts?: string[];
+  availabilityGate?: string;
+  authority?: 'LOT06_EXECUTABLE_MEASUREMENT_CONTRACT';
 }
 
 export const CEPHALO_ANALYSIS_CHANGE_EVENT = 'digital-crown:cephalo-analysis';

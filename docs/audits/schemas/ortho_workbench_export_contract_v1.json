@@ -1,0 +1,71 @@
+{
+  "schema_version": "ORTHO_WORKBENCH_EXPORT_CONTRACT_V1",
+  "status": "PROJECT_LOCKED_LOT07",
+  "export_schema_version": "ORTHO_WORKBENCH_EXPORT_V1",
+  "authority": {
+    "scientific": "LOT06_CANONICAL_ENGINE",
+    "scientific_read": "EVIDENCE_GRAPH_V1",
+    "clinical_decision": "CLINICIAN",
+    "presentation": "LOT07_PRESENTATION_STATE",
+    "correction_history": "BACKEND_CEPHALO_EVIDENCE_HISTORY",
+    "media": "ORTHO_MEDIA_RECORD_V1"
+  },
+  "required_sections": [
+    "case",
+    "landmarks",
+    "correction_history",
+    "traced_structures",
+    "layers",
+    "lot06_scientific_refs",
+    "calibration",
+    "media"
+  ],
+  "invariants": [
+    "NO_CEPHALOMETRIC_FORMULA_IN_EXPORT",
+    "NO_FRONTEND_SCIENTIFIC_RECALCULATION",
+    "SCIENTIFIC_EXPORT_REQUIRES_VERIFIED_LOT06_ACTIVE_CHAIN",
+    "CLIENT_STRUCTURES_CANNOT_CLAIM_MEASUREMENT_AUTHORITY",
+    "DISPLAY_STRUCTURES_NEVER_DRIVE_MEASUREMENTS",
+    "UNAVAILABLE_LAYER_CANNOT_BE_EXPORTED_AS_VISIBLE",
+    "LONGITUDINAL_REGISTRATION_REMAINS_OUTSIDE_LOT07",
+    "DISPLAY_STRUCTURE_EXPORT_IS_SERVER_BOUND_TO_CASE_AND_TIMEPOINT",
+    "PERSISTED_CORRECTION_HISTORY_MUST_VALIDATE_AS_TYPED_LANDMARK_EVIDENCE",
+    "SESSION_EDIT_AUDIT_IS_PRESENTATION_ONLY_AND_SCHEMA_STRICT",
+    "MEDIA_REFERENCES_USE_CANONICAL_LOCAL_PATIENT_RECORD",
+    "MISSING_SCIENTIFIC_PREREQUISITE_FAILS_CLOSED"
+  ],
+  "presentation_input": {
+    "required_layer_ids": [
+      "landmarks",
+      "plans",
+      "hard_tissue",
+      "teeth",
+      "soft_tissue",
+      "measurements",
+      "t1",
+      "t2"
+    ],
+    "allowed_structure_authorities": [
+      "DISPLAY_TEMPLATE_ONLY",
+      "DERIVED_VISUALIZATION"
+    ],
+    "structure_required_fields": [
+      "structure_id",
+      "structure_class",
+      "authority_state",
+      "coordinate_space",
+      "version",
+      "source_record_id",
+      "created_at",
+      "updated_at",
+      "provenance",
+      "edit_history"
+    ]
+  },
+  "scientific_reference_policy": {
+    "source": "LOT06 persisted typed evidence graph + canonical projection",
+    "construction_export": "REFERENCE_ONLY_NO_FORMULA_REDEFINITION",
+    "measurement_export": "CANONICAL_PROJECTION_REFERENCE_ONLY",
+    "calibration_export": "CURRENT_TYPED_SOURCE_EVIDENCE"
+  }
+}

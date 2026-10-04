@@ -24,11 +24,13 @@ import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
 import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
 import { CephaloSvgDefs } from './components/CephaloSvgDefs';
 import { useCephaloInteraction } from './hooks/useCephaloInteraction';
+import type { OrthoLayerId, OrthoLayerOpacity, OrthoLayerVisibility } from './orthoLayerRegistry';
 
 export interface GhostData {
   landmarks: Landmark[];
   opacity: number;
   color: string;
+  layerId?: Extract<OrthoLayerId, 't1' | 't2'>;
 }
 
 export type TracingUIMode = 'standard' | 'pro';
@@ -63,6 +65,11 @@ export interface CephaloTracingLayerProps {
   performanceMode?: boolean;
   vto?: VTOSettings;
   activeAnalysis?: string;
+  tweedPoAnatomicCertified?: boolean;
+  layerPresentation?: {
+    visibility: OrthoLayerVisibility;
+    opacity: OrthoLayerOpacity;
+  };
 }
 
 type TracingPalette = {
@@ -157,9 +164,13 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   magnifierEnabled = true,
   performanceMode = false,
   vto = { enabled: false, showGhostFace: true, showSoftTissue: true },
-  activeAnalysis = 'all'
+  activeAnalysis = 'all',
+  tweedPoAnatomicCertified = false,
+  layerPresentation,
 }) => {
   const P = getTracingPalette(uiMode);
+  const isLayerVisible = (id: OrthoLayerId) => layerPresentation?.visibility[id] ?? true;
+  const layerOpacityFor = (id: OrthoLayerId) => layerPresentation?.opacity[id] ?? 1;
   const isPro = uiMode === 'pro';
 
   const {
@@ -226,6 +237,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
     const finalPts = applyVTO(pts);
     const po = getPoint(finalPts, 'Po');
+    const poAnatomic = getPoint(finalPts, 'Po_anatomic') ?? (tweedPoAnatomicCertified ? po : undefined);
     const or_ = getPoint(finalPts, 'Or');
     const a = getPoint(finalPts, 'A');
     const b = getPoint(finalPts, 'B');
@@ -254,14 +266,14 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       p2: Landmark | undefined,
       lineKey: string,
       defColor: string,
-      opts?: { dash?: string; op?: number },
+      opts?: { dash?: string; op?: number; renderKey?: string },
     ) => {
-      if (!p1 || !p2) return null;
+      if (!p1 || !p2 || !isLayerVisible('plans')) return null;
 
       if (activeAnalysis !== 'all' && !isGhost) {
         const analysis = activeAnalysis.toLowerCase();
         if (analysis === 'steiner' && !['sn', 'na', 'nb'].includes(lineKey)) return null;
-        if (analysis === 'tweed' && !['fh', 'mp', 'u1', 'l1'].includes(lineKey)) return null;
+        if (analysis === 'tweed' && !['fh', 'mp', 'u1', 'l1', 'zprofile'].includes(lineKey)) return null;
         if (analysis === 'mcnamara' && !['fh', 'mcnamara_perp', 'coa', 'cogn', 'ansme'].includes(lineKey)) return null;
         if (analysis === 'wits' && !['occ'].includes(lineKey)) return null;
         if (analysis === 'esthetique' && !['eline'].includes(lineKey)) return null;
@@ -270,10 +282,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       const color = overrideColor ?? defColor;
       const highlighted = !isGhost && isLineHovered(lineKey);
       const strokeWidth = highlighted ? 2.8 : 1.5;
-      const opacity = (opts?.op ?? 1) * layerOp;
+      const opacity = (opts?.op ?? 1) * layerOp * layerOpacityFor('plans');
       return (
         <motion.line
-          key={`${lineKey}-${isGhost}`}
+          key={`${opts?.renderKey ?? lineKey}-${isGhost}`}
+          data-cephalo-line-key={lineKey}
           x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
           stroke={color}
           strokeDasharray={opts?.dash ?? ghostDash}
@@ -335,11 +348,32 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     const showWits = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'wits';
 
     const softTissueColor = CEPHALO_SCIENTIFIC_COLORS.soft_tissue;
+    // Presentation-only reconstruction of the LOT06 Merrifield profile line.
+    // The clinical Z-angle value remains exclusively backend-authoritative.
+    const merrifieldProfileLip = (() => {
+      if (!poAnatomic || !or_ || !ls || !li) return undefined;
+      const dx = or_.x - poAnatomic.x;
+      const dy = or_.y - poAnatomic.y;
+      const length = Math.hypot(dx, dy);
+      if (!Number.isFinite(length) || length <= 1e-9) return undefined;
+      const ux = dx / length;
+      const uy = dy / length;
+      const lsScore = ls.x * ux + ls.y * uy;
+      const liScore = li.x * ux + li.y * uy;
+      if (!Number.isFinite(lsScore) || !Number.isFinite(liScore)) return undefined;
+      if (Math.abs(lsScore - liScore) <= 1e-9) {
+        return Math.abs(ls.x - li.x) <= 1e-9 && Math.abs(ls.y - li.y) <= 1e-9 ? ls : undefined;
+      }
+      return lsScore > liScore ? ls : li;
+    })();
 
     return (
       <g key={isGhost ? `ghost-${layerOp}` : 'main-layer'}>
-        {showTweed || showMcNamara ? seg(po, or_, 'fh', P.francfort) : null}
+        {showTweed ? seg(poAnatomic, or_, 'fh', P.francfort, { renderKey: 'fh-tweed' }) : null}
+        {showMcNamara ? seg(po, or_, 'fh', P.francfort, { renderKey: 'fh-mcnamara' }) : null}
         {showTweed ? seg(go, me, 'mp', P.mandibule) : null}
+        {showTweed ? seg(l1a, l1i, 'l1', P.l1) : null}
+        {showTweed ? seg(pogSoft, merrifieldProfileLip, 'zprofile', softTissueColor, { dash: '3,2', op: 0.9 }) : null}
 
         {showSteiner && (
           <>
@@ -360,7 +394,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
         {showWits && seg(occPost, occAnt, 'occ', cephaloGeometryColor('occ'), { dash: '4,4' })}
 
-        {vto.showSoftTissue && !isGhost && (() => {
+        {vto.showSoftTissue && isLayerVisible('soft_tissue') && !isGhost && (() => {
           const ls2 = getPoint(finalPts, 'Ls2') || getPoint(finalPts, 'ls2');
           const li2 = getPoint(finalPts, 'Li2') || getPoint(finalPts, 'li2');
           const profilePoints = [gSoft, nSoft, prn, cm, sn, aSoft, ls, ls2, st, li2, li, bSoft, pogSoft, meSoft].filter(Boolean) as Landmark[];
@@ -395,7 +429,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           }
 
           return (
-            <g>
+            <g opacity={layerOpacityFor('soft_tissue')} data-ortho-layer="soft_tissue">
               <defs>
                 <linearGradient id="skinProfileGradient" x1={facesRight ? '100%' : '0%'} y1="0%" x2={facesRight ? '0%' : '100%'} y2="0%">
                   <stop offset="0%" stopColor={softTissueColor} stopOpacity="0.34" />
@@ -433,8 +467,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           );
         })()}
 
-        {prn && pogSoft && (
-          <g>
+        {isLayerVisible('plans') && prn && pogSoft && (
+          <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
               x1={prn.x} y1={prn.y} x2={pogSoft.x} y2={pogSoft.y}
               stroke={softTissueColor}
@@ -465,32 +499,32 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {wedgeCompPath && (
-          <path d={wedgeCompPath} fill={wComp} fillOpacity="0.10" stroke={wComp} strokeWidth="0.9" strokeDasharray="4,2" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
+        {isLayerVisible('measurements') && wedgeCompPath && (
+          <path data-ortho-layer="measurements" opacity={layerOpacityFor('measurements')} d={wedgeCompPath} fill={wComp} fillOpacity="0.10" stroke={wComp} strokeWidth="0.9" strokeDasharray="4,2" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
         )}
-        {wedgeNormPath && (
-          <path d={wedgeNormPath} fill={wNorm} fillOpacity="0.20" stroke={wNorm} strokeWidth="1.1" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
+        {isLayerVisible('measurements') && wedgeNormPath && (
+          <path data-ortho-layer="measurements" opacity={layerOpacityFor('measurements')} d={wedgeNormPath} fill={wNorm} fillOpacity="0.20" stroke={wNorm} strokeWidth="1.1" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
         )}
 
-        {u1i && u1a && (
+        {isLayerVisible('teeth') && u1i && u1a && (
           <AnatomicalTooth
             incisalPoint={u1i}
             apexPoint={u1a}
             color={overrideColor ?? P.u1}
             isHovered={!isGhost && isLineHovered('u1')}
-            opacity={layerOp}
+            opacity={layerOp * layerOpacityFor('teeth')}
             isGhost={isGhost}
             isBeingDragged={u1Active}
             glowFilter={u1Glow}
           />
         )}
-        {l1i && l1a && (
+        {isLayerVisible('teeth') && l1i && l1a && (
           <AnatomicalTooth
             incisalPoint={l1i}
             apexPoint={l1a}
             color={overrideColor ?? P.l1}
             isHovered={!isGhost && isLineHovered('l1')}
-            opacity={layerOp}
+            opacity={layerOp * layerOpacityFor('teeth')}
             isGhost={isGhost}
             isBeingDragged={l1Active}
             glowFilter={l1Glow}
@@ -501,13 +535,16 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   };
 
   const po = getPoint(landmarks, 'Po');
+  const poAnatomic = getPoint(landmarks, 'Po_anatomic') ?? (tweedPoAnatomicCertified ? po : undefined);
   const or_ = getPoint(landmarks, 'Or');
+  const activeAnalysisKey = activeAnalysis.toLowerCase();
+  const activeFrankfortPo = activeAnalysisKey === 'tweed' ? poAnatomic : po;
   let francfortLineExtended: { x1: number; y1: number; x2: number; y2: number } | null = null;
-  if (po && or_) {
-    const dx = or_.x - po.x;
-    const dy = or_.y - po.y;
+  if (activeFrankfortPo && or_) {
+    const dx = or_.x - activeFrankfortPo.x;
+    const dy = or_.y - activeFrankfortPo.y;
     francfortLineExtended = {
-      x1: po.x - dx * 10, y1: po.y - dy * 10,
+      x1: activeFrankfortPo.x - dx * 10, y1: activeFrankfortPo.y - dy * 10,
       x2: or_.x + dx * 10, y2: or_.y + dy * 10,
     };
   }
@@ -515,10 +552,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const n0 = getPoint(landmarks, 'N');
   const ptA = getPoint(landmarks, 'A');
   const ptB = getPoint(landmarks, 'B');
-  const francfortAngle = (po && or_) ? toDeg(Math.atan2(or_.y - po.y, or_.x - po.x)) : 0;
-  const nPrime = (po && or_ && n0) ? projectPointOnLine(n0.x, n0.y, po.x, po.y, or_.x, or_.y) : null;
-  const aPrime = (po && or_ && ptA) ? projectPointOnLine(ptA.x, ptA.y, po.x, po.y, or_.x, or_.y) : null;
-  const bPrime = (po && or_ && ptB) ? projectPointOnLine(ptB.x, ptB.y, po.x, po.y, or_.x, or_.y) : null;
+  const francfortAngle = (activeFrankfortPo && or_) ? toDeg(Math.atan2(or_.y - activeFrankfortPo.y, or_.x - activeFrankfortPo.x)) : 0;
+  const nPrime = (activeFrankfortPo && or_ && n0) ? projectPointOnLine(n0.x, n0.y, activeFrankfortPo.x, activeFrankfortPo.y, or_.x, or_.y) : null;
+  const aPrime = (activeFrankfortPo && or_ && ptA) ? projectPointOnLine(ptA.x, ptA.y, activeFrankfortPo.x, activeFrankfortPo.y, or_.x, or_.y) : null;
+  const bPrime = (activeFrankfortPo && or_ && ptB) ? projectPointOnLine(ptB.x, ptB.y, activeFrankfortPo.x, activeFrankfortPo.y, or_.x, or_.y) : null;
 
   let mcNamaraLine: { x1: number; y1: number; x2: number; y2: number } | null = null;
   if (n0 && nPrime) {
@@ -537,13 +574,13 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const dragId = activeDragId ?? '';
   const l1Dragged = ['L1_incisal', 'L1_apex', 'L1i', 'L1a'].includes(dragId);
   const u1Dragged = ['U1_incisal', 'U1_apex', 'U1i', 'U1a'].includes(dragId);
-  const frkDragged = dragId === 'Po' || dragId === 'Or';
+  const frkDragged = dragId === 'Po' || (activeAnalysisKey === 'tweed' && dragId === 'Po_anatomic') || dragId === 'Or';
   const mandDragged = dragId === 'Go' || dragId === 'Me';
   const wL1i = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_incisal') ?? getPoint(landmarks, 'L1i')) : null;
   const wL1a = (l1Dragged || frkDragged || mandDragged) ? (getPoint(landmarks, 'L1_apex') ?? getPoint(landmarks, 'L1a')) : null;
   const wU1i = (u1Dragged || frkDragged) ? (getPoint(landmarks, 'U1_incisal') ?? getPoint(landmarks, 'U1i')) : null;
   const wU1a = (u1Dragged || frkDragged) ? (getPoint(landmarks, 'U1_apex') ?? getPoint(landmarks, 'U1a')) : null;
-  const wPo = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Po') : null;
+  const wPo = (u1Dragged || frkDragged) ? activeFrankfortPo : null;
   const wOr = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Or') : null;
   const wGo = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Go') : null;
   const wMe = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Me') : null;
@@ -591,11 +628,13 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         )}
 
         <motion.g animate={{ opacity: skeletalOp }} transition={{ duration: 0.10 }}>
-          {ghosts.map(g => renderSkeletalLayer(g.landmarks, true, g.color, g.opacity))}
+          {ghosts.map(g => (!g.layerId || isLayerVisible(g.layerId))
+            ? renderSkeletalLayer(g.landmarks, true, g.color, g.opacity * (g.layerId ? layerOpacityFor(g.layerId) : 1))
+            : null)}
           {renderSkeletalLayer(landmarks, false, undefined, baseOpacity)}
 
           <g opacity={baseOpacity}>
-            {isPro && visualDebug?.normative_zones?.map((z, i) => (
+            {isLayerVisible('measurements') && isPro && visualDebug?.normative_zones?.map((z, i) => (
               <ellipse
                 key={`zone-${i}`}
                 cx={z.cx} cy={z.cy} rx={z.rx} ry={z.ry}
@@ -609,13 +648,13 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
                 className="pointer-events-none"
               />
             ))}
-            {francfortLineExtended && (
+            {isLayerVisible('plans') && francfortLineExtended && (
               <line
                 x1={francfortLineExtended.x1} y1={francfortLineExtended.y1}
                 x2={francfortLineExtended.x2} y2={francfortLineExtended.y2}
                 stroke={cephaloGeometryColor('fh')}
                 strokeWidth="1.5"
-                opacity="0.6"
+                opacity={0.6 * layerOpacityFor('plans')}
                 strokeDasharray="10,5"
                 vectorEffect="non-scaling-stroke"
               />
@@ -623,8 +662,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         </motion.g>
 
-        {mcNamaraLine && nPrime && nPrimeTick && (
-          <g>
+        {isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
+          <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
               x1={mcNamaraLine.x1} y1={mcNamaraLine.y1}
               x2={mcNamaraLine.x2} y2={mcNamaraLine.y2}
@@ -654,8 +693,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {aPrime && ptA && aPrimeTick && (
-          <g>
+        {isLayerVisible('measurements') && aPrime && ptA && aPrimeTick && (
+          <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptA.x} y1={ptA.y}
               x2={aPrime.x} y2={aPrime.y}
@@ -685,8 +724,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {bPrime && ptB && bPrimeTick && (
-          <g>
+        {isLayerVisible('measurements') && bPrime && ptB && bPrimeTick && (
+          <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptB.x} y1={ptB.y}
               x2={bPrime.x} y2={bPrime.y}
@@ -716,33 +755,38 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {showIMPA && (
-          <WedgeZone
-            apexPt={wL1a!}
-            incisalPt={wL1i!}
-            po={wGo!}
-            or_={wMe!}
-            label="IMPA"
-            normMean={IMPA_MEAN}
-            normHalf={IMPA_NORM_HALF}
-            compHalf={IMPA_COMP_HALF}
-            colors={{ norm: P.wedgeNorm, comp: P.wedgeComp, severe: P.wedgeSevere, normLine: P.wedgeNormLine }}
-          />
+        {isLayerVisible('measurements') && showIMPA && (
+          <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
+            <WedgeZone
+              apexPt={wL1a!}
+              incisalPt={wL1i!}
+              po={wGo!}
+              or_={wMe!}
+              label="IMPA"
+              normMean={IMPA_MEAN}
+              normHalf={IMPA_NORM_HALF}
+              compHalf={IMPA_COMP_HALF}
+              colors={{ norm: P.wedgeNorm, comp: P.wedgeComp, severe: P.wedgeSevere, normLine: P.wedgeNormLine }}
+            />
+          </g>
         )}
-        {showIF && (
-          <WedgeZone
-            apexPt={wU1a!}
-            incisalPt={wU1i!}
-            po={wPo!}
-            or_={wOr!}
-            label="I/F"
-            normMean={IF_MEAN}
-            normHalf={IF_NORM_HALF}
-            compHalf={IF_COMP_HALF}
-            colors={{ norm: P.wedgeU1Norm, comp: P.wedgeU1Comp, severe: P.wedgeU1Severe, normLine: P.wedgeU1Norm }}
-          />
+        {isLayerVisible('measurements') && showIF && (
+          <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
+            <WedgeZone
+              apexPt={wU1a!}
+              incisalPt={wU1i!}
+              po={wPo!}
+              or_={wOr!}
+              label="I/F"
+              normMean={IF_MEAN}
+              normHalf={IF_NORM_HALF}
+              compHalf={IF_COMP_HALF}
+              colors={{ norm: P.wedgeU1Norm, comp: P.wedgeU1Comp, severe: P.wedgeU1Severe, normLine: P.wedgeU1Norm }}
+            />
+          </g>
         )}
 
+        {isLayerVisible('landmarks') && <g opacity={layerOpacityFor('landmarks')} data-ortho-layer="landmarks">
         <CephaloLandmarkReticles
           landmarks={landmarks}
           isCalibrating={isCalibrating}
@@ -762,6 +806,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           onPointMouseDown={onPointMouseDown}
           onUpdateLandmarks={onUpdateLandmarks}
         />
+        </g>}
 
         <CephaloCalibrationOverlay
           isCalibrating={isCalibrating}

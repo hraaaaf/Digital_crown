@@ -177,12 +177,14 @@ def test_ricketts_geometry_primitive_is_non_oriented_and_fail_closed():
     ) is None
 
 
-def test_tweed_source_exact_geometry_stays_blocked_instead_of_using_convenience_lines():
+def test_tweed_source_exact_geometry_is_resolved_by_selected_dc_variant_without_false_equivalence():
     blocker = TWEED_SOURCE_EXACT_GEOMETRY_BLOCKER
-    assert blocker["status"] == "BLOCKED_SOURCE_SPECIFIC_GEOMETRY"
-    assert blocker["mandibular_plane_requirement"] == "source_specific_lower_border_tangent"
+    assert blocker["status"] == "RESOLVED_BY_SELECTED_DC_VARIANT"
+    assert blocker["strict_historical_status"] == "HISTORICAL_NOT_SELECTED"
+    assert blocker["strict_mandibular_plane_requirement"] == "source_specific_lower_border_tangent"
+    assert blocker["selected_contract"] == "DC_TWEED_ANATOMICAL_FH_VARIANT"
+    assert blocker["selected_frankfort"] == "Po_anatomic-Or"
+    assert blocker["selected_mandibular_plane"] == "Go-Me"
     assert "doi:10.1016/0096-6347(46)90001-4" in blocker["source_refs"]
-    forbidden = set(blocker["forbidden_substitutions"])
-    assert "Go-Me_as_Tweed_mandibular_plane" in forbidden
-    assert "Go-Gn_as_Tweed_mandibular_plane" in forbidden
-    assert "generic_Po-Or_as_source_exact_Tweed_FH_without_proof" in forbidden
+    assert "DC_variant_is_strict_Tweed_1954_geometry" in blocker["forbidden_claims"]
+    assert blocker["runtime_policy"].startswith("RAW_GEOMETRY_ALLOWED")

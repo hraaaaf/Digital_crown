@@ -14,6 +14,7 @@ from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
 from . import cephalo_calibration_provenance as cephalo_calibration_provenance
 from . import cephalo_landmark_refinement as cephalo_landmark_refinement
 from . import cephalo_analysis_read as cephalo_analysis_read
+from . import cephalo_workbench_export as cephalo_workbench_export
 from . import clinics as clinics
 from . import license_portability_p4 as license_portability_p4
 from . import clinic_identity_p4 as clinic_identity_p4
@@ -116,6 +117,10 @@ ia.router.routes = [
     )
 ]
 ia.router.include_router(cephalo_analysis_read.router)
+
+# LOT07-G adds a projection-only workbench export. Scientific content is read from
+# the already-canonical LOT06 evidence chain; client input is presentation-only.
+ia.router.include_router(cephalo_workbench_export.router)
 
 # Portability P4 replaces the legacy env-based licence recheck. The stable public URL
 # is unchanged, but identity now comes from the authenticated CabinetConfig.

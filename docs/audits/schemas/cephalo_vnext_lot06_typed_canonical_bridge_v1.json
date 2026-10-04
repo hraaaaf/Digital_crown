@@ -1,0 +1,318 @@
+{
+  "schema_version": "CEPHALO_LOT06_TYPED_CANONICAL_BRIDGE_V1",
+  "status": "CANONICAL_IDENTITY_SAFE_SUBSET_ONLY",
+  "rules": {
+    "legacy_snapshot_mutation_forbidden": true,
+    "implicit_name_aliasing_forbidden": true,
+    "blocked_method_projection_forbidden": true,
+    "unmapped_method_projection_forbidden": true
+  },
+  "methods": [
+    {
+      "method_id": "CRANIOM_SITUATION_A_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "CRANIOM_SITUATION_B_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "CRANIOM_AB_PRIME_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "CRANIOM_FACIAL_DEPTH_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "CRANIOM_U1_FRANKFORT_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "CRANIOM_L1_DOWNS_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "CRANIOM_INTERINCISAL_DEG_V1",
+      "canonical_measurement_id": "M_INTERINCISAL_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_GEOMETRY_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "STEINER_SNA_DEG_V1",
+      "canonical_measurement_id": "M_SNA_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_GEOMETRY_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "STEINER_SNB_DEG_V1",
+      "canonical_measurement_id": "M_SNB_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_GEOMETRY_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "STEINER_ANB_DEG_V1",
+      "canonical_measurement_id": "M_ANB_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_GEOMETRY_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "STEINER_SN_MP_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "STEINER_U1_NA_DEG_V1",
+      "canonical_measurement_id": "M_U1_NA_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_GEOMETRY_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "STEINER_L1_NB_DEG_V1",
+      "canonical_measurement_id": "M_L1_NB_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_GEOMETRY_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "TWEED_FMA_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "TWEED_IMPA_DEG_V1",
+      "canonical_measurement_id": "M_IMPA_GOME_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_L1_APEX_INCISAL_GO_ME_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "TWEED_FMIA_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "MERRIFIELD_Z_ANGLE_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "UNMAPPED_CANONICAL_ID",
+      "reason": "NO_CANONICAL_M_ID_SOURCE_LOCKED"
+    },
+    {
+      "method_id": "DOWNS_FACIAL_ANGLE_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "ANGLE_CONVENTION_COLLISION_45_VS_135"
+    },
+    {
+      "method_id": "DOWNS_Y_AXIS_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "UNMAPPED_CANONICAL_ID",
+      "reason": "NO_CANONICAL_M_ID_SOURCE_LOCKED"
+    },
+    {
+      "method_id": "MCNAMARA_CO_A_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "MCNAMARA_CO_GN_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "MCNAMARA_ANS_ME_MM_V1",
+      "canonical_measurement_id": "M_ANS_ME_MM_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_GEOMETRY_IDENTITY_BINDING"
+    },
+    {
+      "method_id": "M_A_NPERP_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "M_POG_NPERP_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "RICKETTS_FACIAL_DEPTH_DEG_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "ANGLE_CONVENTION_COLLISION_45_VS_135"
+    },
+    {
+      "method_id": "RICKETTS_CONVEXITY_A_NPOG_MM_V1",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "RICKETTS_E_LINE_LS_MM_V2",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "RICKETTS_E_LINE_LI_MM_V2",
+      "canonical_measurement_id": null,
+      "state": "BLOCKED",
+      "reason": "LEGACY_TYPED_IDENTITY_BRIDGE_REQUIRED"
+    },
+    {
+      "method_id": "TWEED_FMA_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_FH_GOME_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "TWEED_FMIA_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_FMIA_L1_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_CO_A_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_CO_A_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_CO_GN_ANATOMIC_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_A_NPERP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_POG_NPERP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SPLIT_ANGLE_CONVENTION"
+    },
+    {
+      "method_id": "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_DOWNS_Y_AXIS_SGN_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SPLIT_ANGLE_CONVENTION"
+    },
+    {
+      "method_id": "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
+      "canonical_measurement_id": "M_LS_EPLANE_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
+      "canonical_measurement_id": "M_LI_EPLANE_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "MERRIFIELD_Z_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_MERRIFIELD_Z_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_PT_RICKETTS_AND_CONSTRUCTED_GN"
+    },
+    {
+      "method_id": "STEINER_SND_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_SND_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_D"
+    },
+    {
+      "method_id": "STEINER_U1_NA_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_U1_NA_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_CROWN_SURFACE"
+    },
+    {
+      "method_id": "STEINER_L1_NB_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_L1_NB_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_CROWN_SURFACE"
+    },
+    {
+      "method_id": "STEINER_POG_NB_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_POG_NB_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_POG_HARD"
+    },
+    {
+      "method_id": "STEINER_L1_GOGN_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_L1_GOGN_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_GN_ANATOMIC"
+    },
+    {
+      "method_id": "STEINER_OCCLUSAL_SN_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_OCCLUSAL_PLANE_SN_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_OCCLUSAL_ANCHORS"
+    },
+    {
+      "method_id": "STEINER_L1_DLINE_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_L1_DLINE_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_D_AND_CROWN"
+    },
+    {
+      "method_id": "STEINER_L1_DLINE_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_L1_DLINE_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_STEINER_D"
+    },
+    {
+      "method_id": "STEINER_SN_GOGN_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_SN_GOGN_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_GN_ANATOMIC"
+    }
+  ]
+}

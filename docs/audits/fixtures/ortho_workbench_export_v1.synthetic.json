@@ -1,0 +1,2237 @@
+{
+  "schema_version": "ORTHO_WORKBENCH_EXPORT_V1",
+  "contract_version": "ORTHO_WORKBENCH_EXPORT_CONTRACT_V1",
+  "exported_at": "2026-10-03T10:30:00+00:00",
+  "authority": {
+    "scientific": "LOT06_CANONICAL_ENGINE",
+    "scientific_read": "EVIDENCE_GRAPH_V1",
+    "clinical_decision": "CLINICIAN",
+    "presentation": "LOT07_PRESENTATION_STATE",
+    "correction_history": "BACKEND_CEPHALO_EVIDENCE_HISTORY",
+    "media": "ORTHO_MEDIA_RECORD_V1"
+  },
+  "case": {
+    "patient_id": 907001,
+    "analysis_id": 907071,
+    "case_id": "cephalo:lot07g-export-fixture",
+    "timepoint_id": "T0",
+    "evidence_revision": 1,
+    "source_evidence_id": "source:cephalo:lot07g-export-fixture:ceph",
+    "source_record_id": "synthetic://lot07g/lateral-cephalogram",
+    "source_provenance": {
+      "evidence_id": "source:cephalo:lot07g-export-fixture:ceph",
+      "patient_id": 907001,
+      "kind": "lateral_ceph",
+      "source_record_id": "synthetic://lot07g/lateral-cephalogram",
+      "acquired_at": null,
+      "recorded_at": "2026-10-03T10:00:00Z",
+      "operator_id": null,
+      "evidence_status": "OBSERVED",
+      "availability_status": "AVAILABLE",
+      "quality_status": null,
+      "metadata": {
+        "case_id": "cephalo:lot07g-export-fixture"
+      }
+    }
+  },
+  "landmarks": {
+    "authority": "LOT06_TYPED_EVIDENCE_CURRENT_LANDMARKS",
+    "current_refs": [
+      "landmark:cephalo:lot07g-export-fixture:auto:S",
+      "landmark:cephalo:lot07g-export-fixture:auto:N",
+      "landmark:cephalo:lot07g-export-fixture:auto:Or",
+      "landmark:cephalo:lot07g-export-fixture:auto:Po",
+      "landmark:cephalo:lot07g-export-fixture:auto:A",
+      "landmark:cephalo:lot07g-export-fixture:auto:B",
+      "landmark:cephalo:lot07g-export-fixture:auto:Pog",
+      "landmark:cephalo:lot07g-export-fixture:auto:Me",
+      "landmark:cephalo:lot07g-export-fixture:auto:Gn",
+      "landmark:cephalo:lot07g-export-fixture:auto:Go",
+      "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+      "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+      "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:Li_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:Sn_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:PNS",
+      "landmark:cephalo:lot07g-export-fixture:auto:ANS",
+      "landmark:cephalo:lot07g-export-fixture:auto:Ar",
+      "landmark:cephalo:lot07g-export-fixture:auto:D_point",
+      "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+      "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+      "landmark:cephalo:lot07g-export-fixture:auto:Cm",
+      "landmark:cephalo:lot07g-export-fixture:auto:Ptm",
+      "landmark:cephalo:lot07g-export-fixture:auto:Co",
+      "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+      "landmark:cephalo:lot07g-export-fixture:auto:Ba",
+      "landmark:cephalo:lot07g-export-fixture:auto:PT_point",
+      "landmark:cephalo:lot07g-export-fixture:auto:Bo",
+      "landmark:cephalo:lot07g-export-fixture:auto:Ls2",
+      "landmark:cephalo:lot07g-export-fixture:auto:Li2",
+      "landmark:cephalo:lot07g-export-fixture:auto:Gn_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:Me_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:G_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:N_soft",
+      "landmark:cephalo:lot07g-export-fixture:auto:C_point",
+      "landmark:cephalo:lot07g-export-fixture:auto:U6",
+      "landmark:cephalo:lot07g-export-fixture:auto:L6"
+    ],
+    "items": [
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:S",
+        "landmark_id": "S",
+        "x": 100.0,
+        "y": 120.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:N",
+        "landmark_id": "N",
+        "x": 102.0,
+        "y": 123.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Or",
+        "landmark_id": "Or",
+        "x": 104.0,
+        "y": 126.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Po",
+        "landmark_id": "Po",
+        "x": 106.0,
+        "y": 129.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:A",
+        "landmark_id": "A",
+        "x": 108.0,
+        "y": 132.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:B",
+        "landmark_id": "B",
+        "x": 110.0,
+        "y": 135.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Pog",
+        "landmark_id": "Pog",
+        "x": 112.0,
+        "y": 138.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Me",
+        "landmark_id": "Me",
+        "x": 114.0,
+        "y": 141.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Gn",
+        "landmark_id": "Gn",
+        "x": 116.0,
+        "y": 144.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Go",
+        "landmark_id": "Go",
+        "x": 118.0,
+        "y": 147.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+        "landmark_id": "L1_incisal",
+        "x": 120.0,
+        "y": 150.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+        "landmark_id": "U1_incisal",
+        "x": 122.0,
+        "y": 153.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+        "landmark_id": "Ls_soft",
+        "x": 124.0,
+        "y": 156.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Li_soft",
+        "landmark_id": "Li_soft",
+        "x": 126.0,
+        "y": 159.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Sn_soft",
+        "landmark_id": "Sn_soft",
+        "x": 128.0,
+        "y": 162.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+        "landmark_id": "Pog_soft",
+        "x": 130.0,
+        "y": 165.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:PNS",
+        "landmark_id": "PNS",
+        "x": 132.0,
+        "y": 168.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:ANS",
+        "landmark_id": "ANS",
+        "x": 134.0,
+        "y": 171.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Ar",
+        "landmark_id": "Ar",
+        "x": 136.0,
+        "y": 174.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:D_point",
+        "landmark_id": "D_point",
+        "x": 138.0,
+        "y": 177.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+        "landmark_id": "U1_apex",
+        "x": 140.0,
+        "y": 180.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+        "landmark_id": "L1_apex",
+        "x": 142.0,
+        "y": 183.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Cm",
+        "landmark_id": "Cm",
+        "x": 144.0,
+        "y": 186.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Ptm",
+        "landmark_id": "Ptm",
+        "x": 146.0,
+        "y": 189.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Co",
+        "landmark_id": "Co",
+        "x": 148.0,
+        "y": 192.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+        "landmark_id": "Prn",
+        "x": 150.0,
+        "y": 195.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Ba",
+        "landmark_id": "Ba",
+        "x": 152.0,
+        "y": 198.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:PT_point",
+        "landmark_id": "PT_point",
+        "x": 154.0,
+        "y": 201.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Bo",
+        "landmark_id": "Bo",
+        "x": 156.0,
+        "y": 204.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Ls2",
+        "landmark_id": "Ls2",
+        "x": 158.0,
+        "y": 207.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Li2",
+        "landmark_id": "Li2",
+        "x": 160.0,
+        "y": 210.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Gn_soft",
+        "landmark_id": "Gn_soft",
+        "x": 162.0,
+        "y": 213.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Me_soft",
+        "landmark_id": "Me_soft",
+        "x": 164.0,
+        "y": 216.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:G_soft",
+        "landmark_id": "G_soft",
+        "x": 166.0,
+        "y": 219.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:N_soft",
+        "landmark_id": "N_soft",
+        "x": 168.0,
+        "y": 222.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:C_point",
+        "landmark_id": "C_point",
+        "x": 170.0,
+        "y": 225.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:U6",
+        "landmark_id": "U6",
+        "x": 172.0,
+        "y": 228.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:L6",
+        "landmark_id": "L6",
+        "x": 174.0,
+        "y": 231.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "validated_by": null,
+        "validated_at": null,
+        "availability_status": "AVAILABLE"
+      }
+    ],
+    "canonical_dependency_items": [
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Co:canonical:Co_anatomic",
+        "landmark_id": "Co_anatomic",
+        "x": 148.0,
+        "y": 192.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+        "landmark_id": "Po_anatomic",
+        "x": 106.0,
+        "y": 129.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "evidence_id": "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+        "landmark_id": "Pog_hard",
+        "x": 112.0,
+        "y": 138.0,
+        "source_image_ref": "source:cephalo:lot07g-export-fixture:ceph",
+        "origin": "SRPOSE38_AUTO",
+        "availability_status": "AVAILABLE"
+      }
+    ]
+  },
+  "correction_history": {
+    "authority": "BACKEND_CEPHALO_EVIDENCE_HISTORY",
+    "persisted_revision_count": 1,
+    "manual_corrections": [],
+    "session_operations": {
+      "authority": "SESSION_OPERATIONAL_UNDO_REDO_ONLY",
+      "events": []
+    }
+  },
+  "traced_structures": {
+    "authority": "LOT07_PRESENTATION_STATE_NON_SCIENTIFIC",
+    "items": []
+  },
+  "layers": {
+    "authority": "LOT07_PRESENTATION_STATE_NON_SCIENTIFIC",
+    "visibility": {
+      "landmarks": true,
+      "plans": true,
+      "hard_tissue": false,
+      "teeth": true,
+      "soft_tissue": true,
+      "measurements": true,
+      "t1": false,
+      "t2": false
+    },
+    "opacity": {
+      "landmarks": 1.0,
+      "plans": 1.0,
+      "hard_tissue": 0.85,
+      "teeth": 1.0,
+      "soft_tissue": 0.9,
+      "measurements": 1.0,
+      "t1": 0.5,
+      "t2": 0.5
+    }
+  },
+  "lot06_scientific_refs": {
+    "authority": "LOT06_EXECUTABLE_MEASUREMENT_CONTRACT",
+    "evidence_schema_version": "CEPHALO_EVIDENCE_V1",
+    "active_chain": "VERIFIED",
+    "construction_refs": [
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_AB_PRIME_V1",
+        "definition_id": "CRANIOM_AB_PRIME_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:B",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:B",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_A_TO_N_VERTICAL_V1",
+        "definition_id": "CRANIOM_A_TO_N_VERTICAL_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_B_TO_N_VERTICAL_V1",
+        "definition_id": "CRANIOM_B_TO_N_VERTICAL_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:B",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:B",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_L1_TO_DOWNS_MP_V1",
+        "definition_id": "CRANIOM_L1_TO_DOWNS_MP_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_S_TO_N_VERTICAL_DEPTH_V1",
+        "definition_id": "CRANIOM_S_TO_N_VERTICAL_DEPTH_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_U1_L1_INTERINCISAL_V1",
+        "definition_id": "CRANIOM_U1_L1_INTERINCISAL_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_U1_TO_FRANKFORT_V1",
+        "definition_id": "CRANIOM_U1_TO_FRANKFORT_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1",
+        "definition_id": "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "availability_status": "INVALID"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:MCNAMARA_A_NPERP_V1",
+        "definition_id": "MCNAMARA_A_NPERP_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:MCNAMARA_POG_NPERP_V1",
+        "definition_id": "MCNAMARA_POG_NPERP_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_ANS_ME_V1",
+        "definition_id": "MCNAMARA_ANS_ME_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:ANS",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:ANS",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_CO_A_V1",
+        "definition_id": "MCNAMARA_CO_A_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_CO_GN_V1",
+        "definition_id": "MCNAMARA_CO_GN_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co",
+          "landmark:cephalo:lot07g-export-fixture:auto:Gn"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co",
+          "landmark:cephalo:lot07g-export-fixture:auto:Gn"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_CONVEXITY_A_NPOG_V1",
+        "definition_id": "RICKETTS_CONVEXITY_A_NPOG_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_E_LINE_LI_V2",
+        "definition_id": "RICKETTS_E_LINE_LI_V2",
+        "definition_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_E_LINE_LS_V2",
+        "definition_id": "RICKETTS_E_LINE_LS_V2",
+        "definition_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_FACIAL_DEPTH_V1",
+        "definition_id": "RICKETTS_FACIAL_DEPTH_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_ANB_V1",
+        "definition_id": "STEINER_ANB_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:B"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:B"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SNA_V1",
+        "definition_id": "STEINER_SNA_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SNB_V1",
+        "definition_id": "STEINER_SNB_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:B"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:B"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SN_MP_V1",
+        "definition_id": "STEINER_SN_MP_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Gn"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Gn"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:dental:STEINER_L1_NB_ANGLE_V1",
+        "definition_id": "STEINER_L1_NB_ANGLE_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:B"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:B"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:dental:STEINER_U1_NA_ANGLE_V1",
+        "definition_id": "STEINER_U1_NA_ANGLE_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:U1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:MERRIFIELD_Z_ANGLE_V1",
+        "definition_id": "MERRIFIELD_Z_ANGLE_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_FMA_V1",
+        "definition_id": "TWEED_FMA_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_FMIA_V1",
+        "definition_id": "TWEED_FMIA_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_IMPA_V1",
+        "definition_id": "TWEED_IMPA_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:r7:DOWNS_FACIAL_ANGLE_V1",
+        "definition_id": "DOWNS_FACIAL_ANGLE_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "construction_id": "construction:cephalo:lot07g-export-fixture:r1:steiner:r7:DOWNS_Y_AXIS_V1",
+        "definition_id": "DOWNS_Y_AXIS_V1",
+        "definition_version": "1",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:Gn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:Gn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      }
+    ],
+    "measurement_refs": [
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:Decalage_A_B",
+        "analysis_id": "CRANIOM",
+        "method_id": "CRANIOM_AB_PRIME_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_AB_PRIME_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_AB_PRIME_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:IMPA",
+        "analysis_id": "CRANIOM",
+        "method_id": "CRANIOM_L1_DOWNS_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_L1_TO_DOWNS_MP_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_L1_TO_DOWNS_MP_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:I_Francfort",
+        "analysis_id": "CRANIOM",
+        "method_id": "CRANIOM_U1_FRANKFORT_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_U1_TO_FRANKFORT_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_U1_TO_FRANKFORT_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:Inter_Incisif",
+        "analysis_id": "CRANIOM",
+        "method_id": "CRANIOM_INTERINCISAL_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_U1_L1_INTERINCISAL_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_U1_L1_INTERINCISAL_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:Profondeur_Faciale",
+        "analysis_id": "CRANIOM",
+        "method_id": "CRANIOM_FACIAL_DEPTH_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:Situation_A",
+        "analysis_id": "CRANIOM",
+        "method_id": "CRANIOM_SITUATION_A_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_A_TO_N_VERTICAL_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_A_TO_N_VERTICAL_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:Situation_B",
+        "analysis_id": "CRANIOM",
+        "method_id": "CRANIOM_SITUATION_B_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_B_TO_N_VERTICAL_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:CRANIOM_B_TO_N_VERTICAL_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:DOWNS_FACIAL_ANGLE",
+        "analysis_id": "DOWNS",
+        "method_id": "DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:DOWNS_Y_AXIS",
+        "analysis_id": "DOWNS",
+        "method_id": "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:S",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_A_NPERP",
+        "analysis_id": "MCNAMARA",
+        "method_id": "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_CO_A",
+        "analysis_id": "MCNAMARA",
+        "method_id": "MCNAMARA_CO_A_CANONICAL_MM_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co:canonical:Co_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co:canonical:Co_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:A"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_CO_GN",
+        "analysis_id": "MCNAMARA",
+        "method_id": "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co:canonical:Co_anatomic"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Co:canonical:Co_anatomic"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_POG_NPERP",
+        "analysis_id": "MCNAMARA",
+        "method_id": "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MERRIFIELD_Z",
+        "analysis_id": "MERRIFIELD",
+        "method_id": "MERRIFIELD_Z_CANONICAL_DEG_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_CONVEXITY",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:A",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_E_LINE_LI",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Li_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_E_LINE_LS",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Ls_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Prn",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog_soft",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_FACIAL_AXIS",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Ba",
+          "landmark:cephalo:lot07g-export-fixture:auto:N"
+        ],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Ba",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "construction:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_FACIAL_DEPTH",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or",
+          "landmark:cephalo:lot07g-export-fixture:auto:N",
+          "landmark:cephalo:lot07g-export-fixture:auto:Pog:canonical:Pog_hard"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:TWEED_FMA",
+        "analysis_id": "TWEED",
+        "method_id": "TWEED_FMA_CANONICAL_DEG_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:Go",
+          "landmark:cephalo:lot07g-export-fixture:auto:Me",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:TWEED_FMIA",
+        "analysis_id": "TWEED",
+        "method_id": "TWEED_FMIA_CANONICAL_DEG_V2",
+        "method_version": "2",
+        "landmark_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "construction_refs": [],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_apex",
+          "landmark:cephalo:lot07g-export-fixture:auto:L1_incisal",
+          "landmark:cephalo:lot07g-export-fixture:auto:Po:canonical:Po_anatomic",
+          "landmark:cephalo:lot07g-export-fixture:auto:Or"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:A_NPERP",
+        "analysis_id": "MCNAMARA",
+        "method_id": "M_A_NPERP_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:MCNAMARA_A_NPERP_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:MCNAMARA_A_NPERP_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:POG_NPERP",
+        "analysis_id": "MCNAMARA",
+        "method_id": "M_POG_NPERP_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:MCNAMARA_POG_NPERP_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:mcnamara:nperp:MCNAMARA_POG_NPERP_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:r8:ANS_ME",
+        "analysis_id": "MCNAMARA",
+        "method_id": "MCNAMARA_ANS_ME_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_ANS_ME_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_ANS_ME_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:r8:CO_A",
+        "analysis_id": "MCNAMARA",
+        "method_id": "MCNAMARA_CO_A_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_CO_A_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_CO_A_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:r8:CO_GN",
+        "analysis_id": "MCNAMARA",
+        "method_id": "MCNAMARA_CO_GN_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_CO_GN_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r8:MCNAMARA_CO_GN_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:r9:CONVEXITY_A_NPOG",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_CONVEXITY_A_NPOG_MM_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_CONVEXITY_A_NPOG_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_CONVEXITY_A_NPOG_V1"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:r9:E_LINE_LI",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_E_LINE_LI_MM_V2",
+        "method_version": "2",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_E_LINE_LI_V2"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_E_LINE_LI_V2"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:r9:E_LINE_LS",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_E_LINE_LS_MM_V2",
+        "method_version": "2",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_E_LINE_LS_V2"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": true,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_E_LINE_LS_V2"
+        ],
+        "availability_status": "NOT_COMPUTABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:r9:FACIAL_DEPTH",
+        "analysis_id": "RICKETTS",
+        "method_id": "RICKETTS_FACIAL_DEPTH_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_FACIAL_DEPTH_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:r9:RICKETTS_FACIAL_DEPTH_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:ANB",
+        "analysis_id": "STEINER",
+        "method_id": "STEINER_ANB_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_ANB_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_ANB_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:SNA",
+        "analysis_id": "STEINER",
+        "method_id": "STEINER_SNA_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SNA_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SNA_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:SNB",
+        "analysis_id": "STEINER",
+        "method_id": "STEINER_SNB_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SNB_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SNB_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:SN_MP",
+        "analysis_id": "STEINER",
+        "method_id": "STEINER_SN_MP_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SN_MP_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:STEINER_SN_MP_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:dental:L1_NB",
+        "analysis_id": "STEINER",
+        "method_id": "STEINER_L1_NB_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:dental:STEINER_L1_NB_ANGLE_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:dental:STEINER_L1_NB_ANGLE_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:dental:U1_NA",
+        "analysis_id": "STEINER",
+        "method_id": "STEINER_U1_NA_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:dental:STEINER_U1_NA_ANGLE_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:dental:STEINER_U1_NA_ANGLE_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:r6:FMA",
+        "analysis_id": "TWEED",
+        "method_id": "TWEED_FMA_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_FMA_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_FMA_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:r6:FMIA",
+        "analysis_id": "TWEED",
+        "method_id": "TWEED_FMIA_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_FMIA_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_FMIA_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:r6:IMPA",
+        "analysis_id": "TWEED",
+        "method_id": "TWEED_IMPA_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_IMPA_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:TWEED_IMPA_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:r6:Z_ANGLE",
+        "analysis_id": "MERRIFIELD",
+        "method_id": "MERRIFIELD_Z_ANGLE_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:MERRIFIELD_Z_ANGLE_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r6:MERRIFIELD_Z_ANGLE_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:r7:FACIAL_ANGLE",
+        "analysis_id": "DOWNS",
+        "method_id": "DOWNS_FACIAL_ANGLE_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r7:DOWNS_FACIAL_ANGLE_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r7:DOWNS_FACIAL_ANGLE_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      },
+      {
+        "measurement_id": "measurement:cephalo:lot07g-export-fixture:r1:steiner:r7:Y_AXIS",
+        "analysis_id": "DOWNS",
+        "method_id": "DOWNS_Y_AXIS_DEG_V1",
+        "method_version": "1",
+        "landmark_refs": [],
+        "construction_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r7:DOWNS_Y_AXIS_V1"
+        ],
+        "calibration_ref": null,
+        "requires_calibration": false,
+        "evidence_refs": [
+          "construction:cephalo:lot07g-export-fixture:r1:steiner:r7:DOWNS_Y_AXIS_V1"
+        ],
+        "availability_status": "AVAILABLE"
+      }
+    ],
+    "canonical_measurements": [
+      {
+        "canonical_measurement_id": "M_ANB_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "STEINER_ANB_DEG_V1",
+        "method_ids": [
+          "STEINER_ANB_DEG_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:steiner:ANB"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_ANS_ME_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "MCNAMARA_ANS_ME_MM_V1",
+        "method_ids": [
+          "MCNAMARA_ANS_ME_MM_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:r8:ANS_ME"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_A_NPERP_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
+        "method_ids": [
+          "MCNAMARA_A_NPERP_CANONICAL_MM_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_A_NPERP"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_CO_A_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "MCNAMARA_CO_A_CANONICAL_MM_V2",
+        "method_ids": [
+          "MCNAMARA_CO_A_CANONICAL_MM_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_CO_A"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_CO_GN_ANATOMIC_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "method_ids": [
+          "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_CO_GN"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2",
+        "method_ids": [
+          "DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:DOWNS_FACIAL_ANGLE"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_DOWNS_Y_AXIS_SGN_FH_DEG_V1",
+        "value": null,
+        "unit": "deg",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+        "method_ids": [
+          "DOWNS_Y_AXIS_CANONICAL_DEG_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:DOWNS_Y_AXIS"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+        "value": null,
+        "unit": "deg",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+        "method_ids": [
+          "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_FACIAL_AXIS"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_FH_GOME_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "TWEED_FMA_CANONICAL_DEG_V2",
+        "method_ids": [
+          "TWEED_FMA_CANONICAL_DEG_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:TWEED_FMA"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_FMIA_L1_FH_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "TWEED_FMIA_CANONICAL_DEG_V2",
+        "method_ids": [
+          "TWEED_FMIA_CANONICAL_DEG_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:TWEED_FMIA"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_IMPA_GOME_DEG_V1",
+        "value": 180.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "TWEED_IMPA_DEG_V1",
+        "method_ids": [
+          "TWEED_IMPA_DEG_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:steiner:r6:IMPA"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_INTERINCISAL_DEG_V1",
+        "value": 180.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "CRANIOM_INTERINCISAL_DEG_V1",
+        "method_ids": [
+          "CRANIOM_INTERINCISAL_DEG_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:Inter_Incisif"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_L1_NB_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "STEINER_L1_NB_DEG_V1",
+        "method_ids": [
+          "STEINER_L1_NB_DEG_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:steiner:dental:L1_NB"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_LI_EPLANE_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
+        "method_ids": [
+          "RICKETTS_E_LINE_LI_CANONICAL_MM_V3"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_E_LINE_LI"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_LS_EPLANE_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
+        "method_ids": [
+          "RICKETTS_E_LINE_LS_CANONICAL_MM_V3"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_E_LINE_LS"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
+        "method_ids": [
+          "RICKETTS_CONVEXITY_CANONICAL_MM_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_CONVEXITY"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_MERRIFIELD_Z_FH_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "MERRIFIELD_Z_CANONICAL_DEG_V2",
+        "method_ids": [
+          "MERRIFIELD_Z_CANONICAL_DEG_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MERRIFIELD_Z"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_POG_NPERP_MM_V1",
+        "value": null,
+        "unit": "mm",
+        "availability_status": "NOT_COMPUTABLE",
+        "value_authority_method_id": "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+        "method_ids": [
+          "MCNAMARA_POG_NPERP_CANONICAL_MM_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:MCNAMARA_POG_NPERP"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2",
+        "method_ids": [
+          "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:canonical-v2:RICKETTS_FACIAL_DEPTH"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_SNA_DEG_V1",
+        "value": 180.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "STEINER_SNA_DEG_V1",
+        "method_ids": [
+          "STEINER_SNA_DEG_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:steiner:SNA"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_SNB_DEG_V1",
+        "value": 180.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "STEINER_SNB_DEG_V1",
+        "method_ids": [
+          "STEINER_SNB_DEG_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:steiner:SNB"
+        ]
+      },
+      {
+        "canonical_measurement_id": "M_U1_NA_DEG_V1",
+        "value": 0.0,
+        "unit": "deg",
+        "availability_status": "AVAILABLE",
+        "value_authority_method_id": "STEINER_U1_NA_DEG_V1",
+        "method_ids": [
+          "STEINER_U1_NA_DEG_V1"
+        ],
+        "measurement_refs": [
+          "measurement:cephalo:lot07g-export-fixture:r1:steiner:dental:U1_NA"
+        ]
+      }
+    ],
+    "blocked_method_ids": [
+      "CRANIOM_AB_PRIME_MM_V1",
+      "CRANIOM_FACIAL_DEPTH_MM_V1",
+      "CRANIOM_L1_DOWNS_DEG_V1",
+      "CRANIOM_SITUATION_A_MM_V1",
+      "CRANIOM_SITUATION_B_MM_V1",
+      "CRANIOM_U1_FRANKFORT_DEG_V1",
+      "DOWNS_FACIAL_ANGLE_DEG_V1",
+      "MCNAMARA_CO_A_MM_V1",
+      "MCNAMARA_CO_GN_MM_V1",
+      "M_A_NPERP_MM_V1",
+      "M_POG_NPERP_MM_V1",
+      "RICKETTS_CONVEXITY_A_NPOG_MM_V1",
+      "RICKETTS_E_LINE_LI_MM_V2",
+      "RICKETTS_E_LINE_LS_MM_V2",
+      "RICKETTS_FACIAL_DEPTH_DEG_V1",
+      "STEINER_SN_MP_DEG_V1",
+      "TWEED_FMA_DEG_V1",
+      "TWEED_FMIA_DEG_V1"
+    ],
+    "unmapped_method_ids": [
+      "DOWNS_Y_AXIS_DEG_V1",
+      "MERRIFIELD_Z_ANGLE_DEG_V1"
+    ]
+  },
+  "calibration": {
+    "authority": "LOT06_TYPED_SOURCE_EVIDENCE",
+    "current": null
+  },
+  "media": {
+    "schema_version": "ORTHO_MEDIA_RECORD_V1",
+    "patient_id": 907001,
+    "timepoint": "T0",
+    "photo_slots": [
+      {
+        "slot_id": "EXTRA_FRONTAL_REPOSE",
+        "state": "EMPTY",
+        "asset": null
+      },
+      {
+        "slot_id": "EXTRA_PROFILE",
+        "state": "EMPTY",
+        "asset": null
+      },
+      {
+        "slot_id": "EXTRA_SMILE",
+        "state": "EMPTY",
+        "asset": null
+      },
+      {
+        "slot_id": "INTRA_FRONTAL",
+        "state": "EMPTY",
+        "asset": null
+      },
+      {
+        "slot_id": "INTRA_RIGHT",
+        "state": "EMPTY",
+        "asset": null
+      },
+      {
+        "slot_id": "INTRA_LEFT",
+        "state": "EMPTY",
+        "asset": null
+      },
+      {
+        "slot_id": "INTRA_OCCLUSAL_MAXILLARY",
+        "state": "EMPTY",
+        "asset": null
+      },
+      {
+        "slot_id": "INTRA_OCCLUSAL_MANDIBULAR",
+        "state": "EMPTY",
+        "asset": null
+      }
+    ],
+    "photo_complete": false,
+    "model_hooks": [
+      {
+        "hook_id": "MAXILLARY_ARCH",
+        "accepted_formats": [
+          "STL",
+          "PLY",
+          "OBJ"
+        ],
+        "state": "VALIDATOR_NOT_IMPLEMENTED",
+        "measurement_authority": "NONE"
+      },
+      {
+        "hook_id": "MANDIBULAR_ARCH",
+        "accepted_formats": [
+          "STL",
+          "PLY",
+          "OBJ"
+        ],
+        "state": "VALIDATOR_NOT_IMPLEMENTED",
+        "measurement_authority": "NONE"
+      },
+      {
+        "hook_id": "OCCLUSION_RELATION",
+        "accepted_formats": [
+          "STL",
+          "PLY",
+          "OBJ"
+        ],
+        "state": "VALIDATOR_NOT_IMPLEMENTED",
+        "measurement_authority": "NONE"
+      }
+    ]
+  }
+}

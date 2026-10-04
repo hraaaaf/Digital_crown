@@ -68,13 +68,13 @@ Cette version **étend** le profil 1953 et ajoute :
 
 | Measurement ID | Rôle | État |
 |---|---|---|
-| `M_FH_GOME_DEG_V1` | CORE — FMA | LOCKED pour variante DC Po-Or/Go-Me |
+| `M_FH_GOME_DEG_V1` | CORE — FMA | LOCKED pour variante DC Po_anatomic-Or / Go-Me |
 | `M_IMPA_GOME_DEG_V1` | CORE — IMPA | LOCKED |
 | `M_FMIA_L1_FH_DEG_V1` | CORE — FMIA | LOCKED |
 
 **Cardinalité : 3.**
 
-Important : ce profil est la **variante Digital Crown Po-Or sélectionnée**, pas une revendication de reproduction géométrique stricte de l'ear-rod Frankfort de Tweed 1954. Les normes historiques restent séparées.
+Important : ce profil est la **variante Digital Crown Po_anatomic-Or / Go-Me sélectionnée**, pas une revendication de reproduction géométrique stricte de l'ear-rod Frankfort de Tweed 1954. Les normes historiques restent séparées.
 
 ---
 

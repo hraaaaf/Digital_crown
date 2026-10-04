@@ -74,6 +74,9 @@ def test_available_typed_measurement_overrides_stale_legacy_number_without_mutat
     assert output["valeur"] == original_typed["value"]
     assert output["valeur"] != 999.0
     assert output["scientific_source"] == "EVIDENCE_GRAPH_V1"
+    assert "canonical_measurement_id" not in output
+    assert output["canonical_promotion_state"] == "BLOCKED"
+    assert output["canonical_promotion_reason"] == "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
     assert output["availability_status"] == "AVAILABLE"
 
 
@@ -137,3 +140,17 @@ def test_read_authority_is_projection_state_not_persisted_snapshot_metadata():
     assert angles[EVIDENCE_GRAPH_KEY]["authority_status"] == "PERSISTED_NOT_YET_READ_PATH"
     assert "authority_status" not in projected[EVIDENCE_GRAPH_KEY]
     assert projected["scientific_read_path"]["authority"] == "EVIDENCE_GRAPH_V1"
+
+
+def test_typed_read_preserves_legacy_authority_without_unsafe_canonical_promotion():
+    angles, graph = _angles_with_graph(ratio=0.2, calibrated=True)
+    before=[dict(item) for item in graph["measurements"]]
+    projected=project_typed_craniom_read_path(angles, patient_id=7)
+    assert graph["measurements"]==before
+    for field in ("Situation_A","Situation_B","Decalage_A_B","Profondeur_Faciale"):
+        output=projected["metrics"]["analyse_osseuse"][field]
+        assert "canonical_measurement_id" not in output
+        assert output["canonical_promotion_state"]=="BLOCKED"
+        assert output["canonical_promotion_reason"]=="LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED"
+    assert projected["scientific_read_path"]["canonical_measurement_ids"]==[]
+    assert set(projected["scientific_read_path"]["canonical_blocked_method_ids"])==set(_typed_by_field(graph)[f]["method_id"] for f in ("Situation_A","Situation_B","Decalage_A_B","Profondeur_Faciale"))
