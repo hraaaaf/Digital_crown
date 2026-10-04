@@ -123,9 +123,9 @@ Used only for canonical mapping and executable/blocking status.
 - Unit: mm.
 - Historical reference: patient age + 3 mm, ± 3 mm.
 - LOT06: `M_U6_PTV_MM_V1`.
-- PTV construction: `RICKETTS_PTV_PT_RICKETTS_PERP_FH_V1` — line through explicit `Pt_Ricketts`, perpendicular to anatomical Frankfort `Po_anatomic-Or`.
+- PTV construction: `RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1` — line through explicit `PR_Ricketts_PTV` at the most posterior outline of the pterygo-palatine fossa, perpendicular to anatomical Frankfort `Po_anatomic-Or`.
 - Runtime: **PTV CONSTRUCTION EXECUTABLE / MEASUREMENT BLOCKED** because `U6_distal` is not yet a validated canonical runtime identity.
-- Critical rule: generic SRPose `PT_point` is not promoted to `Pt_Ricketts`, and generic `U6` is not promoted to distal-surface authority.
+- Critical rule: generic SRPose `PT_point`, `Ptm`, or facial-axis `Pt_Ricketts` are not promoted to `PR_Ricketts_PTV`, and generic `U6` is not promoted to distal-surface authority.
 - Profile status: **SOURCE_LOCKED / FAIL_CLOSED_U6_DISTAL_IDENTITY**.
 
 ### 11. Lower incisor to occlusal plane (extrusion)
@@ -273,10 +273,15 @@ No historical norm/classification is activated by this binding.
 Primary Ricketts 1981 source defines PTV as a line through a point selected at the most posterior outline of the pterygo-palatine fossa, drawn perpendicular to Frankfort. Table 5 records upper first molar position from PTV and age-linked expected values. Peer-reviewed longitudinal Ricketts work uses the distal point of the maxillary first molar (A6) for this measurement.
 
 Digital Crown contract:
-- construction ID: `RICKETTS_PTV_PT_RICKETTS_PERP_FH_V1`;
-- required explicit identities: `Pt_Ricketts`, `Po_anatomic`, `Or`;
+- construction ID: `RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1`;
+- required explicit identities: `PR_Ricketts_PTV`, `Po_anatomic`, `Or`;
 - generic `PT_point` is rejected as scientific authority;
 - construction fails closed for missing, mixed-source or degenerate Frankfort evidence;
 - `M_U6_PTV_MM_V1` remains blocked until an explicit `U6_distal` identity is validated; generic SRPose `U6` is not silently substituted.
 
 No age norm or clinical interpretation is activated by this construction.
+
+
+### A5 correction — PTV landmark identity separation
+
+Adversarial review found a MAJOR identity collision: facial-axis `Pt_Ricketts` is not the same scientific landmark as the PTV reference point described by Ricketts 1981. The PTV contract now requires a distinct explicit landmark `PR_Ricketts_PTV` corresponding to the most posterior outline of the pterygo-palatine fossa. `Pt_Ricketts`, generic `PT_point`, and `Ptm` are all rejected as silent aliases.
