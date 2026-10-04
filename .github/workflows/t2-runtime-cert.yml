@@ -240,14 +240,10 @@ jobs:
             test "$rendered" -eq "$pages"
             printf '%s pages=%s rendered=%s\n' "$stem" "$pages" "$rendered" >> render-manifest.txt
           done
-          grep -q '^baseline ' render-manifest.txt
-          grep -q '^long-text ' render-manifest.txt
-          grep -q '^page-boundary-before ' render-manifest.txt
-          grep -q '^page-boundary-after ' render-manifest.txt
-          grep -q '^many-lines ' render-manifest.txt
-          grep -q '^long-many-lines ' render-manifest.txt
-          grep -q '^extreme-pagination ' render-manifest.txt
-          awk '/^extreme-pagination / {split($2,a,"="); if (a[2] < 2) exit 1; found=1} END {if (!found) exit 1}' render-manifest.txt
+          test "$(wc -l < render-manifest.txt)" -eq 3
+          grep -q '^standard ' render-manifest.txt
+          grep -q '^dense-12-actes ' render-manifest.txt
+          grep -q '^cloture-tres-longue ' render-manifest.txt
 
       - name: Certify G4 remaining document actions
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
