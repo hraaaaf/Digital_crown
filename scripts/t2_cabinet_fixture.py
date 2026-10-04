@@ -91,6 +91,8 @@ def seed() -> None:
         config.qr_code_value = ""
         config.qr_code_label = "Scanner le QR code"
         config.qr_code_style = "classic"
+        config.ice = "001234567890123"
+        config.if_ = "12345678"
 
         ids = {}
         for row in PATIENTS:
