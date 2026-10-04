@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
+from backend.services.cephalo_landmark_identity_bridge import CANONICAL_LANDMARK_ALIASES
 from backend.services.cephalo_service import CephaloService
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
 
@@ -189,10 +190,18 @@ def test_refine_replaces_current_manual_revision_but_preserves_original_auto(mon
 
     expected_corrected_ids = {item["id"] for item in manual if item["id"] in srpose_ids}
     expected_manual_ids = {item["id"] for item in manual if item["id"] not in srpose_ids}
+    expected_canonical_corrected_ids = {
+        CANONICAL_LANDMARK_ALIASES[item["id"]]
+        for item in manual
+        if item["id"] in CANONICAL_LANDMARK_ALIASES
+        and item["id"] in srpose_ids
+    }
 
     corrected = [x for x in payload["landmarks"] if x["origin"] == "MANUAL_CORRECTED"]
     manual_only = [x for x in payload["landmarks"] if x["origin"] == "MANUAL"]
-    assert {x["landmark_id"] for x in corrected} == expected_corrected_ids
+    assert {x["landmark_id"] for x in corrected} == (
+        expected_corrected_ids | expected_canonical_corrected_ids
+    )
     assert {x["landmark_id"] for x in manual_only} == expected_manual_ids
     assert all(x["validated_by"] == "99" for x in corrected + manual_only)
     assert EVIDENCE_GRAPH_KEY not in response["results"]
