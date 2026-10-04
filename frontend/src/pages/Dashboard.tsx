@@ -19,6 +19,7 @@ import { MarketplaceCard } from '../features/dashboard/components/MarketplaceCar
 import { QuickActions } from '../features/dashboard/components/QuickActions';
 import { RecentActivity } from '../features/dashboard/components/RecentActivity';
 import { WaitingRoom } from '../features/dashboard/components/WaitingRoom';
+import { StationStaffAssistance } from '../features/dashboard/components/StationStaffAssistance';
 import { WeeklyPerformance } from '../features/dashboard/components/WeeklyPerformance';
 import { useDashboardFinance } from '../features/dashboard/hooks/useDashboardFinance';
 import { useDashboardStats } from '../features/dashboard/hooks/useDashboardStats';
@@ -180,6 +181,8 @@ export const Dashboard: React.FC = () => {
       />
 
       <QuickActions canReadPatients={canReadPatients} canUseAgenda={canUseAgenda} />
+
+      <StationStaffAssistance visible={canUseAgenda} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <WaitingRoom
