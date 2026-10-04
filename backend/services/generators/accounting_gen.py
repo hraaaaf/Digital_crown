@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
-from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter, PinnedCloture
 from backend.services.generators.document_layout_safety import join_unbreakable
 from backend.services.generators.accounting_pdf_readability import readable_accounting_font_floor
 
@@ -549,6 +549,18 @@ class AccountingGenerator:
 
         p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+
+        # A final Honoraires closure is painted in the footer-safe band. Reserve that
+        # band from the body frame on every page so the final table fragment cannot
+        # consume it and force a closure-only orphan page.
+        if elements and isinstance(elements[-1], PinnedCloture):
+            usable_width = min(p_width_val - m_left - m_right, 11.8 * cm)
+            closure_probe = Paragraph(elements[-1].text, elements[-1].style)
+            _, closure_height = closure_probe.wrap(usable_width, 10 * cm)
+            closure_floor = getattr(elements[-1], "_footer_floor", 2.65 * cm)
+            closure_gap = getattr(elements[-1], "_body_gap", 0.12 * cm)
+            m_bottom = max(m_bottom, closure_floor + closure_height + closure_gap)
+
         draw_method = lambda canv, d: self._draw_canvas(
             canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth,
             cloture_text="", p_color=p_color
