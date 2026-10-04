@@ -226,4 +226,26 @@ describe('DrugRow — Prescription Intelligence V1', () => {
     expect(onUpdateDrug).not.toHaveBeenCalledWith(1, 'posologie', '');
     expect(onUpdateDrug).toHaveBeenCalledWith(1, 'name', 'PARACETAMOL TEST');
   });
+
+  it('verrouille le contrat accessible du choix manuel de forme utilisé par G4', () => {
+    const { onUpdateDrug } = renderDrugRow({
+      drug: {
+        ...baseDrug,
+        name: 'G4 MANUAL',
+        catalogPresentationId: undefined,
+        catalogDci: undefined,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Forme', exact: true }));
+    const menu = screen.getByRole('menu', { name: 'Options Forme' });
+    expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(12);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /Modifier manuellement/i }));
+    const manual = screen.getByRole('textbox', { name: 'Valeur personnalisée' });
+    fireEvent.change(manual, { target: { value: 'COMPRIMÉS' } });
+    fireEvent.keyDown(manual, { key: 'Enter', code: 'Enter' });
+
+    expect(onUpdateDrug).toHaveBeenCalledWith(1, 'forme', 'COMPRIMÉS');
+  });
 });
