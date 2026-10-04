@@ -83,7 +83,12 @@ try {
         await context.route('**/api/workstation/patient-session/proof-session/appointments/today', route => route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ status: 'none', appointments: [], staffActionRequired: false }),
+          body: JSON.stringify({ status: 'none', appointments: [], staffActionRequired: scenario.mode === 'identified' }),
+        }));
+        await context.route('**/api/workstation/patient-session/proof-session/staff-assistance', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'STAFF_NOTIFIED', alertId: 3401 }),
         }));
         await context.route('**/api/workstation/patient-session/proof-session/purge', route => route.fulfill({ status: 204, body: '' }));
         await context.route('**/api/workstation/patient-session/proof-session/fallback', route => route.fulfill({
@@ -115,6 +120,7 @@ try {
           await page.locator('[data-station-fallback-form]').waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'identified') {
           await page.locator('[data-station-arrival-bridge]').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-staff-notified]').waitFor({ timeout: 10000 });
         } else {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
         }
