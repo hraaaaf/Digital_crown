@@ -62,7 +62,7 @@ class TestArchiveServiceHelpers:
 
     def test_get_storage_path_creates_dir(self, db, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         svc = ArchiveService(db)
         path = svc._get_storage_path(1, DocumentType.ORDONNANCE, "test.pdf", version=1)
         assert path.parent.exists()
@@ -70,7 +70,7 @@ class TestArchiveServiceHelpers:
 
     def test_get_storage_path_version_suffix(self, db, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         svc = ArchiveService(db)
         path = svc._get_storage_path(1, DocumentType.ORDONNANCE, "test.pdf", version=2)
         assert "_v2" in path.name
@@ -139,8 +139,7 @@ class TestCheckConflicts:
 class TestArchiveDocument:
     def test_archive_document_creates_db_record(self, db, dentiste, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
-        monkeypatch.setattr(archive_mod, "LEGACY_DOCS_DIR", tmp_path / "docs")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         pat = _make_patient(db, dentiste, "ARCHCREATE")
         svc = ArchiveService(db)
         content = b"PDF content here"
@@ -154,11 +153,11 @@ class TestArchiveDocument:
         assert doc.id is not None
         assert doc.patient_id == pat.id
         assert is_new_version is False
+        assert svc._resolve_archive_storage_path(doc).is_file()
 
     def test_archive_document_duplicate_cancel_raises(self, db, dentiste, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
-        monkeypatch.setattr(archive_mod, "LEGACY_DOCS_DIR", tmp_path / "docs")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         pat = _make_patient(db, dentiste, "ARCHDUP")
         content = b"Same PDF content"
         file_hash = hashlib.sha256(content).hexdigest()

@@ -36,7 +36,7 @@ interface DocumentHubProps {
 }
 
 interface GenericClinicalData {
-  medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN'; quantite?: number | null; quantite_explicit?: boolean }[];
+  medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN'; quantite?: number | null; quantite_explicit?: boolean; non_substituable?: boolean; catalog_presentation_id?: string | null; catalog_dci?: string | null; catalog_source_id?: string | null; catalog_source_label?: string | null; catalog_snapshot_date?: string | null; catalog_marketing_status_verified?: boolean | null }[];
   indication?: string;
   reason?: string;
   days?: number;
@@ -202,6 +202,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         type: m.type || 'MEDICAMENT',
         quantite: typeof m.quantite === 'number' && m.quantite > 0 ? m.quantite : undefined,
         quantiteExplicit: Boolean(m.quantite_explicit),
+        non_substituable: Boolean(m.non_substituable),
+        catalogPresentationId: m.catalog_presentation_id || undefined,
+        catalogDci: m.catalog_dci || undefined,
+        catalogSourceId: m.catalog_source_id || undefined,
+        catalogSourceLabel: m.catalog_source_label || undefined,
+        catalogSnapshotDate: m.catalog_snapshot_date || undefined,
+        catalogMarketingStatusVerified: typeof m.catalog_marketing_status_verified === 'boolean' ? m.catalog_marketing_status_verified : undefined,
       })));
     } else if (desiredTab === 'certificat') {
       setCertifType(d.reason || 'Arrêt de travail');
