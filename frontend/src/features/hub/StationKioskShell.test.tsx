@@ -81,4 +81,18 @@ describe('StationKioskShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Digital Crown' }));
     expect(onAdminTap).toHaveBeenCalledTimes(1);
   });
+  it('propagates English and Arabic into the appointment identity flow with RTL preserved', async () => {
+    const { container } = render(<StationKioskShell onAdminTap={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
+    fireEvent.click(screen.getByRole('button', { name: /I have an appointment/i }));
+    expect(await screen.findByText('Preparing the secure session…')).toBeInTheDocument();
+    expect(container.querySelector('[data-station-language="en"]')).toHaveAttribute('dir', 'ltr');
+
+    fireEvent.click(screen.getByRole('button', { name: 'العربية' }));
+    fireEvent.click(screen.getByRole('button', { name: /لدي موعد/i }));
+    expect(await screen.findByText('جارٍ إعداد الجلسة الآمنة…')).toBeInTheDocument();
+    expect(container.querySelector('[data-station-language="ar"]')).toHaveAttribute('dir', 'rtl');
+  });
+
 });
