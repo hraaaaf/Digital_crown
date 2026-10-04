@@ -59,7 +59,7 @@ for (const scenario of scenarios) {
       type: 'note',
       patient_id: patient.id,
       is_accounted: false,
-      payment_status: 'EN_ATTENTE',
+      payment_status: 'PAYE',
       data: { payments: scenario.payments, doc_date: '2026-09-20', teeth_data: [], installments: [], is_global_note: false },
     },
   });
