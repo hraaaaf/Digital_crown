@@ -26,6 +26,7 @@ from backend.services.qr_service import qr_service
 router = APIRouter()
 SESSION_TTL_SECONDS = 120
 FALLBACK_FAILURE_LIMIT = 5
+FALLBACK_FAILURE_WINDOW_SECONDS = 15 * 60
 FALLBACK_MODES = {"phone_dob", "name_dob", "disabled"}
 
 
@@ -66,6 +67,46 @@ def _fallback_mode(db: Session, employer_id: int) -> str:
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
     value = str(getattr(config, "station_identification_fallback", "phone_dob") or "phone_dob") if config else "phone_dob"
     return value if value in FALLBACK_MODES else "phone_dob"
+
+
+def _fallback_failures_in_window(db: Session, workstation_id: str, now: datetime) -> int:
+    window_start = now - timedelta(seconds=FALLBACK_FAILURE_WINDOW_SECONDS)
+    rows = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.workstation_id == workstation_id,
+        models.WorkstationPatientSession.created_at >= window_start,
+    ).all()
+    return sum(int(item.fallback_failed_attempts or 0) for item in rows)
+
+
+def _reserve_fallback_attempt(
+    db: Session,
+    row: models.WorkstationPatientSession,
+    workstation_id: str,
+    now: datetime,
+) -> int:
+    if _fallback_failures_in_window(db, workstation_id, now) >= FALLBACK_FAILURE_LIMIT:
+        raise HTTPException(status_code=429, detail="STATION_FALLBACK_LOCKED")
+    updated = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == row.id,
+        models.WorkstationPatientSession.claimed_at.is_(None),
+        models.WorkstationPatientSession.purged_at.is_(None),
+        models.WorkstationPatientSession.expires_at > now,
+    ).update(
+        {
+            models.WorkstationPatientSession.fallback_failed_attempts:
+                models.WorkstationPatientSession.fallback_failed_attempts + 1,
+        },
+        synchronize_session=False,
+    )
+    if updated != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="STATION_SESSION_ALREADY_USED")
+    db.commit()
+    db.refresh(row)
+    failures = _fallback_failures_in_window(db, workstation_id, now)
+    if failures > FALLBACK_FAILURE_LIMIT:
+        raise HTTPException(status_code=429, detail="STATION_FALLBACK_LOCKED")
+    return failures
 
 
 def _station_or_423(request: Request, db: Session, current_user: models.User) -> models.WorkstationMode:
@@ -245,14 +286,26 @@ def fallback_station_patient_session(
     mode = _fallback_mode(db, workstation.employer_id)
     if mode == "disabled":
         raise HTTPException(status_code=403, detail="STATION_FALLBACK_DISABLED")
-    if int(row.fallback_failed_attempts or 0) >= FALLBACK_FAILURE_LIMIT:
-        raise HTTPException(status_code=429, detail="STATION_FALLBACK_LOCKED")
-
     try:
         birth_start = datetime.strptime(body.birthDate, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=422, detail="IDENTIFICATION_NOT_CONFIRMED") from None
     birth_end = birth_start + timedelta(days=1)
+
+    expected_phone = ""
+    expected_first = ""
+    expected_last = ""
+    if mode == "phone_dob":
+        expected_phone = _normalized_phone(body.phone)
+        if len(expected_phone) < 5:
+            raise HTTPException(status_code=422, detail="IDENTIFICATION_NOT_CONFIRMED")
+    else:
+        expected_first = _normalized_text(body.firstName)
+        expected_last = _normalized_text(body.lastName)
+        if not expected_first or not expected_last:
+            raise HTTPException(status_code=422, detail="IDENTIFICATION_NOT_CONFIRMED")
+
+    reserved_failures = _reserve_fallback_attempt(db, row, workstation.id, now)
 
     candidates = db.query(models.Patient).filter(
         models.Patient.employer_id == workstation.employer_id,
@@ -262,9 +315,6 @@ def fallback_station_patient_session(
     ).all()
 
     if mode == "phone_dob":
-        expected_phone = _normalized_phone(body.phone)
-        if len(expected_phone) < 5:
-            raise HTTPException(status_code=422, detail="IDENTIFICATION_NOT_CONFIRMED")
         matches = [
             patient
             for patient in candidates
@@ -276,10 +326,6 @@ def fallback_station_patient_session(
             }
         ]
     else:
-        expected_first = _normalized_text(body.firstName)
-        expected_last = _normalized_text(body.lastName)
-        if not expected_first or not expected_last:
-            raise HTTPException(status_code=422, detail="IDENTIFICATION_NOT_CONFIRMED")
         matches = [
             patient
             for patient in candidates
@@ -288,9 +334,7 @@ def fallback_station_patient_session(
         ]
 
     if len(matches) != 1:
-        row.fallback_failed_attempts = int(row.fallback_failed_attempts or 0) + 1
-        db.commit()
-        if row.fallback_failed_attempts >= FALLBACK_FAILURE_LIMIT:
+        if reserved_failures >= FALLBACK_FAILURE_LIMIT:
             raise HTTPException(status_code=429, detail="STATION_FALLBACK_LOCKED")
         raise HTTPException(status_code=403, detail="IDENTIFICATION_NOT_CONFIRMED")
 
@@ -304,6 +348,8 @@ def fallback_station_patient_session(
         {
             models.WorkstationPatientSession.claimed_at: now,
             models.WorkstationPatientSession.patient_id: patient.id,
+            models.WorkstationPatientSession.fallback_failed_attempts:
+                models.WorkstationPatientSession.fallback_failed_attempts - 1,
         },
         synchronize_session=False,
     )
