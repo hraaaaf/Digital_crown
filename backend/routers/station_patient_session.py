@@ -65,8 +65,8 @@ def _normalized_phone(raw: str | None) -> str:
 
 def _fallback_mode(db: Session, employer_id: int) -> str:
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
-    value = str(getattr(config, "station_identification_fallback", "phone_dob") or "phone_dob") if config else "phone_dob"
-    return value if value in FALLBACK_MODES else "phone_dob"
+    value = str(getattr(config, "station_identification_fallback", "disabled") or "disabled") if config else "disabled"
+    return value if value in FALLBACK_MODES else "disabled"
 
 
 def _fallback_failures_in_window(db: Session, workstation_id: str, now: datetime) -> int:
