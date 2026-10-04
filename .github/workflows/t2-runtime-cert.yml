@@ -220,7 +220,7 @@ jobs:
         run: |
           set -euo pipefail
           cd frontend
-          node scripts/certify-honoraires-pdf-stress.mjs
+          node scripts/run-with-t2-workstation.mjs scripts/certify-honoraires-pdf-stress.mjs
           cd ../artifacts/t2-browser/honoraires-pdf-stress
           command -v pdfinfo
           command -v pdftoppm
