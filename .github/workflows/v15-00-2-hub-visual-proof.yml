@@ -11,6 +11,10 @@ on:
       - 'frontend/scripts/capture-v15-00-2-hub-github.mjs'
       - '.github/workflows/v15-00-2-hub-visual-proof.yml'
 
+concurrency:
+  group: v15-hub-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   visual-proof:
     runs-on: ubuntu-latest

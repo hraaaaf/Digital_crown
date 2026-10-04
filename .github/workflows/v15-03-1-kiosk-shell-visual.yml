@@ -15,6 +15,10 @@ on:
       - ".github/workflows/v15-03-1-kiosk-shell-visual.yml"
   workflow_dispatch:
 
+concurrency:
+  group: v15-03-1-kiosk-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
