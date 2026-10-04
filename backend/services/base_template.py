@@ -107,7 +107,7 @@ class BaseTemplate(_BaseTemplateCore):
                         # Never let ReportLab split immediately before the summary row.
                         # If the total no longer fits, carry the preceding accounting row
                         # with it so a continuation page always contains real table data.
-                        element._rowSplitRange = (1, -2)
+                        element._rowSplitRange = (1, -3)
         if source and isinstance(source[-1], PinnedCloture):
             source[-1]._pin_to_footer = True
         return _BaseTemplateCore.scale_elements(source, factor)
