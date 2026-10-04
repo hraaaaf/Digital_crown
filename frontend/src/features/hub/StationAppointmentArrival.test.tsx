@@ -4,20 +4,23 @@ import { StationAppointmentArrival } from './StationAppointmentArrival';
 import { stationPatientSessionService } from '../../services/stationPatientSession';
 
 vi.mock('../../services/stationPatientSession', () => ({
-  stationPatientSessionService: { todayAppointments: vi.fn(), arrive: vi.fn() },
+  stationPatientSessionService: { todayAppointments: vi.fn(), requestStaffAssistance: vi.fn(), arrive: vi.fn() },
 }));
 
 describe('StationAppointmentArrival V1.5-03.4', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(stationPatientSessionService.arrive).mockResolvedValue({ status: 'ARRIVED', appointmentId: 1 });
+    vi.mocked(stationPatientSessionService.requestStaffAssistance).mockResolvedValue({ status: 'STAFF_NOTIFIED', alertId: 7 });
   });
 
   it('does not auto-create when no appointment exists', async () => {
     vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({ status: 'none', appointments: [], staffActionRequired: true });
     render(<StationAppointmentArrival sessionId="s-1" displayName="Aya Audit" onLeave={vi.fn()} backLabel="Retour" />);
     expect(await screen.findByText("Aucun rendez-vous retrouvé aujourd’hui")).toBeInTheDocument();
+    expect(await screen.findByText(/L’équipe d’accueil a été prévenue/i)).toBeInTheDocument();
     expect(screen.getByText(/ne crée pas automatiquement de rendez-vous/i)).toBeInTheDocument();
+    expect(stationPatientSessionService.requestStaffAssistance).toHaveBeenCalledWith('s-1');
     expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
   });
 
