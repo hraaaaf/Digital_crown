@@ -427,15 +427,15 @@ class AccountingGenerator:
             compression_factor = 0.85
             
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17 * compression_factor, textColor=p_color, alignment=TA_CENTER, spaceAfter=12 * compression_factor)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>DEVIS N° {document_number}</b></u>" if document_number else "<u><b>DEVIS DENTAIRE</b></u>", title_style), Spacer(1, 0.8*cm if num_items > 8 else 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.0*cm if num_items > 8 else 1.2*cm)]
+        elements = [Spacer(1, 0.25*cm), Paragraph(f"<u><b>DEVIS N° {document_number}</b></u>" if document_number else "<u><b>DEVIS DENTAIRE</b></u>", title_style), Spacer(1, 0.55*cm if num_items > 8 else 0.8*cm), self._create_header(patient, data, p_color), Spacer(1, 0.65*cm if num_items > 8 else 0.9*cm)]
         
         header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10 * compression_factor, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PRIX (MAD)", header_style)]]
         
         readable_floor = readable_accounting_font_floor()
         base_fs = max(10 * compression_factor, readable_floor)
-        text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_CENTER, leading=base_fs * 1.4)
-        acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
+        text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_CENTER, leading=base_fs * 1.25)
+        acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_CENTER, leading=base_fs * 1.25)
 
         total = 0.0
         acte_w, dent_w, prix_w = 6.5*cm, 2.65*cm, 2.65*cm
@@ -446,14 +446,14 @@ class AccountingGenerator:
                 dent_display = ', '.join([str(d) for d in item.dents])
             dent_text = str(dent_display)
             dent_style = self.base_template.get_adaptive_style(text_style, dent_text, dent_w - 0.22*cm, min_fs=readable_floor)
-            price_text = f"{item.prix_unitaire:.2f}"
+            price_text = self._format_mad_amount(item.prix_unitaire)
             price_style = self.base_template.get_adaptive_style(text_style, price_text, prix_w - 0.22*cm, min_fs=readable_floor)
             table_data.append([acte_para, Paragraph(dent_text, dent_style), Paragraph(price_text, price_style)])
             total += item.prix_unitaire
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
         total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=10.5, textColor=p_color, alignment=TA_CENTER)
-        total_amount_text = f"<b>{total:.2f}\u00A0MAD</b>"
+        total_amount_text = f"<b>{self._format_mad_amount(total)}\u00A0MAD</b>"
         total_amount_style = self.base_template.get_adaptive_style(total_amount_style, total_amount_text, prix_w - 0.22*cm, min_fs=readable_floor)
 
         table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(total_amount_text, total_amount_style)])
@@ -494,7 +494,7 @@ class AccountingGenerator:
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         cloture_style = ParagraphStyle(
             name='Cloture', parent=self.styles['Normal'], fontName=self.base_template.premium_font,
-            fontSize=9.5, textColor=p_color, alignment=TA_CENTER, leading=14,
+            fontSize=9.0, textColor=p_color, alignment=TA_LEFT, leading=12,
         )
         from backend.services.base_template import PinnedCloture
         elements.append(PinnedCloture(cloture, cloture_style))
@@ -527,7 +527,7 @@ class AccountingGenerator:
             ('BOTTOMPADDING', (0,0), (-1,-1), 2),
             ('TOPPADDING', (0,0), (-1,-1), 2),
         ]))
-        elements.append(Spacer(1, 0.4*cm))
+        elements.append(Spacer(1, 0.2*cm))
         elements.append(sig_table)
 
         highlighted_teeth = []
