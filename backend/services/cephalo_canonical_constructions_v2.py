@@ -12,6 +12,8 @@ from backend.services.cephalo_ricketts_geometry import ricketts_constructed_gn_v
 
 RICKETTS_GN_CONSTRUCTION_ID = "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
 RICKETTS_GN_REQUIRED_LANDMARKS = ("N", "Pog_hard", "Go", "Me")
+RICKETTS_PTV_CONSTRUCTION_ID = "RICKETTS_PTV_PT_RICKETTS_PERP_FH_V1"
+RICKETTS_PTV_REQUIRED_LANDMARKS = ("Pt_Ricketts", "Po_anatomic", "Or")
 
 
 def materialize_canonical_constructions_v2(
@@ -79,4 +81,66 @@ def materialize_canonical_constructions_v2(
         evidence_refs=refs,
         availability_status=availability,
     )
-    return {RICKETTS_GN_CONSTRUCTION_ID: construction}
+    ptv_refs: list[str] = []
+    ptv_missing: list[str] = []
+    ptv_sources: set[str] = set()
+    for landmark_id in RICKETTS_PTV_REQUIRED_LANDMARKS:
+        item = landmarks.get(landmark_id)
+        if item is None:
+            ptv_missing.append(landmark_id)
+            continue
+        if item.landmark_id != landmark_id:
+            raise ValueError(
+                f"Landmark mapping key {landmark_id} resolves to {item.landmark_id}"
+            )
+        ptv_refs.append(item.evidence_id)
+        ptv_sources.add(item.source_image_ref)
+        if item.availability_status != AvailabilityStatus.AVAILABLE:
+            ptv_missing.append(landmark_id)
+
+    ptv_geometry: dict[str, object] = {
+        "kind": "constructed_line",
+        "construction_rule": "line_through_Pt_Ricketts_perpendicular_to_Frankfort_Po_anatomic_Or",
+        "required_landmark_ids": list(RICKETTS_PTV_REQUIRED_LANDMARKS),
+        "coordinate_space": "source_image_pixels",
+    }
+    ptv_availability = AvailabilityStatus.AVAILABLE
+    if ptv_missing:
+        ptv_availability = AvailabilityStatus.NOT_COMPUTABLE
+    elif len(ptv_sources) != 1:
+        ptv_availability = AvailabilityStatus.INVALID
+    else:
+        po = landmarks["Po_anatomic"]
+        or_ = landmarks["Or"]
+        pt = landmarks["Pt_Ricketts"]
+        fh_x = or_.x - po.x
+        fh_y = or_.y - po.y
+        norm = (fh_x * fh_x + fh_y * fh_y) ** 0.5
+        if norm <= 1e-12:
+            ptv_availability = AvailabilityStatus.INVALID
+        else:
+            # PTV direction is perpendicular to anatomical Frankfort.
+            dx = -fh_y / norm
+            dy = fh_x / norm
+            ptv_geometry.update({
+                "point_x": pt.x,
+                "point_y": pt.y,
+                "direction_x": dx,
+                "direction_y": dy,
+                "source_image_ref": next(iter(ptv_sources)),
+            })
+
+    ptv = ConstructionEvidence(
+        construction_id=f"{construction_namespace}:{RICKETTS_PTV_CONSTRUCTION_ID}",
+        definition_id=RICKETTS_PTV_CONSTRUCTION_ID,
+        definition_version="1",
+        landmark_refs=ptv_refs,
+        missing_landmark_ids=ptv_missing,
+        geometry=ptv_geometry,
+        evidence_refs=ptv_refs,
+        availability_status=ptv_availability,
+    )
+    return {
+        RICKETTS_GN_CONSTRUCTION_ID: construction,
+        RICKETTS_PTV_CONSTRUCTION_ID: ptv,
+    }
