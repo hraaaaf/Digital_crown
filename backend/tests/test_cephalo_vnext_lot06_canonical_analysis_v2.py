@@ -142,3 +142,21 @@ def test_ricketts_ptv_does_not_promote_ptm_or_facial_axis_pt():
     )[RICKETTS_PTV_CONSTRUCTION_ID]
     assert ptv.availability_status.value == "NOT_COMPUTABLE"
     assert "PR_Ricketts_PTV" in ptv.missing_landmark_ids
+
+
+def test_ricketts_ptv_rejects_mixed_source_landmarks():
+    landmarks = _landmarks()
+    landmarks["PR_Ricketts_PTV"] = LandmarkEvidence(
+        evidence_id="landmark:test:PR_Ricketts_PTV:mixed",
+        landmark_id="PR_Ricketts_PTV",
+        x=4.0,
+        y=7.0,
+        source_image_ref="source:other-ceph",
+        origin=LandmarkOrigin.MANUAL,
+        evidence_refs=["source:other-ceph"],
+        evidence_status=EvidenceStatus.OBSERVED,
+    )
+    ptv = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:test"
+    )[RICKETTS_PTV_CONSTRUCTION_ID]
+    assert ptv.availability_status.value == "INVALID"
