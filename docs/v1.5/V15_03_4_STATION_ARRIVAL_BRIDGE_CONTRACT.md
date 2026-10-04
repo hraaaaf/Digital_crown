@@ -16,7 +16,7 @@ After V1.5-03.3 securely identifies an existing patient on a registered Station,
 1. The Station may resolve today's appointments only after the 03.3 session is identified, unexpired, unpurged, tenant-bound, and bound to the exact registered Station.
 2. "Today" uses the same naive cabinet-local calendar-day representation already used by the agenda database.
 3. Resolution is restricted to the session's `patient_id`, same `employer_id`, non-deleted appointments, and Station-relevant states only: `PREVU`, `CONFIRME`, or already-arrived `EN_SALLE_ATTENTE`.
-4. Zero matches returns `none` and sets `staffActionRequired=true`. The Station instructs the patient to alert reception and must not create an appointment. This lot does not claim an active staff push/notification channel unless one is separately proven canonical.
+4. Zero matches returns `none` and sets `staffActionRequired=true`. The Station then creates one idempotent, tenant-scoped staff-assistance audit signal for that session. It must not create an appointment or patient.
 5. One match returns `single` and the Station proposes it directly.
 6. More than one match returns `multiple`; the patient explicitly chooses one.
 7. The Station response is minimal: appointment identifier, start time, duration, scheduling type, and current status. It must not expose another patient's data or clinical notes.
@@ -32,7 +32,7 @@ After V1.5-03.3 securely identifies an existing patient on a registered Station,
 17. All Station responses remain `Cache-Control: no-store`.
 
 ## Required baseline tests
-- identified session + zero appointments -> `none`, no writes;
+- identified session + zero appointments -> `none`; explicit staff-assistance request writes exactly one idempotent assistance audit event and creates no appointment/patient;
 - one appointment today -> `single`;
 - multiple appointments today -> `multiple`, stable chronological order;
 - yesterday/tomorrow, another patient, another tenant, and soft-deleted appointments are excluded;
