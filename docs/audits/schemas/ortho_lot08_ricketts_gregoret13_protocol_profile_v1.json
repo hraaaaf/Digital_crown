@@ -55,8 +55,8 @@
     {
       "order": 8,
       "measurement_id": "M_L1_EDGE_APOG_MM_V1",
-      "state": "PRIMITIVE_AVAILABLE",
-      "gate": "SOURCE_SPECIFIC_METHOD_BINDING_REQUIRED"
+      "state": "EXECUTABLE",
+      "gate": "VERIFIED_CALIBRATION_AND_EXACT_INCISAL_EDGE"
     },
     {
       "order": 9,
