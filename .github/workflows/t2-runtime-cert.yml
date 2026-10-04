@@ -257,6 +257,8 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
         shell: bash
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -o pipefail
           node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g4-devis-history.mjs 2>&1 | tee ../artifacts/t2-browser/g4-devis-history-runner.log
