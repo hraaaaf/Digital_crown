@@ -6,15 +6,12 @@ const read = (relative: string) =>
   readFileSync(path.join(process.cwd(), 'src/features/ortho', relative), 'utf8');
 
 describe('LOT08 Tweed-Merrifield authority audit', () => {
-  it('uses the certified canonical Po bridge and refuses an unverified generic Po fallback', () => {
+  it('requires explicit Po_anatomic and never aliases generic Po', () => {
     const tracing = read('CephaloTracingLayerBase.tsx');
-    expect(tracing).toContain("const poAnatomic = getPoint(finalPts, 'Po_anatomic') ?? (tweedPoAnatomicCertified ? po : undefined)");
-    expect(tracing).toContain("showTweed ? seg(poAnatomic, or_, 'fh'");
+    expect(tracing).toContain("const poAnatomic = getPoint(finalPts, 'Po_anatomic')");
+    expect(tracing).not.toContain("tweedPoAnatomicCertified ? po");
+    expect(tracing).toContain("showTweed || showMcNamara ? seg(poAnatomic, or_, 'fh'");
     expect(tracing).not.toContain("showTweed || showMcNamara ? seg(po, or_, 'fh'");
-    const step1 = read('components/Step1CephaloBase.tsx');
-    expect(step1).toContain("scientific?.authority !== 'EVIDENCE_GRAPH_V1'");
-    expect(step1).toContain("row?.availability_status === 'AVAILABLE'");
-    expect(step1).toContain('tweedPoAnatomicCertified={tweedPoAnatomicCertified}');
   });
 
   it('renders the lower-incisor axis used by the canonical Tweed triangle', () => {

@@ -34,6 +34,7 @@ def test_profile_source_locked_and_lot06_authoritative():
 
 def test_every_required_identity_is_canonical():
     p = _profile()
+    assert set(p["profiles"]) == {"TWEED_1954_TRIANGLE_DC_PO_OR_V1", "MERRIFIELD_1966_Z_ANGLE_V1"}
     ids = []
     for section in p["profiles"].values():
         ids += section.get("required_measurement_ids", [])

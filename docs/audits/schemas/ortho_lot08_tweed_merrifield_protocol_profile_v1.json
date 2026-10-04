@@ -27,7 +27,7 @@
     }
   ],
   "profiles": {
-    "TWEED_DC_DIAGNOSTIC_TRIANGLE_V1": {
+    "TWEED_1954_TRIANGLE_DC_PO_OR_V1": {
       "required_measurement_ids": [
         "M_FH_GOME_DEG_V1",
         "M_IMPA_GOME_DEG_V1",
@@ -41,7 +41,7 @@
         "historical_strict_equivalence": false
       }
     },
-    "MERRIFIELD_PROFILE_LINE_1966_V1": {
+    "MERRIFIELD_1966_Z_ANGLE_V1": {
       "required_measurement_ids": [
         "M_MERRIFIELD_Z_FH_DEG_V1"
       ],

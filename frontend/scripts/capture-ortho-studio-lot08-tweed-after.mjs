@@ -11,10 +11,10 @@ const PORT=5210; const BASE_URL=`http://127.0.0.1:${PORT}`;
 const viewports=[{name:'390x844',width:390,height:844},{name:'430x932',width:430,height:932},{name:'768x1024',width:768,height:1024},{name:'1280x900',width:1280,height:900}];
 
 const rows=[
- {canonical_measurement_id:'M_FH_GOME_DEG_V1',label:'FMA',profile_section:'TWEED_DC_DIAGNOSTIC_TRIANGLE_V1',value:24.5,unit:'deg'},
- {canonical_measurement_id:'M_IMPA_GOME_DEG_V1',label:'IMPA',profile_section:'TWEED_DC_DIAGNOSTIC_TRIANGLE_V1',value:89.0,unit:'deg'},
- {canonical_measurement_id:'M_FMIA_L1_FH_DEG_V1',label:'FMIA',profile_section:'TWEED_DC_DIAGNOSTIC_TRIANGLE_V1',value:66.5,unit:'deg'},
- {canonical_measurement_id:'M_MERRIFIELD_Z_FH_DEG_V1',label:'Angle Z de Merrifield',profile_section:'MERRIFIELD_PROFILE_LINE_1966_V1',value:79.0,unit:'deg'},
+ {canonical_measurement_id:'M_FH_GOME_DEG_V1',label:'FMA',profile_section:'TWEED_1954_TRIANGLE_DC_PO_OR_V1',value:24.5,unit:'deg'},
+ {canonical_measurement_id:'M_IMPA_GOME_DEG_V1',label:'IMPA',profile_section:'TWEED_1954_TRIANGLE_DC_PO_OR_V1',value:89.0,unit:'deg'},
+ {canonical_measurement_id:'M_FMIA_L1_FH_DEG_V1',label:'FMIA',profile_section:'TWEED_1954_TRIANGLE_DC_PO_OR_V1',value:66.5,unit:'deg'},
+ {canonical_measurement_id:'M_MERRIFIELD_Z_FH_DEG_V1',label:'Angle Z de Merrifield',profile_section:'MERRIFIELD_1966_Z_ANGLE_V1',value:79.0,unit:'deg'},
 ].map(r=>({...r,availability_status:'AVAILABLE',measurement_refs:[`measurement:fixture:${r.canonical_measurement_id}`],value_authority_method_id:`METHOD:${r.canonical_measurement_id}`,reference_authority:'CONTEXT_ONLY_NO_RUNTIME_DELTA',classification_authority:false,interpretation_status:'RAW_MEASUREMENT_WITH_SOURCE_CONTEXT_ONLY'}));
 
 const entrySource=`
