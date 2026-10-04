@@ -10,6 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -189,7 +190,11 @@ def create_station_patient_session(
         expires_at=now + timedelta(seconds=SESSION_TTL_SECONDS),
     )
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="STATION_SESSION_CONCURRENT_REPLACEMENT") from exc
     db.refresh(row)
 
     handoff_url = str(request.base_url).rstrip("/") + "/companion?stationSession=" + raw
