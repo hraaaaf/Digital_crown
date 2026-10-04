@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
-from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter, PinnedCloture
 from backend.services.generators.document_layout_safety import join_unbreakable
 from backend.services.generators.accounting_pdf_readability import readable_accounting_font_floor
 
@@ -109,6 +109,11 @@ class AccountingGenerator:
             res += " et " + _to_words_int(centimes).lower()
             res += " Centime" if centimes <= 1 else " Centimes"
         return res
+
+    @staticmethod
+    def _format_mad_amount(amount):
+        """Format a MAD amount for French-language financial documents."""
+        return f"{float(amount):,.2f}".replace(",", " ").replace(".", ",")
 
     def _calculate_age(self, born):
         today = date.today()
@@ -292,7 +297,7 @@ class AccountingGenerator:
         )
         acte_style = ParagraphStyle(
             name='ActeText', parent=self.styles['Normal'], fontName=font_main,
-            fontSize=base_fs, textColor=p_color, alignment=TA_LEFT,
+            fontSize=base_fs, textColor=p_color, alignment=TA_CENTER,
             leading=base_fs * 1.25,
         )
 
@@ -310,7 +315,7 @@ class AccountingGenerator:
                 dent_display = ', '.join(str(d) for d in p.dents)
             dent_text = str(dent_display)
             mode_text = str(getattr(p, 'mode_reglement', 'Espèces'))
-            amount_text = f"{p.montant:.2f}"
+            amount_text = self._format_mad_amount(p.montant)
             dent_style = self.base_template.get_adaptive_style(text_style, dent_text, dent_w - 0.22*cm, min_fs=readable_floor)
             mode_style = self.base_template.get_adaptive_style(text_style, mode_text, pay_w - 0.22*cm, min_fs=readable_floor)
             amount_style = self.base_template.get_adaptive_style(text_style, amount_text, hon_w - 0.22*cm, min_fs=readable_floor)
@@ -330,7 +335,7 @@ class AccountingGenerator:
             name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold,
             fontSize=10.5, textColor=p_color, alignment=TA_CENTER,
         )
-        total_amount_text = f"<b>{total:.2f}\u00A0MAD</b>"
+        total_amount_text = f"<b>{self._format_mad_amount(total)}\u00A0MAD</b>"
         total_amount_style = self.base_template.get_adaptive_style(
             total_amount_style, total_amount_text, hon_w - 0.22*cm, min_fs=readable_floor
         )
@@ -380,7 +385,7 @@ class AccountingGenerator:
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         cloture_style = ParagraphStyle(
             name='Cloture', parent=self.styles['Normal'], fontName=self.base_template.premium_font,
-            fontSize=9.0, textColor=p_color, alignment=TA_CENTER, leading=12,
+            fontSize=9.0, textColor=p_color, alignment=TA_LEFT, leading=12,
         )
         from backend.services.base_template import PinnedCloture
         # Preserve normal spaces so the pinned closing sentence can wrap naturally.
@@ -549,6 +554,18 @@ class AccountingGenerator:
 
         p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+
+        # A final Honoraires closure is painted in the footer-safe band. Reserve that
+        # band from the body frame on every page so the final table fragment cannot
+        # consume it and force a closure-only orphan page.
+        if elements and isinstance(elements[-1], PinnedCloture):
+            usable_width = min(p_width_val - m_left - m_right, 11.8 * cm)
+            closure_probe = Paragraph(elements[-1].text, elements[-1].style)
+            _, closure_height = closure_probe.wrap(usable_width, 10 * cm)
+            closure_floor = getattr(elements[-1], "_footer_floor", 2.65 * cm)
+            closure_gap = getattr(elements[-1], "_body_gap", 0.12 * cm)
+            m_bottom = max(m_bottom, closure_floor + closure_height + closure_gap)
+
         draw_method = lambda canv, d: self._draw_canvas(
             canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth,
             cloture_text="", p_color=p_color

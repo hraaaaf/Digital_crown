@@ -146,8 +146,10 @@ jobs:
           cat /tmp/t2-backend.log
           exit 1
 
-      - name: Seed T1 second isolated patient
-        run: python scripts/t1_runtime_seed_patient_b.py
+      - name: Seed canonical synthetic cabinet fixture
+        run: |
+          python scripts/t2_cabinet_fixture.py
+          python scripts/t2_cabinet_fixture.py
 
       - name: Certify strict runtime PDF
         run: python scripts/t2_runtime_pdf_probe.py
@@ -240,9 +242,44 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
         working-directory: frontend
         shell: bash
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -o pipefail
           node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g4-honoraires-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-honoraires-actions-runner.log
+
+      - name: Certify Honoraires PDF stress matrix
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
+        shell: bash
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          cd frontend
+          node scripts/run-with-t2-workstation.mjs scripts/certify-honoraires-pdf-stress.mjs
+          cd ../artifacts/t2-browser/honoraires-pdf-stress
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftoppm >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends poppler-utils
+          fi
+          command -v pdfinfo
+          command -v pdftoppm
+          : > render-manifest.txt
+          for pdf in *.pdf; do
+            stem="${pdf%.pdf}"
+            pages="$(pdfinfo "$pdf" | awk '/^Pages:/ {print $2}')"
+            test -n "$pages"
+            test "$pages" -ge 1
+            mkdir -p "renders/$stem"
+            pdftoppm -png -r 144 "$pdf" "renders/$stem/page"
+            rendered="$(find "renders/$stem" -maxdepth 1 -name 'page-*.png' | wc -l)"
+            test "$rendered" -eq "$pages"
+            printf '%s pages=%s rendered=%s\n' "$stem" "$pages" "$rendered" >> render-manifest.txt
+          done
+          test "$(wc -l < render-manifest.txt)" -eq 3
+          grep -q '^standard ' render-manifest.txt
+          grep -q '^dense-12-actes ' render-manifest.txt
+          grep -q '^cloture-tres-longue ' render-manifest.txt
 
       - name: Certify G4 remaining document actions
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
