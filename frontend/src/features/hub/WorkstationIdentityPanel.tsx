@@ -17,16 +17,20 @@ export const WorkstationIdentityPanel = ({ current }: { current: WorkstationStat
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
-  const [fallbackMode, setFallbackMode] = useState<StationFallbackMode>('phone_dob');
+  const [fallbackMode, setFallbackMode] = useState<StationFallbackMode>('disabled');
 
   const refresh = async () => {
-    const [next, fallback] = await Promise.all([
-      workstationModeService.listWorkstations(),
-      stationPatientSessionService.getConfig(),
-    ]);
+    const next = await workstationModeService.listWorkstations();
     setItems(next);
     setNames(Object.fromEntries(next.map((item) => [item.workstationId, item.displayName || ''])));
-    setFallbackMode(fallback.fallbackMode);
+
+    try {
+      const fallback = await stationPatientSessionService.getConfig();
+      setFallbackMode(fallback.fallbackMode);
+    } catch {
+      setFallbackMode('disabled');
+      setFeedback('Liste des postes chargée. Configuration de secours indisponible.');
+    }
   };
 
   useEffect(() => {
