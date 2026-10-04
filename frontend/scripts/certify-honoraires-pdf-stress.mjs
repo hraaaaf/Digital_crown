@@ -40,11 +40,11 @@ function rows(count, long = false) {
 }
 
 const scenarios = [
-  { id: 'baseline', payments: rows(3) },
-  { id: 'long-text', payments: [{ date:'2026-09-20', acte: longA + ' avec contrôle radiographique comparatif et suivi clinique documenté à moyen terme afin de confirmer la stabilité du résultat thérapeutique', dent:'11, 12, 13', montant:1250, mode_reglement:'Virement' }] },
-  { id: 'many-lines', payments: rows(24) },
-  { id: 'long-many-lines', payments: rows(24, true) },
-  { id: 'extreme-pagination', payments: rows(48, true) },
+  { id: 'baseline', hasLongText: false, payments: rows(3) },
+  { id: 'long-text', hasLongText: true, payments: [{ date:'2026-09-20', acte: longA + ' avec contrôle radiographique comparatif et suivi clinique documenté à moyen terme afin de confirmer la stabilité du résultat thérapeutique', dent:'11, 12, 13', montant:1250, mode_reglement:'Virement' }] },
+  { id: 'many-lines', hasLongText: false, payments: rows(24) },
+  { id: 'long-many-lines', hasLongText: true, payments: rows(24, true) },
+  { id: 'extreme-pagination', hasLongText: true, payments: rows(48, true) },
 ];
 
 const report = { productHead: process.env.PRODUCT_HEAD || null, patientDossier: patient.numero_dossier, scenarios: [] };
@@ -72,7 +72,7 @@ for (const scenario of scenarios) {
   report.scenarios.push({
     id: scenario.id,
     rowCount: scenario.payments.length,
-    hasLongText: scenario.id.includes('long'),
+    hasLongText: scenario.hasLongText,
     bytes: bytes.length,
     signature: bytes.subarray(0,4).toString('ascii'),
     contentType: pdf.headers()['content-type'] || null,
