@@ -29,6 +29,14 @@ def upgrade():
     )
     op.create_index("ix_workstation_patient_sessions_employer_id", "workstation_patient_sessions", ["employer_id"])
     op.create_index("ix_workstation_patient_sessions_workstation_id", "workstation_patient_sessions", ["workstation_id"])
+    op.create_index(
+        "uq_workstation_patient_sessions_one_active",
+        "workstation_patient_sessions",
+        ["workstation_id"],
+        unique=True,
+        sqlite_where=sa.text("purged_at IS NULL"),
+        postgresql_where=sa.text("purged_at IS NULL"),
+    )
     op.create_index("ix_workstation_patient_sessions_claim_token_hash", "workstation_patient_sessions", ["claim_token_hash"], unique=True)
     op.create_index("ix_workstation_patient_sessions_patient_access_id", "workstation_patient_sessions", ["patient_access_id"])
     op.create_index("ix_workstation_patient_sessions_patient_id", "workstation_patient_sessions", ["patient_id"])
