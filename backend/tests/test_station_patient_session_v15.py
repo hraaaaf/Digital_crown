@@ -452,3 +452,168 @@ def test_fallback_can_be_disabled_by_cabinet(client, db, dentiste):
     )
     assert denied.status_code == 403
     assert denied.json()["detail"] == "STATION_FALLBACK_DISABLED"
+
+# V1.5-03.4 — Station arrival / today's appointment bridge baseline
+
+def _identified_station_session(client, db, dentiste, *, dossier="ST034-001", name="Aya"):
+    headers, _ = _station(client, dentiste)
+    created = client.post("/api/workstation/patient-session", headers=headers)
+    assert created.status_code == 201, created.text
+    body = created.json()
+    raw = body["handoffUrl"].split("stationSession=", 1)[1]
+    patient, access, patient_headers = _patient_context(db, dentiste, dossier=dossier, name=name)
+    claimed = client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={"token": raw, "accessId": access.public_id},
+    )
+    assert claimed.status_code == 200, claimed.text
+    return headers, body["sessionId"], patient
+
+
+def _station_appt(db, owner, patient, when, *, status=models.AppointmentStatus.PREVU, ticket_number=None):
+    appt = models.Appointment(
+        patient_id=patient.id,
+        patient_name=f"{patient.prenom} {patient.nom}",
+        praticien_id=owner.id,
+        datetime_start=when,
+        duration_minutes=30,
+        status=status,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        employer_id=owner.id,
+        ticket_number=ticket_number,
+    )
+    db.add(appt)
+    db.commit()
+    db.refresh(appt)
+    return appt
+
+
+def test_station_today_bridge_zero_single_multiple_and_day_scoping(client, db, dentiste):
+    headers, session_id, patient = _identified_station_session(client, db, dentiste)
+    empty = client.get(f"/api/workstation/patient-session/{session_id}/appointments/today", headers=headers)
+    assert empty.status_code == 200, empty.text
+    assert empty.json() == {"status": "none", "appointments": [], "staffActionRequired": True}
+
+    now = datetime.now()
+    first = _station_appt(db, dentiste, patient, now.replace(hour=9, minute=30, second=0, microsecond=0))
+    _station_appt(db, dentiste, patient, now.replace(hour=8, minute=0, second=0, microsecond=0) - timedelta(days=1))
+    _station_appt(db, dentiste, patient, now.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=1))
+    single = client.get(f"/api/workstation/patient-session/{session_id}/appointments/today", headers=headers)
+    assert single.status_code == 200, single.text
+    assert single.json()["status"] == "single"
+    assert [item["appointmentId"] for item in single.json()["appointments"]] == [first.id]
+    assert "patientId" not in single.json()["appointments"][0]
+    assert "notes" not in single.json()["appointments"][0]
+
+    second = _station_appt(db, dentiste, patient, now.replace(hour=8, minute=15, second=0, microsecond=0))
+    multiple = client.get(f"/api/workstation/patient-session/{session_id}/appointments/today", headers=headers)
+    assert multiple.status_code == 200, multiple.text
+    assert multiple.json()["status"] == "multiple"
+    assert [item["appointmentId"] for item in multiple.json()["appointments"]] == [second.id, first.id]
+
+
+def test_station_today_bridge_excludes_other_patient_and_deleted(client, db, dentiste):
+    headers, session_id, patient = _identified_station_session(client, db, dentiste, dossier="ST034-002")
+    other = models.Patient(
+        numero_dossier="ST034-OTHER", nom="Other", prenom="Patient",
+        date_naissance=datetime(1990, 1, 1), sexe="F", employer_id=dentiste.id,
+    )
+    db.add(other); db.commit()
+    now = datetime.now().replace(hour=10, minute=0, second=0, microsecond=0)
+    visible = _station_appt(db, dentiste, patient, now)
+    other_appt = _station_appt(db, dentiste, other, now + timedelta(minutes=30))
+    deleted = _station_appt(db, dentiste, patient, now + timedelta(minutes=60))
+    deleted.deleted_at = datetime.utcnow(); db.commit()
+
+    response = client.get(f"/api/workstation/patient-session/{session_id}/appointments/today", headers=headers)
+    assert response.status_code == 200, response.text
+    ids = [item["appointmentId"] for item in response.json()["appointments"]]
+    assert ids == [visible.id]
+    assert other_appt.id not in ids
+
+
+def test_station_arrival_sets_existing_waiting_status_is_idempotent_and_preserves_ticket(client, db, dentiste):
+    headers, session_id, patient = _identified_station_session(client, db, dentiste, dossier="ST034-003")
+    appt = _station_appt(
+        db, dentiste, patient,
+        datetime.now().replace(hour=11, minute=0, second=0, microsecond=0),
+        status=models.AppointmentStatus.CONFIRME,
+        ticket_number=77,
+    )
+    for _ in range(2):
+        arrived = client.post(
+            f"/api/workstation/patient-session/{session_id}/appointments/{appt.id}/arrive",
+            headers=headers,
+        )
+        assert arrived.status_code == 200, arrived.text
+        assert arrived.json() == {"status": "ARRIVED", "appointmentId": appt.id}
+
+    db.refresh(appt)
+    assert appt.status == models.AppointmentStatus.EN_SALLE_ATTENTE
+    assert appt.ticket_number == 77
+    audit = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_APPOINTMENT_ARRIVED",
+        models.AuditLog.resource_id == str(appt.id),
+    ).all()
+    assert len(audit) == 1
+
+
+@pytest.mark.parametrize(
+    "blocked_status",
+    [
+        models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        models.AppointmentStatus.EN_ATTENTE_CONFIRM,
+        models.AppointmentStatus.REFUSE,
+        models.AppointmentStatus.EXPIRE,
+        models.AppointmentStatus.ABSENT,
+        models.AppointmentStatus.ANNULE,
+        models.AppointmentStatus.EN_FAUTEUIL,
+        models.AppointmentStatus.TERMINE,
+    ],
+)
+def test_station_arrival_fails_closed_for_ineligible_status(client, db, dentiste, blocked_status):
+    headers, session_id, patient = _identified_station_session(
+        client, db, dentiste, dossier=f"ST034-{blocked_status.name}"
+    )
+    appt = _station_appt(
+        db, dentiste, patient,
+        datetime.now().replace(hour=12, minute=0, second=0, microsecond=0),
+        status=blocked_status,
+    )
+    denied = client.post(
+        f"/api/workstation/patient-session/{session_id}/appointments/{appt.id}/arrive",
+        headers=headers,
+    )
+    assert denied.status_code == 409, denied.text
+    db.refresh(appt)
+    assert appt.status == blocked_status
+
+
+def test_station_arrival_cannot_target_other_patient_or_other_day(client, db, dentiste):
+    headers, session_id, patient = _identified_station_session(client, db, dentiste, dossier="ST034-004")
+    other = models.Patient(
+        numero_dossier="ST034-OTHER2", nom="Other", prenom="Patient",
+        date_naissance=datetime(1990, 1, 1), sexe="M", employer_id=dentiste.id,
+    )
+    db.add(other); db.commit()
+    now = datetime.now()
+    other_appt = _station_appt(db, dentiste, other, now.replace(hour=13, minute=0, second=0, microsecond=0))
+    tomorrow = _station_appt(db, dentiste, patient, now.replace(hour=13, minute=30, second=0, microsecond=0) + timedelta(days=1))
+    assert client.post(f"/api/workstation/patient-session/{session_id}/appointments/{other_appt.id}/arrive", headers=headers).status_code == 404
+    assert client.post(f"/api/workstation/patient-session/{session_id}/appointments/{tomorrow.id}/arrive", headers=headers).status_code == 404
+
+
+def test_station_bridge_requires_live_identified_patient(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    created = client.post("/api/workstation/patient-session", headers=headers).json()
+    pending = client.get(f"/api/workstation/patient-session/{created['sessionId']}/appointments/today", headers=headers)
+    assert pending.status_code == 409
+    assert pending.json()["detail"] == "STATION_PATIENT_NOT_IDENTIFIED"
+
+    headers2, session_id, patient = _identified_station_session(client, db, dentiste, dossier="ST034-DELETED")
+    patient.deleted_at = datetime.utcnow(); db.commit()
+    denied = client.get(f"/api/workstation/patient-session/{session_id}/appointments/today", headers=headers2)
+    assert denied.status_code == 409
+    assert denied.json()["detail"] == "STATION_SESSION_PATIENT_UNAVAILABLE"
+
