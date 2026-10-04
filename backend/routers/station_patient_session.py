@@ -435,6 +435,118 @@ def station_patient_today_appointments(
     }
 
 
+@router.post("/patient-session/{session_id}/staff-assistance")
+def request_station_staff_assistance(
+    session_id: str,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    workstation, row = _identified_station_session_or_error(session_id, request, db, current_user)
+    appointments = list_station_patient_appointments_for_today(
+        db,
+        employer_id=workstation.employer_id,
+        patient_id=row.patient_id,
+    )
+    if appointments:
+        raise HTTPException(status_code=409, detail="STATION_STAFF_ASSISTANCE_NOT_REQUIRED")
+
+    existing = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == workstation.employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.resource_type == "WorkstationPatientSession",
+        models.AuditLog.resource_id == row.id,
+    ).first()
+    if existing is None:
+        existing = models.AuditLog(
+            user_id=current_user.id,
+            employer_id=workstation.employer_id,
+            action="STATION_STAFF_ASSISTANCE_REQUESTED",
+            resource_type="WorkstationPatientSession",
+            resource_id=row.id,
+            severity="WARNING",
+            details="Identified station visitor has no appointment today; staff assistance requested.",
+            ip_address=request.client.host if request.client else None,
+        )
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+    response.headers["Cache-Control"] = "no-store"
+    return {"status": "STAFF_NOTIFIED", "alertId": existing.id}
+
+
+@router.get("/staff-assistance")
+def list_station_staff_assistance(
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    employer_id = int(current_user.get_employer_id())
+    day_start = datetime.combine(datetime.now().date(), datetime.min.time())
+    requests = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+        models.AuditLog.timestamp >= day_start,
+    ).order_by(models.AuditLog.timestamp.asc(), models.AuditLog.id.asc()).all()
+    if not requests:
+        response.headers["Cache-Control"] = "no-store"
+        return {"alerts": []}
+
+    request_ids = {str(item.id) for item in requests}
+    acknowledged = db.query(models.AuditLog.resource_id).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_ACKNOWLEDGED",
+        models.AuditLog.resource_type == "AuditLog",
+        models.AuditLog.resource_id.in_(request_ids),
+    ).all()
+    acknowledged_ids = {str(item[0]) for item in acknowledged}
+    alerts = [{
+        "alertId": item.id,
+        "requestedAt": item.timestamp,
+    } for item in requests if str(item.id) not in acknowledged_ids]
+    response.headers["Cache-Control"] = "no-store"
+    return {"alerts": alerts}
+
+
+@router.post("/staff-assistance/{alert_id}/acknowledge")
+def acknowledge_station_staff_assistance(
+    alert_id: int,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    employer_id = int(current_user.get_employer_id())
+    requested = db.query(models.AuditLog).filter(
+        models.AuditLog.id == alert_id,
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
+    ).first()
+    if requested is None:
+        raise HTTPException(status_code=404, detail="STATION_STAFF_ASSISTANCE_NOT_FOUND")
+
+    existing = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "STATION_STAFF_ASSISTANCE_ACKNOWLEDGED",
+        models.AuditLog.resource_type == "AuditLog",
+        models.AuditLog.resource_id == str(alert_id),
+    ).first()
+    if existing is None:
+        db.add(models.AuditLog(
+            user_id=current_user.id,
+            employer_id=employer_id,
+            action="STATION_STAFF_ASSISTANCE_ACKNOWLEDGED",
+            resource_type="AuditLog",
+            resource_id=str(alert_id),
+            details="Station staff assistance acknowledged.",
+            ip_address=request.client.host if request.client else None,
+        ))
+        db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {"status": "ACKNOWLEDGED", "alertId": alert_id}
+
+
 @router.post("/patient-session/{session_id}/appointments/{appointment_id}/arrive")
 def station_patient_arrive(
     session_id: str,
