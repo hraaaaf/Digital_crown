@@ -292,7 +292,7 @@ class AccountingGenerator:
         )
         acte_style = ParagraphStyle(
             name='ActeText', parent=self.styles['Normal'], fontName=font_main,
-            fontSize=base_fs, textColor=p_color, alignment=TA_LEFT,
+            fontSize=base_fs, textColor=p_color, alignment=TA_CENTER,
             leading=base_fs * 1.25,
         )
 
