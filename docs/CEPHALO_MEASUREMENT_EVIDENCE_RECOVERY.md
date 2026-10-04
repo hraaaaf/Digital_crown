@@ -62,10 +62,10 @@ Décision Digital Crown :
 
 - ne pas enregistrer `80–100°` comme une « norme fixe » universelle ;
 - **ne pas abandonner la compensation** ;
-- la conserver comme règle Tweed historique source-lockée, dépendante du FMA et de la construction géométrique Tweed exacte ;
-- le plan mandibulaire Tweed est une tangente au bord inférieur mandibulaire : `Go-Me` et `Go-Gn` ne sont pas des substitutions source-exactes ;
-- le Frankfort historique de Tweed ne doit pas être assimilé silencieusement au `Po-Or` générique Digital Crown sans preuve ;
-- avant runtime clinique, verrouiller un contrat de tracing source-spécifique Tweed et tester la formule sur cas goldens.
+- la conserver comme règle Tweed historique source-lockée, sans l'activer comme règle de classification ou de traitement runtime ;
+- le plan mandibulaire Tweed strict est une tangente au bord inférieur mandibulaire : `Go-Me` et `Go-Gn` ne sont pas des substitutions **source-exactes** ;
+- le Frankfort historique de Tweed ne doit pas être assimilé silencieusement au `Po-Or` Digital Crown ;
+- **mise à jour 2026-10-03 :** la décision clinique du 2026-09-15 a sélectionné séparément `DC_TWEED_ANATOMICAL_FH_VARIANT = Po_anatomic-Or` avec plan mandibulaire `Go-Me`. Ce contrat produit est utilisable pour les mesures brutes FMA/IMPA/FMIA, mais ne revendique pas la reproduction stricte de 1954 et n'hérite pas automatiquement des normes/règles historiques.
 
 ## FMA 26° ±4 — RICKETTS 1981 SOURCE-LOCKÉ
 

@@ -15,9 +15,20 @@ const state = vi.hoisted(() => ({
     mand_offset:{x:0,y:0},
   },
   activeMorphing:'none' as 'none'|'T1'|'T2',
+  layerVisibility:{landmarks:true,plans:true,hard_tissue:false,teeth:true,soft_tissue:true,measurements:true,t1:false,t2:false},
+  layerOpacity:{landmarks:1,plans:1,hard_tissue:0.85,teeth:1,soft_tissue:0.9,measurements:1,t1:0.5,t2:0.5},
+  local:{landmarks:[{id:'S',x:10,y:20}],version:1},
+  landmarkEditTimeline:{baseline:[{id:'S',x:10,y:20}],undoStack:[],redoStack:[],auditTrail:[],nextSequence:1} as any,
   setMagnifierEnabled:vi.fn(),
   setVtoSettings:vi.fn(),
   setActiveMorphing:vi.fn(),
+  setLayerVisible:vi.fn(),
+  toggleLayer:vi.fn(),
+  setLayerOpacity:vi.fn(),
+  resetLayers:vi.fn(),
+  undoLandmarkEdit:vi.fn(),
+  redoLandmarkEdit:vi.fn(),
+  resetLandmarkEdits:vi.fn(),
 }));
 
 vi.mock('../stores/useOrthoStore',()=>({
@@ -41,6 +52,10 @@ beforeEach(()=>{
   state.imageSrc='blob:cephalo';
   state.magnifierEnabled=false;
   state.activeMorphing='none';
+  state.layerVisibility={landmarks:true,plans:true,hard_tissue:false,teeth:true,soft_tissue:true,measurements:true,t1:false,t2:false};
+  state.layerOpacity={landmarks:1,plans:1,hard_tissue:0.85,teeth:1,soft_tissue:0.9,measurements:1,t1:0.5,t2:0.5};
+  state.local={landmarks:[{id:'S',x:10,y:20}],version:1};
+  state.landmarkEditTimeline={baseline:[{id:'S',x:10,y:20}],undoStack:[],redoStack:[],auditTrail:[],nextSequence:1};
   state.vtoSettings={
     enabled:false,showGhostFace:true,showSoftTissue:true,
     u1_offset:{x:0,y:0},l1_offset:{x:0,y:0},mand_offset:{x:0,y:0},
@@ -55,6 +70,42 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     expect(screen.getByText('Cephalo base stage')).toBeTruthy();
     expect(screen.queryByRole('button',{name:'Loupe'})).toBeNull();
+  });
+
+  it('renders the registry-driven layer manager and keeps planned anatomy fail-closed',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+
+    expect(screen.getByRole('region',{name:'Gestionnaire de couches'})).toBeTruthy();
+    const hardTissue=screen.getByRole('button',{name:/Tissus durs/}) as HTMLButtonElement;
+    expect(hardTissue.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button',{name:'Landmarks'}));
+    expect(state.setLayerVisible).toHaveBeenCalledWith('landmarks',false);
+
+    fireEvent.change(screen.getByRole('slider',{name:/Landmarks/}),{target:{value:'35'}});
+    expect(state.setLayerOpacity).toHaveBeenCalledWith('landmarks',0.35);
+  });
+
+  it('exposes correction history controls with fail-closed disabled states',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+
+    expect(screen.getByRole('region',{name:'Historique des corrections'})).toBeTruthy();
+    expect((screen.getByRole('button',{name:/Annuler/}) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button',{name:/Rétablir/}) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button',{name:/Réinitialiser les corrections de session/}) as HTMLButtonElement).disabled).toBe(true);
+
+    state.local={landmarks:[{id:'S',x:14,y:20}],version:2};
+    state.landmarkEditTimeline={
+      baseline:[{id:'S',x:10,y:20}],
+      undoStack:[{id:'landmark-edit-1',sequence:1,source:'POINTER_DRAG',before:[{id:'S',x:10,y:20}],after:[{id:'S',x:14,y:20}],changedLandmarkIds:['S']}],
+      redoStack:[],auditTrail:[],nextSequence:2,
+    };
+    cleanup();
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    fireEvent.click(screen.getByRole('button',{name:/Annuler/}));
+    expect(state.undoLandmarkEdit).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button',{name:/Réinitialiser les corrections de session/}));
+    expect(state.resetLandmarkEdits).toHaveBeenCalledTimes(1);
   });
 
   it('toggles magnifier, soft tissue and 3D face through explicit store boundaries',()=>{
@@ -72,20 +123,20 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     expect(faceUpdater(state.vtoSettings).showGhostFace).toBe(false);
   });
 
-  it('activates T1/T2 projections and toggles an already active projection back to none',()=>{
+  it('toggles T1/T2 as independent registry-driven layers',()=>{
     const first=render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
 
     fireEvent.click(screen.getByRole('button',{name:'Projection T1'}));
-    expect(state.setActiveMorphing).toHaveBeenCalledWith('T1');
+    expect(state.setLayerVisible).toHaveBeenCalledWith('t1',true);
 
     fireEvent.click(screen.getByRole('button',{name:'Projection T2'}));
-    expect(state.setActiveMorphing).toHaveBeenCalledWith('T2');
+    expect(state.setLayerVisible).toHaveBeenCalledWith('t2',true);
 
     first.unmount();
-    state.activeMorphing='T1';
+    state.layerVisibility={...state.layerVisibility,t1:true};
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     fireEvent.click(screen.getByRole('button',{name:'Projection T1'}));
-    expect(state.setActiveMorphing).toHaveBeenLastCalledWith('none');
+    expect(state.setLayerVisible).toHaveBeenLastCalledWith('t1',false);
   });
 
   it('updates the active scientific analysis label from the canonical analysis event',()=>{

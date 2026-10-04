@@ -60,11 +60,17 @@ def _assert_downs_available_uncalibrated(graph):
         measurement for measurement in graph["measurements"]
         if measurement["analysis_id"] == "DOWNS"
     ]
-    assert {measurement["method_id"] for measurement in downs} == {
-        "DOWNS_FACIAL_ANGLE_DEG_V1",
-        "DOWNS_Y_AXIS_DEG_V1",
-    }
-    assert all(measurement["availability_status"] == "AVAILABLE" for measurement in downs)
+    method_ids={measurement["method_id"] for measurement in downs}
+    assert {"DOWNS_FACIAL_ANGLE_DEG_V1","DOWNS_Y_AXIS_DEG_V1"}.issubset(method_ids)
+    assert {"DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2","DOWNS_Y_AXIS_CANONICAL_DEG_V2"}.issubset(method_ids)
+    by_method={measurement["method_id"]: measurement for measurement in downs}
+    assert by_method["DOWNS_Y_AXIS_CANONICAL_DEG_V2"]["availability_status"] == "NOT_COMPUTABLE"
+    assert by_method["DOWNS_Y_AXIS_CANONICAL_DEG_V2"]["value"] is None
+    assert all(
+        measurement["availability_status"] == "AVAILABLE"
+        for measurement in downs
+        if measurement["method_id"] != "DOWNS_Y_AXIS_CANONICAL_DEG_V2"
+    )
     assert all(measurement["requires_calibration"] is False for measurement in downs)
     assert all(measurement["calibration_ref"] is None for measurement in downs)
 
@@ -74,18 +80,24 @@ def _assert_mcnamara(graph, *, calibrated: bool):
         measurement for measurement in graph["measurements"]
         if measurement["analysis_id"] == "MCNAMARA"
     ]
-    assert {measurement["method_id"] for measurement in mcnamara} == {
-        "MCNAMARA_CO_A_MM_V1",
-        "MCNAMARA_CO_GN_MM_V1",
-        "MCNAMARA_ANS_ME_MM_V1",
-        "M_A_NPERP_MM_V1",
-        "M_POG_NPERP_MM_V1",
-    }
+    method_ids={measurement["method_id"] for measurement in mcnamara}
+    assert {
+        "MCNAMARA_CO_A_MM_V1","MCNAMARA_CO_GN_MM_V1","MCNAMARA_ANS_ME_MM_V1",
+        "M_A_NPERP_MM_V1","M_POG_NPERP_MM_V1",
+        "MCNAMARA_CO_A_CANONICAL_MM_V2","MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "MCNAMARA_A_NPERP_CANONICAL_MM_V2","MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
+    }.issubset(method_ids)
     assert all(measurement["requires_calibration"] is True for measurement in mcnamara)
     if calibrated:
-        assert all(measurement["availability_status"] == "AVAILABLE" for measurement in mcnamara)
-        assert all(measurement["calibration_ref"] is not None for measurement in mcnamara)
-        assert all(measurement["value"] is not None for measurement in mcnamara)
+        by_method={measurement["method_id"]: measurement for measurement in mcnamara}
+        canonical_co_gn=by_method["MCNAMARA_CO_GN_CANONICAL_MM_V2"]
+        assert canonical_co_gn["availability_status"] == "NOT_COMPUTABLE"
+        assert canonical_co_gn["calibration_ref"] is None
+        assert canonical_co_gn["value"] is None
+        available=[m for m in mcnamara if m["method_id"] != "MCNAMARA_CO_GN_CANONICAL_MM_V2"]
+        assert all(measurement["availability_status"] == "AVAILABLE" for measurement in available)
+        assert all(measurement["calibration_ref"] is not None for measurement in available)
+        assert all(measurement["value"] is not None for measurement in available)
     else:
         assert all(measurement["availability_status"] == "NOT_COMPUTABLE" for measurement in mcnamara)
         assert all(measurement["calibration_ref"] is None for measurement in mcnamara)
@@ -100,7 +112,7 @@ def test_unambiguous_pre_r2_snapshot_remains_readable_and_reports_verified_activ
     assert projected["scientific_read_path"]["current_landmark_count"] == 38
 
 
-def test_get_fails_closed_when_historical_landmark_makes_current_authority_ambiguous():
+def test_explicit_current_landmark_refs_ignore_historical_duplicate():
     angles = _angles()
     payload = angles[EVIDENCE_GRAPH_KEY]
     duplicate = deepcopy(payload["landmarks"][0])
@@ -111,8 +123,9 @@ def test_get_fails_closed_when_historical_landmark_makes_current_authority_ambig
     duplicate["pipeline_version"] = None
     payload["landmarks"].append(duplicate)
 
-    with pytest.raises(CephaloTypedReadError, match="active runtime chain"):
-        project_runtime_chain_read_path(angles, patient_id=7)
+    projected = project_runtime_chain_read_path(angles, patient_id=7)
+    assert projected["scientific_read_path"]["active_chain"] == "VERIFIED"
+    assert projected["scientific_read_path"]["current_landmark_count"] == 38
 
 
 def test_get_fails_closed_when_construction_points_to_non_current_landmark():
@@ -235,3 +248,45 @@ def test_creation_edit_calibration_recalculation_and_get_keep_one_active_chain()
     }
     assert all(measurement["requires_calibration"] is False for measurement in steiner)
     assert all(measurement["calibration_ref"] is None for measurement in steiner)
+
+
+def test_runtime_chain_projects_only_safe_canonical_measurements_and_reports_blocked_methods():
+    projected = project_runtime_chain_read_path(_angles(), patient_id=7)
+    canonical = {
+        item["canonical_measurement_id"]: item
+        for item in projected["scientific_read_path"]["canonical_measurements"]
+    }
+    assert "M_SNA_DEG_V1" in canonical
+    assert "M_INTERINCISAL_DEG_V1" in canonical
+    assert "M_IMPA_GOME_DEG_V1" in canonical
+    assert canonical["M_IMPA_GOME_DEG_V1"]["method_ids"] == ["TWEED_IMPA_DEG_V1"]
+    blocked=set(projected["scientific_read_path"]["blocked_method_ids"])
+    assert "CRANIOM_L1_DOWNS_DEG_V1" in blocked
+    assert "TWEED_IMPA_DEG_V1" not in blocked
+    assert "TWEED_FMA_DEG_V1" in blocked
+    assert "TWEED_FMIA_DEG_V1" in blocked
+    assert "DOWNS_FACIAL_ANGLE_DEG_V1" in blocked
+    assert "RICKETTS_FACIAL_DEPTH_DEG_V1" in blocked
+    assert "DOWNS_Y_AXIS_DEG_V1" in projected["scientific_read_path"]["unmapped_method_ids"]
+    assert "MERRIFIELD_Z_ANGLE_DEG_V1" in projected["scientific_read_path"]["unmapped_method_ids"]
+
+def test_runtime_chain_does_not_promote_divergent_blocked_frankfort_dependent_tweed_methods():
+    angles = _angles()
+    payload = angles[EVIDENCE_GRAPH_KEY]
+    tweed_fma = next(
+        item for item in payload["measurements"]
+        if item["method_id"] == "TWEED_FMA_DEG_V1"
+    )
+    tweed_fma["value"] = float(tweed_fma["value"]) + 1.0
+    projected = project_runtime_chain_read_path(angles, patient_id=7)
+    canonical_ids = {
+        item["canonical_measurement_id"]
+        for item in projected["scientific_read_path"]["canonical_measurements"]
+    }
+    assert "M_FH_GOME_DEG_V1" in canonical_ids
+    fma = next(item for item in projected["scientific_read_path"]["canonical_measurements"] if item["canonical_measurement_id"]=="M_FH_GOME_DEG_V1")
+    assert fma["value_authority_method_id"] == "TWEED_FMA_CANONICAL_DEG_V2"
+    blocked = projected["scientific_read_path"]["blocked_method_ids"]
+    assert "TWEED_FMA_DEG_V1" in blocked
+    assert "TWEED_FMIA_DEG_V1" in blocked
+    assert "TWEED_IMPA_DEG_V1" not in blocked

@@ -17,6 +17,11 @@ from backend.schemas.cephalo_evidence import (
     MeasurementEvidence,
     SourceEvidence,
 )
+from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
+from backend.services.cephalo_protocol_projection import (
+    project_steiner_static_protocol,
+    project_tweed_merrifield_protocol,
+)
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_typed_read import (
     CephaloTypedReadError,
@@ -74,6 +79,19 @@ def _active_landmarks(
         if item.landmark_id in selected:
             raise CephaloRuntimeChainError(
                 f"Multiple current evidence objects for landmark {item.landmark_id}"
+            )
+        selected[item.landmark_id] = item
+
+    selected_refs = {item.evidence_id for item in selected.values()}
+    for item in graph.landmarks:
+        if ":canonical:" not in item.evidence_id:
+            continue
+        base_ref = item.evidence_id.split(":canonical:", 1)[0]
+        if base_ref not in selected_refs:
+            continue
+        if item.landmark_id in selected:
+            raise CephaloRuntimeChainError(
+                f"Canonical landmark identity collides with current landmark {item.landmark_id}"
             )
         selected[item.landmark_id] = item
     return selected
@@ -145,11 +163,27 @@ def project_runtime_chain_read_path(
     except CephaloRuntimeChainError as exc:
         raise CephaloTypedReadError("Persisted evidence active runtime chain is incoherent") from exc
 
+    try:
+        canonical_projection = project_canonical_measurements(chain.measurements.values())
+    except ValueError as exc:
+        raise CephaloTypedReadError("Typed measurements failed canonical convergence") from exc
+
     projected["scientific_read_path"] = {
         **projected.get("scientific_read_path", {}),
         "active_chain": "VERIFIED",
-        "current_landmark_count": len(chain.landmarks),
+        "current_landmark_count": (
+            len(payload["current_landmark_refs"])
+            if isinstance(payload.get("current_landmark_refs"), list)
+            else len([key for key in chain.landmarks if key not in {"Po_anatomic","Co_anatomic","Gn_anatomic","Pog_hard"}])
+        ),
         "current_construction_count": len(chain.constructions),
         "current_measurement_count": len(chain.measurements),
+        "canonical_measurements": canonical_projection["measurements"],
+        "blocked_method_ids": canonical_projection["blocked_method_ids"],
+        "unmapped_method_ids": canonical_projection["unmapped_method_ids"],
+        "protocol_profiles": {
+            "steiner": project_steiner_static_protocol(canonical_projection["measurements"]),
+            "tweed_merrifield": project_tweed_merrifield_protocol(canonical_projection["measurements"]),
+        },
     }
     return projected

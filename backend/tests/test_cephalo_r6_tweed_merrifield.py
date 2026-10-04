@@ -206,10 +206,12 @@ def test_r6_creation_landmark_edit_and_calibration_keep_one_active_behavioral_ch
         recorded_at=NOW,
     )
     r6_1 = _r6_measurements(revision1)
-    assert set(r6_1) == {
+    assert {
         "TWEED_FMA_DEG_V1", "TWEED_IMPA_DEG_V1", "TWEED_FMIA_DEG_V1",
         "MERRIFIELD_Z_ANGLE_DEG_V1",
-    }
+        "TWEED_FMA_CANONICAL_DEG_V2", "TWEED_FMIA_CANONICAL_DEG_V2",
+        "MERRIFIELD_Z_CANONICAL_DEG_V2",
+    }.issubset(set(r6_1))
     assert all(item["availability_status"] == "AVAILABLE" for item in r6_1.values())
 
     edited = _raw({"Me": (12.0, 18.0)})

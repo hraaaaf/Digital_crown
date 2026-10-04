@@ -195,10 +195,20 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   const libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
   await libreTitle.waitFor({ state: 'visible', timeout: 10000 });
-  await page.waitForFunction(expected => {
-    const input = document.querySelector('input[placeholder="Ex: ORDONNANCE, LETTRE..."]');
-    return input instanceof HTMLInputElement && input.value === expected;
-  }, marker, { timeout: 10000 });
+  try {
+    await page.waitForFunction(expected => {
+      const input = document.querySelector('input[placeholder="Ex: ORDONNANCE, LETTRE..."]');
+      return input instanceof HTMLInputElement && input.value === expected;
+    }, marker, { timeout: 30000 });
+  } catch (error) {
+    const actualTitle = await libreTitle.inputValue().catch(() => '<unavailable>');
+    await page.screenshot({
+      path: path.join(outDir, `g4-devis-history-${viewport.width}x${viewport.height}-history-edit-timeout.png`),
+      fullPage: false,
+      animations: 'disabled',
+    }).catch(() => {});
+    throw new Error(`history edit hydration timeout: expected="${marker}" actual="${actualTitle}" url="${page.url()}" cause="${error instanceof Error ? error.message : String(error)}"`);
+  }
   actions.push('history-edit');
 
   await page.goto(`${patientUrl}?tab=archives`, { waitUntil: 'networkidle', timeout: 90000 });

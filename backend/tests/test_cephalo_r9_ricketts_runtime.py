@@ -51,10 +51,12 @@ def _initial(raw=None):
 def _ricketts(graph, *, calibrated: bool):
     items = [item for item in graph["measurements"] if item["analysis_id"] == "RICKETTS"]
     by_method = {item["method_id"]: item for item in items}
-    assert set(by_method) == {
+    assert {
         "RICKETTS_FACIAL_DEPTH_DEG_V1",
         "RICKETTS_CONVEXITY_A_NPOG_MM_V1", "RICKETTS_E_LINE_LS_MM_V2", "RICKETTS_E_LINE_LI_MM_V2",
-    }
+        "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2", "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
+        "RICKETTS_E_LINE_LS_CANONICAL_MM_V3", "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
+    }.issubset(set(by_method))
     assert "RICKETTS_FACIAL_AXIS_DEG_V1" not in by_method
     depth = by_method["RICKETTS_FACIAL_DEPTH_DEG_V1"]
     assert depth["availability_status"] == "AVAILABLE"

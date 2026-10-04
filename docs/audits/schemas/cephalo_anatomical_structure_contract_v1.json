@@ -1,0 +1,109 @@
+{
+  "schema_version": "CEPHALO_ANATOMICAL_STRUCTURE_CONTRACT_V1",
+  "status": "PROJECT_LOCKED_LOT07",
+  "scientific_authority": "LOT06_CANONICAL_ENGINE",
+  "authority_states": [
+    "CANDIDATE_INPUT",
+    "MEASUREMENT_AUTHORITATIVE",
+    "DERIVED_VISUALIZATION",
+    "DISPLAY_TEMPLATE_ONLY"
+  ],
+  "invariants": [
+    "DISPLAY_TEMPLATE_ONLY_NEVER_DRIVES_MEASUREMENTS",
+    "MEASUREMENT_AUTHORITATIVE_REQUIRES_CANONICAL_DEPENDENCY_IDS",
+    "MANUAL_EDIT_REQUIRES_PROVENANCE_AND_HISTORY",
+    "MISSING_REQUIRED_DEPENDENCY_FAILS_CLOSED",
+    "LOT07_DOES_NOT_DEFINE_NEW_CEPHALOMETRIC_FORMULAS"
+  ],
+  "structure_classes": {
+    "LANDMARK": {
+      "default_authority": "CANDIDATE_INPUT",
+      "promotion_gate": "AUDITED_CANONICAL_INPUT_PATH",
+      "authority_source": "LOT05_SCHEMA_PLUS_LOT06_IDENTITY_CONTRACT"
+    },
+    "CANONICAL_CONSTRUCTION": {
+      "default_authority": "MEASUREMENT_AUTHORITATIVE",
+      "input_gate": "ALL_CANONICAL_INPUTS_MEASUREMENT_AUTHORITATIVE",
+      "authority_source": "LOT06_DEPENDENCY_GRAPH"
+    },
+    "HARD_TISSUE_CONTOUR": {
+      "default_authority": "DISPLAY_TEMPLATE_ONLY"
+    },
+    "SOFT_TISSUE_PROFILE": {
+      "default_authority": "DISPLAY_TEMPLATE_ONLY"
+    },
+    "TOOTH_TEMPLATE": {
+      "default_authority": "DISPLAY_TEMPLATE_ONLY"
+    },
+    "MEASUREMENT_OVERLAY": {
+      "default_authority": "DERIVED_VISUALIZATION",
+      "authority_source": "LOT06_MEASUREMENT_OUTPUT"
+    },
+    "LONGITUDINAL_GHOST": {
+      "default_authority": "DERIVED_VISUALIZATION",
+      "registration_contract": "OUTSIDE_LOT07"
+    }
+  },
+  "required_fields_per_structure": [
+    "structure_id",
+    "structure_class",
+    "authority_state",
+    "coordinate_space",
+    "provenance",
+    "edit_policy"
+  ],
+  "measurement_authoritative_extra_fields": [
+    "canonical_dependency_ids",
+    "source_contracts",
+    "availability_gate"
+  ],
+  "edit_policy": {
+    "DISPLAY_TEMPLATE_ONLY": "EDITABLE_WITH_HISTORY_NO_MEASUREMENT_SIDE_EFFECT",
+    "DERIVED_VISUALIZATION": "REGENERATED_FROM_CANONICAL_SOURCE",
+    "MEASUREMENT_AUTHORITATIVE": "EDIT_ONLY_THROUGH_AUDITED_CANONICAL_INPUT_PATH"
+  },
+  "coordinate_spaces": [
+    "IMAGE_PIXEL",
+    "CALIBRATED_MM",
+    "REGISTERED_LONGITUDINAL"
+  ],
+  "serialization": {
+    "requires_version": true,
+    "requires_created_at": true,
+    "requires_updated_at": true,
+    "requires_source_record_id": true,
+    "requires_edit_history": true
+  },
+  "lot07_default_structures": [
+    {
+      "structure_id": "hard_tissue_cranial_base",
+      "structure_class": "HARD_TISSUE_CONTOUR",
+      "authority_state": "DISPLAY_TEMPLATE_ONLY"
+    },
+    {
+      "structure_id": "hard_tissue_maxilla",
+      "structure_class": "HARD_TISSUE_CONTOUR",
+      "authority_state": "DISPLAY_TEMPLATE_ONLY"
+    },
+    {
+      "structure_id": "hard_tissue_mandible",
+      "structure_class": "HARD_TISSUE_CONTOUR",
+      "authority_state": "DISPLAY_TEMPLATE_ONLY"
+    },
+    {
+      "structure_id": "soft_tissue_profile",
+      "structure_class": "SOFT_TISSUE_PROFILE",
+      "authority_state": "DISPLAY_TEMPLATE_ONLY"
+    },
+    {
+      "structure_id": "upper_incisor_template",
+      "structure_class": "TOOTH_TEMPLATE",
+      "authority_state": "DISPLAY_TEMPLATE_ONLY"
+    },
+    {
+      "structure_id": "lower_incisor_template",
+      "structure_class": "TOOTH_TEMPLATE",
+      "authority_state": "DISPLAY_TEMPLATE_ONLY"
+    }
+  ]
+}

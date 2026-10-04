@@ -70,6 +70,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       store.setAnalysisId(loaded.id);
       store.setImageSrc(resolveImageSrc(loaded.image_original_path));
       store.setLocal({ landmarks, version: Date.now() });
+      store.setLandmarkEditBaseline(landmarks);
       store.setAnglesData({ ...anglesData, __calibrationData: loaded.calibration_data || null });
       store.setVisionMetadata(anglesData.vision_metadata || {});
       store.setIsCalibrated(Boolean(loaded.is_calibrated));
@@ -338,10 +339,10 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
+      <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:flex-wrap md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-bold" style={{ color: P.text }}>Céphalométrie</h2>
-          <p className="truncate text-xs" style={{ color: P.textMuted }}>{patientName}</p>
+          <h2 data-ortho-workspace-title className="text-lg font-bold leading-tight" style={{ color: P.text }}>Céphalométrie</h2>
+          <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName}</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex shrink-0 rounded-xl p-1" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
@@ -362,7 +363,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
       </div>
 
-      <div data-tour="cephalo-stepper" className="flex max-w-full items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6" style={{ background: P.bg }}>
+      <div data-tour="cephalo-stepper" className="flex max-w-full flex-wrap items-center gap-2 px-4 py-3 sm:px-6" style={{ background: P.bg }}>
         <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
@@ -391,7 +392,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
                 <ClinicalScientificStudio patientId={patientId} analysisId={analysisId} P={P} />
               )}
               {step === 1 && renderStep1()}
-              {step === 2 && <Step2Occlusal P={P} />}
+              {step === 2 && <Step2Occlusal P={P} patientId={patientId} />}
               {step === 3 && <Step3Clinical P={P} />}
               {step === 4 && <Step4Documents P={P} />}
 

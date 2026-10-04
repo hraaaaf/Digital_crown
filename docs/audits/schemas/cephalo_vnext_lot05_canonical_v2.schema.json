@@ -1,0 +1,554 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cephalo-vnext-canonical-schema-v2",
+  "title": "Cephalo vNext Canonical Schema V2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "patient_id",
+    "evidence_graph_version",
+    "landmark_registry",
+    "current_landmark_refs",
+    "coordinate_space",
+    "migration",
+    "quality_metadata",
+    "active_landmarks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "CEPHALO_CANONICAL_SCHEMA_V2"
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "patient_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "evidence_graph_version": {
+      "const": "_evidence_graph_v1"
+    },
+    "landmark_registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "canonical_id",
+          "aliases",
+          "identity_version",
+          "semantic_status",
+          "tissue_domain"
+        ],
+        "properties": {
+          "canonical_id": {
+            "type": "string",
+            "enum": [
+              "S",
+              "N",
+              "Or",
+              "Po",
+              "A",
+              "B",
+              "Pog",
+              "Me",
+              "Gn",
+              "Go",
+              "L1_incisal",
+              "U1_incisal",
+              "Ls_soft",
+              "Li_soft",
+              "Sn_soft",
+              "Pog_soft",
+              "PNS",
+              "ANS",
+              "Ar",
+              "D_point",
+              "U1_apex",
+              "L1_apex",
+              "Cm",
+              "Ptm",
+              "Co",
+              "Prn",
+              "Ba",
+              "PT_point",
+              "Bo",
+              "Ls2",
+              "Li2",
+              "Gn_soft",
+              "Me_soft",
+              "G_soft",
+              "N_soft",
+              "C_point",
+              "U6",
+              "L6",
+              "Occ_Ant",
+              "Occ_Post"
+            ]
+          },
+          "aliases": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "identity_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "semantic_status": {
+            "enum": [
+              "CLINICAL_CANONICAL",
+              "TRACING_CANONICAL",
+              "RESEARCH_ONLY",
+              "LEGACY_AMBIGUOUS"
+            ]
+          },
+          "tissue_domain": {
+            "enum": [
+              "HARD",
+              "SOFT",
+              "DENTAL",
+              "CONSTRUCTION_ANCHOR"
+            ]
+          },
+          "analysis_scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "current_landmark_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "coordinate_space": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "unit",
+        "source_width_px",
+        "source_height_px"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "const": "px"
+        },
+        "source_width_px": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_height_px": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "calibration_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "quality_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "raw_score": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "score_semantics": {
+          "enum": [
+            "RAW_UNCALIBRATED",
+            "CALIBRATED_WITH_EVIDENCE",
+            "NOT_AVAILABLE"
+          ]
+        },
+        "score_calibration_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "model_id",
+        "model_sha256",
+        "raw_score",
+        "score_semantics",
+        "score_calibration_ref"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "score_semantics": {
+                "const": "CALIBRATED_WITH_EVIDENCE"
+              }
+            },
+            "required": [
+              "score_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "score_calibration_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "raw_score": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "score_semantics": {
+                "const": "NOT_AVAILABLE"
+              }
+            },
+            "required": [
+              "score_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "raw_score": {
+                "type": "null"
+              },
+              "score_calibration_ref": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "score_semantics": {
+                "const": "RAW_UNCALIBRATED"
+              }
+            },
+            "required": [
+              "score_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "raw_score": {
+                "type": "number"
+              },
+              "score_calibration_ref": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "model_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "model_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "model_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "model_sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "model_sha256"
+            ]
+          },
+          "then": {
+            "properties": {
+              "model_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migration_version",
+        "source_schema",
+        "source_sha256",
+        "compatibility_class",
+        "migrated_at",
+        "migration_context_sha256",
+        "opaque_legacy_payload"
+      ],
+      "properties": {
+        "migration_version": {
+          "const": "CEPHALO_V1_TO_V2_MIGRATION_V1"
+        },
+        "source_schema": {
+          "const": "_evidence_graph_v1"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "compatibility_class": {
+          "const": "LOSSLESS_V1"
+        },
+        "opaque_legacy_payload": {
+          "type": "object"
+        },
+        "migrated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "migration_context_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "active_landmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_ref",
+          "canonical_id",
+          "origin",
+          "x",
+          "y",
+          "model_id",
+          "model_sha256",
+          "pipeline_version",
+          "original_auto_x",
+          "original_auto_y",
+          "validated_by",
+          "validated_at"
+        ],
+        "properties": {
+          "evidence_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical_id": {
+            "type": "string",
+            "enum": [
+              "S",
+              "N",
+              "Or",
+              "Po",
+              "A",
+              "B",
+              "Pog",
+              "Me",
+              "Gn",
+              "Go",
+              "L1_incisal",
+              "U1_incisal",
+              "Ls_soft",
+              "Li_soft",
+              "Sn_soft",
+              "Pog_soft",
+              "PNS",
+              "ANS",
+              "Ar",
+              "D_point",
+              "U1_apex",
+              "L1_apex",
+              "Cm",
+              "Ptm",
+              "Co",
+              "Prn",
+              "Ba",
+              "PT_point",
+              "Bo",
+              "Ls2",
+              "Li2",
+              "Gn_soft",
+              "Me_soft",
+              "G_soft",
+              "N_soft",
+              "C_point",
+              "U6",
+              "L6",
+              "Occ_Ant",
+              "Occ_Post"
+            ]
+          },
+          "origin": {
+            "enum": [
+              "SRPOSE38_AUTO",
+              "MANUAL",
+              "MANUAL_CORRECTED"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "validated_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "model_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "pipeline_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "original_auto_x": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "original_auto_y": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "origin": {
+                  "const": "SRPOSE38_AUTO"
+                }
+              },
+              "required": [
+                "origin"
+              ]
+            },
+            "then": {
+              "properties": {
+                "model_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "model_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-fA-F0-9]{64}$"
+                },
+                "pipeline_version": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "origin": {
+                  "const": "MANUAL_CORRECTED"
+                }
+              },
+              "required": [
+                "origin"
+              ]
+            },
+            "then": {
+              "properties": {
+                "original_auto_x": {
+                  "type": "number"
+                },
+                "original_auto_y": {
+                  "type": "number"
+                },
+                "validated_by": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "validated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "CEPHALO_LOT06_GOLDSET_SENTINEL_BINDINGS_V1",
+  "upstream_contract": "CEPHALO_VNEXT_LOT02_SENTINEL_MEASUREMENT_AGREEMENT",
+  "clinical_acceptance": false,
+  "bindings": [
+    {"lot02_sentinel": "SNA", "canonical_measurement_id": "M_SNA_DEG_V1"},
+    {"lot02_sentinel": "SNB", "canonical_measurement_id": "M_SNB_DEG_V1"},
+    {"lot02_sentinel": "ANB", "canonical_measurement_id": "M_ANB_DEG_V1"},
+    {"lot02_sentinel": "FMA", "canonical_measurement_id": "M_FH_GOME_DEG_V1", "note": "Digital Crown source-locked Po_anatomic-Or / Go-Me variant"},
+    {"lot02_sentinel": "IMPA", "canonical_measurement_id": "M_IMPA_GOME_DEG_V1"},
+    {"lot02_sentinel": "FMIA", "canonical_measurement_id": "M_FMIA_L1_FH_DEG_V1", "note": "Digital Crown source-locked Po_anatomic-Or variant"},
+    {"lot02_sentinel": "SN-GoGn", "canonical_measurement_id": "M_SN_GOGN_DEG_V1", "note": "Requires exact Gn_anatomic identity"},
+    {"lot02_sentinel": "Co-A", "canonical_measurement_id": "M_CO_A_MM_V1", "note": "Requires exact Co_anatomic identity and calibration"},
+    {"lot02_sentinel": "Co-Gn", "canonical_measurement_id": "M_CO_GN_ANATOMIC_MM_V1", "note": "Requires exact Co_anatomic + Gn_anatomic identities and calibration"}
+  ]
+}

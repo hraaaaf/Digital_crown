@@ -20,6 +20,9 @@ from backend.schemas.cephalo_evidence import (
 )
 from backend.schemas.clinical import CephaloAnalysisResult
 from backend.services.cephalo_construction_evidence_adapter import materialize_craniom_linear_constructions
+from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
+from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
+from backend.services.cephalo_landmark_identity_bridge import project_canonical_landmark_identities
 from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_mcnamara_evidence import (
@@ -32,6 +35,7 @@ from backend.services.cephalo_steiner_dental_evidence import (
     adapt_steiner_dental_measurements,
     materialize_steiner_dental_constructions,
 )
+from backend.services.cephalo_steiner_protocol_evidence import materialize_steiner_protocol_evidence
 from backend.services.cephalo_steiner_evidence_adapter import (
     adapt_steiner_skeletal_measurements,
     materialize_steiner_skeletal_constructions,
@@ -287,6 +291,12 @@ def rebuild_evidence_after_landmark_edit(
     }
     for item in next_current.values():
         graph_landmarks_by_ref[item.evidence_id] = item
+    scientific_current = project_canonical_landmark_identities(
+        next_current, previous_auto_landmarks=list(original_auto.values())
+    )
+    for key,item in scientific_current.items():
+        if key not in next_current:
+            graph_landmarks_by_ref[item.evidence_id] = item
     graph_landmarks = list(graph_landmarks_by_ref.values())
 
     craniom_constructions = materialize_craniom_linear_constructions(
@@ -333,17 +343,40 @@ def rebuild_evidence_after_landmark_edit(
         calibration_ref=calibration_ref,
     )
 
+    steiner_protocol_constructions, steiner_protocol_measurements = materialize_steiner_protocol_evidence(
+        landmarks=scientific_current,
+        construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:protocol-v1",
+        measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:protocol-v1",
+        mm_per_pixel=result.analysis_metadata.pixel_ratio,
+        calibration_ref=calibration_ref,
+    )
+
+    canonical_v2_constructions = materialize_canonical_constructions_v2(
+        scientific_current,
+        construction_namespace=f"construction:{case_id}:r{next_revision}:canonical-v2",
+    )
     all_constructions = [
         *craniom_constructions.values(),
         *steiner_constructions.values(),
         *steiner_dental_constructions.values(),
         *mcnamara_nperp_constructions.values(),
+        *steiner_protocol_constructions.values(),
+        *canonical_v2_constructions.values(),
     ]
+    canonical_v2_measurements = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace=f"measurement:{case_id}:r{next_revision}:canonical-v2",
+        landmarks=scientific_current,
+        mm_per_pixel=result.analysis_metadata.pixel_ratio,
+        calibration_ref=calibration_ref,
+        constructions=canonical_v2_constructions,
+    )
     all_measurements = [
         *craniom_measurements,
         *steiner_measurements,
         *steiner_dental_measurements,
         *mcnamara_nperp_measurements,
+        *steiner_protocol_measurements,
+        *canonical_v2_measurements,
     ]
 
     graph = EvidenceGraphSnapshot(

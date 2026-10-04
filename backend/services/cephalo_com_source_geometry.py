@@ -43,27 +43,27 @@ RICKETTS_1981_FMA_REQUIRED_LANDMARKS = (
     "RickettsMe",
 )
 
-# Tweed remains intentionally blocked. Existing Go-Me / Go-Gn convenience lines
-# are not promoted to historical source-exact geometry without a locked tracing
-# contract for Tweed Frankfort and the mandibular lower-border tangent.
+# The strict 1954 ear-rod/lower-border construction is preserved as historical
+# provenance, but it is not the selected Digital Crown product contract. The
+# clinician-approved 2026-09-15 DC variant is Po_anatomic-Or + Go-Me and must
+# never be labelled as a strict geometric reproduction of Tweed 1954.
 TWEED_SOURCE_EXACT_GEOMETRY_BLOCKER = {
-    "status": "BLOCKED_SOURCE_SPECIFIC_GEOMETRY",
+    "status": "RESOLVED_BY_SELECTED_DC_VARIANT",
     "source_refs": (
         "doi:10.1016/0096-6347(46)90001-4",
         "TWEED_1954_FMIA_PRIMARY",
     ),
-    "mandibular_plane_requirement": "source_specific_lower_border_tangent",
-    "frankfort_requirement": "source_specific_tweed_frankfort_construction",
-    "forbidden_substitutions": (
-        "Go-Me_as_Tweed_mandibular_plane",
-        "Go-Gn_as_Tweed_mandibular_plane",
-        "generic_Po-Or_as_source_exact_Tweed_FH_without_proof",
+    "strict_historical_status": "HISTORICAL_NOT_SELECTED",
+    "strict_frankfort_requirement": "ear_rod_center_plus_4_5mm_to_inferior_orbital_border",
+    "strict_mandibular_plane_requirement": "source_specific_lower_border_tangent",
+    "selected_contract": "DC_TWEED_ANATOMICAL_FH_VARIANT",
+    "selected_frankfort": "Po_anatomic-Or",
+    "selected_mandibular_plane": "Go-Me",
+    "forbidden_claims": (
+        "DC_variant_is_strict_Tweed_1954_geometry",
+        "historical_Tweed_norms_are_directly_geometry_compatible_with_DC_variant",
     ),
-    "next_exact": (
-        "Version a clinician-audited source-specific Tweed tracing contract for "
-        "the historical Frankfort reference and mandibular lower-border tangent "
-        "before materializing Tweed FMA/IMPA."
-    ),
+    "runtime_policy": "RAW_GEOMETRY_ALLOWED; HISTORICAL_NORM_CLASSIFICATION_FORBIDDEN",
 }
 
 
