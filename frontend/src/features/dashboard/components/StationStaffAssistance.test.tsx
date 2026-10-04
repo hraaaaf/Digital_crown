@@ -27,6 +27,15 @@ describe('StationStaffAssistance V1.5-03.4', () => {
     await waitFor(() => expect(screen.queryByText('Assistance demandée à la station')).not.toBeInTheDocument());
   });
 
+  it('reports an acknowledgement failure without removing the request', async () => {
+    vi.mocked(stationStaffAssistanceService.list).mockResolvedValue([{ alertId: 8, requestedAt: '2026-10-04T10:05:00' }]);
+    vi.mocked(stationStaffAssistanceService.acknowledge).mockRejectedValue(new Error('request failed'));
+    render(<StationStaffAssistance visible />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Pris en charge' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Acquittement non enregistré/);
+    expect(screen.getByText(/demande #8/)).toBeInTheDocument();
+  });
+
   it('fails visibly when the staff feed cannot be checked', async () => {
     vi.mocked(stationStaffAssistanceService.list).mockRejectedValue(new Error('offline'));
     render(<StationStaffAssistance visible />);
