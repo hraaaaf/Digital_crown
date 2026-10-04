@@ -114,7 +114,7 @@ try {
           await page.locator('[data-station-fallback-toggle]').click();
           await page.locator('[data-station-fallback-form]').waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'identified') {
-          await page.locator('[data-station-patient-identified]').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-arrival-bridge]').waitFor({ timeout: 10000 });
         } else {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
         }
@@ -125,7 +125,7 @@ try {
           stationVisible: Boolean(document.querySelector('[data-workstation-experience="station"]')),
           patientSessionVisible: Boolean(document.querySelector('[data-station-patient-session]')),
           fallbackVisible: Boolean(document.querySelector('[data-station-fallback-form]')),
-          identifiedVisible: Boolean(document.querySelector('[data-station-patient-identified]')),
+          identifiedVisible: Boolean(document.querySelector('[data-station-arrival-bridge]')),
           cameraInputs: document.querySelectorAll('input[accept*="image"], video').length,
           clinicalLinks: Array.from(document.querySelectorAll('a'))
             .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
