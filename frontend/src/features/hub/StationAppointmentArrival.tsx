@@ -24,6 +24,7 @@ const COPY = {
     choose: 'Choisissez votre rendez-vous',
     yours: 'Votre rendez-vous',
     status: 'Statut',
+    statusScheduled: 'Prévu', statusConfirmed: 'Confirmé', statusWaiting: 'En salle d’attente',
     confirming: 'Confirmation…',
     confirm: 'Confirmer mon arrivée',
   },
@@ -42,6 +43,7 @@ const COPY = {
     choose: 'Choose your appointment',
     yours: 'Your appointment',
     status: 'Status',
+    statusScheduled: 'Scheduled', statusConfirmed: 'Confirmed', statusWaiting: 'Waiting',
     confirming: 'Confirming…',
     confirm: 'Confirm my arrival',
   },
@@ -60,16 +62,30 @@ const COPY = {
     choose: 'اختاروا موعدكم',
     yours: 'موعدكم',
     status: 'الحالة',
+    statusScheduled: 'مجدول', statusConfirmed: 'مؤكد', statusWaiting: 'في قاعة الانتظار',
     confirming: 'جارٍ التأكيد…',
     confirm: 'تأكيد وصولي',
   },
 } as const;
 
-const appointmentLabel = (appointment: StationAppointmentSummary) => {
+const LOCALE: Record<StationFlowLanguage, string> = { fr: 'fr-FR', en: 'en-GB', ar: 'ar-MA' };
+
+const normalizeStatus = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[\s-]+/g, '_');
+
+const appointmentStatusLabel = (status: string, language: StationFlowLanguage) => {
+  const normalized = normalizeStatus(status);
+  const copy = COPY[language];
+  if (normalized === 'PREVU') return copy.statusScheduled;
+  if (normalized === 'CONFIRME') return copy.statusConfirmed;
+  if (normalized === 'EN_SALLE_ATTENTE') return copy.statusWaiting;
+  return null;
+};
+
+const appointmentLabel = (appointment: StationAppointmentSummary, language: StationFlowLanguage) => {
   const date = new Date(appointment.datetimeStart);
   const time = Number.isNaN(date.getTime())
     ? appointment.datetimeStart
-    : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    : date.toLocaleTimeString(LOCALE[language], { hour: '2-digit', minute: '2-digit' });
   return `${time} · ${appointment.durationMinutes} min`;
 };
 
@@ -184,8 +200,8 @@ export const StationAppointmentArrival = ({
                 <button key={appointment.appointmentId} type="button" data-station-appointment-id={appointment.appointmentId} aria-pressed={active}
                   onClick={() => setSelectedId(appointment.appointmentId)}
                   className={`min-h-16 rounded-2xl border p-4 text-start transition-elite ${active ? 'border-primary bg-primary/5' : 'border-border-main bg-main-bg'}`}>
-                  <span className="flex items-center gap-2 font-black text-main"><Clock3 size={17} className="text-primary" aria-hidden="true" />{appointmentLabel(appointment)}</span>
-                  <span className="mt-1 block text-xs font-semibold text-text-muted">{copy.status} : {appointment.status}</span>
+                  <span className="flex items-center gap-2 font-black text-main"><Clock3 size={17} className="text-primary" aria-hidden="true" />{appointmentLabel(appointment, language)}</span>
+                  {appointmentStatusLabel(appointment.status, language) && <span className="mt-1 block text-xs font-semibold text-text-muted">{copy.status} : {appointmentStatusLabel(appointment.status, language)}</span>}
                 </button>
               );
             })}
