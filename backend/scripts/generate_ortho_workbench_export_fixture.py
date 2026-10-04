@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from backend.services.cephalo_engine import CephaloEngine
+from backend.services.cephalo_safe_engine import cephalo_safe_engine
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY, build_cephalo_runtime_evidence_payload
 from backend.services.ortho_workbench_export import OrthoWorkbenchExportRequest, build_ortho_workbench_export
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
@@ -46,7 +46,7 @@ def main() -> None:
         for index, name in SOTA_LANDMARKS_MAPPING.items()
     ]
     points = {item["id"]: (item["x"], item["y"]) for item in landmarks}
-    result = CephaloEngine(mm_per_pixel=None).calculate_metrics(points)
+    result = cephalo_safe_engine.calculate_metrics(points)
     angles = result.model_dump()
     angles[EVIDENCE_GRAPH_KEY] = build_cephalo_runtime_evidence_payload(
         patient_id=PATIENT_ID,
