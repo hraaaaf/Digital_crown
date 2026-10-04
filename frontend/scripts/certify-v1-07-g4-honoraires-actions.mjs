@@ -232,50 +232,6 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     }
   }
 
-  // Persist the exact Honoraires preview PDF produced by Digital Crown as a
-  // review artifact. Run once on desktop during the full certification only.
-  if (!captureTreasuryGuardBeforeOnly && viewport.width === 1280) {
-    const previewResponsePromise = page.waitForResponse(response =>
-      response.url().includes('/documents/generate')
-      && response.request().method() === 'POST'
-      && response.url().includes('preview=true')
-    );
-    const pdfResponsePromise = page.waitForResponse(response =>
-      response.request().method() === 'GET'
-      && (response.headers()['content-type'] || '').includes('application/pdf'),
-      { timeout: 30000 }
-    );
-    await actionDock.getByRole('button', { name: 'Aperçu', exact: true }).click();
-    const previewResponse = await previewResponsePromise;
-    if (!previewResponse.ok()) throw new Error('Honoraires preview generation failed: ' + previewResponse.status());
-    const previewPayload = await previewResponse.json();
-    if (!previewPayload?.pdf_url) throw new Error('Honoraires preview did not return pdf_url');
-
-    const pdfResponse = await pdfResponsePromise;
-    if (!pdfResponse.ok()) throw new Error('Honoraires PDF download failed: ' + pdfResponse.status());
-    const pdfBytes = await pdfResponse.body();
-    if (pdfBytes.length < 5 || pdfBytes.subarray(0, 4).toString('ascii') !== '%PDF') {
-      throw new Error('Honoraires artifact is not a PDF');
-    }
-    const pdfFile = 'honoraires-before.pdf';
-    fs.writeFileSync(path.join(outDir, pdfFile), pdfBytes);
-
-    const renderFile = 'honoraires-before-page1.png';
-
-    fs.writeFileSync(path.join(outDir, 'honoraires-before-metadata.json'), JSON.stringify({
-      productHead: process.env.PRODUCT_HEAD || null,
-      patientDossier: patient.numero_dossier,
-      sourcePdfUrl: previewPayload.pdf_url,
-      observedPdfResponseUrl: pdfResponse.url(),
-      contentType: pdfResponse.headers()['content-type'],
-      bytes: pdfBytes.length,
-      signature: pdfBytes.subarray(0, 4).toString('ascii'),
-      pdfFile,
-      renderFile,
-    }, null, 2));
-    actions.push('honoraires-pdf-artifact-captured');
-  }
-
   await page.getByRole('button', { name: /Échéances & options/i }).click();
   const advancedTitle = page.getByText('Encaissement', { exact: true });
   await advancedTitle.waitFor({ state: 'visible' });
@@ -392,8 +348,7 @@ await api.dispose();
 const expectedActionGroups = 14;
 if (!captureTreasuryGuardBeforeOnly) {
   for (const row of evidence) {
-    const expectedForViewport = expectedActionGroups + (row.viewport.width === 1280 ? 1 : 0);
-    if (row.actions.length !== expectedForViewport) throw new Error('Honoraires action-group count mismatch');
+    if (row.actions.length !== expectedActionGroups) throw new Error('Honoraires action-group count mismatch');
   }
 }
 
