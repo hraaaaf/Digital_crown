@@ -86,6 +86,11 @@ def seed() -> None:
                 patient = models.Patient(employer_id=owner.id, **row)
                 db.add(patient)
                 db.flush()
+            else:
+                # Canonical fixture is authoritative even when T2-0001 was
+                # provisioned earlier by the isolated runtime bootstrap.
+                for field, value in row.items():
+                    setattr(patient, field, value)
             dossier = db.query(models.DossierClinique).filter(
                 models.DossierClinique.patient_id == patient.id
             ).first()
@@ -99,12 +104,23 @@ def seed() -> None:
             models.Patient.employer_id == owner.id,
             models.Patient.numero_dossier.in_([p["numero_dossier"] for p in PATIENTS]),
         ).all()
-        actual = {p.numero_dossier for p in rows}
-        expected = {p["numero_dossier"] for p in PATIENTS}
-        if actual != expected:
-            raise RuntimeError(f"T2 fixture mismatch: expected={sorted(expected)} actual={sorted(actual)}")
+        expected_by_number = {p["numero_dossier"]: p for p in PATIENTS}
+        actual_by_number = {p.numero_dossier: p for p in rows}
+        if set(actual_by_number) != set(expected_by_number) or len(rows) != len(PATIENTS):
+            raise RuntimeError(
+                f"T2 fixture membership mismatch: expected={sorted(expected_by_number)} "
+                f"actual={sorted(actual_by_number)} count={len(rows)}"
+            )
+        for number, expected in expected_by_number.items():
+            patient = actual_by_number[number]
+            for field, value in expected.items():
+                if getattr(patient, field) != value:
+                    raise RuntimeError(
+                        f"T2 fixture field mismatch: {number}.{field} "
+                        f"expected={value!r} actual={getattr(patient, field)!r}"
+                    )
 
-        print("T2_CANONICAL_CABINET_FIXTURE_PASS", sorted(actual), flush=True)
+        print("T2_CANONICAL_CABINET_FIXTURE_PASS", sorted(actual_by_number), flush=True)
 
 
 if __name__ == "__main__":
