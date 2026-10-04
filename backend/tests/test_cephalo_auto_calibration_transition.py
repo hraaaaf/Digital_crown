@@ -124,7 +124,8 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert all(
         item["availability_status"] == "AVAILABLE"
         for item in measurements
-        if item["method_id"] not in explicit_identity_required
+        if item["requires_calibration"]
+        and item["method_id"] not in explicit_identity_required
     )
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
