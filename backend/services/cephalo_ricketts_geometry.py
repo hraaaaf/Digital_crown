@@ -177,3 +177,41 @@ def ricketts_e_line_perpendicular_signed_distance_px_v2(
     if not math.isfinite(anterior_score) or abs(anterior_score) <= _EPS:
         return None
     return math.copysign(magnitude, anterior_score)
+
+
+def ricketts_maxillary_depth_deg_v1(
+    po: Point,
+    or_: Point,
+    n: Point,
+    a: Point,
+) -> Optional[float]:
+    """Angle between anatomical Frankfort Po->Or and N->A.
+
+    This is the source-specific Ricketts maxillary-depth geometry. No norm,
+    classification or age adjustment is applied here.
+    """
+    if not _finite_points(po, or_, n, a):
+        return None
+    return _angle_deg(
+        (or_[0] - po[0], or_[1] - po[1]),
+        (a[0] - n[0], a[1] - n[1]),
+    )
+
+
+def ricketts_l1_apog_inclination_deg_v1(
+    l1_incisal: Point,
+    l1_apex: Point,
+    a: Point,
+    pog: Point,
+) -> Optional[float]:
+    """Angle between lower-incisor long axis and the Ricketts A-Pog line.
+
+    The lower-incisor axis is oriented incisal->apex so the clinical angle is
+    the small angle used by the Ricketts A-Pog inclination convention.
+    """
+    if not _finite_points(l1_incisal, l1_apex, a, pog):
+        return None
+    return _angle_deg(
+        (l1_apex[0] - l1_incisal[0], l1_apex[1] - l1_incisal[1]),
+        (pog[0] - a[0], pog[1] - a[1]),
+    )
