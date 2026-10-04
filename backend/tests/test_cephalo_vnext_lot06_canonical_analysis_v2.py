@@ -1,3 +1,5 @@
+import pytest
+
 from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin
 from backend.services.cephalo_canonical_analysis_v2 import (
     CANONICAL_V2_METHOD_IDS,
@@ -5,6 +7,7 @@ from backend.services.cephalo_canonical_analysis_v2 import (
 )
 from backend.services.cephalo_canonical_constructions_v2 import (
     RICKETTS_GN_CONSTRUCTION_ID,
+    RICKETTS_PTV_CONSTRUCTION_ID,
     materialize_canonical_constructions_v2,
 )
 
@@ -91,3 +94,40 @@ def test_ricketts_facial_axis_requires_explicit_pt_ricketts_and_constructed_gn()
     facial_axis = by_method["RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2"]
     assert facial_axis.availability_status.value == "NOT_COMPUTABLE"
     assert facial_axis.value is None
+
+
+def test_ricketts_ptv_requires_explicit_pt_ricketts_and_anatomical_frankfort():
+    landmarks = _landmarks()
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:test"
+    )
+    ptv = constructions[RICKETTS_PTV_CONSTRUCTION_ID]
+    assert ptv.availability_status.value == "AVAILABLE"
+    assert ptv.geometry["construction_rule"] == "line_through_Pt_Ricketts_perpendicular_to_Frankfort_Po_anatomic_Or"
+    assert ptv.geometry["point_x"] == pytest.approx(landmarks["Pt_Ricketts"].x)
+    assert ptv.geometry["point_y"] == pytest.approx(landmarks["Pt_Ricketts"].y)
+    dx = ptv.geometry["direction_x"]
+    dy = ptv.geometry["direction_y"]
+    fhx = landmarks["Or"].x - landmarks["Po_anatomic"].x
+    fhy = landmarks["Or"].y - landmarks["Po_anatomic"].y
+    assert dx * fhx + dy * fhy == pytest.approx(0.0, abs=1e-12)
+
+
+def test_ricketts_ptv_does_not_promote_generic_pt_point():
+    landmarks = _landmarks()
+    landmarks["PT_point"] = _lm("PT_point", 5, 6)
+    landmarks.pop("Pt_Ricketts")
+    ptv = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:test"
+    )[RICKETTS_PTV_CONSTRUCTION_ID]
+    assert ptv.availability_status.value == "NOT_COMPUTABLE"
+    assert "Pt_Ricketts" in ptv.missing_landmark_ids
+
+
+def test_ricketts_ptv_fails_closed_on_degenerate_frankfort():
+    landmarks = _landmarks()
+    landmarks["Or"] = _lm("Or", landmarks["Po_anatomic"].x, landmarks["Po_anatomic"].y)
+    ptv = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:test"
+    )[RICKETTS_PTV_CONSTRUCTION_ID]
+    assert ptv.availability_status.value == "INVALID"
