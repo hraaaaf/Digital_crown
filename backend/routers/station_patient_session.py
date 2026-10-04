@@ -534,19 +534,26 @@ def acknowledge_station_staff_assistance(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = int(current_user.get_employer_id())
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite:
+        db.commit()
+        db.execute(text("BEGIN IMMEDIATE"))
+
     requested = db.query(models.AuditLog).filter(
         models.AuditLog.id == alert_id,
         models.AuditLog.employer_id == employer_id,
         models.AuditLog.action == "STATION_STAFF_ASSISTANCE_REQUESTED",
     ).first()
     if requested is None:
+        if sqlite:
+            db.rollback()
         raise HTTPException(status_code=404, detail="STATION_STAFF_ASSISTANCE_NOT_FOUND")
 
-    # Serialize acknowledgements for this immutable request audit row.
-    requested = db.query(models.AuditLog).filter(
-        models.AuditLog.id == requested.id,
-        models.AuditLog.employer_id == employer_id,
-    ).with_for_update().one()
+    if not sqlite:
+        requested = db.query(models.AuditLog).filter(
+            models.AuditLog.id == requested.id,
+            models.AuditLog.employer_id == employer_id,
+        ).with_for_update().one()
 
     existing = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == employer_id,
