@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.models_patient_companion import PatientCompanionAccess
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.routers.patient_companion_common import (
     get_db,
     patient_identity,
@@ -480,7 +480,7 @@ def request_station_staff_assistance(
 def list_station_staff_assistance(
     response: Response,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = int(current_user.get_employer_id())
     day_start = datetime.combine(datetime.now().date(), datetime.min.time())
@@ -515,7 +515,7 @@ def acknowledge_station_staff_assistance(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = int(current_user.get_employer_id())
     requested = db.query(models.AuditLog).filter(
