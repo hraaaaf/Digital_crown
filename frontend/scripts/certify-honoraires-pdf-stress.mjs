@@ -12,10 +12,19 @@ const login = await api.post('/api/auth/login', { form: { username: process.env.
 if (!login.ok()) throw new Error('Stress login failed: ' + login.status());
 const tokens = await login.json();
 const headers = { Authorization: 'Bearer ' + tokens.access_token };
-const patients = await api.get('/api/patients', { headers });
-if (!patients.ok()) throw new Error('Stress patient list failed');
-const patient = (await patients.json()).find(row => row.numero_dossier === 'T2-0003');
-if (!patient) throw new Error('T2-0003 stress patient missing');
+const patientResp = await api.post('/api/patients/', {
+  headers,
+  data: {
+    nom: 'PDF-STRESS',
+    prenom: 'Honoraires',
+    date_naissance: '1990-01-01',
+    sexe: 'M',
+    telephone: '0600000003',
+    email: 'pdf-stress@example.com',
+  },
+});
+if (!patientResp.ok()) throw new Error('Stress patient create failed: ' + patientResp.status() + ' ' + await patientResp.text());
+const patient = await patientResp.json();
 
 const longA = 'Réhabilitation prothétique complexe avec préparation périphérique atraumatique, empreinte de précision, contrôle occlusal dynamique et ajustements fonctionnels successifs';
 const longB = 'Traitement conservateur plurifactoriel avec isolation opératoire, reconstruction anatomique stratifiée, finition, polissage et vérification des contacts proximaux et occlusaux';
