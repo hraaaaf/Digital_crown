@@ -393,4 +393,3 @@ def purge_station_patient_session(
     if updated:
         db.commit()
     return Response(status_code=204)
-
