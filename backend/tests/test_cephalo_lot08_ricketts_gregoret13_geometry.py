@@ -4,6 +4,7 @@ import pytest
 
 from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_apog_inclination_deg_v1,
+    ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_maxillary_depth_deg_v1,
 )
 
@@ -74,3 +75,12 @@ def test_gregoret_new_angles_materialize_through_canonical_v2_bridge():
     assert max_depth.value == pytest.approx(90.0)
     assert l1_apog.availability_status.value == "AVAILABLE"
     assert l1_apog.value == pytest.approx(22.0)
+
+
+def test_ricketts_l1_edge_apog_signed_distance_is_positive_anterior():
+    assert ricketts_l1_edge_apog_signed_distance_px_v1((2,5),(0,0),(0,10),(0,0),(10,0)) == pytest.approx(2.0)
+    assert ricketts_l1_edge_apog_signed_distance_px_v1((-2,5),(0,0),(0,10),(0,0),(10,0)) == pytest.approx(-2.0)
+
+def test_ricketts_l1_edge_apog_fail_closed_on_degenerate_apog_or_fh():
+    assert ricketts_l1_edge_apog_signed_distance_px_v1((2,5),(0,0),(0,0),(0,0),(10,0)) is None
+    assert ricketts_l1_edge_apog_signed_distance_px_v1((2,5),(0,0),(0,10),(0,0),(0,0)) is None
