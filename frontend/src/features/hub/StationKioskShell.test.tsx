@@ -126,6 +126,18 @@ describe('StationKioskShell', () => {
     expect(container.querySelector('[data-station-screen="home"]')).toBeInTheDocument();
   });
 
+  it('uses the semantic on-primary foreground token for primary station controls', () => {
+    render(<StationKioskShell onAdminTap={vi.fn()} />);
+    const french = screen.getByRole('button', { name: 'Français' });
+    expect(french.className).toContain('bg-primary');
+    expect(french.className).toContain('text-on-primary');
+
+    fireEvent.click(screen.getByRole('button', { name: /Retirer un document/i }));
+    const back = screen.getByRole('button', { name: 'Retour à l’accueil' });
+    expect(back.className).toContain('bg-primary');
+    expect(back.className).toContain('text-on-primary');
+  });
+
   it('includes reduced-motion guards on animated kiosk controls', () => {
     render(<StationKioskShell onAdminTap={vi.fn()} />);
     const appointment = screen.getByRole('button', { name: /J’ai rendez-vous/i });
