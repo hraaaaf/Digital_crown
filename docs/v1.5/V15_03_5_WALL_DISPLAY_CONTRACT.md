@@ -15,10 +15,10 @@ Add a public waiting-room wall surface distinct from the Station kiosk and allow
 ## 03.5 contract
 
 1. /station/wall is a separate public-facing render from /station; it reuses the registered Station workstation boundary rather than creating a fourth workstation authority.
-2. The public feed exposes only ticketNumber, pseudonymous initials, bounded current-call expiry metadata, and aggregate waiting count; no internal patient, appointment or audit identifier is public.
+2. The public feed exposes only ticketNumber, pseudonymous initials, bounded current-call expiry metadata, and aggregate waiting count; no internal patient, appointment or audit identifier is public. It returns at most 8 public identifier cards while waitingCount remains the truthful total.
 3. The public feed never exposes full patient name, patient ID, appointment ID, phone, motif, notes, diagnosis or other clinical data.
 4. Only today's non-deleted EN_SALLE_ATTENTE appointments belong to the wall source.
-5. An appointment without a persisted ticket is counted but omitted from public identifiers until staff explicitly supplies a 1–999 ticket during the call action.
+5. An appointment without a persisted valid ticket is counted but omitted from public identifiers until staff explicitly supplies a 1–999 ticket during the call action. Pre-existing duplicate or out-of-range tickets are also omitted fail-closed from the public identifiers.
 6. Ticket assignment in 03.5 is explicit staff input only. There is no automatic numbering, ranking, priority, reordering, estimated wait or passage decision.
 7. Same-day active waiting tickets must be unique per tenant at call time. SQLite uses BEGIN IMMEDIATE; PostgreSQL uses a tenant-scoped transaction advisory lock to serialize explicit assignment.
 8. Staff call is allowed only for an authenticated user with agenda permission, same tenant, same local day, non-deleted, currently EN_SALLE_ATTENTE.
