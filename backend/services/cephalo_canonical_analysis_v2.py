@@ -7,7 +7,10 @@ from __future__ import annotations
 import math
 from typing import Callable, Mapping, Optional
 from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, MeasurementEvidence
-from backend.services.cephalo_canonical_constructions_v2 import RICKETTS_GN_CONSTRUCTION_ID
+from backend.services.cephalo_canonical_constructions_v2 import (
+    RICKETTS_GN_CONSTRUCTION_ID,
+    RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
+)
 from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
 from backend.services.cephalo_constructions import frankfort_axis_v1, signed_axis_distance_px_v1
 from backend.services.cephalo_downs_geometry import downs_facial_angle_deg_v1, downs_y_axis_deg_v1
@@ -21,6 +24,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_maxillary_depth_deg_v1,
+    ricketts_mandibular_plane_fh_deg_v1,
 )
 from backend.services.cephalo_tweed_merrifield_geometry import (
     merrifield_z_angle_deg_v1, tweed_fma_deg_v1, tweed_fmia_deg_v1,
@@ -39,6 +43,7 @@ CANONICAL_V2_METHOD_IDS = {
     "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
     "RICKETTS_FACIAL_DEPTH_CANONICAL_DEG_V2",
     "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
+    "RICKETTS_MANDIBULAR_PLANE_CANONICAL_DEG_V2",
     "RICKETTS_MAXILLARY_DEPTH_CANONICAL_DEG_V2",
     "RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2",
     "RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2",
@@ -149,6 +154,34 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
     angular("RICKETTS_MAXILLARY_DEPTH","RICKETTS","RICKETTS_MAXILLARY_DEPTH_CANONICAL_DEG_V2",
         "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
         ("Po_anatomic","Or","N","A"),ricketts_maxillary_depth_deg_v1)
+    mandibular_plane_ids=("Po_anatomic","Or","SubGo_Ricketts","Me")
+    mandibular_plane_deps,mandibular_plane_status=_deps(landmarks,mandibular_plane_ids)
+    mandibular_plane_construction=constructions.get(RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID)
+    if mandibular_plane_deps:
+        mandibular_plane_value=None
+        construction_refs:tuple[str,...]=()
+        if mandibular_plane_construction is None:
+            mandibular_plane_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            construction_refs=(mandibular_plane_construction.construction_id,)
+            if mandibular_plane_construction.availability_status==AvailabilityStatus.INVALID:
+                mandibular_plane_status=AvailabilityStatus.INVALID
+            elif mandibular_plane_construction.availability_status!=AvailabilityStatus.AVAILABLE:
+                mandibular_plane_status=AvailabilityStatus.NOT_COMPUTABLE
+            elif mandibular_plane_status==AvailabilityStatus.AVAILABLE:
+                mandibular_plane_value=ricketts_mandibular_plane_fh_deg_v1(
+                    _p(landmarks,"Po_anatomic"),_p(landmarks,"Or"),
+                    _p(landmarks,"SubGo_Ricketts"),_p(landmarks,"Me"),
+                )
+                if mandibular_plane_value is None:
+                    mandibular_plane_status=AvailabilityStatus.INVALID
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_MANDIBULAR_PLANE",analysis="RICKETTS",
+            method="RICKETTS_MANDIBULAR_PLANE_CANONICAL_DEG_V2",
+            canonical_id="M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",ids=mandibular_plane_ids,
+            lm=landmarks,value=mandibular_plane_value,unit="deg",
+            construction_refs=construction_refs,availability=mandibular_plane_status,
+        ))
     angular("RICKETTS_L1_APOG_INCLINATION","RICKETTS","RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2",
         "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
         ("L1_incisal","L1_apex","A","Pog_hard"),ricketts_l1_apog_inclination_deg_v1)
