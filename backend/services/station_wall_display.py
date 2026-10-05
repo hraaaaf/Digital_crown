@@ -63,7 +63,7 @@ def bounded_public_waiting_entries(waiting: list[models.Appointment]) -> list[di
             ticket_number = int(appointment.ticket_number)
         except (TypeError, ValueError):
             continue
-        if ticket_number < 1 || ticket_number > 999:
+        if ticket_number < 1 or ticket_number > 999:
             continue
         duplicate = any(
             other.id != appointment.id and other.ticket_number == appointment.ticket_number
