@@ -33,10 +33,9 @@ from backend.services.station_arrival_bridge import (
 )
 from backend.services.station_wall_display import (
     WALL_CALL_TTL_SECONDS,
-    WALL_DISPLAY_MAX_ENTRIES,
+    bounded_public_waiting_entries,
     latest_active_wall_call,
     public_initials,
-    serialize_public_waiting,
     waiting_appointments,
 )
 
@@ -604,12 +603,7 @@ def station_wall_display(
     response.headers["Cache-Control"] = "no-store"
     return {
         "waitingCount": len(waiting),
-        "entries": [
-            serialize_public_waiting(appointment)
-            for appointment in [
-                item for item in waiting if item.ticket_number is not None
-            ][:WALL_DISPLAY_MAX_ENTRIES]
-        ],
+        "entries": bounded_public_waiting_entries(waiting),
         "currentCall": latest_active_wall_call(db, employer_id=workstation.employer_id),
         "callTtlSeconds": WALL_CALL_TTL_SECONDS,
     }
