@@ -29,6 +29,7 @@ Add a public waiting-room wall surface distinct from the Station kiosk and allow
 13. Visual call is authoritative. Optional sound is user-enabled locally and limited to one short chime per distinct ticket + expiry event; audio failure never changes workflow state.
 14. Feed failure renders an explicit unavailable state rather than assuming an empty waiting room.
 15. All wall endpoints are Cache-Control: no-store.
+16. The public wall suppresses staff/offline overlays and global toast chrome so transient internal application state cannot appear on the public surface.
 
 ## Visual target
 
