@@ -815,7 +815,17 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert payload["identityMode"] == "initials"
     assert all(set(item) == {"ticketNumber", "identityLabel"} for item in payload["entries"])
 
-    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).one()
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).first()
+    if config is None:
+        config = models.CabinetConfig(
+            owner_id=dentiste.id,
+            nom_cabinet="Cabinet Wall Test",
+            nom_praticien="Dr Wall Test",
+            is_initialized=True,
+        )
+        db.add(config)
+        db.commit()
+        db.refresh(config)
     config.wall_display_identity_mode = "full_name"
     db.commit()
     full_name_feed = client.get("/api/workstation/wall-display", headers=headers)
