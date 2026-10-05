@@ -199,7 +199,7 @@ export const StationAppointmentArrival = ({
               return (
                 <button key={appointment.appointmentId} type="button" data-station-appointment-id={appointment.appointmentId} aria-pressed={active}
                   onClick={() => setSelectedId(appointment.appointmentId)}
-                  className={`min-h-16 rounded-2xl border p-4 text-start transition-elite ${active ? 'border-primary bg-primary/5' : 'border-border-main bg-main-bg'}`}>
+                  className={`min-h-16 rounded-2xl border p-4 text-start transition-elite motion-reduce:transition-none ${active ? 'border-primary bg-primary/5' : 'border-border-main bg-main-bg'}`}>
                   <span className="flex items-center gap-2 font-black text-main"><Clock3 size={17} className="text-primary" aria-hidden="true" />{appointmentLabel(appointment, language)}</span>
                   {appointmentStatusLabel(appointment.status, language) && <span className="mt-1 block text-xs font-semibold text-text-muted">{copy.status} : {appointmentStatusLabel(appointment.status, language)}</span>}
                 </button>
