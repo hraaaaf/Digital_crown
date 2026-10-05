@@ -81,20 +81,23 @@ describe('StationKioskShell', () => {
       fallbackMode: 'disabled',
     });
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
-      status: 'pending',
+      status: 'identified',
       sessionId: 'session-timeout',
-      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
     });
+    vi.mocked(stationPatientSessionService.todayAppointments).mockReturnValue(new Promise(() => undefined));
 
     const { container } = render(<StationKioskShell onAdminTap={vi.fn()} idleTimeoutMs={30_000} />);
     fireEvent.click(screen.getByRole('button', { name: /J’ai rendez-vous/i }));
-    expect(await screen.findByAltText('QR d’identification Patient Companion')).toBeInTheDocument();
+    expect(await screen.findByText('Aya Audit')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(30_000);
     });
 
     expect(container.querySelector('[data-station-screen="home"]')).toBeInTheDocument();
+    expect(screen.queryByText('Aya Audit')).toBeNull();
     await act(async () => {
       await Promise.resolve();
     });
