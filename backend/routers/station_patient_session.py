@@ -5,7 +5,7 @@ import hashlib
 import re
 import secrets
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -691,10 +691,9 @@ def call_patient_on_station_wall(
     response.headers["Cache-Control"] = "no-store"
     return {
         "status": "CALLED",
-        "callId": event.id,
         "ticketNumber": ticket_number,
         "initials": public_initials(appointment),
-        "expiresAt": event.timestamp + timedelta(seconds=WALL_CALL_TTL_SECONDS),
+        "expiresAt": (event.timestamp + timedelta(seconds=WALL_CALL_TTL_SECONDS)).replace(tzinfo=timezone.utc),
     }
 
 
