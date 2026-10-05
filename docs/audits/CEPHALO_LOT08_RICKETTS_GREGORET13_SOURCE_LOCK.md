@@ -63,7 +63,7 @@ Used only for canonical mapping and executable/blocking status.
 - Historical reference: 47° ± 4°.
 - Age behavior: no adjustment in summarized Gregoret material.
 - LOT06: `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1`.
-- Runtime: **BLOCKED_LANDMARK** because Xi/Pm are not validated runtime identities.
+- Runtime: **BLOCKED_LANDMARK** because `Xi_Ricketts` / `Pm_Ricketts` are not validated runtime identities.
 - Profile status: **SOURCE_LOCKED / FAIL_CLOSED_LANDMARK**.
 
 ### 5. Mandibular arc
