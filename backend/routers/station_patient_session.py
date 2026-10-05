@@ -36,7 +36,6 @@ from backend.services.station_wall_display import (
     bounded_public_waiting_entries,
     latest_active_wall_call,
     public_identity_label,
-    public_initials,
     waiting_appointments,
     wall_identity_mode,
 )
