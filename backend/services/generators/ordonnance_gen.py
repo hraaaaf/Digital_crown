@@ -370,7 +370,7 @@ class OrdonnanceGenerator:
                 if is_radio:
                     show_legal = getattr(data, 'show_legal_annotations', True)
                     if show_legal:
-                        warning_msg = "⚠️ Radioprotection : À réaliser selon les normes de sécurité en vigueur."
+                        warning_msg = "<b>ATTENTION — Radioprotection :</b> À réaliser selon les normes de sécurité en vigueur."
                         if posologie_safe:
                             warning_msg += f"<br/>{posologie_safe.replace(chr(10), '<br/>')}"
                         med_block.append(Paragraph(warning_msg, warning_style))
