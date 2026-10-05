@@ -114,9 +114,8 @@ export const Dashboard: React.FC = () => {
       await stationWallDisplayService.callPatient(appointmentId, ticketNumber);
       await refreshAppointments();
       toast.success('Appel affiché sur l’écran mural');
-    } catch (error) {
+    } catch {
       toast.error('Impossible d’afficher cet appel');
-      throw error;
     }
   }, [refreshAppointments]);
 
