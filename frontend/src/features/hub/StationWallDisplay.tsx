@@ -6,6 +6,7 @@ import {
 } from '../../services/stationWallDisplay';
 
 const POLL_MS = 2_000;
+const WALL_MAX_VISIBLE_ENTRIES = 8;
 
 const playBoundedChime = () => {
   const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -80,6 +81,7 @@ export const StationWallDisplay = () => {
   }, [activeCall, soundEnabled]);
 
   const isLoading = snapshot === null && !failed;
+  const visibleEntries = (snapshot?.entries ?? []).slice(0, WALL_MAX_VISIBLE_ENTRIES);
   const displayState = failed ? 'unavailable' : isLoading ? 'loading' : activeCall ? 'calling' : 'waiting';
 
   return (
@@ -150,7 +152,7 @@ export const StationWallDisplay = () => {
               </div>
 
               <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-                {(snapshot?.entries ?? []).map(entry => (
+                {visibleEntries.map(entry => (
                   <div
                     key={`${entry.ticketNumber}-${entry.initials}`}
                     className="rounded-elite-lg border border-border-main bg-card-bg p-4 text-center shadow-elite sm:p-6"
@@ -162,7 +164,7 @@ export const StationWallDisplay = () => {
                 ))}
               </div>
 
-              {(snapshot?.waitingCount ?? 0) > (snapshot?.entries.length ?? 0) && (
+              {(snapshot?.waitingCount ?? 0) > visibleEntries.length && (
                 <p className="mt-5 text-center text-xs font-semibold text-text-muted">
                   Certaines arrivées sont prises en charge directement par l’accueil.
                 </p>
