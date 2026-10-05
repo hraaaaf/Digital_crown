@@ -116,9 +116,10 @@ def test_gregoret13_mandibular_arc_identity_contract_is_fail_closed():
 def test_gregoret13_mandibular_arc_forbids_legacy_aliases():
     data = json.loads(MANDIBULAR_ARC_CONTRACT.read_text(encoding="utf-8"))
     identities = data["scientific_identities"]
-    assert set(identities["DC_Ricketts"]["forbidden_aliases"]) == {"Co", "Co_anatomic", "D_point"}
-    assert set(identities["Xi_Ricketts"]["forbidden_aliases"]) == {"Go", "Ar", "PT_point"}
-    assert set(identities["Pm_Ricketts"]["forbidden_aliases"]) == {"Pog", "Pog_hard", "B"}
+    assert set(identities["DC_Ricketts"]["forbidden_aliases"]) == {"DC", "Co", "Co_anatomic", "D_point"}
+    assert set(identities["Xi_Ricketts"]["forbidden_aliases"]) == {"Xi", "Go", "Ar", "PT_point"}
+    assert set(identities["Pm_Ricketts"]["forbidden_aliases"]) == {"Pm", "Pog", "Pog_hard", "B", "Me"}
+    assert data["rules"]["generic_labels_require_validated_bridge"] is True
 
 
 def test_gregoret13_mandibular_arc_profile_and_registry_remain_blocked():
