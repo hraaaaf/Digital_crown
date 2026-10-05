@@ -33,6 +33,7 @@ from backend.services.station_arrival_bridge import (
 )
 from backend.services.station_wall_display import (
     WALL_CALL_TTL_SECONDS,
+    WALL_DISPLAY_MAX_ENTRIES,
     latest_active_wall_call,
     public_initials,
     serialize_public_waiting,
@@ -605,8 +606,9 @@ def station_wall_display(
         "waitingCount": len(waiting),
         "entries": [
             serialize_public_waiting(appointment)
-            for appointment in waiting
-            if appointment.ticket_number is not None
+            for appointment in [
+                item for item in waiting if item.ticket_number is not None
+            ][:WALL_DISPLAY_MAX_ENTRIES]
         ],
         "currentCall": latest_active_wall_call(db, employer_id=workstation.employer_id),
         "callTtlSeconds": WALL_CALL_TTL_SECONDS,
