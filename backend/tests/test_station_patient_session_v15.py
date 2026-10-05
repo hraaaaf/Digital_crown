@@ -953,3 +953,16 @@ def test_wall_call_requires_waiting_state_and_unique_explicit_ticket(client, db,
     )
     assert mismatch.status_code == 409
     assert mismatch.json()["detail"] == "WALL_DISPLAY_TICKET_MISMATCH"
+
+    invalid_legacy = _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=60),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=1000,
+    )
+    invalid_call = client.post(
+        f"/api/workstation/wall-display/appointments/{invalid_legacy.id}/call",
+        headers=headers,
+        json={},
+    )
+    assert invalid_call.status_code == 409
+    assert invalid_call.json()["detail"] == "WALL_DISPLAY_TICKET_INVALID"
