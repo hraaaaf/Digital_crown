@@ -226,15 +226,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   await actionsButton.click();
   await cardAgain.locator('[data-document-action-menu]').waitFor({ state: 'visible', timeout: 5000 });
   await cardAgain.locator('[data-document-action="edit"]').click();
-  await page.waitForTimeout(300);
+  await page.waitForURL(url => {
+    const current = new URL(url);
+    return current.searchParams.get('tab') === 'admin' && current.searchParams.get('documentTab') === 'libre';
+  }, { timeout: 10000 });
   const editUrl = new URL(page.url());
-  if (editUrl.searchParams.get('tab') !== 'admin') {
-    throw new Error(`history edit did not enter admin tab: ${page.url()}`);
+  if (editUrl.searchParams.get('tab') !== 'admin' || editUrl.searchParams.get('documentTab') !== 'libre') {
+    throw new Error(`history edit did not route to Document Libre: ${page.url()}`);
   }
-  // The product currently keeps the previous documentTab query value during an
-  // archive edit and hydrates Document Libre from edit state. Do not require a
-  // synthetic URL transition that the runtime contract does not provide.
-  await page.getByRole('button', { name: 'Document Libre', exact: true }).click();
   await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   const libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
   await libreTitle.waitFor({ state: 'visible', timeout: 10000 });
