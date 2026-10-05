@@ -35,6 +35,24 @@ describe('StationWallDisplay', () => {
     expect(container.textContent).not.toMatch(/diagnostic|motif|téléphone/i);
   });
 
+  it('bounds waiting cards to eight even if the feed regresses', async () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
+      waitingCount: 12,
+      entries: Array.from({ length: 12 }, (_, index) => ({
+        ticketNumber: 100 + index,
+        initials: 'P. T.',
+      })),
+      currentCall: null,
+      callTtlSeconds: 20,
+    });
+
+    render(<StationWallDisplay />);
+
+    expect((await screen.findAllByText('N° de file')).length).toBe(8);
+    expect(screen.queryByText('108')).toBeNull();
+    expect(screen.getByText('Certaines arrivées sont prises en charge directement par l’accueil.')).toBeInTheDocument();
+  });
+
   it('does not present an unverified feed as an empty waiting room before first read', () => {
     vi.mocked(stationWallDisplayService.snapshot).mockReturnValue(new Promise(() => undefined));
 
