@@ -100,6 +100,45 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
     expect(onBack).toHaveBeenCalled();
   });
+  it('retries session purge up to three times before leaving the patient flow', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.purge)
+      .mockRejectedValueOnce(new Error('offline-1'))
+      .mockRejectedValueOnce(new Error('offline-2'))
+      .mockResolvedValueOnce(undefined);
+    const onBack = vi.fn();
+
+    render(<StationPatientIdentity onBack={onBack} backLabel='Retour' />);
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledTimes(3));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('still leaves locally after three failed purge attempts so patient data is not left on screen', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.purge).mockRejectedValue(new Error('offline'));
+    const onBack = vi.fn();
+
+    render(<StationPatientIdentity onBack={onBack} backLabel='Retour' />);
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledTimes(3));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it('localizes pending identity UI in English and Arabic', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'pending',
