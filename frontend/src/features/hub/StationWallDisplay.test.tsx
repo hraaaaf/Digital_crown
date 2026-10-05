@@ -28,11 +28,20 @@ describe('StationWallDisplay', () => {
 
     const { container } = render(<StationWallDisplay />);
 
-    expect(await screen.findByText('N° de file')).toBeInTheDocument();
+    expect((await screen.findAllByText('N° de file')).length).toBe(2);
     expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('A. B.')).toBeInTheDocument();
     expect(container.querySelector('[data-wall-state="waiting"]')).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/diagnostic|motif|téléphone/i);
+  });
+
+  it('does not present an unverified feed as an empty waiting room before first read', () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockReturnValue(new Promise(() => undefined));
+
+    const { container } = render(<StationWallDisplay />);
+
+    expect(screen.getByText('Synchronisation de l’affichage…')).toBeInTheDocument();
+    expect(container.querySelector('[data-wall-state="loading"]')).toBeInTheDocument();
   });
 
   it('shows one bounded staff call without changing the public data contract', async () => {
