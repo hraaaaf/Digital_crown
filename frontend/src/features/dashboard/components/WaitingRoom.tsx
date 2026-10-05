@@ -29,6 +29,13 @@ export const WaitingRoom = ({
 
   const isUnavailable = appointments === null;
   const safeAppointments = appointments ?? [];
+  const waitingTicketCounts = safeAppointments.reduce<Record<number, number>>((counts, item) => {
+    const ticket = item.ticket_number;
+    if (item.status === 'EN_S_ATTENTE' && Number.isInteger(ticket) && ticket != null) {
+      counts[ticket] = (counts[ticket] ?? 0) + 1;
+    }
+    return counts;
+  }, {});
 
   return (
     <motion.section variants={dashboardItemVariants} className="space-y-5 min-w-0">
@@ -84,23 +91,33 @@ export const WaitingRoom = ({
                   statusLabel = "Salle d'attente";
                   statusColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse';
                   const persistedTicket = appointment.ticket_number ?? null;
+                  const persistedTicketValid = Number.isInteger(persistedTicket)
+                    && persistedTicket != null
+                    && persistedTicket >= 1
+                    && persistedTicket <= 999;
+                  const persistedTicketDuplicate = persistedTicketValid
+                    && (waitingTicketCounts[persistedTicket!] ?? 0) > 1;
+                  const ticketNeedsInput = persistedTicket == null || !persistedTicketValid || persistedTicketDuplicate;
                   const draftTicket = Number.parseInt(ticketDrafts[appointment.id] || '', 10);
-                  const callableTicket = persistedTicket ?? (Number.isInteger(draftTicket) && draftTicket >= 1 && draftTicket <= 999 ? draftTicket : null);
+                  const validDraftTicket = Number.isInteger(draftTicket) && draftTicket >= 1 && draftTicket <= 999
+                    ? draftTicket
+                    : null;
+                  const callableTicket = ticketNeedsInput ? validDraftTicket : persistedTicket;
                   actionButton = (
                     <div className="flex w-full flex-col gap-2 sm:w-auto">
                       <div className="flex min-h-11 items-center gap-2">
-                        {persistedTicket != null ? (
+                        {!ticketNeedsInput ? (
                           <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-primary/15 bg-primary/5 px-3 text-[10px] font-black uppercase tracking-wider text-primary">
                             <Ticket size={13} aria-hidden="true" /> N° {persistedTicket}
                           </span>
                         ) : (
                           <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border-main bg-card-bg px-2">
-                            <span className="sr-only">Numéro de file</span>
+                            <span className="sr-only">{persistedTicket == null ? 'Numéro de file' : 'Corriger le numéro de file'}</span>
                             <Ticket size={13} className="text-text-muted" aria-hidden="true" />
                             <input
                               inputMode="numeric"
                               pattern="[0-9]*"
-                              aria-label="Numéro de file"
+                              aria-label={persistedTicket == null ? 'Numéro de file' : 'Corriger le numéro de file'}
                               value={ticketDrafts[appointment.id] || ''}
                               onChange={(event) => setTicketDrafts(current => ({ ...current, [appointment.id]: event.target.value.replace(/\D/g, '').slice(0, 3) }))}
                               className="w-14 bg-transparent text-center text-xs font-black text-main outline-none"
@@ -114,7 +131,7 @@ export const WaitingRoom = ({
                             disabled={callableTicket == null || callingId === appointment.id}
                             onClick={() => {
                               setCallingId(appointment.id);
-                              void onCallPatient(appointment.id, persistedTicket == null ? callableTicket ?? undefined : undefined)
+                              void onCallPatient(appointment.id, ticketNeedsInput ? callableTicket ?? undefined : undefined)
                                 .finally(() => setCallingId(null));
                             }}
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-3 text-[10px] font-black uppercase tracking-wider text-primary transition-all hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-40"
@@ -124,6 +141,11 @@ export const WaitingRoom = ({
                           </button>
                         )}
                       </div>
+                      {persistedTicket != null && ticketNeedsInput && (
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-600">
+                          Numéro de file à corriger
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
