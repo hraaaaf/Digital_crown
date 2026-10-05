@@ -642,18 +642,38 @@ def call_patient_on_station_wall(
             db.rollback()
         raise HTTPException(status_code=404, detail="WALL_DISPLAY_APPOINTMENT_NOT_CALLABLE")
 
-    if appointment.ticket_number is None:
+    persisted_ticket = int(appointment.ticket_number) if appointment.ticket_number is not None else None
+    persisted_valid = persisted_ticket is not None and 1 <= persisted_ticket <= 999
+    persisted_collision = None
+    if persisted_valid:
+        persisted_collision = db.query(models.Appointment.id).filter(
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.id != appointment.id,
+            models.Appointment.deleted_at.is_(None),
+            models.Appointment.datetime_start >= start,
+            models.Appointment.datetime_start < end,
+            models.Appointment.status == models.AppointmentStatus.EN_SALLE_ATTENTE,
+            models.Appointment.ticket_number == persisted_ticket,
+        ).first()
+
+    repair_required = persisted_ticket is not None and (
+        not persisted_valid or persisted_collision is not None
+    )
+    if persisted_ticket is None:
         if body.ticketNumber is None:
             if sqlite:
                 db.rollback()
             raise HTTPException(status_code=409, detail="WALL_DISPLAY_TICKET_REQUIRED")
         ticket_number = int(body.ticketNumber)
-    else:
-        ticket_number = int(appointment.ticket_number)
-        if ticket_number < 1 or ticket_number > 999:
+    elif repair_required:
+        if body.ticketNumber is None:
             if sqlite:
                 db.rollback()
-            raise HTTPException(status_code=409, detail="WALL_DISPLAY_TICKET_INVALID")
+            detail = "WALL_DISPLAY_TICKET_INVALID" if not persisted_valid else "WALL_DISPLAY_TICKET_IN_USE"
+            raise HTTPException(status_code=409, detail=detail)
+        ticket_number = int(body.ticketNumber)
+    else:
+        ticket_number = persisted_ticket
         if body.ticketNumber is not None and int(body.ticketNumber) != ticket_number:
             if sqlite:
                 db.rollback()
@@ -673,7 +693,7 @@ def call_patient_on_station_wall(
             db.rollback()
         raise HTTPException(status_code=409, detail="WALL_DISPLAY_TICKET_IN_USE")
 
-    if appointment.ticket_number is None:
+    if appointment.ticket_number != ticket_number:
         appointment.ticket_number = ticket_number
 
     event = models.AuditLog(
