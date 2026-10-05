@@ -69,3 +69,26 @@ def test_gregoret13_mandibular_plane_registry_remains_execution_blocked():
     item = canonical_measurement("M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1")
     assert item is not None
     assert item.source_status == "SOURCE_LOCKED_EXECUTION_CONSTRUCTION_REQUIRED"
+
+
+def test_gregoret13_l1_occlusal_extrusion_remains_fail_closed():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    row = next(
+        item for item in data["measurements"]
+        if item["measurement_id"] == "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1"
+    )
+    assert row["state"] == "BLOCKED_CONSTRUCTION"
+    assert row["gate"] == "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED"
+
+
+def test_gregoret13_does_not_substitute_steiner_occlusal_plane_for_ricketts_functional_plane():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    ids = {item["measurement_id"] for item in data["measurements"]}
+    assert "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1" in ids
+    assert "M_OCCLUSAL_PLANE_SN_DEG_V1" not in ids
+
+
+def test_gregoret13_l1_occlusal_extrusion_registry_stays_construction_blocked():
+    item = canonical_measurement("M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1")
+    assert item is not None
+    assert item.source_status == "SOURCE_LOCKED_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED"
