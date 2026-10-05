@@ -1,6 +1,6 @@
 import inspect
 
-from backend.services.generators.accounting_gen import AccountingGenerator
+from backend.services.generators.accounting_gen import AccountingGenerator\nfrom backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 from backend.services.generators.accounting_pdf_readability import (
     is_readable_accounting_font_size,
     readable_accounting_font_floor,
@@ -52,3 +52,13 @@ def test_devis_amounts_and_alignment_match_accounting_pdf_contract():
     assert 'total_amount_text = f"<b>{self._format_mad_amount(total)}' in source
     assert "alignment=TA_CENTER, leading=base_fs * 1.25" in source
     assert "fontSize=9.0, textColor=p_color, alignment=TA_LEFT, leading=12" in source
+
+
+def test_ordonnance_dense_layout_preserves_readability_and_row_grouping():
+    source = inspect.getsource(OrdonnanceGenerator)
+
+    assert "compression_factor *= 0.90" in source
+    assert "base_poso_fs = max(base_poso_fs, MIN_READABLE_SIZE)" in source
+    assert "min_name_fs = max(min_name_fs, MIN_READABLE_SIZE)" in source
+    assert "elements.append(KeepTogether(med_block))" in source
+    assert "compression_factor *= 0.82" not in source
