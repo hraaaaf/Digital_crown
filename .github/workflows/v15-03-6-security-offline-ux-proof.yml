@@ -11,6 +11,7 @@ on:
       - "frontend/src/features/hub/StationPatientIdentity.tsx"
       - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
       - "frontend/src/services/stationPatientSession.ts"
+      - "frontend/src/services/api.ts"
       - "backend/routers/station_patient_session.py"
       - "backend/tests/test_station_patient_session_v15.py"
       - "frontend/scripts/capture-v15-03-6-station-hardening.mjs"
