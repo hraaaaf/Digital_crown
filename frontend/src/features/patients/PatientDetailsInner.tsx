@@ -149,7 +149,14 @@ export const PatientDetails = () => {
     if (editingDoc && editingDoc !== lastEditingDoc.current) {
       setSearchParams(prev => {
         const next = new URLSearchParams(prev);
+        const editType = String(editingDoc.type || '').toLowerCase();
+        const documentTab =
+          editType === 'ordonnance' ? 'ordonnance' :
+          editType === 'certificat' ? 'certificat' :
+          editType === 'libre' || editType === 'lettre' || editType === 'document_libre' || editType === 'lettre_medicale' ? 'libre' :
+          editType === 'devis' ? 'devis' : 'honoraires';
         next.set('tab', 'admin');
+        next.set('documentTab', documentTab);
         return next;
       });
     }
