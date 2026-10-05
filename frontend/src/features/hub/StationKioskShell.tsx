@@ -149,7 +149,7 @@ export const StationKioskShell = ({
                   setLanguage(locale);
                   setScreen('home');
                 }}
-                className={`min-h-11 min-w-11 rounded-xl px-2.5 text-xs font-black uppercase transition-elite focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                className={`min-h-11 min-w-11 rounded-xl px-2.5 text-xs font-black uppercase transition-elite motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   language === locale ? 'bg-primary text-card-bg' : 'text-text-muted hover:bg-primary/5 hover:text-main'
                 }`}
               >
@@ -182,7 +182,7 @@ export const StationKioskShell = ({
                   type="button"
                   data-station-action={id}
                   onClick={() => setScreen(id)}
-                  className="group min-h-40 rounded-elite-lg border border-border-main bg-card-bg p-5 text-start shadow-elite transition-elite hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elite-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-48 sm:p-6"
+                  className="group min-h-40 rounded-elite-lg border border-border-main bg-card-bg p-5 text-start shadow-elite transition-elite motion-reduce:transition-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 hover:border-primary/30 hover:shadow-elite-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-48 sm:p-6"
                 >
                   <span className="flex h-12 w-12 items-center justify-center rounded-elite-sm bg-primary/10 text-primary">
                     <Icon size={24} aria-hidden="true" />
