@@ -7,9 +7,13 @@ const state = vi.hoisted(() => ({
   isOffline: false,
 }));
 const route = vi.hoisted(() => ({ pathname: '/dashboard' }));
+const hookCalls = vi.hoisted(() => vi.fn());
 
 vi.mock('../../hooks/useOfflineQueue', () => ({
-  useOfflineQueue: () => state,
+  useOfflineQueue: () => {
+    hookCalls();
+    return state;
+  },
 }));
 vi.mock('react-router-dom', () => ({
   useLocation: () => route,
@@ -19,6 +23,7 @@ beforeEach(() => {
   state.queue = [];
   state.isOffline = false;
   route.pathname = '/dashboard';
+  hookCalls.mockClear();
 });
 afterEach(() => cleanup());
 
@@ -63,6 +68,7 @@ describe('OfflineQueueViewer G8 transverse matrix', () => {
 
     expect(screen.queryByText('Mode Hors-ligne')).toBeNull();
     expect(screen.queryByText('7')).toBeNull();
+    expect(hookCalls).not.toHaveBeenCalled();
   });
 
   it('shows offline with zero queued actions without claiming pending mutations', () => {
