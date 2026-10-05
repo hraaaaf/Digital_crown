@@ -99,7 +99,15 @@ export const WaitingRoom = ({
                     && (waitingTicketCounts[persistedTicket!] ?? 0) > 1;
                   const ticketNeedsInput = persistedTicket == null || !persistedTicketValid || persistedTicketDuplicate;
                   const draftTicket = Number.parseInt(ticketDrafts[appointment.id] || '', 10);
-                  const validDraftTicket = Number.isInteger(draftTicket) && draftTicket >= 1 && draftTicket <= 999
+                  const draftTicketInUse = Number.isInteger(draftTicket) && safeAppointments.some(
+                    item => item.id !== appointment.id
+                      && item.status === 'EN_S_ATTENTE'
+                      && item.ticket_number === draftTicket,
+                  );
+                  const validDraftTicket = Number.isInteger(draftTicket)
+                    && draftTicket >= 1
+                    && draftTicket <= 999
+                    && !draftTicketInUse
                     ? draftTicket
                     : null;
                   const callableTicket = ticketNeedsInput ? validDraftTicket : persistedTicket;
