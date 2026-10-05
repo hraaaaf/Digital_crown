@@ -876,12 +876,31 @@ def test_wall_display_caps_public_identifiers_but_keeps_total_count(client, db, 
             ticket_number=100 + index,
         )
 
+    _station_appt(
+        db,
+        dentiste,
+        patient,
+        now + timedelta(minutes=12),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=101,
+    )
+    _station_appt(
+        db,
+        dentiste,
+        patient,
+        now + timedelta(minutes=13),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=1000,
+    )
+
     wall = client.get("/api/workstation/wall-display", headers=headers)
     assert wall.status_code == 200, wall.text
     payload = wall.json()
-    assert payload["waitingCount"] == 12
+    assert payload["waitingCount"] == 14
     assert len(payload["entries"]) == 8
-    assert [item["ticketNumber"] for item in payload["entries"]] == list(range(100, 108))
+    assert [item["ticketNumber"] for item in payload["entries"]] == [100, 102, 103, 104, 105, 106, 107, 108]
+    assert 101 not in {item["ticketNumber"] for item in payload["entries"]}
+    assert 1000 not in {item["ticketNumber"] for item in payload["entries"]}
 
 
 
