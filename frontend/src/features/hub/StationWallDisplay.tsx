@@ -31,14 +31,18 @@ export const StationWallDisplay = () => {
   const [failed, setFailed] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [clockTick, setClockTick] = useState(0);
-  const lastChimedCallId = useRef<number | null>(null);
+  const lastChimedCallKey = useRef<string | null>(null);
+  const refreshSequence = useRef(0);
 
   const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     try {
       const next = await stationWallDisplayService.snapshot();
+      if (sequence !== refreshSequence.current) return;
       setSnapshot(next);
       setFailed(false);
     } catch {
+      if (sequence !== refreshSequence.current) return;
       setFailed(true);
     }
   }, []);
@@ -64,8 +68,10 @@ export const StationWallDisplay = () => {
   }, [clockTick, snapshot]);
 
   useEffect(() => {
-    if (!soundEnabled || !activeCall || lastChimedCallId.current === activeCall.callId) return;
-    lastChimedCallId.current = activeCall.callId;
+    if (!soundEnabled || !activeCall) return;
+    const callKey = `${activeCall.ticketNumber}:${activeCall.expiresAt}`;
+    if (lastChimedCallKey.current === callKey) return;
+    lastChimedCallKey.current = callKey;
     try {
       playBoundedChime();
     } catch {
