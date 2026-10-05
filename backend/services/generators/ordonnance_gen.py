@@ -51,7 +51,7 @@ class OrdonnanceGenerator:
     def _draw_canvas(self, canvas, doc, config=None, user=None):
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=False, user=user)
 
-    def _create_header(self, patient, data, p_color, config=None):
+    def _create_header(self, patient, data, p_color, config=None, compact=False):
         doc_date = getattr(data, 'doc_date', None) or date.today()
         if isinstance(doc_date, str):
             try:
@@ -98,7 +98,7 @@ class OrdonnanceGenerator:
         header_table = Table(header_content, colWidths=[7.5 * cm, 4.3 * cm])
         header_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('BOTTOMPADDING', (0, 0), (-1,-1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1,-1), 6 if compact else 12),
         ]))
         return header_table
 
@@ -183,6 +183,10 @@ class OrdonnanceGenerator:
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
+        medications = getattr(data, 'medications', None) or []
+        num_meds = len(medications)
+        dense_layout = num_meds >= 7
+
         title_fs = max(PRESCRIPTION_TITLE_SIZE * compression_factor, MIN_READABLE_SIZE + 5)
         title_style = ParagraphStyle(
             name='TitleA5',
@@ -191,18 +195,18 @@ class OrdonnanceGenerator:
             fontSize=title_fs,
             textColor=p_color,
             alignment=TA_CENTER,
-            spaceAfter=max(20 * compression_factor, 6),
+            spaceAfter=max((12 if dense_layout else 20) * compression_factor, 4 if dense_layout else 6),
         )
 
-        spacer_top = max(0.4 * cm * compression_factor, 0.1 * cm)
-        spacer_mid = max(0.6 * cm * compression_factor, 0.1 * cm)
-        spacer_body = max(1.2 * cm * compression_factor, 0.3 * cm)
+        spacer_top = max((0.25 if dense_layout else 0.4) * cm * compression_factor, 0.08 * cm if dense_layout else 0.1 * cm)
+        spacer_mid = max((0.35 if dense_layout else 0.6) * cm * compression_factor, 0.08 * cm if dense_layout else 0.1 * cm)
+        spacer_body = max((0.55 if dense_layout else 1.2) * cm * compression_factor, 0.15 * cm if dense_layout else 0.3 * cm)
 
         elements = [
             Spacer(1, spacer_top),
             Paragraph("<u><b>ORDONNANCE</b></u>", title_style),
             Spacer(1, spacer_mid),
-            self._create_header(patient, data, p_color, config),
+            self._create_header(patient, data, p_color, config, compact=dense_layout),
             Spacer(1, spacer_body),
         ]
 
@@ -210,8 +214,6 @@ class OrdonnanceGenerator:
             med_font = self.base_template.premium_font
             med_font_bold = self.base_template.premium_bold
 
-            num_meds = len(data.medications)
-            
             base_med_fs = PRESCRIPTION_DRUG_NAME_SIZE * compression_factor
             base_form_fs = PRESCRIPTION_META_SIZE * compression_factor
             base_poso_fs = PRESCRIPTION_INSTRUCTION_SIZE * compression_factor
@@ -255,15 +257,30 @@ class OrdonnanceGenerator:
             min_dose_fs = max(min_dose_fs, MIN_READABLE_SIZE)
             base_poso_fs = max(base_poso_fs, MIN_READABLE_SIZE)
 
-            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=min_name_fs, textColor=p_color)
-            med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=min_form_fs, textColor=p_color, alignment=TA_CENTER)
-            med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=min_dose_fs, textColor=p_color, alignment=TA_RIGHT)
+            dense_name_leading = max(min_name_fs * 1.12, 7.8)
+            dense_form_leading = max(min_form_fs * 1.12, 7.8)
+            dense_dose_leading = max(min_dose_fs * 1.12, 7.8)
+            med_name_style = ParagraphStyle(
+                'MedName', parent=self.styles['Normal'], fontName=med_font_bold,
+                fontSize=min_name_fs, textColor=p_color,
+                **({'leading': dense_name_leading} if dense_layout else {})
+            )
+            med_forme_style = ParagraphStyle(
+                'MedForme', parent=self.styles['Normal'], fontName=med_font,
+                fontSize=min_form_fs, textColor=p_color, alignment=TA_CENTER,
+                **({'leading': dense_form_leading} if dense_layout else {})
+            )
+            med_dose_style = ParagraphStyle(
+                'MedDose', parent=self.styles['Normal'], fontName=med_font,
+                fontSize=min_dose_fs, textColor=p_color, alignment=TA_RIGHT,
+                **({'leading': dense_dose_leading} if dense_layout else {})
+            )
             
-            poso_leading = max(base_poso_fs * 1.2, 8)
-            poso_space_after = max(8 * compression_factor, 2)
+            poso_leading = max(base_poso_fs * (1.10 if dense_layout else 1.2), 7.8 if dense_layout else 8)
+            poso_space_after = max((3 if dense_layout else 8) * compression_factor, 0.5 if dense_layout else 2)
             poso_style = ParagraphStyle(
                 'PosoElite', parent=self.styles['Normal'], fontName=med_font, fontSize=base_poso_fs,
-                textColor=p_color, leftIndent=1.5*cm, spaceBefore=2, spaceAfter=poso_space_after,
+                textColor=p_color, leftIndent=1.5*cm, spaceBefore=0.5 if dense_layout else 2, spaceAfter=poso_space_after,
                 leading=poso_leading
             )
             
@@ -275,7 +292,8 @@ class OrdonnanceGenerator:
             quantity_style = ParagraphStyle(
                 'MedicationQuantity', parent=self.styles['Normal'], fontName=med_font,
                 fontSize=max(base_form_fs, MIN_READABLE_SIZE), textColor=p_color,
-                leftIndent=1.5*cm, spaceBefore=1, spaceAfter=1,
+                leftIndent=1.5*cm, spaceBefore=0.5 if dense_layout else 1, spaceAfter=0.5 if dense_layout else 1,
+                **({'leading': max(max(base_form_fs, MIN_READABLE_SIZE) * 1.10, 7.8)} if dense_layout else {})
             )
 
             for i, med in enumerate(data.medications, 1):
@@ -322,14 +340,14 @@ class OrdonnanceGenerator:
                 if total_w < 11.8*cm:
                     col_widths[0] += (11.8*cm - total_w)
 
-                top_pad = max(12 * compression_factor, 2)
+                top_pad = max((5 if dense_layout else 12) * compression_factor, 1 if dense_layout else 2)
                 med_line_table = Table([cols], colWidths=col_widths)
                 med_line_table.setStyle(TableStyle([
                     ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
                     ('LEFTPADDING', (0,0), (-1,-1), 0),
                     ('RIGHTPADDING', (0,0), (-1,-1), 0),
                     ('TOPPADDING', (0,0), (-1,-1), top_pad),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 1 if dense_layout else 2),
                 ]))
                 
                 # Keep each prescription row with its quantity/instruction block so a
