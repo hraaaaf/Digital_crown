@@ -328,7 +328,7 @@ export const ProfileTab: React.FC = () => {
                   >
                     <div className={cn(
                       "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                      isSelected ? "bg-primary text-white shadow-lg" : "bg-slate-50 text-slate-400 group-hover:scale-110"
+                      isSelected ? "bg-primary text-on-primary shadow-lg" : "bg-slate-50 text-slate-400 group-hover:scale-110"
                     )}>
                       <spec.icon size={20} />
                     </div>
@@ -664,7 +664,7 @@ export const ProfileTab: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-8 py-3 bg-primary text-white rounded-2xl font-black text-sm shadow-xl shadow-primary/30 hover:bg-primary/90 transition-all disabled:opacity-60"
+          className="flex items-center gap-2 px-8 py-3 bg-primary text-on-primary rounded-2xl font-black text-sm shadow-xl shadow-primary/30 hover:bg-primary/90 transition-all disabled:opacity-60"
           style={{ backgroundColor: 'var(--primary)' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
