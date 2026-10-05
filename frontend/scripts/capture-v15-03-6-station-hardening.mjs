@@ -144,6 +144,8 @@ try {
         bodyText: document.body.textContent || '',
         arrivedVisible: Boolean(document.querySelector('[data-station-arrival-confirmed]')),
         patientNameVisible: (document.body.textContent || '').includes('Aya Audit'),
+        technicalToastVisible: Array.from(document.querySelectorAll('[role="status"]'))
+          .some(node => /Erreur Serveur|Serveur injoignable|Mode hors-ligne/i.test(node.textContent || '')),
       }));
       await page.screenshot({
         path: path.join(out, `${phase}-offline-arrival-${vp.label}-${scale.label}.png`),
@@ -161,6 +163,7 @@ try {
         clinicalLinks: homeMeta.clinicalLinks,
         arrivedVisible: offlineMeta.arrivedVisible,
         patientNameVisible: offlineMeta.patientNameVisible,
+        technicalToastVisible: offlineMeta.technicalToastVisible,
         offlineErrorVisible: /Arrivée non confirmée/.test(offlineMeta.bodyText),
         errors,
       });
@@ -187,6 +190,7 @@ const failures = report.filter(item =>
   item.clinicalLinks.length > 0 ||
   item.arrivedVisible ||
   !item.patientNameVisible ||
+  item.technicalToastVisible ||
   !item.offlineErrorVisible ||
   item.errors.length > 0
 );
