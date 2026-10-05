@@ -71,7 +71,7 @@ describe('StationKioskShell', () => {
   });
 
   it('purges the patient session when kiosk inactivity returns home', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(stationPatientSessionService.create).mockResolvedValue({
       sessionId: 'session-timeout',
       handoffUrl: 'https://cabinet.local/companion?stationSession=opaque',
