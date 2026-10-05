@@ -1,6 +1,7 @@
 import inspect
 
-from backend.services.generators.accounting_gen import AccountingGenerator\nfrom backend.services.generators.ordonnance_gen import OrdonnanceGenerator
+from backend.services.generators.accounting_gen import AccountingGenerator
+from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 from backend.services.generators.accounting_pdf_readability import (
     is_readable_accounting_font_size,
     readable_accounting_font_floor,
@@ -61,4 +62,8 @@ def test_ordonnance_dense_layout_preserves_readability_and_row_grouping():
     assert "base_poso_fs = max(base_poso_fs, MIN_READABLE_SIZE)" in source
     assert "min_name_fs = max(min_name_fs, MIN_READABLE_SIZE)" in source
     assert "elements.append(KeepTogether(med_block))" in source
+    assert "dense_layout = num_meds >= 7" in source
+    assert "6 if compact else 12" in source
+    assert "dense_name_leading = max(min_name_fs * 1.12, 7.8)" in source
+    assert "1 if dense_layout else 2" in source
     assert "compression_factor *= 0.82" not in source
