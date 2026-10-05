@@ -779,6 +779,23 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
         db, dentiste, patient, now + timedelta(minutes=30),
         status=models.AppointmentStatus.EN_SALLE_ATTENTE,
     )
+    other = models.User(
+        email="wall.other.owner@cabinet.ma",
+        hashed_password=get_password_hash("OtherPass123!"),
+        role=models.UserRole.DENTISTE,
+        nom_complet="Other Wall Owner",
+        is_active=True,
+        is_licensed=True,
+        employer_id=None,
+    )
+    db.add(other)
+    db.flush()
+    other_patient, _, _ = _patient_context(db, other, dossier="WALL-OTHER", name="Outside")
+    other_appt = _station_appt(
+        db, other, other_patient, now + timedelta(minutes=10),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=88,
+    )
     db.commit()
 
     wall = client.get("/api/workstation/wall-display", headers=headers)
@@ -787,6 +804,7 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     payload = wall.json()
     assert payload["waitingCount"] == 2
     assert payload["entries"] == [{"ticketNumber": 12, "initials": "A. A."}]
+    assert all(item["ticketNumber"] != 88 for item in payload["entries"])
     assert payload["currentCall"] is None
     serialized = wall.text
     assert "Aya" not in serialized
@@ -795,6 +813,13 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert "Never public" not in serialized
     assert set(payload) == {"waitingCount", "entries", "currentCall", "callTtlSeconds"}
     assert all(set(item) == {"ticketNumber", "initials"} for item in payload["entries"])
+
+    cross_tenant_call = client.post(
+        f"/api/workstation/wall-display/appointments/{other_appt.id}/call",
+        headers=headers,
+        json={"ticketNumber": 89},
+    )
+    assert cross_tenant_call.status_code == 404
 
     called = client.post(
         f"/api/workstation/wall-display/appointments/{hidden_without_ticket.id}/call",
