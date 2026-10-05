@@ -190,7 +190,7 @@ const failures = report.filter(item =>
   item.clinicalLinks.length > 0 ||
   item.arrivedVisible ||
   !item.patientNameVisible ||
-  item.technicalToastVisible ||
+  (phase === 'before' ? !item.technicalToastVisible : item.technicalToastVisible) ||
   !item.offlineErrorVisible ||
   item.errors.length > 0
 );
