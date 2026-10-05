@@ -66,6 +66,18 @@ const COPY = {
   },
 } as const;
 
+const purgeSessionBestEffort = async (sessionId: string) => {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await stationPatientSessionService.purge(sessionId);
+      return true;
+    } catch {
+      // Retry a bounded number of times; the short server TTL remains the final safety net.
+    }
+  }
+  return false;
+};
+
 const apiErrorDetail = (error: unknown, language: StationFlowLanguage): string => {
   const copy = COPY[language];
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -150,7 +162,7 @@ export const StationPatientIdentity = ({
   }, [session, status]);
 
   useEffect(() => () => {
-    if (session) void stationPatientSessionService.purge(session.sessionId).catch(() => undefined);
+    if (session) void purgeSessionBestEffort(session.sessionId);
   }, [session]);
 
   const expiresLabel = useMemo(() => {
@@ -183,7 +195,7 @@ export const StationPatientIdentity = ({
   };
 
   const leave = async () => {
-    if (session) await stationPatientSessionService.purge(session.sessionId).catch(() => undefined);
+    if (session) await purgeSessionBestEffort(session.sessionId);
     onBack();
   };
 
