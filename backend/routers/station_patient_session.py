@@ -623,7 +623,7 @@ def call_patient_on_station_wall(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = int(current_user.get_employer_id())
-    now = datetime.utcnow()
+    now = datetime.now()
     start, end = cabinet_local_day_bounds(now)
     sqlite = db.get_bind().dialect.name == "sqlite"
     if sqlite:
