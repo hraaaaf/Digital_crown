@@ -74,6 +74,9 @@ const ContextualToaster = () => {
 
   const patientCompact = /^\/patients(?:\/|$)/.test(location.pathname) && compactViewport;
 
+  // Public wall must never inherit staff/application transient chrome.
+  if (location.pathname === '/station/wall') return null;
+
   return (
     <Toaster
       position={patientCompact ? 'top-center' : 'bottom-right'}
