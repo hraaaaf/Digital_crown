@@ -129,7 +129,17 @@ def test_gregoret13_mandibular_arc_profile_and_registry_remain_blocked():
         if item["measurement_id"] == "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1"
     )
     assert row["state"] == "BLOCKED_LANDMARK"
-    assert row["gate"] == "DC_XI_PM_REQUIRED"
+    assert row["gate"] == "DC_RICKETTS_XI_RICKETTS_PM_RICKETTS_REQUIRED"
     item = canonical_measurement("M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1")
     assert item is not None
     assert item.source_status == "BLOCKED_LANDMARK"
+
+
+def test_gregoret13_lower_facial_height_requires_source_specific_xi_pm():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    row = next(
+        item for item in data["measurements"]
+        if item["measurement_id"] == "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1"
+    )
+    assert row["state"] == "BLOCKED_LANDMARK"
+    assert row["gate"] == "XI_RICKETTS_PM_RICKETTS_REQUIRED"
