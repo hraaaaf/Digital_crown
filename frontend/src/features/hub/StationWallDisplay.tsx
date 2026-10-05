@@ -73,7 +73,8 @@ export const StationWallDisplay = () => {
     }
   }, [activeCall, soundEnabled]);
 
-  const displayState = failed ? 'unavailable' : activeCall ? 'calling' : 'waiting';
+  const isLoading = snapshot === null && !failed;
+  const displayState = failed ? 'unavailable' : isLoading ? 'loading' : activeCall ? 'calling' : 'waiting';
 
   return (
     <main
@@ -105,7 +106,12 @@ export const StationWallDisplay = () => {
         </header>
 
         <section className="flex flex-1 flex-col justify-center py-7 sm:py-10">
-          {failed ? (
+          {isLoading ? (
+            <div role="status" className="mx-auto w-full max-w-2xl rounded-elite-lg border border-border-main bg-card-bg p-8 text-center shadow-elite">
+              <p className="font-outfit text-2xl font-black">Synchronisation de l’affichage…</p>
+              <p className="mt-3 text-sm font-semibold text-text-muted">Aucun état d’attente n’est supposé avant la première lecture.</p>
+            </div>
+          ) : failed ? (
             <div role="status" className="mx-auto w-full max-w-2xl rounded-elite-lg border border-border-main bg-card-bg p-8 text-center shadow-elite">
               <p className="font-outfit text-2xl font-black">Affichage momentanément indisponible</p>
               <p className="mt-3 text-sm font-semibold text-text-muted">Merci de vous adresser à l’accueil.</p>
