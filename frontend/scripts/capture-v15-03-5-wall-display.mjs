@@ -50,7 +50,6 @@ for (const width of widths) {
     if (route.request().method() !== 'GET') return route.continue();
     const currentCall = wallState === 'calling'
       ? {
-          callId: 9001,
           ticketNumber: 23,
           initials: 'N. E.',
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
