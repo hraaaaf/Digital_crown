@@ -209,6 +209,7 @@ def run_smoke(out_dir: Path, epochs: int, seed: int) -> Metrics:
             dynamic_axes={"image": {0: "batch"}, "landmarks_xy_norm": {0: "batch"}},
             opset_version=18,
             do_constant_folding=True,
+            dynamo=False,
         )
         torch_out = model(sample).numpy()
 
