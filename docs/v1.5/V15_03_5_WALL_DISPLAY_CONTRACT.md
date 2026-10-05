@@ -15,7 +15,7 @@ Add a public waiting-room wall surface distinct from the Station kiosk and allow
 ## 03.5 contract
 
 1. /station/wall is a separate public-facing render from /station; it reuses the registered Station workstation boundary rather than creating a fourth workstation authority.
-2. The public feed exposes only ticketNumber, pseudonymous initials, bounded current-call metadata (callId, expiresAt), and aggregate waiting count.
+2. The public feed exposes only ticketNumber, pseudonymous initials, bounded current-call expiry metadata, and aggregate waiting count; no internal patient, appointment or audit identifier is public.
 3. The public feed never exposes full patient name, patient ID, appointment ID, phone, motif, notes, diagnosis or other clinical data.
 4. Only today's non-deleted EN_SALLE_ATTENTE appointments belong to the wall source.
 5. An appointment without a persisted ticket is counted but omitted from public identifiers until staff explicitly supplies a 1–999 ticket during the call action.
@@ -26,7 +26,7 @@ Add a public waiting-room wall surface distinct from the Station kiosk and allow
 10. Calling does not change the appointment status to EN_FAUTEUIL and does not create a CALLED appointment state.
 11. One call remains active for 20 seconds. A repeat call creates a new event and therefore a new bounded call window.
 12. Multiple registered Station screens polling the same tenant endpoint observe the same persisted latest active call.
-13. Visual call is authoritative. Optional sound is user-enabled locally and limited to one short chime per new call ID; audio failure never changes workflow state.
+13. Visual call is authoritative. Optional sound is user-enabled locally and limited to one short chime per distinct ticket + expiry event; audio failure never changes workflow state.
 14. Feed failure renders an explicit unavailable state rather than assuming an empty waiting room.
 15. All wall endpoints are Cache-Control: no-store.
 
