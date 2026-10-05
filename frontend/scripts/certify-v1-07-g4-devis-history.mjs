@@ -225,8 +225,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
   actionsButton = cardAgain.getByRole('button', { name: `Actions du document ${doc.name}`, exact: true });
   await actionsButton.click();
   await cardAgain.locator('[data-document-action-menu]').waitFor({ state: 'visible', timeout: 5000 });
+  const editResponse = page.waitForResponse(response =>
+    response.url().includes(`/api/documents/${doc.id}`) &&
+    response.request().method() === 'GET' &&
+    response.ok(),
+  { timeout: 15000 }).catch(() => null);
   await cardAgain.locator('[data-document-action="edit"]').click();
-  await page.waitForURL(url => new URL(url).searchParams.get('tab') === 'admin', { timeout: 10000 });
+  await page.waitForURL(url => {
+    const parsed = new URL(url);
+    return parsed.searchParams.get('tab') === 'admin' && parsed.searchParams.get('documentTab') === 'libre';
+  }, { timeout: 10000 });
+  await editResponse;
   await page.getByRole('button', { name: 'Document Libre', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   const libreTitle = page.getByPlaceholder('Ex: ORDONNANCE, LETTRE...');
   await libreTitle.waitFor({ state: 'visible', timeout: 10000 });
