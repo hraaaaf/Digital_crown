@@ -147,26 +147,25 @@ Recovered membership:
 
 | # | Factor | LOT06 / registry mapping | Current state |
 |---:|---|---|---|
-| 1 | Lower incisor extrusion to occlusal plane | none | NEW_CANONICAL_ID |
+| 1 | Lower incisor extrusion to occlusal plane | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION: Ricketts functional occlusal plane |
 | 2 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
-| 3 | Facial convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE |
-| 4 | Lower facial height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | BLOCKED Xi/Pm |
-| 5 | Lower incisor to A-Pog | `M_L1_FACIAL_SURFACE_APOG_MM_V1` | BLOCKED_LANDMARK |
-| 6 | Lower incisor inclination to A-Pog | none exact | NEW_CANONICAL_ID |
-| 7 | Upper molar to PTV | `M_U6_PTV_MM_V1` | BLOCKED_LANDMARK / PTV |
-| 8 | Lower lip to E-plane | `M_LI_EPLANE_MM_V1` | EXECUTABLE |
-| 9 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | CONDITIONAL: explicit Pt_Ricketts |
+| 3 | Facial convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
+| 4 | Lower facial height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | BLOCKED_LANDMARK: Xi/Pm |
+| 5 | Lower incisor to A-Pog | `M_L1_EDGE_APOG_MM_V1` | EXECUTABLE: explicit incisal-edge variant |
+| 6 | Lower incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
+| 7 | Upper molar to PTV | `M_U6_PTV_MM_V1` | PTV construction source-locked; BLOCKED_LANDMARK: explicit U6 distal identity |
+| 8 | Lower lip to E-plane | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
+| 9 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | CONDITIONAL: explicit/audited Pt_Ricketts |
 | 10 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
-| 11 | Mandibular plane angle | nearest `M_FH_GOME_DEG_V1` | RICKETTS-SPECIFIC METHOD REQUIRED |
-| 12 | Maxillary depth | none | NEW_CANONICAL_ID |
+| 11 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION; Go-Me substitution forbidden |
+| 12 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
 | 13 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | SOURCE_LOCKED_GEOMETRY / BLOCKED_LANDMARK: DC_Ricketts/Xi_Ricketts/Pm_Ricketts |
 
 ### 13-factor runtime summary
-- Executable now: **4** (#2, #3, #8, #10).
-- Conditional executable: **1** (#9).
-- Existing-but-blocked: **3** (#4, #5, #7).
-- Existing geometry cannot be relabelled: **1** (#11).
-- New canonical source-specific contract required: **4** (#1, #6, #12, #13).
+- Exact executable: **7** (#2, #3, #5, #6, #8, #10, #12).
+- Conditional executable: **1** (#9 facial axis with explicit `Pt_Ricketts`).
+- Source-locked but blocked by landmark/construction authority: **5** (#1, #4, #7, #11, #13).
+- No historical norm or VERT classification is activated by these execution states.
 
 ---
 
