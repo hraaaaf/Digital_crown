@@ -1,0 +1,48 @@
+{
+  "contract_id": "RICKETTS_MANDIBULAR_ARC_IDENTITY_CONTRACT_V1",
+  "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+  "analysis_id": "RICKETTS",
+  "state": "SOURCE_LOCKED_GEOMETRY_BLOCKED_LANDMARK",
+  "unit": "deg",
+  "scientific_identities": {
+    "DC_Ricketts": {
+      "definition": "Bisecting/central point of the condylar neck used by the Ricketts condylar axis.",
+      "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
+      "forbidden_aliases": ["Co", "Co_anatomic", "D_point"]
+    },
+    "Xi_Ricketts": {
+      "definition": "Geometric center of the mandibular ramus; historically constructed from the R1-R4 ramal rectangle.",
+      "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
+      "forbidden_aliases": ["Go", "Ar", "PT_point"]
+    },
+    "Pm_Ricketts": {
+      "definition": "Protuberance menti / stable suprapogonion of the mandibular symphysis used by the Ricketts corpus axis.",
+      "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
+      "forbidden_aliases": ["Pog", "Pog_hard", "B"]
+    }
+  },
+  "construction": {
+    "condylar_axis": "DC_Ricketts-Xi_Ricketts",
+    "corpus_axis": "Xi_Ricketts-Pm_Ricketts",
+    "measurement_rule": "angle_between_condylar_axis_and_distal_extrapolation_of_corpus_axis",
+    "vertex": "Xi_Ricketts",
+    "runtime_binding": null,
+    "fail_closed": true
+  },
+  "normative_state": {
+    "historical_reference_deg": 26.0,
+    "historical_sd_deg": 4.0,
+    "age_adjustment_status": "QUARANTINED_CONFLICTING_TRANSCRIPTION",
+    "universal_classification": false
+  },
+  "sources": [
+    "Gregoret J. Ortodoncia y cirugía ortognática. ESPAXS; 1997.",
+    "doi:10.4041/kjod.2014.44.2.77",
+    "PMCID:PMC3971129"
+  ],
+  "rules": {
+    "no_automatic_aliasing": true,
+    "no_norm_activation": true,
+    "no_ui_activation": true
+  }
+}
