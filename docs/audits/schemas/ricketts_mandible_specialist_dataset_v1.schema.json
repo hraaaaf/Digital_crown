@@ -7,7 +7,9 @@
     "schema",
     "landmarks",
     "license_verified",
-    "clinician_annotation_verified"
+    "clinician_annotation_verified",
+    "patient_split_provenance",
+    "deidentification_evidence"
   ],
   "properties": {
     "schema": {
@@ -32,10 +34,12 @@
       "const": true
     },
     "patient_split_provenance": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "deidentification_evidence": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     }
   },
   "additionalProperties": true
