@@ -27,8 +27,7 @@
     {
       "order": 3,
       "measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
-      "state": "CONDITIONAL_EXECUTABLE",
-      "gate": "EXPLICIT_SUBGO_RICKETTS_AND_ME_TANGENT_CONSTRUCTION_REQUIRED"
+      "state": "BLOCKED_CONSTRUCTION"
     },
     {
       "order": 4,
