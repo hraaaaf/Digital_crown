@@ -1,0 +1,148 @@
+name: V1.5-03.6 Security Offline UX Proof
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "frontend/src/features/hub/StationKioskShell.tsx"
+      - "frontend/src/features/hub/StationKioskShell.test.tsx"
+      - "frontend/src/features/hub/StationAppointmentArrival.tsx"
+      - "frontend/src/features/hub/StationAppointmentArrival.test.tsx"
+      - "backend/routers/station_patient_session.py"
+      - "backend/tests/test_station_patient_session_v15.py"
+      - "frontend/scripts/capture-v15-03-6-station-hardening.mjs"
+      - ".github/workflows/v15-03-6-security-offline-ux-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-03-6-security-offline-ux-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v15-03-6-security-proof-secret-long-enough
+      DATABASE_URL: sqlite:///./v15-03-6-test.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/requirements-v15-03-6.txt
+          pip install -r /tmp/requirements-v15-03-6.txt
+      - name: Anti-replay permissions session regression
+        run: python -m pytest backend/tests/test_station_patient_session_v15.py -q
+
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'da0bcd6a44ec79c125afb6a97d54b860c21f3cca' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+      - name: Preserve 03.6 capture harness
+        run: cp frontend/scripts/capture-v15-03-6-station-hardening.mjs /tmp/capture-v15-03-6-station-hardening.mjs
+      - name: Checkout exact BEFORE base
+        run: |
+          git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
+          git checkout --force "${EVALUATED_BASE}"
+          cp /tmp/capture-v15-03-6-station-hardening.mjs frontend/scripts/capture-v15-03-6-station-hardening.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start BEFORE frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4198 >/tmp/v15-03-6-before.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:4198 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v15-03-6-before.log
+          exit 1
+      - name: Capture BEFORE matrix
+        working-directory: frontend
+        env:
+          V15_03_6_PHASE: before
+          EVALUATED_SHA: ${{ env.EVALUATED_BASE }}
+          EVALUATED_BASE: ${{ env.EVALUATED_BASE }}
+        run: node scripts/capture-v15-03-6-station-hardening.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-03-6-before
+          path: frontend/artifacts/v15-03-6-station-hardening-before
+          if-no-files-found: error
+          retention-days: 14
+
+  after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'da0bcd6a44ec79c125afb6a97d54b860c21f3cca' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Targeted 03.6 frontend tests
+        working-directory: frontend
+        run: npx vitest run src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx src/features/hub/StationPatientIdentity.test.tsx src/test/v15StationPatientSessionContract.test.ts --maxWorkers=1 --fileParallelism=false
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+      - name: Start AFTER frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4198 >/tmp/v15-03-6-after.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:4198 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v15-03-6-after.log
+          exit 1
+      - name: Capture AFTER matrix
+        working-directory: frontend
+        env:
+          V15_03_6_PHASE: after
+        run: node scripts/capture-v15-03-6-station-hardening.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-03-6-after
+          path: frontend/artifacts/v15-03-6-station-hardening-after
+          if-no-files-found: error
+          retention-days: 14
