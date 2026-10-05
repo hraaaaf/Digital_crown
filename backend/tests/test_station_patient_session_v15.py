@@ -803,7 +803,7 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert wall.headers["cache-control"] == "no-store"
     payload = wall.json()
     assert payload["waitingCount"] == 2
-    assert payload["entries"] == [{"ticketNumber": 12, "initials": "A. A."}]
+    assert payload["entries"] == [{"ticketNumber": 12, "identityLabel": "A. A."}]
     assert all(item["ticketNumber"] != 88 for item in payload["entries"])
     assert payload["currentCall"] is None
     serialized = wall.text
@@ -811,8 +811,31 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert "Audit" not in serialized
     assert "Clinical secret" not in serialized
     assert "Never public" not in serialized
-    assert set(payload) == {"waitingCount", "entries", "currentCall", "callTtlSeconds"}
-    assert all(set(item) == {"ticketNumber", "initials"} for item in payload["entries"])
+    assert set(payload) == {"waitingCount", "entries", "currentCall", "callTtlSeconds", "identityMode"}
+    assert payload["identityMode"] == "initials"
+    assert all(set(item) == {"ticketNumber", "identityLabel"} for item in payload["entries"])
+
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).one()
+    config.wall_display_identity_mode = "full_name"
+    db.commit()
+    full_name_feed = client.get("/api/workstation/wall-display", headers=headers)
+    assert full_name_feed.status_code == 200
+    assert full_name_feed.json()["identityMode"] == "full_name"
+    assert full_name_feed.json()["entries"] == [{"ticketNumber": 12, "identityLabel": "Aya Audit"}]
+    assert "Clinical secret" not in full_name_feed.text
+    assert "Never public" not in full_name_feed.text
+
+    config.wall_display_identity_mode = "number_only"
+    db.commit()
+    number_only_feed = client.get("/api/workstation/wall-display", headers=headers)
+    assert number_only_feed.status_code == 200
+    assert number_only_feed.json()["identityMode"] == "number_only"
+    assert number_only_feed.json()["entries"] == [{"ticketNumber": 12, "identityLabel": None}]
+    assert "Aya" not in number_only_feed.text
+    assert "Audit" not in number_only_feed.text
+
+    config.wall_display_identity_mode = "initials"
+    db.commit()
 
     cross_tenant_call = client.post(
         f"/api/workstation/wall-display/appointments/{other_appt.id}/call",
@@ -830,7 +853,7 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert called.headers["cache-control"] == "no-store"
     assert called.json()["status"] == "CALLED"
     assert called.json()["ticketNumber"] == 23
-    assert called.json()["initials"] == "A. A."
+    assert called.json()["identityLabel"] == "A. A."
     assert called.json()["expiresAt"].endswith("+00:00")
 
     db.expire_all()
@@ -850,7 +873,7 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     shared = client.get("/api/workstation/wall-display", headers=headers)
     assert shared.status_code == 200
     shared_payload = shared.json()
-    assert set(shared_payload["currentCall"]) == {"ticketNumber", "initials", "expiresAt"}
+    assert set(shared_payload["currentCall"]) == {"ticketNumber", "identityLabel", "expiresAt"}
     assert shared_payload["currentCall"]["expiresAt"].endswith("+00:00")
     assert shared_payload["currentCall"]["ticketNumber"] == 23
     assert {item["ticketNumber"] for item in shared_payload["entries"]} == {12, 23}
