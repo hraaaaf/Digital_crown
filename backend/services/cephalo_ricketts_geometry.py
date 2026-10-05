@@ -250,3 +250,23 @@ def ricketts_l1_edge_apog_signed_distance_px_v1(
     if not math.isfinite(anterior_score) or abs(anterior_score) <= _EPS:
         return None
     return math.copysign(magnitude, anterior_score)
+
+
+def ricketts_mandibular_plane_fh_deg_v1(
+    po: Point,
+    or_: Point,
+    subgo_ricketts: Point,
+    me: Point,
+) -> Optional[float]:
+    """Angle between anatomical Frankfort and the source-locked Ricketts mandibular plane.
+
+    The mandibular plane is the tangent to the inferior mandibular border joining
+    explicit SubGo_Ricketts (the lowest ramus contact point) to Me. Generic Go is
+    intentionally not accepted as an alias for this source-specific identity.
+    """
+    if not _finite_points(po, or_, subgo_ricketts, me):
+        return None
+    return _angle_deg(
+        (or_[0] - po[0], or_[1] - po[1]),
+        (me[0] - subgo_ricketts[0], me[1] - subgo_ricketts[1]),
+    )
