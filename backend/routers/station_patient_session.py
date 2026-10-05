@@ -35,8 +35,9 @@ from backend.services.station_wall_display import (
     WALL_CALL_TTL_SECONDS,
     bounded_public_waiting_entries,
     latest_active_wall_call,
-    public_initials,
+    public_identity_label,
     waiting_appointments,
+    wall_identity_mode,
 )
 
 router = APIRouter()
@@ -600,12 +601,18 @@ def station_wall_display(
 ):
     workstation = _station_or_423(request, db, current_user)
     waiting = waiting_appointments(db, employer_id=workstation.employer_id)
+    identity_mode = wall_identity_mode(db, workstation.employer_id)
     response.headers["Cache-Control"] = "no-store"
     return {
         "waitingCount": len(waiting),
-        "entries": bounded_public_waiting_entries(waiting),
-        "currentCall": latest_active_wall_call(db, employer_id=workstation.employer_id),
+        "entries": bounded_public_waiting_entries(waiting, mode=identity_mode),
+        "currentCall": latest_active_wall_call(
+            db,
+            employer_id=workstation.employer_id,
+            mode=identity_mode,
+        ),
         "callTtlSeconds": WALL_CALL_TTL_SECONDS,
+        "identityMode": identity_mode,
     }
 
 
@@ -710,10 +717,11 @@ def call_patient_on_station_wall(
     db.commit()
     db.refresh(event)
     response.headers["Cache-Control"] = "no-store"
+    identity_mode = wall_identity_mode(db, employer_id)
     return {
         "status": "CALLED",
         "ticketNumber": ticket_number,
-        "initials": public_initials(appointment),
+        "identityLabel": public_identity_label(appointment, identity_mode),
         "expiresAt": (event.timestamp + timedelta(seconds=WALL_CALL_TTL_SECONDS)).replace(tzinfo=timezone.utc),
     }
 

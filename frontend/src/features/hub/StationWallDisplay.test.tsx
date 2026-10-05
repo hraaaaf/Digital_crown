@@ -17,15 +17,16 @@ describe('StationWallDisplay', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders only pseudonymous waiting identifiers', async () => {
+  it('renders initials by default without clinical data', async () => {
     vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
       waitingCount: 2,
       entries: [
-        { ticketNumber: 12, initials: 'A. B.' },
-        { ticketNumber: 23, initials: 'N. E.' },
+        { ticketNumber: 12, identityLabel: 'A. B.' },
+        { ticketNumber: 23, identityLabel: 'N. E.' },
       ],
       currentCall: null,
       callTtlSeconds: 20,
+      identityMode: 'initials',
     });
 
     const { container } = render(<StationWallDisplay />);
@@ -37,15 +38,47 @@ describe('StationWallDisplay', () => {
     expect(container.textContent).not.toMatch(/diagnostic|motif|téléphone/i);
   });
 
+  it('renders full name only when explicitly configured', async () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
+      waitingCount: 1,
+      entries: [{ ticketNumber: 12, identityLabel: 'Aya Benali' }],
+      currentCall: null,
+      callTtlSeconds: 20,
+      identityMode: 'full_name',
+    });
+
+    render(<StationWallDisplay />);
+
+    expect(await screen.findByText('Aya Benali')).toBeInTheDocument();
+    expect(screen.getByText(/nom complet/i)).toBeInTheDocument();
+  });
+
+  it('renders ticket numbers only when configured', async () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
+      waitingCount: 1,
+      entries: [{ ticketNumber: 12, identityLabel: null }],
+      currentCall: null,
+      callTtlSeconds: 20,
+      identityMode: 'number_only',
+    });
+
+    render(<StationWallDisplay />);
+
+    expect(await screen.findByText('12')).toBeInTheDocument();
+    expect(screen.queryByText('A. B.')).toBeNull();
+    expect(screen.getByText(/numéro uniquement/i)).toBeInTheDocument();
+  });
+
   it('bounds waiting cards to eight even if the feed regresses', async () => {
     vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
       waitingCount: 12,
       entries: Array.from({ length: 12 }, (_, index) => ({
         ticketNumber: 100 + index,
-        initials: 'P. T.',
+        identityLabel: 'P. T.',
       })),
       currentCall: null,
       callTtlSeconds: 20,
+      identityMode: 'initials',
     });
 
     render(<StationWallDisplay />);
@@ -70,6 +103,7 @@ describe('StationWallDisplay', () => {
       entries: [],
       currentCall: null,
       callTtlSeconds: 20,
+      identityMode: 'initials',
     });
     let instance: { state: string; resume: ReturnType<typeof vi.fn> } | null = null;
     class FakeAudioContext {
@@ -96,13 +130,14 @@ describe('StationWallDisplay', () => {
   it('shows one bounded staff call without changing the public data contract', async () => {
     vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
       waitingCount: 1,
-      entries: [{ ticketNumber: 44, initials: 'S. A.' }],
+      entries: [{ ticketNumber: 44, identityLabel: 'S. A.' }],
       currentCall: {
         ticketNumber: 44,
-        initials: 'S. A.',
+        identityLabel: 'S. A.',
         expiresAt: new Date(Date.now() + 10_000).toISOString(),
       },
       callTtlSeconds: 20,
+      identityMode: 'initials',
     });
 
     const { container } = render(<StationWallDisplay />);
@@ -133,13 +168,14 @@ describe('StationWallDisplay', () => {
     await act(async () => {
       resolveSecond({
         waitingCount: 1,
-        entries: [{ ticketNumber: 44, initials: 'S. A.' }],
+        entries: [{ ticketNumber: 44, identityLabel: 'S. A.' }],
         currentCall: {
           ticketNumber: 44,
-          initials: 'S. A.',
+          identityLabel: 'S. A.',
           expiresAt: new Date(Date.now() + 10_000).toISOString(),
         },
         callTtlSeconds: 20,
+      identityMode: 'initials',
       });
       await Promise.resolve();
     });
@@ -148,9 +184,10 @@ describe('StationWallDisplay', () => {
     await act(async () => {
       resolveFirst({
         waitingCount: 1,
-        entries: [{ ticketNumber: 44, initials: 'S. A.' }],
+        entries: [{ ticketNumber: 44, identityLabel: 'S. A.' }],
         currentCall: null,
         callTtlSeconds: 20,
+      identityMode: 'initials',
       });
       await Promise.resolve();
     });

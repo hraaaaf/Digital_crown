@@ -355,6 +355,7 @@ def migrate_cabinet_config_columns():
         ("custom_specialty_fr", "VARCHAR(255)"),
         ("custom_specialty_ar", "VARCHAR(255)"),
         ("header_customized", "BOOLEAN DEFAULT FALSE"),
+        ("wall_display_identity_mode", "VARCHAR(16) DEFAULT 'initials' NOT NULL"),
     ]
     try:
         with engine.connect() as conn:

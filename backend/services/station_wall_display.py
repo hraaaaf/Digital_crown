@@ -10,6 +10,7 @@ from backend.services.station_arrival_bridge import cabinet_local_day_bounds
 
 WALL_CALL_TTL_SECONDS = 20
 WALL_DISPLAY_MAX_ENTRIES = 8
+WALL_IDENTITY_MODES = {"initials", "full_name", "number_only"}
 
 
 def _initials_from_text(value: str | None) -> str:
@@ -20,11 +21,30 @@ def _initials_from_text(value: str | None) -> str:
     return " ".join(f"{token[0].upper()}." for token in selected if token)
 
 
-def public_initials(appointment: models.Appointment) -> str:
+def public_full_name(appointment: models.Appointment) -> str:
     patient = appointment.patient
     if patient is not None:
-        return _initials_from_text(f"{patient.prenom or ''} {patient.nom or ''}")
-    return _initials_from_text(appointment.patient_name)
+        return " ".join(part for part in [patient.prenom or "", patient.nom or ""] if part).strip()
+    return (appointment.patient_name or "").strip()
+
+
+def public_initials(appointment: models.Appointment) -> str:
+    return _initials_from_text(public_full_name(appointment))
+
+
+def wall_identity_mode(db: Session, employer_id: int) -> str:
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
+    value = str(getattr(config, "wall_display_identity_mode", "initials") or "initials") if config else "initials"
+    return value if value in WALL_IDENTITY_MODES else "initials"
+
+
+def public_identity_label(appointment: models.Appointment, mode: str) -> str | None:
+    if mode == "number_only":
+        return None
+    if mode == "full_name":
+        value = public_full_name(appointment)
+        return value or public_initials(appointment)
+    return public_initials(appointment)
 
 
 def waiting_appointments(
@@ -48,15 +68,15 @@ def waiting_appointments(
     )
 
 
-def serialize_public_waiting(appointment: models.Appointment) -> dict:
+def serialize_public_waiting(appointment: models.Appointment, mode: str) -> dict:
     return {
         "ticketNumber": int(appointment.ticket_number),
-        "initials": public_initials(appointment),
+        "identityLabel": public_identity_label(appointment, mode),
     }
 
 
 
-def bounded_public_waiting_entries(waiting: list[models.Appointment]) -> list[dict]:
+def bounded_public_waiting_entries(waiting: list[models.Appointment], *, mode: str = "initials") -> list[dict]:
     result: list[dict] = []
     for appointment in waiting:
         try:
@@ -71,7 +91,7 @@ def bounded_public_waiting_entries(waiting: list[models.Appointment]) -> list[di
         )
         if duplicate:
             continue
-        result.append(serialize_public_waiting(appointment))
+        result.append(serialize_public_waiting(appointment, mode))
         if len(result) >= WALL_DISPLAY_MAX_ENTRIES:
             break
     return result
@@ -82,6 +102,7 @@ def latest_active_wall_call(
     db: Session,
     *,
     employer_id: int,
+    mode: str = "initials",
     now: datetime | None = None,
 ) -> dict | None:
     current = now or datetime.utcnow()
@@ -141,6 +162,6 @@ def latest_active_wall_call(
         return None
     return {
         "ticketNumber": ticket_number,
-        "initials": public_initials(appointment),
+        "identityLabel": public_identity_label(appointment, mode),
         "expiresAt": expires_at.replace(tzinfo=timezone.utc),
     }
