@@ -849,8 +849,8 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     shared = client.get("/api/workstation/wall-display", headers=headers)
     assert shared.status_code == 200
     shared_payload = shared.json()
-    assert set(shared_payload["currentCall"]) == {"callId", "ticketNumber", "initials", "expiresAt"}
-    assert shared_payload["currentCall"]["callId"] == event.id
+    assert set(shared_payload["currentCall"]) == {"ticketNumber", "initials", "expiresAt"}
+    assert shared_payload["currentCall"]["expiresAt"].endswith("+00:00")
     assert shared_payload["currentCall"]["ticketNumber"] == 23
     assert {item["ticketNumber"] for item in shared_payload["entries"]} == {12, 23}
 
