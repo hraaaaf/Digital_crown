@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 
 from sqlalchemy.orm import Session
@@ -101,8 +101,7 @@ def latest_active_wall_call(
     if expires_at <= current:
         return None
     return {
-        "callId": int(event.id),
         "ticketNumber": int(appointment.ticket_number),
         "initials": public_initials(appointment),
-        "expiresAt": expires_at,
+        "expiresAt": expires_at.replace(tzinfo=timezone.utc),
     }
