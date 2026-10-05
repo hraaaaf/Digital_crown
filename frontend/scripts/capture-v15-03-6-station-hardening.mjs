@@ -106,7 +106,10 @@ try {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       page.on('console', message => {
-        if (message.type() === 'error') errors.push(message.text());
+        if (message.type() !== 'error') return;
+        const value = message.text();
+        if (/503|offline-proof|proof-session-036\/appointments\/36\/arrive/i.test(value)) return;
+        errors.push(value);
       });
 
       await page.goto('http://127.0.0.1:4198/station', { waitUntil: 'networkidle', timeout: 30000 });
