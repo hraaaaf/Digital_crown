@@ -14,8 +14,6 @@ RICKETTS_GN_CONSTRUCTION_ID = "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
 RICKETTS_GN_REQUIRED_LANDMARKS = ("N", "Pog_hard", "Go", "Me")
 RICKETTS_PTV_CONSTRUCTION_ID = "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
 RICKETTS_PTV_REQUIRED_LANDMARKS = ("PR_Ricketts_PTV", "Po_anatomic", "Or")
-RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID = "RICKETTS_MANDIBULAR_PLANE_SUBGO_ME_TANGENT_V1"
-RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS = ("SubGo_Ricketts", "Me")
 
 
 def materialize_canonical_constructions_v2(
@@ -142,64 +140,7 @@ def materialize_canonical_constructions_v2(
         evidence_refs=ptv_refs,
         availability_status=ptv_availability,
     )
-    mp_refs: list[str] = []
-    mp_missing: list[str] = []
-    mp_sources: set[str] = set()
-    for landmark_id in RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS:
-        item = landmarks.get(landmark_id)
-        if item is None:
-            mp_missing.append(landmark_id)
-            continue
-        if item.landmark_id != landmark_id:
-            raise ValueError(
-                f"Landmark mapping key {landmark_id} resolves to {item.landmark_id}"
-            )
-        mp_refs.append(item.evidence_id)
-        mp_sources.add(item.source_image_ref)
-        if item.availability_status != AvailabilityStatus.AVAILABLE:
-            mp_missing.append(landmark_id)
-
-    mp_geometry: dict[str, object] = {
-        "kind": "constructed_line",
-        "construction_rule": "tangent_inferior_mandibular_border_through_SubGo_Ricketts_and_Me",
-        "required_landmark_ids": list(RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS),
-        "forbidden_aliases": ["Go"],
-        "coordinate_space": "source_image_pixels",
-    }
-    mp_availability = AvailabilityStatus.AVAILABLE
-    if mp_missing:
-        mp_availability = AvailabilityStatus.NOT_COMPUTABLE
-    elif len(mp_sources) != 1:
-        mp_availability = AvailabilityStatus.INVALID
-    else:
-        subgo = landmarks["SubGo_Ricketts"]
-        me = landmarks["Me"]
-        dx = me.x - subgo.x
-        dy = me.y - subgo.y
-        norm = (dx * dx + dy * dy) ** 0.5
-        if norm <= 1e-12:
-            mp_availability = AvailabilityStatus.INVALID
-        else:
-            mp_geometry.update({
-                "point_x": subgo.x,
-                "point_y": subgo.y,
-                "direction_x": dx / norm,
-                "direction_y": dy / norm,
-                "source_image_ref": next(iter(mp_sources)),
-            })
-
-    mandibular_plane = ConstructionEvidence(
-        construction_id=f"{construction_namespace}:{RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID}",
-        definition_id=RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
-        definition_version="1",
-        landmark_refs=mp_refs,
-        missing_landmark_ids=mp_missing,
-        geometry=mp_geometry,
-        evidence_refs=mp_refs,
-        availability_status=mp_availability,
-    )
     return {
         RICKETTS_GN_CONSTRUCTION_ID: construction,
         RICKETTS_PTV_CONSTRUCTION_ID: ptv,
-        RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID: mandibular_plane,
     }
