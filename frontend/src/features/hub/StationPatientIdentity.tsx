@@ -299,7 +299,7 @@ export const StationPatientIdentity = ({
                 type="button"
                 disabled={fallbackBusy}
                 onClick={() => void submitFallback()}
-                className="mt-4 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-black text-card-bg disabled:opacity-50"
+                className="mt-4 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-black text-on-primary disabled:opacity-50"
               >
                 {fallbackBusy ? copy.checking : copy.confirm}
               </button>
@@ -313,7 +313,7 @@ export const StationPatientIdentity = ({
         <>
           <QrCode className="mx-auto text-text-muted" size={38} aria-hidden="true" />
           <p className="mt-4 font-black">{copy.expired}</p>
-          <button type="button" onClick={() => void start()} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg">
+          <button type="button" onClick={() => void start()} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
             <RefreshCw size={16} aria-hidden="true" /> {copy.newQr}
           </button>
         </>
