@@ -43,6 +43,7 @@ export interface CabinetProfile {
   show_patient_badges?: boolean;
   performance_mode?: boolean;
   clinical_tips_enabled?: boolean;
+  wall_display_identity_mode?: 'initials' | 'full_name' | 'number_only';
   hide_header?: boolean;
   hide_footer?: boolean;
   cabinet_type?: 'PRIVE' | 'CLINIQUE';
