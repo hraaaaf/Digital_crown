@@ -1,4 +1,5 @@
-import { AlertTriangle, Calendar, Clock, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, BellRing, Calendar, Clock, Loader2, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../../utils/cn';
@@ -12,13 +13,18 @@ export const WaitingRoom = ({
   loading,
   onRefresh,
   onStatusChange,
+  onCallPatient,
 }: {
   visible: boolean;
   appointments: DashboardAppointment[] | null;
   loading: boolean;
   onRefresh: () => void;
   onStatusChange: (appointmentId: number, status: string) => void;
+  onCallPatient?: (appointmentId: number, ticketNumber?: number) => Promise<void>;
 }) => {
+  const [ticketDrafts, setTicketDrafts] = useState<Record<number, string>>({});
+  const [callingId, setCallingId] = useState<number | null>(null);
+
   if (!visible) return null;
 
   const isUnavailable = appointments === null;
@@ -77,14 +83,55 @@ export const WaitingRoom = ({
                 if (appointment.status === 'EN_S_ATTENTE') {
                   statusLabel = "Salle d'attente";
                   statusColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse';
+                  const persistedTicket = appointment.ticket_number ?? null;
+                  const draftTicket = Number.parseInt(ticketDrafts[appointment.id] || '', 10);
+                  const callableTicket = persistedTicket ?? (Number.isInteger(draftTicket) && draftTicket >= 1 && draftTicket <= 999 ? draftTicket : null);
                   actionButton = (
-                    <button
-                      type="button"
-                      onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
-                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                    >
-                      Installer au Fauteuil
-                    </button>
+                    <div className="flex w-full flex-col gap-2 sm:w-auto">
+                      <div className="flex min-h-11 items-center gap-2">
+                        {persistedTicket != null ? (
+                          <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-primary/15 bg-primary/5 px-3 text-[10px] font-black uppercase tracking-wider text-primary">
+                            <Ticket size={13} aria-hidden="true" /> N° {persistedTicket}
+                          </span>
+                        ) : (
+                          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border-main bg-card-bg px-2">
+                            <span className="sr-only">Numéro de file</span>
+                            <Ticket size={13} className="text-text-muted" aria-hidden="true" />
+                            <input
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              aria-label="Numéro de file"
+                              value={ticketDrafts[appointment.id] || ''}
+                              onChange={(event) => setTicketDrafts(current => ({ ...current, [appointment.id]: event.target.value.replace(/\D/g, '').slice(0, 3) }))}
+                              className="w-14 bg-transparent text-center text-xs font-black text-main outline-none"
+                              placeholder="N°"
+                            />
+                          </label>
+                        )}
+                        {onCallPatient && (
+                          <button
+                            type="button"
+                            disabled={callableTicket == null || callingId === appointment.id}
+                            onClick={() => {
+                              setCallingId(appointment.id);
+                              void onCallPatient(appointment.id, persistedTicket == null ? callableTicket ?? undefined : undefined)
+                                .finally(() => setCallingId(null));
+                            }}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-3 text-[10px] font-black uppercase tracking-wider text-primary transition-all hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {callingId === appointment.id ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <BellRing size={13} aria-hidden="true" />}
+                            Appeler
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
+                        className="w-full sm:w-auto min-h-11 px-3 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      >
+                        Installer au Fauteuil
+                      </button>
+                    </div>
                   );
                 } else if (appointment.status === 'EN_FAUTEUIL') {
                   statusLabel = 'Au Fauteuil';
