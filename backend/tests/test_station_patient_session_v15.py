@@ -878,6 +878,24 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert shared_payload["currentCall"]["ticketNumber"] == 23
     assert {item["ticketNumber"] for item in shared_payload["entries"]} == {12, 23}
 
+    config.wall_display_identity_mode = "full_name"
+    db.commit()
+    full_name_call = client.get("/api/workstation/wall-display", headers=headers).json()
+    assert full_name_call["currentCall"]["identityLabel"] == "Aya Audit"
+    assert "Clinical secret" not in str(full_name_call)
+    assert "Never public" not in str(full_name_call)
+
+    config.wall_display_identity_mode = "number_only"
+    db.commit()
+    number_only_call = client.get("/api/workstation/wall-display", headers=headers).json()
+    assert number_only_call["currentCall"]["identityLabel"] is None
+    assert all(item["identityLabel"] is None for item in number_only_call["entries"])
+    assert "Aya" not in str(number_only_call)
+    assert "Audit" not in str(number_only_call)
+
+    config.wall_display_identity_mode = "initials"
+    db.commit()
+
     ambiguous = _station_appt(
         db,
         dentiste,
