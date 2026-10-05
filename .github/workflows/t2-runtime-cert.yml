@@ -184,6 +184,7 @@ jobs:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          python -m pytest ../backend/tests/test_accounting_pdf_readability.py -q
           node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g4-ordonnance-actions.mjs 2>&1 | tee ../artifacts/t2-browser/g4-ordonnance-actions-runner.log
           cd ../artifacts/t2-browser/ordonnance-pdf-gate
           if ! command -v pdfinfo >/dev/null || ! command -v pdftoppm >/dev/null; then
