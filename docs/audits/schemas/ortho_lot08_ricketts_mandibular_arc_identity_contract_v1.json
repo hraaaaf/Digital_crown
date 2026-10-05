@@ -8,17 +8,33 @@
     "DC_Ricketts": {
       "definition": "Bisecting/central point of the condylar neck used by the Ricketts condylar axis.",
       "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
-      "forbidden_aliases": ["Co", "Co_anatomic", "D_point"]
+      "forbidden_aliases": [
+        "DC",
+        "Co",
+        "Co_anatomic",
+        "D_point"
+      ]
     },
     "Xi_Ricketts": {
       "definition": "Geometric center of the mandibular ramus; historically constructed from the R1-R4 ramal rectangle.",
       "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
-      "forbidden_aliases": ["Go", "Ar", "PT_point"]
+      "forbidden_aliases": [
+        "Xi",
+        "Go",
+        "Ar",
+        "PT_point"
+      ]
     },
     "Pm_Ricketts": {
       "definition": "Protuberance menti / stable suprapogonion of the mandibular symphysis used by the Ricketts corpus axis.",
       "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
-      "forbidden_aliases": ["Pog", "Pog_hard", "B"]
+      "forbidden_aliases": [
+        "Pm",
+        "Pog",
+        "Pog_hard",
+        "B",
+        "Me"
+      ]
     }
   },
   "construction": {
@@ -30,8 +46,8 @@
     "fail_closed": true
   },
   "normative_state": {
-    "historical_reference_deg": 26.0,
-    "historical_sd_deg": 4.0,
+    "historical_reference_deg": 26,
+    "historical_sd_deg": 4,
     "age_adjustment_status": "QUARANTINED_CONFLICTING_TRANSCRIPTION",
     "universal_classification": false
   },
@@ -43,6 +59,7 @@
   "rules": {
     "no_automatic_aliasing": true,
     "no_norm_activation": true,
-    "no_ui_activation": true
+    "no_ui_activation": true,
+    "generic_labels_require_validated_bridge": true
   }
 }
