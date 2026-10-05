@@ -88,14 +88,14 @@ Source membership observed in the published 32-factor table.
 | 2 | Canine relation | none | NEW_CANONICAL_ID + canine identities |
 | 3 | Incisor overjet | `M_OVERJET_MM_V1` | LEGACY_TO_AUDIT; source-specific Ricketts convention not executable |
 | 4 | Incisor overbite | `M_OVERBITE_V1` | LEGACY_TO_AUDIT |
-| 5 | Lower incisor extrusion | none | NEW_CANONICAL_ID + Ricketts functional occlusal plane |
+| 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION: Ricketts functional occlusal plane |
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | BLOCKED_LANDMARK: Xi/Pm |
 | 9 | Upper molar position | `M_U6_PTV_MM_V1` | BLOCKED_LANDMARK / PTV source contract |
 | 10 | Mandibular incisor protrusion | `M_L1_FACIAL_SURFACE_APOG_MM_V1` | BLOCKED_LANDMARK |
 | 11 | Maxillary incisor protrusion | none | NEW_CANONICAL_ID |
-| 12 | Mandibular incisor inclination to A-Pog | none exact | NEW_CANONICAL_ID |
+| 12 | Mandibular incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
 | 13 | Maxillary incisor inclination to A-Pog | none exact | NEW_CANONICAL_ID |
 | 14 | Occlusal plane to ramus/Xi | none | NEW_CANONICAL_ID + Xi + functional occlusal plane |
 | 15 | Occlusal plane inclination | none | NEW_CANONICAL_ID + Xi/Pm + functional occlusal plane |
@@ -105,10 +105,10 @@ Source membership observed in the published 32-factor table.
 | 19 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
 | 20 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | EXECUTABLE only with explicit/audited `Pt_Ricketts`; auto legacy Pt fails closed |
 | 21 | Facial taper / facial cone | none | NEW_CANONICAL_ID |
-| 22 | Maxillary depth | none | NEW_CANONICAL_ID |
+| 22 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
 | 23 | Maxillary height | none | NEW_CANONICAL_ID + CF |
 | 24 | Palatal plane | `M_PALATAL_PLANE_FH_DEG_V1` | PRIMITIVE_AVAILABLE; Ricketts source-specific execution contract still required |
-| 25 | Mandibular plane angle | nearest `M_FH_GOME_DEG_V1` | DO NOT RELABEL; current contract is Tweed/DC-specific; Ricketts method ID required |
+| 25 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION; Go-Me substitution forbidden |
 | 26 | Cranial deflection | none | NEW_CANONICAL_ID |
 | 27 | Anterior cranial length | none | NEW_CANONICAL_ID + CC |
 | 28 | Posterior facial height | none | NEW_CANONICAL_ID + CF/Go definition |
@@ -118,11 +118,12 @@ Source membership observed in the published 32-factor table.
 | 32 | Corpus length | none | NEW_CANONICAL_ID + Xi/Pm/A-Pog source geometry |
 
 ### 32-factor runtime summary
-- Immediately executable exact/near-exact canonical members: **4** (#6, #7, #16, #19).
+- Exact executable canonical members: **6** (#6, #7, #12, #16, #19, #22).
 - Conditional executable: **1** (#20 facial axis with explicit Pt_Ricketts).
-- Primitive/geometry exists but cannot yet be labelled Ricketts: **2** (#24, #25).
-- Existing canonical but blocked/legacy: **5** (#3, #4, #8, #9, #10).
-- New source-specific canonical contract required: **20**.
+- Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
+- Existing canonical but blocked/legacy: **8** (#3, #4, #5, #8, #9, #10, #25, #31).
+- New source-specific canonical contract required: **16**.
+- Total accounted factors: **32/32**.
 
 This proves that the current five-measure LOT06 Ricketts pack is only a seed, not a complete protocol.
 
