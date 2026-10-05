@@ -861,6 +861,30 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert expired.json()["currentCall"] is None
 
 
+
+def test_wall_display_caps_public_identifiers_but_keeps_total_count(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    patient, _, _ = _patient_context(db, dentiste, dossier="WALL-BOUNDED", name="Bounded")
+    now = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
+    for index in range(12):
+        _station_appt(
+            db,
+            dentiste,
+            patient,
+            now + timedelta(minutes=index),
+            status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+            ticket_number=100 + index,
+        )
+
+    wall = client.get("/api/workstation/wall-display", headers=headers)
+    assert wall.status_code == 200, wall.text
+    payload = wall.json()
+    assert payload["waitingCount"] == 12
+    assert len(payload["entries"]) == 8
+    assert [item["ticketNumber"] for item in payload["entries"]] == list(range(100, 108))
+
+
+
 def test_wall_call_requires_waiting_state_and_unique_explicit_ticket(client, db, dentiste):
     headers, _ = _station(client, dentiste)
     patient, _, _ = _patient_context(db, dentiste, dossier="WALL-002", name="Nora")
