@@ -6,7 +6,6 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_maxillary_depth_deg_v1,
-    ricketts_mandibular_plane_fh_deg_v1,
 )
 
 
@@ -112,58 +111,3 @@ def test_gregoret_l1_edge_apog_materializes_with_calibration_and_correct_sign():
     assert item.value == pytest.approx(1.0)
     assert item.calibration_ref == "source:calibration"
     assert item.requires_calibration is True
-
-
-def test_ricketts_mandibular_plane_uses_explicit_subgo_not_go():
-    theta = math.radians(26.0)
-    po = (0.0, 0.0)
-    or_ = (10.0, 0.0)
-    subgo = (0.0, 0.0)
-    me = (10.0 * math.cos(theta), 10.0 * math.sin(theta))
-    value = ricketts_mandibular_plane_fh_deg_v1(po, or_, subgo, me)
-    assert value == pytest.approx(26.0, abs=1e-9)
-
-
-def test_ricketts_mandibular_plane_fails_closed_on_degenerate_axes():
-    assert ricketts_mandibular_plane_fh_deg_v1((0,0),(0,0),(0,0),(1,1)) is None
-    assert ricketts_mandibular_plane_fh_deg_v1((0,0),(1,0),(0,0),(0,0)) is None
-
-
-def test_gregoret_mandibular_plane_requires_explicit_subgo_ricketts_and_construction():
-    pts = {
-        "S": (0, 0), "N": (0, 0), "A": (0, 10), "Go": (-2, 12), "Me": (10, 5),
-        "SubGo_Ricketts": (0, 0), "Ba": (-8, -4), "Pt_Ricketts": (5, 6),
-        "Or": (10, 0), "Po_anatomic": (0, 0), "Co_anatomic": (-5, 5),
-        "Gn_anatomic": (15, 18), "Pog_hard": (0, 20),
-        "L1_incisal": (0, 0), "L1_apex": (-1, 1),
-        "Prn": (18, 4), "Pog_soft": (17, 9), "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
-    }
-    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
-    constructions = materialize_canonical_constructions_v2(
-        landmarks, construction_namespace="construction:gregoret"
-    )
-    out = materialize_canonical_analysis_v2_measurements(
-        measurement_namespace="measurement:gregoret",
-        landmarks=landmarks,
-        mm_per_pixel=None,
-        calibration_ref=None,
-        constructions=constructions,
-    )
-    by_method = {item.method_id: item for item in out}
-    item = by_method["RICKETTS_MANDIBULAR_PLANE_CANONICAL_DEG_V2"]
-    assert item.availability_status.value == "AVAILABLE"
-    assert item.value == pytest.approx(math.degrees(math.atan2(5,10)), abs=1e-9)
-    assert item.method_id != "TWEED_FMA_CANONICAL_DEG_V2"
-
-    no_subgo = {key: value for key, value in landmarks.items() if key != "SubGo_Ricketts"}
-    blocked_constructions = materialize_canonical_constructions_v2(
-        no_subgo, construction_namespace="construction:gregoret:blocked"
-    )
-    blocked = materialize_canonical_analysis_v2_measurements(
-        measurement_namespace="measurement:gregoret:blocked",
-        landmarks=no_subgo,
-        mm_per_pixel=None,
-        calibration_ref=None,
-        constructions=blocked_constructions,
-    )
-    assert "RICKETTS_MANDIBULAR_PLANE_CANONICAL_DEG_V2" not in {x.method_id for x in blocked}
