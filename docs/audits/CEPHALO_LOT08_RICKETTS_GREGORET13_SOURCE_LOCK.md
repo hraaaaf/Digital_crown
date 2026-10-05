@@ -164,8 +164,8 @@ All **13/13 rows are composition-locked** to the Gregoret summarized profile.
 Execution status:
 - Exact executable now: 7 — facial depth, convexity, maxillary depth, L1/A-Pog distance, L1/A-Pog inclination, interincisal angle, lower lip/E-plane.
 - Conditional executable: 1 — facial axis.
-- Existing canonical but identity or construction blocked: 3 — lower facial height, U6/PTV, mandibular plane.
-- New source-specific execution contracts still required: 2 — lower-incisor extrusion and mandibular arc.
+- Source-locked but identity/construction blocked: 5 — lower facial height, U6/PTV, mandibular plane, lower-incisor extrusion, mandibular arc.
+- No remaining Gregoret-13 row lacks a canonical measurement ID; blocked rows remain fail-closed until their exact evidence contracts are validated.
 
 ## Normative gate
 
@@ -226,12 +226,12 @@ Therefore the **composition pre-code gate is closed**, while implementation rema
 
 ## Next exact
 
-Create the missing LOT06-compatible scientific contracts **without UI activation**:
-1. Ricketts mandibular-plane angle method/ID.
-2. Ricketts lower-incisor extrusion to functional occlusal plane.
-3. Ricketts mandibular arc.
-4. PTV + functional occlusal plane construction contracts.
-5. Xi/Pm/DC manual scientific identity contracts first; auto authority remains fail-closed.
+Continue the blocked Gregoret-13 evidence contracts **without UI activation**:
+1. Represent validated manual/constructed `Xi_Ricketts`, `Pm_Ricketts`, and `DC_Ricketts` evidence before lower-face-height/mandibular-arc runtime execution.
+2. Validate the exact Ricketts mandibular-plane tangent contact construction; do not substitute Go-Me.
+3. Validate exact Ricketts functional-occlusal anchors before lower-incisor extrusion execution.
+4. Resolve explicit U6 distal authority for the U6/PTV measurement.
+5. Keep automatic authority fail-closed until independently validated.
 
 Already implemented and source-locked in this branch:
 - Ricketts maxillary depth.
