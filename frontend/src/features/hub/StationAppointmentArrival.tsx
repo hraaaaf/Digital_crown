@@ -158,7 +158,7 @@ export const StationAppointmentArrival = ({
         <h2 className="mt-4 text-2xl font-black">{copy.arrived}</h2>
         <p className="mt-2 text-base font-bold text-text-muted">{displayName}</p>
         <p className="mt-3 text-sm font-semibold text-text-muted">{copy.arrivedHint}</p>
-        <button type="button" onClick={() => void onLeave()} className="mt-6 min-h-12 rounded-elite-sm bg-primary px-5 text-sm font-black text-white">{backLabel}</button>
+        <button type="button" onClick={() => void onLeave()} className="mt-6 min-h-12 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">{backLabel}</button>
       </section>
     );
   }
@@ -207,7 +207,7 @@ export const StationAppointmentArrival = ({
             })}
           </div>
           <button type="button" disabled={!selected || state === 'arriving'} onClick={() => void confirmArrival()}
-            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-white disabled:opacity-50">
+            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary disabled:opacity-50">
             <CalendarCheck2 size={18} aria-hidden="true" />{state === 'arriving' ? copy.confirming : copy.confirm}
           </button>
           {error && <p role="alert" className="mt-3 font-black text-rose-700">{error}</p>}
