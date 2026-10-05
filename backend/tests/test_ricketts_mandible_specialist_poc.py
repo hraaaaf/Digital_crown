@@ -1,14 +1,19 @@
+import importlib.util
 import json
 from pathlib import Path
 
 import pytest
 
-from scripts.train_ricketts_mandible_specialist import (
-    LANDMARKS,
-    MODEL_ID,
-    NON_CLINICAL_MARKER,
-    validate_real_dataset_contract,
-)
+_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "train_ricketts_mandible_specialist.py"
+_SPEC = importlib.util.spec_from_file_location("ricketts_mandible_specialist_poc", _SCRIPT)
+assert _SPEC is not None and _SPEC.loader is not None
+_MODULE = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_MODULE)
+
+LANDMARKS = _MODULE.LANDMARKS
+MODEL_ID = _MODULE.MODEL_ID
+NON_CLINICAL_MARKER = _MODULE.NON_CLINICAL_MARKER
+validate_real_dataset_contract = _MODULE.validate_real_dataset_contract
 
 
 def test_landmark_contract_is_source_specific_and_minimal():
