@@ -67,7 +67,7 @@ jobs:
       - name: Frontend targeted tests
         working-directory: frontend
         run: |
-          npx vitest run src/features/hub/StationWallDisplay.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx
+          npx vitest run src/features/hub/StationWallDisplay.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/components/mobile/OfflineQueueViewer.g8Interactive.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx
       - name: Frontend build
         working-directory: frontend
         run: npm run build
