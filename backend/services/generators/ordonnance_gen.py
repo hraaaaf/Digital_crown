@@ -4,7 +4,7 @@ from datetime import datetime, date
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT, TA_JUSTIFY
 
@@ -172,7 +172,7 @@ class OrdonnanceGenerator:
                 break  # Tout tient sur 1 page
             
             # Sinon, on compresse davantage et on réessaie
-            compression_factor *= 0.82
+            compression_factor *= 0.90
             if compression_factor < 0.3:
                 break  # Seuil plancher atteint
 
@@ -248,7 +248,7 @@ class OrdonnanceGenerator:
                     if dose_fs < min_dose_fs:
                         min_dose_fs = dose_fs
 
-            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=min_name_fs, textColor=p_color)
+            # Never let the global compression loop push medication text below the\n            # central readable floor merely to save a page. Prefer compact spacing first.\n            min_name_fs = max(min_name_fs, MIN_READABLE_SIZE)\n            min_form_fs = max(min_form_fs, MIN_READABLE_SIZE)\n            min_dose_fs = max(min_dose_fs, MIN_READABLE_SIZE)\n            base_poso_fs = max(base_poso_fs, MIN_READABLE_SIZE)\n\n            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=min_name_fs, textColor=p_color)
             med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=min_form_fs, textColor=p_color, alignment=TA_CENTER)
             med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=min_dose_fs, textColor=p_color, alignment=TA_RIGHT)
             
@@ -325,7 +325,9 @@ class OrdonnanceGenerator:
                     ('BOTTOMPADDING', (0,0), (-1,-1), 2),
                 ]))
                 
-                elements.append(med_line_table)
+                # Keep each prescription row with its quantity/instruction block so a
+                # page break cannot strand a drug name away from its instruction.
+                med_block = [med_line_table]
 
                 if not is_radio and quantity_explicit and quantity is not None:
                     try:
@@ -333,7 +335,7 @@ class OrdonnanceGenerator:
                     except (TypeError, ValueError):
                         quantity_value = 0
                     if quantity_value > 0:
-                        elements.append(Paragraph(f"Quantité : <b>{quantity_value}</b>", quantity_style))
+                        med_block.append(Paragraph(f"Quantité : <b>{quantity_value}</b>", quantity_style))
                 
                 # protect_unit_patterns évite qu'une posologie longue coupe un
                 # groupe nombre+unité ("3 jours", "1 semaine") en fin de ligne,
@@ -346,15 +348,17 @@ class OrdonnanceGenerator:
                         warning_msg = "⚠️ Radioprotection : À réaliser selon les normes de sécurité en vigueur."
                         if posologie_safe:
                             warning_msg += f"<br/>{posologie_safe.replace(chr(10), '<br/>')}"
-                        elements.append(Paragraph(warning_msg, warning_style))
+                        med_block.append(Paragraph(warning_msg, warning_style))
                     elif posologie_safe:
-                        elements.append(Paragraph(posologie_safe.replace("\n", "<br/>"), poso_style))
+                        med_block.append(Paragraph(posologie_safe.replace("\n", "<br/>"), poso_style))
                 elif posologie_safe:
                     poso_html = posologie_safe.replace("\n", "<br/>")
-                    elements.append(Paragraph(poso_html, poso_style))
+                    med_block.append(Paragraph(poso_html, poso_style))
                 else:
                     spacer_h = max(0.5 * compression_factor, 0.1)
-                    elements.append(Spacer(1, spacer_h*cm))
+                    med_block.append(Spacer(1, spacer_h*cm))
+
+                elements.append(KeepTogether(med_block))
         else:
             empty_style = ParagraphStyle(
                 'Empty', parent=self.styles['Normal'],
