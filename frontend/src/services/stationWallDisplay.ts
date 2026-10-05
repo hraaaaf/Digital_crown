@@ -6,7 +6,6 @@ export type WallDisplayEntry = {
 };
 
 export type WallDisplayCall = WallDisplayEntry & {
-  callId: number;
   expiresAt: string;
 };
 
