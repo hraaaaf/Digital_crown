@@ -121,11 +121,26 @@ def latest_active_wall_call(
     if appointment is None:
         return None
 
+    ticket_number = int(appointment.ticket_number)
+    if ticket_number < 1 or ticket_number > 999:
+        return None
+    collision = db.query(models.Appointment.id).filter(
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.id != appointment.id,
+        models.Appointment.deleted_at.is_(None),
+        models.Appointment.datetime_start >= local_start,
+        models.Appointment.datetime_start < local_end,
+        models.Appointment.status == models.AppointmentStatus.EN_SALLE_ATTENTE,
+        models.Appointment.ticket_number == ticket_number,
+    ).first()
+    if collision is not None:
+        return None
+
     expires_at = event.timestamp + timedelta(seconds=WALL_CALL_TTL_SECONDS)
     if expires_at <= current:
         return None
     return {
-        "ticketNumber": int(appointment.ticket_number),
+        "ticketNumber": ticket_number,
         "initials": public_initials(appointment),
         "expiresAt": expires_at.replace(tzinfo=timezone.utc),
     }
