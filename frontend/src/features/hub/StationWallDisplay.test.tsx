@@ -63,6 +63,35 @@ describe('StationWallDisplay', () => {
     expect(container.querySelector('[data-wall-state="loading"]')).toBeInTheDocument();
   });
 
+  it('primes audio from the explicit user gesture before later calls', async () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
+      waitingCount: 0,
+      entries: [],
+      currentCall: null,
+      callTtlSeconds: 20,
+    });
+    let instance: { state: string; resume: ReturnType<typeof vi.fn> } | null = null;
+    class FakeAudioContext {
+      state = 'suspended';
+      currentTime = 0;
+      destination = {};
+      resume = vi.fn(async () => { this.state = 'running'; });
+      close = vi.fn(async () => { this.state = 'closed'; });
+      createOscillator = vi.fn();
+      createGain = vi.fn();
+      constructor() { instance = this; }
+    }
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+
+    render(<StationWallDisplay />);
+    await screen.findByText('Merci de patienter');
+    fireEvent.click(screen.getByRole('button', { name: 'Activer le son' }));
+
+    await screen.findByRole('button', { name: 'Son activé' });
+    expect(instance).not.toBeNull();
+    expect(instance!.resume).toHaveBeenCalledTimes(1);
+  });
+
   it('shows one bounded staff call without changing the public data contract', async () => {
     vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
       waitingCount: 1,
