@@ -66,5 +66,7 @@ def test_ordonnance_dense_layout_preserves_readability_and_row_grouping():
     assert "6 if compact else 12" in source
     assert "dense_name_leading = max(min_name_fs * 1.12, 7.8)" in source
     assert "fontSize=max(10 * compression_factor, MIN_READABLE_SIZE)" in source
+    assert "<b>ATTENTION — Radioprotection :</b>" in source
+    assert "⚠️ Radioprotection" not in source
     assert "1 if dense_layout else 2" in source
     assert "compression_factor *= 0.82" not in source
