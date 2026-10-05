@@ -68,4 +68,50 @@ describe('WaitingRoom wall call control', () => {
       expect(onCallPatient).toHaveBeenCalledWith(502, undefined);
     });
   });
+  it('requires an explicit replacement for duplicate legacy tickets', async () => {
+    const onCallPatient = vi.fn().mockResolvedValue(undefined);
+    render(
+      <MemoryRouter>
+        <WaitingRoom
+          visible
+          loading={false}
+          onRefresh={vi.fn()}
+          onStatusChange={vi.fn()}
+          onCallPatient={onCallPatient}
+          appointments={[
+            {
+              id: 503,
+              start_time: new Date().toISOString(),
+              status: 'EN_S_ATTENTE',
+              ticket_number: 41,
+              patient_id: 11,
+              patient: { id: 11, nom: 'DUPONT', prenom: 'Aya' },
+            },
+            {
+              id: 504,
+              start_time: new Date(Date.now() + 60_000).toISOString(),
+              status: 'EN_S_ATTENTE',
+              ticket_number: 41,
+              patient_id: 12,
+              patient: { id: 12, nom: 'MARTIN', prenom: 'Nora' },
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    const repairs = screen.getAllByRole('textbox', { name: 'Corriger le numéro de file' });
+    const calls = screen.getAllByRole('button', { name: 'Appeler' });
+    expect(repairs).toHaveLength(2);
+    expect(calls[0]).toBeDisabled();
+
+    fireEvent.change(repairs[0], { target: { value: '42' } });
+    expect(calls[0]).toBeEnabled();
+    fireEvent.click(calls[0]);
+
+    await waitFor(() => {
+      expect(onCallPatient).toHaveBeenCalledWith(503, 42);
+    });
+  });
+
 });
