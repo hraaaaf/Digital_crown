@@ -157,7 +157,7 @@ export const WaitingRoom = ({
                       <button
                         type="button"
                         onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
-                        className="w-full sm:w-auto min-h-11 px-3 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                        className="w-full sm:w-auto min-h-11 px-3 py-2 bg-primary text-on-primary text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                       >
                         Installer au Fauteuil
                       </button>
