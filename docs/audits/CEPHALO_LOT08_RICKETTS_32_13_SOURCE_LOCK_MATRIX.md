@@ -114,7 +114,7 @@ Source membership observed in the published 32-factor table.
 | 28 | Posterior facial height | none | NEW_CANONICAL_ID + CF/Go definition |
 | 29 | Ramus position | none | NEW_CANONICAL_ID + CF/Xi |
 | 30 | Porion location / TMJ | none | NEW_CANONICAL_ID + exact Ricketts construction |
-| 31 | Mandibular arc | none | NEW_CANONICAL_ID + DC/Xi/Pm |
+| 31 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | SOURCE_LOCKED_GEOMETRY / BLOCKED_LANDMARK: DC_Ricketts/Xi_Ricketts/Pm_Ricketts |
 | 32 | Corpus length | none | NEW_CANONICAL_ID + Xi/Pm/A-Pog source geometry |
 
 ### 32-factor runtime summary
@@ -159,7 +159,7 @@ Recovered membership:
 | 10 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
 | 11 | Mandibular plane angle | nearest `M_FH_GOME_DEG_V1` | RICKETTS-SPECIFIC METHOD REQUIRED |
 | 12 | Maxillary depth | none | NEW_CANONICAL_ID |
-| 13 | Mandibular arc | none | NEW_CANONICAL_ID + DC/Xi/Pm |
+| 13 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | SOURCE_LOCKED_GEOMETRY / BLOCKED_LANDMARK: DC_Ricketts/Xi_Ricketts/Pm_Ricketts |
 
 ### 13-factor runtime summary
 - Executable now: **4** (#2, #3, #8, #10).
