@@ -3,6 +3,9 @@ name: V1.5-03.5 Wall Display Proof
 on:
   pull_request:
     paths:
+      - "backend/models.py"
+      - "backend/database.py"
+      - "backend/schemas/cabinet.py"
       - "backend/routers/station_patient_session.py"
       - "backend/services/station_wall_display.py"
       - "backend/tests/test_station_patient_session_v15.py"
@@ -15,6 +18,10 @@ on:
       - "frontend/src/features/dashboard/components/WaitingRoomWallCall.test.tsx"
       - "frontend/src/features/hub/StationWallDisplay.tsx"
       - "frontend/src/features/hub/StationWallDisplay.test.tsx"
+      - "frontend/src/features/admin/Settings/types.ts"
+      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
+      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.test.ts"
+      - "frontend/src/features/admin/Settings/tabs/ProfileTab.tsx"
       - "frontend/src/services/stationWallDisplay.ts"
       - "frontend/scripts/capture-v15-03-5-wall-display.mjs"
       - ".github/workflows/v15-03-5-wall-display.yml"
@@ -76,7 +83,7 @@ jobs:
       - name: Frontend targeted tests
         working-directory: frontend
         run: |
-          npx vitest run src/features/hub/StationWallDisplay.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/components/mobile/OfflineQueueViewer.g8Interactive.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx
+          npx vitest run src/features/hub/StationWallDisplay.test.tsx src/features/admin/Settings/hooks/useSettingsStore.test.ts src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/components/mobile/OfflineQueueViewer.g8Interactive.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx
 
       - name: Frontend build
         working-directory: frontend
