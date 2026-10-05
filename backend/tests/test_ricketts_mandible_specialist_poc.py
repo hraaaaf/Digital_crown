@@ -50,7 +50,35 @@ def test_real_mode_remains_disabled_even_after_contract_passes(tmp_path: Path):
         "landmarks": list(LANDMARKS),
         "license_verified": True,
         "clinician_annotation_verified": True,
+        "patient_split_provenance": "patient-level immutable split manifest",
+        "deidentification_evidence": "documented de-identification review",
     }
     (tmp_path / "manifest.json").write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(SystemExit, match="REAL_TRAINING_NOT_ENABLED_YET"):
+        validate_real_dataset_contract(tmp_path)
+
+
+def test_real_mode_requires_patient_split_provenance(tmp_path: Path):
+    payload = {
+        "schema": "RICKETTS_MANDIBLE_SPECIALIST_DATASET_V1",
+        "landmarks": list(LANDMARKS),
+        "license_verified": True,
+        "clinician_annotation_verified": True,
+        "deidentification_evidence": "documented",
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(SystemExit, match="REAL_DATASET_PATIENT_SPLIT_PROVENANCE_REQUIRED"):
+        validate_real_dataset_contract(tmp_path)
+
+
+def test_real_mode_requires_deidentification_evidence(tmp_path: Path):
+    payload = {
+        "schema": "RICKETTS_MANDIBLE_SPECIALIST_DATASET_V1",
+        "landmarks": list(LANDMARKS),
+        "license_verified": True,
+        "clinician_annotation_verified": True,
+        "patient_split_provenance": "patient-level immutable split manifest",
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(SystemExit, match="REAL_DATASET_DEIDENTIFICATION_EVIDENCE_REQUIRED"):
         validate_real_dataset_contract(tmp_path)
