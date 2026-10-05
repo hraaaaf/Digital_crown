@@ -1,0 +1,69 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { StationWallDisplay } from './StationWallDisplay';
+import { stationWallDisplayService } from '../../services/stationWallDisplay';
+
+vi.mock('../../services/stationWallDisplay', () => ({
+  stationWallDisplayService: {
+    snapshot: vi.fn(),
+    callPatient: vi.fn(),
+  },
+}));
+
+describe('StationWallDisplay', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders only pseudonymous waiting identifiers', async () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
+      waitingCount: 2,
+      entries: [
+        { ticketNumber: 12, initials: 'A. B.' },
+        { ticketNumber: 23, initials: 'N. E.' },
+      ],
+      currentCall: null,
+      callTtlSeconds: 20,
+    });
+
+    const { container } = render(<StationWallDisplay />);
+
+    expect(await screen.findByText('N° de file')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('A. B.')).toBeInTheDocument();
+    expect(container.querySelector('[data-wall-state="waiting"]')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/diagnostic|motif|téléphone/i);
+  });
+
+  it('shows one bounded staff call without changing the public data contract', async () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
+      waitingCount: 1,
+      entries: [{ ticketNumber: 44, initials: 'S. A.' }],
+      currentCall: {
+        callId: 9001,
+        ticketNumber: 44,
+        initials: 'S. A.',
+        expiresAt: new Date(Date.now() + 10_000).toISOString(),
+      },
+      callTtlSeconds: 20,
+    });
+
+    const { container } = render(<StationWallDisplay />);
+
+    expect(await screen.findByText('Patient appelé')).toBeInTheDocument();
+    expect(screen.getByText('N° 44')).toBeInTheDocument();
+    expect(screen.getByText('S. A.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector('[data-wall-state="calling"]')).toBeInTheDocument();
+    });
+  });
+
+  it('fails closed to an unavailable public state when the wall feed cannot be read', async () => {
+    vi.mocked(stationWallDisplayService.snapshot).mockRejectedValue(new Error('offline'));
+
+    const { container } = render(<StationWallDisplay />);
+
+    expect(await screen.findByText('Affichage momentanément indisponible')).toBeInTheDocument();
+    expect(container.querySelector('[data-wall-state="unavailable"]')).toBeInTheDocument();
+  });
+});
