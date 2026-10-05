@@ -248,7 +248,14 @@ class OrdonnanceGenerator:
                     if dose_fs < min_dose_fs:
                         min_dose_fs = dose_fs
 
-            # Never let the global compression loop push medication text below the\n            # central readable floor merely to save a page. Prefer compact spacing first.\n            min_name_fs = max(min_name_fs, MIN_READABLE_SIZE)\n            min_form_fs = max(min_form_fs, MIN_READABLE_SIZE)\n            min_dose_fs = max(min_dose_fs, MIN_READABLE_SIZE)\n            base_poso_fs = max(base_poso_fs, MIN_READABLE_SIZE)\n\n            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=min_name_fs, textColor=p_color)
+            # Never let the global compression loop push medication text below the
+            # central readable floor merely to save a page. Prefer compact spacing first.
+            min_name_fs = max(min_name_fs, MIN_READABLE_SIZE)
+            min_form_fs = max(min_form_fs, MIN_READABLE_SIZE)
+            min_dose_fs = max(min_dose_fs, MIN_READABLE_SIZE)
+            base_poso_fs = max(base_poso_fs, MIN_READABLE_SIZE)
+
+            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=min_name_fs, textColor=p_color)
             med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=min_form_fs, textColor=p_color, alignment=TA_CENTER)
             med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=min_dose_fs, textColor=p_color, alignment=TA_RIGHT)
             
