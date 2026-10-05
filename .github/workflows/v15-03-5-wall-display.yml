@@ -22,6 +22,7 @@ on:
       - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
       - "frontend/src/features/admin/Settings/hooks/useSettingsStore.test.ts"
       - "frontend/src/features/admin/Settings/tabs/ProfileTab.tsx"
+      - "frontend/src/features/admin/Settings/tabs/ProfileTabWallDisplay.test.tsx"
       - "frontend/src/services/stationWallDisplay.ts"
       - "frontend/scripts/capture-v15-03-5-wall-display.mjs"
       - ".github/workflows/v15-03-5-wall-display.yml"
@@ -83,7 +84,7 @@ jobs:
       - name: Frontend targeted tests
         working-directory: frontend
         run: |
-          npx vitest run src/features/hub/StationWallDisplay.test.tsx src/features/admin/Settings/hooks/useSettingsStore.test.ts src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/components/mobile/OfflineQueueViewer.g8Interactive.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx
+          npx vitest run src/features/hub/StationWallDisplay.test.tsx src/features/admin/Settings/hooks/useSettingsStore.test.ts src/features/admin/Settings/tabs/ProfileTabWallDisplay.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/components/mobile/OfflineQueueViewer.g8Interactive.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx
 
       - name: Frontend build
         working-directory: frontend
