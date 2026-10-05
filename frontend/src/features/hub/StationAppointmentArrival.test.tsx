@@ -84,7 +84,7 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     render(<StationAppointmentArrival sessionId="s-contrast" displayName="Aya Audit" onLeave={vi.fn()} backLabel="Retour" />);
     const confirm = await screen.findByRole('button', { name: 'Confirmer mon arrivée' });
     expect(confirm.className).toContain('bg-primary');
-    expect(confirm.className).toContain('text-white');
+    expect(confirm.className).toContain('text-on-primary');
   });
 
   it('exposes reduced-motion guard on appointment choices', async () => {
