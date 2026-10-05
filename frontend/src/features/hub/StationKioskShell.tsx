@@ -150,7 +150,7 @@ export const StationKioskShell = ({
                   setScreen('home');
                 }}
                 className={`min-h-11 min-w-11 rounded-xl px-2.5 text-xs font-black uppercase transition-elite motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  language === locale ? 'bg-primary text-card-bg' : 'text-text-muted hover:bg-primary/5 hover:text-main'
+                  language === locale ? 'bg-primary text-on-primary' : 'text-text-muted hover:bg-primary/5 hover:text-main'
                 }`}
               >
                 {locale === 'ar' ? 'ع' : locale.toUpperCase()}
@@ -199,7 +199,7 @@ export const StationKioskShell = ({
               <button
                 type="button"
                 onClick={() => setScreen('home')}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 <ChevronLeft size={18} className={dir === 'rtl' ? 'rotate-180' : ''} aria-hidden="true" />
                 {copy.back}
