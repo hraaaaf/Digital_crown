@@ -5,7 +5,7 @@ import hashlib
 import re
 import secrets
 import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -650,6 +650,10 @@ def call_patient_on_station_wall(
         ticket_number = int(body.ticketNumber)
     else:
         ticket_number = int(appointment.ticket_number)
+        if ticket_number < 1 or ticket_number > 999:
+            if sqlite:
+                db.rollback()
+            raise HTTPException(status_code=409, detail="WALL_DISPLAY_TICKET_INVALID")
         if body.ticketNumber is not None and int(body.ticketNumber) != ticket_number:
             if sqlite:
                 db.rollback()
