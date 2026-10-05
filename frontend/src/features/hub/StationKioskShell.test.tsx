@@ -1,8 +1,26 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StationKioskShell } from './StationKioskShell';
+import { stationPatientSessionService } from '../../services/stationPatientSession';
+
+vi.mock('../../services/stationPatientSession', () => ({
+  stationPatientSessionService: {
+    create: vi.fn(),
+    status: vi.fn(),
+    fallback: vi.fn(),
+    todayAppointments: vi.fn(),
+    arrive: vi.fn(),
+    purge: vi.fn(),
+    requestStaffAssistance: vi.fn(),
+  },
+}));
 
 describe('StationKioskShell', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(stationPatientSessionService.create).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
+  });
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -52,6 +70,38 @@ describe('StationKioskShell', () => {
     expect(screen.getByRole('heading', { name: 'Bienvenue au cabinet' })).toBeInTheDocument();
   });
 
+  it('purges the patient session when kiosk inactivity returns home', async () => {
+    vi.useFakeTimers();
+    vi.mocked(stationPatientSessionService.create).mockResolvedValue({
+      sessionId: 'session-timeout',
+      handoffUrl: 'https://cabinet.local/companion?stationSession=opaque',
+      nfcPayload: 'https://cabinet.local/companion?stationSession=opaque',
+      qrDataUrl: 'data:image/png;base64,AAAA',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      fallbackMode: 'disabled',
+    });
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending',
+      sessionId: 'session-timeout',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+
+    const { container } = render(<StationKioskShell onAdminTap={vi.fn()} idleTimeoutMs={30_000} />);
+    fireEvent.click(screen.getByRole('button', { name: /J’ai rendez-vous/i }));
+    expect(await screen.findByAltText('QR d’identification Patient Companion')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(container.querySelector('[data-station-screen="home"]')).toBeInTheDocument();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-timeout');
+    expect(screen.queryByText(/session-timeout/i)).toBeNull();
+  });
+
   it('resets the inactivity timer on public interaction', () => {
     vi.useFakeTimers();
     const { container } = render(<StationKioskShell onAdminTap={vi.fn()} idleTimeoutMs={30_000} />);
@@ -71,6 +121,13 @@ describe('StationKioskShell', () => {
       vi.advanceTimersByTime(10_000);
     });
     expect(container.querySelector('[data-station-screen="home"]')).toBeInTheDocument();
+  });
+
+  it('includes reduced-motion guards on animated kiosk controls', () => {
+    render(<StationKioskShell onAdminTap={vi.fn()} />);
+    const appointment = screen.getByRole('button', { name: /J’ai rendez-vous/i });
+    expect(appointment.className).toContain('motion-reduce:transition-none');
+    expect(appointment.className).toContain('motion-reduce:hover:translate-y-0');
   });
 
   it('keeps the admin gesture hidden behind the Digital Crown control', () => {
