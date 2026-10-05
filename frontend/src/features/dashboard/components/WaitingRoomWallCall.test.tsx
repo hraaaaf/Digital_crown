@@ -105,6 +105,9 @@ describe('WaitingRoom wall call control', () => {
     expect(repairs).toHaveLength(2);
     expect(calls[0]).toBeDisabled();
 
+    fireEvent.change(repairs[0], { target: { value: '41' } });
+    expect(calls[0]).toBeDisabled();
+
     fireEvent.change(repairs[0], { target: { value: '42' } });
     expect(calls[0]).toBeEnabled();
     fireEvent.click(calls[0]);
