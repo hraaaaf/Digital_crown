@@ -81,7 +81,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     expect(await screen.findByText("Aucun rendez-vous retrouvé aujourd’hui")).toBeInTheDocument();
   });
 
-  it('resolves the appointment bridge after QR identity then purges before returning', async () => {
+  it('resolves the appointment bridge after QR identity then returns and starts purge', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'identified',
       sessionId: 'session-1',
@@ -100,6 +100,24 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
     expect(onBack).toHaveBeenCalled();
   });
+  it('returns immediately even when server purge remains unavailable', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.purge).mockReturnValue(new Promise<void>(() => undefined));
+    const onBack = vi.fn();
+
+    render(<StationPatientIdentity onBack={onBack} backLabel='Retour' />);
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1');
+  });
+
   it('retries session purge up to three times before leaving the patient flow', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'identified',
