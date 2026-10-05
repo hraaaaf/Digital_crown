@@ -118,6 +118,10 @@ def validate_real_dataset_contract(dataset_root: Path) -> None:
         raise SystemExit("REAL_DATASET_LICENSE_NOT_VERIFIED")
     if data.get("clinician_annotation_verified") is not True:
         raise SystemExit("REAL_DATASET_CLINICIAN_ANNOTATION_NOT_VERIFIED")
+    if not str(data.get("patient_split_provenance", "")).strip():
+        raise SystemExit("REAL_DATASET_PATIENT_SPLIT_PROVENANCE_REQUIRED")
+    if not str(data.get("deidentification_evidence", "")).strip():
+        raise SystemExit("REAL_DATASET_DEIDENTIFICATION_EVIDENCE_REQUIRED")
     raise SystemExit(
         "REAL_TRAINING_NOT_ENABLED_YET: dataset contract passed, but this POC intentionally "
         "contains no clinical runtime/training implementation."
