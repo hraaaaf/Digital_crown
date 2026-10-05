@@ -162,7 +162,7 @@ export const StationWallDisplay = () => {
               <div className="mt-4 font-outfit text-6xl font-black tracking-tight sm:text-8xl lg:text-9xl">
                 N° {activeCall.ticketNumber}
               </div>
-              <div className="mt-4 text-2xl font-black text-text-muted sm:text-4xl">{activeCall.initials}</div>
+              <div className="mt-4 text-2xl font-black text-text-muted sm:text-4xl">{activeCall.identityLabel && <div className="mt-4 text-2xl font-black text-text-muted sm:text-4xl">{activeCall.identityLabel}</div>}</div>
               <p className="mx-auto mt-7 max-w-2xl text-lg font-semibold text-text-muted sm:text-2xl">
                 Merci de vous présenter à l’accueil.
               </p>
