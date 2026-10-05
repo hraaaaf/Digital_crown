@@ -11,6 +11,13 @@ PROFILE = (
     / "schemas"
     / "ortho_lot08_ricketts_gregoret13_protocol_profile_v1.json"
 )
+MANDIBULAR_ARC_CONTRACT = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "audits"
+    / "schemas"
+    / "ortho_lot08_ricketts_mandibular_arc_identity_contract_v1.json"
+)
 
 
 def test_gregoret13_profile_has_exactly_13_unique_measurements_in_order():
@@ -92,3 +99,36 @@ def test_gregoret13_l1_occlusal_extrusion_registry_stays_construction_blocked():
     item = canonical_measurement("M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1")
     assert item is not None
     assert item.source_status == "SOURCE_LOCKED_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED"
+
+
+def test_gregoret13_mandibular_arc_identity_contract_is_fail_closed():
+    data = json.loads(MANDIBULAR_ARC_CONTRACT.read_text(encoding="utf-8"))
+    assert data["measurement_id"] == "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1"
+    assert data["state"] == "SOURCE_LOCKED_GEOMETRY_BLOCKED_LANDMARK"
+    assert data["construction"]["condylar_axis"] == "DC_Ricketts-Xi_Ricketts"
+    assert data["construction"]["corpus_axis"] == "Xi_Ricketts-Pm_Ricketts"
+    assert data["construction"]["runtime_binding"] is None
+    assert data["construction"]["fail_closed"] is True
+    assert data["normative_state"]["age_adjustment_status"] == "QUARANTINED_CONFLICTING_TRANSCRIPTION"
+    assert data["normative_state"]["universal_classification"] is False
+
+
+def test_gregoret13_mandibular_arc_forbids_legacy_aliases():
+    data = json.loads(MANDIBULAR_ARC_CONTRACT.read_text(encoding="utf-8"))
+    identities = data["scientific_identities"]
+    assert set(identities["DC_Ricketts"]["forbidden_aliases"]) == {"Co", "Co_anatomic", "D_point"}
+    assert set(identities["Xi_Ricketts"]["forbidden_aliases"]) == {"Go", "Ar", "PT_point"}
+    assert set(identities["Pm_Ricketts"]["forbidden_aliases"]) == {"Pog", "Pog_hard", "B"}
+
+
+def test_gregoret13_mandibular_arc_profile_and_registry_remain_blocked():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    row = next(
+        item for item in data["measurements"]
+        if item["measurement_id"] == "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1"
+    )
+    assert row["state"] == "BLOCKED_LANDMARK"
+    assert row["gate"] == "DC_XI_PM_REQUIRED"
+    item = canonical_measurement("M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1")
+    assert item is not None
+    assert item.source_status == "BLOCKED_LANDMARK"
