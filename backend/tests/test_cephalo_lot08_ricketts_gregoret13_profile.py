@@ -51,3 +51,14 @@ def test_gregoret13_normative_classification_stays_disabled():
     assert data["normative_state"]["universal_classification"] is False
     assert data["normative_state"]["vert_enabled"] is False
     assert data["rules"]["historical_norms_reference_only"] is True
+
+
+def test_gregoret13_mandibular_plane_is_conditional_and_not_tweed_alias():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    row = next(
+        item for item in data["measurements"]
+        if item["measurement_id"] == "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1"
+    )
+    assert row["state"] == "CONDITIONAL_EXECUTABLE"
+    assert row["gate"] == "EXPLICIT_SUBGO_RICKETTS_AND_ME_TANGENT_CONSTRUCTION_REQUIRED"
+    assert row["measurement_id"] != "M_FH_GOME_DEG_V1"
