@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StationWallDisplay } from './StationWallDisplay';
 import { stationWallDisplayService } from '../../services/stationWallDisplay';
@@ -12,6 +12,7 @@ vi.mock('../../services/stationWallDisplay', () => ({
 
 describe('StationWallDisplay', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -82,6 +83,48 @@ describe('StationWallDisplay', () => {
     await waitFor(() => {
       expect(container.querySelector('[data-wall-state="calling"]')).toBeInTheDocument();
     });
+  });
+
+  it('ignores a stale poll response that resolves after a newer call state', async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: (value: Awaited<ReturnType<typeof stationWallDisplayService.snapshot>>) => void;
+    let resolveSecond!: (value: Awaited<ReturnType<typeof stationWallDisplayService.snapshot>>) => void;
+    const first = new Promise<Awaited<ReturnType<typeof stationWallDisplayService.snapshot>>>(resolve => { resolveFirst = resolve; });
+    const second = new Promise<Awaited<ReturnType<typeof stationWallDisplayService.snapshot>>>(resolve => { resolveSecond = resolve; });
+    vi.mocked(stationWallDisplayService.snapshot)
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second);
+
+    const { container } = render(<StationWallDisplay />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(2_000);
+    });
+    await act(async () => {
+      resolveSecond({
+        waitingCount: 1,
+        entries: [{ ticketNumber: 44, initials: 'S. A.' }],
+        currentCall: {
+          ticketNumber: 44,
+          initials: 'S. A.',
+          expiresAt: new Date(Date.now() + 10_000).toISOString(),
+        },
+        callTtlSeconds: 20,
+      });
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-wall-state="calling"]')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirst({
+        waitingCount: 1,
+        entries: [{ ticketNumber: 44, initials: 'S. A.' }],
+        currentCall: null,
+        callTtlSeconds: 20,
+      });
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-wall-state="calling"]')).toBeInTheDocument();
   });
 
   it('fails closed to an unavailable public state when the wall feed cannot be read', async () => {
