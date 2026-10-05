@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "RICKETTS_MANDIBLE_SPECIALIST_DATASET_V1",
+  "title": "Ricketts Mandible Specialist Dataset Manifest",
+  "type": "object",
+  "required": [
+    "schema",
+    "landmarks",
+    "license_verified",
+    "clinician_annotation_verified"
+  ],
+  "properties": {
+    "schema": {
+      "const": "RICKETTS_MANDIBLE_SPECIALIST_DATASET_V1"
+    },
+    "landmarks": {
+      "const": [
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts",
+        "Pm_Ricketts",
+        "DC_Ricketts"
+      ]
+    },
+    "license_verified": {
+      "type": "boolean",
+      "const": true
+    },
+    "clinician_annotation_verified": {
+      "type": "boolean",
+      "const": true
+    },
+    "patient_split_provenance": {
+      "type": "string"
+    },
+    "deidentification_evidence": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
