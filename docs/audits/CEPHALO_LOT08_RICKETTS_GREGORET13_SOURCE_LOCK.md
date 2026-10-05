@@ -52,11 +52,10 @@ Used only for canonical mapping and executable/blocking status.
 - Historical reference: 26° ± 4° at ~9 years.
 - Historical age adjustment: approximately −0.3°/year.
 - LOT06 nearest geometry: `M_FH_GOME_DEG_V1`.
-- Critical rule: current Go-Me ID is Tweed/DC-specific and **must not be relabelled Ricketts**.
-- Ricketts construction: `RICKETTS_MANDIBULAR_PLANE_SUBGO_ME_TANGENT_V1`, tangent to the inferior mandibular border through explicit `SubGo_Ricketts` and `Me`.
-- Runtime method: `RICKETTS_MANDIBULAR_PLANE_CANONICAL_DEG_V2`.
-- Runtime: **CONDITIONAL_EXECUTABLE** only when explicit `SubGo_Ricketts` and `Me` are supplied from the same source image; generic `Go` is a forbidden silent alias.
-- Profile status: **SOURCE_LOCKED / CONDITIONAL_EXECUTABLE_EXPLICIT_IDENTITY**.
+- Critical rule: current ID is Tweed/DC-specific and **must not be relabelled Ricketts**.
+- Required action: new Ricketts-specific canonical method/ID after exact mandibular-plane construction lock.
+- Runtime: **BLOCKED_CONTRACT**.
+- Profile status: **SOURCE_LOCKED_MEANING / EXECUTION_BLOCKED**.
 
 ### 4. Lower facial height
 - Definition: angle `ANS-Xi-Pm`.
@@ -163,8 +162,7 @@ All **13/13 rows are composition-locked** to the Gregoret summarized profile.
 Execution status:
 - Exact executable now: 7 — facial depth, convexity, maxillary depth, L1/A-Pog distance, L1/A-Pog inclination, interincisal angle, lower lip/E-plane.
 - Conditional executable: 1 — facial axis.
-- Existing canonical but identity/construction blocked: 2 — lower facial height, U6/PTV.
-- Conditional executable with explicit manual/source-specific identity: 2 — facial axis, mandibular plane.
+- Existing canonical but identity or construction blocked: 3 — lower facial height, U6/PTV, mandibular plane.
 - New source-specific execution contracts still required: 2 — lower-incisor extrusion and mandibular arc.
 
 ## Normative gate
@@ -227,11 +225,11 @@ Therefore the **composition pre-code gate is closed**, while implementation rema
 ## Next exact
 
 Create the missing LOT06-compatible scientific contracts **without UI activation**:
-1. Ricketts lower-incisor extrusion to functional occlusal plane.
-2. Ricketts mandibular arc.
-3. Functional occlusal plane construction contract.
-4. Xi/Pm/DC manual scientific identity contracts first; auto authority remains fail-closed.
-5. Keep `SubGo_Ricketts` manual/source-specific unless an automatic identity is independently validated.
+1. Ricketts mandibular-plane angle method/ID.
+2. Ricketts lower-incisor extrusion to functional occlusal plane.
+3. Ricketts mandibular arc.
+4. PTV + functional occlusal plane construction contracts.
+5. Xi/Pm/DC manual scientific identity contracts first; auto authority remains fail-closed.
 
 Already implemented and source-locked in this branch:
 - Ricketts maxillary depth.
@@ -289,18 +287,15 @@ No age norm or clinical interpretation is activated by this construction.
 Adversarial review found a MAJOR identity collision: facial-axis `Pt_Ricketts` is not the same scientific landmark as the PTV reference point described by Ricketts 1981. The PTV contract now requires a distinct explicit landmark `PR_Ricketts_PTV` corresponding to the most posterior outline of the pterygo-palatine fossa. `Pt_Ricketts`, generic `PT_point`, and `Ptm` are all rejected as silent aliases.
 
 
-## A6 Ricketts mandibular-plane construction — 2026-10-05
+## A6 Ricketts mandibular-plane source-lock refinement — 2026-10-05
 
-The source-locked Ricketts mandibular plane is not the Tweed/DC Go-Me line. Gregoret describes it as a tangent to the inferior mandibular border joining Me to the lowest point of the mandibular ramus.
+Source review confirms that the summarized Ricketts mandibular plane is a tangent to the inferior mandibular border joining Me to the lowest point of the mandibular ramus. This is not equivalent to silently reusing the Tweed/DC Go-Me line.
 
-Digital Crown contract:
-- construction ID: `RICKETTS_MANDIBULAR_PLANE_SUBGO_ME_TANGENT_V1`;
-- explicit landmark identities: `SubGo_Ricketts` + `Me`;
-- canonical method: `RICKETTS_MANDIBULAR_PLANE_CANONICAL_DEG_V2`;
-- canonical measurement ID: `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1`;
-- reference plane: anatomical Frankfort `Po_anatomic-Or`;
-- generic `Go` is a forbidden silent alias;
-- mixed-source or degenerate evidence fails closed;
-- automatic `SubGo_Ricketts` authority remains unvalidated, therefore execution is conditional on explicit evidence.
+Digital Crown decision:
+- canonical measurement ID remains `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1`;
+- generic `M_FH_GOME_DEG_V1` / Go-Me is forbidden as a silent substitute;
+- no new automatic landmark identity is introduced;
+- execution remains `BLOCKED_CONSTRUCTION` until the exact tangent-contact evidence can be represented by a validated canonical construction/identity contract;
+- no norm/classification is activated.
 
-No historical norm/classification is activated by this binding.
+This refinement closes the semantic alias risk but does not make the measurement executable.
