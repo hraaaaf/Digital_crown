@@ -76,6 +76,17 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     fireEvent.click(confirm);
     await waitFor(() => expect(stationPatientSessionService.arrive).toHaveBeenCalledWith('s-2', 2));
   });
+  it('keeps primary arrival action text high contrast on the station', async () => {
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
+      status: 'single', staffActionRequired: false,
+      appointments: [{ appointmentId: 32, datetimeStart: '2026-10-04T09:30:00', durationMinutes: 30, schedulingType: 'EXACT_TIME', status: 'CONFIRMÉ' }],
+    });
+    render(<StationAppointmentArrival sessionId="s-contrast" displayName="Aya Audit" onLeave={vi.fn()} backLabel="Retour" />);
+    const confirm = await screen.findByRole('button', { name: 'Confirmer mon arrivée' });
+    expect(confirm.className).toContain('bg-primary');
+    expect(confirm.className).toContain('text-white');
+  });
+
   it('exposes reduced-motion guard on appointment choices', async () => {
     vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
       status: 'single', staffActionRequired: false,
