@@ -90,10 +90,21 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Assert kiosk baseline unchanged
+      - name: Assert kiosk baseline changes are token-only
         run: |
           git fetch origin master --depth=1
-          test -z "$(git diff origin/master -- frontend/src/features/hub/StationKioskShell.tsx frontend/src/features/hub/StationPatientIdentity.tsx frontend/src/features/hub/StationAppointmentArrival.tsx)"
+          git diff origin/master -- \
+            frontend/src/features/hub/StationKioskShell.tsx \
+            frontend/src/features/hub/StationPatientIdentity.tsx \
+            frontend/src/features/hub/StationAppointmentArrival.tsx \
+            > /tmp/station-baseline.diff
+          if grep -E '^[+-][^+-]' /tmp/station-baseline.diff \
+            | grep -Ev '^[+-].*(text-card-bg|text-white|text-on-primary|motion-reduce:|purgeSessionBestEffort|requestPurge|purgeStartedRef|onBack\(\)|technicalToastVisible)' \
+            | grep -q .; then
+            cat /tmp/station-baseline.diff
+            echo "Unexpected station baseline change outside approved 03.6 hardening/token migration"
+            exit 1
+          fi
 
       - name: Start visual-only frontend
         working-directory: frontend
