@@ -61,6 +61,7 @@ def latest_active_wall_call(
     now: datetime | None = None,
 ) -> dict | None:
     current = now or datetime.utcnow()
+    local_start, local_end = cabinet_local_day_bounds(datetime.now())
     event = (
         db.query(models.AuditLog)
         .filter(
@@ -86,6 +87,8 @@ def latest_active_wall_call(
             models.Appointment.id == appointment_id,
             models.Appointment.employer_id == employer_id,
             models.Appointment.deleted_at.is_(None),
+            models.Appointment.datetime_start >= local_start,
+            models.Appointment.datetime_start < local_end,
             models.Appointment.status == models.AppointmentStatus.EN_SALLE_ATTENTE,
             models.Appointment.ticket_number.is_not(None),
         )
