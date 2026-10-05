@@ -9,6 +9,7 @@ from backend import models
 from backend.services.station_arrival_bridge import cabinet_local_day_bounds
 
 WALL_CALL_TTL_SECONDS = 20
+WALL_DISPLAY_MAX_ENTRIES = 8
 
 
 def _initials_from_text(value: str | None) -> str:
