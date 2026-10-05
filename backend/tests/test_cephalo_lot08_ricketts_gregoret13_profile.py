@@ -63,3 +63,9 @@ def test_gregoret13_mandibular_plane_remains_fail_closed_without_exact_construct
     assert "M_FH_GOME_DEG_V1" not in {
         item["measurement_id"] for item in data["measurements"]
     }
+
+
+def test_gregoret13_mandibular_plane_registry_remains_execution_blocked():
+    item = canonical_measurement("M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1")
+    assert item is not None
+    assert item.source_status == "SOURCE_LOCKED_EXECUTION_CONSTRUCTION_REQUIRED"
