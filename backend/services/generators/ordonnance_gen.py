@@ -285,7 +285,7 @@ class OrdonnanceGenerator:
             )
             
             warning_style = ParagraphStyle(
-                'RadioWarning', parent=self.styles['Normal'], fontName=med_font, fontSize=max(10 * compression_factor, 6),
+                'RadioWarning', parent=self.styles['Normal'], fontName=med_font, fontSize=max(10 * compression_factor, MIN_READABLE_SIZE),
                 textColor=colors.HexColor("#7F1D1D"), leftIndent=1.5*cm, spaceBefore=2, spaceAfter=poso_space_after,
                 italic=True
             )
