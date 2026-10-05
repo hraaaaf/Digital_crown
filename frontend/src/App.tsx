@@ -45,6 +45,7 @@ const PatientCompanionApp = lazy(() => import('./features/patient-companion/Pati
 const HubPage = lazy(() => import('./features/hub/HubPage').then(m => ({ default: m.HubPage })));
 const WorkstationExperiencePage = lazy(() => import('./features/hub/WorkstationExperiencePage').then(m => ({ default: m.WorkstationExperiencePage })));
 const WorkstationModeGate = lazy(() => import('./features/hub/WorkstationModeGate').then(m => ({ default: m.WorkstationModeGate })));
+const StationWallDisplay = lazy(() => import('./features/hub/StationWallDisplay').then(m => ({ default: m.StationWallDisplay })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -373,6 +374,7 @@ function App() {
         {/* V1.5 workstation Hub: data-free dispatcher remains available even if cabinet backend is down. */}
         <Route path="/hub" element={<Suspense fallback={<PageLoader />}><WorkstationModeGate target="hub"><HubPage /></WorkstationModeGate></Suspense>} />
         <Route path="/station" element={<Suspense fallback={<PageLoader />}><WorkstationModeGate target="station"><WorkstationExperiencePage experience="station" /></WorkstationModeGate></Suspense>} />
+        <Route path="/station/wall" element={<Suspense fallback={<PageLoader />}><WorkstationModeGate target="station"><StationWallDisplay /></WorkstationModeGate></Suspense>} />
         <Route path="/control-center" element={<Suspense fallback={<PageLoader />}><WorkstationModeGate target="control-center"><WorkstationExperiencePage experience="control-center" /></WorkstationModeGate></Suspense>} />
 
         {/* Patient Companion: local-first patient boundary paired by one-time QR/code */}
