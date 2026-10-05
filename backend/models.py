@@ -711,6 +711,9 @@ class CabinetConfig(Base):
     station_identification_fallback: Mapped[str] = mapped_column(
         String(24), default="disabled", server_default="disabled", nullable=False
     )
+    wall_display_identity_mode: Mapped[str] = mapped_column(
+        String(16), default="initials", server_default="initials", nullable=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())

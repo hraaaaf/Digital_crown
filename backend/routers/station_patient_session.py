@@ -5,7 +5,7 @@ import hashlib
 import re
 import secrets
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -25,10 +25,19 @@ from backend.routers.patient_companion_common import (
 from backend.routers.workstation_mode import _find_workstation, _require_pin
 from backend.services.qr_service import qr_service
 from backend.services.station_arrival_bridge import (
+    cabinet_local_day_bounds,
     list_station_patient_appointments_for_today,
     mark_station_appointment_arrived,
     serialize_station_appointment,
     station_appointment_for_today,
+)
+from backend.services.station_wall_display import (
+    WALL_CALL_TTL_SECONDS,
+    bounded_public_waiting_entries,
+    latest_active_wall_call,
+    public_identity_label,
+    waiting_appointments,
+    wall_identity_mode,
 )
 
 router = APIRouter()
@@ -56,6 +65,11 @@ class StationPatientFallbackConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     fallbackMode: Literal["phone_dob", "name_dob", "disabled"]
     ownerPin: str = Field(pattern=r"^\d{4,8}$")
+
+
+class StationWallCall(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ticketNumber: int | None = Field(default=None, ge=1, le=999)
 
 
 def _hash(raw: str) -> str:
@@ -576,6 +590,140 @@ def acknowledge_station_staff_assistance(
         db.commit()
     response.headers["Cache-Control"] = "no-store"
     return {"status": "ACKNOWLEDGED", "alertId": alert_id}
+
+
+@router.get("/wall-display")
+def station_wall_display(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    workstation = _station_or_423(request, db, current_user)
+    waiting = waiting_appointments(db, employer_id=workstation.employer_id)
+    identity_mode = wall_identity_mode(db, workstation.employer_id)
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "waitingCount": len(waiting),
+        "entries": bounded_public_waiting_entries(waiting, mode=identity_mode),
+        "currentCall": latest_active_wall_call(
+            db,
+            employer_id=workstation.employer_id,
+            mode=identity_mode,
+        ),
+        "callTtlSeconds": WALL_CALL_TTL_SECONDS,
+        "identityMode": identity_mode,
+    }
+
+
+@router.post("/wall-display/appointments/{appointment_id}/call")
+def call_patient_on_station_wall(
+    appointment_id: int,
+    body: StationWallCall,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = int(current_user.get_employer_id())
+    now = datetime.now()
+    start, end = cabinet_local_day_bounds(now)
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite:
+        db.commit()
+        db.execute(text("BEGIN IMMEDIATE"))
+    else:
+        db.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": employer_id})
+
+    query = db.query(models.Appointment).filter(
+        models.Appointment.id == appointment_id,
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
+        models.Appointment.datetime_start >= start,
+        models.Appointment.datetime_start < end,
+        models.Appointment.status == models.AppointmentStatus.EN_SALLE_ATTENTE,
+    )
+    appointment = query.first() if sqlite else query.with_for_update().first()
+    if appointment is None:
+        if sqlite:
+            db.rollback()
+        raise HTTPException(status_code=404, detail="WALL_DISPLAY_APPOINTMENT_NOT_CALLABLE")
+
+    persisted_ticket = int(appointment.ticket_number) if appointment.ticket_number is not None else None
+    persisted_valid = persisted_ticket is not None and 1 <= persisted_ticket <= 999
+    persisted_collision = None
+    if persisted_valid:
+        persisted_collision = db.query(models.Appointment.id).filter(
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.id != appointment.id,
+            models.Appointment.deleted_at.is_(None),
+            models.Appointment.datetime_start >= start,
+            models.Appointment.datetime_start < end,
+            models.Appointment.status == models.AppointmentStatus.EN_SALLE_ATTENTE,
+            models.Appointment.ticket_number == persisted_ticket,
+        ).first()
+
+    repair_required = persisted_ticket is not None and (
+        not persisted_valid or persisted_collision is not None
+    )
+    if persisted_ticket is None:
+        if body.ticketNumber is None:
+            if sqlite:
+                db.rollback()
+            raise HTTPException(status_code=409, detail="WALL_DISPLAY_TICKET_REQUIRED")
+        ticket_number = int(body.ticketNumber)
+    elif repair_required:
+        if body.ticketNumber is None:
+            if sqlite:
+                db.rollback()
+            detail = "WALL_DISPLAY_TICKET_INVALID" if not persisted_valid else "WALL_DISPLAY_TICKET_IN_USE"
+            raise HTTPException(status_code=409, detail=detail)
+        ticket_number = int(body.ticketNumber)
+    else:
+        ticket_number = persisted_ticket
+        if body.ticketNumber is not None and int(body.ticketNumber) != ticket_number:
+            if sqlite:
+                db.rollback()
+            raise HTTPException(status_code=409, detail="WALL_DISPLAY_TICKET_MISMATCH")
+
+    collision = db.query(models.Appointment.id).filter(
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.id != appointment.id,
+        models.Appointment.deleted_at.is_(None),
+        models.Appointment.datetime_start >= start,
+        models.Appointment.datetime_start < end,
+        models.Appointment.status == models.AppointmentStatus.EN_SALLE_ATTENTE,
+        models.Appointment.ticket_number == ticket_number,
+    ).first()
+    if collision is not None:
+        if sqlite:
+            db.rollback()
+        raise HTTPException(status_code=409, detail="WALL_DISPLAY_TICKET_IN_USE")
+
+    if appointment.ticket_number != ticket_number:
+        appointment.ticket_number = ticket_number
+
+    event = models.AuditLog(
+        timestamp=datetime.utcnow(),
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="STATION_WALL_PATIENT_CALLED",
+        resource_type="Appointment",
+        resource_id=str(appointment.id),
+        details=f"Staff-triggered wall call; display_ticket={ticket_number}; ttl_seconds={WALL_CALL_TTL_SECONDS}.",
+        ip_address=request.client.host if request.client else None,
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    response.headers["Cache-Control"] = "no-store"
+    identity_mode = wall_identity_mode(db, employer_id)
+    return {
+        "status": "CALLED",
+        "ticketNumber": ticket_number,
+        "identityLabel": public_identity_label(appointment, identity_mode),
+        "expiresAt": (event.timestamp + timedelta(seconds=WALL_CALL_TTL_SECONDS)).replace(tzinfo=timezone.utc),
+    }
 
 
 @router.post("/patient-session/{session_id}/appointments/{appointment_id}/arrive")

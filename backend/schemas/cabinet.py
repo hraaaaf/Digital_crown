@@ -150,6 +150,7 @@ class CabinetConfigBase(BaseModel):
     show_patient_badges: bool = Field(default=True)
     performance_mode: bool = Field(default=False)
     clinical_tips_enabled: bool = Field(default=True)
+    wall_display_identity_mode: Literal["initials", "full_name", "number_only"] = Field(default="initials")
     hide_header: bool = Field(default=True)
     hide_footer: bool = Field(default=True)
     clinic_id: Optional[str] = Field(default=None, max_length=36)

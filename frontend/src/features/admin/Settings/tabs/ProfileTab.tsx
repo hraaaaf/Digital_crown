@@ -569,6 +569,56 @@ export const ProfileTab: React.FC = () => {
       </div>
 
       <SettingsSection
+        title="Affichage écran mural"
+        subtitle="Choisissez comment identifier les patients sur l’écran visible depuis la salle d’attente."
+        icon={<Users size={20} />}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {([
+            {
+              value: 'initials',
+              title: 'Initiales',
+              description: 'Ex. A. B. — recommandé pour préserver la confidentialité.',
+            },
+            {
+              value: 'full_name',
+              title: 'Nom complet',
+              description: 'Ex. Aya Benali — identité visible publiquement dans la salle d’attente.',
+            },
+            {
+              value: 'number_only',
+              title: 'Numéro uniquement',
+              description: 'Ex. N° 12 — aucun nom ni initiale affiché.',
+            },
+          ] as const).map((option) => {
+            const active = (profile.wall_display_identity_mode ?? 'initials') === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => updateProfile({ wall_display_identity_mode: option.value })}
+                className={cn(
+                  "rounded-2xl border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  active ? "border-primary bg-primary/5 shadow-sm" : "border-slate-100 bg-white hover:border-slate-200"
+                )}
+              >
+                <span className={cn("block text-sm font-black", active ? "text-primary" : "text-slate-800")}>
+                  {option.title}
+                </span>
+                <span className="mt-2 block text-xs font-medium leading-relaxed text-slate-500">
+                  {option.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-4 text-[11px] font-semibold leading-relaxed text-slate-500">
+          Le mode par défaut est « Initiales ». Le choix « Nom complet » rend volontairement l’identité du patient visible sur un écran public.
+        </p>
+      </SettingsSection>
+
+      <SettingsSection
         title="Contacts & Visibilité"
         subtitle="Gérez vos numéros de contact en pied de page."
         icon={<Smartphone size={20} />}

@@ -23,6 +23,7 @@ export interface DashboardAppointment {
   status: string;
   description?: string | null;
   patient_id?: number | null;
+  ticket_number?: number | null;
   patient?: {
     id?: number;
     nom: string;

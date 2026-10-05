@@ -79,6 +79,18 @@ describe('useSettingsStore saveProfile truth contract', () => {
     );
   });
 
+  it('persists the selected wall display identity mode with the cabinet profile', async () => {
+    putMock.mockResolvedValueOnce({ data: {} } as any);
+
+    useSettingsStore.getState().updateProfile({ wall_display_identity_mode: 'number_only' });
+    await useSettingsStore.getState().saveProfile();
+
+    expect(putMock).toHaveBeenCalledWith(
+      '/clinics/me',
+      expect.objectContaining({ wall_display_identity_mode: 'number_only' }),
+    );
+  });
+
   it('keeps runtime preferences staged until backend persistence succeeds', async () => {
     localStorage.setItem('performanceMode', 'false');
     putMock.mockResolvedValueOnce({ data: {} } as any);

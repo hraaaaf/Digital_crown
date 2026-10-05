@@ -762,3 +762,312 @@ def test_staff_assistance_feed_requires_agenda_permission(client, db, dentiste):
     db.commit()
     restricted_headers = _login(client, restricted.email)
     assert client.get("/api/workstation/staff-assistance", headers=restricted_headers).status_code == 403
+
+
+def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    patient, _, _ = _patient_context(db, dentiste, dossier="WALL-001", name="Aya")
+    now = datetime.now().replace(hour=10, minute=0, second=0, microsecond=0)
+    visible = _station_appt(
+        db, dentiste, patient, now,
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=12,
+    )
+    visible.motif = "Clinical secret"
+    visible.notes = "Never public"
+    hidden_without_ticket = _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=30),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+    )
+    other = models.User(
+        email="wall.other.owner@cabinet.ma",
+        hashed_password=get_password_hash("OtherPass123!"),
+        role=models.UserRole.DENTISTE,
+        nom_complet="Other Wall Owner",
+        is_active=True,
+        is_licensed=True,
+        employer_id=None,
+    )
+    db.add(other)
+    db.flush()
+    other_patient, _, _ = _patient_context(db, other, dossier="WALL-OTHER", name="Outside")
+    other_appt = _station_appt(
+        db, other, other_patient, now + timedelta(minutes=10),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=88,
+    )
+    db.commit()
+
+    wall = client.get("/api/workstation/wall-display", headers=headers)
+    assert wall.status_code == 200, wall.text
+    assert wall.headers["cache-control"] == "no-store"
+    payload = wall.json()
+    assert payload["waitingCount"] == 2
+    assert payload["entries"] == [{"ticketNumber": 12, "identityLabel": "A. A."}]
+    assert all(item["ticketNumber"] != 88 for item in payload["entries"])
+    assert payload["currentCall"] is None
+    serialized = wall.text
+    assert "Aya" not in serialized
+    assert "Audit" not in serialized
+    assert "Clinical secret" not in serialized
+    assert "Never public" not in serialized
+    assert set(payload) == {"waitingCount", "entries", "currentCall", "callTtlSeconds", "identityMode"}
+    assert payload["identityMode"] == "initials"
+    assert all(set(item) == {"ticketNumber", "identityLabel"} for item in payload["entries"])
+
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentiste.id).first()
+    if config is None:
+        config = models.CabinetConfig(
+            owner_id=dentiste.id,
+            nom_cabinet="Cabinet Wall Test",
+            nom_praticien="Dr Wall Test",
+            is_initialized=True,
+        )
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+    config.wall_display_identity_mode = "full_name"
+    db.commit()
+    full_name_feed = client.get("/api/workstation/wall-display", headers=headers)
+    assert full_name_feed.status_code == 200
+    assert full_name_feed.json()["identityMode"] == "full_name"
+    assert full_name_feed.json()["entries"] == [{"ticketNumber": 12, "identityLabel": "Aya Audit"}]
+    assert "Clinical secret" not in full_name_feed.text
+    assert "Never public" not in full_name_feed.text
+
+    config.wall_display_identity_mode = "number_only"
+    db.commit()
+    number_only_feed = client.get("/api/workstation/wall-display", headers=headers)
+    assert number_only_feed.status_code == 200
+    assert number_only_feed.json()["identityMode"] == "number_only"
+    assert number_only_feed.json()["entries"] == [{"ticketNumber": 12, "identityLabel": None}]
+    assert "Aya" not in number_only_feed.text
+    assert "Audit" not in number_only_feed.text
+
+    config.wall_display_identity_mode = "initials"
+    db.commit()
+
+    cross_tenant_call = client.post(
+        f"/api/workstation/wall-display/appointments/{other_appt.id}/call",
+        headers=headers,
+        json={"ticketNumber": 89},
+    )
+    assert cross_tenant_call.status_code == 404
+
+    called = client.post(
+        f"/api/workstation/wall-display/appointments/{hidden_without_ticket.id}/call",
+        headers=headers,
+        json={"ticketNumber": 23},
+    )
+    assert called.status_code == 200, called.text
+    assert called.headers["cache-control"] == "no-store"
+    assert called.json()["status"] == "CALLED"
+    assert called.json()["ticketNumber"] == 23
+    assert called.json()["identityLabel"] == "A. A."
+    assert called.json()["expiresAt"].endswith("+00:00")
+
+    db.expire_all()
+    refreshed = db.query(models.Appointment).filter(
+        models.Appointment.id == hidden_without_ticket.id
+    ).one()
+    assert refreshed.ticket_number == 23
+    assert refreshed.status == models.AppointmentStatus.EN_SALLE_ATTENTE
+
+    event = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_WALL_PATIENT_CALLED",
+        models.AuditLog.resource_id == str(hidden_without_ticket.id),
+    ).one()
+    assert "Aya" not in (event.details or "")
+    assert "Audit" not in (event.details or "")
+
+    shared = client.get("/api/workstation/wall-display", headers=headers)
+    assert shared.status_code == 200
+    shared_payload = shared.json()
+    assert set(shared_payload["currentCall"]) == {"ticketNumber", "identityLabel", "expiresAt"}
+    assert shared_payload["currentCall"]["expiresAt"].endswith("+00:00")
+    assert shared_payload["currentCall"]["ticketNumber"] == 23
+    assert {item["ticketNumber"] for item in shared_payload["entries"]} == {12, 23}
+
+    config.wall_display_identity_mode = "full_name"
+    db.commit()
+    full_name_call = client.get("/api/workstation/wall-display", headers=headers).json()
+    assert full_name_call["currentCall"]["identityLabel"] == "Aya Audit"
+    assert "Clinical secret" not in str(full_name_call)
+    assert "Never public" not in str(full_name_call)
+
+    config.wall_display_identity_mode = "number_only"
+    db.commit()
+    number_only_call = client.get("/api/workstation/wall-display", headers=headers).json()
+    assert number_only_call["currentCall"]["identityLabel"] is None
+    assert all(item["identityLabel"] is None for item in number_only_call["entries"])
+    assert "Aya" not in str(number_only_call)
+    assert "Audit" not in str(number_only_call)
+
+    config.wall_display_identity_mode = "initials"
+    db.commit()
+
+    ambiguous = _station_appt(
+        db,
+        dentiste,
+        patient,
+        now + timedelta(minutes=45),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=23,
+    )
+    ambiguous_feed = client.get("/api/workstation/wall-display", headers=headers)
+    assert ambiguous_feed.status_code == 200
+    assert ambiguous_feed.json()["currentCall"] is None
+    ambiguous.status = models.AppointmentStatus.PREVU
+    db.commit()
+    recovered = client.get("/api/workstation/wall-display", headers=headers)
+    assert recovered.status_code == 200
+    assert recovered.json()["currentCall"]["ticketNumber"] == 23
+
+    event.timestamp = datetime.utcnow() - timedelta(seconds=shared_payload["callTtlSeconds"] + 1)
+    db.commit()
+    expired = client.get("/api/workstation/wall-display", headers=headers)
+    assert expired.status_code == 200
+    assert expired.json()["currentCall"] is None
+
+
+
+def test_wall_display_caps_public_identifiers_but_keeps_total_count(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    patient, _, _ = _patient_context(db, dentiste, dossier="WALL-BOUNDED", name="Bounded")
+    now = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
+    for index in range(12):
+        _station_appt(
+            db,
+            dentiste,
+            patient,
+            now + timedelta(minutes=index),
+            status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+            ticket_number=100 + index,
+        )
+
+    _station_appt(
+        db,
+        dentiste,
+        patient,
+        now + timedelta(minutes=12),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=101,
+    )
+    _station_appt(
+        db,
+        dentiste,
+        patient,
+        now + timedelta(minutes=13),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=1000,
+    )
+
+    wall = client.get("/api/workstation/wall-display", headers=headers)
+    assert wall.status_code == 200, wall.text
+    payload = wall.json()
+    assert payload["waitingCount"] == 14
+    assert len(payload["entries"]) == 8
+    assert [item["ticketNumber"] for item in payload["entries"]] == [100, 102, 103, 104, 105, 106, 107, 108]
+    assert 101 not in {item["ticketNumber"] for item in payload["entries"]}
+    assert 1000 not in {item["ticketNumber"] for item in payload["entries"]}
+
+
+
+def test_wall_call_requires_waiting_state_and_unique_explicit_ticket(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    patient, _, _ = _patient_context(db, dentiste, dossier="WALL-002", name="Nora")
+    now = datetime.now().replace(hour=11, minute=0, second=0, microsecond=0)
+    first = _station_appt(
+        db, dentiste, patient, now,
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=44,
+    )
+    second = _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=20),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+    )
+    future = _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=40),
+        status=models.AppointmentStatus.PREVU,
+    )
+
+    missing = client.post(
+        f"/api/workstation/wall-display/appointments/{second.id}/call",
+        headers=headers,
+        json={},
+    )
+    assert missing.status_code == 409
+    assert missing.json()["detail"] == "WALL_DISPLAY_TICKET_REQUIRED"
+
+    collision = client.post(
+        f"/api/workstation/wall-display/appointments/{second.id}/call",
+        headers=headers,
+        json={"ticketNumber": 44},
+    )
+    assert collision.status_code == 409
+    assert collision.json()["detail"] == "WALL_DISPLAY_TICKET_IN_USE"
+
+    wrong_state = client.post(
+        f"/api/workstation/wall-display/appointments/{future.id}/call",
+        headers=headers,
+        json={"ticketNumber": 45},
+    )
+    assert wrong_state.status_code == 404
+    assert wrong_state.json()["detail"] == "WALL_DISPLAY_APPOINTMENT_NOT_CALLABLE"
+
+    mismatch = client.post(
+        f"/api/workstation/wall-display/appointments/{first.id}/call",
+        headers=headers,
+        json={"ticketNumber": 45},
+    )
+    assert mismatch.status_code == 409
+    assert mismatch.json()["detail"] == "WALL_DISPLAY_TICKET_MISMATCH"
+
+    invalid_legacy = _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=60),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=1000,
+    )
+    invalid_call = client.post(
+        f"/api/workstation/wall-display/appointments/{invalid_legacy.id}/call",
+        headers=headers,
+        json={},
+    )
+    assert invalid_call.status_code == 409
+    assert invalid_call.json()["detail"] == "WALL_DISPLAY_TICKET_INVALID"
+
+    repaired_invalid = client.post(
+        f"/api/workstation/wall-display/appointments/{invalid_legacy.id}/call",
+        headers=headers,
+        json={"ticketNumber": 45},
+    )
+    assert repaired_invalid.status_code == 200, repaired_invalid.text
+    db.refresh(invalid_legacy)
+    assert invalid_legacy.ticket_number == 45
+
+    duplicate_a = _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=70),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=46,
+    )
+    _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=80),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=46,
+    )
+    duplicate_call = client.post(
+        f"/api/workstation/wall-display/appointments/{duplicate_a.id}/call",
+        headers=headers,
+        json={},
+    )
+    assert duplicate_call.status_code == 409
+    assert duplicate_call.json()["detail"] == "WALL_DISPLAY_TICKET_IN_USE"
+
+    repaired_duplicate = client.post(
+        f"/api/workstation/wall-display/appointments/{duplicate_a.id}/call",
+        headers=headers,
+        json={"ticketNumber": 47},
+    )
+    assert repaired_duplicate.status_code == 200, repaired_duplicate.text
+    db.refresh(duplicate_a)
+    assert duplicate_a.ticket_number == 47

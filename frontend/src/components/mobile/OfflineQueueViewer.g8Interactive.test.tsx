@@ -6,14 +6,24 @@ const state = vi.hoisted(() => ({
   queue: [] as Array<{ id:string; url:string; method:string; timestamp:number }>,
   isOffline: false,
 }));
+const route = vi.hoisted(() => ({ pathname: '/dashboard' }));
+const hookCalls = vi.hoisted(() => vi.fn());
 
 vi.mock('../../hooks/useOfflineQueue', () => ({
-  useOfflineQueue: () => state,
+  useOfflineQueue: () => {
+    hookCalls();
+    return state;
+  },
+}));
+vi.mock('react-router-dom', () => ({
+  useLocation: () => route,
 }));
 
 beforeEach(() => {
   state.queue = [];
   state.isOffline = false;
+  route.pathname = '/dashboard';
+  hookCalls.mockClear();
 });
 afterEach(() => cleanup());
 
@@ -48,6 +58,17 @@ describe('OfflineQueueViewer G8 transverse matrix', () => {
     expect(screen.getByText('Synchronisation...')).toBeTruthy();
     expect(screen.queryByText('Mode Hors-ligne')).toBeNull();
     expect(screen.getByText('1 action')).toBeTruthy();
+  });
+
+  it('stays hidden on the public wall even when staff offline actions exist', () => {
+    route.pathname = '/station/wall';
+    state.isOffline = true;
+    state.queue = [{ id:'a1', url:'https://local.test/api/patients/7', method:'PATCH', timestamp:Date.now() }];
+    render(<OfflineQueueViewer />);
+
+    expect(screen.queryByText('Mode Hors-ligne')).toBeNull();
+    expect(screen.queryByText('7')).toBeNull();
+    expect(hookCalls).not.toHaveBeenCalled();
   });
 
   it('shows offline with zero queued actions without claiming pending mutations', () => {
