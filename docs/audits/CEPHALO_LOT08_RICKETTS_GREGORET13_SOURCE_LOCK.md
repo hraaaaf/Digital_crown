@@ -333,9 +333,9 @@ Source-specific identities:
 - `DC_Ricketts`: bisecting/central point of the condylar neck used by the condylar axis.
 
 Fail-closed rules:
-- `DC_Ricketts` is not silently aliased to `Co`, `Co_anatomic`, or `D_point`;
-- `Xi_Ricketts` is not silently aliased to `Go`, `Ar`, or `PT_point`;
-- `Pm_Ricketts` is not silently aliased to `Pog`, `Pog_hard`, or `B`;
+- `DC_Ricketts` is not silently aliased to generic `DC`, `Co`, `Co_anatomic`, or `D_point`;
+- `Xi_Ricketts` is not silently aliased to generic `Xi`, `Go`, `Ar`, or `PT_point`;
+- `Pm_Ricketts` is not silently aliased to generic `Pm`, `Pog`, `Pog_hard`, `B`, or `Me`;
 - no automatic DC/Xi/Pm landmark authority is created in this slice;
 - runtime remains `BLOCKED_LANDMARK` until explicit manual/constructed identities are represented by a validated canonical evidence contract.
 
