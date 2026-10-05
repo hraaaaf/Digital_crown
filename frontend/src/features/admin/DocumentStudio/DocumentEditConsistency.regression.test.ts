@@ -51,6 +51,13 @@ describe('document edit consistency regression', () => {
     expect(documentHub).toContain("type === 'lettre_medicale'");
   });
 
+  it('routes archive edits to the matching document studio tab', () => {
+    expect(patientDetails).toContain("next.set('documentTab', documentTab)");
+    expect(patientDetails).toContain("editType === 'document_libre'");
+    expect(patientDetails).toContain("editType === 'lettre_medicale'");
+    expect(patientDetails).toContain("editType === 'devis' ? 'devis' : 'honoraires'");
+  });
+
   it('hydrates the complete honoraires financial state before regeneration', () => {
     expect(patientDocuments).toContain('payment_status?: string');
     expect(patientDocuments).toContain('is_accounted?: boolean');
