@@ -831,6 +831,7 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert called.json()["status"] == "CALLED"
     assert called.json()["ticketNumber"] == 23
     assert called.json()["initials"] == "A. A."
+    assert called.json()["expiresAt"].endswith("+00:00")
 
     db.expire_all()
     refreshed = db.query(models.Appointment).filter(
@@ -853,6 +854,23 @@ def test_wall_display_is_pseudonymous_shared_and_call_is_bounded(client, db, den
     assert shared_payload["currentCall"]["expiresAt"].endswith("+00:00")
     assert shared_payload["currentCall"]["ticketNumber"] == 23
     assert {item["ticketNumber"] for item in shared_payload["entries"]} == {12, 23}
+
+    ambiguous = _station_appt(
+        db,
+        dentiste,
+        patient,
+        now + timedelta(minutes=45),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=23,
+    )
+    ambiguous_feed = client.get("/api/workstation/wall-display", headers=headers)
+    assert ambiguous_feed.status_code == 200
+    assert ambiguous_feed.json()["currentCall"] is None
+    ambiguous.status = models.AppointmentStatus.PREVU
+    db.commit()
+    recovered = client.get("/api/workstation/wall-display", headers=headers)
+    assert recovered.status_code == 200
+    assert recovered.json()["currentCall"]["ticketNumber"] == 23
 
     event.timestamp = datetime.utcnow() - timedelta(seconds=shared_payload["callTtlSeconds"] + 1)
     db.commit()
