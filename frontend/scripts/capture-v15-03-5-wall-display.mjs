@@ -51,7 +51,7 @@ for (const width of widths) {
     const currentCall = wallState === 'calling'
       ? {
           ticketNumber: 23,
-          initials: 'N. E.',
+          identityLabel: 'N. E.',
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
         }
       : null;
@@ -61,13 +61,14 @@ for (const width of widths) {
       body: JSON.stringify({
         waitingCount: 5,
         entries: [
-          { ticketNumber: 12, initials: 'A. B.' },
-          { ticketNumber: 18, initials: 'S. A.' },
-          { ticketNumber: 23, initials: 'N. E.' },
-          { ticketNumber: 31, initials: 'Y. M.' },
+          { ticketNumber: 12, identityLabel: 'A. B.' },
+          { ticketNumber: 18, identityLabel: 'S. A.' },
+          { ticketNumber: 23, identityLabel: 'N. E.' },
+          { ticketNumber: 31, identityLabel: 'Y. M.' },
         ],
         currentCall,
         callTtlSeconds: 20,
+        identityMode: 'initials',
       }),
     });
   });
@@ -96,7 +97,7 @@ for (const width of widths) {
 
 await browser.close();
 await fs.writeFile(path.join(outDir, 'evidence.json'), JSON.stringify({
-  target: 'Distinct premium public wall: initials + explicit queue number only; bounded staff call; no clinical/full-name data.',
+  target: 'Distinct premium public wall with cabinet-configurable identity display; default initials; bounded staff call; no clinical data.',
   beforeReference: 'Existing Station kiosk, intentionally unchanged by 03.5.',
   viewports: evidence,
 }, null, 2));
