@@ -162,7 +162,9 @@ export const StationWallDisplay = () => {
               <div className="mt-4 font-outfit text-6xl font-black tracking-tight sm:text-8xl lg:text-9xl">
                 N° {activeCall.ticketNumber}
               </div>
-              <div className="mt-4 text-2xl font-black text-text-muted sm:text-4xl">{activeCall.identityLabel && <div className="mt-4 text-2xl font-black text-text-muted sm:text-4xl">{activeCall.identityLabel}</div>}</div>
+              {activeCall.identityLabel && (
+                <div className="mt-4 text-2xl font-black text-text-muted sm:text-4xl">{activeCall.identityLabel}</div>
+              )}
               <p className="mx-auto mt-7 max-w-2xl text-lg font-semibold text-text-muted sm:text-2xl">
                 Merci de vous présenter à l’accueil.
               </p>
@@ -180,12 +182,14 @@ export const StationWallDisplay = () => {
               <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                 {visibleEntries.map(entry => (
                   <div
-                    key={`${entry.ticketNumber}-${entry.initials}`}
+                    key={`${entry.ticketNumber}-${entry.identityLabel ?? 'number-only'}`}
                     className="rounded-elite-lg border border-border-main bg-card-bg p-4 text-center shadow-elite sm:p-6"
                   >
                     <p className="text-xs font-black uppercase tracking-widest text-text-muted">N° de file</p>
                     <p className="mt-2 font-outfit text-3xl font-black sm:text-4xl">{entry.ticketNumber}</p>
-                    <p className="mt-2 text-base font-black text-primary sm:text-lg">{entry.initials}</p>
+                    {entry.identityLabel && (
+                      <p className="mt-2 text-base font-black text-primary sm:text-lg">{entry.identityLabel}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -200,7 +204,11 @@ export const StationWallDisplay = () => {
         </section>
 
         <footer className="border-t border-border-main pt-4 text-center text-xs font-bold text-text-muted">
-          Affichage public pseudonymisé · aucune donnée clinique
+          {snapshot?.identityMode === 'full_name'
+            ? 'Affichage public configuré avec nom complet · aucune donnée clinique'
+            : snapshot?.identityMode === 'number_only'
+              ? 'Affichage public par numéro uniquement · aucune donnée clinique'
+              : 'Affichage public pseudonymisé · aucune donnée clinique'}
         </footer>
       </div>
     </main>
