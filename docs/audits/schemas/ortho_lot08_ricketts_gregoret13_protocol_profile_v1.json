@@ -33,13 +33,13 @@
       "order": 4,
       "measurement_id": "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",
       "state": "BLOCKED_LANDMARK",
-      "gate": "XI_PM_REQUIRED"
+      "gate": "XI_RICKETTS_PM_RICKETTS_REQUIRED"
     },
     {
       "order": 5,
       "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
       "state": "BLOCKED_LANDMARK",
-      "gate": "DC_XI_PM_REQUIRED"
+      "gate": "DC_RICKETTS_XI_RICKETTS_PM_RICKETTS_REQUIRED"
     },
     {
       "order": 6,
