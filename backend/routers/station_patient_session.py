@@ -677,6 +677,7 @@ def call_patient_on_station_wall(
         appointment.ticket_number = ticket_number
 
     event = models.AuditLog(
+        timestamp=datetime.utcnow(),
         user_id=current_user.id,
         employer_id=employer_id,
         action="STATION_WALL_PATIENT_CALLED",
