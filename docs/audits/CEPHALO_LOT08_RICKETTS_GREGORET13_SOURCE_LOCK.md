@@ -299,3 +299,23 @@ Digital Crown decision:
 - no norm/classification is activated.
 
 This refinement closes the semantic alias risk but does not make the measurement executable.
+
+
+## A7 Ricketts functional occlusal plane / lower-incisor extrusion — 2026-10-05
+
+Source synthesis:
+- Gregoret summarized Ricketts material defines lower-incisor extrusion as the distance from the lower incisal edge to the occlusal plane, with historical reference +1.25 mm ± 2 mm.
+- Ricketts 1981 documents the clinical behavior and orientation of the occlusal plane in relation to the denture/Xi region but does not, in the source material recovered here, provide enough explicit anchor detail to promote a new automatic construction.
+- General cephalometric literature distinguishes the functional occlusal plane from an anatomic/incisor-molar plane and describes it through the posterior occlusion (molar/premolar interdigitation). That supporting convention is not sufficient by itself to create Ricketts-specific landmark authority in Digital Crown.
+
+Digital Crown contract:
+- measurement ID: `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1`;
+- target point: explicit lower incisal edge `L1_incisal`;
+- reference: Ricketts functional occlusal plane;
+- unit: mm;
+- historical Gregoret reference: +1.25 mm ± 2 mm, reference-display only;
+- `M_OCCLUSAL_PLANE_SN_DEG_V1` and any Steiner/Downs/anatomic occlusal-plane construction are forbidden silent substitutes;
+- no new molar/premolar landmark authority is introduced by this source-lock;
+- runtime remains `BLOCKED_CONSTRUCTION` until the exact Ricketts functional-occlusal anchors/construction are independently validated and versioned.
+
+This slice therefore source-locks meaning and non-substitution rules, not execution.
