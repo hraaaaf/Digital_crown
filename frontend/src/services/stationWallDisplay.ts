@@ -1,8 +1,10 @@
 import { api } from './api';
 
+export type WallIdentityMode = 'initials' | 'full_name' | 'number_only';
+
 export type WallDisplayEntry = {
   ticketNumber: number;
-  initials: string;
+  identityLabel: string | null;
 };
 
 export type WallDisplayCall = WallDisplayEntry & {
@@ -14,6 +16,7 @@ export type WallDisplaySnapshot = {
   entries: WallDisplayEntry[];
   currentCall: WallDisplayCall | null;
   callTtlSeconds: number;
+  identityMode: WallIdentityMode;
 };
 
 export const stationWallDisplayService = {
