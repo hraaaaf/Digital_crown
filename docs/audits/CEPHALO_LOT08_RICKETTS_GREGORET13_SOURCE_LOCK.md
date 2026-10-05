@@ -71,11 +71,13 @@ Used only for canonical mapping and executable/blocking status.
 - Unit: degrees.
 - Historical reference: 26° ± 4°.
 - Age behavior: conflicting transcription exists; Gregoret VERT tables and independent educational sources support approximately **+0.5°/year**.
-- LOT06: no exact canonical executable ID.
-- Required identities: DC, Xi, Pm.
-- Runtime: **BLOCKED_LANDMARK + NEW_CANONICAL_ID**.
+- LOT06 canonical ID: `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1`.
+- Required source-specific scientific identities: `DC_Ricketts`, `Xi_Ricketts`, `Pm_Ricketts`.
+- Condylar axis: `DC_Ricketts-Xi_Ricketts`.
+- Corpus axis: `Xi_Ricketts-Pm_Ricketts`; mandibular arc uses its distal extrapolation at Xi.
+- Runtime: **BLOCKED_LANDMARK** — no automatic DC/Xi/Pm authority is validated.
 - Norm status: **QUARANTINED_AGE_ADJUSTMENT** until the +0.5°/year source line is rechecked against an authoritative edition.
-- Profile status: **SOURCE_LOCKED_GEOMETRY / NORM_DELTA_QUARANTINED**.
+- Profile status: **SOURCE_LOCKED_GEOMETRY / FAIL_CLOSED_LANDMARK / NORM_DELTA_QUARANTINED**.
 
 ### 6. Facial convexity
 - Definition: perpendicular distance from Point A to the facial plane `N-Pog`.
@@ -319,3 +321,25 @@ Digital Crown contract:
 - runtime remains `BLOCKED_CONSTRUCTION` until the exact Ricketts functional-occlusal anchors/construction are independently validated and versioned.
 
 This slice therefore source-locks meaning and non-substitution rules, not execution.
+
+
+## A8 Ricketts mandibular arc identity contract — 2026-10-05
+
+The mandibular arc is source-locked as the angle formed by the Ricketts condylar axis `DC_Ricketts-Xi_Ricketts` and the distal extrapolation of the corpus axis `Xi_Ricketts-Pm_Ricketts`, with Xi as the shared construction center.
+
+Source-specific identities:
+- `Xi_Ricketts`: geometric center of the ramus; historical construction uses the R1-R4 ramal rectangle;
+- `Pm_Ricketts`: protuberance menti / stable suprapogonion of the mandibular symphysis;
+- `DC_Ricketts`: bisecting/central point of the condylar neck used by the condylar axis.
+
+Fail-closed rules:
+- `DC_Ricketts` is not silently aliased to `Co`, `Co_anatomic`, or `D_point`;
+- `Xi_Ricketts` is not silently aliased to `Go`, `Ar`, or `PT_point`;
+- `Pm_Ricketts` is not silently aliased to `Pog`, `Pog_hard`, or `B`;
+- no automatic DC/Xi/Pm landmark authority is created in this slice;
+- runtime remains `BLOCKED_LANDMARK` until explicit manual/constructed identities are represented by a validated canonical evidence contract.
+
+Contract artifact:
+`docs/audits/schemas/ortho_lot08_ricketts_mandibular_arc_identity_contract_v1.json`.
+
+Historical 26° ± 4° is reference-display only. The age-adjustment delta remains quarantined and no VERT/classification authority is activated.
