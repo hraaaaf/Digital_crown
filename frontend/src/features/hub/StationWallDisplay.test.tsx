@@ -49,7 +49,6 @@ describe('StationWallDisplay', () => {
       waitingCount: 1,
       entries: [{ ticketNumber: 44, initials: 'S. A.' }],
       currentCall: {
-        callId: 9001,
         ticketNumber: 44,
         initials: 'S. A.',
         expiresAt: new Date(Date.now() + 10_000).toISOString(),
