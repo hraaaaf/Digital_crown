@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Nfc, QrCode, RefreshCw, ShieldCheck } from 'lucide-react';
 import {
   stationPatientSessionService,
@@ -108,6 +108,13 @@ export const StationPatientIdentity = ({
   const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const purgeStartedRef = useRef<Set<string>>(new Set());
+
+  const requestPurge = useCallback((sessionId: string) => {
+    if (purgeStartedRef.current.has(sessionId)) return;
+    purgeStartedRef.current.add(sessionId);
+    void purgeSessionBestEffort(sessionId);
+  }, []);
 
   const start = async () => {
     setStatus('loading');
@@ -162,8 +169,8 @@ export const StationPatientIdentity = ({
   }, [session, status]);
 
   useEffect(() => () => {
-    if (session) void purgeSessionBestEffort(session.sessionId);
-  }, [session]);
+    if (session) requestPurge(session.sessionId);
+  }, [requestPurge, session]);
 
   const expiresLabel = useMemo(() => {
     if (!session) return '';
@@ -195,8 +202,9 @@ export const StationPatientIdentity = ({
   };
 
   const leave = async () => {
-    if (session) await purgeSessionBestEffort(session.sessionId);
+    const sessionId = session?.sessionId;
     onBack();
+    if (sessionId) requestPurge(sessionId);
   };
 
   if (status === 'identified' && session) {
