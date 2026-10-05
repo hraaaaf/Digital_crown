@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BarChart2, ChevronRight, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { cn } from '../utils/cn';
 import { hasAccess } from '../utils/accessControl';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
@@ -26,6 +27,7 @@ import { useDashboardStats } from '../features/dashboard/hooks/useDashboardStats
 import { usePatientSearch } from '../features/dashboard/hooks/usePatientSearch';
 import { useProactiveAlerts } from '../features/dashboard/hooks/useProactiveAlerts';
 import { useTodayAppointments } from '../features/dashboard/hooks/useTodayAppointments';
+import { stationWallDisplayService } from '../services/stationWallDisplay';
 
 const MANAGEMENT_PANEL_ID = 'dashboard-management-panel';
 const FOCUSABLE_SELECTOR = [
@@ -106,6 +108,17 @@ export const Dashboard: React.FC = () => {
     onStatsRefresh: refreshStats,
     onCompleted: handleCompletedAppointment,
   });
+
+  const callPatientOnWall = useCallback(async (appointmentId: number, ticketNumber?: number) => {
+    try {
+      await stationWallDisplayService.callPatient(appointmentId, ticketNumber);
+      await refreshAppointments();
+      toast.success('Appel affiché sur l’écran mural');
+    } catch (error) {
+      toast.error('Impossible d’afficher cet appel');
+      throw error;
+    }
+  }, [refreshAppointments]);
 
   const cabinetHealthState = useCabinetHealth({
     enabled: canAdmin,
@@ -191,6 +204,7 @@ export const Dashboard: React.FC = () => {
           loading={loadingAppointments}
           onRefresh={() => { void refreshAppointments(); }}
           onStatusChange={(appointmentId, status) => { void updateAppointmentStatus(appointmentId, status); }}
+          onCallPatient={callPatientOnWall}
         />
         <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges === true} />
       </div>
