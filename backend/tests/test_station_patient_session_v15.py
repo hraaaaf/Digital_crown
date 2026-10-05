@@ -984,3 +984,39 @@ def test_wall_call_requires_waiting_state_and_unique_explicit_ticket(client, db,
     )
     assert invalid_call.status_code == 409
     assert invalid_call.json()["detail"] == "WALL_DISPLAY_TICKET_INVALID"
+
+    repaired_invalid = client.post(
+        f"/api/workstation/wall-display/appointments/{invalid_legacy.id}/call",
+        headers=headers,
+        json={"ticketNumber": 45},
+    )
+    assert repaired_invalid.status_code == 200, repaired_invalid.text
+    db.refresh(invalid_legacy)
+    assert invalid_legacy.ticket_number == 45
+
+    duplicate_a = _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=70),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=46,
+    )
+    _station_appt(
+        db, dentiste, patient, now + timedelta(minutes=80),
+        status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+        ticket_number=46,
+    )
+    duplicate_call = client.post(
+        f"/api/workstation/wall-display/appointments/{duplicate_a.id}/call",
+        headers=headers,
+        json={},
+    )
+    assert duplicate_call.status_code == 409
+    assert duplicate_call.json()["detail"] == "WALL_DISPLAY_TICKET_IN_USE"
+
+    repaired_duplicate = client.post(
+        f"/api/workstation/wall-display/appointments/{duplicate_a.id}/call",
+        headers=headers,
+        json={"ticketNumber": 47},
+    )
+    assert repaired_duplicate.status_code == 200, repaired_duplicate.text
+    db.refresh(duplicate_a)
+    assert duplicate_a.ticket_number == 47
