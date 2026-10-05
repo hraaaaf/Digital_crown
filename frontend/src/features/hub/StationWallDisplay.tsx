@@ -8,10 +8,12 @@ import {
 const POLL_MS = 2_000;
 const WALL_MAX_VISIBLE_ENTRIES = 8;
 
-const playBoundedChime = () => {
+const createWallAudioContext = (): AudioContext | null => {
   const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextCtor) return;
-  const context = new AudioContextCtor();
+  return AudioContextCtor ? new AudioContextCtor() : null;
+};
+
+const playBoundedChime = (context: AudioContext) => {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   oscillator.type = 'sine';
@@ -24,7 +26,6 @@ const playBoundedChime = () => {
   gain.connect(context.destination);
   oscillator.start();
   oscillator.stop(context.currentTime + 0.56);
-  oscillator.addEventListener('ended', () => { void context.close(); }, { once: true });
 };
 
 export const StationWallDisplay = () => {
@@ -34,6 +35,7 @@ export const StationWallDisplay = () => {
   const [clockTick, setClockTick] = useState(0);
   const lastChimedCallKey = useRef<string | null>(null);
   const refreshSequence = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const refresh = useCallback(async () => {
     const sequence = ++refreshSequence.current;
@@ -70,15 +72,39 @@ export const StationWallDisplay = () => {
 
   useEffect(() => {
     if (!soundEnabled || !activeCall) return;
+    const context = audioContextRef.current;
+    if (!context || context.state !== 'running') return;
     const callKey = `${activeCall.ticketNumber}:${activeCall.expiresAt}`;
     if (lastChimedCallKey.current === callKey) return;
     lastChimedCallKey.current = callKey;
     try {
-      playBoundedChime();
+      playBoundedChime(context);
     } catch {
       // Visual calling remains authoritative when browser audio is unavailable.
     }
   }, [activeCall, soundEnabled]);
+
+  useEffect(() => () => {
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+    if (context && context.state !== 'closed') void context.close();
+  }, []);
+
+  const toggleSound = useCallback(async () => {
+    if (soundEnabled) {
+      setSoundEnabled(false);
+      return;
+    }
+    try {
+      const context = audioContextRef.current ?? createWallAudioContext();
+      if (!context) return;
+      audioContextRef.current = context;
+      if (context.state === 'suspended') await context.resume();
+      setSoundEnabled(context.state === 'running');
+    } catch {
+      setSoundEnabled(false);
+    }
+  }, [soundEnabled]);
 
   const isLoading = snapshot === null && !failed;
   const visibleEntries = (snapshot?.entries ?? []).slice(0, WALL_MAX_VISIBLE_ENTRIES);
@@ -105,7 +131,7 @@ export const StationWallDisplay = () => {
           <button
             type="button"
             aria-pressed={soundEnabled}
-            onClick={() => setSoundEnabled(value => !value)}
+            onClick={() => { void toggleSound(); }}
             className="inline-flex min-h-12 items-center gap-2 rounded-elite-sm border border-border-main bg-card-bg px-4 text-sm font-black shadow-elite focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {soundEnabled ? <Volume2 size={18} aria-hidden="true" /> : <VolumeX size={18} aria-hidden="true" />}
