@@ -196,6 +196,9 @@ jobs:
             pages="$(pdfinfo "$pdf" | awk '/^Pages:/ {print $2}')"
             test -n "$pages"
             test "$pages" -ge 1
+            if [ "$stem" = "dense-8-lignes" ]; then
+              test "$pages" -eq 1
+            fi
             mkdir -p "renders/$stem"
             pdftoppm -png -r 144 "$pdf" "renders/$stem/page"
             rendered="$(find "renders/$stem" -maxdepth 1 -name 'page-*.png' | wc -l)"
