@@ -22,8 +22,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: v15-03-6-security-offline-ux-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Keep certification attempts for the same exact SHA isolated so a rerun cannot
+  # cancel sibling proof jobs (BEFORE / AFTER / security) from its own attempt.
+  group: v15-03-6-security-offline-ux-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+  cancel-in-progress: false
 
 jobs:
   security:
