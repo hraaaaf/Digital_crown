@@ -133,9 +133,9 @@ Used only for canonical mapping and executable/blocking status.
 - Unit: mm.
 - Historical reference recovered from Gregoret text: +1.25 mm ± 2 mm.
 - Independent clinical forms sometimes round this to ~1 mm; Digital Crown must keep the exact source-qualified Gregoret reference.
-- LOT06: no exact canonical ID.
-- Runtime: **NEW_CANONICAL_ID + FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED**.
-- Profile status: **SOURCE_LOCKED_MEANING / EXECUTION_MISSING**.
+- LOT06 canonical ID: `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1`.
+- Runtime: **BLOCKED_CONSTRUCTION** because the Ricketts functional occlusal-plane construction/anchors are not yet independently validated.
+- Profile status: **SOURCE_LOCKED_MEANING / EXECUTION_BLOCKED**.
 
 ### 12. Interincisal angle
 - Definition: angle between upper and lower incisor long axes.
