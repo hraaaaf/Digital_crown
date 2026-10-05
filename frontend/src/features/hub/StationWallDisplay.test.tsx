@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StationWallDisplay } from './StationWallDisplay';
 import { stationWallDisplayService } from '../../services/stationWallDisplay';
@@ -14,6 +14,7 @@ describe('StationWallDisplay', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders only pseudonymous waiting identifiers', async () => {
