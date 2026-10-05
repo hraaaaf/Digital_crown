@@ -1,0 +1,95 @@
+name: V1.5-03.5 Wall Display Proof
+
+on:
+  pull_request:
+    paths:
+      - "backend/routers/station_patient_session.py"
+      - "backend/services/station_wall_display.py"
+      - "backend/tests/test_station_patient_session_v15.py"
+      - "frontend/src/App.tsx"
+      - "frontend/src/pages/Dashboard.tsx"
+      - "frontend/src/features/dashboard/types.ts"
+      - "frontend/src/features/dashboard/components/WaitingRoom.tsx"
+      - "frontend/src/features/dashboard/components/WaitingRoomWallCall.test.tsx"
+      - "frontend/src/features/hub/StationWallDisplay.tsx"
+      - "frontend/src/features/hub/StationWallDisplay.test.tsx"
+      - "frontend/src/services/stationWallDisplay.ts"
+      - "frontend/scripts/capture-v15-03-5-wall-display.mjs"
+      - ".github/workflows/v15-03-5-wall-display.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-03-5-wall-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  targeted-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v15-03-5-wall-proof-secret-long-enough
+      DATABASE_URL: sqlite:///./v15-03-5-test.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Backend targeted dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "httpx==0.27.2" pytest sqlalchemy fastapi python-jose[cryptography] passlib[bcrypt] pydantic pydantic-settings email-validator python-multipart qrcode pillow cryptography
+      - name: Backend wall + station regression
+        run: python -m pytest backend/tests/test_station_patient_session_v15.py -q
+
+      - name: Frontend dependencies + Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Frontend targeted tests
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/hub/StationWallDisplay.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/hub/StationAppointmentArrival.test.tsx
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Assert kiosk baseline unchanged
+        run: |
+          git fetch origin master --depth=1
+          test -z "$(git diff origin/master -- frontend/src/features/hub/StationKioskShell.tsx frontend/src/features/hub/StationPatientIdentity.tsx frontend/src/features/hub/StationAppointmentArrival.tsx)"
+      - name: Start visual-only frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-03-5-frontend.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v15-03-5-frontend.log
+          exit 1
+      - name: Capture BEFORE reference + AFTER matrix
+        working-directory: frontend
+        run: node scripts/capture-v15-03-5-wall-display.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-03-5-wall-display-proof
+          path: artifacts/v15-03-5-wall-display
+          if-no-files-found: error
+          retention-days: 14
