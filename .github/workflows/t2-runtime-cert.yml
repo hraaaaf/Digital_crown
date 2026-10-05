@@ -196,9 +196,6 @@ jobs:
             pages="$(pdfinfo "$pdf" | awk '/^Pages:/ {print $2}')"
             test -n "$pages"
             test "$pages" -ge 1
-            if [ "$stem" = "dense-8-lignes" ]; then
-              test "$pages" -eq 1
-            fi
             mkdir -p "renders/$stem"
             pdftoppm -png -r 144 "$pdf" "renders/$stem/page"
             rendered="$(find "renders/$stem" -maxdepth 1 -name 'page-*.png' | wc -l)"
@@ -209,6 +206,8 @@ jobs:
           grep -q '^standard ' render-manifest.txt
           grep -q '^dense-8-lignes ' render-manifest.txt
           grep -q '^stress-texte-long ' render-manifest.txt
+          dense_pages="$(awk '$1 == "dense-8-lignes" { sub(/^pages=/, "", $2); print $2 }' render-manifest.txt)"
+          test "$dense_pages" -eq 1
 
       - name: Certify G4 Finances browser actions
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.resume_from_23 != true && inputs.resume_from_24 != true && inputs.resume_from_27 != true && inputs.resume_from_29 != true && inputs.resume_from_31 != true && inputs.resume_from_after != true }}
