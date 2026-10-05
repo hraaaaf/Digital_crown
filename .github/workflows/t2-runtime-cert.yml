@@ -1,10 +1,9 @@
 name: T2 Runtime Browser Certification
 
+# Full T2 is a closeout/convergence gate, not an automatic micro-iteration check.
+# Targeted CI should prove individual changes; launch this matrix explicitly when
+# the batch is ready for transversal certification.
 on:
-  pull_request:
-    paths-ignore:
-      - 'frontend/src/features/mobile/**'
-      - '.github/workflows/ci.yml'
   workflow_dispatch:
     inputs:
       resume_from_23:
