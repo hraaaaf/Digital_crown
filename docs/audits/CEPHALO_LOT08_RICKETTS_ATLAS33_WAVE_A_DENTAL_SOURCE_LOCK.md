@@ -107,13 +107,17 @@ Correct canonical mapping:
 Ricketts uses the lower incisal edge/tip relative to A-Pog. The previous matrix mapping to `M_L1_FACIAL_SURFACE_APOG_MM_V1` mixed in a McNamara facial-surface identity and is rejected.
 
 ### #11 Upper-incisor protrusion
-ID: `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1`.
+ID reserved: `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1`.
 
-Required:
-`U1_incisal`, A, `Pog_hard`, anatomical Frankfort for anterior-positive sign, verified calibration, same image.
+Source-locked identities:
+`U1_incisal`, A, `Pog_hard`.
 
-Rule:
-shortest perpendicular distance from upper incisal edge to A-Pog; positive anterior.
+The Atlas text states that protrusion is the distance from the upper central-incisor edge to A-Pog, but the recovered text does not specify the measurement direction. Secondary mappings conflict between a shortest/perpendicular distance and a direction parallel to the occlusal plane.
+
+State:
+`SOURCE_LOCKED_LANDMARKS__A_POG_DISTANCE_DIRECTION_BLOCKED`.
+
+No runtime method is activated until the exact Atlas/Ricketts direction is independently resolved.
 
 ### #13 Upper-incisor inclination
 ID: `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1`.
