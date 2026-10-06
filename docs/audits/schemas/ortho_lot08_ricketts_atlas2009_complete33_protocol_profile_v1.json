@@ -98,15 +98,15 @@
     },
     {
       "order": 14,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "OCCLUSAL_PLANE_TO_XI_EXACT_GEOMETRY_SOURCE_LOCK"
+      "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",
+      "state": "SOURCE_LOCKED_BLOCKED",
+      "gate": "SIGNED_NORMAL_ORIENTATION_NOT_YET_DETERMINISTIC"
     },
     {
       "order": 15,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "OCCLUSAL_PLANE_INCLINATION_EXACT_GEOMETRY_SOURCE_LOCK"
+      "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_FOP_CANONICAL_XI_MANUAL_PM_REQUIRED"
     },
     {
       "order": 16,
@@ -116,15 +116,15 @@
     },
     {
       "order": 17,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "UPPER_LIP_LENGTH_IDENTITIES"
+      "measurement_id": "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_LABIAL_COMMISSURE_RICKETTS_VERIFIED_CALIBRATION_REQUIRED"
     },
     {
       "order": 18,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "LABIAL_COMMISSURE_TO_OCCLUSAL_PLANE_IDENTITY_SIGN"
+      "measurement_id": "M_RICKETTS_COMMISSURE_FOP_MM_V1",
+      "state": "SOURCE_LOCKED_BLOCKED",
+      "gate": "SIGNED_FOP_NORMAL_ORIENTATION_NOT_YET_DETERMINISTIC"
     },
     {
       "order": 19,
@@ -139,9 +139,9 @@
     },
     {
       "order": 21,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "FACIAL_TAPER_EXACT_PLANES"
+      "measurement_id": "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_RICKETTS_MANDIBULAR_PLANE_REQUIRED"
     },
     {
       "order": 22,
@@ -150,15 +150,15 @@
     },
     {
       "order": 23,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "MAXILLARY_HEIGHT_CF_OR_SOURCE_GEOMETRY"
+      "measurement_id": "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_CF_FROM_MANUAL_PR_PTV_REQUIRED"
     },
     {
       "order": 24,
-      "measurement_id": "M_PALATAL_PLANE_FH_DEG_V1",
-      "state": "PRIMITIVE_AVAILABLE",
-      "gate": "RICKETTS_SOURCE_SPECIFIC_EXECUTION_CONTRACT_REQUIRED"
+      "measurement_id": "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_PNS_RICKETTS_ANATOMICAL_FRANKFORT_REQUIRED"
     },
     {
       "order": 25,
