@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
-from backend.routers.workstation_mode import WORKSTATION_COOKIE, _token_hash
+from backend.routers.workstation_mode import _find_workstation
 from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
@@ -291,14 +291,9 @@ def confirm_appointment_presence(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = int(current_user.get_employer_id())
-    raw_workstation = request.cookies.get(WORKSTATION_COOKIE)
-    if raw_workstation:
-        workstation = db.query(models.WorkstationMode).filter(
-            models.WorkstationMode.token_hash == _token_hash(raw_workstation),
-            models.WorkstationMode.employer_id == employer_id,
-        ).first()
-        if workstation is not None and workstation.default_experience == "station":
-            raise HTTPException(status_code=403, detail="STAFF_PRESENCE_CONFIRMATION_REQUIRED")
+    workstation = _find_workstation(request, db, employer_id)
+    if workstation is None or workstation.default_experience != "cabinet":
+        raise HTTPException(status_code=403, detail="STAFF_WORKSTATION_REQUIRED")
 
     appointment = db.query(models.Appointment).filter(
         models.Appointment.id == id,
