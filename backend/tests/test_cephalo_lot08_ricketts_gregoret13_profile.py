@@ -164,7 +164,7 @@ def test_gregoret13_profile_links_the_ricketts_plane_source_lock():
     text = FOP_MP_SOURCE_LOCK.read_text(encoding="utf-8")
     assert "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1" in text
     assert "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1" in text
-    assert "BLOCKED_SIGN_CONVENTION" in text
+    assert "CROWNWARD_POSITIVE_SIGN_V1" in text
 
 
 def test_gregoret13_registry_contains_both_ricketts_plane_constructions():
