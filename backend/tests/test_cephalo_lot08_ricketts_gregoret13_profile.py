@@ -222,3 +222,11 @@ def test_gregoret13_profile_links_u6_ptv_source_lock():
     assert "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1" in text
     assert "U6_DISTAL_Ricketts" in text
     assert "RICKETTS_U6_PTV_CANONICAL_MM_V2" in text
+
+
+def test_gregoret13_has_no_remaining_blocked_landmark_rows():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    states = [row["state"] for row in data["measurements"]]
+    assert "BLOCKED_LANDMARK" not in states
+    assert states.count("EXECUTABLE") == 7
+    assert states.count("CONDITIONAL_EXECUTABLE") == 6
