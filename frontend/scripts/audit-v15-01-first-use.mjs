@@ -53,6 +53,23 @@ for (const profile of profiles) {
   await page.getByRole('alert').filter({ hasText: 'HTTPS est obligatoire' }).waitFor({ state: 'visible', timeout: 5000 });
   const insecureLanRejected = true;
 
+  await targetInput.fill('https://example.com:8005');
+  await probeButton.click();
+  await page.getByRole('alert').filter({ hasText: 'adresse locale du cabinet' }).waitFor({ state: 'visible', timeout: 5000 });
+  const publicTargetRejected = true;
+
+  const remoteRequests = [];
+  const remoteRequestListener = request => {
+    if (request.url().startsWith('https://192.168.1.20:8005')) remoteRequests.push(request.url());
+  };
+  page.on('request', remoteRequestListener);
+  await targetInput.fill('https://192.168.1.20:8005');
+  await probeButton.click();
+  await page.getByText('Aucune requête n’est envoyée à une origine distante', { exact: false }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(200);
+  page.off('request', remoteRequestListener);
+  const noCrossOriginProbe = remoteRequests.length === 0;
+
   await targetInput.fill('http://127.0.0.1:8005');
   await probeButton.click();
   await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor({ state: 'visible', timeout: 10000 });
@@ -86,6 +103,8 @@ for (const profile of profiles) {
     privacyCopyVisible,
     connectionUrlVisible,
     insecureLanRejected,
+    publicTargetRejected,
+    noCrossOriginProbe,
     buttons,
     consoleErrors,
     pageErrors,
@@ -114,6 +133,8 @@ const report = {
     && item.privacyCopyVisible
     && item.connectionUrlVisible
     && item.insecureLanRejected
+    && item.publicTargetRejected
+    && item.noCrossOriginProbe
     && item.pageErrors.length === 0
     && item.http5xx.length === 0
     && !item.horizontalOverflow
