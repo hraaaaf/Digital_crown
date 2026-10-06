@@ -163,9 +163,9 @@ def test_wave_b_blocked_signed_distances_have_no_runtime_method():
     assert op_xi is not None
     assert commissure is not None
     assert palatal is not None
-    assert op_xi.source_status == "SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED"
-    assert commissure.source_status == "SOURCE_LOCKED_DEFINITION__SIGNED_NORMAL_ORIENTATION_BLOCKED"
-    assert palatal.source_status == "SOURCE_LOCKED_DEFINITION__SIGNED_ANGLE_ORIENTATION_BLOCKED"
+    assert op_xi.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
+    assert commissure.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
+    assert palatal.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
 
 
 def test_wave_b_generic_soft_tissue_and_pns_aliases_are_not_promoted():
