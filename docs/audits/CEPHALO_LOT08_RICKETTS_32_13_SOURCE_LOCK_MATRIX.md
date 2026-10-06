@@ -92,7 +92,7 @@ Source membership observed in the published 32-factor table.
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi from manual/manual-corrected R1-R4 + anatomical Frankfort, manual/manual-corrected `Pm_Ricketts` + ANS |
-| 9 | Upper molar position | `M_U6_PTV_MM_V1` | BLOCKED_LANDMARK / PTV source contract |
+| 9 | Upper molar position | `M_U6_PTV_MM_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `U6_DISTAL_Ricketts` + manual/manual-corrected `PR_Ricketts_PTV` + anatomical Frankfort + verified calibration |
 | 10 | Mandibular incisor protrusion | `M_L1_FACIAL_SURFACE_APOG_MM_V1` | BLOCKED_LANDMARK |
 | 11 | Maxillary incisor protrusion | none | NEW_CANONICAL_ID |
 | 12 | Mandibular incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
@@ -119,9 +119,9 @@ Source membership observed in the published 32-factor table.
 
 ### 32-factor runtime summary
 - Exact executable canonical members: **6** (#6, #7, #12, #16, #19, #22).
-- Conditional executable: **5** (#5 lower-incisor extrusion; #8 lower-face height; #20 facial axis; #25 mandibular plane; #31 mandibular arc with manual DC + source-locked Xi + manual Pm).
+- Conditional executable: **6** (#5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #20 facial axis; #25 mandibular plane; #31 mandibular arc).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
-- Existing canonical but blocked/legacy: **4** (#3, #4, #9, #10).
+- Existing canonical but blocked/legacy: **3** (#3, #4, #10).
 - New source-specific canonical contract required: **16**.
 - Total accounted factors: **32/32**.
 
@@ -154,7 +154,7 @@ Recovered membership:
 | 4 | Lower facial height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi construction from manual/manual-corrected R1-R4 + anatomical Frankfort; manual/manual-corrected `Pm_Ricketts` + ANS required |
 | 5 | Lower incisor to A-Pog | `M_L1_EDGE_APOG_MM_V1` | EXECUTABLE: explicit incisal-edge variant |
 | 6 | Lower incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
-| 7 | Upper molar to PTV | `M_U6_PTV_MM_V1` | PTV construction source-locked; BLOCKED_LANDMARK: explicit U6 distal identity |
+| 7 | Upper molar to PTV | `M_U6_PTV_MM_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `U6_DISTAL_Ricketts` + source-locked PTV from manual `PR_Ricketts_PTV` + anatomical Frankfort + verified calibration |
 | 8 | Lower lip to E-plane | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
 | 9 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | CONDITIONAL: explicit/audited Pt_Ricketts |
 | 10 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
@@ -164,8 +164,8 @@ Recovered membership:
 
 ### 13-factor runtime summary
 - Exact executable: **7** (#2, #3, #5, #6, #8, #10, #12).
-- Conditional executable: **5** (#1 lower-incisor extrusion; #4 lower facial height; #9 facial axis; #11 mandibular plane; #13 mandibular arc).
-- Source-locked but blocked by landmark authority: **1** (#7 upper molar/PTV).
+- Conditional executable: **6** (#1 lower-incisor extrusion; #4 lower facial height; #7 upper molar/PTV; #9 facial axis; #11 mandibular plane; #13 mandibular arc).
+- Source-locked but blocked by landmark authority: **0**.
 - No historical norm or VERT classification is activated by these execution states.
 
 ---
