@@ -156,6 +156,11 @@ def validate_evidence_graph(
             source_ids,
             f"Image orientation {orientation.evidence_id} evidence_refs",
         )
+        _require_refs(
+            [orientation.provenance_ref],
+            source_ids | validation_ids,
+            f"Image orientation {orientation.evidence_id} provenance_ref",
+        )
 
     for landmark in graph.landmarks:
         _require_refs(
