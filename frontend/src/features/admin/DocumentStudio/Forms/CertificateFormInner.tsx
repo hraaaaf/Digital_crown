@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
 import { CheckCircle2, Clock, Edit3, AlertCircle, FileText, Plus, X } from 'lucide-react';
 import { api } from '../../../../services/api';
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { hasAccess } from '../../../../utils/accessControl';
 import { TemplateOverwriteDialog } from './TemplateOverwriteDialog';
 import {
   CERTIFICATE_TYPE_FREE,
@@ -331,19 +333,26 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   setCertifCustomMotif,
 }) => {
   const [suggestion, setSuggestion] = React.useState<any>(null);
+  const user = useAuthStore((state) => state.user);
+  const canUseClinicalSuggestion = hasAccess(user, 'prescriptions');
 
   React.useEffect(() => {
-    if (!patientId) return;
+    let cancelled = false;
+    setSuggestion(null);
+    if (!patientId || !canUseClinicalSuggestion) {
+      return () => { cancelled = true; };
+    }
     const fetchSuggestion = async () => {
       try {
         const res = await api.get(`/prescriptions/certif-suggest/${patientId}`);
-        setSuggestion(res.data);
+        if (!cancelled) setSuggestion(res.data);
       } catch (err) {
-        console.error('Certif Suggest Error:', err);
+        if (!cancelled) console.error('Certif Suggest Error:', err);
       }
     };
-    fetchSuggestion();
-  }, [patientId]);
+    void fetchSuggestion();
+    return () => { cancelled = true; };
+  }, [patientId, canUseClinicalSuggestion]);
 
   React.useEffect(() => {
     const normalized = normalizeCertificateSelection(certifType, certifCustomMotif);
