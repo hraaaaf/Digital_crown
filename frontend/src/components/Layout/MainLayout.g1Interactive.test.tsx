@@ -6,6 +6,7 @@ import { MainLayout } from './MainLayout';
 const fetchPatientIntelligence = vi.fn();
 const fetchProfile = vi.fn();
 let mockUser: any = { is_superadmin: false, nom_complet: 'Owner', role: 'DENTISTE', employer_id: null };
+let mockProfile: any = { nom: 'Cabinet', font_fr: 'inter' };
 
 vi.mock('../Sidebar', () => ({
   Sidebar: ({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) => (
@@ -32,7 +33,7 @@ vi.mock('../../features/clinic/ClinicPractitionerBar', () => ({ ClinicPractition
 vi.mock('../../stores/useEliteStore', () => ({ useEliteStore: () => ({ fetchPatientIntelligence }) }));
 vi.mock('../../stores/useAuthStore', () => ({ useAuthStore: () => ({ user: mockUser }) }));
 vi.mock('../../features/admin/Settings/hooks/useSettingsStore', () => ({
-  useSettingsStore: () => ({ profile: { nom: 'Cabinet', font_fr: 'inter' }, fetchProfile }),
+  useSettingsStore: () => ({ profile: mockProfile, fetchProfile }),
 }));
 vi.mock('../../hooks/useLocalStorage', () => ({ safeStorage: { get: vi.fn(() => 'false') } }));
 vi.mock('../../features/admin/constants', () => ({ PREMIUM_FONTS: [{ id: 'inter', class: 'font-sans' }] }));
@@ -50,6 +51,7 @@ function renderAt(path: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockUser = { is_superadmin: false, nom_complet: 'Owner', role: 'DENTISTE', employer_id: null };
+  mockProfile = { nom: 'Cabinet', font_fr: 'inter' };
 });
 afterEach(() => cleanup());
 
@@ -91,8 +93,15 @@ describe('MainLayout G1 shell matrix', () => {
       employer_id: 1,
       permissions: { settings: false },
     };
+    mockProfile = { nom: '', font_fr: 'inter' };
     renderAt('/dashboard');
     await waitFor(() => expect(fetchProfile).not.toHaveBeenCalled());
+  });
+
+  it('fetches settings profile for an owner when profile is missing', async () => {
+    mockProfile = { nom: '', font_fr: 'inter' };
+    renderAt('/dashboard');
+    await waitFor(() => expect(fetchProfile).toHaveBeenCalledTimes(1));
   });
 
   it('shows practitioner context only on designated shell routes', () => {
