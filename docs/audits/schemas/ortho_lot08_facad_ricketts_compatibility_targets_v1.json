@@ -1,0 +1,17 @@
+{
+  "schema_version": "ORTHO_LOT08_FACAD_RICKETTS_COMPATIBILITY_TARGETS_V1",
+  "status": "PARITY_TARGETS_ONLY__MEMBERSHIP_NOT_DIRECTLY_OBSERVED",
+  "targets": [
+    {
+      "vendor_label": "Ricketts (32 F)",
+      "target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+      "scientific_profile_equivalence": false
+    },
+    {
+      "vendor_label": "Ricketts (13 F)",
+      "target_id": "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
+      "scientific_profile_equivalence": false
+    }
+  ],
+  "rule": "Do not infer Facad row membership, signs, norms, export labels, or equivalence from the vendor label alone. Direct Facad trace/export observation is required."
+}
