@@ -291,13 +291,17 @@ def test_declared_comparison_dimensions_require_supporting_values(tmp_path):
     _mark_partial(manifest, TARGET_32)
     values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
     props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES")
-    manifest["evidence_records"] = [values, props]
+    markers = _record(tmp_path, "facad32-markers", "MARKER_POSITIONS")
+    manifest["evidence_records"] = [values, props, markers]
     manifest["parity_rows"] = [_row(
-        refs=["facad32-values", "facad32-props"],
+        refs=["facad32-values", "facad32-props", "facad32-markers"],
+        numeric_status="OBSERVED_MATCH",
         comparison_details=_details(
             label_status="OBSERVED_MATCH",
             unit_status="OBSERVED_MATCH",
             construction_status="OBSERVED_MATCH",
+            facad_value=1.0,
+            digital_crown_value=1.0,
             norm_status="OBSERVED_MATCH",
             rounding_status="OBSERVED_MATCH",
             atlas_divergence_status="OBSERVED_DIFFERENT",
@@ -306,8 +310,10 @@ def test_declared_comparison_dimensions_require_supporting_values(tmp_path):
 
     errors = validate_manifest(manifest, tmp_path)
 
+    assert any("observed label comparison requires Digital Crown label" in item for item in errors)
     assert any("observed unit comparison requires both Facad and Digital Crown units" in item for item in errors)
     assert any("observed construction comparison requires both construction definitions" in item for item in errors)
+    assert any("observed numeric parity requires numeric_delta" in item for item in errors)
     assert any("observed norm comparison requires both norms" in item for item in errors)
     assert any("observed rounding comparison requires both display values" in item for item in errors)
     assert any("Atlas divergence requires an explanatory note" in item for item in errors)
