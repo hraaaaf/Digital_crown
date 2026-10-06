@@ -72,7 +72,9 @@ export function getRuntimeAuthToken(): string | null {
 }
 
 function isPublicStationRoute(): boolean {
-  return typeof window !== 'undefined' && window.location.pathname.startsWith('/station');
+  if (typeof window === 'undefined') return false;
+  const { pathname } = window.location;
+  return pathname === '/station' || pathname.startsWith('/station/');
 }
 
 function propagateMobileBiometricLock(): void {
