@@ -155,7 +155,7 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
         ("Po_anatomic","Or","N","A"),ricketts_maxillary_depth_deg_v1)
 
-    ricketts_mp_ids=("Po_anatomic","Or","Go_Ricketts","Me")
+    ricketts_mp_ids=("Po_anatomic","Or","MP_ANGLE_INFERIOR_Ricketts","Me")
     ricketts_mp_deps,ricketts_mp_status=_deps(landmarks,ricketts_mp_ids)
     ricketts_mp_construction=constructions.get(RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID)
     if ricketts_mp_deps:
@@ -170,7 +170,7 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             elif ricketts_mp_status==AvailabilityStatus.AVAILABLE:
                 ricketts_mp_value=ricketts_mandibular_plane_fh_deg_v1(
                     _p(landmarks,"Po_anatomic"),_p(landmarks,"Or"),
-                    _p(landmarks,"Go_Ricketts"),_p(landmarks,"Me"),
+                    _p(landmarks,"MP_ANGLE_INFERIOR_Ricketts"),_p(landmarks,"Me"),
                 )
                 if ricketts_mp_value is None:
                     ricketts_mp_status=AvailabilityStatus.INVALID
