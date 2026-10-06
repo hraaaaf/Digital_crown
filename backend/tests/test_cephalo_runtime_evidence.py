@@ -286,7 +286,27 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     assert {x["method_id"] for x in blocked} == explicit_identity_required
     assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in blocked)
     assert all(x["value"] is None for x in blocked)
-    other_measurements = [x for x in payload["measurements"] if x["method_id"] not in explicit_identity_required]
+    orientation_required = {
+        "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+        "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+    }
+    orientation_blocked = [
+        x for x in payload["measurements"]
+        if x["method_id"] in orientation_required
+    ]
+    assert all(
+        x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value
+        for x in orientation_blocked
+    )
+    assert all(x["value"] is None for x in orientation_blocked)
+
+    expected_blocked = explicit_identity_required | orientation_required
+    other_measurements = [
+        x for x in payload["measurements"]
+        if x["method_id"] not in expected_blocked
+    ]
     assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in other_measurements)
     assert all(x["value"] is not None for x in other_measurements)
 
