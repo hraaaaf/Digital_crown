@@ -92,6 +92,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --input-bg: #f0fdf4;
   
   --primary: #059669;
+  --text-on-primary: #020617;
   --secondary: #065f46;
   --accent: #10b981;
 }
@@ -132,6 +133,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --input-bg: #1e293b;
 
   --primary: #3b82f6;
+  --text-on-primary: #020617;
   --secondary: #2563eb;
   --accent: #60a5fa;
 }
@@ -152,6 +154,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --input-bg: #f0f9ff;
 
   --primary: #0284c7;
+  --text-on-primary: #020617;
   --secondary: #0369a1;
   --accent: #38bdf8;
 }
