@@ -7,6 +7,7 @@ from typing import Iterable
 
 
 ENGINE_VERSION = "v1.5-04.1"
+MAX_SESSION_TTL_SECONDS = 120
 
 
 class SelfServiceDocumentKind(str, Enum):
@@ -27,6 +28,7 @@ class EligibilityReason(str, Enum):
     SESSION_PURGED = "session_purged"
     SESSION_EXPIRED = "session_expired"
     SESSION_INVALID_WINDOW = "session_invalid_window"
+    DOCUMENT_ID_INVALID = "document_id_invalid"
     TENANT_MISMATCH = "tenant_mismatch"
     PATIENT_MISMATCH = "patient_mismatch"
     STATION_MISMATCH = "station_mismatch"
@@ -47,6 +49,7 @@ class StationEligibilityContext:
     session_tenant_id: int
     session_patient_id: int | None
     session_station_id: str
+    session_created_at: datetime
     session_claimed_at: datetime | None
     session_expires_at: datetime
     session_purged_at: datetime | None
@@ -122,13 +125,25 @@ def evaluate_document_eligibility(
     if context.session_purged_at is not None:
         return _deny(candidate, EligibilityReason.SESSION_PURGED)
 
+    created_at = _as_utc(context.session_created_at)
     claimed_at = _as_utc(context.session_claimed_at)
     expires_at = _as_utc(context.session_expires_at)
     now = _as_utc(context.now)
-    if claimed_at > now or expires_at <= claimed_at:
+    lifetime_seconds = (expires_at - created_at).total_seconds()
+    if (
+        created_at > now
+        or claimed_at < created_at
+        or claimed_at > now
+        or expires_at <= claimed_at
+        or lifetime_seconds <= 0
+        or lifetime_seconds > MAX_SESSION_TTL_SECONDS
+    ):
         return _deny(candidate, EligibilityReason.SESSION_INVALID_WINDOW)
     if expires_at <= now:
         return _deny(candidate, EligibilityReason.SESSION_EXPIRED)
+
+    if not candidate.document_id.strip():
+        return _deny(candidate, EligibilityReason.DOCUMENT_ID_INVALID)
 
     if (
         candidate.tenant_id != context.tenant_id
