@@ -91,13 +91,14 @@ class _CertificateConfigView:
         return getattr(self._base, name)
 
 
-def _append_handwritten_signature_space(elements, font_name: str, text_color, signer_name: str = '') -> None:
-    elements.append(Spacer(1, 0.3 * cm))
+def _append_handwritten_signature_space(elements, font_name: str, text_color, signer_name: str = '', compact: bool = False) -> None:
+    elements.append(Spacer(1, (0.15 if compact else 0.3) * cm))
     elements.append(
         CertificateSignatureSpace(
             font_name=font_name,
             text_color=text_color,
             signer_name=signer_name,
+            height=(1.2 if compact else 1.8) * cm,
         )
     )
 
@@ -403,6 +404,7 @@ class CertificatGenerator:
             font_name=font_bold,
             text_color=p_color,
             signer_name=dr_name_clean,
+            compact=is_free_medical,
         )
 
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
