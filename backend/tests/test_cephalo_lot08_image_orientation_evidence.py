@@ -4,14 +4,18 @@ import math
 import pytest
 
 from backend.schemas.cephalo_evidence import (
+    AvailabilityStatus,
     EvidenceStatus,
     ImageOrientationEvidence,
     ImageOrientationOrigin,
     LandmarkEvidence,
     LandmarkOrigin,
+    MeasurementEvidence,
+    SourceEvidence,
 )
 from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
 from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
+from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot, EvidenceGraphValidationError, validate_evidence_graph
 
 
 def _lm(landmark_id, x, y, source="source:orientation"):
@@ -167,3 +171,42 @@ def test_orientation_evidence_must_match_source_image():
     ):
         assert out[method].availability_status.value == "NOT_COMPUTABLE"
         assert out[method].value is None
+
+
+def test_orientation_ref_is_referentially_validated():
+    source = SourceEvidence(
+        evidence_id="source:orientation",
+        patient_id=1,
+        kind="lateral_ceph",
+        source_record_id="image:1",
+        recorded_at=dt.datetime(2026, 10, 6, tzinfo=dt.timezone.utc),
+    )
+    landmark = _lm("U1_incisal", 1, 1)
+    orientation = _orientation()
+    measurement = MeasurementEvidence(
+        measurement_id="measurement:orientation:test",
+        analysis_id="RICKETTS",
+        method_id="TEST_ORIENTATION_METHOD",
+        method_version="1",
+        value=1.0,
+        unit="mm",
+        landmark_refs=[landmark.evidence_id],
+        orientation_ref=orientation.evidence_id,
+        evidence_refs=[landmark.evidence_id, orientation.evidence_id],
+        availability_status=AvailabilityStatus.AVAILABLE,
+    )
+    graph = EvidenceGraphSnapshot(
+        sources=[source],
+        landmarks=[landmark],
+        image_orientations=[orientation],
+        measurements=[measurement],
+    )
+    validate_evidence_graph(graph)
+
+    bad = EvidenceGraphSnapshot(
+        sources=[source],
+        landmarks=[landmark],
+        measurements=[measurement],
+    )
+    with pytest.raises(EvidenceGraphValidationError):
+        validate_evidence_graph(bad)
