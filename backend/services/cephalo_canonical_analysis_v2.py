@@ -6,7 +6,7 @@ here requires versioned canonical landmark IDs and fails closed if they are abse
 from __future__ import annotations
 import math
 from typing import Callable, Mapping, Optional
-from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, LandmarkOrigin, MeasurementEvidence
+from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, ImageOrientationEvidence, LandmarkEvidence, LandmarkOrigin, MeasurementEvidence
 from backend.services.cephalo_canonical_constructions_v2 import (
     RICKETTS_CC_ATLAS2009_CONSTRUCTION_ID,
     RICKETTS_CF_CONSTRUCTION_ID,
@@ -40,6 +40,9 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_point_distance_px_v1,
     ricketts_porion_location_signed_px_v1,
     ricketts_ramus_position_deg_v1,
+    ricketts_overbite_oriented_signed_px_v1,
+    ricketts_fop_to_point_oriented_signed_px_v1,
+    ricketts_palatal_plane_signed_deg_v1,
     ricketts_total_facial_height_deg_v1,
     ricketts_maxillary_depth_deg_v1,
     ricketts_maxillary_height_n_cf_a_deg_v1,
@@ -74,6 +77,10 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_U1_APOG_INCLINATION_CANONICAL_DEG_V2",
     "RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2",
     "RICKETTS_OVERJET_FOP_CANONICAL_MM_V2",
+    "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+    "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+    "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+    "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
     "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2",
     "RICKETTS_MOLAR_RELATION_FOP_CANONICAL_MM_V2",
     "RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2",
@@ -116,6 +123,7 @@ def _deps(lm: Mapping[str, LandmarkEvidence], ids: tuple[str,...]):
 def _measurement(*, namespace:str, name:str, analysis:str, method:str, canonical_id:str,
                  ids:tuple[str,...], lm:Mapping[str,LandmarkEvidence], value:Optional[float],
                  unit:str, requires_calibration:bool=False, calibration_ref:Optional[str]=None,
+                 orientation_ref:Optional[str]=None,
                  construction_refs:tuple[str,...]=(),
                  availability:AvailabilityStatus=AvailabilityStatus.AVAILABLE):
     if canonical_measurement_id_for_method(method) != canonical_id:
@@ -126,11 +134,13 @@ def _measurement(*, namespace:str, name:str, analysis:str, method:str, canonical
     if availability!=AvailabilityStatus.AVAILABLE: value=None
     evidence=[*refs,*construction_refs]
     if calibration_ref: evidence.append(calibration_ref)
+    if orientation_ref: evidence.append(orientation_ref)
     return MeasurementEvidence(
         measurement_id=f"{namespace}:{name}", analysis_id=analysis, method_id=method,
         method_version="2", value=value, unit=unit, landmark_refs=refs,
         construction_refs=list(construction_refs),
-        calibration_ref=calibration_ref, requires_calibration=requires_calibration,
+        calibration_ref=calibration_ref, orientation_ref=orientation_ref,
+        requires_calibration=requires_calibration,
         evidence_refs=evidence, availability_status=availability,
     )
 def _calibrated_px(px:Optional[float], ratio:Optional[float], calibration_ref:Optional[str]):
@@ -143,7 +153,8 @@ def _calibrated_px(px:Optional[float], ratio:Optional[float], calibration_ref:Op
 def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         landmarks:Mapping[str,LandmarkEvidence], mm_per_pixel:Optional[float],
         calibration_ref:Optional[str],
-        constructions:Mapping[str,ConstructionEvidence]|None=None) -> list[MeasurementEvidence]:
+        constructions:Mapping[str,ConstructionEvidence]|None=None,
+        image_orientation:Optional[ImageOrientationEvidence]=None) -> list[MeasurementEvidence]:
     out=[]
     constructions = constructions or {}
     def angular(name,analysis,method,cid,ids,fn):
@@ -341,6 +352,64 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         ),
     )
 
+
+    # Image-orientation-dependent Ricketts contracts.
+    # These stay fail-closed unless a versioned orientation evidence object for
+    # the same source image is supplied.
+    def _orientation_for_source(source_ref:str):
+        if image_orientation is None:
+            return None
+        if (
+            image_orientation.availability_status != AvailabilityStatus.AVAILABLE
+            or image_orientation.source_image_ref != source_ref
+        ):
+            return None
+        return image_orientation
+
+    # #4 Overbite
+    overbite_ids=("U1_incisal","L1_incisal")
+    overbite_deps,overbite_status=_deps(landmarks,overbite_ids)
+    fop=constructions.get(RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID)
+    if overbite_deps:
+        overbite_value=None
+        overbite_refs:tuple[str,...]=()
+        orientation_ref=None
+        if fop is None:
+            overbite_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            overbite_refs=(fop.construction_id,)
+            if fop.availability_status!=AvailabilityStatus.AVAILABLE:
+                overbite_status=fop.availability_status
+            elif overbite_status==AvailabilityStatus.AVAILABLE:
+                source=fop.geometry.get("source_image_ref")
+                dx=fop.geometry.get("direction_x")
+                dy=fop.geometry.get("direction_y")
+                orientation=_orientation_for_source(str(source)) if source else None
+                if (
+                    orientation is None
+                    or not isinstance(dx,(int,float))
+                    or not isinstance(dy,(int,float))
+                    or source != landmarks["U1_incisal"].source_image_ref
+                    or source != landmarks["L1_incisal"].source_image_ref
+                ):
+                    overbite_status=AvailabilityStatus.NOT_COMPUTABLE
+                else:
+                    px=ricketts_overbite_oriented_signed_px_v1(
+                        _p(landmarks,"U1_incisal"),_p(landmarks,"L1_incisal"),
+                        (float(dx),float(dy)),
+                        (orientation.superior_x,orientation.superior_y),
+                    )
+                    overbite_value,overbite_status=_calibrated_px(px,mm_per_pixel,calibration_ref)
+                    orientation_ref=orientation.evidence_id if overbite_status==AvailabilityStatus.AVAILABLE else None
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_OVERBITE_FOP",analysis="RICKETTS",
+            method="RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
+            canonical_id="M_RICKETTS_OVERBITE_FOP_MM_V1",ids=overbite_ids,lm=landmarks,
+            value=overbite_value,unit="mm",requires_calibration=True,
+            calibration_ref=calibration_ref if overbite_status==AvailabilityStatus.AVAILABLE else None,
+            orientation_ref=orientation_ref,construction_refs=overbite_refs,
+            availability=overbite_status,
+        ))
 
     # Atlas/33 Wave B source-locked measurements.
     #14 (FOP-to-Xi signed distance) and #18 (commissure-to-FOP signed distance)
