@@ -6,11 +6,6 @@ import { describe, expect, it } from 'vitest';
 // Permanent regression gate: practitioner-facing copy must stay free of implementation terminology.
 const SRC_ROOT = resolve(process.cwd(), 'src');
 
-// This audit protects practitioner-facing product copy. Control Center is an explicitly
-// technical workstation surface where terms such as LAN, backend and HTTPS are the domain language.
-const NON_PRACTITIONER_TECHNICAL_SURFACES = new Set([
-  'features/hub/ControlCenterTopologyPanel.tsx',
-]);
 
 const TECHNICAL_COPY_PATTERNS = [
   { label: 'agentic/internal AI terminology', re: /\b(?:agentique|agentic)\b/i },
