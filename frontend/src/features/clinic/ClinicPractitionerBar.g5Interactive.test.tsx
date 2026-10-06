@@ -44,6 +44,16 @@ describe('ClinicPractitionerBar G5', () => {
     expect(s.selectPractitioner).toHaveBeenCalledWith({ id: 8, name: 'Dr Associate', appointmentCount: 1 });
   });
 
+  it('uses the current practitioner immediately outside Agenda without probing PREMIUM multi-practitioner', async () => {
+    s.practitioners = [];
+    render(<MemoryRouter initialEntries={['/dashboard']}><ClinicPractitionerBar /></MemoryRouter>);
+    await waitFor(() => expect(s.setPractitioners).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 7, name: 'Dr Owner', isFallback: true }),
+    ]));
+    expect(api.get).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Synchronisation des praticiens/i)).not.toBeInTheDocument();
+  });
+
   it('falls back to owner identity when multi-practitioner read fails', async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error('unavailable'));
     render(<MemoryRouter initialEntries={['/agenda']}><ClinicPractitionerBar /></MemoryRouter>);
