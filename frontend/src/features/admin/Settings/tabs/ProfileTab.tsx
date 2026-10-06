@@ -192,9 +192,9 @@ export const ProfileTab: React.FC = () => {
         icon={<UserCircle size={32} />}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Structure d’exercice · Source cabinet</p>
-            <p className="mt-1 text-xs font-medium text-blue-800/80">Nom, type, adresse et identifiants de l’établissement appartiennent au cabinet.</p>
+          <div className="md:col-span-2 rounded-2xl border border-info-border bg-info-surface p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-info">Structure d’exercice · Source cabinet</p>
+            <p className="mt-1 text-xs font-medium text-info">Nom, type, adresse et identifiants de l’établissement appartiennent au cabinet.</p>
           </div>
 
           <div className="md:col-span-2">
@@ -429,7 +429,7 @@ export const ProfileTab: React.FC = () => {
                 {profile.logo_path && (
                   <button
                     onClick={deleteLogo}
-                    className="mt-4 text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2 hover:text-rose-600 transition-colors"
+                    className="mt-4 text-[10px] font-black text-danger uppercase tracking-widest flex items-center gap-2 hover:brightness-90 transition-colors"
                   >
                     <Trash2 size={12} /> Supprimer le logo
                   </button>
@@ -474,7 +474,7 @@ export const ProfileTab: React.FC = () => {
               <h3 className="font-black text-slate-900">En-tête bilingue</h3>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
-                profile.header_customized ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
+                profile.header_customized ? "bg-warning-surface text-warning" : "bg-success-surface text-success"
               )}>
                 {profile.header_customized ? 'Personnalisé' : 'Automatique'}
               </span>
@@ -520,7 +520,7 @@ export const ProfileTab: React.FC = () => {
                       />
                       <button
                         onClick={() => updateProfile({ header_lines_fr: profile.header_lines_fr?.filter((_, i) => i !== idx), header_customized: true })}
-                        className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-danger hover:bg-danger-surface rounded-lg transition-colors"
                         aria-label={`Supprimer la ligne française ${idx + 1}`}
                       >×</button>
                     </div>
@@ -534,7 +534,7 @@ export const ProfileTab: React.FC = () => {
                 <div className="space-y-2">
                   {(profile.header_lines_ar || []).map((line, idx) => (
                     <div key={`ar-${idx}`} className="flex gap-2 relative group">
-                      <button onClick={() => updateProfile({ header_lines_ar: profile.header_lines_ar?.filter((_, i) => i !== idx), header_customized: true })} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" aria-label={`Supprimer la ligne arabe ${idx + 1}`}>×</button>
+                      <button onClick={() => updateProfile({ header_lines_ar: profile.header_lines_ar?.filter((_, i) => i !== idx), header_customized: true })} className="p-2 text-danger hover:bg-danger-surface rounded-lg transition-colors" aria-label={`Supprimer la ligne arabe ${idx + 1}`}>×</button>
                       <div className="flex-1 relative">
                         <input
                           className={cn(inputClass, "py-2 px-3 text-right font-arabic", idx === 0 && "text-primary text-base")}
@@ -638,7 +638,7 @@ export const ProfileTab: React.FC = () => {
                   </div>
                   <button
                     onClick={() => toggleContact(type)}
-                    className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-emerald-500" : "bg-slate-200")}
+                    className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-success" : "bg-slate-200")}
                     aria-label={`${c.enabled ? 'Désactiver' : 'Activer'} ${label}`}
                     aria-pressed={c.enabled}
                   >
