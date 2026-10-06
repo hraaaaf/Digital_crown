@@ -1,0 +1,33 @@
+name: S775 U6 PTV Raw Head Certification
+
+on:
+  push:
+    branches:
+      - S775-u6-ptv-cert-ab4c1af
+
+jobs:
+  raw-head-pytest:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout exact certified head
+        uses: actions/checkout@v4
+        with:
+          ref: ab4c1af22417a89812fc93b03457cddd1f8a0657
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "ab4c1af22417a89812fc93b03457cddd1f8a0657"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+      - name: Run targeted tests
+        run: python -m pytest backend/tests/test_cephalo_lot08_ricketts_gregoret13_geometry.py backend/tests/test_cephalo_lot08_ricketts_gregoret13_profile.py backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py -q
