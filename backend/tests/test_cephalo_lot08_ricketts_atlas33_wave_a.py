@@ -123,7 +123,7 @@ def test_atlas33_generic_molar_canine_aliases_are_not_promoted():
     assert "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2" not in out
 
 
-def test_atlas33_u1_apog_protrusion_stays_blocked_but_inclination_materializes():
+def test_atlas33_u1_apog_protrusion_and_inclination_materialize():
     theta = math.radians(28.0)
     landmarks = {
         "U1_incisal": _lm("U1_incisal", 3.5, 0),
@@ -134,13 +134,15 @@ def test_atlas33_u1_apog_protrusion_stays_blocked_but_inclination_materializes()
         "Or": _lm("Or", 10, 0),
     }
     out = _materialize(landmarks)
-    assert "RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2" not in out
+    protrusion = out["RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2"]
     inclination = out["RICKETTS_U1_APOG_INCLINATION_CANONICAL_DEG_V2"]
+    assert protrusion.availability_status.value == "AVAILABLE"
+    assert protrusion.value == pytest.approx(3.5)
     assert inclination.availability_status.value == "AVAILABLE"
     assert inclination.value == pytest.approx(28.0)
-    protrusion = canonical_measurement("M_RICKETTS_U1_APOG_PROTRUSION_MM_V1")
-    assert protrusion is not None
-    assert protrusion.source_status == "SOURCE_LOCKED_LANDMARKS__A_POG_DISTANCE_DIRECTION_BLOCKED"
+    registry = canonical_measurement("M_RICKETTS_U1_APOG_PROTRUSION_MM_V1")
+    assert registry is not None
+    assert registry.source_status == "GEOMETRY_COVERED_EXPLICIT_U1_EDGE_PERPENDICULAR_APOG_ANTERIOR_POSITIVE"
 
 
 def test_atlas33_u1_inclination_fails_closed_on_degenerate_axis():
@@ -152,7 +154,7 @@ def test_atlas33_u1_inclination_fails_closed_on_degenerate_axis():
 def test_wave_a_registry_keeps_ricketts_overbite_blocked_without_runtime_promotion():
     item = canonical_measurement("M_RICKETTS_OVERBITE_FOP_MM_V1")
     assert item is not None
-    assert item.source_status == "SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED"
+    assert item.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
 
     out = _materialize(_base_dental_landmarks())
     assert "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2" not in out
