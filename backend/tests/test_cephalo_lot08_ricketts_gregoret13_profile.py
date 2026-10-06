@@ -18,6 +18,12 @@ MANDIBULAR_ARC_CONTRACT = (
     / "schemas"
     / "ortho_lot08_ricketts_mandibular_arc_identity_contract_v1.json"
 )
+FOP_MP_SOURCE_LOCK = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "audits"
+    / "CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md"
+)
 
 
 def test_gregoret13_profile_has_exactly_13_unique_measurements_in_order():
@@ -144,3 +150,13 @@ def test_gregoret13_lower_facial_height_requires_source_specific_xi_pm():
     )
     assert row["state"] == "BLOCKED_LANDMARK"
     assert row["gate"] == "XI_RICKETTS_PM_RICKETTS_REQUIRED"
+
+
+def test_gregoret13_profile_links_the_ricketts_plane_source_lock():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    expected = "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md"
+    assert expected in data["source_contracts"]
+    text = FOP_MP_SOURCE_LOCK.read_text(encoding="utf-8")
+    assert "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1" in text
+    assert "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1" in text
+    assert "BLOCKED_SIGN_CONVENTION" in text
