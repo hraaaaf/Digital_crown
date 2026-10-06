@@ -84,12 +84,12 @@ export const WaitingRoom = ({
                 });
 
                 let statusLabel = 'Prévu';
-                let statusColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                let statusColor = 'bg-background text-text-muted border-border-main';
                 let actionButton = null;
 
                 if (appointment.status === 'EN_S_ATTENTE') {
                   statusLabel = "Salle d'attente";
-                  statusColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse';
+                  statusColor = 'bg-success-surface text-success border-success-border animate-pulse';
                   const persistedTicket = appointment.ticket_number ?? null;
                   const persistedTicketValid = Number.isInteger(persistedTicket)
                     && persistedTicket != null
@@ -165,28 +165,28 @@ export const WaitingRoom = ({
                   );
                 } else if (appointment.status === 'EN_FAUTEUIL') {
                   statusLabel = 'Au Fauteuil';
-                  statusColor = 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+                  statusColor = 'bg-info-surface text-info border-info-border';
                   actionButton = (
                     <button
                       type="button"
                       onClick={() => onStatusChange(appointment.id, 'TERMINÉ')}
-                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
+                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-text-main text-card text-[10px] font-black uppercase tracking-wider rounded-lg hover:brightness-110 transition-all"
                     >
                       Terminer la Séance
                     </button>
                   );
                 } else if (appointment.status === 'TERMINÉ') {
                   statusLabel = 'Terminé';
-                  statusColor = 'bg-slate-500/10 text-slate-400 border-slate-500/10';
+                  statusColor = 'bg-background text-text-muted border-border-main';
                 } else if (appointment.status === 'ANNULÉ') {
                   statusLabel = 'Annulé';
-                  statusColor = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+                  statusColor = 'bg-danger-surface text-danger border-danger-border';
                 } else {
                   actionButton = (
                     <button
                       type="button"
                       onClick={() => onStatusChange(appointment.id, 'EN_S_ATTENTE')}
-                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-success text-card text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                     >
                       Marquer Arrivé
                     </button>
@@ -196,7 +196,7 @@ export const WaitingRoom = ({
                 return (
                   <div
                     key={appointment.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-3 sm:gap-4 min-w-0"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-card/40 border border-border-main rounded-elite-sm hover:bg-card/60 transition-all gap-3 sm:gap-4 min-w-0"
                   >
                     <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
                       <div className="shrink-0 text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
@@ -233,8 +233,8 @@ export const WaitingRoom = ({
               })
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
-                <Calendar size={28} className="text-emerald-500" aria-hidden="true" />
+              <div className="w-16 h-16 bg-gradient-to-br from-success-surface to-success-surface rounded-full flex items-center justify-center">
+                <Calendar size={28} className="text-success" aria-hidden="true" />
               </div>
               <div>
                 <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
@@ -244,7 +244,7 @@ export const WaitingRoom = ({
               </div>
               <Link
                 to="/agenda"
-                className="min-h-11 mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all inline-flex items-center"
+                className="min-h-11 mt-4 px-5 py-2.5 bg-success-surface text-success rounded-lg text-xs font-black uppercase tracking-widest hover:brightness-95 transition-all inline-flex items-center"
               >
                 Ouvrir l'agenda
               </Link>
@@ -258,7 +258,7 @@ export const WaitingRoom = ({
           ) : (
             <>
               <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" aria-hidden="true" />
                 En Salle d'Attente : {safeAppointments.filter(item => item.status === 'EN_S_ATTENTE').length}
               </span>
               <span>Au Fauteuil : {safeAppointments.filter(item => item.status === 'EN_FAUTEUIL').length}</span>
