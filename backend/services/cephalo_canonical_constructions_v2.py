@@ -7,6 +7,7 @@ from backend.schemas.cephalo_evidence import (
     AvailabilityStatus,
     ConstructionEvidence,
     LandmarkEvidence,
+    LandmarkOrigin,
 )
 from backend.services.cephalo_ricketts_geometry import ricketts_constructed_gn_v1, ricketts_xi_from_r1_r4_fh_v1
 
@@ -238,6 +239,11 @@ def materialize_canonical_constructions_v2(
         xi_refs.append(item.evidence_id)
         xi_sources.add(item.source_image_ref)
         if item.availability_status != AvailabilityStatus.AVAILABLE:
+            xi_missing.append(landmark_id)
+        if (
+            landmark_id in {"R1_Ricketts", "R2_Ricketts", "R3_Ricketts", "R4_Ricketts"}
+            and item.origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+        ):
             xi_missing.append(landmark_id)
 
     xi_geometry: dict[str, object] = {
