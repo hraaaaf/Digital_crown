@@ -126,15 +126,17 @@ No generic CF point is accepted.
 Canonical ID:
 `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1`.
 
-Method:
-`RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2`.
-
-Definition:
-acute angle between:
+Source-locked identities:
 - anatomical Frankfort `Po_anatomic→Or`;
 - Ricketts palatal plane `ANS→PNS_Ricketts`.
 
-`PNS_Ricketts` must be MANUAL or MANUAL_CORRECTED. Generic/automatic PNS is not promoted silently.
+`PNS_Ricketts` remains source-specific; generic PNS is not promoted silently.
+
+State:
+`SOURCE_LOCKED_DEFINITION__SIGNED_ANGLE_ORIENTATION_BLOCKED`.
+
+Reason:
+the Atlas uses a directional palatal-plane inclination around Frankfort; reducing the geometry to an acute unsigned angle would erase clinically meaningful anterior/posterior rotation. No runtime method is activated until the signed angular orientation is source-locked reproducibly.
 
 ## Compatibility boundary
 
