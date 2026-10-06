@@ -180,9 +180,7 @@ def test_wave_c_generic_go_does_not_unlock_posterior_facial_height():
     landmarks = _landmarks()
     landmarks.pop("GO_Ricketts_PFH")
     _, out = _materialize(landmarks)
-    item = out["RICKETTS_POSTERIOR_FACIAL_HEIGHT_CANONICAL_MM_V2"]
-    assert item.availability_status.value == "NOT_COMPUTABLE"
-    assert item.value is None
+    assert "RICKETTS_POSTERIOR_FACIAL_HEIGHT_CANONICAL_MM_V2" not in out
 
 
 def test_wave_c_factor29_is_resolved_as_total_facial_height_not_duplicate_pfh():
