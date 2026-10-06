@@ -253,25 +253,20 @@ def generate_installment_receipt(
             recap_s
         ))
 
-    # --- Build avec header/footer cabinet + Single-Page Force ---
+    # --- Build avec header/footer cabinet ---
+    # La lisibilité prime sur une contrainte artificielle d'une seule page.
+    # Les échéanciers longs doivent paginer naturellement plutôt que réduire
+    # toute la typographie ou repousser le récapitulatif seul sur une page.
     m_top, m_bottom, m_left, m_right = base.get_document_margins(config, A5[0])
     draw_method = lambda canv, d: base.draw_static_elements(canv, d, config=config, user=user)
 
-    compression = 1.0
-    for _ in range(7):
-        scaled = BaseTemplate.scale_elements(elements, compression)
-        doc = SimpleDocTemplate(filepath, pagesize=A5,
-                                rightMargin=m_right, leftMargin=m_left,
-                                topMargin=m_top, bottomMargin=m_bottom)
-        doc.doc_id   = f"SUIVI-{datetime.now().strftime('%m%H%M')}"
-        doc.qr_type  = 'PAYMENT'
-        page_counter = PageCounter()
-        doc.build(scaled, onFirstPage=draw_method, onLaterPages=draw_method,
-                  canvasmaker=page_counter.make_canvas_class())
-        if page_counter.page_count <= 1:
-            break
-        compression *= 0.82
-        if compression < 0.35:
-            break
+    doc = SimpleDocTemplate(filepath, pagesize=A5,
+                            rightMargin=m_right, leftMargin=m_left,
+                            topMargin=m_top, bottomMargin=m_bottom)
+    doc.doc_id   = f"SUIVI-{datetime.now().strftime('%m%H%M')}"
+    doc.qr_type  = 'PAYMENT'
+    page_counter = PageCounter()
+    doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method,
+              canvasmaker=page_counter.make_canvas_class())
 
     return filepath.replace("\\", "/")
