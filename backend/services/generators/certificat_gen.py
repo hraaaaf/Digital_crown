@@ -39,7 +39,7 @@ class CertificateSignatureSpace(Flowable):
     la zone reste volontairement vide pour la signature manuscrite du praticien.
     """
 
-    def __init__(self, font_name: str, text_color=NAVY_BLUE, height=2.4 * cm, line_width=4.8 * cm, signer_name: str = ''):
+    def __init__(self, font_name: str, text_color=NAVY_BLUE, height=1.8 * cm, line_width=4.8 * cm, signer_name: str = ''):
         super().__init__()
         self.font_name = font_name
         self.text_color = text_color
@@ -92,7 +92,7 @@ class _CertificateConfigView:
 
 
 def _append_handwritten_signature_space(elements, font_name: str, text_color, signer_name: str = '') -> None:
-    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Spacer(1, 0.3 * cm))
     elements.append(
         CertificateSignatureSpace(
             font_name=font_name,
