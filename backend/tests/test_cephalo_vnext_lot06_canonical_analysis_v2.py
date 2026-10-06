@@ -39,6 +39,7 @@ def _landmarks():
         "U6_DISTAL_Ricketts": (18, 5), "L6_DISTAL_Ricketts": (20, 5),
         "U3_CUSP_Ricketts": (13, 7), "L3_CUSP_Ricketts": (15, 7),
         "U1_incisal": (11, 7), "U1_apex": (10, 1), "PR_Ricketts_PTV": (3, 5),
+        "LABIAL_COMMISSURE_Ricketts": (7, 6), "PNS_Ricketts": (2, 6),
         "R1_Ricketts": (2, 15), "R2_Ricketts": (8, 15),
         "R3_Ricketts": (5, 12), "R4_Ricketts": (5, 20),
     }
