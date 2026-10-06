@@ -29,7 +29,9 @@ def context() -> StationEligibilityContext:
         session_claimed_at=NOW - timedelta(seconds=10),
         session_expires_at=NOW + timedelta(seconds=60),
         session_purged_at=None,
-        station_registered=True,
+        station_tenant_id=10,
+        station_experience="station",
+        station_revoked_at=None,
         now=NOW,
     )
 
@@ -79,7 +81,10 @@ def test_unknown_or_sensitive_document_type_is_denied_by_default(context):
 @pytest.mark.parametrize(
     ("changed", "expected"),
     [
-        ({"station_registered": False}, EligibilityReason.STATION_NOT_REGISTERED),
+        ({"station_id": ""}, EligibilityReason.STATION_NOT_REGISTERED),
+        ({"station_revoked_at": NOW}, EligibilityReason.STATION_REVOKED),
+        ({"station_experience": "cabinet"}, EligibilityReason.STATION_NOT_KIOSK),
+        ({"station_experience": None}, EligibilityReason.STATION_NOT_KIOSK),
         ({"session_id": ""}, EligibilityReason.SESSION_NOT_IDENTIFIED),
         ({"session_claimed_at": None}, EligibilityReason.SESSION_NOT_IDENTIFIED),
         ({"session_patient_id": None}, EligibilityReason.SESSION_NOT_IDENTIFIED),
@@ -92,6 +97,7 @@ def test_unknown_or_sensitive_document_type_is_denied_by_default(context):
         ({"session_expires_at": NOW}, EligibilityReason.SESSION_EXPIRED),
         ({"session_expires_at": NOW - timedelta(seconds=1)}, EligibilityReason.SESSION_EXPIRED),
         ({"session_tenant_id": 999}, EligibilityReason.TENANT_MISMATCH),
+        ({"station_tenant_id": 999}, EligibilityReason.TENANT_MISMATCH),
         ({"session_patient_id": 999}, EligibilityReason.PATIENT_MISMATCH),
         ({"session_station_id": "station-b"}, EligibilityReason.STATION_MISMATCH),
     ],
