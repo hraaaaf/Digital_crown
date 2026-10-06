@@ -69,6 +69,24 @@ def _lm(landmark_id, x, y, source_image_ref="source:ceph"):
     )
 
 
+
+
+def _auto_lm(landmark_id, x, y, source_image_ref="source:ceph"):
+    return LandmarkEvidence(
+        evidence_id=f"landmark:auto:{landmark_id}",
+        landmark_id=landmark_id,
+        x=float(x),
+        y=float(y),
+        source_image_ref=source_image_ref,
+        origin=LandmarkOrigin.SRPOSE38_AUTO,
+        model_id="test-model",
+        model_sha256="a" * 64,
+        pipeline_version="test-pipeline",
+        evidence_refs=["source:ceph"],
+        evidence_status=EvidenceStatus.OBSERVED,
+    )
+
+
 def test_gregoret_new_angles_materialize_through_canonical_v2_bridge():
     pts = {
         "S": (0, 0), "N": (0, 0), "A": (0, 10), "Go": (0, 20), "Me": (15, 20),
@@ -426,6 +444,51 @@ def test_gregoret_lower_facial_height_does_not_promote_generic_xi_or_pm_aliases(
         "ANS": _lm("ANS", 5, -4),
         "Xi": _lm("Xi", 5, 6),
         "Pm": _lm("Pm", 15, 6),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
+
+
+def test_ricketts_xi_rejects_auto_r1_r4_authority():
+    landmarks = {
+        "R1_Ricketts": _auto_lm("R1_Ricketts", 2, 5),
+        "R2_Ricketts": _lm("R2_Ricketts", 8, 5),
+        "R3_Ricketts": _lm("R3_Ricketts", 5, 2),
+        "R4_Ricketts": _lm("R4_Ricketts", 5, 10),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    xi = constructions["RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"]
+    assert xi.availability_status.value == "NOT_COMPUTABLE"
+    assert "R1_Ricketts" in xi.missing_landmark_ids
+
+
+def test_gregoret_lower_facial_height_rejects_auto_pm_authority():
+    landmarks = {
+        "ANS": _lm("ANS", 5, -4),
+        "Pm_Ricketts": _auto_lm("Pm_Ricketts", 15, 6),
+        "R1_Ricketts": _lm("R1_Ricketts", 2, 5),
+        "R2_Ricketts": _lm("R2_Ricketts", 8, 5),
+        "R3_Ricketts": _lm("R3_Ricketts", 5, 2),
+        "R4_Ricketts": _lm("R4_Ricketts", 5, 10),
         "Po_anatomic": _lm("Po_anatomic", 0, 0),
         "Or": _lm("Or", 10, 0),
     }
