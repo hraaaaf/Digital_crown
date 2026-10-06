@@ -14,6 +14,13 @@ RICKETTS_GN_CONSTRUCTION_ID = "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
 RICKETTS_GN_REQUIRED_LANDMARKS = ("N", "Pog_hard", "Go", "Me")
 RICKETTS_PTV_CONSTRUCTION_ID = "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
 RICKETTS_PTV_REQUIRED_LANDMARKS = ("PR_Ricketts_PTV", "Po_anatomic", "Or")
+RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID = "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED_LANDMARKS = (
+    "FOP_PREMOLAR_Ricketts",
+    "FOP_MOLAR_Ricketts",
+)
+RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID = "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1"
+RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS = ("Go_Ricketts", "Me")
 
 
 def materialize_canonical_constructions_v2(
@@ -140,7 +147,82 @@ def materialize_canonical_constructions_v2(
         evidence_refs=ptv_refs,
         availability_status=ptv_availability,
     )
+    def _explicit_line(
+        definition_id: str,
+        required_ids: tuple[str, str],
+        construction_rule: str,
+    ) -> ConstructionEvidence:
+        line_refs: list[str] = []
+        line_missing: list[str] = []
+        line_sources: set[str] = set()
+        for landmark_id in required_ids:
+            item = landmarks.get(landmark_id)
+            if item is None:
+                line_missing.append(landmark_id)
+                continue
+            if item.landmark_id != landmark_id:
+                raise ValueError(
+                    f"Landmark mapping key {landmark_id} resolves to {item.landmark_id}"
+                )
+            line_refs.append(item.evidence_id)
+            line_sources.add(item.source_image_ref)
+            if item.availability_status != AvailabilityStatus.AVAILABLE:
+                line_missing.append(landmark_id)
+
+        line_geometry: dict[str, object] = {
+            "kind": "constructed_line",
+            "construction_rule": construction_rule,
+            "required_landmark_ids": list(required_ids),
+            "coordinate_space": "source_image_pixels",
+        }
+        line_availability = AvailabilityStatus.AVAILABLE
+        if line_missing:
+            line_availability = AvailabilityStatus.NOT_COMPUTABLE
+        elif len(line_sources) != 1:
+            line_availability = AvailabilityStatus.INVALID
+        else:
+            p1 = landmarks[required_ids[0]]
+            p2 = landmarks[required_ids[1]]
+            dx = p2.x - p1.x
+            dy = p2.y - p1.y
+            norm = (dx * dx + dy * dy) ** 0.5
+            if norm <= 1e-12:
+                line_availability = AvailabilityStatus.INVALID
+            else:
+                line_geometry.update(
+                    {
+                        "point_x": p1.x,
+                        "point_y": p1.y,
+                        "direction_x": dx / norm,
+                        "direction_y": dy / norm,
+                        "source_image_ref": next(iter(line_sources)),
+                    }
+                )
+        return ConstructionEvidence(
+            construction_id=f"{construction_namespace}:{definition_id}",
+            definition_id=definition_id,
+            definition_version="1",
+            landmark_refs=line_refs,
+            missing_landmark_ids=line_missing,
+            geometry=line_geometry,
+            evidence_refs=line_refs,
+            availability_status=line_availability,
+        )
+
+    functional_occlusal_plane = _explicit_line(
+        RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID,
+        RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED_LANDMARKS,
+        "line_through_explicit_Ricketts_buccal_occlusion_premolar_and_molar_points",
+    )
+    mandibular_plane = _explicit_line(
+        RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
+        RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS,
+        "line_through_explicit_Ricketts_inferior_angle_point_and_Menton",
+    )
+
     return {
         RICKETTS_GN_CONSTRUCTION_ID: construction,
         RICKETTS_PTV_CONSTRUCTION_ID: ptv,
+        RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID: functional_occlusal_plane,
+        RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID: mandibular_plane,
     }
