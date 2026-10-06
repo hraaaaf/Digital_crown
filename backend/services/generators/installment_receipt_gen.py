@@ -247,11 +247,11 @@ def generate_installment_receipt(
         table.setStyle(TableStyle(local_styles))
         return table
 
-    # Sur A5, 10 à 15 lignes peuvent laisser une seule échéance orpheline
+    # Sur A5, 12 à 15 lignes peuvent laisser une seule échéance orpheline
     # avec le récapitulatif sur la page suivante. Pour ce format intermédiaire,
     # on réserve explicitement un bloc final de 4 échéances + total sur P2.
     # Les gros plans restent en pagination naturelle.
-    if 10 <= len(items) <= 15:
+    if 12 <= len(items) <= 15:
         tail_count = 4
         split_at = len(items) - tail_count
         first_data = table_data[:1 + split_at]
