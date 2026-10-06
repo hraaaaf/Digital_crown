@@ -260,19 +260,19 @@ Re-reviewed the source/profile architecture after the fixes.
 - New MAJOR: 0.
 - Significant open scientific work: explicit and accepted as open, not hidden.
 
-A1 matrix framing is converged; **Ricketts protocol implementation is not converged**.
+A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts are now source-locked with 7 executable + 6 conditional rows and 0 blocked landmark rows. The complete Atlas/compatibility Ricketts program remains open.**
 
 ## Gate
 
-`RICKETTS_SOURCE_LOCK = PARTIAL / OPEN`
+`RICKETTS_GREGORET13_SOURCE_LOCK = CONTRACT_COMPLETE / VALIDATION_PENDING`  
+`RICKETTS_COMPLETE_PROFILE_SOURCE_LOCK = PARTIAL / OPEN`
 
 ## Next exact
 
-1. Freeze exact 33 Atlas factor definitions/constructions one by one.
-2. Freeze exact Gregoret 13 factor definitions/constructions one by one.
-3. Create missing canonical LOT06 IDs/contracts, beginning with the 13-factor profile because it reduces the first executable clinical slice.
-4. Add explicit manual identities/constructions for Xi, Pm, CF, DC, PTV and Ricketts functional occlusal plane before any auto authority.
-5. Only then wire UI/report/tracing.
-6. Keep Facad 32F/13F as parity checks, not scientific source identifiers.
+1. Complete validation/convergence of the Gregoret 13 source-lock on the final exact HEAD.
+2. Then continue the Atlas 2009 complete-profile contracts, beginning with remaining source-specific identities such as CF/CC and the 16 missing canonical contracts.
+3. Keep norms, age/sex interpretation, VERT and clinical classification disabled until separately validated.
+4. Only then wire any new UI/report/tracing for the expanded protocol.
+5. Keep Facad 32F/13F as parity checks, not scientific source identifiers.
 
 No merge. No deployment.
