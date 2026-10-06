@@ -116,17 +116,17 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | `M_RICKETTS_MOLAR_RELATION_FOP_MM_V1` | Ricketts molar relation | lower minus upper first-molar distal references projected on posterior-positive Ricketts FOP | `L6_DISTAL_Ricketts,U6_DISTAL_Ricketts` + FOP | mm signed | `GEOMETRY_COVERED`; manual molar distals + calibration |
 | `M_RICKETTS_CANINE_RELATION_FOP_MM_V1` | Ricketts canine relation | lower minus upper canine cusp references projected on posterior-positive Ricketts FOP | `L3_CUSP_Ricketts,U3_CUSP_Ricketts` + FOP | mm signed | `GEOMETRY_COVERED`; manual canine cusps + calibration |
 | `M_RICKETTS_OVERJET_FOP_MM_V1` | Ricketts overjet | lower minus upper incisal edges projected on posterior-positive Ricketts FOP | `L1_incisal,U1_incisal` + FOP | mm signed | `GEOMETRY_COVERED`; calibration |
-| `M_RICKETTS_OVERBITE_FOP_MM_V1` | Ricketts overbite | incisal-edge separation perpendicular to Ricketts FOP | `L1_incisal,U1_incisal` + FOP | mm signed | `SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED` |
-| `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | Ricketts upper-incisor protrusion | distance from U1 incisal edge to A-Pog; exact direction unresolved | `U1_incisal,A,Pog_hard` | mm | `SOURCE_LOCKED_LANDMARKS__A_POG_DISTANCE_DIRECTION_BLOCKED` |
+| `M_RICKETTS_OVERBITE_FOP_MM_V1` | Ricketts overbite | incisal-edge separation perpendicular to Ricketts FOP; open bite negative in source convention | `L1_incisal,U1_incisal` + FOP | mm signed | `SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE` |
+| `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | Ricketts upper-incisor protrusion | perpendicular signed U1 incisal-edge distance to A-Pog; anterior positive | `U1_incisal,A,Pog_hard,Po_anatomic,Or` | mm signed | `GEOMETRY_COVERED_EXPLICIT_U1_EDGE_PERPENDICULAR_APOG_ANTERIOR_POSITIVE`; calibration |
 | `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | Ricketts upper-incisor inclination | acute line angle U1 long axis / A-Pog | `U1_incisal,U1_apex,A,Pog_hard` | angle ° | `GEOMETRY_COVERED` |
 
-| `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | Ricketts FOP→Xi | signed perpendicular Xi/FOP relation | canonical Xi + source-locked FOP | mm | `SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED` |
+| `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | Ricketts FOP→Xi | signed perpendicular Xi/FOP relation; + FOP above Xi / − below | canonical Xi + source-locked FOP | mm | `SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE` |
 | `M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1` | Ricketts occlusal-plane inclination | acute angle FOP / Xi-Pm | canonical FOP, canonical Xi, manual Pm | angle ° | `GEOMETRY_COVERED` |
 | `M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1` | Ricketts upper-lip length | straight-line ANS to labial commissure | ANS, `LABIAL_COMMISSURE_Ricketts` | mm | `GEOMETRY_COVERED`; manual commissure + calibration |
-| `M_RICKETTS_COMMISSURE_FOP_MM_V1` | Ricketts commissure to FOP | signed commissure/FOP relation | `LABIAL_COMMISSURE_Ricketts` + source-locked FOP | mm | `SOURCE_LOCKED_DEFINITION__SIGNED_NORMAL_ORIENTATION_BLOCKED` |
+| `M_RICKETTS_COMMISSURE_FOP_MM_V1` | Ricketts commissure to FOP | signed relation; negative when FOP passes below commissure | `LABIAL_COMMISSURE_Ricketts` + source-locked FOP | mm | `SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE` |
 | `M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1` | Ricketts facial taper | acute angle N-Pog / source-locked Ricketts MP | N,Pog + Ricketts MP construction | angle ° | `GEOMETRY_COVERED` |
 | `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | Ricketts maxillary height | angle N-CF-A | N,A + `RICKETTS_CF_FH_PTV_INTERSECTION_V1` | angle ° | `GEOMETRY_COVERED` |
-| `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | Ricketts palatal plane | directional ANS-PNS / anatomical FH angle; sign unresolved | ANS,`PNS_Ricketts`,Po_anatomic,Or | angle ° | `SOURCE_LOCKED_DEFINITION__SIGNED_ANGLE_ORIENTATION_BLOCKED` |
+| `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | Ricketts palatal plane | directional ANS-PNS / anatomical FH angle; source direction known | ANS,`PNS_Ricketts`,Po_anatomic,Or | angle ° | `SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE` |
 
 # 6. Dento-alvéolaire mandibulaire
 
