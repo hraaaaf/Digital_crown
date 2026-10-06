@@ -271,6 +271,24 @@ def ricketts_l1_edge_apog_signed_distance_px_v1(
     return math.copysign(magnitude, anterior_score)
 
 
+def ricketts_u1_edge_apog_signed_distance_px_v1(
+    u1_incisal: Point,
+    a: Point,
+    pog: Point,
+    po: Point,
+    or_: Point,
+) -> Optional[float]:
+    """Signed perpendicular distance from upper incisal edge to A-Pog.
+
+    Atlas/Ricketts source lock matches the lower-incisor construction:
+    shortest point-to-line distance with positive sign anterior to A-Pog.
+    Frankfort Po->Or orients anterior/posterior only.
+    """
+    return ricketts_l1_edge_apog_signed_distance_px_v1(
+        u1_incisal, a, pog, po, or_
+    )
+
+
 def ricketts_l1_occlusal_extrusion_signed_px_v1(
     l1_incisal: Point,
     l1_apex: Point,
