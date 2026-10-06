@@ -84,6 +84,7 @@ describe('Header G1 interactive matrix', () => {
     fireEvent.click(screen.getByRole('button', { name: "Ouvrir le centre d’attention" }));
     expect(await screen.findByText('Centre d’attention')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Trésorerie' })).toBeNull();
+    await waitFor(() => expect(cabinetApi.getMine).not.toHaveBeenCalled());
     first.unmount();
 
     mockUser = {
@@ -94,6 +95,7 @@ describe('Header G1 interactive matrix', () => {
     };
     renderHeader();
     expect(screen.getByTitle('Réglages')).toBeTruthy();
+    await waitFor(() => expect(cabinetApi.getMine).toHaveBeenCalledTimes(1));
   });
 
   it('requires explicit confirmation before logout and Cancel is non-mutating', async () => {
