@@ -26,12 +26,12 @@ Canonical ID:
 Atlas definition:
 linear distance from Xi to the functional occlusal plane.
 
-The Atlas/reference material describes clinical positive/negative values, but this pass did not recover a source-defined geometric rule that orients the FOP normal independently of screen orientation.
+Wave D confirms the source sign: positive when the occlusal plane passes above Xi; negative when it passes below Xi.
 
 State:
-`SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED`.
+`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
 
-No runtime method is activated.
+No runtime method is activated because the current image-evidence contract does not prove anatomical superior/inferior orientation independently of screen coordinates.
 
 ## #15 — Occlusal-plane inclination
 
@@ -81,10 +81,10 @@ Atlas definition:
 distance from labial commissure to the occlusal plane. Atlas text states negative values when the occlusal plane passes below the commissure and positive values for the inverse relation.
 
 State:
-`SOURCE_LOCKED_DEFINITION__SIGNED_NORMAL_ORIENTATION_BLOCKED`.
+`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
 
 Reason:
-the clinical sign is described, but an orientation rule for the FOP normal that is invariant to image rotation/mirroring is not explicitly source-defined. No runtime method is activated.
+the clinical sign is source-defined, but the current image-evidence contract does not prove the anatomical superior/inferior image axis required to implement it invariantly under rotation/mirroring. No runtime method is activated.
 
 ## #21 — Facial taper / cone
 
@@ -134,11 +134,13 @@ Source-locked identities:
 
 `PNS_Ricketts` remains source-specific; generic PNS is not promoted silently.
 
+Wave D confirms the source direction: increased values describe anterior convergence and decreased values posterior convergence.
+
 State:
-`SOURCE_LOCKED_DEFINITION__SIGNED_ANGLE_ORIENTATION_BLOCKED`.
+`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
 
 Reason:
-the Atlas uses a directional palatal-plane inclination around Frankfort; reducing the geometry to an acute unsigned angle would erase clinically meaningful anterior/posterior rotation. No runtime method is activated until the signed angular orientation is source-locked reproducibly.
+the directional source meaning is now known, but a signed 2-D angle still requires evidenced image handedness/superior-inferior orientation. An unsigned acute angle remains forbidden because it would erase clinically meaningful direction.
 
 ## Compatibility boundary
 
