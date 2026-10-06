@@ -9,6 +9,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_lower_facial_height_ans_xi_pm_deg_v1,
     ricketts_mandibular_arc_deg_v1,
     ricketts_maxillary_depth_deg_v1,
+    ricketts_u6_distal_to_ptv_signed_px_v1,
     ricketts_xi_from_r1_r4_fh_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
@@ -659,3 +660,150 @@ def test_gregoret_mandibular_arc_rejects_auto_pm_authority():
     ]
     assert item.availability_status.value == "NOT_COMPUTABLE"
     assert item.value is None
+
+
+def test_ricketts_u6_ptv_distance_is_anterior_positive_and_rotation_mirror_invariant():
+    original = ricketts_u6_distal_to_ptv_signed_px_v1(
+        (8.0, 5.0), (2.0, 5.0), (0.0, 0.0), (10.0, 0.0)
+    )
+    rotated = ricketts_u6_distal_to_ptv_signed_px_v1(
+        (-5.0, 8.0), (-5.0, 2.0), (0.0, 0.0), (0.0, 10.0)
+    )
+    mirrored = ricketts_u6_distal_to_ptv_signed_px_v1(
+        (-8.0, 5.0), (-2.0, 5.0), (0.0, 0.0), (-10.0, 0.0)
+    )
+    assert original == pytest.approx(6.0)
+    assert rotated == pytest.approx(6.0)
+    assert mirrored == pytest.approx(6.0)
+
+
+def test_ricketts_u6_ptv_distance_fails_closed_on_degenerate_frankfort():
+    assert ricketts_u6_distal_to_ptv_signed_px_v1(
+        (8.0, 5.0), (2.0, 5.0), (0.0, 0.0), (0.0, 0.0)
+    ) is None
+
+
+def test_gregoret_u6_ptv_materializes_from_manual_u6_and_manual_pr_with_calibration():
+    landmarks = {
+        "U6_DISTAL_Ricketts": _lm("U6_DISTAL_Ricketts", 8, 5),
+        "PR_Ricketts_PTV": _lm("PR_Ricketts_PTV", 2, 5),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}["RICKETTS_U6_PTV_CANONICAL_MM_V2"]
+    assert item.availability_status.value == "AVAILABLE"
+    assert item.value == pytest.approx(3.0)
+    assert item.calibration_ref == "source:calibration"
+    assert item.construction_refs == [
+        "construction:gregoret:RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+    ]
+
+
+def test_gregoret_u6_ptv_rejects_auto_u6_distal_authority():
+    landmarks = {
+        "U6_DISTAL_Ricketts": _auto_lm("U6_DISTAL_Ricketts", 8, 5),
+        "PR_Ricketts_PTV": _lm("PR_Ricketts_PTV", 2, 5),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}["RICKETTS_U6_PTV_CANONICAL_MM_V2"]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
+
+
+def test_ricketts_ptv_rejects_auto_pr_authority():
+    landmarks = {
+        "PR_Ricketts_PTV": _auto_lm("PR_Ricketts_PTV", 2, 5),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    ptv = constructions["RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"]
+    assert ptv.availability_status.value == "NOT_COMPUTABLE"
+    assert "PR_Ricketts_PTV" in ptv.missing_landmark_ids
+
+
+def test_gregoret_u6_ptv_requires_verified_calibration():
+    landmarks = {
+        "U6_DISTAL_Ricketts": _lm("U6_DISTAL_Ricketts", 8, 5),
+        "PR_Ricketts_PTV": _lm("PR_Ricketts_PTV", 2, 5),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}["RICKETTS_U6_PTV_CANONICAL_MM_V2"]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
+
+
+def test_gregoret_u6_ptv_rejects_cross_image_evidence():
+    landmarks = {
+        "U6_DISTAL_Ricketts": _lm("U6_DISTAL_Ricketts", 8, 5, "source:u6"),
+        "PR_Ricketts_PTV": _lm("PR_Ricketts_PTV", 2, 5, "source:ptv"),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0, "source:ptv"),
+        "Or": _lm("Or", 10, 0, "source:ptv"),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}["RICKETTS_U6_PTV_CANONICAL_MM_V2"]
+    assert item.availability_status.value == "INVALID"
+    assert item.value is None
+
+
+def test_gregoret_u6_ptv_does_not_promote_generic_u6_or_ptv_aliases():
+    landmarks = {
+        "U6": _lm("U6", 8, 5),
+        "PTV": _lm("PTV", 2, 5),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    assert "RICKETTS_U6_PTV_CANONICAL_MM_V2" not in {entry.method_id for entry in out}
