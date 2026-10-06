@@ -112,7 +112,7 @@ def test_atlas33_generic_molar_canine_aliases_are_not_promoted():
     assert "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2" not in out
 
 
-def test_atlas33_u1_apog_protrusion_and_inclination_materialize():
+def test_atlas33_u1_apog_protrusion_stays_blocked_but_inclination_materializes():
     theta = math.radians(28.0)
     landmarks = {
         "U1_incisal": _lm("U1_incisal", 3.5, 0),
@@ -123,12 +123,13 @@ def test_atlas33_u1_apog_protrusion_and_inclination_materialize():
         "Or": _lm("Or", 10, 0),
     }
     out = _materialize(landmarks)
-    protrusion = out["RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2"]
+    assert "RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2" not in out
     inclination = out["RICKETTS_U1_APOG_INCLINATION_CANONICAL_DEG_V2"]
-    assert protrusion.availability_status.value == "AVAILABLE"
-    assert protrusion.value == pytest.approx(3.5)
     assert inclination.availability_status.value == "AVAILABLE"
     assert inclination.value == pytest.approx(28.0)
+    protrusion = canonical_measurement("M_RICKETTS_U1_APOG_PROTRUSION_MM_V1")
+    assert protrusion is not None
+    assert protrusion.source_status == "SOURCE_LOCKED_LANDMARKS__A_POG_DISTANCE_DIRECTION_BLOCKED"
 
 
 def test_atlas33_u1_inclination_fails_closed_on_degenerate_axis():
