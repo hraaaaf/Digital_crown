@@ -1349,3 +1349,58 @@ def test_v15_04_2_rescheduling_invalidates_old_presence_proof(client, db, dentis
     )
     assert receipt.status_code == 409
     assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
+
+
+def test_v15_04_2_staff_can_reconfirm_after_reschedule_with_new_proof(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-RECONFIRM"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
+
+    first_present = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"status": "EN_S_ATTENTE"},
+    )
+    assert first_present.status_code == 200, first_present.text
+    first_confirm = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert first_confirm.status_code == 200, first_confirm.text
+
+    shifted = appointment.datetime_start + timedelta(minutes=1)
+    moved = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"datetime_start": shifted.isoformat()},
+    )
+    assert moved.status_code == 200, moved.text
+
+    second_confirm = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert second_confirm.status_code == 200, second_confirm.text
+    assert second_confirm.json()["proofId"] != first_confirm.json()["proofId"]
+
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.content.startswith(b"%PDF")
