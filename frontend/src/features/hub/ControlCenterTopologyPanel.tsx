@@ -41,12 +41,24 @@ type ProbeResult = {
 };
 
 const isLoopback = (hostname: string) => {
-  const normalized = hostname.toLowerCase();
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   return normalized === 'localhost'
     || normalized === '127.0.0.1'
     || normalized.startsWith('127.')
-    || normalized === '[::1]'
     || normalized === '::1';
+};
+
+const isPrivateLanHost = (hostname: string) => {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (isLoopback(normalized) || normalized.endsWith('.local')) return true;
+  if (/^10(?:\.\d{1,3}){3}$/.test(normalized)) return true;
+  if (/^192\.168(?:\.\d{1,3}){2}$/.test(normalized)) return true;
+  const private172 = normalized.match(/^172\.(\d{1,3})(?:\.\d{1,3}){2}$/);
+  if (private172) {
+    const secondOctet = Number(private172[1]);
+    if (secondOctet >= 16 && secondOctet <= 31) return true;
+  }
+  return /^(?:fc|fd)[0-9a-f]{2}:/i.test(normalized) || /^fe[89ab][0-9a-f]:/i.test(normalized);
 };
 
 const normalizeTarget = (raw: string): { baseUrl: string | null; error: string | null } => {
@@ -69,6 +81,9 @@ const normalizeTarget = (raw: string): { baseUrl: string | null; error: string |
   }
 
   const hostname = parsed.hostname;
+  if (!isPrivateLanHost(hostname)) {
+    return { baseUrl: null, error: 'Utilisez uniquement une adresse locale du cabinet (IP privée ou nom .local).' };
+  }
   if (parsed.protocol === 'http:' && !isLoopback(hostname)) {
     return { baseUrl: null, error: 'HTTPS est obligatoire pour une adresse LAN. HTTP est accepté uniquement en local.' };
   }
@@ -126,15 +141,30 @@ export const ControlCenterTopologyPanel = () => {
     }
 
     setInputError('');
+
+    const currentBase = normalizeTarget(API_BASE).baseUrl;
+    const isCurrentAuthority = parsed.baseUrl === currentBase;
+    if (!isCurrentAuthority) {
+      setResult({
+        baseUrl: parsed.baseUrl,
+        latencyMs: 0,
+        backendOk: false,
+        databaseOk: false,
+        authOk: null,
+        topology: null,
+        error: 'Aucune requête n’est envoyée à une origine distante avant votre navigation explicite. Ouvrez ce serveur pour exécuter le diagnostic directement sur son origine.',
+        crossOriginLimited: true,
+      });
+      return;
+    }
+
     setBusy(true);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 6_000);
     const started = performance.now();
 
     try {
-      const currentBase = normalizeTarget(API_BASE).baseUrl;
-      const isCurrentAuthority = parsed.baseUrl === currentBase;
-      const authToken = isCurrentAuthority ? getRuntimeAuthToken() : null;
+      const authToken = getRuntimeAuthToken();
       const [topologyResponse, dbResponse, authResponse] = await Promise.all([
         fetch(`${parsed.baseUrl}/api/health/topology`, {
           credentials: 'omit',
@@ -146,14 +176,12 @@ export const ControlCenterTopologyPanel = () => {
           cache: 'no-store',
           signal: controller.signal,
         }),
-        isCurrentAuthority
-          ? fetch(`${parsed.baseUrl}/api/clinics/me`, {
-              credentials: 'include',
-              cache: 'no-store',
-              signal: controller.signal,
-              headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
-            })
-          : Promise.resolve(null),
+        fetch(`${parsed.baseUrl}/api/clinics/me`, {
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+        }),
       ]);
       const topology = await topologyResponse.json().catch(() => null) as TopologyPayload | null;
       setResult({
@@ -161,7 +189,7 @@ export const ControlCenterTopologyPanel = () => {
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
         backendOk: topologyResponse.ok,
         databaseOk: dbResponse.ok,
-        authOk: authResponse ? authResponse.ok : null,
+        authOk: authResponse.ok,
         topology,
         error: null,
         crossOriginLimited: false,
