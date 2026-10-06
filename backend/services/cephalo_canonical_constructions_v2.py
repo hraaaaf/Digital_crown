@@ -24,6 +24,7 @@ RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID = "RICKETTS_MANDIBULAR_PLANE_ANGLE_MEN
 RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS = ("MP_ANGLE_INFERIOR_Ricketts", "Me")
 RICKETTS_XI_CONSTRUCTION_ID = "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
 RICKETTS_XI_REQUIRED_LANDMARKS = ("R1_Ricketts", "R2_Ricketts", "R3_Ricketts", "R4_Ricketts", "Po_anatomic", "Or")
+RICKETTS_CF_CONSTRUCTION_ID = "RICKETTS_CF_FH_PTV_INTERSECTION_V1"
 
 
 def materialize_canonical_constructions_v2(
@@ -285,6 +286,41 @@ def materialize_canonical_constructions_v2(
                 "source_image_ref": next(iter(xi_sources)),
             })
 
+    cf_geometry: dict[str, object] = {
+        "kind": "constructed_landmark",
+        "constructed_landmark_id": "CF_Ricketts",
+        "construction_rule": "intersection_of_anatomical_Frankfort_and_source_locked_Ricketts_PTV",
+        "coordinate_space": "source_image_pixels",
+    }
+    cf_refs = list(ptv.landmark_refs)
+    cf_availability = ptv.availability_status
+    if cf_availability == AvailabilityStatus.AVAILABLE:
+        po = landmarks["Po_anatomic"]
+        or_ = landmarks["Or"]
+        pr = landmarks["PR_Ricketts_PTV"]
+        fh_x = or_.x - po.x
+        fh_y = or_.y - po.y
+        fh_len_sq = fh_x * fh_x + fh_y * fh_y
+        if fh_len_sq <= 1e-12:
+            cf_availability = AvailabilityStatus.INVALID
+        else:
+            t = ((pr.x - po.x) * fh_x + (pr.y - po.y) * fh_y) / fh_len_sq
+            cf_geometry.update({
+                "x": po.x + t * fh_x,
+                "y": po.y + t * fh_y,
+                "source_image_ref": ptv.geometry.get("source_image_ref"),
+            })
+    cf_construction = ConstructionEvidence(
+        construction_id=f"{construction_namespace}:{RICKETTS_CF_CONSTRUCTION_ID}",
+        definition_id=RICKETTS_CF_CONSTRUCTION_ID,
+        definition_version="1",
+        landmark_refs=cf_refs,
+        missing_landmark_ids=list(ptv.missing_landmark_ids),
+        geometry=cf_geometry,
+        evidence_refs=cf_refs,
+        availability_status=cf_availability,
+    )
+
     xi_construction = ConstructionEvidence(
         construction_id=f"{construction_namespace}:{RICKETTS_XI_CONSTRUCTION_ID}",
         definition_id=RICKETTS_XI_CONSTRUCTION_ID,
@@ -302,4 +338,5 @@ def materialize_canonical_constructions_v2(
         RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID: functional_occlusal_plane,
         RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID: mandibular_plane,
         RICKETTS_XI_CONSTRUCTION_ID: xi_construction,
+        RICKETTS_CF_CONSTRUCTION_ID: cf_construction,
     }
