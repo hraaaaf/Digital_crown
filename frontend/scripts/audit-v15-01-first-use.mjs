@@ -68,6 +68,8 @@ for (const profile of profiles) {
   const databaseVisible = bodyText.includes('Disponible');
   const authVisible = bodyText.includes('Authentifiée');
   const privacyCopyVisible = bodyText.includes('aucun identifiant ni donnée patient');
+  const connectionUrlVisible = bodyText.includes('URL poste annexe')
+    && bodyText.includes('Non publiée — serveur limité au loopback');
 
   await page.screenshot({ path: path.join(outDir, profile.label + '-03-control-center-verified.png'), fullPage: true });
 
@@ -81,6 +83,7 @@ for (const profile of profiles) {
     databaseVisible,
     authVisible,
     privacyCopyVisible,
+    connectionUrlVisible,
     insecureLanRejected,
     buttons,
     consoleErrors,
@@ -108,6 +111,7 @@ const report = {
     && item.databaseVisible
     && item.authVisible
     && item.privacyCopyVisible
+    && item.connectionUrlVisible
     && item.insecureLanRejected
     && item.pageErrors.length === 0
     && item.http5xx.length === 0
