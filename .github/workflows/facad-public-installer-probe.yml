@@ -1,0 +1,85 @@
+name: Facad public installer probe
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-public-installer-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Probe documented public Facad download surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p facad-probe
+
+          urls=(
+            "https://downloads.citodent.com/pub/Facad/"
+            "https://www.facad.com/wp/downloads2/"
+            "https://www.facad.com/dox/"
+          )
+
+          for url in "${urls[@]}"; do
+            safe=$(printf '%s' "$url" | sed 's#https\?://##; s#[^A-Za-z0-9._-]#_#g')
+            echo "=== $url ===" | tee -a facad-probe/probe.txt
+            code=$(curl -L -sS -o "facad-probe/$safe.body" -w '%{http_code}' "$url" || true)
+            echo "HTTP $code" | tee -a facad-probe/probe.txt
+            if [[ -s "facad-probe/$safe.body" ]]; then
+              grep -Eio 'href=["'\'''][^"'\''']+["'\''']' "facad-probe/$safe.body" \
+                | sed -E 's/^href=["'\''']|["'\''']$//g' \
+                | grep -Ei '(facad|installer|setup|\.msi($|\?)|\.exe($|\?)|\.zip($|\?))' \
+                | sort -u | tee -a facad-probe/probe.txt || true
+            fi
+          done
+
+      - name: Probe a minimal set of conventional installer filenames
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.citodent.com/pub/Facad"
+          candidates=(
+            "FacadInstaller.msi"
+            "FacadInstaller.exe"
+            "FacadInstaller.zip"
+            "FacadSetup.msi"
+            "FacadSetup.exe"
+            "Latest/"
+          )
+
+          for name in "${candidates[@]}"; do
+            url="$base/$name"
+            status=$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url" || true)
+            printf '%s\t%s\n' "$status" "$url" | tee -a facad-probe/candidates.txt
+          done
+
+      - name: Fail closed if no public installer candidate is found
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat facad-probe/probe.txt || true
+          cat facad-probe/candidates.txt || true
+
+          if grep -Eq '^200[[:space:]]+https://downloads\.citodent\.com/pub/Facad/.*(\.msi|\.exe|\.zip)$' facad-probe/candidates.txt; then
+            echo "FACAD_PUBLIC_INSTALLER_CANDIDATE_FOUND"
+          else
+            echo "FACAD_PUBLIC_INSTALLER_CANDIDATE_NOT_FOUND"
+          fi
+
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-public-installer-probe-${{ github.sha }}
+          path: facad-probe/
+          if-no-files-found: error
