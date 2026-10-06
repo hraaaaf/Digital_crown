@@ -32,6 +32,44 @@
       "status": "MISSING"
     }
   ],
+  "evidence_record_contract": {
+    "required_fields": [
+      "artifact_kind",
+      "profile_target_id",
+      "source_filename",
+      "sha256",
+      "facad_version",
+      "observed_at",
+      "same_trace_case_id"
+    ],
+    "allowed_artifact_kinds": [
+      "ANALYSIS_VALUES",
+      "ANALYSIS_PROPERTIES",
+      "MARKER_POSITIONS"
+    ],
+    "allowed_profile_target_ids": [
+      "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+      "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET"
+    ],
+    "sha256_format": "64 lowercase hexadecimal characters",
+    "same_trace_rule": "Artifacts used for numeric parity must share the same_trace_case_id."
+  },
+  "parity_row_contract": {
+    "required_fields": [
+      "profile_target_id",
+      "facad_order",
+      "facad_export_label",
+      "facad_unit",
+      "digital_crown_measurement_id",
+      "membership_status",
+      "sign_status",
+      "numeric_status",
+      "evidence_refs"
+    ],
+    "allowed_membership_status": ["OBSERVED_MATCH", "OBSERVED_FACAD_ONLY", "OBSERVED_DC_ONLY", "UNOBSERVED"],
+    "allowed_sign_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"],
+    "allowed_numeric_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_COMPARABLE"]
+  },
   "comparison_dimensions": [
     "membership",
     "order",
@@ -53,7 +91,9 @@
     "no_sign_inference_without_observation": true,
     "no_norm_inference_without_observation": true,
     "no_scientific_equivalence_claim": true,
-    "unobserved_fields_remain_unobserved": true
+    "unobserved_fields_remain_unobserved": true,
+    "evidence_hash_required": true,
+    "facad_version_required": true
   },
   "evidence_records": [],
   "parity_rows": []
