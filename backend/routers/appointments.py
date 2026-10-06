@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from typing import List, Optional
 from datetime import datetime, timedelta
 
@@ -295,16 +295,30 @@ def confirm_appointment_presence(
     if workstation is None or workstation.default_experience != "cabinet":
         raise HTTPException(status_code=403, detail="STAFF_WORKSTATION_REQUIRED")
 
-    appointment = db.query(models.Appointment).filter(
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite:
+        db.commit()
+        db.execute(text("BEGIN IMMEDIATE"))
+    else:
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": (employer_id << 32) | int(id)},
+        )
+
+    query = db.query(models.Appointment).filter(
         models.Appointment.id == id,
         models.Appointment.employer_id == employer_id,
         models.Appointment.deleted_at.is_(None),
-    ).first()
+    )
+    appointment = query.first() if sqlite else query.with_for_update().first()
     if appointment is None:
+        db.rollback()
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
     if appointment.patient_id is None:
+        db.rollback()
         raise HTTPException(status_code=409, detail="APPOINTMENT_PATIENT_REQUIRED")
     if appointment.status != models.AppointmentStatus.EN_SALLE_ATTENTE:
+        db.rollback()
         raise HTTPException(status_code=409, detail="APPOINTMENT_PRESENCE_NOT_CONFIRMABLE")
 
     proof_details = presence_proof_details(appointment.datetime_start)
@@ -316,7 +330,9 @@ def confirm_appointment_presence(
         models.AuditLog.details == proof_details,
     ).order_by(models.AuditLog.id.asc()).first()
     if existing is not None:
-        return {"status": "CONFIRMED", "proofId": existing.id}
+        proof_id = existing.id
+        db.commit()
+        return {"status": "CONFIRMED", "proofId": proof_id}
 
     event = models.AuditLog(
         user_id=current_user.id,
