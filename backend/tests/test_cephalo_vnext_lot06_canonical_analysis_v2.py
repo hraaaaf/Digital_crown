@@ -35,7 +35,10 @@ def _landmarks():
         "L1_incisal": (9, 8), "Prn": (18, 4), "Pog_soft": (17, 9),
         "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
         "FOP_PREMOLAR_Ricketts": (8, 9), "FOP_MOLAR_Ricketts": (14, 10),
-        "ANS": (5, 6), "Pm_Ricketts": (15, 16), "DC_Ricketts": (1, 4), "U6_DISTAL_Ricketts": (18, 5), "PR_Ricketts_PTV": (3, 5),
+        "ANS": (5, 6), "Pm_Ricketts": (15, 16), "DC_Ricketts": (1, 4),
+        "U6_DISTAL_Ricketts": (18, 5), "L6_DISTAL_Ricketts": (20, 5),
+        "U3_CUSP_Ricketts": (13, 7), "L3_CUSP_Ricketts": (15, 7),
+        "U1_incisal": (11, 7), "U1_apex": (10, 1), "PR_Ricketts_PTV": (3, 5),
         "R1_Ricketts": (2, 15), "R2_Ricketts": (8, 15),
         "R3_Ricketts": (5, 12), "R4_Ricketts": (5, 20),
     }
