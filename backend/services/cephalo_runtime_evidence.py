@@ -100,6 +100,7 @@ def _history(previous: Optional[Mapping[str, Any]]) -> list[dict[str, Any]]:
         "revision": previous.get("revision"),
         "sources": previous.get("sources", []),
         "landmarks": previous.get("landmarks", []),
+        "image_orientations": previous.get("image_orientations", []),
         "constructions": previous.get("constructions", []),
         "measurements": previous.get("measurements", []),
     }]
@@ -370,6 +371,7 @@ def build_cephalo_runtime_evidence_payload(
         "history": _history(previous_payload),
         "sources": [x.model_dump(mode="json") for x in sources],
         "landmarks": [x.model_dump(mode="json") for x in graph_landmarks],
+        "image_orientations": [],
         "current_landmark_refs": [x.evidence_id for x in current],
         "constructions": [x.model_dump(mode="json") for x in all_constructions],
         "measurements": [x.model_dump(mode="json") for x in all_measurements],
