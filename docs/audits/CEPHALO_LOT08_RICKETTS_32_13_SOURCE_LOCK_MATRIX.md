@@ -119,9 +119,9 @@ Source membership observed in the published 32-factor table.
 
 ### 32-factor runtime summary
 - Exact executable canonical members: **6** (#6, #7, #12, #16, #19, #22).
-- Conditional executable: **1** (#20 facial axis with explicit Pt_Ricketts).
+- Conditional executable: **2** (#20 facial axis with explicit Pt_Ricketts; #25 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
-- Existing canonical but blocked/legacy: **8** (#3, #4, #5, #8, #9, #10, #25, #31).
+- Existing canonical but blocked/legacy: **7** (#3, #4, #5, #8, #9, #10, #31).
 - New source-specific canonical contract required: **16**.
 - Total accounted factors: **32/32**.
 
