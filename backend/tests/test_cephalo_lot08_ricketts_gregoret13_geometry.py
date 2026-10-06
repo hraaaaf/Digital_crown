@@ -631,3 +631,31 @@ def test_gregoret_mandibular_arc_rejects_cross_image_dc_xi_pm_evidence():
     ]
     assert item.availability_status.value == "INVALID"
     assert item.value is None
+
+
+def test_gregoret_mandibular_arc_rejects_auto_pm_authority():
+    landmarks = {
+        "DC_Ricketts": _lm("DC_Ricketts", 0, 1),
+        "Pm_Ricketts": _auto_lm("Pm_Ricketts", 15, 6),
+        "R1_Ricketts": _lm("R1_Ricketts", 2, 5),
+        "R2_Ricketts": _lm("R2_Ricketts", 8, 5),
+        "R3_Ricketts": _lm("R3_Ricketts", 5, 2),
+        "R4_Ricketts": _lm("R4_Ricketts", 5, 10),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
