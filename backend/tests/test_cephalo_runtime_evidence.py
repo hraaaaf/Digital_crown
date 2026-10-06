@@ -347,4 +347,5 @@ def test_manual_revision_preserves_image_orientation_evidence():
         recorded_at=NOW,
     )
     assert second["image_orientations"] == with_orientation["image_orientations"]
+    assert second["history"][-1]["image_orientations"] == with_orientation["image_orientations"]
     validate_case_evidence_graph(_graph(second), patient_id=7, case_id=CASE_ID)
