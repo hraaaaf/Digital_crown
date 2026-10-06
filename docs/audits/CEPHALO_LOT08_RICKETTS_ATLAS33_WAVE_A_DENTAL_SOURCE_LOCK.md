@@ -95,10 +95,14 @@ ID reserved: `M_RICKETTS_OVERBITE_FOP_MM_V1`
 
 Recovered definition: incisal-edge separation perpendicular to the occlusal plane.
 
-State: `SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED`.
+Wave D source result:
+published Ricketts datasets encode open bite with negative overbite, so the clinical sign is source-known.
 
-Reason:
-the sources recovered in this pass do not provide enough deterministic information to orient the perpendicular sign independently of screen orientation without importing a Digital Crown convention. No runtime method is activated.
+State:
+`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
+
+Remaining reason:
+the current image-evidence contract does not carry an explicit anatomical superior/inferior axis. A signed FOP-normal measurement could therefore flip under image mirroring if derived from raw screen coordinates. No runtime method is activated.
 
 ### #10 Lower-incisor protrusion
 Canonical ID:
