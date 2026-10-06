@@ -36,7 +36,6 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_mandibular_arc_deg_v1,
     ricketts_maxillary_depth_deg_v1,
     ricketts_maxillary_height_n_cf_a_deg_v1,
-    ricketts_palatal_plane_fh_deg_v1,
     ricketts_u6_distal_to_ptv_signed_px_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
@@ -69,7 +68,6 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_OVERJET_FOP_CANONICAL_MM_V2",
     "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2",
     "RICKETTS_MOLAR_RELATION_FOP_CANONICAL_MM_V2",
-    "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
     "RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2",
     "RICKETTS_FACIAL_TAPER_CANONICAL_DEG_V2",
     "RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2",
@@ -485,30 +483,6 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             construction_refs=ricketts_mx_height_refs,availability=ricketts_mx_height_status,
         ))
 
-    ricketts_palatal_ids=("Po_anatomic","Or","ANS","PNS_Ricketts")
-    ricketts_palatal_deps,ricketts_palatal_status=_deps(landmarks,ricketts_palatal_ids)
-    if ricketts_palatal_deps:
-        ricketts_palatal_value=None
-        if (
-            "PNS_Ricketts" in landmarks
-            and landmarks["PNS_Ricketts"].origin
-            not in {LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED}
-        ):
-            ricketts_palatal_status=AvailabilityStatus.NOT_COMPUTABLE
-        if ricketts_palatal_status==AvailabilityStatus.AVAILABLE:
-            ricketts_palatal_value=ricketts_palatal_plane_fh_deg_v1(
-                _p(landmarks,"Po_anatomic"),_p(landmarks,"Or"),
-                _p(landmarks,"ANS"),_p(landmarks,"PNS_Ricketts")
-            )
-            if ricketts_palatal_value is None:
-                ricketts_palatal_status=AvailabilityStatus.INVALID
-        out.append(_measurement(
-            namespace=measurement_namespace,name="RICKETTS_PALATAL_PLANE_FH",
-            analysis="RICKETTS",method="RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
-            canonical_id="M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
-            ids=ricketts_palatal_ids,lm=landmarks,value=ricketts_palatal_value,unit="deg",
-            availability=ricketts_palatal_status,
-        ))
 
     ricketts_extrusion_ids=("L1_incisal","L1_apex")
     ricketts_extrusion_deps,ricketts_extrusion_status=_deps(landmarks,ricketts_extrusion_ids)
