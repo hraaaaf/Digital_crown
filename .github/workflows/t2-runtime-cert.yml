@@ -92,6 +92,7 @@ jobs:
           python -m pip check
 
       - name: Certify G4 Panoramic backend contracts
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.certificat_only != true }}
         run: |
           pytest -q backend/tests/test_panoramic_report_fail_closed.py backend/tests/test_panoramic_pdf_fail_closed.py
           pytest -q backend/tests/test_ia_router.py -k panoramic
@@ -120,12 +121,15 @@ jobs:
           python scripts/t2_cabinet_fixture.py
 
       - name: Certify strict runtime PDF
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.certificat_only != true }}
         run: python scripts/t2_runtime_pdf_probe.py
 
       - name: Certify P3 P4 P5 persisted reconciliation
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.certificat_only != true }}
         run: python scripts/t2_runtime_financial_probe.py
 
       - name: Start frontend
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.certificat_only != true }}
         working-directory: frontend
         run: |
           npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/t2-frontend.log 2>&1 &
@@ -171,6 +175,7 @@ jobs:
           node scripts/run-with-t2-workstation.mjs scripts/certify-document-studio-output.mjs 2>&1 | tee ../artifacts/t2-browser/output-runner.log
 
       - name: Certify Honoraires cross-surface reconciliation
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.certificat_only != true }}
         working-directory: frontend
         shell: bash
         env:
@@ -282,6 +287,11 @@ jobs:
         run: |
           set -o pipefail
           if [ "${{ inputs.certificat_only }}" = "true" ]; then
+            python -m pytest ../backend/tests/test_certificat_pdf_robustness_p3.py -q -k "free_certificate_last_page_keeps_body_with_signature or free_medical_certificate_never_shrinks"
+            if ! command -v pdfinfo >/dev/null || ! command -v pdftoppm >/dev/null; then
+              sudo apt-get update -qq
+              sudo apt-get install -y --no-install-recommends poppler-utils
+            fi
             PRODUCT_HEAD="${{ github.event.pull_request.head.sha || github.sha }}" node scripts/run-with-t2-workstation.mjs scripts/certify-certificat-pdf-gate.mjs 2>&1 | tee ../artifacts/t2-browser/g4-remaining-documents-runner.log
           else
             node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g4-remaining-documents.mjs 2>&1 | tee ../artifacts/t2-browser/g4-remaining-documents-runner.log
