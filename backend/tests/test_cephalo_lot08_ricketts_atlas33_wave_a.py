@@ -154,7 +154,7 @@ def test_atlas33_u1_inclination_fails_closed_on_degenerate_axis():
 def test_wave_a_registry_keeps_ricketts_overbite_blocked_without_runtime_promotion():
     item = canonical_measurement("M_RICKETTS_OVERBITE_FOP_MM_V1")
     assert item is not None
-    assert item.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
+    assert item.source_status == "CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
 
     out = _materialize(_base_dental_landmarks())
     assert "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2" not in out
