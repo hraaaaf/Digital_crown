@@ -53,7 +53,7 @@ def test_atlas2009_factor_29_conflict_resolution_is_explicit_and_auditable():
     assert row["state"] == "CONDITIONAL_EXECUTABLE"
     assert "SOURCE_LABEL_CONFLICT_RESOLVED_AS_TOTAL_FACIAL_HEIGHT" in row["gate"]
     text = COMPOSITION.read_text(encoding="utf-8")
-    assert "Source-label conflict" in text
+    assert "Factor 29 conflict — resolved" in text
     assert "Total Facial Height" in text
 
 
