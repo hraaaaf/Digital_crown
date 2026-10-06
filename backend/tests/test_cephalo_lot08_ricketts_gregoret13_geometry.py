@@ -6,7 +6,9 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_l1_occlusal_extrusion_signed_px_v1,
+    ricketts_lower_facial_height_ans_xi_pm_deg_v1,
     ricketts_maxillary_depth_deg_v1,
+    ricketts_xi_from_r1_r4_fh_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
 
@@ -285,6 +287,133 @@ def test_gregoret_l1_occlusal_extrusion_propagates_invalid_degenerate_fop():
     )
     item = {entry.method_id: entry for entry in out}[
         "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"
+    ]
+    assert item.availability_status.value == "INVALID"
+    assert item.value is None
+
+
+def test_ricketts_xi_constructs_center_of_ramal_rectangle_in_fh_basis():
+    xi = ricketts_xi_from_r1_r4_fh_v1(
+        (2.0, 5.0),
+        (8.0, 5.0),
+        (5.0, 2.0),
+        (5.0, 10.0),
+        (0.0, 0.0),
+        (10.0, 0.0),
+    )
+    assert xi == pytest.approx((5.0, 6.0))
+
+
+def test_ricketts_xi_is_rotation_and_mirror_invariant():
+    original = ricketts_xi_from_r1_r4_fh_v1(
+        (2.0, 5.0), (8.0, 5.0), (5.0, 2.0), (5.0, 10.0),
+        (0.0, 0.0), (10.0, 0.0),
+    )
+    rotated = ricketts_xi_from_r1_r4_fh_v1(
+        (-5.0, 2.0), (-5.0, 8.0), (-2.0, 5.0), (-10.0, 5.0),
+        (0.0, 0.0), (0.0, 10.0),
+    )
+    mirrored = ricketts_xi_from_r1_r4_fh_v1(
+        (-2.0, 5.0), (-8.0, 5.0), (-5.0, 2.0), (-5.0, 10.0),
+        (0.0, 0.0), (-10.0, 0.0),
+    )
+    assert original == pytest.approx((5.0, 6.0))
+    assert rotated == pytest.approx((-6.0, 5.0))
+    assert mirrored == pytest.approx((-5.0, 6.0))
+
+
+def test_ricketts_xi_fails_closed_on_degenerate_fh_or_rectangle():
+    assert ricketts_xi_from_r1_r4_fh_v1(
+        (2,5),(8,5),(5,2),(5,10),(0,0),(0,0)
+    ) is None
+    assert ricketts_xi_from_r1_r4_fh_v1(
+        (5,5),(5,5),(5,2),(5,10),(0,0),(10,0)
+    ) is None
+
+
+def test_ricketts_lower_facial_height_is_ans_xi_pm_angle():
+    value = ricketts_lower_facial_height_ans_xi_pm_deg_v1(
+        (5.0, -4.0),
+        (5.0, 6.0),
+        (15.0, 6.0),
+    )
+    assert value == pytest.approx(90.0)
+
+
+def test_gregoret_lower_facial_height_materializes_from_constructed_xi_and_explicit_pm():
+    pts = {
+        "ANS": (5, -4), "Pm_Ricketts": (15, 6),
+        "R1_Ricketts": (2, 5), "R2_Ricketts": (8, 5),
+        "R3_Ricketts": (5, 2), "R4_Ricketts": (5, 10),
+        "Po_anatomic": (0, 0), "Or": (10, 0),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "AVAILABLE"
+    assert item.value == pytest.approx(90.0)
+    assert item.construction_refs == [
+        "construction:gregoret:RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+    ]
+
+
+def test_gregoret_lower_facial_height_fails_closed_without_explicit_pm_ricketts():
+    pts = {
+        "ANS": (5, -4),
+        "R1_Ricketts": (2, 5), "R2_Ricketts": (8, 5),
+        "R3_Ricketts": (5, 2), "R4_Ricketts": (5, 10),
+        "Po_anatomic": (0, 0), "Or": (10, 0),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    assert "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2" not in {
+        entry.method_id for entry in out
+    }
+
+
+def test_gregoret_lower_facial_height_rejects_cross_image_xi_and_pm():
+    landmarks = {
+        "ANS": _lm("ANS", 5, -4, "source:face"),
+        "Pm_Ricketts": _lm("Pm_Ricketts", 15, 6, "source:face"),
+        "R1_Ricketts": _lm("R1_Ricketts", 2, 5, "source:ramus"),
+        "R2_Ricketts": _lm("R2_Ricketts", 8, 5, "source:ramus"),
+        "R3_Ricketts": _lm("R3_Ricketts", 5, 2, "source:ramus"),
+        "R4_Ricketts": _lm("R4_Ricketts", 5, 10, "source:ramus"),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0, "source:ramus"),
+        "Or": _lm("Or", 10, 0, "source:ramus"),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2"
     ]
     assert item.availability_status.value == "INVALID"
     assert item.value is None
