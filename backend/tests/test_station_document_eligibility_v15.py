@@ -25,6 +25,7 @@ def context() -> StationEligibilityContext:
         session_tenant_id=10,
         session_patient_id=20,
         session_station_id="station-a",
+        session_created_at=NOW - timedelta(seconds=60),
         session_claimed_at=NOW - timedelta(seconds=10),
         session_expires_at=NOW + timedelta(seconds=60),
         session_purged_at=None,
@@ -83,7 +84,10 @@ def test_unknown_or_sensitive_document_type_is_denied_by_default(context):
         ({"session_claimed_at": None}, EligibilityReason.SESSION_NOT_IDENTIFIED),
         ({"session_patient_id": None}, EligibilityReason.SESSION_NOT_IDENTIFIED),
         ({"session_purged_at": NOW}, EligibilityReason.SESSION_PURGED),
+        ({"session_created_at": NOW + timedelta(seconds=1)}, EligibilityReason.SESSION_INVALID_WINDOW),
+        ({"session_claimed_at": NOW - timedelta(seconds=61)}, EligibilityReason.SESSION_INVALID_WINDOW),
         ({"session_claimed_at": NOW + timedelta(seconds=1)}, EligibilityReason.SESSION_INVALID_WINDOW),
+        ({"session_expires_at": NOW + timedelta(seconds=61)}, EligibilityReason.SESSION_INVALID_WINDOW),
         ({"session_expires_at": NOW - timedelta(seconds=20)}, EligibilityReason.SESSION_INVALID_WINDOW),
         ({"session_expires_at": NOW}, EligibilityReason.SESSION_EXPIRED),
         ({"session_expires_at": NOW - timedelta(seconds=1)}, EligibilityReason.SESSION_EXPIRED),
@@ -101,6 +105,8 @@ def test_station_and_session_context_fail_closed(context, changed, expected):
 @pytest.mark.parametrize(
     ("candidate", "expected"),
     [
+        (care_sheet(document_id=""), EligibilityReason.DOCUMENT_ID_INVALID),
+        (care_sheet(document_id="   "), EligibilityReason.DOCUMENT_ID_INVALID),
         (care_sheet(tenant_id=11), EligibilityReason.TENANT_MISMATCH),
         (care_sheet(patient_id=21), EligibilityReason.PATIENT_MISMATCH),
         (care_sheet(is_active=False), EligibilityReason.DOCUMENT_NOT_ACTIVE),
@@ -157,6 +163,7 @@ def test_naive_utc_database_timestamps_are_compared_safely(context):
     naive_context = replace(
         context,
         now=naive,
+        session_created_at=naive - timedelta(seconds=60),
         session_claimed_at=naive - timedelta(seconds=10),
         session_expires_at=naive + timedelta(seconds=30),
     )
