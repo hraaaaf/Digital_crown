@@ -48,6 +48,48 @@ def _record(tmp_path, evidence_id, kind, target_id=TARGET_32, trace_id="trace-1"
     }
 
 
+def _details(**overrides):
+    data = {
+        "digital_crown_label": None,
+        "label_status": "UNOBSERVED",
+        "digital_crown_unit": None,
+        "unit_status": "UNOBSERVED",
+        "facad_landmarks_constructions": [],
+        "digital_crown_landmarks_constructions": [],
+        "construction_status": "UNOBSERVED",
+        "facad_value": None,
+        "digital_crown_value": None,
+        "numeric_delta": None,
+        "facad_norm": None,
+        "digital_crown_norm": None,
+        "norm_status": "UNOBSERVED",
+        "facad_display_value": None,
+        "digital_crown_display_value": None,
+        "rounding_status": "UNOBSERVED",
+        "atlas_divergence_status": "UNOBSERVED",
+        "atlas_divergence_note": None,
+    }
+    data.update(overrides)
+    return data
+
+
+def _row(target_id=TARGET_32, refs=None, **overrides):
+    row = {
+        "profile_target_id": target_id,
+        "facad_order": 1,
+        "facad_export_label": "Test factor",
+        "facad_unit": "deg",
+        "digital_crown_measurement_id": "M_TEST",
+        "membership_status": "OBSERVED_MATCH",
+        "sign_status": "UNOBSERVED",
+        "numeric_status": "UNOBSERVED",
+        "comparison_details": _details(),
+        "evidence_refs": refs or [],
+    }
+    row.update(overrides)
+    return row
+
+
 def test_repository_manifest_is_valid_while_direct_exports_are_absent():
     assert validate_manifest(_base_manifest(), ROOT) == []
 
@@ -110,17 +152,7 @@ def test_observed_membership_requires_values_and_profile_properties(tmp_path):
     _mark_partial(manifest, TARGET_32)
     values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
     manifest["evidence_records"] = [values]
-    manifest["parity_rows"] = [{
-        "profile_target_id": TARGET_32,
-        "facad_order": 1,
-        "facad_export_label": "Test factor",
-        "facad_unit": "deg",
-        "digital_crown_measurement_id": "M_TEST",
-        "membership_status": "OBSERVED_MATCH",
-        "sign_status": "UNOBSERVED",
-        "numeric_status": "UNOBSERVED",
-        "evidence_refs": ["facad32-values"],
-    }]
+    manifest["parity_rows"] = [_row(refs=["facad32-values"])]
 
     errors = validate_manifest(manifest, tmp_path)
 
@@ -134,17 +166,12 @@ def test_numeric_parity_rejects_cross_trace_or_cross_version_evidence(tmp_path):
     props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES", trace_id="trace-A", version="3.12")
     markers = _record(tmp_path, "facad32-markers", "MARKER_POSITIONS", trace_id="trace-B", version="3.13")
     manifest["evidence_records"] = [values, props, markers]
-    manifest["parity_rows"] = [{
-        "profile_target_id": TARGET_32,
-        "facad_order": 1,
-        "facad_export_label": "Test factor",
-        "facad_unit": "mm",
-        "digital_crown_measurement_id": "M_TEST",
-        "membership_status": "OBSERVED_MATCH",
-        "sign_status": "OBSERVED_MATCH",
-        "numeric_status": "OBSERVED_MATCH",
-        "evidence_refs": ["facad32-values", "facad32-props", "facad32-markers"],
-    }]
+    manifest["parity_rows"] = [_row(
+        refs=["facad32-values", "facad32-props", "facad32-markers"],
+        sign_status="OBSERVED_MATCH",
+        numeric_status="OBSERVED_MATCH",
+        comparison_details=_details(facad_value=1.0, digital_crown_value=1.0, numeric_delta=0.0),
+    )]
 
     errors = validate_manifest(manifest, tmp_path)
 
@@ -170,17 +197,10 @@ def test_parity_row_rejects_unknown_evidence_reference(tmp_path):
         _record(tmp_path, "facad13-values", "ANALYSIS_VALUES", target_id=TARGET_13),
         _record(tmp_path, "facad13-props", "ANALYSIS_PROPERTIES", target_id=TARGET_13),
     ]
-    manifest["parity_rows"] = [{
-        "profile_target_id": TARGET_13,
-        "facad_order": 1,
-        "facad_export_label": "Test factor",
-        "facad_unit": "deg",
-        "digital_crown_measurement_id": "M_TEST",
-        "membership_status": "OBSERVED_MATCH",
-        "sign_status": "UNOBSERVED",
-        "numeric_status": "UNOBSERVED",
-        "evidence_refs": ["missing-evidence-id"],
-    }]
+    manifest["parity_rows"] = [_row(
+        target_id=TARGET_13,
+        refs=["missing-evidence-id"],
+    )]
 
     errors = validate_manifest(manifest, tmp_path)
 
@@ -217,17 +237,10 @@ def test_speculative_unobserved_parity_rows_are_rejected(tmp_path):
     values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
     props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES")
     manifest["evidence_records"] = [values, props]
-    manifest["parity_rows"] = [{
-        "profile_target_id": TARGET_32,
-        "facad_order": 1,
-        "facad_export_label": "Speculative factor",
-        "facad_unit": "deg",
-        "digital_crown_measurement_id": "M_TEST",
-        "membership_status": "UNOBSERVED",
-        "sign_status": "UNOBSERVED",
-        "numeric_status": "UNOBSERVED",
-        "evidence_refs": ["facad32-values", "facad32-props"],
-    }]
+    manifest["parity_rows"] = [_row(
+        refs=["facad32-values", "facad32-props"],
+        membership_status="UNOBSERVED",
+    )]
 
     errors = validate_manifest(manifest, tmp_path)
 
@@ -258,19 +271,43 @@ def test_facad_only_row_cannot_claim_numeric_or_sign_comparison(tmp_path):
     props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES")
     markers = _record(tmp_path, "facad32-markers", "MARKER_POSITIONS")
     manifest["evidence_records"] = [values, props, markers]
-    manifest["parity_rows"] = [{
-        "profile_target_id": TARGET_32,
-        "facad_order": 1,
-        "facad_export_label": "Vendor-only factor",
-        "facad_unit": "mm",
-        "digital_crown_measurement_id": None,
-        "membership_status": "OBSERVED_FACAD_ONLY",
-        "sign_status": "OBSERVED_DIFFERENT",
-        "numeric_status": "OBSERVED_DIFFERENT",
-        "evidence_refs": ["facad32-values", "facad32-props", "facad32-markers"],
-    }]
+    manifest["parity_rows"] = [_row(
+        refs=["facad32-values", "facad32-props", "facad32-markers"],
+        digital_crown_measurement_id=None,
+        membership_status="OBSERVED_FACAD_ONLY",
+        sign_status="OBSERVED_DIFFERENT",
+        numeric_status="OBSERVED_DIFFERENT",
+        comparison_details=_details(facad_value=1.0, digital_crown_value=2.0),
+    )]
 
     errors = validate_manifest(manifest, tmp_path)
 
     assert any("Facad-only rows require NOT_APPLICABLE sign and NOT_COMPARABLE numeric status" in item for item in errors)
     assert any("numeric comparison is only valid for OBSERVED_MATCH rows" in item for item in errors)
+
+
+def test_declared_comparison_dimensions_require_supporting_values(tmp_path):
+    manifest = _base_manifest()
+    _mark_partial(manifest, TARGET_32)
+    values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
+    props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES")
+    manifest["evidence_records"] = [values, props]
+    manifest["parity_rows"] = [_row(
+        refs=["facad32-values", "facad32-props"],
+        comparison_details=_details(
+            label_status="OBSERVED_MATCH",
+            unit_status="OBSERVED_MATCH",
+            construction_status="OBSERVED_MATCH",
+            norm_status="OBSERVED_MATCH",
+            rounding_status="OBSERVED_MATCH",
+            atlas_divergence_status="OBSERVED_DIFFERENT",
+        ),
+    )]
+
+    errors = validate_manifest(manifest, tmp_path)
+
+    assert any("observed unit comparison requires both Facad and Digital Crown units" in item for item in errors)
+    assert any("observed construction comparison requires both construction definitions" in item for item in errors)
+    assert any("observed norm comparison requires both norms" in item for item in errors)
+    assert any("observed rounding comparison requires both display values" in item for item in errors)
+    assert any("Atlas divergence requires an explanatory note" in item for item in errors)
