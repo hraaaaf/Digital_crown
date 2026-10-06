@@ -101,6 +101,13 @@ for(const scenario of report.scenarios){
   execFileSync('pdftotext',['-layout',pdfPath,textPath],{stdio:'pipe'});
   const extracted=fs.readFileSync(textPath,'utf8'); if(extracted.trim().length<40) throw new Error(stem+' extracted text too short');
   for(const needle of scenario.expectedNeedles) if(!extracted.includes(needle)) throw new Error(stem+' missing expected text: '+needle);
+  if (scenario.document === 'certificat' && scenario.id === 'stress') {
+    const lastTextPath = path.join(outDir,scenario.document,scenario.id+'-last-page.txt');
+    execFileSync('pdftotext',['-f',String(pages),'-l',String(pages),'-layout',pdfPath,lastTextPath],{stdio:'pipe'});
+    const lastPageText = fs.readFileSync(lastTextPath,'utf8');
+    if (!lastPageText.includes('contrôle n° 18')) throw new Error(stem+' last page missing final medical body');
+    if (!lastPageText.includes('Signature manuscrite du praticien')) throw new Error(stem+' last page missing practitioner signature');
+  }
   scenario.pages=pages; scenario.renderedPages=rendered; scenario.textBytes=Buffer.byteLength(extracted); scenario.renderDir=path.relative(outDir,renderDir); scenario.textFile=path.relative(outDir,textPath);
 }
 const byDocument={};
