@@ -119,6 +119,7 @@ def test_gregoret13_mandibular_arc_identity_contract_is_fail_closed():
     assert data["state"] == "SOURCE_LOCKED_GEOMETRY_CONDITIONAL_EXECUTION"
     assert data["construction"]["condylar_axis"] == "DC_Ricketts-Xi_Ricketts"
     assert data["scientific_identities"]["DC_Ricketts"]["runtime_authority"] == "MANUAL_OR_MANUAL_CORRECTED_REQUIRED"
+    assert data["scientific_identities"]["Xi_Ricketts"]["runtime_authority"] == "SOURCE_LOCKED_MANUAL_R1_R4_FH_CONSTRUCTION_REQUIRED"
     assert data["construction"]["corpus_axis"] == "Xi_Ricketts-Pm_Ricketts"
     assert data["construction"]["runtime_binding"] == "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2"
     assert data["construction"]["fail_closed"] is True
