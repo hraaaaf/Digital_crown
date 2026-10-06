@@ -112,7 +112,7 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | `M_U1_FH_DEG_V1` | U1–Frankfort | axe U1 / FH | U1_apex,U1_incisal,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED` côté DC/COM |
 | `M_U1_A_VERTICAL_MM_V1` | U1 → A vertical | surface faciale U1 → verticale par A parallèle à N-perp | U1_facial_surface,A,Po_anatomic,Or | mm | `BLOCKED_LANDMARK` |
 | `M_U6_NA_MM_V1` | U6–NA | position molaire U6 par rapport à NA selon point molaire source-locké | U6_exact,N,A | mm | `BLOCKED_LANDMARK` |
-| `M_U6_PTV_MM_V1` | U6→PTV | distal crown U6 → PTV | U6_distal_crown,PR/PTV construction | mm | `BLOCKED_LANDMARK` |
+| `M_U6_PTV_MM_V1` | U6→PTV | Ricketts A6 distal reference → source-locked PTV | `U6_DISTAL_Ricketts`,`RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1` | mm | `CONDITIONAL_EXECUTABLE`; manual U6/PR + verified calibration |
 
 # 6. Dento-alvéolaire mandibulaire
 
