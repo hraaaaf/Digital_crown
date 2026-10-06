@@ -17,7 +17,7 @@
     },
     "Xi_Ricketts": {
       "definition": "Geometric center of the mandibular ramus; historically constructed from the R1-R4 ramal rectangle.",
-      "runtime_authority": "SOURCE_LOCKED_MANUAL_R1_R4_FH_CONSTRUCTION_OR_EXPLICIT_MANUAL",
+      "runtime_authority": "SOURCE_LOCKED_MANUAL_R1_R4_FH_CONSTRUCTION_REQUIRED",
       "forbidden_aliases": [
         "Xi",
         "Go",
