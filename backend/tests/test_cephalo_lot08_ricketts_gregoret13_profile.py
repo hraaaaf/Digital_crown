@@ -173,3 +173,13 @@ def test_gregoret13_registry_contains_both_ricketts_plane_constructions():
     assert "## RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1" in text
     assert "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1" in text
     assert "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1" in text
+
+
+def test_gregoret13_profile_links_xi_pm_source_lock():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    expected = "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md"
+    assert expected in data["source_contracts"]
+    text = (Path(__file__).resolve().parents[2] / expected).read_text(encoding="utf-8")
+    assert "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1" in text
+    assert "Pm_Ricketts" in text
+    assert "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1" in text
