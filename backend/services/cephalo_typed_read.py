@@ -17,6 +17,7 @@ from backend.schemas.cephalo_evidence import (
     DiagnosticHypothesisEvidence,
     FinalPlanEvidence,
     FindingEvidence,
+    ImageOrientationEvidence,
     LandmarkEvidence,
     MeasurementEvidence,
     NormativeEvaluationEvidence,
@@ -61,6 +62,7 @@ def deserialize_evidence_snapshot(payload: Mapping[str, Any]) -> EvidenceGraphSn
     return EvidenceGraphSnapshot(
         sources=_models(payload, "sources", SourceEvidence),
         landmarks=_models(payload, "landmarks", LandmarkEvidence),
+        image_orientations=_models(payload, "image_orientations", ImageOrientationEvidence),
         constructions=_models(payload, "constructions", ConstructionEvidence),
         measurements=_models(payload, "measurements", MeasurementEvidence),
         normative_evaluations=_models(
