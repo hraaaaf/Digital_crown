@@ -10,6 +10,7 @@ from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
 from backend.services.audit_service import audit_service
+from backend.services.station_presence_receipt import presence_proof_details
 from backend.services.agenda_availability import (
     get_practitioner_day_availability,
     validate_appointment_availability,
@@ -291,7 +292,7 @@ def update_appointment(
             action="APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
             resource_type="Appointment",
             resource_id=str(id),
-            details="Presence confirmed by authenticated staff through the canonical appointment workflow.",
+            details=presence_proof_details(db_appt.datetime_start),
         )
     return db_appt
 
@@ -330,7 +331,7 @@ def confirm_appointment_presence(
         action="APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
         resource_type="Appointment",
         resource_id=str(id),
-        details="Presence explicitly confirmed by authenticated staff.",
+        details=presence_proof_details(appointment.datetime_start),
     )
     db.add(event)
     db.commit()
