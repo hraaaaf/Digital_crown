@@ -17,7 +17,7 @@
     },
     "Xi_Ricketts": {
       "definition": "Geometric center of the mandibular ramus; historically constructed from the R1-R4 ramal rectangle.",
-      "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
+      "runtime_authority": "SOURCE_LOCKED_R1_R4_FH_CONSTRUCTION_OR_EXPLICIT_MANUAL",
       "forbidden_aliases": [
         "Xi",
         "Go",
@@ -27,7 +27,7 @@
     },
     "Pm_Ricketts": {
       "definition": "Protuberance menti / stable suprapogonion of the mandibular symphysis used by the Ricketts corpus axis.",
-      "runtime_authority": "MANUAL_OR_VALIDATED_CONSTRUCTION_REQUIRED",
+      "runtime_authority": "EXPLICIT_MANUAL_REQUIRED",
       "forbidden_aliases": [
         "Pm",
         "Pog",
@@ -54,7 +54,9 @@
   "sources": [
     "Gregoret J. Ortodoncia y cirugía ortognática. ESPAXS; 1997.",
     "doi:10.4041/kjod.2014.44.2.77",
-    "PMCID:PMC3971129"
+    "PMCID:PMC3971129",
+    "Ricketts RM. J Clin Orthod. 1972. Xi ramal centroid R1-R4 construction.",
+    "Ricketts RM. Angle Orthod. 1981;51(2):115-150. Xi-Pm corpus axis."
   ],
   "rules": {
     "no_automatic_aliasing": true,
