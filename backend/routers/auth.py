@@ -435,9 +435,16 @@ async def logout(
 
 
 @router.get("/me", response_model=schemas.UserOut)
-async def read_users_me(current_user: models.User = Depends(get_current_user)):
+async def read_users_me(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
     superadmin_email = settings.SUPERADMIN_EMAIL.lower().strip()
     current_email = (current_user.email or "").lower().strip()
+    plan_owner = current_user
+    if current_user.employer_id:
+        plan_owner = db.query(models.User).filter(models.User.id == current_user.employer_id).first() or current_user
+    effective_subscription_plan = getattr(plan_owner, "subscription_plan", None)
     return schemas.UserOut(
         id=current_user.id,
         email=current_user.email,
@@ -449,6 +456,7 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
         permissions=current_user.permissions,
         is_licensed=current_user.is_licensed,
         license_expires_at=current_user.license_expires_at,
+        subscription_plan=effective_subscription_plan,
     )
 
 
