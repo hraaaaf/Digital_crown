@@ -57,6 +57,46 @@ def test_facad_direct_parity_requires_all_three_export_families():
     }
     assert set(evidence["comparison_dimensions"]) == required_dimensions
 
+
+def test_facad_evidence_records_are_provenance_locked_before_any_parity_rows():
+    evidence = _load(EVIDENCE)
+    contract = evidence["evidence_record_contract"]
+    required = set(contract["required_fields"])
+
+    assert {
+        "artifact_kind",
+        "profile_target_id",
+        "source_filename",
+        "sha256",
+        "facad_version",
+        "observed_at",
+        "same_trace_case_id",
+    } <= required
+    assert set(contract["allowed_artifact_kinds"]) == {
+        "ANALYSIS_VALUES",
+        "ANALYSIS_PROPERTIES",
+        "MARKER_POSITIONS",
+    }
+    assert set(contract["allowed_profile_target_ids"]) == {
+        "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+        "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
+    }
+    assert contract["sha256_format"] == "64 lowercase hexadecimal characters"
+    assert "same_trace_case_id" in contract["same_trace_rule"]
+
+    row_contract = evidence["parity_row_contract"]
+    assert {
+        "profile_target_id",
+        "facad_order",
+        "facad_export_label",
+        "facad_unit",
+        "digital_crown_measurement_id",
+        "membership_status",
+        "sign_status",
+        "numeric_status",
+        "evidence_refs",
+    } <= set(row_contract["required_fields"])
+
     rules = evidence["rules"]
     assert rules["direct_export_required"] is True
     assert rules["no_membership_inference_from_vendor_label"] is True
@@ -64,3 +104,5 @@ def test_facad_direct_parity_requires_all_three_export_families():
     assert rules["no_norm_inference_without_observation"] is True
     assert rules["no_scientific_equivalence_claim"] is True
     assert rules["unobserved_fields_remain_unobserved"] is True
+    assert rules["evidence_hash_required"] is True
+    assert rules["facad_version_required"] is True
