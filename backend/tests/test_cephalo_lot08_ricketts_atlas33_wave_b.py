@@ -163,7 +163,7 @@ def test_wave_b_blocked_signed_distances_have_no_runtime_method():
     assert op_xi is not None
     assert commissure is not None
     assert palatal is not None
-    assert op_xi.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
+    assert op_xi.source_status == "CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
     assert commissure.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
     assert palatal.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
 
