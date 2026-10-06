@@ -1,7 +1,7 @@
 {
   "schema_version": "ORTHO_LOT08_RICKETTS_ATLAS2009_COMPLETE33_PROTOCOL_PROFILE_V1",
   "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
-  "status": "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__4_IMAGE_ORIENTATION_BLOCKS_REMAIN",
+  "status": "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__ALL_33_EXECUTABLE_OR_CONDITIONAL",
   "source_authority": {
     "title": "Atlas cefalometría y análisis facial",
     "authors": [
@@ -42,8 +42,8 @@
     {
       "order": 4,
       "measurement_id": "M_RICKETTS_OVERBITE_FOP_MM_V1",
-      "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "OVERBITE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
     },
     {
       "order": 5,
@@ -99,8 +99,8 @@
     {
       "order": 14,
       "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",
-      "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "FOP_XI_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
     },
     {
       "order": 15,
@@ -123,8 +123,8 @@
     {
       "order": 18,
       "measurement_id": "M_RICKETTS_COMMISSURE_FOP_MM_V1",
-      "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "COMMISSURE_FOP_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
     },
     {
       "order": 19,
@@ -157,8 +157,8 @@
     {
       "order": 24,
       "measurement_id": "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
-      "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "PALATAL_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
     },
     {
       "order": 25,
