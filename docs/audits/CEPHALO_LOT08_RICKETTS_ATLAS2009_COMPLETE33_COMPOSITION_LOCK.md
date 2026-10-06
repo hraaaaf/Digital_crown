@@ -50,19 +50,19 @@ Field VI — internal structures:
 26. Cranial deflection.
 27. Anterior cranial compression/length.
 28. Posterior facial height.
-29. **Source-label conflict quarantined**.
+29. **Total facial height** — source-label conflict resolved from the duplicated posterior-facial-height transcription by dimensional consistency and independent Ricketts implementations (`Ba-N / Pm-Xi`, angular).
 30. Mandibular ramus position.
 31. Porion position.
 32. Mandibular arc.
 33. Mandibular body length.
 
-## Factor 29 conflict
+## Factor 29 conflict — resolved
 
-The recovered indexed Atlas table labels factor 29 with wording equivalent to “posterior facial height” while giving a `60° ± 3°` angular value. Independent published Ricketts implementations identify `60° ± 3°` as **Total Facial Height**, whereas factor 28 is the linear posterior facial height.
+The recovered indexed Atlas table duplicates wording equivalent to “posterior facial height” at factor 29 while giving a `60° ± 3°` angular value. Factor 28 is already the linear posterior facial height `Go-CF`.
 
-Digital Crown therefore does not silently normalize row 29. It is represented as:
-`SOURCE_LABEL_CONFLICT_BLOCKED`
-until the exact printed Atlas page is directly inspected or an equivalent primary reproduction resolves the label.
+Independent comprehensive Ricketts implementations identify the `60° ± 3°` angular variable as **Total Facial Height**, defined by `Na-Ba / Pm-Xi`. Digital Crown therefore records factor 29 as `M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1`.
+
+This is an explicit conflict resolution, not a silent normalization: the duplicated Atlas-index label, unit mismatch, neighboring factor semantics, and independent Ricketts geometry are preserved in the source-lock record.
 
 ## Facad boundary
 
