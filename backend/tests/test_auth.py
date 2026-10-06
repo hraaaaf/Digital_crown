@@ -47,6 +47,27 @@ class TestMe:
         resp = client.get("/api/auth/me", headers=auth_headers)
         assert resp.status_code == 200
         assert resp.json()["email"] == dentiste.email
+        assert resp.json()["subscription_plan"] == dentiste.subscription_plan
+
+    def test_team_member_me_inherits_owner_subscription_plan(self, client, db, dentiste):
+        from backend.tests.conftest import make_user
+
+        dentiste.subscription_plan = "PREMIUM"
+        member = make_user(db, email="team-plan@cabinet.ma", role="SECRETAIRE")
+        member.employer_id = dentiste.id
+        member.subscription_plan = "GOLD"
+        member.permissions = {"agenda": True}
+        db.commit()
+
+        login = client.post(
+            "/api/auth/login",
+            data={"username": member.email, "password": "TestPass123!"},
+        )
+        assert login.status_code == 200
+        access = login.json()["access_token"]
+        resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {access}"})
+        assert resp.status_code == 200
+        assert resp.json()["subscription_plan"] == "PREMIUM"
 
     def test_me_without_token(self, client):
         resp = client.get("/api/auth/me")
