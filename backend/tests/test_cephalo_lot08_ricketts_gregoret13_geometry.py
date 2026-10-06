@@ -264,3 +264,27 @@ def test_gregoret_l1_occlusal_extrusion_rejects_cross_image_fop_and_incisor_evid
     ]
     assert item.availability_status.value == "INVALID"
     assert item.value is None
+
+
+def test_gregoret_l1_occlusal_extrusion_propagates_invalid_degenerate_fop():
+    landmarks = {
+        "L1_incisal": _lm("L1_incisal", 5, 3),
+        "L1_apex": _lm("L1_apex", 5, 8),
+        "FOP_PREMOLAR_Ricketts": _lm("FOP_PREMOLAR_Ricketts", 5, 5),
+        "FOP_MOLAR_Ricketts": _lm("FOP_MOLAR_Ricketts", 5, 5),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"
+    ]
+    assert item.availability_status.value == "INVALID"
+    assert item.value is None
