@@ -11,6 +11,7 @@ from backend.services.cephalo_canonical_constructions_v2 import (
     RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID,
     RICKETTS_GN_CONSTRUCTION_ID,
     RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
+    RICKETTS_XI_CONSTRUCTION_ID,
 )
 from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
 from backend.services.cephalo_constructions import frankfort_axis_v1, signed_axis_distance_px_v1
@@ -25,6 +26,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_l1_occlusal_extrusion_signed_px_v1,
+    ricketts_lower_facial_height_ans_xi_pm_deg_v1,
     ricketts_maxillary_depth_deg_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
@@ -50,6 +52,7 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2",
     "RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2",
     "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2",
+    "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2",
     "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
     "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
     "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
@@ -274,6 +277,44 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             canonical_id="M_FACIAL_AXIS_RICKETTS_DEG_V1",ids=facial_axis_ids,
             lm=landmarks,value=facial_axis_value,unit="deg",
             construction_refs=construction_refs,availability=facial_axis_status,
+        ))
+
+    ricketts_lfh_ids=("ANS","Pm_Ricketts")
+    ricketts_lfh_deps,ricketts_lfh_status=_deps(landmarks,ricketts_lfh_ids)
+    ricketts_xi=constructions.get(RICKETTS_XI_CONSTRUCTION_ID)
+    if ricketts_lfh_deps:
+        ricketts_lfh_value=None
+        ricketts_lfh_refs:tuple[str,...]=()
+        if ricketts_xi is None:
+            ricketts_lfh_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            ricketts_lfh_refs=(ricketts_xi.construction_id,)
+            if ricketts_xi.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_lfh_status=ricketts_xi.availability_status
+            elif ricketts_lfh_status==AvailabilityStatus.AVAILABLE:
+                x=ricketts_xi.geometry.get("x")
+                y=ricketts_xi.geometry.get("y")
+                source_image_ref=ricketts_xi.geometry.get("source_image_ref")
+                if (
+                    not isinstance(x,(int,float))
+                    or not isinstance(y,(int,float))
+                    or source_image_ref != landmarks["ANS"].source_image_ref
+                ):
+                    ricketts_lfh_status=AvailabilityStatus.INVALID
+                else:
+                    ricketts_lfh_value=ricketts_lower_facial_height_ans_xi_pm_deg_v1(
+                        _p(landmarks,"ANS"),
+                        (float(x),float(y)),
+                        _p(landmarks,"Pm_Ricketts"),
+                    )
+                    if ricketts_lfh_value is None:
+                        ricketts_lfh_status=AvailabilityStatus.INVALID
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_LOWER_FACIAL_HEIGHT",analysis="RICKETTS",
+            method="RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2",
+            canonical_id="M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",ids=ricketts_lfh_ids,
+            lm=landmarks,value=ricketts_lfh_value,unit="deg",
+            construction_refs=ricketts_lfh_refs,availability=ricketts_lfh_status,
         ))
 
     def convexity():
