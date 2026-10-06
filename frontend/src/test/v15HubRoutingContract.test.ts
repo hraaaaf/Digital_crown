@@ -54,6 +54,10 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).toContain('Digital Crown utilise le port cabinet 8005');
     expect(controlCenter).toContain('bg-primary px-5 text-sm font-black text-on-primary');
     expect(controlCenter).toContain("border-primary bg-primary text-on-primary");
+    expect(controlCenter).toContain('aria-describedby="cabinet-server-help"');
+    expect(controlCenter).toContain('Détails techniques');
+    expect(controlCenter).toContain('Continuer vers le Hub');
+    expect(controlCenter).toContain('focus-visible:ring-offset-2');
     expect(controlCenter).not.toContain('localStorage.setItem');
     expect(controlCenter).not.toContain('sessionStorage.setItem');
     expect(controlCenter).toContain("void runProbe(API_BASE)");
