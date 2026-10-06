@@ -337,16 +337,21 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   const canUseClinicalSuggestion = hasAccess(user, 'prescriptions');
 
   React.useEffect(() => {
-    if (!patientId || !canUseClinicalSuggestion) return;
+    let cancelled = false;
+    setSuggestion(null);
+    if (!patientId || !canUseClinicalSuggestion) {
+      return () => { cancelled = true; };
+    }
     const fetchSuggestion = async () => {
       try {
         const res = await api.get(`/prescriptions/certif-suggest/${patientId}`);
-        setSuggestion(res.data);
+        if (!cancelled) setSuggestion(res.data);
       } catch (err) {
-        console.error('Certif Suggest Error:', err);
+        if (!cancelled) console.error('Certif Suggest Error:', err);
       }
     };
-    fetchSuggestion();
+    void fetchSuggestion();
+    return () => { cancelled = true; };
   }, [patientId, canUseClinicalSuggestion]);
 
   React.useEffect(() => {
