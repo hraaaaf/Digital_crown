@@ -6,6 +6,8 @@ import pytest
 from backend.schemas.cephalo_evidence import (
     AvailabilityStatus,
     ConstructionEvidence,
+    ImageOrientationEvidence,
+    ImageOrientationOrigin,
     LandmarkEvidence,
     LandmarkOrigin,
     MeasurementEvidence,
@@ -55,6 +57,7 @@ def _graph(payload):
     return EvidenceGraphSnapshot(
         sources=[SourceEvidence.model_validate(x) for x in payload["sources"]],
         landmarks=[LandmarkEvidence.model_validate(x) for x in payload["landmarks"]],
+        image_orientations=[ImageOrientationEvidence.model_validate(x) for x in payload.get("image_orientations", [])],
         constructions=[ConstructionEvidence.model_validate(x) for x in payload["constructions"]],
         measurements=[MeasurementEvidence.model_validate(x) for x in payload["measurements"]],
     )
@@ -312,3 +315,36 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     assert all(x["requires_calibration"] is False for x in steiner)
     assert all(x["calibration_ref"] is None for x in steiner)
     validate_case_evidence_graph(_graph(payload), patient_id=7, case_id=CASE_ID)
+
+
+def test_manual_revision_preserves_image_orientation_evidence():
+    first = _initial()
+    ceph_source = next(item for item in first["sources"] if item["kind"] == "lateral_ceph")
+    orientation = ImageOrientationEvidence(
+        evidence_id=f"orientation:{CASE_ID}:v1",
+        source_image_ref=ceph_source["evidence_id"],
+        anterior_x=1.0,
+        anterior_y=0.0,
+        superior_x=0.0,
+        superior_y=-1.0,
+        is_mirrored=False,
+        origin=ImageOrientationOrigin.ACQUISITION_METADATA,
+        provenance_ref=ceph_source["evidence_id"],
+        evidence_refs=[ceph_source["evidence_id"]],
+    )
+    with_orientation = {
+        **first,
+        "image_orientations": [orientation.model_dump(mode="json")],
+    }
+    second = build_cephalo_runtime_evidence_payload(
+        patient_id=7,
+        image_record_id="radio.jpg",
+        result=_result(),
+        landmarks=_manual_raw(offset=1.0),
+        inference_mode=None,
+        previous_payload=with_orientation,
+        manual_revision=True,
+        recorded_at=NOW,
+    )
+    assert second["image_orientations"] == with_orientation["image_orientations"]
+    validate_case_evidence_graph(_graph(second), patient_id=7, case_id=CASE_ID)
