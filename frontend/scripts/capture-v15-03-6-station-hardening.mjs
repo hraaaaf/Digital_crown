@@ -30,6 +30,27 @@ const scales = [
   { label: 'normal', rootFontSize: null },
   { label: 'text200', rootFontSize: '200%' },
 ];
+const contrastThemes = ['default', 'emerald', 'rose', 'prestige', 'ocean', 'graphite', 'dark', 'high-contrast'];
+
+const parseRgb = (value) => {
+  const match = value.match(/rgba?\((\d+)\D+(\d+)\D+(\d+)/i);
+  if (!match) throw new Error(`Unsupported computed color: ${value}`);
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+};
+const relativeLuminance = (value) => {
+  const channels = parseRgb(value).map(component => {
+    const c = component / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+};
+const contrastRatio = (foreground, background) => {
+  const a = relativeLuminance(foreground);
+  const b = relativeLuminance(background);
+  const lighter = Math.max(a, b);
+  const darker = Math.min(a, b);
+  return (lighter + 0.05) / (darker + 0.05);
+};
 
 const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 const browser = await chromium.launch({ headless: true });
@@ -120,6 +141,38 @@ try {
 
       await page.locator('[data-workstation-experience="station"]').waitFor();
       const reducedMotion = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const originalTheme = await page.evaluate(() => ({
+        html: document.documentElement.getAttribute('data-theme'),
+        body: document.body.getAttribute('data-theme'),
+      }));
+      const themeContrasts = [];
+      const primaryProbe = page.getByRole('button', { name: 'Français', exact: true });
+      for (const theme of contrastThemes) {
+        await page.evaluate(themeName => {
+          for (const node of [document.documentElement, document.body]) {
+            if (themeName === 'default') node.removeAttribute('data-theme');
+            else node.setAttribute('data-theme', themeName);
+          }
+        }, theme);
+        const colors = await primaryProbe.evaluate(node => {
+          const style = getComputedStyle(node);
+          return { foreground: style.color, background: style.backgroundColor };
+        });
+        themeContrasts.push({
+          theme,
+          ...colors,
+          ratio: Number(contrastRatio(colors.foreground, colors.background).toFixed(2)),
+        });
+      }
+      await page.evaluate(saved => {
+        const restore = (node, value) => {
+          if (value === null) node.removeAttribute('data-theme');
+          else node.setAttribute('data-theme', value);
+        };
+        restore(document.documentElement, saved.html);
+        restore(document.body, saved.body);
+      }, originalTheme);
+
       const homeMeta = await page.evaluate(() => ({
         width: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
@@ -165,6 +218,7 @@ try {
         patientNameVisible: offlineMeta.patientNameVisible,
         technicalToastVisible: offlineMeta.technicalToastVisible,
         offlineErrorVisible: /Arrivée non confirmée/.test(offlineMeta.bodyText),
+        themeContrasts,
         errors,
       });
 
@@ -192,6 +246,7 @@ const failures = report.filter(item =>
   !item.patientNameVisible ||
   (phase === 'before' ? !item.technicalToastVisible : item.technicalToastVisible) ||
   !item.offlineErrorVisible ||
+  (phase === 'after' && item.themeContrasts.some(entry => entry.ratio < 4.5)) ||
   item.errors.length > 0
 );
 console.log(JSON.stringify(evidence, null, 2));
