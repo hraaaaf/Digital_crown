@@ -77,8 +77,8 @@
     {
       "order": 10,
       "measurement_id": "M_L1_EDGE_APOG_MM_V1",
-      "state": "EXECUTABLE",
-      "gate": "EXACT_INCISAL_EDGE_VERIFIED_CALIBRATION"
+      "state": "SOURCE_LOCKED_BLOCKED",
+      "gate": "L1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED"
     },
     {
       "order": 11,
