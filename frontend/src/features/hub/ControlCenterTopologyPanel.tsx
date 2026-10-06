@@ -289,7 +289,7 @@ export const ControlCenterTopologyPanel = () => {
               data-control-center-probe
               disabled={busy}
               onClick={() => void runProbe(target)}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:opacity-50"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary transition-elite disabled:opacity-50"
             >
               {busy ? <Loader2 className="animate-spin" size={17} aria-hidden="true" /> : <RefreshCw size={17} aria-hidden="true" />}
               {busy ? 'Vérification…' : 'Vérifier maintenant'}
@@ -371,7 +371,7 @@ export const ControlCenterTopologyPanel = () => {
             data-control-center-open
             disabled={!canOpen}
             onClick={openValidatedServer}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:border disabled:border-border-main disabled:bg-main-bg disabled:text-text-muted disabled:opacity-100"
+            className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm border px-5 text-sm font-black transition-elite ${canOpen ? 'border-primary bg-primary text-on-primary' : 'border-border-main bg-main-bg text-text-muted'}`}
           >
             {isCurrentTarget ? 'Serveur actuel' : 'Ouvrir et vérifier'} <ArrowRight size={16} aria-hidden="true" />
           </button>
