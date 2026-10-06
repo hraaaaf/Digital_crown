@@ -1,0 +1,35 @@
+name: S775 DC Arc Raw Head Certification Final
+
+on:
+  push:
+    branches:
+      - S775-dc-arc-cert-6ac80a2
+
+jobs:
+  raw-head-pytest:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout exact certified head
+        uses: actions/checkout@v4
+        with:
+          ref: 6ac80a272e179549330073a3a8dcdb7ed18f711e
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "6ac80a272e179549330073a3a8dcdb7ed18f711e"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+      - name: Run targeted tests
+        run: |
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_gregoret13_geometry.py backend/tests/test_cephalo_lot08_ricketts_gregoret13_profile.py backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py -q
