@@ -389,7 +389,7 @@ class CertificatGenerator:
             fontSize=11,
             textColor=p_color,
             alignment=TA_JUSTIFY,
-            leading=18,
+            leading=17 if is_free_medical else 18,
         )
 
         if observations:
