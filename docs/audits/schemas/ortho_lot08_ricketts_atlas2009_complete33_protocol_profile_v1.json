@@ -1,7 +1,7 @@
 {
   "schema_version": "ORTHO_LOT08_RICKETTS_ATLAS2009_COMPLETE33_PROTOCOL_PROFILE_V1",
   "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
-  "status": "COMPOSITION_SOURCE_LOCKED__EXECUTION_PARTIAL_FAIL_CLOSED",
+  "status": "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__FAIL_CLOSED",
   "source_authority": {
     "title": "Atlas cefalometría y análisis facial",
     "authors": [
