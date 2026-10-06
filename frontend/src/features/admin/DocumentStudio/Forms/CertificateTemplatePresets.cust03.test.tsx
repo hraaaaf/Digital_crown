@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CertificateTemplatePresets } from './CertificateFormInner';
 import { api } from '../../../../services/api';
 
+vi.mock('../../../../stores/useAuthStore', () => ({
+  useAuthStore: (selector: any) => selector({ user: { role: 'DENTISTE', employer_id: null, permissions: { prescriptions: true } } }),
+}));
+
 vi.mock('../../../../services/api', () => ({
   api: {
     get: vi.fn(),
