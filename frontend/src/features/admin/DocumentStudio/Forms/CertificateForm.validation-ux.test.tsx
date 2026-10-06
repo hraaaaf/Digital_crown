@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { CertificateForm } from './CertificateForm';
 import { CERTIFICATE_TYPE_FREE, CERTIFICATE_TYPE_WORK_STOP } from '../CertificatePolicy';
 
+vi.mock('../../../../stores/useAuthStore', () => ({
+  useAuthStore: (selector: any) => selector({ user: { role: 'DENTISTE', employer_id: null, permissions: { prescriptions: true } } }),
+}));
+
 vi.mock('../../../../services/api', () => ({
   api: { get: vi.fn().mockRejectedValue(new Error('offline test')) },
 }));
