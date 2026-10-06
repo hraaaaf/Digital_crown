@@ -8,6 +8,7 @@ const hub = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'Hub
 const workstation = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'WorkstationExperiencePage.tsx'), 'utf8');
 const stationShell = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'StationKioskShell.tsx'), 'utf8');
 const workstationAdmin = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'WorkstationModeAdminPanel.tsx'), 'utf8');
+const controlCenter = readFileSync(path.join(process.cwd(), 'src', 'features', 'hub', 'ControlCenterTopologyPanel.tsx'), 'utf8');
 
 describe('V1.5-00.2 Hub routing contract', () => {
   it('keeps workstation mode separate from legacy appMode', () => {
@@ -23,7 +24,7 @@ describe('V1.5-00.2 Hub routing contract', () => {
   });
 
   it('uses only canonical theme tokens in V1.5 Hub surfaces', () => {
-    const source = hub + workstation + stationShell + workstationAdmin;
+    const source = hub + workstation + stationShell + workstationAdmin + controlCenter;
     expect(source).not.toMatch(/(?:rounded|text|tracking|shadow|bg|border)-\[[^\]]+\]/);
     expect(source).not.toMatch(/(?:amber|red|rose|green|emerald|blue|indigo|violet|purple|slate)-\d+/);
     expect(source).not.toContain('shadow-2xl');
@@ -36,6 +37,19 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(source).toContain('text-text-muted');
     expect(source).toContain('bg-card-bg');
     expect(source).toContain('bg-primary/5');
+  });
+
+  it('keeps the Control Center actionable and fail-closed for LAN targets', () => {
+    expect(workstation).toContain('<ControlCenterTopologyPanel />');
+    expect(workstation).not.toContain('Espace technique en cours de construction');
+    expect(controlCenter).toContain('data-control-center-target');
+    expect(controlCenter).toContain('data-control-center-probe');
+    expect(controlCenter).toContain('data-control-center-remediation');
+    expect(controlCenter).toContain("credentials: 'omit'");
+    expect(controlCenter).toContain('HTTPS est obligatoire pour une adresse LAN');
+    expect(controlCenter).toContain('Digital Crown utilise le port cabinet 8005');
+    expect(controlCenter).not.toContain('localStorage.setItem');
+    expect(controlCenter).not.toContain('sessionStorage.setItem');
   });
 
   it('exposes a clean Cabinet return to Hub', () => {
