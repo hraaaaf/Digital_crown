@@ -235,4 +235,4 @@ These constructions extend the LOT06 deterministic authority without activating 
 - State: `SOURCE_LOCKED_GEOMETRY`.
 - Downstream: `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` is `CONDITIONAL_EXECUTABLE` with constructed Xi + explicit `ANS` + explicit `Pm_Ricketts`.
 - `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` remains blocked until explicit/source-locked `DC_Ricketts` exists.
-- Primary source: Ricketts RM, 1972 (Xi ramal centroid construction); Ricketts RM, 1981 (Xi center of ramus, Xi-Pm corpus axis, oral gnomon).
+- Source authority: Ricketts RM 1972 source-locks the R1-R4 ramal rectangle/centroid; Ricketts RM 1981 confirms Xi-Pm/oral-gnomon use. FH/PtV axis orientation is corroborated by peer-reviewed Ricketts implementations (e.g. Mangla et al., 2011, DOI `10.4103/0976-237X.86458`).
