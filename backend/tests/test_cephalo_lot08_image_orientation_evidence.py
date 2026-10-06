@@ -5,6 +5,7 @@ import pytest
 
 from backend.schemas.cephalo_evidence import (
     AvailabilityStatus,
+    ClinicianValidationEvidence,
     EvidenceStatus,
     ImageOrientationEvidence,
     ImageOrientationOrigin,
@@ -12,6 +13,7 @@ from backend.schemas.cephalo_evidence import (
     LandmarkOrigin,
     MeasurementEvidence,
     SourceEvidence,
+    ValidationAction,
 )
 from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
 from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
@@ -264,3 +266,43 @@ def test_signed_ricketts_values_are_rotation_and_mirror_invariant_with_orientati
         ),
     )
     assert {method: mirrored_out[method].value for method in methods} == pytest.approx(expected)
+
+
+def test_manual_orientation_validation_can_target_orientation():
+    source = SourceEvidence(
+        evidence_id="source:orientation",
+        patient_id=1,
+        kind="lateral_ceph",
+        source_record_id="image:1",
+        recorded_at=dt.datetime(2026, 10, 6, tzinfo=dt.timezone.utc),
+    )
+    validation = ClinicianValidationEvidence(
+        validation_id="validation:orientation",
+        clinician_id="clinician:test",
+        validated_at=dt.datetime(2026, 10, 6, tzinfo=dt.timezone.utc),
+        action=ValidationAction.ACCEPT,
+        target_type="image_orientation",
+        target_id="orientation:manual-ok",
+        before_snapshot_hash="before",
+        after_snapshot_hash="after",
+    )
+    orientation = ImageOrientationEvidence(
+        evidence_id="orientation:manual-ok",
+        source_image_ref=source.evidence_id,
+        anterior_x=1.0,
+        anterior_y=0.0,
+        superior_x=0.0,
+        superior_y=1.0,
+        is_mirrored=False,
+        origin=ImageOrientationOrigin.MANUAL_VERIFIED,
+        provenance_ref=validation.validation_id,
+        validated_by=validation.clinician_id,
+        validated_at=validation.validated_at,
+        evidence_refs=[source.evidence_id],
+    )
+    graph = EvidenceGraphSnapshot(
+        sources=[source],
+        image_orientations=[orientation],
+        validations=[validation],
+    )
+    validate_evidence_graph(graph)
