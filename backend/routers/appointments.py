@@ -307,11 +307,13 @@ def confirm_appointment_presence(
     if appointment.status != models.AppointmentStatus.EN_SALLE_ATTENTE:
         raise HTTPException(status_code=409, detail="APPOINTMENT_PRESENCE_NOT_CONFIRMABLE")
 
+    proof_details = presence_proof_details(appointment.datetime_start)
     existing = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == employer_id,
         models.AuditLog.action == "APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
         models.AuditLog.resource_type == "Appointment",
         models.AuditLog.resource_id == str(id),
+        models.AuditLog.details == proof_details,
     ).order_by(models.AuditLog.id.asc()).first()
     if existing is not None:
         return {"status": "CONFIRMED", "proofId": existing.id}
@@ -322,7 +324,7 @@ def confirm_appointment_presence(
         action="APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
         resource_type="Appointment",
         resource_id=str(id),
-        details=presence_proof_details(appointment.datetime_start),
+        details=proof_details,
     )
     db.add(event)
     db.commit()
