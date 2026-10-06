@@ -114,14 +114,14 @@ Source membership observed in the published 32-factor table.
 | 28 | Posterior facial height | none | NEW_CANONICAL_ID + CF/Go definition |
 | 29 | Ramus position | none | NEW_CANONICAL_ID + CF/Xi |
 | 30 | Porion location / TMJ | none | NEW_CANONICAL_ID + exact Ricketts construction |
-| 31 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | SOURCE_LOCKED_GEOMETRY / BLOCKED_LANDMARK: DC_Ricketts/Xi_Ricketts/Pm_Ricketts |
+| 31 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `DC_Ricketts` + source-locked Xi + manual/manual-corrected `Pm_Ricketts` |
 | 32 | Corpus length | none | NEW_CANONICAL_ID + Xi/Pm/A-Pog source geometry |
 
 ### 32-factor runtime summary
 - Exact executable canonical members: **6** (#6, #7, #12, #16, #19, #22).
-- Conditional executable: **4** (#5 lower-incisor extrusion; #8 lower-face height with source-locked Xi + explicit Pm; #20 facial axis with explicit Pt_Ricketts; #25 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
+- Conditional executable: **5** (#5 lower-incisor extrusion; #8 lower-face height; #20 facial axis; #25 mandibular plane; #31 mandibular arc with manual DC + source-locked Xi + manual Pm).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
-- Existing canonical but blocked/legacy: **5** (#3, #4, #9, #10, #31).
+- Existing canonical but blocked/legacy: **4** (#3, #4, #9, #10).
 - New source-specific canonical contract required: **16**.
 - Total accounted factors: **32/32**.
 
@@ -160,12 +160,12 @@ Recovered membership:
 | 10 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
 | 11 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: explicit `MP_ANGLE_INFERIOR_Ricketts` + Me + anatomical Frankfort; generic Go/Go-Gn substitution forbidden |
 | 12 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
-| 13 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | SOURCE_LOCKED_GEOMETRY / BLOCKED_LANDMARK: DC_Ricketts/Xi_Ricketts/Pm_Ricketts |
+| 13 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `DC_Ricketts` + source-locked Xi + manual/manual-corrected `Pm_Ricketts` |
 
 ### 13-factor runtime summary
 - Exact executable: **7** (#2, #3, #5, #6, #8, #10, #12).
-- Conditional executable: **4** (#1 lower-incisor extrusion; #4 lower facial height; #9 facial axis with explicit `Pt_Ricketts`; #11 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
-- Source-locked but blocked by landmark authority: **2** (#7 upper molar/PTV, #13 mandibular arc/DC).
+- Conditional executable: **5** (#1 lower-incisor extrusion; #4 lower facial height; #9 facial axis; #11 mandibular plane; #13 mandibular arc).
+- Source-locked but blocked by landmark authority: **1** (#7 upper molar/PTV).
 - No historical norm or VERT classification is activated by these execution states.
 
 ---
