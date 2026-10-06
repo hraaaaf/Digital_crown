@@ -26,6 +26,8 @@ _ALLOWED_MANIFEST_STATUS = {
 _ALLOWED_MEMBERSHIP = {"OBSERVED_MATCH", "OBSERVED_FACAD_ONLY", "OBSERVED_DC_ONLY"}
 _ALLOWED_SIGN = {"OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"}
 _ALLOWED_NUMERIC = {"OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_COMPARABLE"}
+_ALLOWED_DIMENSION_STATUS = {"OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"}
+_ALLOWED_NORM_STATUS = {"OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_EXPORTED", "NOT_APPLICABLE"}
 _EVIDENCE_REQUIRED_FIELDS = {
     "evidence_id",
     "artifact_kind",
@@ -46,7 +48,28 @@ _PARITY_REQUIRED_FIELDS = {
     "membership_status",
     "sign_status",
     "numeric_status",
+    "comparison_details",
     "evidence_refs",
+}
+_COMPARISON_DETAIL_FIELDS = {
+    "digital_crown_label",
+    "label_status",
+    "digital_crown_unit",
+    "unit_status",
+    "facad_landmarks_constructions",
+    "digital_crown_landmarks_constructions",
+    "construction_status",
+    "facad_value",
+    "digital_crown_value",
+    "numeric_delta",
+    "facad_norm",
+    "digital_crown_norm",
+    "norm_status",
+    "facad_display_value",
+    "digital_crown_display_value",
+    "rounding_status",
+    "atlas_divergence_status",
+    "atlas_divergence_note",
 }
 
 
@@ -124,6 +147,12 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
     else:
         if set(row_contract.get("required_fields") or []) != _PARITY_REQUIRED_FIELDS:
             _error(errors, "parity_row_contract.required_fields mismatch")
+        if set(row_contract.get("comparison_details_required_fields") or []) != _COMPARISON_DETAIL_FIELDS:
+            _error(errors, "parity_row_contract.comparison_details_required_fields mismatch")
+        if set(row_contract.get("allowed_dimension_status") or []) != _ALLOWED_DIMENSION_STATUS:
+            _error(errors, "parity_row_contract.allowed_dimension_status mismatch")
+        if set(row_contract.get("allowed_norm_status") or []) != _ALLOWED_NORM_STATUS:
+            _error(errors, "parity_row_contract.allowed_norm_status mismatch")
         if set(row_contract.get("allowed_membership_status") or []) != _ALLOWED_MEMBERSHIP:
             _error(errors, "parity_row_contract.allowed_membership_status mismatch")
         if set(row_contract.get("allowed_sign_status") or []) != _ALLOWED_SIGN:
@@ -251,6 +280,38 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             _error(errors, f"{prefix}.sign_status is invalid")
         if numeric_status not in _ALLOWED_NUMERIC:
             _error(errors, f"{prefix}.numeric_status is invalid")
+
+        details = row.get("comparison_details")
+        if not isinstance(details, dict):
+            _error(errors, f"{prefix}.comparison_details must be an object")
+            details = {}
+        else:
+            detail_missing = _COMPARISON_DETAIL_FIELDS - set(details)
+            if detail_missing:
+                _error(errors, f"{prefix}.comparison_details missing required fields: {sorted(detail_missing)}")
+            for key in ("label_status", "unit_status", "construction_status", "rounding_status", "atlas_divergence_status"):
+                if details.get(key) not in _ALLOWED_DIMENSION_STATUS:
+                    _error(errors, f"{prefix}.comparison_details.{key} is invalid")
+            if details.get("norm_status") not in _ALLOWED_NORM_STATUS:
+                _error(errors, f"{prefix}.comparison_details.norm_status is invalid")
+
+            if details.get("unit_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
+                if not _nonempty_string(row.get("facad_unit")) or not _nonempty_string(details.get("digital_crown_unit")):
+                    _error(errors, f"{prefix} observed unit comparison requires both Facad and Digital Crown units")
+            if details.get("construction_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
+                if not details.get("facad_landmarks_constructions") or not details.get("digital_crown_landmarks_constructions"):
+                    _error(errors, f"{prefix} observed construction comparison requires both construction definitions")
+            if numeric_status in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
+                if details.get("facad_value") is None or details.get("digital_crown_value") is None:
+                    _error(errors, f"{prefix} observed numeric parity requires both numeric values")
+            if details.get("norm_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
+                if details.get("facad_norm") is None or details.get("digital_crown_norm") is None:
+                    _error(errors, f"{prefix} observed norm comparison requires both norms")
+            if details.get("rounding_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
+                if details.get("facad_display_value") is None or details.get("digital_crown_display_value") is None:
+                    _error(errors, f"{prefix} observed rounding comparison requires both display values")
+            if details.get("atlas_divergence_status") == "OBSERVED_DIFFERENT" and not _nonempty_string(details.get("atlas_divergence_note")):
+                _error(errors, f"{prefix} Atlas divergence requires an explanatory note")
 
         refs = row.get("evidence_refs")
         if not isinstance(refs, list) or not refs:
