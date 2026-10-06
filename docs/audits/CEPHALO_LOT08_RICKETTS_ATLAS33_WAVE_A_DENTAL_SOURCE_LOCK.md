@@ -101,25 +101,21 @@ Reason:
 the sources recovered in this pass do not provide enough deterministic information to orient the perpendicular sign independently of screen orientation without importing a Digital Crown convention. No runtime method is activated.
 
 ### #10 Lower-incisor protrusion
-Canonical identity candidate:
+Canonical ID:
 `M_L1_EDGE_APOG_MM_V1`.
 
-Ricketts/Atlas uses the lower incisal edge/tip relative to A-Pog. The previous matrix mapping to `M_L1_FACIAL_SURFACE_APOG_MM_V1` mixed in a McNamara facial-surface identity and is rejected.
+Ricketts uses the lower incisal edge/tip relative to A-Pog. The previous matrix mapping to `M_L1_FACIAL_SURFACE_APOG_MM_V1` mixed in a McNamara facial-surface identity and is rejected.
 
-However, for the Atlas 2009 complete profile specifically, the recovered text does not specify the metric direction from L1 to A-Pog. Because recovered secondary mappings conflict, Atlas activation is `SOURCE_LOCKED_BLOCKED` with gate `L1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED`. The existing Gregoret canonical/runtime is not modified by this Atlas-specific quarantine.
+Wave D resolves the direction: cephalometric interoperability mapping specifies the incisal-edge distance perpendicular to A-Pog, while Ricketts primary material and later reviews establish anterior positioning as positive. Runtime uses the existing perpendicular A-Pog construction with Frankfort only to orient anterior/posterior.
 
 ### #11 Upper-incisor protrusion
-ID reserved: `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1`.
+Canonical ID:
+`M_RICKETTS_U1_APOG_PROTRUSION_MM_V1`.
 
-Source-locked identities:
-`U1_incisal`, A, `Pog_hard`.
+Required identities:
+`U1_incisal`, A, `Pog_hard`, anatomical Frankfort, verified calibration.
 
-The Atlas text states that protrusion is the distance from the upper central-incisor edge to A-Pog, but the recovered text does not specify the measurement direction. Secondary mappings conflict between a shortest/perpendicular distance and a direction parallel to the occlusal plane.
-
-State:
-`SOURCE_LOCKED_LANDMARKS__A_POG_DISTANCE_DIRECTION_BLOCKED`.
-
-No runtime method is activated until the exact Atlas/Ricketts direction is independently resolved.
+Wave D resolves the direction as the perpendicular distance from the upper incisal tip to A-Pog, positive when the incisal edge is anterior to A-Pog. Modern cephalometric reproducibility literature and Ricketts incisor-position reviews corroborate this construction; no occlusal-plane projection is used.
 
 ### #13 Upper-incisor inclination
 ID: `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1`.
