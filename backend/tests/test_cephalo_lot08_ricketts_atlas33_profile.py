@@ -45,14 +45,15 @@ def test_atlas2009_every_non_null_measurement_is_registered():
     assert missing == []
 
 
-def test_atlas2009_factor_29_conflict_is_not_silently_normalized():
+def test_atlas2009_factor_29_conflict_resolution_is_explicit_and_auditable():
     data = json.loads(PROFILE.read_text(encoding="utf-8"))
     row = data["measurements"][28]
     assert row["order"] == 29
-    assert row["measurement_id"] is None
-    assert row["state"] == "SOURCE_LABEL_CONFLICT_BLOCKED"
+    assert row["measurement_id"] == "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1"
+    assert row["state"] == "CONDITIONAL_EXECUTABLE"
+    assert "SOURCE_LABEL_CONFLICT_RESOLVED_AS_TOTAL_FACIAL_HEIGHT" in row["gate"]
     text = COMPOSITION.read_text(encoding="utf-8")
-    assert "Source-label conflict quarantined" in text
+    assert "Source-label conflict" in text
     assert "Total Facial Height" in text
 
 
