@@ -193,3 +193,10 @@ def test_gregoret13_profile_links_dc_mandibular_arc_source_lock():
     assert "DC_Ricketts" in text
     assert "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2" in text
     assert "posterior corpus extension" in text
+
+
+def test_gregoret13_construction_registry_marks_mandibular_arc_conditional():
+    text = CONSTRUCTION_REGISTRY.read_text(encoding="utf-8")
+    assert "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1" in text
+    assert "CONDITIONAL_EXECUTABLE" in text
+    assert "manual/manual-corrected `DC_Ricketts`" in text
