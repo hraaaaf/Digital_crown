@@ -70,6 +70,10 @@ jobs:
           npm install --no-save playwright@1.55.0
           npx playwright install chromium
 
+      - name: Frontend topology contract
+        working-directory: frontend
+        run: npm test -- --run src/test/v15HubRoutingContract.test.ts
+
       - name: Start isolated backend
         run: |
           rm -f t2-runtime-cert.db
