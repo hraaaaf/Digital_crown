@@ -68,6 +68,7 @@ class UserOut(BaseModel):
     permissions: Optional[dict] = None
     is_licensed: Optional[bool] = None
     license_expires_at: Optional[datetime.datetime] = None
+    subscription_plan: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - "audit/fux-multi-persona-20261006"
-    paths:
-      - "frontend/scripts/audit-fux-multi-persona.mjs"
-      - ".github/workflows/fux-multi-persona-audit.yml"
+      - "fix/fux-*"
 
 permissions:
   contents: read

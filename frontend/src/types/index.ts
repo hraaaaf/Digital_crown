@@ -10,6 +10,7 @@ export interface AppUser extends User {
   is_superadmin?: boolean;
   is_licensed?: boolean;
   license_expires_at?: string | null;
+  subscription_plan?: 'GOLD' | 'PREMIUM' | 'ELITE' | string | null;
   full_name?: string;
   nom_complet?: string | null;
   cabinet_name?: string;

@@ -186,11 +186,17 @@ async function createSession(persona, viewport) {
   const events = [];
   const consoleErrors = [];
   const pageErrors = [];
+  const failedResponses = [];
 
   page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());
   });
   page.on('pageerror', (err) => pageErrors.push(err.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      failedResponses.push({ status: response.status(), url: response.url() });
+    }
+  });
 
   async function capture(step, extra = {}) {
     await page.waitForTimeout(650);
@@ -210,11 +216,13 @@ async function createSession(persona, viewport) {
       metrics,
       consoleErrors: [...consoleErrors],
       pageErrors: [...pageErrors],
+      failedResponses: [...failedResponses],
       ...extra,
     };
     events.push(item);
     consoleErrors.length = 0;
     pageErrors.length = 0;
+    failedResponses.length = 0;
     return item;
   }
 
