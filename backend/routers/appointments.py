@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from typing import List, Optional
 from datetime import datetime, timedelta
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
+from backend.routers.workstation_mode import _find_workstation
 from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
 from backend.services.audit_service import audit_service
+from backend.services.station_presence_receipt import presence_proof_details
 from backend.services.agenda_availability import (
     get_practitioner_day_availability,
     validate_appointment_availability,
@@ -279,6 +281,71 @@ def update_appointment(
         details=f"Champs: {', '.join(update_data.keys())}",
     )
     return db_appt
+
+
+@router.post("/{id}/presence-confirmation")
+def confirm_appointment_presence(
+    id: int,
+    request: Request,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = int(current_user.get_employer_id())
+    workstation = _find_workstation(request, db, employer_id)
+    if workstation is None or workstation.default_experience != "cabinet":
+        raise HTTPException(status_code=403, detail="STAFF_WORKSTATION_REQUIRED")
+
+    sqlite = db.get_bind().dialect.name == "sqlite"
+    if sqlite:
+        db.commit()
+        db.execute(text("BEGIN IMMEDIATE"))
+    else:
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": (employer_id << 32) | int(id)},
+        )
+
+    query = db.query(models.Appointment).filter(
+        models.Appointment.id == id,
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
+    )
+    appointment = query.first() if sqlite else query.with_for_update().first()
+    if appointment is None:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if appointment.patient_id is None:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="APPOINTMENT_PATIENT_REQUIRED")
+    if appointment.status != models.AppointmentStatus.EN_SALLE_ATTENTE:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="APPOINTMENT_PRESENCE_NOT_CONFIRMABLE")
+
+    proof_details = presence_proof_details(appointment.datetime_start)
+    existing = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
+        models.AuditLog.resource_type == "Appointment",
+        models.AuditLog.resource_id == str(id),
+        models.AuditLog.details == proof_details,
+    ).order_by(models.AuditLog.id.asc()).first()
+    if existing is not None:
+        proof_id = existing.id
+        db.commit()
+        return {"status": "CONFIRMED", "proofId": proof_id}
+
+    event = models.AuditLog(
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
+        resource_type="Appointment",
+        resource_id=str(id),
+        details=proof_details,
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return {"status": "CONFIRMED", "proofId": event.id}
 
 
 @router.delete("/{id}")

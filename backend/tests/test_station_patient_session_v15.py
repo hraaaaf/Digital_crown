@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import pytest
+import fitz
 from sqlalchemy.exc import IntegrityError
 
 from backend import models
@@ -1071,3 +1072,335 @@ def test_wall_call_requires_waiting_state_and_unique_explicit_ticket(client, db,
     assert repaired_duplicate.status_code == 200, repaired_duplicate.text
     db.refresh(duplicate_a)
     assert duplicate_a.ticket_number == 47
+
+
+def _presence_appointment(db, owner, patient, *, status=models.AppointmentStatus.PREVU):
+    appointment = models.Appointment(
+        patient_id=patient.id,
+        employer_id=owner.id,
+        datetime_start=datetime.now().replace(second=0, microsecond=0),
+        duration_minutes=30,
+        status=status,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+    )
+    db.add(appointment)
+    db.commit()
+    db.refresh(appointment)
+    return appointment
+
+
+def _claimed_station_session(client, db, owner, *, dossier):
+    headers, _ = _station(client, owner)
+    created = client.post("/api/workstation/patient-session", headers=headers).json()
+    raw = created["handoffUrl"].split("stationSession=", 1)[1]
+    patient, access, patient_headers = _patient_context(db, owner, dossier=dossier)
+    claimed = client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={"token": raw, "accessId": access.public_id},
+    )
+    assert claimed.status_code == 200, claimed.text
+    return headers, created["sessionId"], patient
+
+
+def test_v15_04_2_station_arrival_alone_does_not_unlock_presence_receipt(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-STATION"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    arrived = client.post(
+        f"/api/workstation/patient-session/{session_id}/appointments/{appointment.id}/arrive",
+        headers=headers,
+    )
+    assert arrived.status_code == 200, arrived.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 409
+    assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
+
+
+def test_v15_04_2_staff_presence_proof_unlocks_deterministic_receipt(client, db, dentiste):
+    config = _cabinet_config(db, dentiste)
+    config.nom_cabinet = "Cabinet Presence"
+    config.nom_praticien = "Dr Presence"
+    db.commit()
+
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-STAFF"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
+    updated = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"status": "EN_S_ATTENTE"},
+    )
+    assert updated.status_code == 200, updated.text
+    confirmed = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
+
+    staff_proofs = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == dentiste.id,
+        models.AuditLog.action == "APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
+        models.AuditLog.resource_type == "Appointment",
+        models.AuditLog.resource_id == str(appointment.id),
+    ).all()
+    assert len(staff_proofs) == 1
+
+    url = f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}"
+    first = client.get(url, headers=headers)
+    second = client.get(url, headers=headers)
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.headers["content-type"].startswith("application/pdf")
+    assert first.headers["cache-control"] == "no-store"
+    assert first.content.startswith(b"%PDF")
+    assert first.content == second.content
+    assert first.headers["x-digital-crown-verification"] == second.headers["x-digital-crown-verification"]
+
+    document = fitz.open(stream=first.content, filetype="pdf")
+    extracted = "\n".join(page.get_text() for page in document)
+    assert "JUSTIFICATIF DE PRESENCE" in extracted
+    assert "Aya Audit" in extracted
+    assert "Cabinet Presence" in extracted
+    assert first.headers["x-digital-crown-verification"] in extracted
+
+
+def test_v15_04_2_generic_or_station_audit_cannot_forge_staff_presence(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-FORGE"
+    )
+    appointment = _presence_appointment(
+        db, dentiste, patient, status=models.AppointmentStatus.EN_SALLE_ATTENTE
+    )
+    for action in ("UPDATE", "STATION_APPOINTMENT_ARRIVED"):
+        db.add(models.AuditLog(
+            user_id=dentiste.id,
+            employer_id=dentiste.id,
+            action=action,
+            resource_type="Appointment",
+            resource_id=str(appointment.id),
+        ))
+    db.commit()
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 409
+    assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
+
+
+def test_v15_04_2_explicit_staff_confirmation_unlocks_station_arrival_receipt(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-EXPLICIT"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    arrived = client.post(
+        f"/api/workstation/patient-session/{session_id}/appointments/{appointment.id}/arrive",
+        headers=headers,
+    )
+    assert arrived.status_code == 200, arrived.text
+
+    station_forbidden = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert station_forbidden.status_code == 423
+    assert station_forbidden.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
+    confirm = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert confirm.status_code == 200, confirm.text
+    assert confirm.json()["status"] == "CONFIRMED"
+
+    repeat = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert repeat.status_code == 200
+    assert repeat.json()["proofId"] == confirm.json()["proofId"]
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.content.startswith(b"%PDF")
+
+
+def test_v15_04_2_presence_receipt_supports_arabic_patient_name(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-AR"
+    )
+    patient.prenom = "آية"
+    patient.nom = "المختبر"
+    db.commit()
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
+    updated = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"status": "EN_S_ATTENTE"},
+    )
+    assert updated.status_code == 200, updated.text
+    confirmed = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.content.startswith(b"%PDF")
+    assert len(receipt.content) > 1000
+
+
+def test_v15_04_2_rescheduling_invalidates_old_presence_proof(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-RESCHEDULE"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
+    present = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"status": "EN_S_ATTENTE"},
+    )
+    assert present.status_code == 200, present.text
+    confirmed = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert confirmed.status_code == 200, confirmed.text
+
+    shifted = appointment.datetime_start + timedelta(minutes=1)
+    moved = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"datetime_start": shifted.isoformat()},
+    )
+    assert moved.status_code == 200, moved.text
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 409
+    assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
+
+
+def test_v15_04_2_staff_can_reconfirm_after_reschedule_with_new_proof(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-RECONFIRM"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
+
+    first_present = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"status": "EN_S_ATTENTE"},
+    )
+    assert first_present.status_code == 200, first_present.text
+    first_confirm = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert first_confirm.status_code == 200, first_confirm.text
+
+    shifted = appointment.datetime_start + timedelta(minutes=1)
+    moved = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"datetime_start": shifted.isoformat()},
+    )
+    assert moved.status_code == 200, moved.text
+
+    second_confirm = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert second_confirm.status_code == 200, second_confirm.text
+    assert second_confirm.json()["proofId"] != first_confirm.json()["proofId"]
+
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.content.startswith(b"%PDF")

@@ -24,6 +24,16 @@ from backend.routers.patient_companion_common import (
 )
 from backend.routers.workstation_mode import _find_workstation, _require_pin
 from backend.services.qr_service import qr_service
+from backend.services.station_document_eligibility import (
+    SelfServiceDocumentCandidate,
+    StationEligibilityContext,
+    evaluate_document_eligibility,
+)
+from backend.services.station_presence_receipt import (
+    presence_receipt_verification_code,
+    reliable_presence_proof,
+    render_presence_receipt_pdf,
+)
 from backend.services.station_arrival_bridge import (
     cabinet_local_day_bounds,
     list_station_patient_appointments_for_today,
@@ -766,6 +776,102 @@ def station_patient_arrive(
         db.commit()
     response.headers["Cache-Control"] = "no-store"
     return {"status": "ARRIVED", "appointmentId": appointment.id}
+
+
+@router.get("/patient-session/{session_id}/documents/presence-receipt/{appointment_id}")
+def station_presence_receipt(
+    session_id: str,
+    appointment_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    workstation, row = _identified_station_session_or_error(session_id, request, db, current_user)
+    appointment = station_appointment_for_today(
+        db,
+        appointment_id=appointment_id,
+        employer_id=workstation.employer_id,
+        patient_id=row.patient_id,
+    )
+    if appointment is None:
+        raise HTTPException(status_code=404, detail="STATION_APPOINTMENT_NOT_FOUND")
+
+    proof = reliable_presence_proof(
+        db,
+        employer_id=workstation.employer_id,
+        patient_id=row.patient_id,
+        appointment=appointment,
+    )
+    if proof is None:
+        raise HTTPException(status_code=409, detail="STATION_PRESENCE_NOT_PROVEN")
+
+    now = datetime.utcnow()
+    decision = evaluate_document_eligibility(
+        StationEligibilityContext(
+            tenant_id=workstation.employer_id,
+            patient_id=row.patient_id,
+            station_id=workstation.id,
+            session_id=row.id,
+            session_tenant_id=row.employer_id,
+            session_patient_id=row.patient_id,
+            session_station_id=row.workstation_id,
+            session_created_at=row.created_at,
+            session_claimed_at=row.claimed_at,
+            session_expires_at=row.expires_at,
+            session_purged_at=row.purged_at,
+            station_tenant_id=workstation.employer_id,
+            station_experience=workstation.default_experience,
+            station_revoked_at=workstation.revoked_at,
+            now=now,
+        ),
+        SelfServiceDocumentCandidate(
+            document_id=f"presence-receipt:{appointment.id}:{proof.audit_id}",
+            tenant_id=appointment.employer_id,
+            patient_id=appointment.patient_id,
+            kind="presence_receipt",
+            is_active=appointment.deleted_at is None,
+            is_latest_version=True,
+            presence_confirmed=True,
+            presence_proof_source=proof.source,
+        ),
+    )
+    if not decision.eligible:
+        raise HTTPException(status_code=409, detail="STATION_PRESENCE_RECEIPT_NOT_ELIGIBLE")
+
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == row.patient_id,
+        models.Patient.employer_id == workstation.employer_id,
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=409, detail="STATION_SESSION_PATIENT_UNAVAILABLE")
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == workstation.employer_id
+    ).first()
+
+    verification_code = presence_receipt_verification_code(
+        employer_id=workstation.employer_id,
+        patient_id=patient.id,
+        appointment_id=appointment.id,
+        appointment_start=appointment.datetime_start,
+        proof=proof,
+    )
+    payload = render_presence_receipt_pdf(
+        cabinet_name=(config.nom_cabinet if config else "") or "Cabinet dentaire",
+        practitioner_name=(config.nom_praticien if config else "") or "",
+        patient_name=f"{patient.prenom or ''} {patient.nom or ''}".strip(),
+        appointment_start=appointment.datetime_start,
+        verification_code=verification_code,
+    )
+    return Response(
+        content=payload,
+        media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="presence-receipt-{appointment.id}.pdf"',
+            "X-Digital-Crown-Verification": verification_code,
+        },
+    )
 
 
 @router.get("/patient-session/{session_id}")
