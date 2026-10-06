@@ -211,7 +211,7 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         else:
             ricketts_extrusion_refs=(ricketts_fop.construction_id,)
             if ricketts_fop.availability_status!=AvailabilityStatus.AVAILABLE:
-                ricketts_extrusion_status=AvailabilityStatus.NOT_COMPUTABLE
+                ricketts_extrusion_status=ricketts_fop.availability_status
             elif ricketts_extrusion_status==AvailabilityStatus.AVAILABLE:
                 point_x=ricketts_fop.geometry.get("point_x")
                 point_y=ricketts_fop.geometry.get("point_y")
