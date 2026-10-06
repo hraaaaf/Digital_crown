@@ -1191,3 +1191,37 @@ def test_v15_04_2_generic_or_station_audit_cannot_forge_staff_presence(client, d
     )
     assert receipt.status_code == 409
     assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
+
+
+def test_v15_04_2_explicit_staff_confirmation_unlocks_station_arrival_receipt(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-EXPLICIT"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    arrived = client.post(
+        f"/api/workstation/patient-session/{session_id}/appointments/{appointment.id}/arrive",
+        headers=headers,
+    )
+    assert arrived.status_code == 200, arrived.text
+
+    confirm = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert confirm.status_code == 200, confirm.text
+    assert confirm.json()["status"] == "CONFIRMED"
+
+    repeat = client.post(
+        f"/api/appointments/{appointment.id}/presence-confirmation",
+        headers=headers,
+    )
+    assert repeat.status_code == 200
+    assert repeat.json()["proofId"] == confirm.json()["proofId"]
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.content.startswith(b"%PDF")
