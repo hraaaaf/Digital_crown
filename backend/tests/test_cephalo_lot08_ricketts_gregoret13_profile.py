@@ -154,7 +154,7 @@ def test_gregoret13_lower_facial_height_is_conditional_on_source_locked_xi_pm():
         if item["measurement_id"] == "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1"
     )
     assert row["state"] == "CONDITIONAL_EXECUTABLE"
-    assert row["gate"] == "R1_R4_RICKETTS_AND_ANATOMICAL_FRANKFORT_FOR_XI_PLUS_EXPLICIT_PM_RICKETTS_REQUIRED"
+    assert row["gate"] == "MANUAL_R1_R4_RICKETTS_AND_ANATOMICAL_FRANKFORT_FOR_XI_PLUS_MANUAL_PM_RICKETTS_REQUIRED"
 
 
 def test_gregoret13_profile_links_the_ricketts_plane_source_lock():
