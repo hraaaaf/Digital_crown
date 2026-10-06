@@ -1,0 +1,60 @@
+{
+  "schema_version": "ORTHO_LOT08_FACAD_RICKETTS_DIRECT_PARITY_EVIDENCE_V1",
+  "status": "AWAITING_DIRECT_FACAD_EXPORTS",
+  "scientific_authority": false,
+  "compatibility_only": true,
+  "profiles": [
+    {
+      "target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+      "vendor_label": "Ricketts (32 F)",
+      "observation_status": "UNOBSERVED"
+    },
+    {
+      "target_id": "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
+      "vendor_label": "Ricketts (13 F)",
+      "observation_status": "UNOBSERVED"
+    }
+  ],
+  "required_direct_exports": [
+    {
+      "kind": "ANALYSIS_VALUES",
+      "required_for": ["membership", "order", "labels", "units", "numeric_values", "rounding"],
+      "status": "MISSING"
+    },
+    {
+      "kind": "ANALYSIS_PROPERTIES",
+      "required_for": ["profile_identity", "norms_if_exported", "analysis_metadata"],
+      "status": "MISSING"
+    },
+    {
+      "kind": "MARKER_POSITIONS",
+      "required_for": ["landmarks", "constructions", "sign_investigation", "same_trace_numeric_comparison"],
+      "status": "MISSING"
+    }
+  ],
+  "comparison_dimensions": [
+    "membership",
+    "order",
+    "export_labels",
+    "units",
+    "landmarks_and_constructions",
+    "sign_convention",
+    "same_trace_numeric_values",
+    "norms_if_exported",
+    "rounding",
+    "facad_without_digital_crown_equivalent",
+    "digital_crown_without_facad_equivalent",
+    "atlas_vs_facad_divergence"
+  ],
+  "rules": {
+    "direct_export_required": true,
+    "same_trace_preferred": true,
+    "no_membership_inference_from_vendor_label": true,
+    "no_sign_inference_without_observation": true,
+    "no_norm_inference_without_observation": true,
+    "no_scientific_equivalence_claim": true,
+    "unobserved_fields_remain_unobserved": true
+  },
+  "evidence_records": [],
+  "parity_rows": []
+}
