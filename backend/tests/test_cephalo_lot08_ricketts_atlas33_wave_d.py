@@ -6,6 +6,7 @@ from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, L
 from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
 from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
 from backend.services.cephalo_measure_registry import canonical_measurement
+from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
 from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_u1_edge_apog_signed_distance_px_v1,
@@ -81,7 +82,7 @@ def test_wave_d_u1_apog_materializes_and_requires_calibration():
     item=out["RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2"]
     assert item.availability_status.value=="AVAILABLE"
     assert item.value==pytest.approx(1.75)
-    assert item.canonical_measurement_id=="M_RICKETTS_U1_APOG_PROTRUSION_MM_V1"
+    assert canonical_measurement_id_for_method(item.method_id)=="M_RICKETTS_U1_APOG_PROTRUSION_MM_V1"
 
     out=_materialize(landmarks,mm_per_pixel=None,calibration_ref=None)
     item=out["RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2"]
