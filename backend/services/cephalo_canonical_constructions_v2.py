@@ -107,6 +107,12 @@ def materialize_canonical_constructions_v2(
         ptv_sources.add(item.source_image_ref)
         if item.availability_status != AvailabilityStatus.AVAILABLE:
             ptv_missing.append(landmark_id)
+        if (
+            landmark_id == "PR_Ricketts_PTV"
+            and item.origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+            and landmark_id not in ptv_missing
+        ):
+            ptv_missing.append(landmark_id)
 
     ptv_geometry: dict[str, object] = {
         "kind": "constructed_line",
