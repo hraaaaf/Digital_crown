@@ -198,7 +198,10 @@ These constructions extend the LOT06 deterministic authority without activating 
 - Coordinate space: source-image pixels.
 - Evidence gate: all identities available from one source image; degenerate Frankfort => INVALID.
 - Forbidden alias: generic `PT_point`, `Ptm`, and facial-axis `Pt_Ricketts` must not be promoted by name.
-- Downstream measurement `M_U6_PTV_MM_V1` remains blocked until exact `U6_distal` authority exists.
+- Authority gate: `PR_Ricketts_PTV` must be `MANUAL` or `MANUAL_CORRECTED`.
+- Downstream measurement `M_U6_PTV_MM_V1` is `CONDITIONAL_EXECUTABLE` only with manual/manual-corrected `U6_DISTAL_Ricketts` and verified calibration.
+- Forbidden substitutions: generic `PTV`, `Pt`, `PT_point`, `Ptm`, generic/cusp/centroid/mesial `U6`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_U6_PTV_SOURCE_LOCK.md`.
 
 
 ## RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1
