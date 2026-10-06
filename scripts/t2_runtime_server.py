@@ -144,6 +144,79 @@ with database.SessionLocal() as db:
         db.commit()
         db.refresh(restricted)
 
+    # FUX audit-only synthetic personas. They use existing production roles and
+    # explicit permissions; no new product role is introduced by this fixture.
+    fux_personas = (
+        (
+            "t2-collaborator@cabinet.ma",
+            "Dr T2 Collaborateur",
+            models.UserRole.DENTISTE,
+            {
+                "agenda": True,
+                "patients": True,
+                "prescriptions": True,
+                "accounting": False,
+                "payments": False,
+                "clinical": True,
+                "panoramic": True,
+                "cephalo": True,
+                "settings": False,
+                "admin": False,
+            },
+        ),
+        (
+            "t2-assistant@cabinet.ma",
+            "T2 Assistante",
+            models.UserRole.SECRETAIRE,
+            {
+                "agenda": True,
+                "patients": True,
+                "prescriptions": False,
+                "accounting": False,
+                "payments": False,
+                "clinical": False,
+                "panoramic": False,
+                "cephalo": False,
+                "settings": False,
+                "admin": False,
+            },
+        ),
+        (
+            "t2-secretary@cabinet.ma",
+            "T2 Secrétaire",
+            models.UserRole.SECRETAIRE,
+            {
+                "agenda": True,
+                "patients": True,
+                "prescriptions": False,
+                "accounting": True,
+                "payments": True,
+                "clinical": False,
+                "panoramic": False,
+                "cephalo": False,
+                "settings": False,
+                "admin": False,
+            },
+        ),
+    )
+    for persona_email, persona_name, persona_role, persona_permissions in fux_personas:
+        persona = db.query(models.User).filter(models.User.email == persona_email).first()
+        if not persona:
+            persona = models.User(
+                email=persona_email,
+                hashed_password=get_password_hash(runtime_password),
+                role=persona_role,
+                nom_complet=persona_name,
+                is_active=True,
+                is_licensed=True,
+                approval_status=models.ApprovalStatus.APPROVED.value,
+                employer_id=user.id,
+                permissions=persona_permissions,
+            )
+            db.add(persona)
+            db.commit()
+            db.refresh(persona)
+
     for setup_email, setup_name in (
         ("t2-setup-390@cabinet.ma", "Dr T2 Setup Mobile"),
         ("t2-setup-1280@cabinet.ma", "Dr T2 Setup Desktop"),
