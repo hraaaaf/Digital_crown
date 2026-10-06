@@ -43,7 +43,10 @@ for(const viewport of viewports){
 
   // Profile — deep contract: identity, specialty, contacts, save refusal, logo upload/delete, fixture restore.
   const originalProfileResp=await api.get('/api/clinics/me',{headers});
-  if(!originalProfileResp.ok()) throw new Error('profile original read failed');
+  if(!originalProfileResp.ok()){
+    const detail=(await originalProfileResp.text()).slice(0,500);
+    throw new Error(`profile original read failed: HTTP ${originalProfileResp.status()} ${detail}`);
+  }
   const originalProfile=await originalProfileResp.json();
   const originalProfileRestore={
     nom_cabinet:originalProfile.nom_cabinet,
