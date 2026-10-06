@@ -91,7 +91,7 @@ Source membership observed in the published 32-factor table.
 | 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + `L1_incisal/L1_apex` crownward-positive sign + verified calibration |
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
-| 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi from explicit R1-R4 + anatomical Frankfort, explicit `Pm_Ricketts` + ANS |
+| 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi from manual/manual-corrected R1-R4 + anatomical Frankfort, manual/manual-corrected `Pm_Ricketts` + ANS |
 | 9 | Upper molar position | `M_U6_PTV_MM_V1` | BLOCKED_LANDMARK / PTV source contract |
 | 10 | Mandibular incisor protrusion | `M_L1_FACIAL_SURFACE_APOG_MM_V1` | BLOCKED_LANDMARK |
 | 11 | Maxillary incisor protrusion | none | NEW_CANONICAL_ID |
@@ -151,7 +151,7 @@ Recovered membership:
 | 1 | Lower incisor extrusion to occlusal plane | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | CONDITIONAL_EXECUTABLE: explicit `FOP_PREMOLAR_Ricketts` + `FOP_MOLAR_Ricketts` + `L1_incisal/L1_apex` + verified calibration; crownward positive |
 | 2 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 3 | Facial convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
-| 4 | Lower facial height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi construction from R1-R4 + anatomical Frankfort; explicit `Pm_Ricketts` + ANS required |
+| 4 | Lower facial height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi construction from manual/manual-corrected R1-R4 + anatomical Frankfort; manual/manual-corrected `Pm_Ricketts` + ANS required |
 | 5 | Lower incisor to A-Pog | `M_L1_EDGE_APOG_MM_V1` | EXECUTABLE: explicit incisal-edge variant |
 | 6 | Lower incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
 | 7 | Upper molar to PTV | `M_U6_PTV_MM_V1` | PTV construction source-locked; BLOCKED_LANDMARK: explicit U6 distal identity |
