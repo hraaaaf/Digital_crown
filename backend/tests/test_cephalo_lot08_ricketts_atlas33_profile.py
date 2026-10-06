@@ -68,3 +68,32 @@ def test_atlas2009_normative_classification_stays_disabled():
     assert data["normative_state"]["universal_classification"] is False
     assert data["normative_state"]["vert_enabled"] is False
     assert data["rules"]["historical_norms_reference_only"] is True
+
+
+def test_atlas2009_wave_b_rows_are_locked_and_fail_closed():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    rows = {row["order"]: row for row in data["measurements"]}
+
+    assert rows[14]["measurement_id"] == "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1"
+    assert rows[14]["state"] == "SOURCE_LOCKED_BLOCKED"
+    assert rows[15]["measurement_id"] == "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1"
+    assert rows[15]["state"] == "CONDITIONAL_EXECUTABLE"
+    assert rows[17]["measurement_id"] == "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1"
+    assert rows[17]["state"] == "CONDITIONAL_EXECUTABLE"
+    assert rows[18]["measurement_id"] == "M_RICKETTS_COMMISSURE_FOP_MM_V1"
+    assert rows[18]["state"] == "SOURCE_LOCKED_BLOCKED"
+    assert rows[21]["measurement_id"] == "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1"
+    assert rows[23]["measurement_id"] == "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1"
+    assert rows[24]["measurement_id"] == "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1"
+    assert all(rows[index]["state"] == "CONDITIONAL_EXECUTABLE" for index in (21, 23, 24))
+
+
+def test_atlas2009_wave_b_new_ids_are_registered():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    ids = [
+        row["measurement_id"]
+        for row in data["measurements"]
+        if row["order"] in {14, 15, 17, 18, 21, 23, 24}
+    ]
+    assert all(measurement_id is not None for measurement_id in ids)
+    assert all(canonical_measurement(measurement_id) is not None for measurement_id in ids)
