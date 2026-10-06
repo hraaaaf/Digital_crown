@@ -8,6 +8,8 @@ from backend.services.cephalo_canonical_analysis_v2 import (
 from backend.services.cephalo_canonical_constructions_v2 import (
     RICKETTS_GN_CONSTRUCTION_ID,
     RICKETTS_PTV_CONSTRUCTION_ID,
+    RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID,
+    RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
     materialize_canonical_constructions_v2,
 )
 
@@ -26,12 +28,13 @@ def _lm(landmark_id, x, y):
 
 def _landmarks():
     pts = {
-        "S": (0, 0), "N": (10, 0), "A": (12, 4), "Go": (0, 20), "Me": (15, 20),
+        "S": (0, 0), "N": (10, 0), "A": (12, 4), "Go": (0, 20), "Go_Ricketts": (0, 18), "Me": (15, 20),
         "Ba": (-8, -4), "Pt_Ricketts": (5, 6), "PR_Ricketts_PTV": (4, 7),
         "Or": (20, 10), "Po_anatomic": (0, 10), "Co_anatomic": (-5, 5),
         "Gn_anatomic": (15, 18), "Pog_hard": (16, 8), "L1_apex": (7, 18),
         "L1_incisal": (9, 8), "Prn": (18, 4), "Pog_soft": (17, 9),
         "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
+        "FOP_PREMOLAR_Ricketts": (8, 9), "FOP_MOLAR_Ricketts": (14, 10),
     }
     return {key: _lm(key, *value) for key, value in pts.items()}
 def _materialize(*, mm_per_pixel=None, calibration_ref=None, landmarks=None):
@@ -160,3 +163,48 @@ def test_ricketts_ptv_rejects_mixed_source_landmarks():
         landmarks, construction_namespace="construction:test"
     )[RICKETTS_PTV_CONSTRUCTION_ID]
     assert ptv.availability_status.value == "INVALID"
+
+
+def test_ricketts_source_specific_planes_require_explicit_identities():
+    landmarks = _landmarks()
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:test"
+    )
+    fop = constructions[RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID]
+    mp = constructions[RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID]
+    assert fop.availability_status.value == "AVAILABLE"
+    assert mp.availability_status.value == "AVAILABLE"
+    assert fop.geometry["required_landmark_ids"] == [
+        "FOP_PREMOLAR_Ricketts", "FOP_MOLAR_Ricketts"
+    ]
+    assert mp.geometry["required_landmark_ids"] == ["Go_Ricketts", "Me"]
+
+    generic_only = dict(landmarks)
+    generic_only.pop("Go_Ricketts")
+    generic_only.pop("FOP_PREMOLAR_Ricketts")
+    generic_only.pop("FOP_MOLAR_Ricketts")
+    blocked = materialize_canonical_constructions_v2(
+        generic_only, construction_namespace="construction:test"
+    )
+    assert blocked[RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID].availability_status.value == "NOT_COMPUTABLE"
+    assert "Go_Ricketts" in blocked[RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID].missing_landmark_ids
+    assert blocked[RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID].availability_status.value == "NOT_COMPUTABLE"
+
+
+def test_ricketts_mandibular_plane_materializes_only_with_explicit_ricketts_angle_point():
+    landmarks = _landmarks()
+    out = _materialize(landmarks=landmarks)
+    by_method = {item.method_id: item for item in out}
+    mp = by_method["RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2"]
+    assert mp.availability_status.value == "AVAILABLE"
+    assert mp.value is not None
+    assert len(mp.construction_refs) == 1
+    assert RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID in mp.construction_refs[0]
+
+    without_explicit = dict(landmarks)
+    without_explicit.pop("Go_Ricketts")
+    out = _materialize(landmarks=without_explicit)
+    by_method = {item.method_id: item for item in out}
+    mp = by_method["RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2"]
+    assert mp.availability_status.value == "NOT_COMPUTABLE"
+    assert mp.value is None
