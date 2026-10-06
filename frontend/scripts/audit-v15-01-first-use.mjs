@@ -67,7 +67,8 @@ for (const profile of profiles) {
   const backendVisible = bodyText.includes('Joignable');
   const databaseVisible = bodyText.includes('Disponible');
   const authVisible = bodyText.includes('Authentifiée');
-  const privacyCopyVisible = bodyText.includes('aucun identifiant ni donnée patient');
+  const privacyCopyVisible = bodyText.includes('Les cibles saisies sont testées sans credential')
+    && bodyText.includes('la session n’est vérifiée que sur le serveur actuellement ouvert');
   const connectionUrlVisible = bodyText.includes('URL poste annexe')
     && bodyText.includes('Non publiée — serveur limité au loopback');
 
