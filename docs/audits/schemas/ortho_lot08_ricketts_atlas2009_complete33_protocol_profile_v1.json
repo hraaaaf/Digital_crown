@@ -168,39 +168,39 @@
     },
     {
       "order": 26,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "CRANIAL_DEFLECTION_EXACT_GEOMETRY"
+      "measurement_id": "M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1",
+      "state": "EXECUTABLE",
+      "gate": "ANATOMICAL_FH_BA_N_REQUIRED"
     },
     {
       "order": 27,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "ANTERIOR_CRANIAL_COMPRESSION_LENGTH_CC_N"
+      "measurement_id": "M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "ATLAS2009_CC_FROM_MANUAL_PT_RICKETTS_AND_CONSTRUCTED_GN_VERIFIED_CALIBRATION_REQUIRED"
     },
     {
       "order": 28,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "POSTERIOR_FACIAL_HEIGHT_EXACT_CF_GO_GEOMETRY"
+      "measurement_id": "M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_GO_RICKETTS_PFH_SOURCE_LOCKED_CF_VERIFIED_CALIBRATION_REQUIRED"
     },
     {
       "order": 29,
-      "measurement_id": null,
-      "state": "SOURCE_LABEL_CONFLICT_BLOCKED",
-      "gate": "ATLAS_INDEXED_TEXT_LABELS_ROW_AS_POSTERIOR_FACIAL_HEIGHT_60_DEG_OTHER_RICKETTS_SOURCES_CALL_TOTAL_FACIAL_HEIGHT"
+      "measurement_id": "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LABEL_CONFLICT_RESOLVED_AS_TOTAL_FACIAL_HEIGHT__CANONICAL_XI_MANUAL_PM_REQUIRED"
     },
     {
       "order": 30,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "RAMUS_POSITION_CF_XI_EXACT_GEOMETRY"
+      "measurement_id": "M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_CF_AND_CANONICAL_XI_REQUIRED"
     },
     {
       "order": 31,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "PORION_POSITION_EXACT_RICKETTS_REFERENCE"
+      "measurement_id": "M_RICKETTS_PORION_LOCATION_PTV_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_PTV_ANATOMICAL_PORION_VERIFIED_CALIBRATION_REQUIRED"
     },
     {
       "order": 32,
@@ -210,9 +210,9 @@
     },
     {
       "order": 33,
-      "measurement_id": null,
-      "state": "NEW_CANONICAL_REQUIRED",
-      "gate": "MANDIBULAR_BODY_LENGTH_XI_PM_SOURCE_GEOMETRY"
+      "measurement_id": "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_XI_MANUAL_PM_VERIFIED_CALIBRATION_REQUIRED"
     }
   ],
   "normative_state": {
