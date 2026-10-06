@@ -230,3 +230,8 @@ def test_gregoret13_has_no_remaining_blocked_landmark_rows():
     assert "BLOCKED_LANDMARK" not in states
     assert states.count("EXECUTABLE") == 7
     assert states.count("CONDITIONAL_EXECUTABLE") == 6
+
+
+def test_gregoret13_profile_status_reflects_complete_execution_contract_lock():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    assert data["status"] == "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__FAIL_CLOSED"
