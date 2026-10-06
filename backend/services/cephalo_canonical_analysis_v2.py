@@ -168,12 +168,21 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             if ricketts_mp_construction.availability_status!=AvailabilityStatus.AVAILABLE:
                 ricketts_mp_status=AvailabilityStatus.NOT_COMPUTABLE
             elif ricketts_mp_status==AvailabilityStatus.AVAILABLE:
-                ricketts_mp_value=ricketts_mandibular_plane_fh_deg_v1(
-                    _p(landmarks,"Po_anatomic"),_p(landmarks,"Or"),
-                    _p(landmarks,"MP_ANGLE_INFERIOR_Ricketts"),_p(landmarks,"Me"),
-                )
-                if ricketts_mp_value is None:
+                point_x=ricketts_mp_construction.geometry.get("point_x")
+                point_y=ricketts_mp_construction.geometry.get("point_y")
+                direction_x=ricketts_mp_construction.geometry.get("direction_x")
+                direction_y=ricketts_mp_construction.geometry.get("direction_y")
+                values=(point_x,point_y,direction_x,direction_y)
+                if not all(isinstance(value,(int,float)) for value in values):
                     ricketts_mp_status=AvailabilityStatus.INVALID
+                else:
+                    p1=(float(point_x),float(point_y))
+                    p2=(p1[0]+float(direction_x),p1[1]+float(direction_y))
+                    ricketts_mp_value=ricketts_mandibular_plane_fh_deg_v1(
+                        _p(landmarks,"Po_anatomic"),_p(landmarks,"Or"),p1,p2,
+                    )
+                    if ricketts_mp_value is None:
+                        ricketts_mp_status=AvailabilityStatus.INVALID
         out.append(_measurement(
             namespace=measurement_namespace,name="RICKETTS_MANDIBULAR_PLANE_FH",analysis="RICKETTS",
             method="RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2",
