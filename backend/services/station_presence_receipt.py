@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
+
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from sqlalchemy.orm import Session
 
@@ -17,6 +24,52 @@ from backend.config import settings
 STAFF_PRESENCE_ACTION = "APPOINTMENT_PRESENCE_CONFIRMED_STAFF"
 QUEUE_CORE_PRESENCE_ACTION = "QUEUE_CORE_PRESENCE_CONFIRMED"
 RECEIPT_VERSION = "v1.5-04.2"
+UNICODE_FONT_NAME = "StationReceiptUnicode"
+
+
+
+def _unicode_font_candidates() -> tuple[Path, ...]:
+    backend_dir = Path(__file__).resolve().parents[1]
+    windir = os.getenv("WINDIR") or os.getenv("SystemRoot")
+    candidates = [
+        backend_dir / "static" / "assets" / "fonts" / "Amiri-Regular.ttf",
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+        Path("/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansArabic-Regular.ttf"),
+    ]
+    if windir:
+        candidates.extend((Path(windir) / "Fonts" / "tahoma.ttf", Path(windir) / "Fonts" / "arial.ttf"))
+    candidates.extend(
+        (
+            Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+            Path("/System/Library/Fonts/Supplemental/Times New Roman.ttf"),
+        )
+    )
+    return tuple(candidates)
+
+
+def _unicode_font() -> str:
+    try:
+        pdfmetrics.getFont(UNICODE_FONT_NAME)
+        return UNICODE_FONT_NAME
+    except KeyError:
+        pass
+    for path in _unicode_font_candidates():
+        if not path.is_file():
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont(UNICODE_FONT_NAME, str(path)))
+            return UNICODE_FONT_NAME
+        except Exception:
+            continue
+    return "Helvetica"
+
+
+def _pdf_text(value: str) -> str:
+    text = str(value or "")
+    if any("\u0600" <= ch <= "\u06ff" for ch in text):
+        return get_display(arabic_reshaper.reshape(text))
+    return text
 
 
 @dataclass(frozen=True)
@@ -140,6 +193,7 @@ def render_presence_receipt_pdf(
     pdf.setAuthor("Digital Crown")
     pdf.setSubject("Justificatif de presence patient")
     width, height = A4
+    value_font = _unicode_font()
 
     pdf.setFont("Helvetica-Bold", 16)
     pdf.drawCentredString(width / 2, height - 32 * mm, "JUSTIFICATIF DE PRESENCE")
@@ -157,8 +211,8 @@ def render_presence_receipt_pdf(
     for label, value in rows:
         pdf.setFont("Helvetica-Bold", 10)
         pdf.drawString(28 * mm, y, f"{label} :")
-        pdf.setFont("Helvetica", 10)
-        pdf.drawString(70 * mm, y, str(value))
+        pdf.setFont(value_font, 10)
+        pdf.drawString(70 * mm, y, _pdf_text(str(value)))
         y -= 8 * mm
 
     y -= 4 * mm
