@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List, Optional
@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
+from backend.routers.workstation_mode import WORKSTATION_COOKIE, _token_hash
 from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
@@ -222,7 +223,6 @@ def update_appointment(
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
     update_data = appt_update.model_dump(exclude_unset=True)
-    previous_status = db_appt.status
     if "patient_id" in update_data and update_data["patient_id"] is not None:
         assert_patient_access(update_data["patient_id"], current_user, db)
 
@@ -280,30 +280,26 @@ def update_appointment(
         resource_id=str(id),
         details=f"Champs: {', '.join(update_data.keys())}",
     )
-    if (
-        "status" in update_data
-        and previous_status != models.AppointmentStatus.EN_SALLE_ATTENTE
-        and db_appt.status == models.AppointmentStatus.EN_SALLE_ATTENTE
-    ):
-        audit_service.log(
-            db=db,
-            user_id=current_user.id,
-            employer_id=employer_id,
-            action="APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
-            resource_type="Appointment",
-            resource_id=str(id),
-            details=presence_proof_details(db_appt.datetime_start),
-        )
     return db_appt
 
 
 @router.post("/{id}/presence-confirmation")
 def confirm_appointment_presence(
     id: int,
+    request: Request,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = int(current_user.get_employer_id())
+    raw_workstation = request.cookies.get(WORKSTATION_COOKIE)
+    if raw_workstation:
+        workstation = db.query(models.WorkstationMode).filter(
+            models.WorkstationMode.token_hash == _token_hash(raw_workstation),
+            models.WorkstationMode.employer_id == employer_id,
+        ).first()
+        if workstation is not None and workstation.default_experience == "station":
+            raise HTTPException(status_code=403, detail="STAFF_PRESENCE_CONFIRMATION_REQUIRED")
+
     appointment = db.query(models.Appointment).filter(
         models.Appointment.id == id,
         models.Appointment.employer_id == employer_id,
