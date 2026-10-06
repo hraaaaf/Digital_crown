@@ -120,6 +120,14 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | Ricketts upper-incisor protrusion | distance from U1 incisal edge to A-Pog; exact direction unresolved | `U1_incisal,A,Pog_hard` | mm | `SOURCE_LOCKED_LANDMARKS__A_POG_DISTANCE_DIRECTION_BLOCKED` |
 | `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | Ricketts upper-incisor inclination | acute line angle U1 long axis / A-Pog | `U1_incisal,U1_apex,A,Pog_hard` | angle ° | `GEOMETRY_COVERED` |
 
+| `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | Ricketts FOP→Xi | signed perpendicular Xi/FOP relation | canonical Xi + source-locked FOP | mm | `SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED` |
+| `M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1` | Ricketts occlusal-plane inclination | acute angle FOP / Xi-Pm | canonical FOP, canonical Xi, manual Pm | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1` | Ricketts upper-lip length | straight-line ANS to labial commissure | ANS, `LABIAL_COMMISSURE_Ricketts` | mm | `GEOMETRY_COVERED`; manual commissure + calibration |
+| `M_RICKETTS_COMMISSURE_FOP_MM_V1` | Ricketts commissure to FOP | signed commissure/FOP relation | `LABIAL_COMMISSURE_Ricketts` + source-locked FOP | mm | `SOURCE_LOCKED_DEFINITION__SIGNED_NORMAL_ORIENTATION_BLOCKED` |
+| `M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1` | Ricketts facial taper | acute angle N-Pog / source-locked Ricketts MP | N,Pog + Ricketts MP construction | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | Ricketts maxillary height | angle N-CF-A | N,A + `RICKETTS_CF_FH_PTV_INTERSECTION_V1` | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | Ricketts palatal plane | acute angle ANS-PNS / anatomical FH | ANS,`PNS_Ricketts`,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED`; manual PNS |
+
 # 6. Dento-alvéolaire mandibulaire
 
 | ID canonique | Mesure | Géométrie canonique | Landmarks | Type/unité | État |
