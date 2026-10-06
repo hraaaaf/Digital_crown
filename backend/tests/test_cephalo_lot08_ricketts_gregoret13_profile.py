@@ -202,3 +202,23 @@ def test_gregoret13_construction_registry_marks_mandibular_arc_conditional():
     assert "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1" in text
     assert "CONDITIONAL_EXECUTABLE" in text
     assert "manual/manual-corrected `DC_Ricketts`" in text
+
+
+def test_gregoret13_u6_ptv_is_conditional_and_source_locked():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    row = next(item for item in data["measurements"] if item["measurement_id"] == "M_U6_PTV_MM_V1")
+    assert row["state"] == "CONDITIONAL_EXECUTABLE"
+    assert row["gate"] == "MANUAL_U6_DISTAL_RICKETTS_MANUAL_PR_RICKETTS_PTV_ANATOMICAL_FRANKFORT_AND_VERIFIED_CALIBRATION_REQUIRED"
+    item = canonical_measurement("M_U6_PTV_MM_V1")
+    assert item is not None
+    assert item.source_status == "GEOMETRY_COVERED_MANUAL_U6_DISTAL_SOURCE_LOCKED_PTV_MANUAL_PR_REQUIRED"
+
+
+def test_gregoret13_profile_links_u6_ptv_source_lock():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    expected = "docs/audits/CEPHALO_LOT08_RICKETTS_U6_PTV_SOURCE_LOCK.md"
+    assert expected in data["source_contracts"]
+    text = (Path(__file__).resolve().parents[2] / expected).read_text(encoding="utf-8")
+    assert "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1" in text
+    assert "U6_DISTAL_Ricketts" in text
+    assert "RICKETTS_U6_PTV_CANONICAL_MM_V2" in text
