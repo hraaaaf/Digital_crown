@@ -25,6 +25,7 @@ STAFF_PRESENCE_ACTION = "APPOINTMENT_PRESENCE_CONFIRMED_STAFF"
 QUEUE_CORE_PRESENCE_ACTION = "QUEUE_CORE_PRESENCE_CONFIRMED"
 RECEIPT_VERSION = "v1.5-04.2"
 UNICODE_FONT_NAME = "StationReceiptUnicode"
+PRESENCE_PROOF_DETAILS_PREFIX = "presence_start="
 
 
 
@@ -72,6 +73,10 @@ def _pdf_text(value: str) -> str:
     return text
 
 
+def presence_proof_details(appointment_start: datetime) -> str:
+    return f"{PRESENCE_PROOF_DETAILS_PREFIX}{appointment_start.isoformat(timespec='seconds')}"
+
+
 @dataclass(frozen=True)
 class PresenceProof:
     source: str
@@ -94,6 +99,7 @@ def reliable_presence_proof(
     ):
         return None
 
+    expected_details = presence_proof_details(appointment.datetime_start)
     event = (
         db.query(models.AuditLog)
         .filter(
@@ -101,6 +107,7 @@ def reliable_presence_proof(
             models.AuditLog.resource_type == "Appointment",
             models.AuditLog.resource_id == str(appointment.id),
             models.AuditLog.action.in_((STAFF_PRESENCE_ACTION, QUEUE_CORE_PRESENCE_ACTION)),
+            models.AuditLog.details == expected_details,
         )
         .order_by(models.AuditLog.timestamp.desc(), models.AuditLog.id.desc())
         .first()
