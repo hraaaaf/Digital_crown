@@ -6,7 +6,8 @@
     "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
     "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md",
     "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
-    "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md"
+    "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md",
+    "docs/audits/CEPHALO_LOT08_RICKETTS_DC_MANDIBULAR_ARC_SOURCE_LOCK.md"
   ],
   "rules": {
     "no_parallel_formula_authority": true,
