@@ -8,6 +8,7 @@ import math
 from typing import Callable, Mapping, Optional
 from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, LandmarkOrigin, MeasurementEvidence
 from backend.services.cephalo_canonical_constructions_v2 import (
+    RICKETTS_CF_CONSTRUCTION_ID,
     RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID,
     RICKETTS_GN_CONSTRUCTION_ID,
     RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
@@ -26,12 +27,16 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_facial_depth_deg_v1,
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
+    ricketts_line_angle_acute_deg_v1,
     ricketts_signed_projection_on_plane_px_v1,
+    ricketts_upper_lip_length_px_v1,
     ricketts_u1_apog_inclination_deg_v1,
     ricketts_l1_occlusal_extrusion_signed_px_v1,
     ricketts_lower_facial_height_ans_xi_pm_deg_v1,
     ricketts_mandibular_arc_deg_v1,
     ricketts_maxillary_depth_deg_v1,
+    ricketts_maxillary_height_n_cf_a_deg_v1,
+    ricketts_palatal_plane_fh_deg_v1,
     ricketts_u6_distal_to_ptv_signed_px_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
@@ -64,6 +69,11 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_OVERJET_FOP_CANONICAL_MM_V2",
     "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2",
     "RICKETTS_MOLAR_RELATION_FOP_CANONICAL_MM_V2",
+    "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+    "RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2",
+    "RICKETTS_FACIAL_TAPER_CANONICAL_DEG_V2",
+    "RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2",
+    "RICKETTS_OCCLUSAL_PLANE_XIPM_CANONICAL_DEG_V2",
     "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
     "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
     "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
@@ -306,6 +316,199 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         ("U1_incisal","U1_apex","A","Pog_hard"),
         ricketts_u1_apog_inclination_deg_v1,
     )
+
+
+    # Atlas/33 Wave B source-locked measurements.
+    #14 (FOP-to-Xi signed distance) and #18 (commissure-to-FOP signed distance)
+    # remain intentionally absent from runtime because their signed normal
+    # orientation is not yet deterministic from the source contract.
+
+    ricketts_op_inclination_ids=("Pm_Ricketts",)
+    ricketts_op_inclination_deps,ricketts_op_inclination_status=_deps(
+        landmarks,ricketts_op_inclination_ids
+    )
+    ricketts_op_fop=constructions.get(RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID)
+    ricketts_op_xi=constructions.get(RICKETTS_XI_CONSTRUCTION_ID)
+    if ricketts_op_inclination_deps:
+        ricketts_op_inclination_value=None
+        ricketts_op_inclination_refs:tuple[str,...]=()
+        if (
+            landmarks["Pm_Ricketts"].origin
+            not in {LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED}
+        ):
+            ricketts_op_inclination_status=AvailabilityStatus.NOT_COMPUTABLE
+        if ricketts_op_fop is None or ricketts_op_xi is None:
+            ricketts_op_inclination_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            ricketts_op_inclination_refs=(
+                ricketts_op_fop.construction_id,
+                ricketts_op_xi.construction_id,
+            )
+            if ricketts_op_fop.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_op_inclination_status=ricketts_op_fop.availability_status
+            elif ricketts_op_xi.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_op_inclination_status=ricketts_op_xi.availability_status
+            elif ricketts_op_inclination_status==AvailabilityStatus.AVAILABLE:
+                fx=ricketts_op_fop.geometry.get("direction_x")
+                fy=ricketts_op_fop.geometry.get("direction_y")
+                xi_x=ricketts_op_xi.geometry.get("x")
+                xi_y=ricketts_op_xi.geometry.get("y")
+                fop_source=ricketts_op_fop.geometry.get("source_image_ref")
+                xi_source=ricketts_op_xi.geometry.get("source_image_ref")
+                pm=landmarks["Pm_Ricketts"]
+                if (
+                    not all(isinstance(v,(int,float)) for v in (fx,fy,xi_x,xi_y))
+                    or fop_source != xi_source
+                    or fop_source != pm.source_image_ref
+                ):
+                    ricketts_op_inclination_status=AvailabilityStatus.INVALID
+                else:
+                    ricketts_op_inclination_value=ricketts_line_angle_acute_deg_v1(
+                        (float(fx),float(fy)),
+                        (pm.x-float(xi_x),pm.y-float(xi_y)),
+                    )
+                    if ricketts_op_inclination_value is None:
+                        ricketts_op_inclination_status=AvailabilityStatus.INVALID
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_OCCLUSAL_PLANE_XIPM",
+            analysis="RICKETTS",
+            method="RICKETTS_OCCLUSAL_PLANE_XIPM_CANONICAL_DEG_V2",
+            canonical_id="M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1",
+            ids=ricketts_op_inclination_ids,lm=landmarks,
+            value=ricketts_op_inclination_value,unit="deg",
+            construction_refs=ricketts_op_inclination_refs,
+            availability=ricketts_op_inclination_status,
+        ))
+
+    ricketts_lip_ids=("ANS","LABIAL_COMMISSURE_Ricketts")
+    ricketts_lip_deps,ricketts_lip_status=_deps(landmarks,ricketts_lip_ids)
+    if ricketts_lip_deps:
+        ricketts_lip_value=None
+        if (
+            "LABIAL_COMMISSURE_Ricketts" in landmarks
+            and landmarks["LABIAL_COMMISSURE_Ricketts"].origin
+            not in {LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED}
+        ):
+            ricketts_lip_status=AvailabilityStatus.NOT_COMPUTABLE
+        if ricketts_lip_status==AvailabilityStatus.AVAILABLE:
+            px=ricketts_upper_lip_length_px_v1(
+                _p(landmarks,"ANS"),_p(landmarks,"LABIAL_COMMISSURE_Ricketts")
+            )
+            ricketts_lip_value,ricketts_lip_status=_calibrated_px(
+                px,mm_per_pixel,calibration_ref
+            )
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_UPPER_LIP_LENGTH",
+            analysis="RICKETTS",method="RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2",
+            canonical_id="M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1",
+            ids=ricketts_lip_ids,lm=landmarks,value=ricketts_lip_value,unit="mm",
+            requires_calibration=True,
+            calibration_ref=calibration_ref if ricketts_lip_status==AvailabilityStatus.AVAILABLE else None,
+            availability=ricketts_lip_status,
+        ))
+
+    ricketts_taper_ids=("N","Pog_hard")
+    ricketts_taper_deps,ricketts_taper_status=_deps(landmarks,ricketts_taper_ids)
+    ricketts_taper_mp=constructions.get(RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID)
+    if ricketts_taper_deps:
+        ricketts_taper_value=None
+        ricketts_taper_refs:tuple[str,...]=()
+        if ricketts_taper_mp is None:
+            ricketts_taper_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            ricketts_taper_refs=(ricketts_taper_mp.construction_id,)
+            if ricketts_taper_mp.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_taper_status=ricketts_taper_mp.availability_status
+            elif ricketts_taper_status==AvailabilityStatus.AVAILABLE:
+                dx=ricketts_taper_mp.geometry.get("direction_x")
+                dy=ricketts_taper_mp.geometry.get("direction_y")
+                source=ricketts_taper_mp.geometry.get("source_image_ref")
+                if (
+                    not all(isinstance(v,(int,float)) for v in (dx,dy))
+                    or source != landmarks["N"].source_image_ref
+                    or source != landmarks["Pog_hard"].source_image_ref
+                ):
+                    ricketts_taper_status=AvailabilityStatus.INVALID
+                else:
+                    ricketts_taper_value=ricketts_line_angle_acute_deg_v1(
+                        (float(dx),float(dy)),
+                        (
+                            landmarks["Pog_hard"].x-landmarks["N"].x,
+                            landmarks["Pog_hard"].y-landmarks["N"].y,
+                        ),
+                    )
+                    if ricketts_taper_value is None:
+                        ricketts_taper_status=AvailabilityStatus.INVALID
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_FACIAL_TAPER",
+            analysis="RICKETTS",method="RICKETTS_FACIAL_TAPER_CANONICAL_DEG_V2",
+            canonical_id="M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1",
+            ids=ricketts_taper_ids,lm=landmarks,value=ricketts_taper_value,unit="deg",
+            construction_refs=ricketts_taper_refs,availability=ricketts_taper_status,
+        ))
+
+    ricketts_mx_height_ids=("N","A")
+    ricketts_mx_height_deps,ricketts_mx_height_status=_deps(
+        landmarks,ricketts_mx_height_ids
+    )
+    ricketts_cf=constructions.get(RICKETTS_CF_CONSTRUCTION_ID)
+    if ricketts_mx_height_deps:
+        ricketts_mx_height_value=None
+        ricketts_mx_height_refs:tuple[str,...]=()
+        if ricketts_cf is None:
+            ricketts_mx_height_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            ricketts_mx_height_refs=(ricketts_cf.construction_id,)
+            if ricketts_cf.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_mx_height_status=ricketts_cf.availability_status
+            elif ricketts_mx_height_status==AvailabilityStatus.AVAILABLE:
+                cf_x=ricketts_cf.geometry.get("x")
+                cf_y=ricketts_cf.geometry.get("y")
+                source=ricketts_cf.geometry.get("source_image_ref")
+                if (
+                    not all(isinstance(v,(int,float)) for v in (cf_x,cf_y))
+                    or source != landmarks["N"].source_image_ref
+                    or source != landmarks["A"].source_image_ref
+                ):
+                    ricketts_mx_height_status=AvailabilityStatus.INVALID
+                else:
+                    ricketts_mx_height_value=ricketts_maxillary_height_n_cf_a_deg_v1(
+                        _p(landmarks,"N"),(float(cf_x),float(cf_y)),_p(landmarks,"A")
+                    )
+                    if ricketts_mx_height_value is None:
+                        ricketts_mx_height_status=AvailabilityStatus.INVALID
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_MAXILLARY_HEIGHT",
+            analysis="RICKETTS",method="RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2",
+            canonical_id="M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1",
+            ids=ricketts_mx_height_ids,lm=landmarks,value=ricketts_mx_height_value,unit="deg",
+            construction_refs=ricketts_mx_height_refs,availability=ricketts_mx_height_status,
+        ))
+
+    ricketts_palatal_ids=("Po_anatomic","Or","ANS","PNS_Ricketts")
+    ricketts_palatal_deps,ricketts_palatal_status=_deps(landmarks,ricketts_palatal_ids)
+    if ricketts_palatal_deps:
+        ricketts_palatal_value=None
+        if (
+            "PNS_Ricketts" in landmarks
+            and landmarks["PNS_Ricketts"].origin
+            not in {LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED}
+        ):
+            ricketts_palatal_status=AvailabilityStatus.NOT_COMPUTABLE
+        if ricketts_palatal_status==AvailabilityStatus.AVAILABLE:
+            ricketts_palatal_value=ricketts_palatal_plane_fh_deg_v1(
+                _p(landmarks,"Po_anatomic"),_p(landmarks,"Or"),
+                _p(landmarks,"ANS"),_p(landmarks,"PNS_Ricketts")
+            )
+            if ricketts_palatal_value is None:
+                ricketts_palatal_status=AvailabilityStatus.INVALID
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_PALATAL_PLANE_FH",
+            analysis="RICKETTS",method="RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+            canonical_id="M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
+            ids=ricketts_palatal_ids,lm=landmarks,value=ricketts_palatal_value,unit="deg",
+            availability=ricketts_palatal_status,
+        ))
 
     ricketts_extrusion_ids=("L1_incisal","L1_apex")
     ricketts_extrusion_deps,ricketts_extrusion_status=_deps(landmarks,ricketts_extrusion_ids)
