@@ -150,7 +150,7 @@ export const WaitingRoom = ({
                         )}
                       </div>
                       {persistedTicket != null && ticketNeedsInput && (
-                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-600">
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-warning">
                           Numéro de file à corriger
                         </p>
                       )}
