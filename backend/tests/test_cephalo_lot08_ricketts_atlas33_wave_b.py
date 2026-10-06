@@ -175,5 +175,7 @@ def test_wave_b_generic_soft_tissue_and_pns_aliases_are_not_promoted():
     landmarks["Em"] = _lm("Em", 3, 6)
     landmarks["PNS"] = _lm("PNS", 10, 2)
     _, out = _materialize(landmarks)
-    assert "RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2" not in out
+    lip = out["RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2"]
+    assert lip.availability_status.value == "NOT_COMPUTABLE"
+    assert lip.value is None
     assert "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2" not in out
