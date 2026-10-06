@@ -167,6 +167,15 @@ async function createSession(persona, viewport) {
     viewport: { width: viewport.width, height: viewport.height },
     colorScheme: 'light',
   });
+  // run-with-t2-workstation injects owner auth + workstation cookies. Preserve only
+  // the workstation identity so each persona starts from a genuinely signed-out web session.
+  await context.clearCookies({ name: 'access_token' });
+  await context.clearCookies({ name: 'refresh_token' });
+  await context.addInitScript(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('token');
+  });
   const page = await context.newPage();
   const events = [];
   const consoleErrors = [];
