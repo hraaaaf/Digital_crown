@@ -78,7 +78,7 @@ Remaining blocker:
 the current `LandmarkEvidence` / `ConstructionEvidence` model does not carry an explicit anatomical superior/inferior image axis. A signed perpendicular to FOP can therefore flip under image mirroring if derived only from raw screen coordinates.
 
 State:
-`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
+`CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED`.
 
 No runtime method is activated.
 
@@ -141,3 +141,10 @@ These four are no longer blocked for missing scientific sign definitions. They a
 ## Next scientific/architecture gate
 
 To unlock the remaining four, add a versioned image-orientation evidence contract that proves anatomical anterior/posterior and superior/inferior handedness from acquisition metadata or another source-authorized reference. Only after that evidence exists should signed FOP-normal and palatal-plane methods be materialized.
+
+
+## Image Orientation Evidence Contract — current runtime gate
+
+The follow-up orientation contract is now implemented in `docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md`.
+
+Any row previously blocked only by missing anatomical superior/inferior orientation is now `CONDITIONAL_EXECUTABLE`: it computes only when a versioned, same-image `ImageOrientationEvidence` is supplied. Existing cases without that evidence remain `NOT_COMPUTABLE`; no screen-axis fallback exists.
