@@ -27,6 +27,13 @@ def test_dense_installment_pdf_keeps_summary(tmp_path):
     assert "Plan de paiement dense" in text
     assert "3600.00 MAD" in text
     assert "2700.00 MAD" in text
+    assert len(reader.pages) == 2
+    page_2_text = reader.pages[1].extract_text() or ""
+    # Regression guard: P2 must contain a coherent tail block, not a single
+    # orphan installment followed by totals.
+    for label in ("Échéance 9", "Échéance 10", "Échéance 11", "Échéance 12"):
+        assert label in page_2_text
+    assert "TOTAL RÉGLÉ" in page_2_text
 
 
 def test_stress_installment_pdf_keeps_all_rows_and_summary(tmp_path):
