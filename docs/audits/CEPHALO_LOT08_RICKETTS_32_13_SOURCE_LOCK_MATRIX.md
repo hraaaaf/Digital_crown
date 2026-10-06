@@ -93,21 +93,21 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi from manual/manual-corrected R1-R4 + anatomical Frankfort, manual/manual-corrected `Pm_Ricketts` + ANS |
 | 9 | Upper molar position | `M_U6_PTV_MM_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `U6_DISTAL_Ricketts` + manual/manual-corrected `PR_Ricketts_PTV` + anatomical Frankfort + verified calibration |
-| 10 | Mandibular incisor protrusion | `M_L1_EDGE_APOG_MM_V1` | EXECUTABLE: Ricketts incisal-edge/tip to A-Pog; previous facial-surface mapping rejected as McNamara semantic collision |
-| 11 | Maxillary incisor protrusion | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | SOURCE_LOCKED_BLOCKED: `U1_incisal` + A-Pog identities locked; measurement direction unresolved across recovered sources |
+| 10 | Mandibular incisor protrusion | `M_L1_EDGE_APOG_MM_V1` | EXECUTABLE: perpendicular incisal-edge/tip distance to A-Pog; anterior positive; previous facial-surface mapping rejected |
+| 11 | Maxillary incisor protrusion | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | EXECUTABLE: perpendicular U1 incisal-edge distance to A-Pog; anterior positive |
 | 12 | Mandibular incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
 | 13 | Maxillary incisor inclination to A-Pog | `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | EXECUTABLE: explicit `U1_incisal/U1_apex` axis vs A-Pog |
-| 14 | Occlusal plane to ramus/Xi | `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | SOURCE_LOCKED_BLOCKED: signed FOP-normal orientation unresolved |
+| 14 | Occlusal plane to ramus/Xi | `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | SOURCE_LOCKED_BLOCKED: source sign known (+ plane above Xi / − below); superior/inferior image axis not evidenced |
 | 15 | Occlusal plane inclination | `M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + canonical Xi + manual Pm |
 | 16 | Lip protrusion | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
 | 17 | Upper lip length | `M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1` | CONDITIONAL_EXECUTABLE: ANS + manual `LABIAL_COMMISSURE_Ricketts` + calibration |
-| 18 | Lip embrasure/comissure to occlusal plane | `M_RICKETTS_COMMISSURE_FOP_MM_V1` | SOURCE_LOCKED_BLOCKED: signed FOP-normal orientation unresolved |
+| 18 | Lip embrasure/comissure to occlusal plane | `M_RICKETTS_COMMISSURE_FOP_MM_V1` | SOURCE_LOCKED_BLOCKED: source sign known (negative when FOP below commissure); superior/inferior image axis not evidenced |
 | 19 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
 | 20 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | EXECUTABLE only with explicit/audited `Pt_Ricketts`; auto legacy Pt fails closed |
 | 21 | Facial taper / facial cone | `M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1` | CONDITIONAL_EXECUTABLE: N-Pog + source-locked Ricketts mandibular plane |
 | 22 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
 | 23 | Maxillary height | `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | CONDITIONAL_EXECUTABLE: N-CF-A, CF = anatomical FH ∩ source-locked PTV |
-| 24 | Palatal plane | `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | SOURCE_LOCKED_BLOCKED: signed angular orientation unresolved; no unsigned runtime |
+| 24 | Palatal plane | `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | SOURCE_LOCKED_BLOCKED: directional sign now source-known; superior/inferior image axis not evidenced, so no signed runtime |
 | 25 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: explicit `MP_ANGLE_INFERIOR_Ricketts` + Me + anatomical Frankfort; generic Go/Go-Gn substitution forbidden |
 | 26 | Cranial deflection | `M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1` | EXECUTABLE: anatomical FH vs Ba-N |
 | 27 | Anterior cranial length | `M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1` | CONDITIONAL_EXECUTABLE: Atlas2009 CC + N + calibration |
@@ -121,7 +121,7 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 - Exact executable canonical members: **9** (#6, #7, #10, #12, #13, #16, #19, #22, #26).
 - Conditional executable: **18** (#1, #2, #3, #5, #8, #9, #15, #17, #20, #21, #23, #25, #27, #28, #29, #30, #31, #32).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **0**.
-- Source-locked but blocked: **5** (#4 overbite sign/orientation; #11 upper-incisor protrusion direction; #14 FOP→Xi sign; #18 commissure→FOP sign; #24 palatal-plane signed angle).
+- Source-locked but blocked: **4** (#4 overbite; #14 FOP→Xi; #18 commissure→FOP; #24 palatal-plane angle). Their source signs are known; the remaining gate is explicit superior/inferior image orientation evidence.
 - New source-specific canonical contract required: **0**.
 - Total accounted factors: **32/32**.
 
