@@ -236,7 +236,9 @@ def generate_installment_preview(
         user=current_user,
     )
     filename = os.path.basename(filepath)
-    return {"pdf_url": f"static/documents/{filename}"}
+    from backend.services.document_preview_token import create_document_preview_token
+    preview_token = create_document_preview_token(current_user.get_employer_id(), filename)
+    return {"pdf_url": f"static/documents/{filename}?preview_token={preview_token}"}
 
 
 @router.delete("/plan/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
