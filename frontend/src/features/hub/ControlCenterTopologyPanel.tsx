@@ -236,15 +236,15 @@ export const ControlCenterTopologyPanel = () => {
 
   return (
     <section data-control-center-topology className="relative z-10 mx-auto w-full max-w-5xl">
-      <div className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite sm:p-7 lg:p-8">
+      <div className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite sm:p-6 lg:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex h-14 w-14 items-center justify-center rounded-elite-sm bg-primary/10 text-primary">
               <Network size={28} aria-hidden="true" />
             </div>
-            <p className="mt-5 text-xs font-black uppercase tracking-widest text-primary">Digital Crown · Technique</p>
+            <p className="mt-4 text-xs font-black uppercase tracking-widest text-primary">Digital Crown · Technique</p>
             <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight sm:text-4xl">Connexion du poste au cabinet</h1>
-            <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-text-muted">
               Vérifiez le serveur de ce poste ou saisissez l’adresse LAN du cabinet. Aucun identifiant ni donnée patient n’est envoyé à une autre origine avant votre action explicite.
             </p>
           </div>
@@ -262,7 +262,7 @@ export const ControlCenterTopologyPanel = () => {
           />
         </div>
 
-        <div className="mt-7 rounded-elite-sm border border-border-main bg-main-bg p-4 sm:p-5">
+        <div className="mt-5 rounded-elite-sm border border-border-main bg-main-bg p-4">
           <label className="block text-xs font-black uppercase tracking-wide text-text-muted" htmlFor="cabinet-server-target">
             Adresse du serveur cabinet
           </label>
@@ -302,27 +302,27 @@ export const ControlCenterTopologyPanel = () => {
           {(inputError || normalized.error) && <p role="alert" className="mt-3 text-sm font-black text-danger">{inputError || normalized.error}</p>}
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <Server className="text-primary" size={20} aria-hidden="true" />
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Backend</p>
+            <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Backend</p>
             <p data-control-center-backend className="mt-1 text-lg font-black">{result?.backendOk ? 'Joignable' : busy ? 'Test…' : 'Non vérifié'}</p>
           </article>
-          <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
+          <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <Database className="text-primary" size={20} aria-hidden="true" />
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Base de données</p>
+            <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Base de données</p>
             <p data-control-center-db className="mt-1 text-lg font-black">{result?.databaseOk ? 'Disponible' : busy ? 'Test…' : 'Non vérifiée'}</p>
           </article>
-          <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
+          <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <ShieldCheck className="text-primary" size={20} aria-hidden="true" />
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Transport</p>
+            <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Transport</p>
             <p data-control-center-transport className="mt-1 text-lg font-black">
               {result?.topology?.tlsReady ? 'HTTPS prêt' : result?.topology?.lanExposed ? 'Action requise' : 'Local'}
             </p>
           </article>
-          <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
+          <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <ShieldCheck className="text-primary" size={20} aria-hidden="true" />
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Session</p>
+            <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Session</p>
             <p data-control-center-auth className="mt-1 text-lg font-black">
               {result?.authOk === true ? 'Authentifiée' : result?.authOk === false ? 'Connexion requise' : 'Après ouverture'}
             </p>
@@ -330,7 +330,7 @@ export const ControlCenterTopologyPanel = () => {
         </div>
 
         {result?.topology && (
-          <details data-control-center-topology-details className="mt-5 rounded-elite-sm border border-border-main bg-main-bg p-4 text-sm">
+          <details data-control-center-topology-details className="mt-4 rounded-elite-sm border border-border-main bg-main-bg p-3.5 text-sm">
             <summary className="cursor-pointer font-black text-main outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               Détails techniques
               <span className="ml-2 font-semibold text-text-muted">· {result.latencyMs} ms</span>
@@ -350,7 +350,7 @@ export const ControlCenterTopologyPanel = () => {
           </details>
         )}
 
-        <div data-control-center-remediation role="status" aria-live="polite" className="mt-5 rounded-elite-sm border border-primary/20 bg-primary/5 p-4 sm:p-5">
+        <div data-control-center-remediation role="status" aria-live="polite" className="mt-4 rounded-elite-sm border border-primary/20 bg-primary/5 p-4">
           <div className="flex items-start gap-3">
             <Globe2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />
             <div>
@@ -360,7 +360,7 @@ export const ControlCenterTopologyPanel = () => {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
           {!isCurrentTarget && (
             <button
               type="button"
