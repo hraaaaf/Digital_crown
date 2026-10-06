@@ -209,7 +209,7 @@ These constructions extend the LOT06 deterministic authority without activating 
 - Evidence gate: both identities available from one source image; coincident anchors => `INVALID`.
 - Forbidden substitutions: generic occlusal anchors, incisor-defined planes, Steiner/Downs occlusal planes.
 - State: `SOURCE_LOCKED_GEOMETRY`.
-- Downstream: `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` remains blocked until the historical sign convention is source-locked.
+- Downstream: `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` is `CONDITIONAL_EXECUTABLE` with explicit FOP anchors, `L1_incisal`, `L1_apex`, and verified calibration. Sign is positive on the crownward/incisal side of the FOP and negative on the apical side; the L1 long axis orients the plane normal.
 - Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md`.
 
 ## RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1
