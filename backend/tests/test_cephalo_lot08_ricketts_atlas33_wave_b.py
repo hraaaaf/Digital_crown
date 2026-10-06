@@ -98,6 +98,7 @@ def test_wave_b_cf_is_constructed_only_from_source_locked_ptv_and_fh():
     assert cf.geometry["x"] == pytest.approx(4.0)
     assert cf.geometry["y"] == pytest.approx(0.0)
     assert cf.geometry["constructed_landmark_id"] == "CF_Ricketts"
+    assert cf.geometry["upstream_construction_id"].endswith("RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1")
 
     landmarks = _landmarks()
     landmarks["PR_Ricketts_PTV"] = _auto("PR_Ricketts_PTV", 4, 7)
