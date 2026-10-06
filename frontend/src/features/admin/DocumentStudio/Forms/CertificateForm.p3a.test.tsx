@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CertificateForm } from './CertificateForm';
 import { api } from '../../../../services/api';
+
+let mockUser: any = { role: 'DENTISTE', employer_id: null, permissions: { prescriptions: true } };
+
+vi.mock('../../../../stores/useAuthStore', () => ({
+  useAuthStore: (selector: any) => selector({ user: mockUser }),
+}));
 
 vi.mock('../../../../services/api', () => ({
   api: {
@@ -10,6 +16,10 @@ vi.mock('../../../../services/api', () => ({
 }));
 
 describe('CertificateForm P3', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser = { role: 'DENTISTE', employer_id: null, permissions: { prescriptions: true } };
+  });
   it('n’applique jamais automatiquement type ou durée depuis une suggestion haute confiance', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
@@ -44,6 +54,25 @@ describe('CertificateForm P3', () => {
     expect(setCertifDays).not.toHaveBeenCalled();
     expect(screen.getByRole('status').textContent).toMatch(/Aucun choix n’est appliqué automatiquement/i);
     expect(screen.getByText(/Validation du praticien requise/i)).toBeTruthy();
+  });
+
+  it('ne charge pas la suggestion clinique sans permission prescriptions', async () => {
+    mockUser = { role: 'SECRETAIRE', employer_id: 7, permissions: { prescriptions: false } };
+    render(
+      <CertificateForm
+        patientId="42"
+        certifType="Certificat de Présence"
+        setCertifType={vi.fn()}
+        certifDays={1}
+        setCertifDays={vi.fn()}
+        docDate="2026-08-15"
+        certifStartDate=""
+        setCertifStartDate={vi.fn()}
+        certifCustomMotif=""
+        setCertifCustomMotif={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(api.get).not.toHaveBeenCalled());
   });
 
   it('affiche Certificat médical comme dernier choix et ouvre une rédaction libre', async () => {
