@@ -7,6 +7,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_l1_occlusal_extrusion_signed_px_v1,
     ricketts_lower_facial_height_ans_xi_pm_deg_v1,
+    ricketts_mandibular_arc_deg_v1,
     ricketts_maxillary_depth_deg_v1,
     ricketts_xi_from_r1_r4_fh_v1,
     ricketts_mandibular_plane_fh_deg_v1,
@@ -506,4 +507,127 @@ def test_gregoret_lower_facial_height_rejects_auto_pm_authority():
         "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2"
     ]
     assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
+
+
+def test_ricketts_mandibular_arc_uses_condylar_axis_vs_posterior_corpus_extension():
+    value = ricketts_mandibular_arc_deg_v1(
+        (0.0, 1.0),
+        (5.0, 6.0),
+        (15.0, 6.0),
+    )
+    assert value == pytest.approx(45.0)
+
+
+def test_ricketts_mandibular_arc_fails_closed_on_degenerate_axis():
+    assert ricketts_mandibular_arc_deg_v1(
+        (5.0, 6.0), (5.0, 6.0), (15.0, 6.0)
+    ) is None
+    assert ricketts_mandibular_arc_deg_v1(
+        (0.0, 1.0), (5.0, 6.0), (5.0, 6.0)
+    ) is None
+
+
+def test_gregoret_mandibular_arc_materializes_from_manual_dc_constructed_xi_manual_pm():
+    pts = {
+        "DC_Ricketts": (0, 1), "Pm_Ricketts": (15, 6),
+        "R1_Ricketts": (2, 5), "R2_Ricketts": (8, 5),
+        "R3_Ricketts": (5, 2), "R4_Ricketts": (5, 10),
+        "Po_anatomic": (0, 0), "Or": (10, 0),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "AVAILABLE"
+    assert item.value == pytest.approx(45.0)
+    assert item.construction_refs == [
+        "construction:gregoret:RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+    ]
+
+
+def test_gregoret_mandibular_arc_rejects_auto_dc_authority():
+    landmarks = {
+        "DC_Ricketts": _auto_lm("DC_Ricketts", 0, 1),
+        "Pm_Ricketts": _lm("Pm_Ricketts", 15, 6),
+        "R1_Ricketts": _lm("R1_Ricketts", 2, 5),
+        "R2_Ricketts": _lm("R2_Ricketts", 8, 5),
+        "R3_Ricketts": _lm("R3_Ricketts", 5, 2),
+        "R4_Ricketts": _lm("R4_Ricketts", 5, 10),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
+
+
+def test_gregoret_mandibular_arc_does_not_promote_generic_dc_xi_pm_aliases():
+    landmarks = {
+        "DC": _lm("DC", 0, 1),
+        "Xi": _lm("Xi", 5, 6),
+        "Pm": _lm("Pm", 15, 6),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    assert "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2" not in {
+        entry.method_id for entry in out
+    }
+
+
+def test_gregoret_mandibular_arc_rejects_cross_image_dc_xi_pm_evidence():
+    landmarks = {
+        "DC_Ricketts": _lm("DC_Ricketts", 0, 1, "source:face"),
+        "Pm_Ricketts": _lm("Pm_Ricketts", 15, 6, "source:face"),
+        "R1_Ricketts": _lm("R1_Ricketts", 2, 5, "source:ramus"),
+        "R2_Ricketts": _lm("R2_Ricketts", 8, 5, "source:ramus"),
+        "R3_Ricketts": _lm("R3_Ricketts", 5, 2, "source:ramus"),
+        "R4_Ricketts": _lm("R4_Ricketts", 5, 10, "source:ramus"),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0, "source:ramus"),
+        "Or": _lm("Or", 10, 0, "source:ramus"),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "INVALID"
     assert item.value is None
