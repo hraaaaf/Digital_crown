@@ -473,3 +473,89 @@ def ricketts_maxillary_height_n_cf_a_deg_v1(
         (a[0] - cf[0], a[1] - cf[1]),
     )
 
+
+
+def ricketts_point_distance_px_v1(first: Point, second: Point) -> Optional[float]:
+    """Euclidean source-image distance between two source-locked landmarks."""
+    if not _finite_points(first, second):
+        return None
+    value = math.hypot(second[0] - first[0], second[1] - first[1])
+    return value if math.isfinite(value) else None
+
+
+def ricketts_cc_atlas2009_v1(
+    ba: Point,
+    n: Point,
+    pt: Point,
+    gn: Point,
+) -> Optional[Point]:
+    """Atlas-2009 CC: intersection of Ba-N and the facial axis Pt-Gn."""
+    if not _finite_points(ba, n, pt, gn):
+        return None
+    ban = (n[0] - ba[0], n[1] - ba[1])
+    facial_axis = (gn[0] - pt[0], gn[1] - pt[1])
+    if math.hypot(*ban) <= _EPS or math.hypot(*facial_axis) <= _EPS:
+        return None
+    denominator = _cross(ban, facial_axis)
+    if not math.isfinite(denominator) or abs(denominator) <= _EPS:
+        return None
+    delta = (pt[0] - ba[0], pt[1] - ba[1])
+    t = _cross(delta, facial_axis) / denominator
+    point = (ba[0] + t * ban[0], ba[1] + t * ban[1])
+    return point if _finite_points(point) else None
+
+
+def ricketts_cranial_deflection_deg_v1(
+    po: Point,
+    or_: Point,
+    ba: Point,
+    n: Point,
+) -> Optional[float]:
+    """Ricketts cranial deflection: acute angle anatomical FH / Ba-N."""
+    if not _finite_points(po, or_, ba, n):
+        return None
+    return ricketts_line_angle_acute_deg_v1(
+        (or_[0] - po[0], or_[1] - po[1]),
+        (n[0] - ba[0], n[1] - ba[1]),
+    )
+
+
+def ricketts_total_facial_height_deg_v1(
+    ba: Point,
+    n: Point,
+    xi: Point,
+    pm: Point,
+) -> Optional[float]:
+    """Ricketts total facial height: acute angle Ba-N / Pm-Xi."""
+    if not _finite_points(ba, n, xi, pm):
+        return None
+    return ricketts_line_angle_acute_deg_v1(
+        (n[0] - ba[0], n[1] - ba[1]),
+        (xi[0] - pm[0], xi[1] - pm[1]),
+    )
+
+
+def ricketts_ramus_position_deg_v1(
+    po: Point,
+    or_: Point,
+    cf: Point,
+    xi: Point,
+) -> Optional[float]:
+    """Ricketts ramus position: acute angle anatomical FH / CF-Xi."""
+    if not _finite_points(po, or_, cf, xi):
+        return None
+    return ricketts_line_angle_acute_deg_v1(
+        (or_[0] - po[0], or_[1] - po[1]),
+        (xi[0] - cf[0], xi[1] - cf[1]),
+    )
+
+
+def ricketts_porion_location_signed_px_v1(
+    po: Point,
+    ptv_point: Point,
+    anterior_direction: Point,
+) -> Optional[float]:
+    """Signed PTV-to-Porion distance along Frankfort; posterior is negative."""
+    return ricketts_signed_projection_on_plane_px_v1(
+        po, ptv_point, anterior_direction
+    )
