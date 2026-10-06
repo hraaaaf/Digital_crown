@@ -100,7 +100,10 @@ for (const profile of profiles) {
     && bodyText.includes('Non publiée — serveur limité au loopback');
   const inputAccessible = await targetInput.getAttribute('aria-describedby') === 'cabinet-server-help'
     && await targetInput.getAttribute('aria-invalid') === 'false';
+  const nextAction = page.getByRole('button', { name: 'Continuer vers le Hub' });
   const nextActionVisible = buttons.some(text => text.includes('Continuer vers le Hub'));
+  const nextActionBox = await nextAction.boundingBox();
+  const nextActionInViewport = Boolean(nextActionBox && nextActionBox.y >= 0 && nextActionBox.y + nextActionBox.height <= profile.height);
 
   await page.screenshot({ path: path.join(outDir, profile.label + '-04-control-center-details.png'), fullPage: true });
 
@@ -117,6 +120,7 @@ for (const profile of profiles) {
     connectionUrlVisible,
     inputAccessible,
     nextActionVisible,
+    nextActionInViewport,
     hubReadyMs,
     firstUsefulMs,
     insecureLanRejected,
@@ -151,6 +155,7 @@ const report = {
     && item.connectionUrlVisible
     && item.inputAccessible
     && item.nextActionVisible
+    && item.nextActionInViewport
     && item.firstUsefulMs <= 10000
     && item.insecureLanRejected
     && item.publicTargetRejected
