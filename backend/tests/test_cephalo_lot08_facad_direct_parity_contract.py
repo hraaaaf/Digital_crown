@@ -16,6 +16,7 @@ def test_facad_parity_remains_unobserved_without_direct_exports():
 
     assert targets["status"] == "PARITY_TARGETS_ONLY__MEMBERSHIP_NOT_DIRECTLY_OBSERVED"
     assert evidence["status"] == "AWAITING_DIRECT_FACAD_EXPORTS"
+    assert evidence["evidence_root"] == "docs/audits/evidence/facad"
     assert set(evidence["allowed_manifest_status"]) == {
         "AWAITING_DIRECT_FACAD_EXPORTS",
         "DIRECT_EVIDENCE_PARTIAL",
@@ -70,9 +71,8 @@ def test_facad_direct_parity_requires_all_three_export_families_without_stored_a
 def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
     evidence = _load(EVIDENCE)
     contract = evidence["evidence_record_contract"]
-    required = set(contract["required_fields"])
 
-    assert {
+    assert set(contract["required_fields"]) == {
         "evidence_id",
         "artifact_kind",
         "profile_target_id",
@@ -82,7 +82,7 @@ def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
         "facad_version",
         "observed_at",
         "same_trace_case_id",
-    } == required
+    }
     assert set(contract["allowed_artifact_kinds"]) == {
         "ANALYSIS_VALUES",
         "ANALYSIS_PROPERTIES",
@@ -93,11 +93,12 @@ def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
         "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
     }
     assert contract["sha256_format"] == "64 lowercase hexadecimal characters"
-    assert "Repository-relative" in contract["source_path_rule"]
+    assert "docs/audits/evidence/facad" in contract["source_path_rule"]
     assert "same_trace_case_id" in contract["same_trace_rule"]
+    assert "facad_version" in contract["same_trace_rule"]
 
     row_contract = evidence["parity_row_contract"]
-    assert {
+    assert set(row_contract["required_fields"]) == {
         "profile_target_id",
         "facad_order",
         "facad_export_label",
@@ -107,22 +108,19 @@ def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
         "sign_status",
         "numeric_status",
         "evidence_refs",
-    } == set(row_contract["required_fields"])
+    }
     assert set(row_contract["allowed_membership_status"]) == {
         "OBSERVED_MATCH",
         "OBSERVED_FACAD_ONLY",
         "OBSERVED_DC_ONLY",
     }
 
-    assert set(evidence["allowed_profile_observation_status"]) == {
-        "UNOBSERVED",
-        "PARTIAL",
-        "OBSERVED",
-    }
-
     rules = evidence["rules"]
     assert rules["direct_export_required"] is True
+    assert rules["observed_membership_requires_analysis_values_and_properties"] is True
     assert rules["observed_profile_requires_same_trace_triplet"] is True
+    assert rules["same_trace_triplet_requires_same_facad_version"] is True
+    assert rules["observed_at_requires_timezone"] is True
     assert rules["no_membership_inference_from_vendor_label"] is True
     assert rules["no_speculative_parity_rows"] is True
     assert rules["no_sign_inference_without_observation"] is True
