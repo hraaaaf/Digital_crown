@@ -6,7 +6,7 @@ here requires versioned canonical landmark IDs and fails closed if they are abse
 from __future__ import annotations
 import math
 from typing import Callable, Mapping, Optional
-from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, MeasurementEvidence
+from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, LandmarkOrigin, MeasurementEvidence
 from backend.services.cephalo_canonical_constructions_v2 import (
     RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID,
     RICKETTS_GN_CONSTRUCTION_ID,
@@ -281,6 +281,11 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
 
     ricketts_lfh_ids=("ANS","Pm_Ricketts")
     ricketts_lfh_deps,ricketts_lfh_status=_deps(landmarks,ricketts_lfh_ids)
+    if (
+        "Pm_Ricketts" in landmarks
+        and landmarks["Pm_Ricketts"].origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+    ):
+        ricketts_lfh_status=AvailabilityStatus.NOT_COMPUTABLE
     ricketts_xi=constructions.get(RICKETTS_XI_CONSTRUCTION_ID)
     if ricketts_lfh_deps:
         ricketts_lfh_value=None
