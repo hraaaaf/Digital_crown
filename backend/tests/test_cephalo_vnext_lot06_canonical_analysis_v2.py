@@ -28,7 +28,7 @@ def _lm(landmark_id, x, y):
 
 def _landmarks():
     pts = {
-        "S": (0, 0), "N": (10, 0), "A": (12, 4), "Go": (0, 20), "Go_Ricketts": (0, 18), "Me": (15, 20),
+        "S": (0, 0), "N": (10, 0), "A": (12, 4), "Go": (0, 20), "MP_ANGLE_INFERIOR_Ricketts": (0, 18), "Me": (15, 20),
         "Ba": (-8, -4), "Pt_Ricketts": (5, 6), "PR_Ricketts_PTV": (4, 7),
         "Or": (20, 10), "Po_anatomic": (0, 10), "Co_anatomic": (-5, 5),
         "Gn_anatomic": (15, 18), "Pog_hard": (16, 8), "L1_apex": (7, 18),
@@ -177,17 +177,17 @@ def test_ricketts_source_specific_planes_require_explicit_identities():
     assert fop.geometry["required_landmark_ids"] == [
         "FOP_PREMOLAR_Ricketts", "FOP_MOLAR_Ricketts"
     ]
-    assert mp.geometry["required_landmark_ids"] == ["Go_Ricketts", "Me"]
+    assert mp.geometry["required_landmark_ids"] == ["MP_ANGLE_INFERIOR_Ricketts", "Me"]
 
     generic_only = dict(landmarks)
-    generic_only.pop("Go_Ricketts")
+    generic_only.pop("MP_ANGLE_INFERIOR_Ricketts")
     generic_only.pop("FOP_PREMOLAR_Ricketts")
     generic_only.pop("FOP_MOLAR_Ricketts")
     blocked = materialize_canonical_constructions_v2(
         generic_only, construction_namespace="construction:test"
     )
     assert blocked[RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID].availability_status.value == "NOT_COMPUTABLE"
-    assert "Go_Ricketts" in blocked[RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID].missing_landmark_ids
+    assert "MP_ANGLE_INFERIOR_Ricketts" in blocked[RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID].missing_landmark_ids
     assert blocked[RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID].availability_status.value == "NOT_COMPUTABLE"
 
 
@@ -202,7 +202,7 @@ def test_ricketts_mandibular_plane_materializes_only_with_explicit_ricketts_angl
     assert RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID in mp.construction_refs[0]
 
     without_explicit = dict(landmarks)
-    without_explicit.pop("Go_Ricketts")
+    without_explicit.pop("MP_ANGLE_INFERIOR_Ricketts")
     out = _materialize(landmarks=without_explicit)
     by_method = {item.method_id: item for item in out}
     mp = by_method["RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2"]
