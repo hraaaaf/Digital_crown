@@ -57,8 +57,8 @@ export const WaitingRoom = ({
         <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 min-w-0">
           {isUnavailable ? (
             <div role="status" className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/15">
-                <AlertTriangle size={28} className="text-amber-500" aria-hidden="true" />
+              <div className="w-16 h-16 bg-warning-surface rounded-full flex items-center justify-center border border-warning-border">
+                <AlertTriangle size={28} className="text-warning" aria-hidden="true" />
               </div>
               <div>
                 <h4 className="text-lg font-black text-primary font-outfit mb-2">Rendez-vous indisponibles</h4>
@@ -69,7 +69,7 @@ export const WaitingRoom = ({
               <button
                 type="button"
                 onClick={onRefresh}
-                className="min-h-11 mt-4 px-5 py-2.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all"
+                className="min-h-11 mt-4 px-5 py-2.5 bg-warning-surface text-warning rounded-lg text-xs font-black uppercase tracking-widest hover:brightness-95 transition-all"
               >
                 Réessayer
               </button>
@@ -254,7 +254,7 @@ export const WaitingRoom = ({
 
         <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[9px] font-black text-text-muted uppercase tracking-wider">
           {isUnavailable ? (
-            <span className="text-amber-600 dark:text-amber-300">État non vérifié</span>
+            <span className="text-warning">État non vérifié</span>
           ) : (
             <>
               <span className="flex items-center gap-1.5">
