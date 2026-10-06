@@ -51,18 +51,18 @@ Definition ID:
 `RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1`
 
 Required explicit identities:
-- `Go_Ricketts` — source-specific inferior mandibular-angle point used by this plane.
+- `MP_ANGLE_INFERIOR_Ricketts` — source-specific inferior mandibular-angle point used by this plane.
 - `Me` — Menton.
 
 Construction:
-line `Go_Ricketts → Me`.
+line `MP_ANGLE_INFERIOR_Ricketts → Me`.
 
 Measurement:
 `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` =
 non-reflex angle between anatomical Frankfort `Po_anatomic → Or` and the explicit Ricketts mandibular plane.
 
 Safety rule:
-generic `Go`, Tweed FMA, generic `Go-Me`, or `Go-Gn` are not promoted silently to the Ricketts method. If `Go_Ricketts` is absent, the result is `NOT_COMPUTABLE`.
+generic `Go`, Tweed FMA, generic `Go-Me`, or `Go-Gn` are not promoted silently to the Ricketts method. If `MP_ANGLE_INFERIOR_Ricketts` is absent, the result is `NOT_COMPUTABLE`.
 
 ## Applicability / norms
 
@@ -79,6 +79,6 @@ No population norm, age correction, VERT score, diagnosis, prognosis, or treatme
 - Functional occlusal plane construction: SOURCE_LOCKED.
 - Lower-incisor extrusion measurement: BLOCKED_SIGN_CONVENTION + explicit anchor availability.
 - Ricketts mandibular plane construction: SOURCE_LOCKED.
-- MP–FH geometry: CONDITIONAL_EXECUTABLE with explicit `Go_Ricketts`.
+- MP–FH geometry: CONDITIONAL_EXECUTABLE with explicit `MP_ANGLE_INFERIOR_Ricketts`.
 
 No UI/report activation. No merge/deployment authorization.
