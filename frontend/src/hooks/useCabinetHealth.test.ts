@@ -29,7 +29,7 @@ describe('useCabinetHealth — vérité système D2', () => {
     const fetcher = vi.fn().mockResolvedValue(healthy);
     const loading = renderHook(() => useCabinetHealth({ enabled: true, authLoading: true, fetcher }));
     expect(loading.result.current.status).toBe('loading');
-    expect(getCabinetHealthDisplayState(loading.result.current).label).toBe('Vérification en cours');
+    expect(getCabinetHealthDisplayState(loading.result.current).label).toBe('Contrôle technique en cours');
     loading.unmount();
 
     const denied = renderHook(() => useCabinetHealth({ enabled: false, authLoading: false, fetcher }));

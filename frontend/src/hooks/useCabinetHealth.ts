@@ -51,7 +51,7 @@ export const getCabinetHealthDisplayState = (
   state: CabinetHealthState,
 ): CabinetHealthDisplayState => {
   if (state.status === 'loading') {
-    return { label: 'Vérification en cours', dotClassName: 'bg-slate-400', isLoading: true };
+    return { label: 'Contrôle technique en cours', dotClassName: 'bg-slate-400', isLoading: true };
   }
   if (state.status === 'not_allowed') {
     return { label: 'Statut non disponible', dotClassName: 'bg-slate-400', isLoading: false };
