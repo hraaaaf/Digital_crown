@@ -4,7 +4,7 @@ from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Flowable
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Flowable, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
@@ -223,22 +223,49 @@ def generate_installment_receipt(
         Paragraph(f"<b>{total_paid:.2f}\u00A0MAD</b>", pamt_s),
     ])
 
-    t = Table(table_data, colWidths=col_widths)
+    def _make_table(data, source_start, source_count, include_total):
+        local_styles = [
+            ('BACKGROUND',  (0, 0),   (-1, 0),  p_color),
+            ('VALIGN',      (0, 0),   (-1, -1), 'MIDDLE'),
+            ('ALIGN',       (0, 0),   (0, -1),  'CENTER'),
+            ('ALIGN',       (2, 0),   (3, -1),  'CENTER'),
+            ('TOPPADDING',  (0, 0),   (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0),   (-1, -1), 4),
+            ('RIGHTPADDING',(0, 0),   (-1, -1), 4),
+        ]
+        grid_end = -2 if include_total else -1
+        local_styles.append(('GRID', (0, 0), (-1, grid_end), 0.3, colors.HexColor('#E2E8F0')))
+        if include_total:
+            local_styles.append(('LINEABOVE', (0, -1), (-1, -1), 1.5, p_color))
+        for local_idx in range(source_count):
+            source_idx = source_start + local_idx
+            paid = items[source_idx].get('paid', False)
+            is_current = source_idx == first_unpaid_idx
+            row_idx = local_idx + 1
+            if paid:
+                local_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), COLOR_PAID_BG))
+            elif is_current:
+                local_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), COLOR_CURRENT_BG))
+                local_styles.append(('FONTNAME', (1, row_idx), (1, row_idx), font_bold))
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(TableStyle(local_styles))
+        return table
 
-    tbl_styles = [
-        ('BACKGROUND',  (0, 0),   (-1, 0),  p_color),
-        ('VALIGN',      (0, 0),   (-1, -1), 'MIDDLE'),
-        ('ALIGN',       (0, 0),   (0, -1),  'CENTER'),
-        ('ALIGN',       (2, 0),   (3, -1),  'CENTER'),
-        ('GRID',        (0, 0),   (-1, -2), 0.3, colors.HexColor('#E2E8F0')),
-        ('LINEABOVE',   (0, -1),  (-1, -1), 1.5, p_color),
-        ('TOPPADDING',  (0, 0),   (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0),   (-1, -1), 4),
-        ('RIGHTPADDING',(0, 0),   (-1, -1), 4),
-    ] + row_styles
-    t.setStyle(TableStyle(tbl_styles))
-    elements.append(t)
+    # Sur A5, 10 à 15 lignes peuvent laisser une seule échéance orpheline
+    # avec le récapitulatif sur la page suivante. Pour ce format intermédiaire,
+    # on réserve explicitement un bloc final de 4 échéances + total sur P2.
+    # Les gros plans restent en pagination naturelle.
+    if 10 <= len(items) <= 15:
+        tail_count = 4
+        split_at = len(items) - tail_count
+        first_data = table_data[:1 + split_at]
+        tail_data = [table_data[0]] + table_data[1 + split_at:-1] + [table_data[-1]]
+        elements.append(_make_table(first_data, 0, split_at, include_total=False))
+        elements.append(PageBreak())
+        elements.append(_make_table(tail_data, split_at, tail_count, include_total=True))
+    else:
+        elements.append(_make_table(table_data, 0, len(items), include_total=True))
 
     # Récapitulatif global
     if total_amount > 0:
