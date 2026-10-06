@@ -582,8 +582,18 @@ async def bootstrap_state(
 ):
     employer_id = _employer_id(current_user) if current_user is not None else None
     policy = _security_policy(db, employer_id) if employer_id is not None else None
+    has_clinic_config = False
+    if current_user is not None and employer_id is not None:
+        has_clinic_config = (
+            db.query(models.CabinetConfig.id)
+            .filter(models.CabinetConfig.owner_id == employer_id)
+            .first()
+            is not None
+        )
+
     auth_context = {
         "authenticated": current_user is not None,
+        "hasClinicConfig": has_clinic_config,
         "pinConfigured": bool(policy and policy.owner_pin_hash),
         "canManage": _authorized_admin(current_user) if current_user is not None else False,
         "canConfigurePin": _can_configure_pin(current_user) if current_user is not None else False,
