@@ -16,11 +16,11 @@ Ricketts 1981 reiterates Xi at the center of the ramus and defines protuberance 
 ## Digital Crown identities
 
 Explicit source identities:
-- `R1_Ricketts`
-- `R2_Ricketts`
-- `R3_Ricketts`
-- `R4_Ricketts`
-- `Pm_Ricketts`
+- `R1_Ricketts` — `MANUAL` or `MANUAL_CORRECTED` only
+- `R2_Ricketts` — `MANUAL` or `MANUAL_CORRECTED` only
+- `R3_Ricketts` — `MANUAL` or `MANUAL_CORRECTED` only
+- `R4_Ricketts` — `MANUAL` or `MANUAL_CORRECTED` only
+- `Pm_Ricketts` — `MANUAL` or `MANUAL_CORRECTED` only
 
 Anatomical orientation identities:
 - `Po_anatomic`
@@ -45,7 +45,7 @@ All evidence must come from one source image. Degenerate Frankfort or a collapse
 
 ## Pm authority
 
-`Pm_Ricketts` remains an explicit anatomical landmark. Digital Crown does not infer it from `Pog_hard`, `B`, `Me`, or any generic `Pm` label.
+`Pm_Ricketts` remains an explicit clinician-controlled anatomical landmark. Only `MANUAL` or `MANUAL_CORRECTED` evidence is authorized. Digital Crown does not accept an automatic landmark under this identity and does not infer it from `Pog_hard`, `B`, `Me`, or any generic `Pm` label.
 
 ## Lower facial height
 
@@ -62,9 +62,9 @@ State:
 `CONDITIONAL_EXECUTABLE`.
 
 Gate:
-- valid canonical Xi construction;
+- valid canonical Xi construction from manual/manual-corrected R1-R4;
 - explicit `ANS`;
-- explicit `Pm_Ricketts`;
+- explicit manual/manual-corrected `Pm_Ricketts`;
 - same source image.
 
 No historical norm, age correction, facial-type classification, VERT score, diagnosis, prognosis, or treatment implication is activated.
