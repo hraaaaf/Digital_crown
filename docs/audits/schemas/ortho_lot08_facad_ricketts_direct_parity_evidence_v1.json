@@ -131,7 +131,8 @@
     "evidence_hash_required": true,
     "evidence_file_presence_required": true,
     "facad_version_required": true,
-    "all_declared_comparison_dimensions_must_be_recordable": true
+    "all_declared_comparison_dimensions_must_be_recordable": true,
+    "observed_profile_requires_all_dimensions_resolved": true
   },
   "evidence_records": [],
   "parity_rows": []
