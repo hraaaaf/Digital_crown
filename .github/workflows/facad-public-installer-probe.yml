@@ -34,12 +34,12 @@ jobs:
           for url in "${urls[@]}"; do
             safe=$(printf '%s' "$url" | sed 's#https\?://##; s#[^A-Za-z0-9._-]#_#g')
             echo "=== $url ===" | tee -a facad-probe/probe.txt
-            code=$(curl -L -sS -o "facad-probe/$safe.body" -w '%{http_code}' "$url" || true)
+            code=$(curl -L -sS -o "facad-probe/$safe.body" -w '%{http_code}' --max-time 30 "$url" || true)
             echo "HTTP $code" | tee -a facad-probe/probe.txt
             if [[ -s "facad-probe/$safe.body" ]]; then
-              grep -Eio 'href=["'\'''][^"'\''']+["'\''']' "facad-probe/$safe.body" \
-                | sed -E 's/^href=["'\''']|["'\''']$//g' \
-                | grep -Ei '(facad|installer|setup|\.msi($|\?)|\.exe($|\?)|\.zip($|\?))' \
+              grep -Eio 'href="[^"]+"' "facad-probe/$safe.body" \
+                | sed -E 's/^href="//; s/"$//' \
+                | grep -Ei 'facad|installer|setup|\.msi([?#].*)?$|\.exe([?#].*)?$|\.zip([?#].*)?$' \
                 | sort -u | tee -a facad-probe/probe.txt || true
             fi
           done
@@ -58,13 +58,14 @@ jobs:
             "Latest/"
           )
 
+          : > facad-probe/candidates.txt
           for name in "${candidates[@]}"; do
             url="$base/$name"
             status=$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url" || true)
             printf '%s\t%s\n' "$status" "$url" | tee -a facad-probe/candidates.txt
           done
 
-      - name: Fail closed if no public installer candidate is found
+      - name: Summarize probe
         shell: bash
         run: |
           set -euo pipefail
