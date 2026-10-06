@@ -99,3 +99,32 @@ def test_atlas2009_wave_b_new_ids_are_registered():
     ]
     assert all(measurement_id is not None for measurement_id in ids)
     assert all(canonical_measurement(measurement_id) is not None for measurement_id in ids)
+
+
+def test_atlas2009_wave_c_rows_close_remaining_new_canonicals():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    rows = {row["order"]: row for row in data["measurements"]}
+    expected = {
+        26: "M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1",
+        27: "M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1",
+        28: "M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1",
+        29: "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1",
+        30: "M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1",
+        31: "M_RICKETTS_PORION_LOCATION_PTV_MM_V1",
+        32: "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+        33: "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+    }
+    assert {index: rows[index]["measurement_id"] for index in expected} == expected
+    assert rows[26]["state"] == "EXECUTABLE"
+    assert all(rows[index]["state"] == "CONDITIONAL_EXECUTABLE" for index in range(27, 34))
+    assert all(canonical_measurement(measurement_id) is not None for measurement_id in expected.values())
+    assert not any(row["state"] == "NEW_CANONICAL_REQUIRED" for row in data["measurements"])
+
+
+def test_atlas2009_factor29_is_total_facial_height_after_source_conflict_resolution():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    row = data["measurements"][28]
+    assert row["order"] == 29
+    assert row["measurement_id"] == "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1"
+    assert row["state"] == "CONDITIONAL_EXECUTABLE"
+    assert "SOURCE_LABEL_CONFLICT_RESOLVED_AS_TOTAL_FACIAL_HEIGHT" in row["gate"]
