@@ -63,6 +63,8 @@ Method:
 Atlas definition:
 straight-line distance between anterior nasal spine (ANS/ENA) and the labial commissure.
 
+A secondary teaching transcription recovered during review labels this endpoint as upper Stomion; it is rejected for this profile because the indexed Atlas chapter itself explicitly states labial commissure and depicts the linear commissure-to-ANS distance.
+
 Digital Crown identity:
 `LABIAL_COMMISSURE_Ricketts` must be MANUAL or MANUAL_CORRECTED.
 
