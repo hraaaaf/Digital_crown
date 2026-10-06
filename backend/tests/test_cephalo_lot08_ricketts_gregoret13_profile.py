@@ -116,10 +116,10 @@ def test_gregoret13_l1_occlusal_extrusion_registry_is_source_locked_and_conditio
 def test_gregoret13_mandibular_arc_identity_contract_is_fail_closed():
     data = json.loads(MANDIBULAR_ARC_CONTRACT.read_text(encoding="utf-8"))
     assert data["measurement_id"] == "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1"
-    assert data["state"] == "SOURCE_LOCKED_GEOMETRY_BLOCKED_LANDMARK"
+    assert data["state"] == "SOURCE_LOCKED_GEOMETRY_CONDITIONAL_EXECUTION"
     assert data["construction"]["condylar_axis"] == "DC_Ricketts-Xi_Ricketts"
     assert data["construction"]["corpus_axis"] == "Xi_Ricketts-Pm_Ricketts"
-    assert data["construction"]["runtime_binding"] is None
+    assert data["construction"]["runtime_binding"] == "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2"
     assert data["construction"]["fail_closed"] is True
     assert data["normative_state"]["age_adjustment_status"] == "QUARANTINED_CONFLICTING_TRANSCRIPTION"
     assert data["normative_state"]["universal_classification"] is False
@@ -183,3 +183,13 @@ def test_gregoret13_profile_links_xi_pm_source_lock():
     assert "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1" in text
     assert "Pm_Ricketts" in text
     assert "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1" in text
+
+
+def test_gregoret13_profile_links_dc_mandibular_arc_source_lock():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    expected = "docs/audits/CEPHALO_LOT08_RICKETTS_DC_MANDIBULAR_ARC_SOURCE_LOCK.md"
+    assert expected in data["source_contracts"]
+    text = (Path(__file__).resolve().parents[2] / expected).read_text(encoding="utf-8")
+    assert "DC_Ricketts" in text
+    assert "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2" in text
+    assert "posterior corpus extension" in text
