@@ -114,7 +114,7 @@ def test_wave_d_four_orientation_dependent_contracts_stay_fail_closed():
     for measurement_id in expected:
         item=canonical_measurement(measurement_id)
         assert item is not None
-        assert item.source_status=="SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
+        assert item.source_status=="CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
 
     landmarks={
         "U1_incisal":_lm("U1_incisal",3.5,4),
@@ -134,7 +134,12 @@ def test_wave_d_four_orientation_dependent_contracts_stay_fail_closed():
         "PNS_Ricketts":_lm("PNS_Ricketts",8,2),
     }
     out=_materialize(landmarks)
-    assert "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2" not in out
-    assert "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2" not in out
-    assert "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2" not in out
-    assert "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2" not in out
+    for method in (
+        "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+        "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+    ):
+        assert out[method].availability_status.value == "NOT_COMPUTABLE"
+        assert out[method].value is None
+        assert out[method].orientation_ref is None
