@@ -46,6 +46,7 @@ for (const profile of profiles) {
   await targetInput.waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('[data-control-center-db]').filter({ hasText: 'Disponible' }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('[data-control-center-auth]').filter({ hasText: 'Authentifiée' }).waitFor({ state: 'visible', timeout: 10000 });
 
   await targetInput.fill('http://192.168.1.20:8005');
   await probeButton.click();
@@ -65,6 +66,7 @@ for (const profile of profiles) {
   const hasActionableRemediation = buttons.some(text => /tester|vérifier|réessayer|connecter|diagnostic|copier|configurer/i.test(text));
   const backendVisible = bodyText.includes('Joignable');
   const databaseVisible = bodyText.includes('Disponible');
+  const authVisible = bodyText.includes('Authentifiée');
   const privacyCopyVisible = bodyText.includes('aucun identifiant ni donnée patient');
 
   await page.screenshot({ path: path.join(outDir, profile.label + '-03-control-center-verified.png'), fullPage: true });
@@ -77,6 +79,7 @@ for (const profile of profiles) {
     hasActionableRemediation,
     backendVisible,
     databaseVisible,
+    authVisible,
     privacyCopyVisible,
     insecureLanRejected,
     buttons,
@@ -103,6 +106,7 @@ const report = {
     && item.hasActionableRemediation
     && item.backendVisible
     && item.databaseVisible
+    && item.authVisible
     && item.privacyCopyVisible
     && item.insecureLanRejected
     && item.pageErrors.length === 0
