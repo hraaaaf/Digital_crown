@@ -41,12 +41,33 @@ for (const profile of profiles) {
   await page.waitForLoadState('networkidle');
   await page.screenshot({ path: path.join(outDir, profile.label + '-02-control-center.png'), fullPage: true });
 
+  const targetInput = page.locator('[data-control-center-target]');
+  const probeButton = page.locator('[data-control-center-probe]');
+  await targetInput.waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('[data-control-center-db]').filter({ hasText: 'Disponible' }).waitFor({ state: 'visible', timeout: 10000 });
+
+  await targetInput.fill('http://192.168.1.20:8005');
+  await probeButton.click();
+  await page.getByRole('alert').filter({ hasText: 'HTTPS est obligatoire' }).waitFor({ state: 'visible', timeout: 5000 });
+  const insecureLanRejected = true;
+
+  await targetInput.fill('http://127.0.0.1:8005');
+  await probeButton.click();
+  await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('[data-control-center-db]').filter({ hasText: 'Disponible' }).waitFor({ state: 'visible', timeout: 10000 });
+
   const bodyText = (await page.locator('body').innerText()).replace(/\s+/g, ' ').trim();
   const buttons = await page.getByRole('button').allTextContents();
   const placeholder = bodyText.includes('en cours de construction');
   const exposesTopology = /LAN|TLS|serveur|base de données|topologie|adresse|réseau/i.test(bodyText)
     && !placeholder;
   const hasActionableRemediation = buttons.some(text => /tester|vérifier|réessayer|connecter|diagnostic|copier|configurer/i.test(text));
+  const backendVisible = bodyText.includes('Joignable');
+  const databaseVisible = bodyText.includes('Disponible');
+  const privacyCopyVisible = bodyText.includes('aucun identifiant ni donnée patient');
+
+  await page.screenshot({ path: path.join(outDir, profile.label + '-03-control-center-verified.png'), fullPage: true });
 
   evidence.push({
     profile,
@@ -54,6 +75,10 @@ for (const profile of profiles) {
     placeholder,
     exposesTopology,
     hasActionableRemediation,
+    backendVisible,
+    databaseVisible,
+    privacyCopyVisible,
+    insecureLanRejected,
     buttons,
     consoleErrors,
     pageErrors,
@@ -76,6 +101,10 @@ const report = {
     !item.placeholder
     && item.exposesTopology
     && item.hasActionableRemediation
+    && item.backendVisible
+    && item.databaseVisible
+    && item.privacyCopyVisible
+    && item.insecureLanRejected
     && item.pageErrors.length === 0
     && item.http5xx.length === 0
     && !item.horizontalOverflow
