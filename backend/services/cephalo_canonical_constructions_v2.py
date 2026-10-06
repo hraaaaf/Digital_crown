@@ -146,6 +146,8 @@ def materialize_canonical_constructions_v2(
                 "direction_y": dy,
                 "anterior_x": fh_x / norm,
                 "anterior_y": fh_y / norm,
+                "fh_point_x": po.x,
+                "fh_point_y": po.y,
                 "source_image_ref": next(iter(ptv_sources)),
             })
 
@@ -295,21 +297,30 @@ def materialize_canonical_constructions_v2(
     cf_refs = list(ptv.landmark_refs)
     cf_availability = ptv.availability_status
     if cf_availability == AvailabilityStatus.AVAILABLE:
-        po = landmarks["Po_anatomic"]
-        or_ = landmarks["Or"]
-        pr = landmarks["PR_Ricketts_PTV"]
-        fh_x = or_.x - po.x
-        fh_y = or_.y - po.y
-        fh_len_sq = fh_x * fh_x + fh_y * fh_y
-        if fh_len_sq <= 1e-12:
+        pr_x = ptv.geometry.get("point_x")
+        pr_y = ptv.geometry.get("point_y")
+        fh_x = ptv.geometry.get("anterior_x")
+        fh_y = ptv.geometry.get("anterior_y")
+        fh_point_x = ptv.geometry.get("fh_point_x")
+        fh_point_y = ptv.geometry.get("fh_point_y")
+        values = (pr_x, pr_y, fh_x, fh_y, fh_point_x, fh_point_y)
+        if not all(isinstance(value, (int, float)) for value in values):
             cf_availability = AvailabilityStatus.INVALID
         else:
-            t = ((pr.x - po.x) * fh_x + (pr.y - po.y) * fh_y) / fh_len_sq
-            cf_geometry.update({
-                "x": po.x + t * fh_x,
-                "y": po.y + t * fh_y,
-                "source_image_ref": ptv.geometry.get("source_image_ref"),
-            })
+            fh_len_sq = float(fh_x) ** 2 + float(fh_y) ** 2
+            if fh_len_sq <= 1e-12:
+                cf_availability = AvailabilityStatus.INVALID
+            else:
+                t = (
+                    (float(pr_x) - float(fh_point_x)) * float(fh_x)
+                    + (float(pr_y) - float(fh_point_y)) * float(fh_y)
+                ) / fh_len_sq
+                cf_geometry.update({
+                    "x": float(fh_point_x) + t * float(fh_x),
+                    "y": float(fh_point_y) + t * float(fh_y),
+                    "source_image_ref": ptv.geometry.get("source_image_ref"),
+                    "upstream_construction_id": ptv.construction_id,
+                })
     cf_construction = ConstructionEvidence(
         construction_id=f"{construction_namespace}:{RICKETTS_CF_CONSTRUCTION_ID}",
         definition_id=RICKETTS_CF_CONSTRUCTION_ID,
