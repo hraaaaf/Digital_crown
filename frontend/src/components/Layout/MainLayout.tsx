@@ -4,6 +4,8 @@ import { Header } from '../Header';
 import { LicenseBanner } from '../LicenseBanner';
 import { useEliteStore } from '../../stores/useEliteStore';
 import { useSettingsStore } from '../../features/admin/Settings/hooks/useSettingsStore';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { hasAccess } from '../../utils/accessControl';
 import { useLocation } from 'react-router-dom';
 import { safeStorage } from '../../hooks/useLocalStorage';
 import { AnimatedBackground } from '../AnimatedBackground';
@@ -33,13 +35,15 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   }, [location.pathname, fetchPatientIntelligence]);
 
   const { profile, fetchProfile } = useSettingsStore();
+  const { user } = useAuthStore();
+  const canReadSettings = hasAccess(user, 'settings');
   const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
 
   useEffect(() => {
-    if (!profile.nom) {
+    if (!profile.nom && canReadSettings) {
       fetchProfile();
     }
-  }, [profile.nom, fetchProfile]);
+  }, [profile.nom, fetchProfile, canReadSettings]);
 
   useEffect(() => {
     const handleSettingsUpdate = () => {
