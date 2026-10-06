@@ -92,13 +92,13 @@ class _CertificateConfigView:
 
 
 def _append_handwritten_signature_space(elements, font_name: str, text_color, signer_name: str = '', compact: bool = False) -> None:
-    elements.append(Spacer(1, (0.15 if compact else 0.3) * cm))
+    elements.append(Spacer(1, (0.05 if compact else 0.3) * cm))
     elements.append(
         CertificateSignatureSpace(
             font_name=font_name,
             text_color=text_color,
             signer_name=signer_name,
-            height=(1.2 if compact else 1.8) * cm,
+            height=(0.9 if compact else 1.8) * cm,
         )
     )
 
