@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE } from './api';
+import { workstationModeService } from './workstationMode';
 
 const API_URL = `${API_BASE}/api`;
 
@@ -81,8 +82,8 @@ export const authService = {
     const token = this.getToken();
     if (!token) {
       try {
-        await fetchCurrentUserFromSession();
-        return true;
+        const bootstrap = await workstationModeService.getBootstrapState();
+        return bootstrap.authenticated === true;
       } catch {
         return false;
       }
