@@ -10,6 +10,7 @@ on:
       - "backend/services/station_wall_display.py"
       - "backend/tests/test_station_patient_session_v15.py"
       - "frontend/src/App.tsx"
+      - "frontend/src/index.css"
       - "frontend/src/components/mobile/OfflineQueueViewer.tsx"
       - "frontend/src/components/mobile/OfflineQueueViewer.g8Interactive.test.tsx"
       - "frontend/src/pages/Dashboard.tsx"
