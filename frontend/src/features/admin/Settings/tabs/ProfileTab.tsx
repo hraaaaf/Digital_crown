@@ -387,18 +387,18 @@ export const ProfileTab: React.FC = () => {
             <input type="text" name="adresse" value={profile.adresse} onChange={handleProfileChange} className={inputClass} />
           </div>
 
-          <div className="md:col-span-2 bg-amber-50 p-6 rounded-3xl border border-amber-100">
+          <div className="md:col-span-2 bg-warning-surface p-6 rounded-3xl border border-warning-border">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-600 shadow-sm">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-warning shadow-sm">
                 <PaletteIcon size={20} />
               </div>
-              <h4 className="font-black text-amber-900">Logo du Cabinet</h4>
+              <h4 className="font-black text-warning">Logo du Cabinet</h4>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-8">
               <button
                 type="button"
                 aria-label="Choisir le logo du cabinet"
-                className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center cursor-pointer hover:bg-amber-100/50 transition-all relative group overflow-hidden"
+                className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-warning-border flex items-center justify-center cursor-pointer hover:brightness-95 transition-all relative group overflow-hidden"
                 onClick={() => document.getElementById('logo-input')?.click()}
               >
                 {profile.logo_path ? (
@@ -414,15 +414,15 @@ export const ProfileTab: React.FC = () => {
                   </>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <ImageIcon className="text-amber-200" size={32} />
-                    <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Choisir Logo</span>
+                    <ImageIcon className="text-warning" size={32} />
+                    <span className="text-[9px] font-black text-warning uppercase tracking-widest">Choisir Logo</span>
                   </div>
                 )}
               </button>
               <div className="flex-1 space-y-2">
-                <p className="text-xs font-bold text-amber-800">Traitement du fichier</p>
-                <h5 className="text-sm font-bold text-amber-900 mb-2">Logo optimisé pour les documents</h5>
-                <p className="text-xs text-amber-700/80 leading-relaxed">
+                <p className="text-xs font-bold text-warning">Traitement du fichier</p>
+                <h5 className="text-sm font-bold text-warning mb-2">Logo optimisé pour les documents</h5>
+                <p className="text-xs text-warning leading-relaxed">
                   Importez un fichier PNG, JPEG ou SVG. Les images raster sont redimensionnées sans déformation et enregistrées en PNG ; la transparence existante est conservée. Aucun détourage automatique n'est appliqué.
                 </p>
                 <input id="logo-input" type="file" className="hidden" accept="image/png,image/jpeg,image/svg+xml" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
