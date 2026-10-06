@@ -147,14 +147,14 @@ def test_gregoret13_mandibular_arc_profile_and_registry_remain_blocked():
     assert item.source_status == "BLOCKED_LANDMARK"
 
 
-def test_gregoret13_lower_facial_height_requires_source_specific_xi_pm():
+def test_gregoret13_lower_facial_height_is_conditional_on_source_locked_xi_pm():
     data = json.loads(PROFILE.read_text(encoding="utf-8"))
     row = next(
         item for item in data["measurements"]
         if item["measurement_id"] == "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1"
     )
-    assert row["state"] == "BLOCKED_LANDMARK"
-    assert row["gate"] == "XI_RICKETTS_PM_RICKETTS_REQUIRED"
+    assert row["state"] == "CONDITIONAL_EXECUTABLE"
+    assert row["gate"] == "R1_R4_RICKETTS_AND_ANATOMICAL_FRANKFORT_FOR_XI_PLUS_EXPLICIT_PM_RICKETTS_REQUIRED"
 
 
 def test_gregoret13_profile_links_the_ricketts_plane_source_lock():
