@@ -54,8 +54,16 @@ export const ClinicPractitionerBar: React.FC = () => {
       const fallback = resolveFallbackPractitioner(user);
 
       if (!isAgendaRoute) {
-        setPractitioners(fallback);
-        setLoading(false);
+        if (!cancelled) setPractitioners(fallback);
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      const plan = String(user?.subscription_plan || '').toUpperCase();
+      const canReadMultiPractitioner = plan === 'PREMIUM' || plan === 'ELITE';
+      if (!canReadMultiPractitioner) {
+        if (!cancelled) setPractitioners(fallback);
+        if (!cancelled) setLoading(false);
         return;
       }
 
