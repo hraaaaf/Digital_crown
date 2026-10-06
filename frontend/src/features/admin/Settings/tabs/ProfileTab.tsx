@@ -328,7 +328,7 @@ export const ProfileTab: React.FC = () => {
                   >
                     <div className={cn(
                       "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                      isSelected ? "bg-primary text-on-primary shadow-lg" : "bg-slate-50 text-slate-400 group-hover:scale-110"
+                      isSelected ? "bg-primary text-on-primary shadow-lg" : "bg-background text-text-muted group-hover:scale-110"
                     )}>
                       <spec.icon size={20} />
                     </div>
