@@ -222,3 +222,17 @@ These constructions extend the LOT06 deterministic authority without activating 
 - State: `SOURCE_LOCKED_GEOMETRY`.
 - Downstream: `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` is `CONDITIONAL_EXECUTABLE` and consumes this canonical `ConstructionEvidence` plus anatomical Frankfort `Po_anatomic-Or`.
 - Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md`.
+
+
+## RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1
+
+- Purpose: source-locked construction of `Xi_Ricketts`, the geometric center of the mandibular ramus.
+- Required landmarks: `R1_Ricketts`, `R2_Ricketts`, `R3_Ricketts`, `R4_Ricketts`, `Po_anatomic`, `Or`.
+- Source geometry: R1/R2 define opposed ramal limits along Frankfort; R3/R4 define superior/inferior limits along the perpendicular axis; Xi is the center of the resulting rectangle.
+- Numerical rule: compute the midpoint of the R1/R2 limits on the anatomical Frankfort axis and the midpoint of the R3/R4 limits on its perpendicular, then reconstruct the point in source-image coordinates.
+- Evidence gate: all six identities available from one source image; degenerate Frankfort or collapsed rectangle => `INVALID`.
+- Forbidden substitutions: generic `Xi`, `Go`, `Ar`, `PT_point`; no detector alias is promoted by name.
+- State: `SOURCE_LOCKED_GEOMETRY`.
+- Downstream: `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` is `CONDITIONAL_EXECUTABLE` with constructed Xi + explicit `ANS` + explicit `Pm_Ricketts`.
+- `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` remains blocked until explicit/source-locked `DC_Ricketts` exists.
+- Primary source: Ricketts RM, 1972 (Xi ramal centroid construction); Ricketts RM, 1981 (Xi center of ramus, Xi-Pm corpus axis, oral gnomon).
