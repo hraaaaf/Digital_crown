@@ -70,8 +70,8 @@
     {
       "order": 10,
       "measurement_id": "M_U6_PTV_MM_V1",
-      "state": "BLOCKED_LANDMARK",
-      "gate": "EXPLICIT_U6_DISTAL_AND_PR_RICKETTS_PTV_CONSTRUCTION_REQUIRED"
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_U6_DISTAL_RICKETTS_MANUAL_PR_RICKETTS_PTV_ANATOMICAL_FRANKFORT_AND_VERIFIED_CALIBRATION_REQUIRED"
     },
     {
       "order": 11,
