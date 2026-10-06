@@ -577,3 +577,88 @@ def ricketts_porion_location_signed_px_v1(
     return ricketts_signed_projection_on_plane_px_v1(
         po, ptv_point, anterior_direction
     )
+
+
+def ricketts_superior_oriented_normal_v1(
+    line_direction: Point,
+    superior_direction: Point,
+) -> Optional[Point]:
+    """Unit normal to a line, oriented toward anatomical superior."""
+    if not _finite_points(line_direction, superior_direction):
+        return None
+    line_norm = math.hypot(*line_direction)
+    superior_norm = math.hypot(*superior_direction)
+    if line_norm <= _EPS or superior_norm <= _EPS:
+        return None
+    dx = line_direction[0] / line_norm
+    dy = line_direction[1] / line_norm
+    candidate = (-dy, dx)
+    superior = (
+        superior_direction[0] / superior_norm,
+        superior_direction[1] / superior_norm,
+    )
+    if candidate[0] * superior[0] + candidate[1] * superior[1] < 0:
+        candidate = (-candidate[0], -candidate[1])
+    return candidate
+
+
+def ricketts_overbite_oriented_signed_px_v1(
+    u1_incisal: Point,
+    l1_incisal: Point,
+    fop_direction: Point,
+    superior_direction: Point,
+) -> Optional[float]:
+    """Overbite perpendicular to FOP; overlap positive, open bite negative."""
+    normal = ricketts_superior_oriented_normal_v1(fop_direction, superior_direction)
+    if normal is None or not _finite_points(u1_incisal, l1_incisal):
+        return None
+    delta = (l1_incisal[0] - u1_incisal[0], l1_incisal[1] - u1_incisal[1])
+    value = delta[0] * normal[0] + delta[1] * normal[1]
+    return value if math.isfinite(value) else None
+
+
+def ricketts_fop_to_point_oriented_signed_px_v1(
+    point: Point,
+    fop_point: Point,
+    fop_direction: Point,
+    superior_direction: Point,
+) -> Optional[float]:
+    """Signed FOP-vs-point distance; FOP above point is positive."""
+    normal = ricketts_superior_oriented_normal_v1(fop_direction, superior_direction)
+    if normal is None or not _finite_points(point, fop_point):
+        return None
+    delta = (fop_point[0] - point[0], fop_point[1] - point[1])
+    value = delta[0] * normal[0] + delta[1] * normal[1]
+    return value if math.isfinite(value) else None
+
+
+def ricketts_palatal_plane_signed_deg_v1(
+    ans: Point,
+    pns: Point,
+    anterior_direction: Point,
+    superior_direction: Point,
+) -> Optional[float]:
+    """Directional palatal-plane angle: anterior convergence is positive."""
+    if not _finite_points(ans, pns, anterior_direction, superior_direction):
+        return None
+    anterior_norm = math.hypot(*anterior_direction)
+    superior_norm = math.hypot(*superior_direction)
+    if anterior_norm <= _EPS or superior_norm <= _EPS:
+        return None
+    anterior = (
+        anterior_direction[0] / anterior_norm,
+        anterior_direction[1] / anterior_norm,
+    )
+    superior = (
+        superior_direction[0] / superior_norm,
+        superior_direction[1] / superior_norm,
+    )
+    palatal = (ans[0] - pns[0], ans[1] - pns[1])  # posterior -> anterior
+    palatal_norm = math.hypot(*palatal)
+    if palatal_norm <= _EPS:
+        return None
+    palatal = (palatal[0] / palatal_norm, palatal[1] / palatal_norm)
+    anterior_component = palatal[0] * anterior[0] + palatal[1] * anterior[1]
+    superior_component = palatal[0] * superior[0] + palatal[1] * superior[1]
+    value = math.degrees(math.atan2(superior_component, anterior_component))
+    return value if math.isfinite(value) else None
