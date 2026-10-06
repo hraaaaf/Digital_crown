@@ -1,6 +1,11 @@
 {
   "schema_version": "ORTHO_LOT08_FACAD_RICKETTS_DIRECT_PARITY_EVIDENCE_V1",
   "status": "AWAITING_DIRECT_FACAD_EXPORTS",
+  "allowed_manifest_status": [
+    "AWAITING_DIRECT_FACAD_EXPORTS",
+    "DIRECT_EVIDENCE_PARTIAL",
+    "DIRECT_PARITY_OBSERVED"
+  ],
   "scientific_authority": false,
   "compatibility_only": true,
   "profiles": [
@@ -20,18 +25,15 @@
   "required_direct_exports": [
     {
       "kind": "ANALYSIS_VALUES",
-      "required_for": ["membership", "order", "labels", "units", "numeric_values", "rounding"],
-      "status": "MISSING"
+      "required_for": ["membership", "order", "labels", "units", "numeric_values", "rounding"]
     },
     {
       "kind": "ANALYSIS_PROPERTIES",
-      "required_for": ["profile_identity", "norms_if_exported", "analysis_metadata"],
-      "status": "MISSING"
+      "required_for": ["profile_identity", "norms_if_exported", "analysis_metadata"]
     },
     {
       "kind": "MARKER_POSITIONS",
-      "required_for": ["landmarks", "constructions", "sign_investigation", "same_trace_numeric_comparison"],
-      "status": "MISSING"
+      "required_for": ["landmarks", "constructions", "sign_investigation", "same_trace_numeric_comparison"]
     }
   ],
   "evidence_record_contract": {
@@ -57,7 +59,7 @@
     ],
     "sha256_format": "64 lowercase hexadecimal characters",
     "source_path_rule": "Repository-relative path to the exact immutable Facad export artifact; absolute paths and parent traversal are forbidden.",
-    "same_trace_rule": "Artifacts used for numeric parity must share the same_trace_case_id."
+    "same_trace_rule": "A profile may become OBSERVED only when ANALYSIS_VALUES, ANALYSIS_PROPERTIES and MARKER_POSITIONS share at least one same_trace_case_id. Numeric parity rows must reference one same_trace_case_id."
   },
   "parity_row_contract": {
     "required_fields": [
@@ -71,7 +73,7 @@
       "numeric_status",
       "evidence_refs"
     ],
-    "allowed_membership_status": ["OBSERVED_MATCH", "OBSERVED_FACAD_ONLY", "OBSERVED_DC_ONLY", "UNOBSERVED"],
+    "allowed_membership_status": ["OBSERVED_MATCH", "OBSERVED_FACAD_ONLY", "OBSERVED_DC_ONLY"],
     "allowed_sign_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"],
     "allowed_numeric_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_COMPARABLE"]
   },
@@ -92,8 +94,9 @@
   ],
   "rules": {
     "direct_export_required": true,
-    "same_trace_preferred": true,
+    "observed_profile_requires_same_trace_triplet": true,
     "no_membership_inference_from_vendor_label": true,
+    "no_speculative_parity_rows": true,
     "no_sign_inference_without_observation": true,
     "no_norm_inference_without_observation": true,
     "no_scientific_equivalence_claim": true,
