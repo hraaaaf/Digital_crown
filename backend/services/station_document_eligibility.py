@@ -26,6 +26,7 @@ class EligibilityReason(str, Enum):
     SESSION_NOT_IDENTIFIED = "session_not_identified"
     SESSION_PURGED = "session_purged"
     SESSION_EXPIRED = "session_expired"
+    SESSION_INVALID_WINDOW = "session_invalid_window"
     TENANT_MISMATCH = "tenant_mismatch"
     PATIENT_MISMATCH = "patient_mismatch"
     STATION_MISMATCH = "station_mismatch"
@@ -112,11 +113,21 @@ def evaluate_document_eligibility(
 
     if not context.station_registered or not context.station_id or not context.session_station_id:
         return _deny(candidate, EligibilityReason.STATION_NOT_REGISTERED)
-    if context.session_claimed_at is None or context.session_patient_id is None:
+    if (
+        not context.session_id
+        or context.session_claimed_at is None
+        or context.session_patient_id is None
+    ):
         return _deny(candidate, EligibilityReason.SESSION_NOT_IDENTIFIED)
     if context.session_purged_at is not None:
         return _deny(candidate, EligibilityReason.SESSION_PURGED)
-    if _as_utc(context.session_expires_at) <= _as_utc(context.now):
+
+    claimed_at = _as_utc(context.session_claimed_at)
+    expires_at = _as_utc(context.session_expires_at)
+    now = _as_utc(context.now)
+    if claimed_at > now or expires_at <= claimed_at:
+        return _deny(candidate, EligibilityReason.SESSION_INVALID_WINDOW)
+    if expires_at <= now:
         return _deny(candidate, EligibilityReason.SESSION_EXPIRED)
 
     if (
