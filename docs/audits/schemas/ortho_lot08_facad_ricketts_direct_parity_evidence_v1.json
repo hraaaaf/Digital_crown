@@ -72,11 +72,34 @@
       "membership_status",
       "sign_status",
       "numeric_status",
+      "comparison_details",
       "evidence_refs"
+    ],
+    "comparison_details_required_fields": [
+      "digital_crown_label",
+      "label_status",
+      "digital_crown_unit",
+      "unit_status",
+      "facad_landmarks_constructions",
+      "digital_crown_landmarks_constructions",
+      "construction_status",
+      "facad_value",
+      "digital_crown_value",
+      "numeric_delta",
+      "facad_norm",
+      "digital_crown_norm",
+      "norm_status",
+      "facad_display_value",
+      "digital_crown_display_value",
+      "rounding_status",
+      "atlas_divergence_status",
+      "atlas_divergence_note"
     ],
     "allowed_membership_status": ["OBSERVED_MATCH", "OBSERVED_FACAD_ONLY", "OBSERVED_DC_ONLY"],
     "allowed_sign_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"],
-    "allowed_numeric_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_COMPARABLE"]
+    "allowed_numeric_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_COMPARABLE"],
+    "allowed_dimension_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"],
+    "allowed_norm_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_EXPORTED", "NOT_APPLICABLE"]
   },
   "allowed_profile_observation_status": ["UNOBSERVED", "PARTIAL", "OBSERVED"],
   "comparison_dimensions": [
@@ -107,7 +130,8 @@
     "unobserved_fields_remain_unobserved": true,
     "evidence_hash_required": true,
     "evidence_file_presence_required": true,
-    "facad_version_required": true
+    "facad_version_required": true,
+    "all_declared_comparison_dimensions_must_be_recordable": true
   },
   "evidence_records": [],
   "parity_rows": []
