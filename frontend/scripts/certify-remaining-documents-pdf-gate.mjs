@@ -64,14 +64,17 @@ const scenarios = [
     needles:['DOCUMENT ROBUSTESSE','Section 1','œdème'] },
 ];
 
-const report={productHead:process.env.PRODUCT_HEAD||null,patientDossier:patient.numero_dossier,scenarios:[]};
+const requestedDocument = String(process.env.REMAINING_DOCUMENT_FILTER || '').trim();
+const selectedScenarios = requestedDocument ? scenarios.filter(s => s.document === requestedDocument) : scenarios;
+if (requestedDocument && selectedScenarios.length === 0) throw new Error('Unknown remaining document filter: ' + requestedDocument);
+const report={productHead:process.env.PRODUCT_HEAD||null,patientDossier:patient.numero_dossier,filter:requestedDocument||null,scenarios:[]};
 
 function fetchPdfPath(payload) {
   if (!payload?.pdf_url) throw new Error('missing pdf_url');
   return String(payload.pdf_url).replace(/^\//,'').replace(/^api\//,'');
 }
 
-for (const scenario of scenarios) {
+for (const scenario of selectedScenarios) {
   const response=await api.post(scenario.endpoint,{headers,data:scenario.body});
   if (!response.ok()) throw new Error(scenario.document+'/'+scenario.id+' generation failed: '+response.status()+' '+await response.text());
   const payload=await response.json();
