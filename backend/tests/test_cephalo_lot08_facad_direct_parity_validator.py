@@ -317,3 +317,49 @@ def test_declared_comparison_dimensions_require_supporting_values(tmp_path):
     assert any("observed norm comparison requires both norms" in item for item in errors)
     assert any("observed rounding comparison requires both display values" in item for item in errors)
     assert any("Atlas divergence requires an explanatory note" in item for item in errors)
+
+
+def test_numeric_observation_requires_marker_positions(tmp_path):
+    manifest = _base_manifest()
+    _mark_partial(manifest, TARGET_32)
+    values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
+    props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES")
+    manifest["evidence_records"] = [values, props]
+    manifest["parity_rows"] = [_row(
+        refs=["facad32-values", "facad32-props"],
+        numeric_status="OBSERVED_MATCH",
+        comparison_details=_details(
+            facad_value=1.0,
+            digital_crown_value=1.0,
+            numeric_delta=0.0,
+        ),
+    )]
+
+    errors = validate_manifest(manifest, tmp_path)
+
+    assert any("observed numeric parity requires all three direct export families" in item for item in errors)
+
+
+def test_observed_profile_rejects_unresolved_comparison_dimensions(tmp_path):
+    manifest = _base_manifest()
+    _profile(manifest, TARGET_13)["observation_status"] = "OBSERVED"
+    manifest["status"] = "DIRECT_EVIDENCE_PARTIAL"
+    refs = ["facad13-values", "facad13-props", "facad13-markers"]
+    manifest["evidence_records"] = [
+        _record(tmp_path, refs[0], "ANALYSIS_VALUES", target_id=TARGET_13, trace_id="trace-13", version="3.12"),
+        _record(tmp_path, refs[1], "ANALYSIS_PROPERTIES", target_id=TARGET_13, trace_id="trace-13", version="3.12"),
+        _record(tmp_path, refs[2], "MARKER_POSITIONS", target_id=TARGET_13, trace_id="trace-13", version="3.12"),
+    ]
+    manifest["parity_rows"] = [
+        _row(
+            target_id=TARGET_13,
+            refs=refs,
+            facad_order=index,
+            facad_export_label=f"Factor {index}",
+        )
+        for index in range(1, 14)
+    ]
+
+    errors = validate_manifest(manifest, tmp_path)
+
+    assert any("has unresolved dimensions" in item for item in errors)
