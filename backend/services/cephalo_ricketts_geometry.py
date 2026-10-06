@@ -358,3 +358,21 @@ def ricketts_lower_facial_height_ans_xi_pm_deg_v1(
         (ans[0] - xi[0], ans[1] - xi[1]),
         (pm[0] - xi[0], pm[1] - xi[1]),
     )
+
+
+def ricketts_mandibular_arc_deg_v1(
+    dc: Point,
+    xi: Point,
+    pm: Point,
+) -> Optional[float]:
+    """Ricketts mandibular arc / bend angle at Xi.
+
+    The condylar axis is Xi→DC. The comparison axis is the posterior extension
+    of the corpus axis Xi→Pm, therefore its direction at Xi is Pm→Xi.
+    """
+    if not _finite_points(dc, xi, pm):
+        return None
+    return _angle_deg(
+        (dc[0] - xi[0], dc[1] - xi[1]),
+        (xi[0] - pm[0], xi[1] - pm[1]),
+    )
