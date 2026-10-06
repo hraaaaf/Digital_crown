@@ -21,6 +21,7 @@ const db = await dbResponse.json().catch(() => null);
 await apiContext.dispose();
 
 for (const profile of profiles) {
+  const startedAt = Date.now();
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: profile.width, height: profile.height } });
   const page = await context.newPage();
@@ -36,6 +37,7 @@ for (const profile of profiles) {
 
   const controlCard = page.locator('[data-hub-experience="control"]');
   await controlCard.waitFor({ state: 'visible', timeout: 10000 });
+  const hubReadyMs = Date.now() - startedAt;
   await controlCard.click();
   await page.waitForURL('**/control-center', { timeout: 10000 });
   await page.waitForLoadState('networkidle');
@@ -47,6 +49,8 @@ for (const profile of profiles) {
   await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('[data-control-center-db]').filter({ hasText: 'Disponible' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('[data-control-center-auth]').filter({ hasText: 'Authentifiée' }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByRole('button', { name: 'Continuer vers le Hub' }).waitFor({ state: 'visible', timeout: 10000 });
+  const firstUsefulMs = Date.now() - startedAt;
 
   await targetInput.fill('http://192.168.1.20:8005');
   await probeButton.click();
@@ -75,6 +79,12 @@ for (const profile of profiles) {
   await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('[data-control-center-db]').filter({ hasText: 'Disponible' }).waitFor({ state: 'visible', timeout: 10000 });
 
+  await page.screenshot({ path: path.join(outDir, profile.label + '-03-control-center-verified.png'), fullPage: true });
+
+  const technicalDetails = page.locator('[data-control-center-topology-details]');
+  await technicalDetails.locator('summary').click();
+  await page.locator('[data-control-center-connection-url]').waitFor({ state: 'visible', timeout: 5000 });
+
   const bodyText = (await page.locator('body').innerText()).replace(/\s+/g, ' ').trim();
   const buttons = await page.getByRole('button').allTextContents();
   const placeholder = bodyText.includes('en cours de construction');
@@ -84,12 +94,15 @@ for (const profile of profiles) {
   const backendVisible = bodyText.includes('Joignable');
   const databaseVisible = bodyText.includes('Disponible');
   const authVisible = bodyText.includes('Authentifiée');
-  const privacyCopyVisible = bodyText.includes('Les cibles saisies sont testées sans credential')
-    && bodyText.includes('la session n’est vérifiée que sur le serveur actuellement ouvert');
+  const privacyCopyVisible = bodyText.includes('Aucun identifiant ni donnée patient')
+    && bodyText.includes('autre origine avant votre action explicite');
   const connectionUrlVisible = bodyText.includes('URL poste annexe')
     && bodyText.includes('Non publiée — serveur limité au loopback');
+  const inputAccessible = await targetInput.getAttribute('aria-describedby') === 'cabinet-server-help'
+    && await targetInput.getAttribute('aria-invalid') === 'false';
+  const nextActionVisible = buttons.some(text => text.includes('Continuer vers le Hub'));
 
-  await page.screenshot({ path: path.join(outDir, profile.label + '-03-control-center-verified.png'), fullPage: true });
+  await page.screenshot({ path: path.join(outDir, profile.label + '-04-control-center-details.png'), fullPage: true });
 
   evidence.push({
     profile,
@@ -102,6 +115,10 @@ for (const profile of profiles) {
     authVisible,
     privacyCopyVisible,
     connectionUrlVisible,
+    inputAccessible,
+    nextActionVisible,
+    hubReadyMs,
+    firstUsefulMs,
     insecureLanRejected,
     publicTargetRejected,
     noCrossOriginProbe,
@@ -132,6 +149,9 @@ const report = {
     && item.authVisible
     && item.privacyCopyVisible
     && item.connectionUrlVisible
+    && item.inputAccessible
+    && item.nextActionVisible
+    && item.firstUsefulMs <= 10000
     && item.insecureLanRejected
     && item.publicTargetRejected
     && item.noCrossOriginProbe
