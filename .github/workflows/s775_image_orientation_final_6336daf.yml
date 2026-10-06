@@ -1,0 +1,32 @@
+name: S775 Image Orientation Final 6336daf
+
+on:
+  push:
+    branches:
+      - S775-image-orientation-final-6336daf
+
+jobs:
+  exact-head:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6336dafd4d0b0722f7508c1f1325c996e3566ddd
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "6336dafd4d0b0722f7508c1f1325c996e3566ddd"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+      - name: Run targeted tests
+        run: python -m pytest backend/tests/test_cephalo_lot08_image_orientation_evidence.py backend/tests/test_cephalo_runtime_evidence.py backend/tests/test_cephalo_evidence_graph.py backend/tests/test_cephalo_lot08_ricketts_atlas33_profile.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_d.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_c.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_b.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_a.py backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py -q
