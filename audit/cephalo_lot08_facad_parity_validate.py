@@ -9,6 +9,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "docs" / "audits" / "schemas" / "ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json"
+_EVIDENCE_ROOT = PurePosixPath("docs/audits/evidence/facad")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 _ALLOWED_KINDS = {"ANALYSIS_VALUES", "ANALYSIS_PROPERTIES", "MARKER_POSITIONS"}
@@ -62,14 +63,18 @@ def _safe_repo_path(value: Any) -> PurePosixPath | None:
     return path
 
 
+def _under_evidence_root(path: PurePosixPath) -> bool:
+    return path.parts[: len(_EVIDENCE_ROOT.parts)] == _EVIDENCE_ROOT.parts
+
+
 def _valid_observed_at(value: Any) -> bool:
     if not isinstance(value, str) or not value:
         return False
     try:
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return False
-    return True
+    return parsed.tzinfo is not None and parsed.utcoffset() is not None
 
 
 def _nonempty_string(value: Any) -> bool:
@@ -85,6 +90,8 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         _error(errors, "scientific_authority must remain false")
     if manifest.get("compatibility_only") is not True:
         _error(errors, "compatibility_only must remain true")
+    if manifest.get("evidence_root") != _EVIDENCE_ROOT.as_posix():
+        _error(errors, "evidence_root contract mismatch")
     if set(manifest.get("allowed_manifest_status") or []) != _ALLOWED_MANIFEST_STATUS:
         _error(errors, "allowed_manifest_status contract mismatch")
     if set(manifest.get("allowed_profile_observation_status") or []) != _ALLOWED_PROFILE_STATUS:
@@ -187,6 +194,8 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         if source_path is None:
             _error(errors, f"{prefix}.source_path must be repository-relative without parent traversal")
         else:
+            if not _under_evidence_root(source_path):
+                _error(errors, f"{prefix}.source_path must live under {_EVIDENCE_ROOT.as_posix()}")
             source_filename = record.get("source_filename")
             if source_filename != source_path.name:
                 _error(errors, f"{prefix}.source_filename must match source_path basename")
@@ -206,7 +215,7 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         if not _nonempty_string(record.get("facad_version")):
             _error(errors, f"{prefix}.facad_version is required")
         if not _valid_observed_at(record.get("observed_at")):
-            _error(errors, f"{prefix}.observed_at must be ISO-8601")
+            _error(errors, f"{prefix}.observed_at must be timezone-aware ISO-8601")
         if not _nonempty_string(record.get("same_trace_case_id")):
             _error(errors, f"{prefix}.same_trace_case_id is required")
 
@@ -261,19 +270,22 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 referenced.append(record)
 
         kinds = {record.get("artifact_kind") for record in referenced}
-        if "ANALYSIS_VALUES" not in kinds:
-            _error(errors, f"{prefix} observed membership requires ANALYSIS_VALUES evidence")
+        if not {"ANALYSIS_VALUES", "ANALYSIS_PROPERTIES"} <= kinds:
+            _error(errors, f"{prefix} observed membership requires ANALYSIS_VALUES + ANALYSIS_PROPERTIES evidence")
 
         if sign_status in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"} and "MARKER_POSITIONS" not in kinds:
             _error(errors, f"{prefix} observed sign requires MARKER_POSITIONS evidence")
         if numeric_status in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
             if membership != "OBSERVED_MATCH":
                 _error(errors, f"{prefix} numeric comparison is only valid for OBSERVED_MATCH rows")
-            if not {"ANALYSIS_VALUES", "MARKER_POSITIONS"} <= kinds:
-                _error(errors, f"{prefix} observed numeric parity requires ANALYSIS_VALUES + MARKER_POSITIONS")
-            trace_ids = {record.get("same_trace_case_id") for record in referenced}
-            if len(trace_ids) != 1:
-                _error(errors, f"{prefix} numeric parity evidence must share one same_trace_case_id")
+            if not _ALLOWED_KINDS <= kinds:
+                _error(errors, f"{prefix} observed numeric parity requires all three direct export families")
+            trace_versions = {
+                (record.get("same_trace_case_id"), record.get("facad_version"))
+                for record in referenced
+            }
+            if len(trace_versions) != 1:
+                _error(errors, f"{prefix} numeric parity evidence must share one same_trace_case_id and facad_version")
 
         facad_included = membership in {"OBSERVED_MATCH", "OBSERVED_FACAD_ONLY"}
         order = row.get("facad_order")
@@ -321,17 +333,24 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             if kinds != _ALLOWED_KINDS:
                 _error(errors, f"{target_id} OBSERVED requires all three direct export families")
 
-            traces_by_kind = {
+            trace_versions_by_kind = {
                 kind: {
-                    record.get("same_trace_case_id")
+                    (record.get("same_trace_case_id"), record.get("facad_version"))
                     for record in profile_records
-                    if record.get("artifact_kind") == kind and _nonempty_string(record.get("same_trace_case_id"))
+                    if record.get("artifact_kind") == kind
+                    and _nonempty_string(record.get("same_trace_case_id"))
+                    and _nonempty_string(record.get("facad_version"))
                 }
                 for kind in _ALLOWED_KINDS
             }
-            common_traces = set.intersection(*(traces_by_kind[kind] for kind in _ALLOWED_KINDS))
-            if not common_traces:
-                _error(errors, f"{target_id} OBSERVED requires a same-trace triplet across all three export families")
+            common_trace_versions = set.intersection(
+                *(trace_versions_by_kind[kind] for kind in _ALLOWED_KINDS)
+            )
+            if not common_trace_versions:
+                _error(
+                    errors,
+                    f"{target_id} OBSERVED requires a same-trace same-version triplet across all three export families",
+                )
 
             expected = _ALLOWED_TARGETS[target_id]
             observed_facad_rows = [
