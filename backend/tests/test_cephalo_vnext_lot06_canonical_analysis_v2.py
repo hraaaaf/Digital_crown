@@ -35,6 +35,9 @@ def _landmarks():
         "L1_incisal": (9, 8), "Prn": (18, 4), "Pog_soft": (17, 9),
         "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
         "FOP_PREMOLAR_Ricketts": (8, 9), "FOP_MOLAR_Ricketts": (14, 10),
+        "ANS": (5, 6), "Pm_Ricketts": (15, 16),
+        "R1_Ricketts": (2, 15), "R2_Ricketts": (8, 15),
+        "R3_Ricketts": (5, 12), "R4_Ricketts": (5, 20),
     }
     return {key: _lm(key, *value) for key, value in pts.items()}
 def _materialize(*, mm_per_pixel=None, calibration_ref=None, landmarks=None):
