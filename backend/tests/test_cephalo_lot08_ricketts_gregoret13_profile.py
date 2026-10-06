@@ -67,7 +67,7 @@ def test_gregoret13_mandibular_plane_is_conditional_on_explicit_ricketts_identit
         if item["measurement_id"] == "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1"
     )
     assert row["state"] == "CONDITIONAL_EXECUTABLE"
-    assert row["gate"] == "EXPLICIT_GO_RICKETTS_AND_ANATOMICAL_FRANKFORT_REQUIRED"
+    assert row["gate"] == "EXPLICIT_RICKETTS_INFERIOR_ANGLE_POINT_AND_ANATOMICAL_FRANKFORT_REQUIRED"
     assert "M_FH_GOME_DEG_V1" not in {
         item["measurement_id"] for item in data["measurements"]
     }
