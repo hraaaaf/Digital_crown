@@ -199,3 +199,26 @@ These constructions extend the LOT06 deterministic authority without activating 
 - Evidence gate: all identities available from one source image; degenerate Frankfort => INVALID.
 - Forbidden alias: generic `PT_point`, `Ptm`, and facial-axis `Pt_Ricketts` must not be promoted by name.
 - Downstream measurement `M_U6_PTV_MM_V1` remains blocked until exact `U6_distal` authority exists.
+
+
+## RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1
+
+- Purpose: functional occlusal plane for the Ricketts/Gregoret source-locked profile.
+- Required landmarks: `FOP_PREMOLAR_Ricketts`, `FOP_MOLAR_Ricketts`.
+- Rule: line through the explicit premolar- and molar-occlusion identities; incisors are not anchors.
+- Evidence gate: both identities available from one source image; coincident anchors => `INVALID`.
+- Forbidden substitutions: generic occlusal anchors, incisor-defined planes, Steiner/Downs occlusal planes.
+- State: `SOURCE_LOCKED_GEOMETRY`.
+- Downstream: `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` remains blocked until the historical sign convention is source-locked.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md`.
+
+## RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1
+
+- Purpose: Ricketts mandibular plane for MP–FH.
+- Required landmarks: `MP_ANGLE_INFERIOR_Ricketts`, `Me`.
+- Rule: line through the source-specific inferior mandibular-angle point and Menton.
+- Evidence gate: both identities available from one source image; coincident anchors => `INVALID`.
+- Forbidden substitutions: generic `Go`, `Go-Me`, `Go-Gn`, Tweed FMA geometry.
+- State: `SOURCE_LOCKED_GEOMETRY`.
+- Downstream: `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` is `CONDITIONAL_EXECUTABLE` and consumes this canonical `ConstructionEvidence` plus anatomical Frankfort `Po_anatomic-Or`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md`.
