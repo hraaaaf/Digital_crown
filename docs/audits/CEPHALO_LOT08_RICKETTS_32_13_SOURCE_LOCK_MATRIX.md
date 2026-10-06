@@ -100,7 +100,7 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 14 | Occlusal plane to ramus/Xi | none | NEW_CANONICAL_ID + Xi + functional occlusal plane |
 | 15 | Occlusal plane inclination | none | NEW_CANONICAL_ID + Xi/Pm + functional occlusal plane |
 | 16 | Lip protrusion | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
-| 17 | Upper lip length | none | NEW_CANONICAL_ID |
+| 17 | Upper lip length | `M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1` | CONDITIONAL_EXECUTABLE: ANS + manual `LABIAL_COMMISSURE_Ricketts` + calibration |
 | 18 | Lip embrasure/comissure to occlusal plane | none | NEW_CANONICAL_ID + commissure identity |
 | 19 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
 | 20 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | EXECUTABLE only with explicit/audited `Pt_Ricketts`; auto legacy Pt fails closed |
@@ -122,7 +122,7 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 - Conditional executable: **9** (#1 molar relation; #2 canine relation; #3 overjet; #5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #20 facial axis; #25 mandibular plane; #31 mandibular arc).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
 - Source-locked but blocked: **2** (#4 overbite sign/orientation; #11 upper-incisor protrusion direction).
-- New source-specific canonical contract required: **12**.
+- New source-specific canonical contract required: **6**.
 - Total accounted factors: **32/32**.
 
 This proves that the current five-measure LOT06 Ricketts pack is only a seed, not a complete protocol.
