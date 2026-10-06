@@ -1250,3 +1250,32 @@ def test_v15_04_2_presence_receipt_supports_arabic_patient_name(client, db, dent
     assert receipt.status_code == 200, receipt.text
     assert receipt.content.startswith(b"%PDF")
     assert len(receipt.content) > 1000
+
+
+def test_v15_04_2_rescheduling_invalidates_old_presence_proof(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-RESCHEDULE"
+    )
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    present = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"status": "EN_S_ATTENTE"},
+    )
+    assert present.status_code == 200, present.text
+
+    shifted = appointment.datetime_start + timedelta(minutes=1)
+    moved = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"datetime_start": shifted.isoformat()},
+    )
+    assert moved.status_code == 200, moved.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 409
+    assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
