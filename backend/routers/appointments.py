@@ -221,6 +221,7 @@ def update_appointment(
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
     update_data = appt_update.model_dump(exclude_unset=True)
+    previous_status = db_appt.status
     if "patient_id" in update_data and update_data["patient_id"] is not None:
         assert_patient_access(update_data["patient_id"], current_user, db)
 
@@ -278,6 +279,20 @@ def update_appointment(
         resource_id=str(id),
         details=f"Champs: {', '.join(update_data.keys())}",
     )
+    if (
+        "status" in update_data
+        and previous_status != models.AppointmentStatus.EN_SALLE_ATTENTE
+        and db_appt.status == models.AppointmentStatus.EN_SALLE_ATTENTE
+    ):
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=employer_id,
+            action="APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
+            resource_type="Appointment",
+            resource_id=str(id),
+            details="Presence confirmed by authenticated staff through the canonical appointment workflow.",
+        )
     return db_appt
 
 
