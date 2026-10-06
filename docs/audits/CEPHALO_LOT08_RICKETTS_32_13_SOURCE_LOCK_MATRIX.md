@@ -84,19 +84,19 @@ Source membership observed in the published 32-factor table.
 
 | # | Factor | LOT06 / registry mapping | Current state |
 |---:|---|---|---|
-| 1 | Molar relation | none | NEW_CANONICAL_ID + molar identities + exact functional occlusal plane |
-| 2 | Canine relation | none | NEW_CANONICAL_ID + canine identities |
-| 3 | Incisor overjet | `M_OVERJET_MM_V1` | LEGACY_TO_AUDIT; source-specific Ricketts convention not executable |
-| 4 | Incisor overbite | `M_OVERBITE_V1` | LEGACY_TO_AUDIT |
+| 1 | Molar relation | `M_RICKETTS_MOLAR_RELATION_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: manual `L6_DISTAL_Ricketts` + `U6_DISTAL_Ricketts` + source-locked FOP + verified calibration |
+| 2 | Canine relation | `M_RICKETTS_CANINE_RELATION_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: manual `L3_CUSP_Ricketts` + `U3_CUSP_Ricketts` + source-locked FOP + verified calibration |
+| 3 | Incisor overjet | `M_RICKETTS_OVERJET_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: `L1_incisal` + `U1_incisal` + source-locked FOP + verified calibration; positive upper-anterior |
+| 4 | Incisor overbite | `M_RICKETTS_OVERBITE_FOP_MM_V1` | SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED; no runtime promotion |
 | 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + `L1_incisal/L1_apex` crownward-positive sign + verified calibration |
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi from manual/manual-corrected R1-R4 + anatomical Frankfort, manual/manual-corrected `Pm_Ricketts` + ANS |
 | 9 | Upper molar position | `M_U6_PTV_MM_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `U6_DISTAL_Ricketts` + manual/manual-corrected `PR_Ricketts_PTV` + anatomical Frankfort + verified calibration |
-| 10 | Mandibular incisor protrusion | `M_L1_FACIAL_SURFACE_APOG_MM_V1` | BLOCKED_LANDMARK |
-| 11 | Maxillary incisor protrusion | none | NEW_CANONICAL_ID |
+| 10 | Mandibular incisor protrusion | `M_L1_EDGE_APOG_MM_V1` | EXECUTABLE: Ricketts incisal-edge/tip to A-Pog; previous facial-surface mapping rejected as McNamara semantic collision |
+| 11 | Maxillary incisor protrusion | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | EXECUTABLE with verified calibration: `U1_incisal` to A-Pog, anterior-positive |
 | 12 | Mandibular incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
-| 13 | Maxillary incisor inclination to A-Pog | none exact | NEW_CANONICAL_ID |
+| 13 | Maxillary incisor inclination to A-Pog | `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | EXECUTABLE: explicit `U1_incisal/U1_apex` axis vs A-Pog |
 | 14 | Occlusal plane to ramus/Xi | none | NEW_CANONICAL_ID + Xi + functional occlusal plane |
 | 15 | Occlusal plane inclination | none | NEW_CANONICAL_ID + Xi/Pm + functional occlusal plane |
 | 16 | Lip protrusion | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
@@ -118,11 +118,11 @@ Source membership observed in the published 32-factor table.
 | 32 | Corpus length | none | NEW_CANONICAL_ID + Xi/Pm/A-Pog source geometry |
 
 ### 32-factor runtime summary
-- Exact executable canonical members: **6** (#6, #7, #12, #16, #19, #22).
-- Conditional executable: **6** (#5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #20 facial axis; #25 mandibular plane; #31 mandibular arc).
+- Exact executable canonical members: **9** (#6, #7, #10, #11, #12, #13, #16, #19, #22).
+- Conditional executable: **9** (#1 molar relation; #2 canine relation; #3 overjet; #5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #20 facial axis; #25 mandibular plane; #31 mandibular arc).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
-- Existing canonical but blocked/legacy: **3** (#3, #4, #10).
-- New source-specific canonical contract required: **16**.
+- Source-locked but blocked: **1** (#4 overbite sign/orientation).
+- New source-specific canonical contract required: **12**.
 - Total accounted factors: **32/32**.
 
 This proves that the current five-measure LOT06 Ricketts pack is only a seed, not a complete protocol.
