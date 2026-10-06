@@ -157,8 +157,8 @@
     {
       "order": 24,
       "measurement_id": "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
-      "state": "CONDITIONAL_EXECUTABLE",
-      "gate": "MANUAL_PNS_RICKETTS_ANATOMICAL_FRANKFORT_REQUIRED"
+      "state": "SOURCE_LOCKED_BLOCKED",
+      "gate": "PALATAL_PLANE_IDENTITIES_LOCKED__SIGNED_ANGLE_ORIENTATION_UNRESOLVED"
     },
     {
       "order": 25,
