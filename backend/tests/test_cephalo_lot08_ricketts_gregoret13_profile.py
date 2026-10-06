@@ -134,17 +134,17 @@ def test_gregoret13_mandibular_arc_forbids_legacy_aliases():
     assert data["rules"]["generic_labels_require_validated_bridge"] is True
 
 
-def test_gregoret13_mandibular_arc_profile_and_registry_remain_blocked():
+def test_gregoret13_mandibular_arc_profile_and_registry_are_conditional():
     data = json.loads(PROFILE.read_text(encoding="utf-8"))
     row = next(
         item for item in data["measurements"]
         if item["measurement_id"] == "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1"
     )
-    assert row["state"] == "BLOCKED_LANDMARK"
-    assert row["gate"] == "DC_RICKETTS_XI_RICKETTS_PM_RICKETTS_REQUIRED"
+    assert row["state"] == "CONDITIONAL_EXECUTABLE"
+    assert row["gate"] == "MANUAL_DC_RICKETTS_SOURCE_LOCKED_XI_MANUAL_PM_RICKETTS_REQUIRED"
     item = canonical_measurement("M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1")
     assert item is not None
-    assert item.source_status == "BLOCKED_LANDMARK"
+    assert item.source_status == "GEOMETRY_COVERED_MANUAL_DC_CONSTRUCTED_XI_MANUAL_PM_REQUIRED"
 
 
 def test_gregoret13_lower_facial_height_is_conditional_on_source_locked_xi_pm():
