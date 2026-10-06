@@ -22,11 +22,15 @@ def test_facad_parity_remains_unobserved_without_direct_exports():
     assert evidence["parity_rows"] == []
 
     expected = {
-        "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
-        "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
+        "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET": 32,
+        "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET": 13,
     }
-    assert {item["target_id"] for item in targets["targets"]} == expected
-    assert {item["target_id"] for item in evidence["profiles"]} == expected
+    assert {item["target_id"] for item in targets["targets"]} == set(expected)
+    assert {item["target_id"] for item in evidence["profiles"]} == set(expected)
+    assert {
+        item["target_id"]: item["expected_facad_factor_count"]
+        for item in evidence["profiles"]
+    } == expected
     assert all(item["observation_status"] == "UNOBSERVED" for item in evidence["profiles"])
 
 
@@ -58,14 +62,16 @@ def test_facad_direct_parity_requires_all_three_export_families():
     assert set(evidence["comparison_dimensions"]) == required_dimensions
 
 
-def test_facad_evidence_records_are_provenance_locked_before_any_parity_rows():
+def test_facad_evidence_records_are_bound_to_immutable_artifacts():
     evidence = _load(EVIDENCE)
     contract = evidence["evidence_record_contract"]
     required = set(contract["required_fields"])
 
     assert {
+        "evidence_id",
         "artifact_kind",
         "profile_target_id",
+        "source_path",
         "source_filename",
         "sha256",
         "facad_version",
@@ -82,6 +88,7 @@ def test_facad_evidence_records_are_provenance_locked_before_any_parity_rows():
         "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
     }
     assert contract["sha256_format"] == "64 lowercase hexadecimal characters"
+    assert "Repository-relative" in contract["source_path_rule"]
     assert "same_trace_case_id" in contract["same_trace_rule"]
 
     row_contract = evidence["parity_row_contract"]
@@ -97,6 +104,12 @@ def test_facad_evidence_records_are_provenance_locked_before_any_parity_rows():
         "evidence_refs",
     } <= set(row_contract["required_fields"])
 
+    assert set(evidence["allowed_profile_observation_status"]) == {
+        "UNOBSERVED",
+        "PARTIAL",
+        "OBSERVED",
+    }
+
     rules = evidence["rules"]
     assert rules["direct_export_required"] is True
     assert rules["no_membership_inference_from_vendor_label"] is True
@@ -105,4 +118,5 @@ def test_facad_evidence_records_are_provenance_locked_before_any_parity_rows():
     assert rules["no_scientific_equivalence_claim"] is True
     assert rules["unobserved_fields_remain_unobserved"] is True
     assert rules["evidence_hash_required"] is True
+    assert rules["evidence_file_presence_required"] is True
     assert rules["facad_version_required"] is True
