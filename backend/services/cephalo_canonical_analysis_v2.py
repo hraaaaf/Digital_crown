@@ -396,21 +396,22 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             elif ricketts_u6_status==AvailabilityStatus.AVAILABLE:
                 point_x=ricketts_ptv.geometry.get("point_x")
                 point_y=ricketts_ptv.geometry.get("point_y")
+                anterior_x=ricketts_ptv.geometry.get("anterior_x")
+                anterior_y=ricketts_ptv.geometry.get("anterior_y")
                 source_image_ref=ricketts_ptv.geometry.get("source_image_ref")
                 if (
                     not isinstance(point_x,(int,float))
                     or not isinstance(point_y,(int,float))
+                    or not isinstance(anterior_x,(int,float))
+                    or not isinstance(anterior_y,(int,float))
                     or source_image_ref != landmarks["U6_DISTAL_Ricketts"].source_image_ref
-                    or "Po_anatomic" not in landmarks
-                    or "Or" not in landmarks
                 ):
                     ricketts_u6_status=AvailabilityStatus.INVALID
                 else:
                     px=ricketts_u6_distal_to_ptv_signed_px_v1(
                         _p(landmarks,"U6_DISTAL_Ricketts"),
                         (float(point_x),float(point_y)),
-                        _p(landmarks,"Po_anatomic"),
-                        _p(landmarks,"Or"),
+                        (float(anterior_x),float(anterior_y)),
                     )
                     ricketts_u6_value,ricketts_u6_status=_calibrated_px(
                         px,mm_per_pixel,calibration_ref
