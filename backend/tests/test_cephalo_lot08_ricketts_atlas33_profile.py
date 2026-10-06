@@ -85,7 +85,9 @@ def test_atlas2009_wave_b_rows_are_locked_and_fail_closed():
     assert rows[21]["measurement_id"] == "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1"
     assert rows[23]["measurement_id"] == "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1"
     assert rows[24]["measurement_id"] == "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1"
-    assert all(rows[index]["state"] == "CONDITIONAL_EXECUTABLE" for index in (21, 23, 24))
+    assert all(rows[index]["state"] == "CONDITIONAL_EXECUTABLE" for index in (21, 23))
+    assert rows[24]["state"] == "SOURCE_LOCKED_BLOCKED"
+    assert rows[24]["gate"] == "PALATAL_PLANE_IDENTITIES_LOCKED__SIGNED_ANGLE_ORIENTATION_UNRESOLVED"
 
 
 def test_atlas2009_wave_b_new_ids_are_registered():
