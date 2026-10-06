@@ -386,9 +386,11 @@ def test_gregoret_lower_facial_height_fails_closed_without_explicit_pm_ricketts(
         calibration_ref=None,
         constructions=constructions,
     )
-    assert "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2" not in {
-        entry.method_id for entry in out
-    }
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
 
 
 def test_gregoret_lower_facial_height_rejects_cross_image_xi_and_pm():
