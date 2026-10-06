@@ -272,6 +272,20 @@ def build_cephalo_runtime_evidence_payload(
             if old_ceph.source_record_id != image_record_id:
                 raise CephaloRuntimeEvidenceError("Persisted cephalogram source record mismatch")
             ceph_source = old_ceph
+    persisted_orientations = [
+        ImageOrientationEvidence.model_validate(raw)
+        for raw in (previous_payload or {}).get("image_orientations", [])
+    ]
+    active_orientations = [
+        item for item in persisted_orientations
+        if item.source_image_ref == ceph_source.evidence_id
+        and item.availability_status == AvailabilityStatus.AVAILABLE
+    ]
+    if len(active_orientations) > 1:
+        raise CephaloRuntimeEvidenceError(
+            "Multiple active image orientations for one cephalogram are not allowed"
+        )
+    active_orientation = active_orientations[0] if active_orientations else None
     current = _current_landmarks(
         landmarks, case_id=resolved_case, revision=revision, source_ref=ceph_source.evidence_id,
         inference_mode=inference_mode, manual=manual_revision,
@@ -350,6 +364,7 @@ def build_cephalo_runtime_evidence_payload(
         landmarks=scientific_by_id, mm_per_pixel=result.analysis_metadata.pixel_ratio,
         calibration_ref=calibration_ref,
         constructions=canonical_v2_constructions,
+        image_orientation=active_orientation,
     )
     all_measurements = [
         *craniom_measurements,
@@ -362,6 +377,7 @@ def build_cephalo_runtime_evidence_payload(
     sources = [ceph_source] + ([calibration] if calibration else [])
     graph = EvidenceGraphSnapshot(
         sources=sources, landmarks=graph_landmarks,
+        image_orientations=persisted_orientations,
         constructions=all_constructions, measurements=all_measurements,
     )
     validate_case_evidence_graph(graph, patient_id=patient_id, case_id=resolved_case)
@@ -371,7 +387,7 @@ def build_cephalo_runtime_evidence_payload(
         "history": _history(previous_payload),
         "sources": [x.model_dump(mode="json") for x in sources],
         "landmarks": [x.model_dump(mode="json") for x in graph_landmarks],
-        "image_orientations": [],
+        "image_orientations": [x.model_dump(mode="json") for x in persisted_orientations],
         "current_landmark_refs": [x.evidence_id for x in current],
         "constructions": [x.model_dump(mode="json") for x in all_constructions],
         "measurements": [x.model_dump(mode="json") for x in all_measurements],
