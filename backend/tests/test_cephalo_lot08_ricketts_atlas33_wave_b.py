@@ -154,8 +154,8 @@ def test_wave_b_rejects_cross_image_dependencies():
 
 def test_wave_b_blocked_signed_distances_have_no_runtime_method():
     _, out = _materialize()
-    assert "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2" not in out
-    assert "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2" not in out
+    assert out["RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2"].availability_status.value == "NOT_COMPUTABLE"
+    assert out["RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2"].availability_status.value == "NOT_COMPUTABLE"
 
     op_xi = canonical_measurement("M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1")
     commissure = canonical_measurement("M_RICKETTS_COMMISSURE_FOP_MM_V1")
@@ -164,8 +164,8 @@ def test_wave_b_blocked_signed_distances_have_no_runtime_method():
     assert commissure is not None
     assert palatal is not None
     assert op_xi.source_status == "CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
-    assert commissure.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
-    assert palatal.source_status == "SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE"
+    assert commissure.source_status == "CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
+    assert palatal.source_status == "CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
 
 
 def test_wave_b_generic_soft_tissue_and_pns_aliases_are_not_promoted():
@@ -178,4 +178,6 @@ def test_wave_b_generic_soft_tissue_and_pns_aliases_are_not_promoted():
     lip = out["RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2"]
     assert lip.availability_status.value == "NOT_COMPUTABLE"
     assert lip.value is None
-    assert "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2" not in out
+    palatal = out["RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2"]
+    assert palatal.availability_status.value == "NOT_COMPUTABLE"
+    assert palatal.value is None
