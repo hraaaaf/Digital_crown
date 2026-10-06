@@ -67,7 +67,7 @@ jobs:
           run_heavy=false
           while IFS= read -r file; do
             case "$file" in
-              frontend/src/features/mobile/*|frontend/src/features/hub/*|frontend/src/services/stationPatientSession.ts|frontend/src/services/stationStaffAssistance.ts|frontend/src/test/v15StationPatientSessionContract.test.ts|frontend/scripts/capture-v15-03-*|docs/*|.github/workflows/ci.yml)
+              frontend/src/features/mobile/*|frontend/src/features/hub/*|frontend/src/services/stationPatientSession.ts|frontend/src/services/stationStaffAssistance.ts|frontend/src/test/v15StationPatientSessionContract.test.ts|frontend/scripts/capture-v15-03-*|backend/*cephalo*|frontend/*cephalo*|docs/*|.github/workflows/cephalo-runtime-cert.yml|.github/workflows/ci.yml)
                 ;;
               *)
                 run_heavy=true
