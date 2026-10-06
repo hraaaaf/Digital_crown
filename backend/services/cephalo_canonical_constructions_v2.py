@@ -243,6 +243,7 @@ def materialize_canonical_constructions_v2(
         if (
             landmark_id in {"R1_Ricketts", "R2_Ricketts", "R3_Ricketts", "R4_Ricketts"}
             and item.origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+            and landmark_id not in xi_missing
         ):
             xi_missing.append(landmark_id)
 
