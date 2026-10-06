@@ -190,6 +190,13 @@ export const ControlCenterTopologyPanel = () => {
   const targetBase = normalized.baseUrl;
   const isCurrentTarget = Boolean(targetBase && targetBase === currentBase);
   const canOpen = Boolean(targetBase && !normalized.error && !isCurrentTarget);
+  const localVerified = Boolean(result?.backendOk && result?.databaseOk && result?.authOk !== false);
+  const annexReady = Boolean(
+    localVerified
+    && result?.topology?.lanExposed
+    && result?.topology?.tlsReady
+    && result?.topology?.connectionUrl,
+  );
 
   const openValidatedServer = () => {
     if (!canOpen || !targetBase) return;
@@ -211,8 +218,8 @@ export const ControlCenterTopologyPanel = () => {
             </p>
           </div>
           <StatusPill
-            ok={Boolean(result?.backendOk && result?.databaseOk)}
-            label={result?.backendOk && result?.databaseOk ? 'Serveur vérifié' : 'À vérifier'}
+            ok={localVerified}
+            label={annexReady ? 'Prêt pour poste annexe' : localVerified ? 'Serveur local vérifié' : 'À vérifier'}
           />
         </div>
 
@@ -225,7 +232,11 @@ export const ControlCenterTopologyPanel = () => {
               id="cabinet-server-target"
               data-control-center-target
               value={target}
-              onChange={(event) => setTarget(event.target.value)}
+              onChange={(event) => {
+                setTarget(event.target.value);
+                setInputError('');
+                setResult(null);
+              }}
               inputMode="url"
               autoCapitalize="none"
               autoCorrect="off"
