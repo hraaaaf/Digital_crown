@@ -60,22 +60,23 @@ def test_gregoret13_normative_classification_stays_disabled():
     assert data["rules"]["historical_norms_reference_only"] is True
 
 
-def test_gregoret13_mandibular_plane_remains_fail_closed_without_exact_construction():
+def test_gregoret13_mandibular_plane_is_conditional_on_explicit_ricketts_identity():
     data = json.loads(PROFILE.read_text(encoding="utf-8"))
     row = next(
         item for item in data["measurements"]
         if item["measurement_id"] == "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1"
     )
-    assert row["state"] == "BLOCKED_CONSTRUCTION"
+    assert row["state"] == "CONDITIONAL_EXECUTABLE"
+    assert row["gate"] == "EXPLICIT_GO_RICKETTS_AND_ANATOMICAL_FRANKFORT_REQUIRED"
     assert "M_FH_GOME_DEG_V1" not in {
         item["measurement_id"] for item in data["measurements"]
     }
 
 
-def test_gregoret13_mandibular_plane_registry_remains_execution_blocked():
+def test_gregoret13_mandibular_plane_registry_requires_explicit_ricketts_angle_point():
     item = canonical_measurement("M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1")
     assert item is not None
-    assert item.source_status == "SOURCE_LOCKED_EXECUTION_CONSTRUCTION_REQUIRED"
+    assert item.source_status == "GEOMETRY_COVERED_EXPLICIT_RICKETTS_ANGLE_POINT_REQUIRED"
 
 
 def test_gregoret13_l1_occlusal_extrusion_remains_fail_closed():
@@ -84,8 +85,8 @@ def test_gregoret13_l1_occlusal_extrusion_remains_fail_closed():
         item for item in data["measurements"]
         if item["measurement_id"] == "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1"
     )
-    assert row["state"] == "BLOCKED_CONSTRUCTION"
-    assert row["gate"] == "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED"
+    assert row["state"] == "BLOCKED_LANDMARK"
+    assert row["gate"] == "EXPLICIT_RICKETTS_FOP_PREMOLAR_MOLAR_ANCHORS_AND_SIGN_CONVENTION_REQUIRED"
 
 
 def test_gregoret13_does_not_substitute_steiner_occlusal_plane_for_ricketts_functional_plane():
@@ -98,7 +99,7 @@ def test_gregoret13_does_not_substitute_steiner_occlusal_plane_for_ricketts_func
 def test_gregoret13_l1_occlusal_extrusion_registry_stays_construction_blocked():
     item = canonical_measurement("M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1")
     assert item is not None
-    assert item.source_status == "SOURCE_LOCKED_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED"
+    assert item.source_status == "SOURCE_LOCKED_FUNCTIONAL_OCCLUSAL_PLANE__BLOCKED_EXPLICIT_OCCLUSAL_ANCHORS_AND_SIGN_CONVENTION"
 
 
 def test_gregoret13_mandibular_arc_identity_contract_is_fail_closed():
