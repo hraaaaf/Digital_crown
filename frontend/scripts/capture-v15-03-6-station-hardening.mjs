@@ -134,6 +134,9 @@ try {
       });
 
       await page.goto('http://127.0.0.1:4198/station', { waitUntil: 'networkidle', timeout: 30000 });
+      await page.addStyleTag({
+        content: '*,*::before,*::after{transition:none !important;animation:none !important;}',
+      });
       if (scale.rootFontSize) {
         await page.evaluate(value => { document.documentElement.style.fontSize = value; }, scale.rootFontSize);
         await page.waitForTimeout(100);
