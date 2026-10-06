@@ -59,7 +59,7 @@ export const AgendaStudio: React.FC = () => {
   };
 
   useEffect(() => {
-    api.get('/upcoming-holidays').then(res => setUpcomingHolidays(res.data)).catch(console.error);
+    api.get('/agenda/upcoming-holidays').then(res => setUpcomingHolidays(res.data)).catch(console.error);
     api.get('/agenda/settings').then(res => setSettings(res.data)).catch(console.error);
     api.get('/agenda/exceptions').then(res => setExceptions(Array.isArray(res.data) ? res.data : [])).catch(console.error);
     fetchPendingRequests();
