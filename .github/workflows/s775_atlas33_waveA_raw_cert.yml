@@ -1,0 +1,33 @@
+name: S775 Atlas33 Wave A Raw Head Certification
+
+on:
+  push:
+    branches:
+      - S775-atlas33-waveA-cert-5cea426
+
+jobs:
+  raw-head-pytest:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout exact certified head
+        uses: actions/checkout@v4
+        with:
+          ref: 5cea4268b11d2bd1496e954b68f56694babc4ecf
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "5cea4268b11d2bd1496e954b68f56694babc4ecf"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+      - name: Run targeted tests
+        run: python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_a.py backend/tests/test_cephalo_lot08_ricketts_gregoret13_geometry.py backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py -q
