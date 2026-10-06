@@ -411,6 +411,137 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             availability=overbite_status,
         ))
 
+    # #14 Occlusal plane to Xi
+    fop_xi_ids=()
+    fop_xi_status=AvailabilityStatus.AVAILABLE
+    fop_xi_value=None
+    fop_xi_refs:tuple[str,...]=()
+    fop_xi_orientation_ref=None
+    fop=constructions.get(RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID)
+    xi=constructions.get(RICKETTS_XI_CONSTRUCTION_ID)
+    if fop is not None and xi is not None:
+        fop_xi_refs=(fop.construction_id,xi.construction_id)
+        if fop.availability_status!=AvailabilityStatus.AVAILABLE:
+            fop_xi_status=fop.availability_status
+        elif xi.availability_status!=AvailabilityStatus.AVAILABLE:
+            fop_xi_status=xi.availability_status
+        else:
+            source=fop.geometry.get("source_image_ref")
+            xi_source=xi.geometry.get("source_image_ref")
+            px0=fop.geometry.get("point_x")
+            py0=fop.geometry.get("point_y")
+            dx=fop.geometry.get("direction_x")
+            dy=fop.geometry.get("direction_y")
+            xi_x=xi.geometry.get("x")
+            xi_y=xi.geometry.get("y")
+            orientation=_orientation_for_source(str(source)) if source else None
+            if (
+                orientation is None
+                or source != xi_source
+                or not all(isinstance(v,(int,float)) for v in (px0,py0,dx,dy,xi_x,xi_y))
+            ):
+                fop_xi_status=AvailabilityStatus.NOT_COMPUTABLE
+            else:
+                px=ricketts_fop_to_point_oriented_signed_px_v1(
+                    (float(xi_x),float(xi_y)),(float(px0),float(py0)),
+                    (float(dx),float(dy)),(orientation.superior_x,orientation.superior_y),
+                )
+                fop_xi_value,fop_xi_status=_calibrated_px(px,mm_per_pixel,calibration_ref)
+                fop_xi_orientation_ref=orientation.evidence_id if fop_xi_status==AvailabilityStatus.AVAILABLE else None
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_OCCLUSAL_PLANE_XI",
+            analysis="RICKETTS",method="RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+            canonical_id="M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",ids=fop_xi_ids,lm=landmarks,
+            value=fop_xi_value,unit="mm",requires_calibration=True,
+            calibration_ref=calibration_ref if fop_xi_status==AvailabilityStatus.AVAILABLE else None,
+            orientation_ref=fop_xi_orientation_ref,construction_refs=fop_xi_refs,
+            availability=fop_xi_status,
+        ))
+
+    # #18 Labial commissure to FOP
+    commissure_ids=("LABIAL_COMMISSURE_Ricketts",)
+    commissure_deps,commissure_status=_deps(landmarks,commissure_ids)
+    if commissure_deps:
+        commissure_value=None
+        commissure_refs:tuple[str,...]=()
+        commissure_orientation_ref=None
+        if landmarks["LABIAL_COMMISSURE_Ricketts"].origin not in {
+            LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED
+        }:
+            commissure_status=AvailabilityStatus.NOT_COMPUTABLE
+        fop=constructions.get(RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID)
+        if fop is None:
+            commissure_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            commissure_refs=(fop.construction_id,)
+            if fop.availability_status!=AvailabilityStatus.AVAILABLE:
+                commissure_status=fop.availability_status
+            elif commissure_status==AvailabilityStatus.AVAILABLE:
+                source=fop.geometry.get("source_image_ref")
+                px0=fop.geometry.get("point_x")
+                py0=fop.geometry.get("point_y")
+                dx=fop.geometry.get("direction_x")
+                dy=fop.geometry.get("direction_y")
+                orientation=_orientation_for_source(str(source)) if source else None
+                if (
+                    orientation is None
+                    or source != landmarks["LABIAL_COMMISSURE_Ricketts"].source_image_ref
+                    or not all(isinstance(v,(int,float)) for v in (px0,py0,dx,dy))
+                ):
+                    commissure_status=AvailabilityStatus.NOT_COMPUTABLE
+                else:
+                    px=ricketts_fop_to_point_oriented_signed_px_v1(
+                        _p(landmarks,"LABIAL_COMMISSURE_Ricketts"),
+                        (float(px0),float(py0)),(float(dx),float(dy)),
+                        (orientation.superior_x,orientation.superior_y),
+                    )
+                    commissure_value,commissure_status=_calibrated_px(px,mm_per_pixel,calibration_ref)
+                    commissure_orientation_ref=orientation.evidence_id if commissure_status==AvailabilityStatus.AVAILABLE else None
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_COMMISSURE_FOP",
+            analysis="RICKETTS",method="RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+            canonical_id="M_RICKETTS_COMMISSURE_FOP_MM_V1",ids=commissure_ids,lm=landmarks,
+            value=commissure_value,unit="mm",requires_calibration=True,
+            calibration_ref=calibration_ref if commissure_status==AvailabilityStatus.AVAILABLE else None,
+            orientation_ref=commissure_orientation_ref,construction_refs=commissure_refs,
+            availability=commissure_status,
+        ))
+
+    # #24 Palatal plane signed to anatomical Frankfort
+    palatal_ids=("Po_anatomic","Or","ANS","PNS_Ricketts")
+    palatal_deps,palatal_status=_deps(landmarks,palatal_ids)
+    if palatal_deps:
+        palatal_value=None
+        palatal_orientation_ref=None
+        if landmarks["PNS_Ricketts"].origin not in {
+            LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED
+        }:
+            palatal_status=AvailabilityStatus.NOT_COMPUTABLE
+        source=landmarks["Po_anatomic"].source_image_ref
+        orientation=_orientation_for_source(source)
+        if orientation is None:
+            palatal_status=AvailabilityStatus.NOT_COMPUTABLE
+        elif palatal_status==AvailabilityStatus.AVAILABLE:
+            palatal_value=ricketts_palatal_plane_signed_deg_v1(
+                _p(landmarks,"ANS"),_p(landmarks,"PNS_Ricketts"),
+                (
+                    landmarks["Or"].x-landmarks["Po_anatomic"].x,
+                    landmarks["Or"].y-landmarks["Po_anatomic"].y,
+                ),
+                (orientation.superior_x,orientation.superior_y),
+            )
+            if palatal_value is None:
+                palatal_status=AvailabilityStatus.INVALID
+            else:
+                palatal_orientation_ref=orientation.evidence_id
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_PALATAL_PLANE_FH",
+            analysis="RICKETTS",method="RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+            canonical_id="M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",ids=palatal_ids,lm=landmarks,
+            value=palatal_value,unit="deg",orientation_ref=palatal_orientation_ref,
+            availability=palatal_status,
+        ))
+
     # Atlas/33 Wave B source-locked measurements.
     #14 (FOP-to-Xi signed distance) and #18 (commissure-to-FOP signed distance)
     # remain intentionally absent from runtime because their signed normal
