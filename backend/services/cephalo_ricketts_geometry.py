@@ -179,6 +179,25 @@ def ricketts_e_line_perpendicular_signed_distance_px_v2(
     return math.copysign(magnitude, anterior_score)
 
 
+def ricketts_mandibular_plane_fh_deg_v1(
+    po: Point,
+    or_: Point,
+    go_ricketts: Point,
+    me: Point,
+) -> Optional[float]:
+    """Angle between anatomical Frankfort and the source-specific Ricketts mandibular plane.
+
+    The mandibular plane is defined by the inferior border of the mandibular
+    angle and Menton. Generic Go identities are not promoted silently.
+    """
+    if not _finite_points(po, or_, go_ricketts, me):
+        return None
+    return _angle_deg(
+        (or_[0] - po[0], or_[1] - po[1]),
+        (me[0] - go_ricketts[0], me[1] - go_ricketts[1]),
+    )
+
+
 def ricketts_maxillary_depth_deg_v1(
     po: Point,
     or_: Point,
