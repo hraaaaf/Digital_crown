@@ -8,6 +8,7 @@
   ],
   "scientific_authority": false,
   "compatibility_only": true,
+  "evidence_root": "docs/audits/evidence/facad",
   "profiles": [
     {
       "target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
@@ -58,8 +59,8 @@
       "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET"
     ],
     "sha256_format": "64 lowercase hexadecimal characters",
-    "source_path_rule": "Repository-relative path to the exact immutable Facad export artifact; absolute paths and parent traversal are forbidden.",
-    "same_trace_rule": "A profile may become OBSERVED only when ANALYSIS_VALUES, ANALYSIS_PROPERTIES and MARKER_POSITIONS share at least one same_trace_case_id. Numeric parity rows must reference one same_trace_case_id."
+    "source_path_rule": "Repository-relative path under docs/audits/evidence/facad pointing to the exact immutable Facad export artifact; absolute paths and parent traversal are forbidden.",
+    "same_trace_rule": "A profile may become OBSERVED only when ANALYSIS_VALUES, ANALYSIS_PROPERTIES and MARKER_POSITIONS share at least one same_trace_case_id and the same facad_version. Numeric parity rows must reference one same_trace_case_id and one facad_version."
   },
   "parity_row_contract": {
     "required_fields": [
@@ -94,7 +95,10 @@
   ],
   "rules": {
     "direct_export_required": true,
+    "observed_membership_requires_analysis_values_and_properties": true,
     "observed_profile_requires_same_trace_triplet": true,
+    "same_trace_triplet_requires_same_facad_version": true,
+    "observed_at_requires_timezone": true,
     "no_membership_inference_from_vendor_label": true,
     "no_speculative_parity_rows": true,
     "no_sign_inference_without_observation": true,
