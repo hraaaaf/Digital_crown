@@ -1,3 +1,4 @@
+// FUX P1C baseline reproduction trigger: no runtime behavior change.
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Users, CalendarClock, AlertCircle } from 'lucide-react';
