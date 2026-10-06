@@ -5,6 +5,7 @@ import { MainLayout } from './MainLayout';
 
 const fetchPatientIntelligence = vi.fn();
 const fetchProfile = vi.fn();
+let mockUser: any = { is_superadmin: false, nom_complet: 'Owner', role: 'DENTISTE', employer_id: null };
 
 vi.mock('../Sidebar', () => ({
   Sidebar: ({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) => (
@@ -29,6 +30,7 @@ vi.mock('../CrownBot/CrownBotChat', () => ({
 vi.mock('../../features/tutorial/VoluntaryTutorial', () => ({ VoluntaryTutorialPanel: () => null }));
 vi.mock('../../features/clinic/ClinicPractitionerBar', () => ({ ClinicPractitionerBar: () => <div>Practitioner context</div> }));
 vi.mock('../../stores/useEliteStore', () => ({ useEliteStore: () => ({ fetchPatientIntelligence }) }));
+vi.mock('../../stores/useAuthStore', () => ({ useAuthStore: () => ({ user: mockUser }) }));
 vi.mock('../../features/admin/Settings/hooks/useSettingsStore', () => ({
   useSettingsStore: () => ({ profile: { nom: 'Cabinet', font_fr: 'inter' }, fetchProfile }),
 }));
@@ -45,7 +47,10 @@ function renderAt(path: string) {
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockUser = { is_superadmin: false, nom_complet: 'Owner', role: 'DENTISTE', employer_id: null };
+});
 afterEach(() => cleanup());
 
 describe('MainLayout G1 shell matrix', () => {
@@ -76,6 +81,18 @@ describe('MainLayout G1 shell matrix', () => {
 
     await waitFor(() => expect(fetchPatientIntelligence).toHaveBeenCalledWith(42));
     expect(screen.getByRole('button', { name: 'Header CrownBot' })).toBeTruthy();
+  });
+
+  it('does not fetch settings profile for a restricted shell user', async () => {
+    mockUser = {
+      is_superadmin: false,
+      nom_complet: 'Restricted',
+      role: 'SECRETAIRE',
+      employer_id: 1,
+      permissions: { settings: false },
+    };
+    renderAt('/dashboard');
+    await waitFor(() => expect(fetchProfile).not.toHaveBeenCalled());
   });
 
   it('shows practitioner context only on designated shell routes', () => {
