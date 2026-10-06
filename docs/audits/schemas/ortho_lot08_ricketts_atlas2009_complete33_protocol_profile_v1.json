@@ -1,7 +1,7 @@
 {
   "schema_version": "ORTHO_LOT08_RICKETTS_ATLAS2009_COMPLETE33_PROTOCOL_PROFILE_V1",
   "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
-  "status": "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__FAIL_CLOSED",
+  "status": "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__4_IMAGE_ORIENTATION_BLOCKS_REMAIN",
   "source_authority": {
     "title": "Atlas cefalometría y análisis facial",
     "authors": [
@@ -43,7 +43,7 @@
       "order": 4,
       "measurement_id": "M_RICKETTS_OVERBITE_FOP_MM_V1",
       "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "PERPENDICULAR_TO_FOP_SIGN_ORIENTATION_NOT_YET_DETERMINISTIC"
+      "gate": "OVERBITE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
     },
     {
       "order": 5,
@@ -77,14 +77,14 @@
     {
       "order": 10,
       "measurement_id": "M_L1_EDGE_APOG_MM_V1",
-      "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "L1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED"
+      "state": "EXECUTABLE",
+      "gate": "L1_INCISAL_EDGE_PERPENDICULAR_APOG__ANTERIOR_POSITIVE__VERIFIED_CALIBRATION_REQUIRED"
     },
     {
       "order": 11,
       "measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
-      "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "U1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED"
+      "state": "EXECUTABLE",
+      "gate": "U1_INCISAL_EDGE_PERPENDICULAR_APOG__ANTERIOR_POSITIVE__VERIFIED_CALIBRATION_REQUIRED"
     },
     {
       "order": 12,
@@ -100,7 +100,7 @@
       "order": 14,
       "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",
       "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "SIGNED_NORMAL_ORIENTATION_NOT_YET_DETERMINISTIC"
+      "gate": "FOP_XI_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
     },
     {
       "order": 15,
@@ -124,7 +124,7 @@
       "order": 18,
       "measurement_id": "M_RICKETTS_COMMISSURE_FOP_MM_V1",
       "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "SIGNED_FOP_NORMAL_ORIENTATION_NOT_YET_DETERMINISTIC"
+      "gate": "COMMISSURE_FOP_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
     },
     {
       "order": 19,
@@ -158,7 +158,7 @@
       "order": 24,
       "measurement_id": "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
       "state": "SOURCE_LOCKED_BLOCKED",
-      "gate": "PALATAL_PLANE_IDENTITIES_LOCKED__SIGNED_ANGLE_ORIENTATION_UNRESOLVED"
+      "gate": "PALATAL_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
     },
     {
       "order": 25,
