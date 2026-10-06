@@ -162,10 +162,8 @@ def generate_installment_receipt(
         Paragraph("Montant", th_style),
     ]]
 
-    row_styles = []
 
     for i, item in enumerate(items):
-        row_num    = i + 1
         paid       = item.get('paid', False)
         is_current = (i == first_unpaid_idx)
 
@@ -174,14 +172,11 @@ def generate_installment_receipt(
             lbl_color = colors.HexColor('#6B7280')
             amt_color = COLOR_PAID
             dte_color = colors.HexColor('#6B7280')
-            row_styles.append(('BACKGROUND', (0, row_num), (-1, row_num), COLOR_PAID_BG))
         elif is_current:
             state     = 'current'
             lbl_color = p_color
             amt_color = COLOR_CURRENT
             dte_color = p_color
-            row_styles.append(('BACKGROUND', (0, row_num), (-1, row_num), COLOR_CURRENT_BG))
-            row_styles.append(('FONTNAME',   (1, row_num), (1, row_num),  font_bold))
         else:
             state     = 'empty'
             lbl_color = colors.HexColor('#94A3B8')
