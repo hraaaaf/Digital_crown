@@ -178,13 +178,13 @@ export const StationAppointmentArrival = ({
         </div>
       )}
       {state !== 'loading' && result?.status === 'none' && (
-        <div data-station-no-appointment className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-start">
+        <div data-station-no-appointment className="mt-6 rounded-2xl border border-warning-border bg-warning-surface p-5 text-start">
           <div className="flex items-start gap-3">
-            <Users className="mt-0.5 shrink-0 text-amber-700" size={20} aria-hidden="true" />
+            <Users className="mt-0.5 shrink-0 text-warning" size={20} aria-hidden="true" />
             <div>
-              <p className="font-black text-amber-900">{copy.none}</p>
-              {staffSignal === 'sending' && <p className="mt-2 text-sm font-semibold leading-relaxed text-amber-800">{copy.notifying}</p>}
-              {staffSignal === 'sent' && <p data-station-staff-notified className="mt-2 text-sm font-semibold leading-relaxed text-amber-800">{copy.notified}</p>}
+              <p className="font-black text-warning">{copy.none}</p>
+              {staffSignal === 'sending' && <p className="mt-2 text-sm font-semibold leading-relaxed text-warning">{copy.notifying}</p>}
+              {staffSignal === 'sent' && <p data-station-staff-notified className="mt-2 text-sm font-semibold leading-relaxed text-warning">{copy.notified}</p>}
               {staffSignal === 'failed' && <p role="alert" className="mt-2 text-sm font-semibold leading-relaxed text-danger">{copy.notifyFailed}</p>}
             </div>
           </div>
