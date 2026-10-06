@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
+from PyPDF2 import PdfReader
 
 from backend.services.generators.certificat_gen import (
     CERTIFICATE_REASON_FREE,
@@ -62,3 +63,32 @@ def test_standard_certificate_never_shrinks_below_readable_floor():
     factors = _certificate_compression_factors(False)
     assert min(factors) >= 0.7
     assert factors[0] == 1.0
+
+
+def test_free_certificate_last_page_keeps_body_with_signature(tmp_path):
+    signer = SimpleNamespace(id=1, role="DENTISTE", nom_complet="Dr Test Dentiste", employer_id=None)
+
+    class _QueryStub:
+        def __init__(self, value):
+            self.value = value
+        def filter(self, *_args, **_kwargs):
+            return self
+        def first(self):
+            return self.value
+
+    class _DbStub:
+        def query(self, model):
+            return _QueryStub(signer if getattr(model, "__name__", "") == "User" else None)
+
+    gen = CertificatGenerator(output_dir=str(tmp_path))
+    patient = SimpleNamespace(nom="PDF-ROBUST", prenom="Élodie", date_naissance=date(1990, 1, 1), sexe="F")
+    paragraph = "Évaluation médico-dentaire — contrôle : sensibilité, œdème, évolution post-opératoire et tolérance fonctionnelle."
+    content = "\n\n".join(f"{paragraph} Bloc {i}." for i in range(1, 19))
+    data = SimpleNamespace(doc_date=date(2026, 10, 2), reason=CERTIFICATE_REASON_FREE, days=0, content=content, observations="")
+
+    path = gen.generate(patient, data, db=_DbStub(), user_id=signer.id)
+    pages = PdfReader(path).pages
+    assert len(pages) >= 2
+    last_text = pages[-1].extract_text() or ""
+    assert "Signature manuscrite du praticien" in last_text
+    assert "Évaluation médico-dentaire" in last_text
