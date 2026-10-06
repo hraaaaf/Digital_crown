@@ -183,3 +183,26 @@ class TestDeleteInstallmentPlan:
     def test_delete_nonexistent_returns_404(self, client, auth_headers):
         r = client.delete("/api/installments/plan/999999", headers=auth_headers)
         assert r.status_code == 404
+
+
+class TestGenerateInstallmentPreview:
+    def test_preview_url_has_protected_preview_token(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "PREVIEWTOKEN")
+        payload = {
+            "patient_id": pat.id,
+            "title": "Plan preview",
+            "total_amount": 600.0,
+            "items": [
+                {"label": "Acompte", "amount": 200.0, "due_date": "2026-10-02", "paid": True},
+                {"label": "Solde", "amount": 400.0, "due_date": "2026-11-02", "paid": False},
+            ],
+        }
+        r = client.post("/api/installments/generate-preview", json=payload, headers=auth_headers)
+        assert r.status_code == 200
+        pdf_url = r.json()["pdf_url"]
+        assert pdf_url.startswith("static/documents/")
+        assert "?preview_token=" in pdf_url
+
+        pdf = client.get(f"/api/{pdf_url}", headers=auth_headers)
+        assert pdf.status_code == 200
+        assert pdf.content.startswith(b"%PDF")
