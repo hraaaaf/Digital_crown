@@ -1226,8 +1226,8 @@ def test_v15_04_2_explicit_staff_confirmation_unlocks_station_arrival_receipt(cl
         f"/api/appointments/{appointment.id}/presence-confirmation",
         headers=headers,
     )
-    assert station_forbidden.status_code == 403
-    assert station_forbidden.json()["detail"] == "STAFF_WORKSTATION_REQUIRED"
+    assert station_forbidden.status_code == 423
+    assert station_forbidden.json()["detail"] == "WORKSTATION_STATION_LOCKED"
 
     switched = client.post(
         "/api/workstation/mode",
