@@ -241,3 +241,15 @@ These constructions extend the LOT06 deterministic authority without activating 
 - Source authority: Ricketts RM 1972 source-locks the R1-R4 ramal rectangle/centroid; Ricketts RM 1981 confirms Xi-Pm/oral-gnomon use. FH/PtV axis orientation is corroborated by peer-reviewed Ricketts implementations (e.g. Mangla et al., 2011, DOI `10.4103/0976-237X.86458`).
 
 - Mandibular-arc DC authority source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_DC_MANDIBULAR_ARC_SOURCE_LOCK.md`.
+
+
+## RICKETTS_CF_FH_PTV_INTERSECTION_V1
+
+- Purpose: Ricketts facial center (CF) for Atlas maxillary height and later internal-structure factors.
+- Definition: intersection of anatomical Frankfort with source-locked Ricketts PTV.
+- Runtime authority: consumes `RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1`; therefore `PR_Ricketts_PTV` remains MANUAL or MANUAL_CORRECTED.
+- Output: constructed landmark `CF_Ricketts`.
+- Same-source gate: inherited from PTV/FH evidence.
+- Generic/manual `CF` aliases are not promoted.
+- Downstream Wave B: `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md`.
