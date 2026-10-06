@@ -129,8 +129,8 @@ def _measurement(*, namespace:str, name:str, analysis:str, method:str, canonical
     if canonical_measurement_id_for_method(method) != canonical_id:
         raise ValueError(f"{method}: canonical method bridge drift")
     refs=[lm[i].evidence_id for i in ids if i in lm]
-    if not refs:
-        raise ValueError(f"{method}: no landmark evidence available")
+    if not refs and not construction_refs:
+        raise ValueError(f"{method}: no direct landmark or construction evidence available")
     if availability!=AvailabilityStatus.AVAILABLE: value=None
     evidence=[*refs,*construction_refs]
     if calibration_ref: evidence.append(calibration_ref)
