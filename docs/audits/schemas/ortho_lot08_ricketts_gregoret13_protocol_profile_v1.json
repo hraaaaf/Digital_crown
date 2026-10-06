@@ -4,7 +4,8 @@
   "status": "COMPOSITION_SOURCE_LOCKED__EXECUTION_PARTIAL_FAIL_CLOSED",
   "source_contracts": [
     "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
-    "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+    "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md",
+    "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md"
   ],
   "rules": {
     "no_parallel_formula_authority": true,
@@ -27,7 +28,8 @@
     {
       "order": 3,
       "measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
-      "state": "BLOCKED_CONSTRUCTION"
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "EXPLICIT_GO_RICKETTS_AND_ANATOMICAL_FRANKFORT_REQUIRED"
     },
     {
       "order": 4,
@@ -72,8 +74,8 @@
     {
       "order": 11,
       "measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
-      "state": "BLOCKED_CONSTRUCTION",
-      "gate": "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED"
+      "state": "BLOCKED_LANDMARK",
+      "gate": "EXPLICIT_RICKETTS_FOP_PREMOLAR_MOLAR_ANCHORS_AND_SIGN_CONVENTION_REQUIRED"
     },
     {
       "order": 12,
