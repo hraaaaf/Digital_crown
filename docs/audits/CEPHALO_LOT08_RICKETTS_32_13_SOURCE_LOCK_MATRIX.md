@@ -58,7 +58,7 @@ Reason:
 this is the source Facad itself cites, and the indexed chapter explicitly describes 33 factors.
 
 Status:
-COMPOSITION IDENTIFIED; exact row-by-row source lock below is materially recoverable, but several definitions/runtime identities remain blocked.
+COMPOSITION SOURCE-LOCKED to the Atlas 2009 33-factor table; execution remains partial/fail-closed. Canonical profile: `docs/audits/schemas/ortho_lot08_ricketts_atlas2009_complete33_protocol_profile_v1.json`.
 
 ### Main summarized profile
 Provisional ID:
@@ -78,9 +78,9 @@ These are product-parity targets only until the exact Facad membership/export is
 
 ---
 
-# A. Explicit 32-factor implementation matrix
+# A. Published 32-factor compatibility implementation matrix
 
-Source membership observed in the published 32-factor table.
+Source membership observed in a published 32-factor Ricketts implementation. This section is retained for compatibility comparison and is **not** the authoritative Atlas 2009 33-factor profile.
 
 | # | Factor | LOT06 / registry mapping | Current state |
 |---:|---|---|---|
@@ -265,7 +265,9 @@ A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts
 ## Gate
 
 `RICKETTS_GREGORET13_SOURCE_LOCK = CONTRACT_COMPLETE / VALIDATION_PENDING`  
-`RICKETTS_COMPLETE_PROFILE_SOURCE_LOCK = PARTIAL / OPEN`
+`RICKETTS_ATLAS2009_COMPLETE33_COMPOSITION_LOCK = COMPLETE`  
+`RICKETTS_ATLAS2009_COMPLETE33_EXECUTION_LOCK = PARTIAL / OPEN`  
+`FACAD_RICKETTS_32F_13F_PARITY = UNOBSERVED / OPEN`
 
 ## Next exact
 
