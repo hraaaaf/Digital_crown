@@ -8,6 +8,7 @@ import math
 from typing import Callable, Mapping, Optional
 from backend.schemas.cephalo_evidence import AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, MeasurementEvidence
 from backend.services.cephalo_canonical_constructions_v2 import (
+    RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID,
     RICKETTS_GN_CONSTRUCTION_ID,
     RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
 )
@@ -23,6 +24,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_facial_depth_deg_v1,
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
+    ricketts_l1_occlusal_extrusion_signed_px_v1,
     ricketts_maxillary_depth_deg_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
@@ -47,6 +49,7 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2",
     "RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2",
     "RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2",
+    "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2",
     "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
     "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
     "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
@@ -196,6 +199,50 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
     linear("RICKETTS_L1_EDGE_APOG","RICKETTS","RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2",
         "M_L1_EDGE_APOG_MM_V1",("L1_incisal","A","Pog_hard","Po_anatomic","Or"),
         lambda:ricketts_l1_edge_apog_signed_distance_px_v1(_p(landmarks,"L1_incisal"),_p(landmarks,"A"),_p(landmarks,"Pog_hard"),_p(landmarks,"Po_anatomic"),_p(landmarks,"Or")))
+
+    ricketts_extrusion_ids=("L1_incisal","L1_apex")
+    ricketts_extrusion_deps,ricketts_extrusion_status=_deps(landmarks,ricketts_extrusion_ids)
+    ricketts_fop=constructions.get(RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID)
+    if ricketts_extrusion_deps:
+        ricketts_extrusion_value=None
+        ricketts_extrusion_refs:tuple[str,...]=()
+        if ricketts_fop is None:
+            ricketts_extrusion_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            ricketts_extrusion_refs=(ricketts_fop.construction_id,)
+            if ricketts_fop.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_extrusion_status=AvailabilityStatus.NOT_COMPUTABLE
+            elif ricketts_extrusion_status==AvailabilityStatus.AVAILABLE:
+                point_x=ricketts_fop.geometry.get("point_x")
+                point_y=ricketts_fop.geometry.get("point_y")
+                direction_x=ricketts_fop.geometry.get("direction_x")
+                direction_y=ricketts_fop.geometry.get("direction_y")
+                source_image_ref=ricketts_fop.geometry.get("source_image_ref")
+                values=(point_x,point_y,direction_x,direction_y)
+                if (
+                    not all(isinstance(value,(int,float)) for value in values)
+                    or source_image_ref != landmarks["L1_incisal"].source_image_ref
+                ):
+                    ricketts_extrusion_status=AvailabilityStatus.INVALID
+                else:
+                    px=ricketts_l1_occlusal_extrusion_signed_px_v1(
+                        _p(landmarks,"L1_incisal"),
+                        _p(landmarks,"L1_apex"),
+                        (float(point_x),float(point_y)),
+                        (float(direction_x),float(direction_y)),
+                    )
+                    ricketts_extrusion_value,ricketts_extrusion_status=_calibrated_px(
+                        px,mm_per_pixel,calibration_ref
+                    )
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_L1_OCCLUSAL_EXTRUSION",analysis="RICKETTS",
+            method="RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2",
+            canonical_id="M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",ids=ricketts_extrusion_ids,
+            lm=landmarks,value=ricketts_extrusion_value,unit="mm",
+            requires_calibration=True,
+            calibration_ref=calibration_ref if ricketts_extrusion_status==AvailabilityStatus.AVAILABLE else None,
+            construction_refs=ricketts_extrusion_refs,availability=ricketts_extrusion_status,
+        ))
 
     facial_axis_ids=("Ba","N","Pt_Ricketts")
     facial_axis_deps,facial_axis_status=_deps(landmarks,facial_axis_ids)
