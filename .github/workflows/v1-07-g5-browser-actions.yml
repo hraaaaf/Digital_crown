@@ -10,8 +10,8 @@ on:
       - ".github/workflows/v1-07-g5-browser-actions.yml"
   workflow_dispatch:
 concurrency:
-  group: v1-07-g5-browser-actions-${{ github.ref }}
-  cancel-in-progress: true
+  group: v1-07-g5-browser-actions-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
