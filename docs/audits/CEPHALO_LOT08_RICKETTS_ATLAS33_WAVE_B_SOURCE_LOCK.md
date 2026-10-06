@@ -29,7 +29,7 @@ linear distance from Xi to the functional occlusal plane.
 Wave D confirms the source sign: positive when the occlusal plane passes above Xi; negative when it passes below Xi.
 
 State:
-`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
+`CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED`.
 
 No runtime method is activated because the current image-evidence contract does not prove anatomical superior/inferior orientation independently of screen coordinates.
 
@@ -81,7 +81,7 @@ Atlas definition:
 distance from labial commissure to the occlusal plane. Atlas text states negative values when the occlusal plane passes below the commissure and positive values for the inverse relation.
 
 State:
-`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
+`CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED`.
 
 Reason:
 the clinical sign is source-defined, but the current image-evidence contract does not prove the anatomical superior/inferior image axis required to implement it invariantly under rotation/mirroring. No runtime method is activated.
@@ -137,7 +137,7 @@ Source-locked identities:
 Wave D confirms the source direction: increased values describe anterior convergence and decreased values posterior convergence.
 
 State:
-`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
+`CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED`.
 
 Reason:
 the directional source meaning is now known, but a signed 2-D angle still requires evidenced image handedness/superior-inferior orientation. An unsigned acute angle remains forbidden because it would erase clinically meaningful direction.
@@ -145,3 +145,10 @@ the directional source meaning is now known, but a signed 2-D angle still requir
 ## Compatibility boundary
 
 Facad `Ricketts (32 F)` and `Ricketts (13 F)` remain parity targets only. No row-membership or sign equivalence is inferred from the vendor labels.
+
+
+## Image Orientation Evidence Contract — current runtime gate
+
+The follow-up orientation contract is now implemented in `docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md`.
+
+Any row previously blocked only by missing anatomical superior/inferior orientation is now `CONDITIONAL_EXECUTABLE`: it computes only when a versioned, same-image `ImageOrientationEvidence` is supplied. Existing cases without that evidence remain `NOT_COMPUTABLE`; no screen-axis fallback exists.
