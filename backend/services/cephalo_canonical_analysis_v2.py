@@ -11,6 +11,7 @@ from backend.services.cephalo_canonical_constructions_v2 import (
     RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID,
     RICKETTS_GN_CONSTRUCTION_ID,
     RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
+    RICKETTS_PTV_CONSTRUCTION_ID,
     RICKETTS_XI_CONSTRUCTION_ID,
 )
 from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
@@ -29,6 +30,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_lower_facial_height_ans_xi_pm_deg_v1,
     ricketts_mandibular_arc_deg_v1,
     ricketts_maxillary_depth_deg_v1,
+    ricketts_u6_distal_to_ptv_signed_px_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
 from backend.services.cephalo_tweed_merrifield_geometry import (
@@ -55,6 +57,7 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2",
     "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2",
     "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2",
+    "RICKETTS_U6_PTV_CANONICAL_MM_V2",
     "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
     "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
     "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
@@ -371,6 +374,55 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             canonical_id="M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",ids=ricketts_arc_ids,
             lm=landmarks,value=ricketts_arc_value,unit="deg",
             construction_refs=ricketts_arc_refs,availability=ricketts_arc_status,
+        ))
+
+    ricketts_u6_ids=("U6_DISTAL_Ricketts",)
+    ricketts_u6_deps,ricketts_u6_status=_deps(landmarks,ricketts_u6_ids)
+    if (
+        "U6_DISTAL_Ricketts" in landmarks
+        and landmarks["U6_DISTAL_Ricketts"].origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+    ):
+        ricketts_u6_status=AvailabilityStatus.NOT_COMPUTABLE
+    ricketts_ptv=constructions.get(RICKETTS_PTV_CONSTRUCTION_ID)
+    if ricketts_u6_deps:
+        ricketts_u6_value=None
+        ricketts_u6_refs:tuple[str,...]=()
+        if ricketts_ptv is None:
+            ricketts_u6_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            ricketts_u6_refs=(ricketts_ptv.construction_id,)
+            if ricketts_ptv.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_u6_status=ricketts_ptv.availability_status
+            elif ricketts_u6_status==AvailabilityStatus.AVAILABLE:
+                point_x=ricketts_ptv.geometry.get("point_x")
+                point_y=ricketts_ptv.geometry.get("point_y")
+                source_image_ref=ricketts_ptv.geometry.get("source_image_ref")
+                if (
+                    not isinstance(point_x,(int,float))
+                    or not isinstance(point_y,(int,float))
+                    or source_image_ref != landmarks["U6_DISTAL_Ricketts"].source_image_ref
+                    or "Po_anatomic" not in landmarks
+                    or "Or" not in landmarks
+                ):
+                    ricketts_u6_status=AvailabilityStatus.INVALID
+                else:
+                    px=ricketts_u6_distal_to_ptv_signed_px_v1(
+                        _p(landmarks,"U6_DISTAL_Ricketts"),
+                        (float(point_x),float(point_y)),
+                        _p(landmarks,"Po_anatomic"),
+                        _p(landmarks,"Or"),
+                    )
+                    ricketts_u6_value,ricketts_u6_status=_calibrated_px(
+                        px,mm_per_pixel,calibration_ref
+                    )
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_U6_PTV",analysis="RICKETTS",
+            method="RICKETTS_U6_PTV_CANONICAL_MM_V2",
+            canonical_id="M_U6_PTV_MM_V1",ids=ricketts_u6_ids,
+            lm=landmarks,value=ricketts_u6_value,unit="mm",
+            requires_calibration=True,
+            calibration_ref=calibration_ref if ricketts_u6_status==AvailabilityStatus.AVAILABLE else None,
+            construction_refs=ricketts_u6_refs,availability=ricketts_u6_status,
         ))
 
     def convexity():
