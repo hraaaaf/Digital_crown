@@ -134,9 +134,6 @@ try {
       });
 
       await page.goto('http://127.0.0.1:4198/station', { waitUntil: 'networkidle', timeout: 30000 });
-      await page.addStyleTag({
-        content: '*,*::before,*::after{transition:none !important;animation:none !important;}',
-      });
       if (scale.rootFontSize) {
         await page.evaluate(value => { document.documentElement.style.fontSize = value; }, scale.rootFontSize);
         await page.waitForTimeout(100);
@@ -144,12 +141,42 @@ try {
 
       await page.locator('[data-workstation-experience="station"]').waitFor();
       const reducedMotion = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const actionProbe = page.locator('[data-station-action="appointment"]');
+      const primaryProbe = page.getByRole('button', { name: 'Français', exact: true });
+      const motionStyles = await Promise.all([
+        actionProbe.evaluate(node => {
+          const style = getComputedStyle(node);
+          return { transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration };
+        }),
+        primaryProbe.evaluate(node => {
+          const style = getComputedStyle(node);
+          return { transitionProperty: style.transitionProperty, transitionDuration: style.transitionDuration };
+        }),
+      ]);
+      await actionProbe.hover();
+      const hoverMotion = await actionProbe.evaluate(node => {
+        const style = getComputedStyle(node);
+        return { transform: style.transform, translate: style.translate };
+      });
+      await page.mouse.move(0, 0);
+      const transitionDisabled = motionStyles.every(style =>
+        style.transitionProperty === 'none' ||
+        style.transitionDuration.split(',').every(value => Number.parseFloat(value) === 0)
+      );
+      const hoverStatic =
+        (hoverMotion.transform === 'none' || hoverMotion.transform === 'matrix(1, 0, 0, 1, 0, 0)') &&
+        (hoverMotion.translate === 'none' || /^0(px)?(?:\s+0(px)?)?$/.test(hoverMotion.translate));
+      const reducedMotionProof = { transitionDisabled, hoverStatic, motionStyles, hoverMotion };
+
+      await page.addStyleTag({
+        content: '*,*::before,*::after{transition:none !important;animation:none !important;}',
+      });
+
       const originalTheme = await page.evaluate(() => ({
         html: document.documentElement.getAttribute('data-theme'),
         body: document.body.getAttribute('data-theme'),
       }));
       const themeContrasts = [];
-      const primaryProbe = page.getByRole('button', { name: 'Français', exact: true });
       for (const theme of contrastThemes) {
         await page.evaluate(themeName => {
           for (const node of [document.documentElement, document.body]) {
@@ -214,6 +241,7 @@ try {
         viewport: vp.label,
         scale: scale.label,
         reducedMotion,
+        reducedMotionProof,
         homeOverflow: homeMeta.scrollWidth > homeMeta.width,
         offlineOverflow: offlineMeta.scrollWidth > offlineMeta.width,
         clinicalLinks: homeMeta.clinicalLinks,
@@ -242,6 +270,7 @@ await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, nul
 
 const failures = report.filter(item =>
   !item.reducedMotion ||
+  (phase === 'after' && (!item.reducedMotionProof.transitionDisabled || !item.reducedMotionProof.hoverStatic)) ||
   item.homeOverflow ||
   item.offlineOverflow ||
   item.clinicalLinks.length > 0 ||
