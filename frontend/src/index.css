@@ -12,6 +12,18 @@
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
   --color-on-primary: var(--text-on-primary);
+  --color-success: var(--status-success);
+  --color-success-surface: var(--status-success-surface);
+  --color-success-border: var(--status-success-border);
+  --color-danger: var(--status-danger);
+  --color-danger-surface: var(--status-danger-surface);
+  --color-danger-border: var(--status-danger-border);
+  --color-warning: var(--status-warning);
+  --color-warning-surface: var(--status-warning-surface);
+  --color-warning-border: var(--status-warning-border);
+  --color-info: var(--status-info);
+  --color-info-surface: var(--status-info-surface);
+  --color-info-border: var(--status-info-border);
   
   /* TOKENS ELITE (Arrondis & Ombres) */
   --radius-elite: 24px;
@@ -66,6 +78,20 @@
   --secondary: #1e40af;
   --accent: #60a5fa;
   --text-on-primary: #ffffff;
+
+  /* Semantic status tokens: UI code consumes meaning, never palette names. */
+  --status-success: #047857;
+  --status-success-surface: #ecfdf5;
+  --status-success-border: #a7f3d0;
+  --status-danger: #be123c;
+  --status-danger-surface: #fff1f2;
+  --status-danger-border: #fecdd3;
+  --status-warning: #b45309;
+  --status-warning-surface: #fffbeb;
+  --status-warning-border: #fde68a;
+  --status-info: #1d4ed8;
+  --status-info-surface: #eff6ff;
+  --status-info-border: #bfdbfe;
 
   /* Transitions Globales */
   --transition-elite: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
