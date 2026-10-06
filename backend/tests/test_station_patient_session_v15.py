@@ -1134,8 +1134,12 @@ def test_v15_04_2_staff_presence_proof_unlocks_deterministic_receipt(client, db,
     )
     appointment = _presence_appointment(db, dentiste, patient)
 
-    station_cookie = client.cookies.get("dc_workstation")
-    client.cookies.delete("dc_workstation")
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
     updated = client.put(
         f"/api/appointments/{appointment.id}",
         headers=headers,
@@ -1147,7 +1151,12 @@ def test_v15_04_2_staff_presence_proof_unlocks_deterministic_receipt(client, db,
         headers=headers,
     )
     assert confirmed.status_code == 200, confirmed.text
-    client.cookies.set("dc_workstation", station_cookie)
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
 
     staff_proofs = db.query(models.AuditLog).filter(
         models.AuditLog.employer_id == dentiste.id,
@@ -1213,15 +1222,19 @@ def test_v15_04_2_explicit_staff_confirmation_unlocks_station_arrival_receipt(cl
     )
     assert arrived.status_code == 200, arrived.text
 
-    station_cookie = client.cookies.get("dc_workstation")
     station_forbidden = client.post(
         f"/api/appointments/{appointment.id}/presence-confirmation",
         headers=headers,
     )
     assert station_forbidden.status_code == 403
-    assert station_forbidden.json()["detail"] == "STAFF_PRESENCE_CONFIRMATION_REQUIRED"
+    assert station_forbidden.json()["detail"] == "STAFF_WORKSTATION_REQUIRED"
 
-    client.cookies.delete("dc_workstation")
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
     confirm = client.post(
         f"/api/appointments/{appointment.id}/presence-confirmation",
         headers=headers,
@@ -1235,7 +1248,12 @@ def test_v15_04_2_explicit_staff_confirmation_unlocks_station_arrival_receipt(cl
     )
     assert repeat.status_code == 200
     assert repeat.json()["proofId"] == confirm.json()["proofId"]
-    client.cookies.set("dc_workstation", station_cookie)
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
 
     receipt = client.get(
         f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
@@ -1254,8 +1272,12 @@ def test_v15_04_2_presence_receipt_supports_arabic_patient_name(client, db, dent
     db.commit()
     appointment = _presence_appointment(db, dentiste, patient)
 
-    station_cookie = client.cookies.get("dc_workstation")
-    client.cookies.delete("dc_workstation")
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
     updated = client.put(
         f"/api/appointments/{appointment.id}",
         headers=headers,
@@ -1267,7 +1289,12 @@ def test_v15_04_2_presence_receipt_supports_arabic_patient_name(client, db, dent
         headers=headers,
     )
     assert confirmed.status_code == 200, confirmed.text
-    client.cookies.set("dc_workstation", station_cookie)
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
 
     receipt = client.get(
         f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
@@ -1284,8 +1311,12 @@ def test_v15_04_2_rescheduling_invalidates_old_presence_proof(client, db, dentis
     )
     appointment = _presence_appointment(db, dentiste, patient)
 
-    station_cookie = client.cookies.get("dc_workstation")
-    client.cookies.delete("dc_workstation")
+    switched = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "cabinet", "ownerPin": "2468"},
+    )
+    assert switched.status_code == 200, switched.text
     present = client.put(
         f"/api/appointments/{appointment.id}",
         headers=headers,
@@ -1305,7 +1336,12 @@ def test_v15_04_2_rescheduling_invalidates_old_presence_proof(client, db, dentis
         json={"datetime_start": shifted.isoformat()},
     )
     assert moved.status_code == 200, moved.text
-    client.cookies.set("dc_workstation", station_cookie)
+    back_to_station = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": "station", "ownerPin": "2468"},
+    )
+    assert back_to_station.status_code == 200, back_to_station.text
 
     receipt = client.get(
         f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
