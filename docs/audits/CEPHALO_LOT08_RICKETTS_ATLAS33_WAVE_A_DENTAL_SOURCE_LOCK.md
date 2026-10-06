@@ -101,10 +101,12 @@ Reason:
 the sources recovered in this pass do not provide enough deterministic information to orient the perpendicular sign independently of screen orientation without importing a Digital Crown convention. No runtime method is activated.
 
 ### #10 Lower-incisor protrusion
-Correct canonical mapping:
+Canonical identity candidate:
 `M_L1_EDGE_APOG_MM_V1`.
 
-Ricketts uses the lower incisal edge/tip relative to A-Pog. The previous matrix mapping to `M_L1_FACIAL_SURFACE_APOG_MM_V1` mixed in a McNamara facial-surface identity and is rejected.
+Ricketts/Atlas uses the lower incisal edge/tip relative to A-Pog. The previous matrix mapping to `M_L1_FACIAL_SURFACE_APOG_MM_V1` mixed in a McNamara facial-surface identity and is rejected.
+
+However, for the Atlas 2009 complete profile specifically, the recovered text does not specify the metric direction from L1 to A-Pog. Because recovered secondary mappings conflict, Atlas activation is `SOURCE_LOCKED_BLOCKED` with gate `L1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED`. The existing Gregoret canonical/runtime is not modified by this Atlas-specific quarantine.
 
 ### #11 Upper-incisor protrusion
 ID reserved: `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1`.
