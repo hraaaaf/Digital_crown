@@ -41,8 +41,8 @@
     {
       "order": 5,
       "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
-      "state": "BLOCKED_LANDMARK",
-      "gate": "DC_RICKETTS_XI_RICKETTS_PM_RICKETTS_REQUIRED"
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_DC_RICKETTS_SOURCE_LOCKED_XI_MANUAL_PM_RICKETTS_REQUIRED"
     },
     {
       "order": 6,
