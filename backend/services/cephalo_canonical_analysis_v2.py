@@ -513,27 +513,31 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
     if palatal_deps:
         palatal_value=None
         palatal_orientation_ref=None
-        if landmarks["PNS_Ricketts"].origin not in {
-            LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED
-        }:
+        if (
+            "PNS_Ricketts" in landmarks
+            and landmarks["PNS_Ricketts"].origin not in {
+                LandmarkOrigin.MANUAL,LandmarkOrigin.MANUAL_CORRECTED
+            }
+        ):
             palatal_status=AvailabilityStatus.NOT_COMPUTABLE
-        source=landmarks["Po_anatomic"].source_image_ref
-        orientation=_orientation_for_source(source)
-        if orientation is None:
-            palatal_status=AvailabilityStatus.NOT_COMPUTABLE
-        elif palatal_status==AvailabilityStatus.AVAILABLE:
-            palatal_value=ricketts_palatal_plane_signed_deg_v1(
+        if palatal_status==AvailabilityStatus.AVAILABLE:
+            source=landmarks["Po_anatomic"].source_image_ref
+            orientation=_orientation_for_source(source)
+            if orientation is None:
+                palatal_status=AvailabilityStatus.NOT_COMPUTABLE
+            else:
+                palatal_value=ricketts_palatal_plane_signed_deg_v1(
                 _p(landmarks,"ANS"),_p(landmarks,"PNS_Ricketts"),
                 (
                     landmarks["Or"].x-landmarks["Po_anatomic"].x,
                     landmarks["Or"].y-landmarks["Po_anatomic"].y,
                 ),
-                (orientation.superior_x,orientation.superior_y),
-            )
-            if palatal_value is None:
-                palatal_status=AvailabilityStatus.INVALID
-            else:
-                palatal_orientation_ref=orientation.evidence_id
+                    (orientation.superior_x,orientation.superior_y),
+                )
+                if palatal_value is None:
+                    palatal_status=AvailabilityStatus.INVALID
+                else:
+                    palatal_orientation_ref=orientation.evidence_id
         out.append(_measurement(
             namespace=measurement_namespace,name="RICKETTS_PALATAL_PLANE_FH",
             analysis="RICKETTS",method="RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
