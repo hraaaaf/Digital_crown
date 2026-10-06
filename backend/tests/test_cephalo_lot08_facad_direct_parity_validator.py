@@ -25,13 +25,13 @@ def _mark_partial(manifest, target_id):
 
 
 def _artifact(tmp_path, name, content=b"facad-export"):
-    path = tmp_path / "evidence" / name
+    path = tmp_path / "docs" / "audits" / "evidence" / "facad" / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     return path
 
 
-def _record(tmp_path, evidence_id, kind, target_id=TARGET_32, trace_id="trace-1", content=None):
+def _record(tmp_path, evidence_id, kind, target_id=TARGET_32, trace_id="trace-1", version="TEST-3.12", content=None):
     payload = content if content is not None else f"{evidence_id}:{kind}".encode()
     path = _artifact(tmp_path, f"{evidence_id}.txt", payload)
     rel = path.relative_to(tmp_path).as_posix()
@@ -42,7 +42,7 @@ def _record(tmp_path, evidence_id, kind, target_id=TARGET_32, trace_id="trace-1"
         "source_path": rel,
         "source_filename": path.name,
         "sha256": hashlib.sha256(payload).hexdigest(),
-        "facad_version": "TEST-3.12",
+        "facad_version": version,
         "observed_at": "2026-10-06T22:00:00Z",
         "same_trace_case_id": trace_id,
     }
@@ -87,11 +87,29 @@ def test_source_path_rejects_parent_traversal(tmp_path):
     assert any("repository-relative without parent traversal" in item for item in errors)
 
 
-def test_observed_membership_requires_analysis_values_evidence(tmp_path):
+def test_source_path_must_live_under_dedicated_facad_evidence_root(tmp_path):
     manifest = _base_manifest()
     _mark_partial(manifest, TARGET_32)
-    marker = _record(tmp_path, "facad32-markers", "MARKER_POSITIONS")
-    manifest["evidence_records"] = [marker]
+    payload = b"not-in-evidence-root"
+    outside = tmp_path / "docs" / "random.txt"
+    outside.parent.mkdir(parents=True, exist_ok=True)
+    outside.write_bytes(payload)
+    record = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
+    record["source_path"] = "docs/random.txt"
+    record["source_filename"] = "random.txt"
+    record["sha256"] = hashlib.sha256(payload).hexdigest()
+    manifest["evidence_records"] = [record]
+
+    errors = validate_manifest(manifest, tmp_path)
+
+    assert any("must live under docs/audits/evidence/facad" in item for item in errors)
+
+
+def test_observed_membership_requires_values_and_profile_properties(tmp_path):
+    manifest = _base_manifest()
+    _mark_partial(manifest, TARGET_32)
+    values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
+    manifest["evidence_records"] = [values]
     manifest["parity_rows"] = [{
         "profile_target_id": TARGET_32,
         "facad_order": 1,
@@ -101,20 +119,21 @@ def test_observed_membership_requires_analysis_values_evidence(tmp_path):
         "membership_status": "OBSERVED_MATCH",
         "sign_status": "UNOBSERVED",
         "numeric_status": "UNOBSERVED",
-        "evidence_refs": ["facad32-markers"],
+        "evidence_refs": ["facad32-values"],
     }]
 
     errors = validate_manifest(manifest, tmp_path)
 
-    assert any("observed membership requires ANALYSIS_VALUES evidence" in item for item in errors)
+    assert any("observed membership requires ANALYSIS_VALUES + ANALYSIS_PROPERTIES evidence" in item for item in errors)
 
 
-def test_numeric_parity_rejects_cross_trace_evidence(tmp_path):
+def test_numeric_parity_rejects_cross_trace_or_cross_version_evidence(tmp_path):
     manifest = _base_manifest()
     _mark_partial(manifest, TARGET_32)
-    values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES", trace_id="trace-A")
-    markers = _record(tmp_path, "facad32-markers", "MARKER_POSITIONS", trace_id="trace-B")
-    manifest["evidence_records"] = [values, markers]
+    values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES", trace_id="trace-A", version="3.12")
+    props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES", trace_id="trace-A", version="3.12")
+    markers = _record(tmp_path, "facad32-markers", "MARKER_POSITIONS", trace_id="trace-B", version="3.13")
+    manifest["evidence_records"] = [values, props, markers]
     manifest["parity_rows"] = [{
         "profile_target_id": TARGET_32,
         "facad_order": 1,
@@ -124,12 +143,24 @@ def test_numeric_parity_rejects_cross_trace_evidence(tmp_path):
         "membership_status": "OBSERVED_MATCH",
         "sign_status": "OBSERVED_MATCH",
         "numeric_status": "OBSERVED_MATCH",
-        "evidence_refs": ["facad32-values", "facad32-markers"],
+        "evidence_refs": ["facad32-values", "facad32-props", "facad32-markers"],
     }]
 
     errors = validate_manifest(manifest, tmp_path)
 
-    assert any("numeric parity evidence must share one same_trace_case_id" in item for item in errors)
+    assert any("numeric parity evidence must share one same_trace_case_id and facad_version" in item for item in errors)
+
+
+def test_timezone_is_required_for_observation_timestamp(tmp_path):
+    manifest = _base_manifest()
+    _mark_partial(manifest, TARGET_32)
+    record = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
+    record["observed_at"] = "2026-10-06T22:00:00"
+    manifest["evidence_records"] = [record]
+
+    errors = validate_manifest(manifest, tmp_path)
+
+    assert any("timezone-aware ISO-8601" in item for item in errors)
 
 
 def test_parity_row_rejects_unknown_evidence_reference(tmp_path):
@@ -137,6 +168,7 @@ def test_parity_row_rejects_unknown_evidence_reference(tmp_path):
     _mark_partial(manifest, TARGET_13)
     manifest["evidence_records"] = [
         _record(tmp_path, "facad13-values", "ANALYSIS_VALUES", target_id=TARGET_13),
+        _record(tmp_path, "facad13-props", "ANALYSIS_PROPERTIES", target_id=TARGET_13),
     ]
     manifest["parity_rows"] = [{
         "profile_target_id": TARGET_13,
@@ -183,7 +215,8 @@ def test_speculative_unobserved_parity_rows_are_rejected(tmp_path):
     manifest = _base_manifest()
     _mark_partial(manifest, TARGET_32)
     values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
-    manifest["evidence_records"] = [values]
+    props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES")
+    manifest["evidence_records"] = [values, props]
     manifest["parity_rows"] = [{
         "profile_target_id": TARGET_32,
         "facad_order": 1,
@@ -193,7 +226,7 @@ def test_speculative_unobserved_parity_rows_are_rejected(tmp_path):
         "membership_status": "UNOBSERVED",
         "sign_status": "UNOBSERVED",
         "numeric_status": "UNOBSERVED",
-        "evidence_refs": ["facad32-values"],
+        "evidence_refs": ["facad32-values", "facad32-props"],
     }]
 
     errors = validate_manifest(manifest, tmp_path)
@@ -201,19 +234,19 @@ def test_speculative_unobserved_parity_rows_are_rejected(tmp_path):
     assert any("membership_status is invalid or speculative" in item for item in errors)
 
 
-def test_observed_profile_requires_same_trace_triplet_and_complete_vendor_order(tmp_path):
+def test_observed_profile_requires_same_trace_same_version_triplet_and_complete_vendor_order(tmp_path):
     manifest = copy.deepcopy(_base_manifest())
     _profile(manifest, TARGET_13)["observation_status"] = "OBSERVED"
     manifest["status"] = "DIRECT_EVIDENCE_PARTIAL"
     manifest["evidence_records"] = [
-        _record(tmp_path, "facad13-values", "ANALYSIS_VALUES", target_id=TARGET_13, trace_id="trace-A"),
-        _record(tmp_path, "facad13-props", "ANALYSIS_PROPERTIES", target_id=TARGET_13, trace_id="trace-B"),
-        _record(tmp_path, "facad13-markers", "MARKER_POSITIONS", target_id=TARGET_13, trace_id="trace-C"),
+        _record(tmp_path, "facad13-values", "ANALYSIS_VALUES", target_id=TARGET_13, trace_id="trace-A", version="3.12"),
+        _record(tmp_path, "facad13-props", "ANALYSIS_PROPERTIES", target_id=TARGET_13, trace_id="trace-A", version="3.12"),
+        _record(tmp_path, "facad13-markers", "MARKER_POSITIONS", target_id=TARGET_13, trace_id="trace-A", version="3.13"),
     ]
 
     errors = validate_manifest(manifest, tmp_path)
 
-    assert any("same-trace triplet" in item for item in errors)
+    assert any("same-trace same-version triplet" in item for item in errors)
     assert any("requires exactly 13 Facad rows" in item for item in errors)
     assert any("requires complete Facad order 1..13" in item for item in errors)
 
@@ -222,8 +255,9 @@ def test_facad_only_row_cannot_claim_numeric_or_sign_comparison(tmp_path):
     manifest = _base_manifest()
     _mark_partial(manifest, TARGET_32)
     values = _record(tmp_path, "facad32-values", "ANALYSIS_VALUES")
+    props = _record(tmp_path, "facad32-props", "ANALYSIS_PROPERTIES")
     markers = _record(tmp_path, "facad32-markers", "MARKER_POSITIONS")
-    manifest["evidence_records"] = [values, markers]
+    manifest["evidence_records"] = [values, props, markers]
     manifest["parity_rows"] = [{
         "profile_target_id": TARGET_32,
         "facad_order": 1,
@@ -233,7 +267,7 @@ def test_facad_only_row_cannot_claim_numeric_or_sign_comparison(tmp_path):
         "membership_status": "OBSERVED_FACAD_ONLY",
         "sign_status": "OBSERVED_DIFFERENT",
         "numeric_status": "OBSERVED_DIFFERENT",
-        "evidence_refs": ["facad32-values", "facad32-markers"],
+        "evidence_refs": ["facad32-values", "facad32-props", "facad32-markers"],
     }]
 
     errors = validate_manifest(manifest, tmp_path)
