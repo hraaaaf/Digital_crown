@@ -41,6 +41,31 @@ class ImageOrientationOrigin(str, Enum):
     MANUAL_VERIFIED = "MANUAL_VERIFIED"
 
 
+class ReviewState(str, Enum):
+    PROPOSED = "PROPOSED"
+    ACCEPTED = "ACCEPTED"
+    EDITED = "EDITED"
+    REJECTED = "REJECTED"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+
+class TreatmentOptionStatus(str, Enum):
+    EVALUABLE = "EVALUABLE"
+    BLOCKED_INSUFFICIENT_DATA = "BLOCKED_INSUFFICIENT_DATA"
+    REJECTED = "REJECTED"
+    CLINICIAN_SELECTED = "CLINICIAN_SELECTED"
+
+
+class ValidationAction(str, Enum):
+    ACCEPT = "ACCEPT"
+    EDIT = "EDIT"
+    REJECT = "REJECT"
+
+
+class _StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
 class ImageOrientationEvidence(_StrictModel):
     evidence_id: str = Field(min_length=1)
     source_image_ref: str = Field(min_length=1)
@@ -79,31 +104,6 @@ class ImageOrientationEvidence(_StrictModel):
             if not self.validated_by or not self.validated_at:
                 raise ValueError("Manual image orientation requires clinician/operator audit")
         return self
-
-
-class ReviewState(str, Enum):
-    PROPOSED = "PROPOSED"
-    ACCEPTED = "ACCEPTED"
-    EDITED = "EDITED"
-    REJECTED = "REJECTED"
-    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
-
-
-class TreatmentOptionStatus(str, Enum):
-    EVALUABLE = "EVALUABLE"
-    BLOCKED_INSUFFICIENT_DATA = "BLOCKED_INSUFFICIENT_DATA"
-    REJECTED = "REJECTED"
-    CLINICIAN_SELECTED = "CLINICIAN_SELECTED"
-
-
-class ValidationAction(str, Enum):
-    ACCEPT = "ACCEPT"
-    EDIT = "EDIT"
-    REJECT = "REJECT"
-
-
-class _StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
 
 
 class SourceEvidence(_StrictModel):
