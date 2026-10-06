@@ -58,7 +58,7 @@ Reason:
 this is the source Facad itself cites, and the indexed chapter explicitly describes 33 factors.
 
 Status:
-COMPOSITION SOURCE-LOCKED to the Atlas 2009 33-factor table; execution remains partial/fail-closed. Canonical profile: `docs/audits/schemas/ortho_lot08_ricketts_atlas2009_complete33_protocol_profile_v1.json`.
+COMPOSITION + EXECUTION CONTRACTS SOURCE-LOCKED for Atlas 2009 33/33. Runtime is fail-closed per contract; four signed rows are conditional on versioned `ImageOrientationEvidence`. Canonical profile: `docs/audits/schemas/ortho_lot08_ricketts_atlas2009_complete33_protocol_profile_v1.json`.
 
 ### Main summarized profile
 Provisional ID:
@@ -87,7 +87,7 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 1 | Molar relation | `M_RICKETTS_MOLAR_RELATION_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: manual `L6_DISTAL_Ricketts` + `U6_DISTAL_Ricketts` + source-locked FOP + verified calibration |
 | 2 | Canine relation | `M_RICKETTS_CANINE_RELATION_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: manual `L3_CUSP_Ricketts` + `U3_CUSP_Ricketts` + source-locked FOP + verified calibration |
 | 3 | Incisor overjet | `M_RICKETTS_OVERJET_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: `L1_incisal` + `U1_incisal` + source-locked FOP + verified calibration; positive upper-anterior |
-| 4 | Incisor overbite | `M_RICKETTS_OVERBITE_FOP_MM_V1` | SOURCE_LOCKED_BLOCKED: source sign known (open bite negative); superior/inferior image axis not evidenced; no runtime promotion |
+| 4 | Incisor overbite | `M_RICKETTS_OVERBITE_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: source sign known; versioned same-image `ImageOrientationEvidence` + FOP + calibration required |
 | 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + `L1_incisal/L1_apex` crownward-positive sign + verified calibration |
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
@@ -97,17 +97,17 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 11 | Maxillary incisor protrusion | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | EXECUTABLE: perpendicular U1 incisal-edge distance to A-Pog; anterior positive |
 | 12 | Mandibular incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
 | 13 | Maxillary incisor inclination to A-Pog | `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | EXECUTABLE: explicit `U1_incisal/U1_apex` axis vs A-Pog |
-| 14 | Occlusal plane to ramus/Xi | `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | SOURCE_LOCKED_BLOCKED: source sign known (+ plane above Xi / − below); superior/inferior image axis not evidenced |
+| 14 | Occlusal plane to ramus/Xi | `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | CONDITIONAL_EXECUTABLE: source sign known; versioned same-image `ImageOrientationEvidence` + canonical FOP/Xi + calibration required |
 | 15 | Occlusal plane inclination | `M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + canonical Xi + manual Pm |
 | 16 | Lip protrusion | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
 | 17 | Upper lip length | `M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1` | CONDITIONAL_EXECUTABLE: ANS + manual `LABIAL_COMMISSURE_Ricketts` + calibration |
-| 18 | Lip embrasure/comissure to occlusal plane | `M_RICKETTS_COMMISSURE_FOP_MM_V1` | SOURCE_LOCKED_BLOCKED: source sign known (negative when FOP below commissure); superior/inferior image axis not evidenced |
+| 18 | Lip embrasure/comissure to occlusal plane | `M_RICKETTS_COMMISSURE_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: source sign known; manual commissure + FOP + versioned same-image `ImageOrientationEvidence` + calibration required |
 | 19 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
 | 20 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | EXECUTABLE only with explicit/audited `Pt_Ricketts`; auto legacy Pt fails closed |
 | 21 | Facial taper / facial cone | `M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1` | CONDITIONAL_EXECUTABLE: N-Pog + source-locked Ricketts mandibular plane |
 | 22 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
 | 23 | Maxillary height | `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | CONDITIONAL_EXECUTABLE: N-CF-A, CF = anatomical FH ∩ source-locked PTV |
-| 24 | Palatal plane | `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | SOURCE_LOCKED_BLOCKED: directional sign now source-known; superior/inferior image axis not evidenced, so no signed runtime |
+| 24 | Palatal plane | `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: signed source direction + anatomical FH + manual PNS + versioned same-image `ImageOrientationEvidence` |
 | 25 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: explicit `MP_ANGLE_INFERIOR_Ricketts` + Me + anatomical Frankfort; generic Go/Go-Gn substitution forbidden |
 | 26 | Cranial deflection | `M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1` | EXECUTABLE: anatomical FH vs Ba-N |
 | 27 | Anterior cranial length | `M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1` | CONDITIONAL_EXECUTABLE: Atlas2009 CC + N + calibration |
@@ -266,15 +266,14 @@ A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts
 
 `RICKETTS_GREGORET13_SOURCE_LOCK = CONTRACT_COMPLETE / VALIDATION_PENDING`  
 `RICKETTS_ATLAS2009_COMPLETE33_COMPOSITION_LOCK = COMPLETE`  
-`RICKETTS_ATLAS2009_COMPLETE33_EXECUTION_LOCK = PARTIAL / OPEN`  
+`RICKETTS_ATLAS2009_COMPLETE33_EXECUTION_LOCK = CONTRACT_COMPLETE / VALIDATION_PENDING`  
 `FACAD_RICKETTS_32F_13F_PARITY = UNOBSERVED / OPEN`
 
 ## Next exact
 
-1. Complete validation/convergence of the Gregoret 13 source-lock on the final exact HEAD.
-2. Continue the Atlas 2009 complete-profile contracts with the 6 remaining new canonical contracts in structures internes (#26-#33), plus the explicitly quarantined signed/label conflicts.
-3. Keep norms, age/sex interpretation, VERT and clinical classification disabled until separately validated.
-4. Only then wire any new UI/report/tracing for the expanded protocol.
-5. Keep Facad 32F/13F as parity checks, not scientific source identifiers.
+1. Certify the Atlas/33 + `ImageOrientationEvidence` contracts on the final exact HEAD.
+2. Keep norms, age/sex interpretation, VERT and clinical classification disabled until separately validated.
+3. Run direct Facad 32F/13F parity only from observed Facad trace/export evidence.
+4. Keep Facad compatibility IDs separate from scientific Atlas/Gregoret profile IDs.
 
 No merge. No deployment.
