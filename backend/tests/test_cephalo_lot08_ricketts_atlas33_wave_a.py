@@ -26,8 +26,19 @@ def _lm(landmark_id, x, y, source_image_ref="source:atlas33"):
 
 
 def _auto(landmark_id, x, y, source_image_ref="source:atlas33"):
-    item = _lm(landmark_id, x, y, source_image_ref)
-    return item.model_copy(update={"origin": LandmarkOrigin.AUTO})
+    return LandmarkEvidence(
+        evidence_id=f"landmark:atlas33:auto:{landmark_id}",
+        landmark_id=landmark_id,
+        x=float(x),
+        y=float(y),
+        source_image_ref=source_image_ref,
+        origin=LandmarkOrigin.SRPOSE38_AUTO,
+        model_id="test-model",
+        model_sha256="a" * 64,
+        pipeline_version="test-pipeline",
+        evidence_refs=[source_image_ref],
+        evidence_status=EvidenceStatus.OBSERVED,
+    )
 
 
 def _materialize(landmarks, mm_per_pixel=1.0, calibration_ref="calibration:atlas33"):
