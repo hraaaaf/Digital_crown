@@ -1,11 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('axios', () => ({
-  default: {
+vi.mock('axios', () => {
+  const instance = {
     get: vi.fn(),
     post: vi.fn(),
-  },
-}));
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+  };
+  return {
+    default: {
+      ...instance,
+      create: vi.fn(() => instance),
+    },
+  };
+});
 
 vi.mock('./workstationMode', () => ({
   workstationModeService: {
