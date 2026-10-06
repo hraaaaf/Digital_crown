@@ -79,9 +79,12 @@ def test_unknown_or_sensitive_document_type_is_denied_by_default(context):
     ("changed", "expected"),
     [
         ({"station_registered": False}, EligibilityReason.STATION_NOT_REGISTERED),
+        ({"session_id": ""}, EligibilityReason.SESSION_NOT_IDENTIFIED),
         ({"session_claimed_at": None}, EligibilityReason.SESSION_NOT_IDENTIFIED),
         ({"session_patient_id": None}, EligibilityReason.SESSION_NOT_IDENTIFIED),
         ({"session_purged_at": NOW}, EligibilityReason.SESSION_PURGED),
+        ({"session_claimed_at": NOW + timedelta(seconds=1)}, EligibilityReason.SESSION_INVALID_WINDOW),
+        ({"session_expires_at": NOW - timedelta(seconds=20)}, EligibilityReason.SESSION_INVALID_WINDOW),
         ({"session_expires_at": NOW}, EligibilityReason.SESSION_EXPIRED),
         ({"session_expires_at": NOW - timedelta(seconds=1)}, EligibilityReason.SESSION_EXPIRED),
         ({"session_tenant_id": 999}, EligibilityReason.TENANT_MISMATCH),
