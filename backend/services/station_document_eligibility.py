@@ -24,6 +24,8 @@ class EligibilityReason(str, Enum):
     ELIGIBLE = "eligible"
     NOT_WHITELISTED = "not_whitelisted"
     STATION_NOT_REGISTERED = "station_not_registered"
+    STATION_REVOKED = "station_revoked"
+    STATION_NOT_KIOSK = "station_not_kiosk"
     SESSION_NOT_IDENTIFIED = "session_not_identified"
     SESSION_PURGED = "session_purged"
     SESSION_EXPIRED = "session_expired"
@@ -53,7 +55,9 @@ class StationEligibilityContext:
     session_claimed_at: datetime | None
     session_expires_at: datetime
     session_purged_at: datetime | None
-    station_registered: bool
+    station_tenant_id: int
+    station_experience: str | None
+    station_revoked_at: datetime | None
     now: datetime
 
 
@@ -114,8 +118,12 @@ def evaluate_document_eligibility(
     except ValueError:
         return _deny(candidate, EligibilityReason.NOT_WHITELISTED)
 
-    if not context.station_registered or not context.station_id or not context.session_station_id:
+    if not context.station_id or not context.session_station_id:
         return _deny(candidate, EligibilityReason.STATION_NOT_REGISTERED)
+    if context.station_revoked_at is not None:
+        return _deny(candidate, EligibilityReason.STATION_REVOKED)
+    if context.station_experience != "station":
+        return _deny(candidate, EligibilityReason.STATION_NOT_KIOSK)
     if (
         not context.session_id
         or context.session_claimed_at is None
@@ -148,6 +156,7 @@ def evaluate_document_eligibility(
     if (
         candidate.tenant_id != context.tenant_id
         or context.session_tenant_id != context.tenant_id
+        or context.station_tenant_id != context.tenant_id
     ):
         return _deny(candidate, EligibilityReason.TENANT_MISMATCH)
     if (
