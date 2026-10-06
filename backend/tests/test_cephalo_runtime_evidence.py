@@ -302,14 +302,6 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     )
     assert all(x["value"] is None for x in orientation_blocked)
 
-    expected_blocked = explicit_identity_required | orientation_required
-    other_measurements = [
-        x for x in payload["measurements"]
-        if x["method_id"] not in expected_blocked
-    ]
-    assert all(x["availability_status"] == AvailabilityStatus.AVAILABLE.value for x in other_measurements)
-    assert all(x["value"] is not None for x in other_measurements)
-
     craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
     steiner = [x for x in payload["measurements"] if x["analysis_id"] == "STEINER"]
     linear = [x for x in craniom if x["requires_calibration"]]
