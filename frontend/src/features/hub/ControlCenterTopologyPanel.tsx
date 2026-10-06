@@ -87,6 +87,9 @@ const remediationCopy = (result: ProbeResult | null) => {
   if (!result.backendOk) return 'Backend injoignable. Vérifiez que Digital Crown est démarré, l’adresse saisie et le pare-feu du poste serveur.';
   if (!result.databaseOk) return 'Backend joignable mais base indisponible. Vérifiez PostgreSQL puis relancez le diagnostic.';
   if (result.authOk === false) return 'Serveur et base disponibles, mais la session de ce poste n’est pas authentifiée. Ouvrez le serveur puis connectez-vous.';
+  if (result.authOk === null && result.backendOk && result.databaseOk) {
+    return 'Serveur joignable sans credential. Ouvrez cette adresse pour vérifier l’authentification et terminer le diagnostic sur cette autorité.';
+  }
   if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') {
     return 'Serveur limité à la machine locale. Pour un poste annexe, configurez explicitement une adresse LAN et HTTPS/TLS sur le serveur.';
   }
@@ -190,9 +193,10 @@ export const ControlCenterTopologyPanel = () => {
   const targetBase = normalized.baseUrl;
   const isCurrentTarget = Boolean(targetBase && targetBase === currentBase);
   const canOpen = Boolean(targetBase && !normalized.error && !isCurrentTarget);
-  const localVerified = Boolean(result?.backendOk && result?.databaseOk && result?.authOk !== false);
+  const networkVerified = Boolean(result?.backendOk && result?.databaseOk);
+  const currentAuthenticated = Boolean(isCurrentTarget && networkVerified && result?.authOk === true);
   const annexReady = Boolean(
-    localVerified
+    currentAuthenticated
     && result?.topology?.lanExposed
     && result?.topology?.tlsReady
     && result?.topology?.connectionUrl,
@@ -214,12 +218,20 @@ export const ControlCenterTopologyPanel = () => {
             <p className="mt-5 text-xs font-black uppercase tracking-widest text-primary">Digital Crown · Technique</p>
             <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight sm:text-4xl">Connexion du poste au cabinet</h1>
             <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">
-              Vérifiez le serveur avant d’ouvrir Digital Crown sur ce poste. Le test ci-dessous n’envoie aucun identifiant ni donnée patient.
+              Vérifiez le serveur avant d’ouvrir Digital Crown sur ce poste. Les cibles saisies sont testées sans credential ; la session n’est vérifiée que sur le serveur actuellement ouvert.
             </p>
           </div>
           <StatusPill
-            ok={localVerified}
-            label={annexReady ? 'Prêt pour poste annexe' : localVerified ? 'Serveur local vérifié' : 'À vérifier'}
+            ok={networkVerified}
+            label={
+              annexReady
+                ? 'Prêt pour poste annexe'
+                : currentAuthenticated
+                  ? 'Serveur local vérifié'
+                  : networkVerified
+                    ? 'Serveur joignable'
+                    : 'À vérifier'
+            }
           />
         </div>
 
@@ -308,7 +320,7 @@ export const ControlCenterTopologyPanel = () => {
           </div>
         )}
 
-        <div data-control-center-remediation className="mt-5 rounded-elite-sm border border-primary/20 bg-primary/5 p-4 sm:p-5">
+        <div data-control-center-remediation role="status" aria-live="polite" className="mt-5 rounded-elite-sm border border-primary/20 bg-primary/5 p-4 sm:p-5">
           <div className="flex items-start gap-3">
             <Globe2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />
             <div>
@@ -321,7 +333,7 @@ export const ControlCenterTopologyPanel = () => {
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
-            onClick={() => window.history.back()}
+            onClick={() => window.location.assign('/hub?select=1')}
             className="inline-flex min-h-12 items-center justify-center rounded-elite-sm border border-border-main px-5 text-sm font-black text-main transition-elite hover:bg-primary/5"
           >
             Retour
