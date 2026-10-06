@@ -71,6 +71,12 @@ export function getRuntimeAuthToken(): string | null {
   }
 }
 
+function isPublicStationRoute(): boolean {
+  if (typeof window === 'undefined') return false;
+  const { pathname } = window.location;
+  return pathname === '/station' || pathname.startsWith('/station/');
+}
+
 function propagateMobileBiometricLock(): void {
   if (typeof window === 'undefined' || !window.location.pathname.startsWith('/mobile')) return;
   MobileStorage.lockBiometricVault();
@@ -136,6 +142,7 @@ api.interceptors.response.use(
     if (!error.response) {
       if (!_authFailed) {
         const method = original?.method?.toLowerCase() || 'get';
+        if (isPublicStationRoute()) return Promise.reject(error);
         if (!navigator.onLine && ['post', 'put', 'patch', 'delete'].includes(method)) {
           toast.error('Mode hors-ligne : sauvegarde impossible sans confirmation serveur.', { id: 'offline-write-blocked', duration: 4000 });
           return Promise.reject(error);
@@ -239,7 +246,7 @@ api.interceptors.response.use(
         (window as any)._isRedirecting402 = true;
         window.location.href = '/login?locked=true';
       }
-    } else if (status >= 500) {
+    } else if (status >= 500 && !isPublicStationRoute()) {
       toast.error('Erreur Serveur (500)', { id: 'server-error' });
     }
 

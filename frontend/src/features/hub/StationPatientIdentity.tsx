@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Nfc, QrCode, RefreshCw, ShieldCheck } from 'lucide-react';
 import {
   stationPatientSessionService,
@@ -66,6 +66,18 @@ const COPY = {
   },
 } as const;
 
+const purgeSessionBestEffort = async (sessionId: string) => {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await stationPatientSessionService.purge(sessionId);
+      return true;
+    } catch {
+      // Retry a bounded number of times; the short server TTL remains the final safety net.
+    }
+  }
+  return false;
+};
+
 const apiErrorDetail = (error: unknown, language: StationFlowLanguage): string => {
   const copy = COPY[language];
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -96,6 +108,13 @@ export const StationPatientIdentity = ({
   const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const purgeStartedRef = useRef<Set<string>>(new Set());
+
+  const requestPurge = useCallback((sessionId: string) => {
+    if (purgeStartedRef.current.has(sessionId)) return;
+    purgeStartedRef.current.add(sessionId);
+    void purgeSessionBestEffort(sessionId);
+  }, []);
 
   const start = async () => {
     setStatus('loading');
@@ -150,8 +169,8 @@ export const StationPatientIdentity = ({
   }, [session, status]);
 
   useEffect(() => () => {
-    if (session) void stationPatientSessionService.purge(session.sessionId).catch(() => undefined);
-  }, [session]);
+    if (session) requestPurge(session.sessionId);
+  }, [requestPurge, session]);
 
   const expiresLabel = useMemo(() => {
     if (!session) return '';
@@ -183,8 +202,9 @@ export const StationPatientIdentity = ({
   };
 
   const leave = async () => {
-    if (session) await stationPatientSessionService.purge(session.sessionId).catch(() => undefined);
+    const sessionId = session?.sessionId;
     onBack();
+    if (sessionId) requestPurge(sessionId);
   };
 
   if (status === 'identified' && session) {
@@ -279,7 +299,7 @@ export const StationPatientIdentity = ({
                 type="button"
                 disabled={fallbackBusy}
                 onClick={() => void submitFallback()}
-                className="mt-4 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-black text-card-bg disabled:opacity-50"
+                className="mt-4 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-black text-on-primary disabled:opacity-50"
               >
                 {fallbackBusy ? copy.checking : copy.confirm}
               </button>
@@ -293,17 +313,17 @@ export const StationPatientIdentity = ({
         <>
           <QrCode className="mx-auto text-text-muted" size={38} aria-hidden="true" />
           <p className="mt-4 font-black">{copy.expired}</p>
-          <button type="button" onClick={() => void start()} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg">
+          <button type="button" onClick={() => void start()} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
             <RefreshCw size={16} aria-hidden="true" /> {copy.newQr}
           </button>
         </>
       )}
 
-      {error && status !== 'error' && <p role="alert" className="mt-4 font-black text-rose-700">{error}</p>}
+      {error && status !== 'error' && <p role="alert" className="mt-4 font-black text-danger">{error}</p>}
 
       {status === 'error' && (
         <>
-          <p role="alert" className="font-black text-rose-700">{error}</p>
+          <p role="alert" className="font-black text-danger">{error}</p>
           <button type="button" onClick={() => void start()} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-elite-sm border border-border-main px-5 text-sm font-black">
             <RefreshCw size={16} aria-hidden="true" /> {copy.retry}
           </button>
