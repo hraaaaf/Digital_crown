@@ -99,7 +99,7 @@ Wave D source result:
 published Ricketts datasets encode open bite with negative overbite, so the clinical sign is source-known.
 
 State:
-`SOURCE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_UNAVAILABLE`.
+`CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED`.
 
 Remaining reason:
 the current image-evidence contract does not carry an explicit anatomical superior/inferior axis. A signed FOP-normal measurement could therefore flip under image mirroring if derived from raw screen coordinates. No runtime method is activated.
@@ -133,3 +133,10 @@ acute line angle between the U1 long axis and A-Pog. No norm/classification is a
 ## Compatibility boundary
 
 Facad `Ricketts (32 F)` / `Ricketts (13 F)` remain compatibility targets. This source-lock does not assert that Facad uses these exact IDs, signs, row membership, or export labels until a Facad trace/export is observed directly.
+
+
+## Image Orientation Evidence Contract — current runtime gate
+
+The follow-up orientation contract is now implemented in `docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md`.
+
+Any row previously blocked only by missing anatomical superior/inferior orientation is now `CONDITIONAL_EXECUTABLE`: it computes only when a versioned, same-image `ImageOrientationEvidence` is supplied. Existing cases without that evidence remain `NOT_COMPUTABLE`; no screen-axis fallback exists.
