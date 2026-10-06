@@ -27,6 +27,8 @@ def test_atlas2009_wave_a_rows_are_source_specific_and_fail_closed():
     assert rows[4]["measurement_id"] == "M_RICKETTS_OVERBITE_FOP_MM_V1"
     assert rows[4]["state"] == "SOURCE_LOCKED_BLOCKED"
     assert rows[10]["measurement_id"] == "M_L1_EDGE_APOG_MM_V1"
+    assert rows[10]["state"] == "SOURCE_LOCKED_BLOCKED"
+    assert rows[10]["gate"] == "L1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED"
     assert rows[11]["measurement_id"] == "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1"
     assert rows[11]["state"] == "SOURCE_LOCKED_BLOCKED"
     assert rows[11]["gate"] == "U1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED"
