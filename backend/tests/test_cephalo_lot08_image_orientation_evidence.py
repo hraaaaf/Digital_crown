@@ -31,15 +31,15 @@ def _lm(landmark_id, x, y, source="source:orientation"):
     )
 
 
-def _orientation(source="source:orientation"):
+def _orientation(source="source:orientation", *, anterior=(1.0, 0.0), superior=(0.0, 1.0), mirrored=False):
     return ImageOrientationEvidence(
         evidence_id="orientation:source:orientation:v1",
         source_image_ref=source,
-        anterior_x=1.0,
-        anterior_y=0.0,
-        superior_x=0.0,
-        superior_y=1.0,
-        is_mirrored=False,
+        anterior_x=float(anterior[0]),
+        anterior_y=float(anterior[1]),
+        superior_x=float(superior[0]),
+        superior_y=float(superior[1]),
+        is_mirrored=mirrored,
         origin=ImageOrientationOrigin.ACQUISITION_METADATA,
         provenance_ref=source,
         evidence_refs=[source],
@@ -64,8 +64,8 @@ def _landmarks():
     }
 
 
-def _materialize(*, orientation):
-    landmarks = _landmarks()
+def _materialize(*, orientation, landmarks=None):
+    landmarks = landmarks or _landmarks()
     constructions = materialize_canonical_constructions_v2(
         landmarks, construction_namespace="construction:orientation"
     )
@@ -210,3 +210,57 @@ def test_orientation_ref_is_referentially_validated():
     )
     with pytest.raises(EvidenceGraphValidationError):
         validate_evidence_graph(bad)
+
+
+def _rotate(point, degrees):
+    angle = math.radians(degrees)
+    c, s = math.cos(angle), math.sin(angle)
+    return (point[0] * c - point[1] * s, point[0] * s + point[1] * c)
+
+
+def _mirror_x(point):
+    return (-point[0], point[1])
+
+
+def _transform_landmarks(landmarks, transform):
+    return {
+        key: item.model_copy(update={
+            "x": transform((item.x, item.y))[0],
+            "y": transform((item.x, item.y))[1],
+        })
+        for key, item in landmarks.items()
+    }
+
+
+def test_signed_ricketts_values_are_rotation_and_mirror_invariant_with_orientation_evidence():
+    baseline = _materialize(orientation=_orientation())
+    methods = (
+        "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+        "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+    )
+    expected = {method: baseline[method].value for method in methods}
+
+    landmarks = _landmarks()
+    rotation = lambda p: _rotate(p, 67)
+    rotated = _transform_landmarks(landmarks, rotation)
+    rotated_out = _materialize(
+        landmarks=rotated,
+        orientation=_orientation(
+            anterior=rotation((1.0, 0.0)),
+            superior=rotation((0.0, 1.0)),
+        ),
+    )
+    assert {method: rotated_out[method].value for method in methods} == pytest.approx(expected)
+
+    mirrored = _transform_landmarks(landmarks, _mirror_x)
+    mirrored_out = _materialize(
+        landmarks=mirrored,
+        orientation=_orientation(
+            anterior=_mirror_x((1.0, 0.0)),
+            superior=_mirror_x((0.0, 1.0)),
+            mirrored=True,
+        ),
+    )
+    assert {method: mirrored_out[method].value for method in methods} == pytest.approx(expected)
