@@ -26,7 +26,6 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_facial_depth_deg_v1,
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
-    ricketts_incisal_edge_apog_signed_distance_px_v1,
     ricketts_signed_projection_on_plane_px_v1,
     ricketts_u1_apog_inclination_deg_v1,
     ricketts_l1_occlusal_extrusion_signed_px_v1,
@@ -62,7 +61,6 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2",
     "RICKETTS_U6_PTV_CANONICAL_MM_V2",
     "RICKETTS_U1_APOG_INCLINATION_CANONICAL_DEG_V2",
-    "RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2",
     "RICKETTS_OVERJET_FOP_CANONICAL_MM_V2",
     "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2",
     "RICKETTS_MOLAR_RELATION_FOP_CANONICAL_MM_V2",
@@ -301,16 +299,6 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         require_manual=False,
     )
 
-    linear(
-        "RICKETTS_U1_APOG_PROTRUSION","RICKETTS",
-        "RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2",
-        "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
-        ("U1_incisal","A","Pog_hard","Po_anatomic","Or"),
-        lambda:ricketts_incisal_edge_apog_signed_distance_px_v1(
-            _p(landmarks,"U1_incisal"),_p(landmarks,"A"),_p(landmarks,"Pog_hard"),
-            _p(landmarks,"Po_anatomic"),_p(landmarks,"Or")
-        ),
-    )
     angular(
         "RICKETTS_U1_APOG_INCLINATION","RICKETTS",
         "RICKETTS_U1_APOG_INCLINATION_CANONICAL_DEG_V2",
