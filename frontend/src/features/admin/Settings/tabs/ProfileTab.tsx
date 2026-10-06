@@ -192,9 +192,9 @@ export const ProfileTab: React.FC = () => {
         icon={<UserCircle size={32} />}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Structure d’exercice · Source cabinet</p>
-            <p className="mt-1 text-xs font-medium text-blue-800/80">Nom, type, adresse et identifiants de l’établissement appartiennent au cabinet.</p>
+          <div className="md:col-span-2 rounded-2xl border border-info-border bg-info-surface p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-info">Structure d’exercice · Source cabinet</p>
+            <p className="mt-1 text-xs font-medium text-info">Nom, type, adresse et identifiants de l’établissement appartiennent au cabinet.</p>
           </div>
 
           <div className="md:col-span-2">
@@ -328,7 +328,7 @@ export const ProfileTab: React.FC = () => {
                   >
                     <div className={cn(
                       "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                      isSelected ? "bg-primary text-white shadow-lg" : "bg-slate-50 text-slate-400 group-hover:scale-110"
+                      isSelected ? "bg-primary text-on-primary shadow-lg" : "bg-background text-text-muted group-hover:scale-110"
                     )}>
                       <spec.icon size={20} />
                     </div>
@@ -387,18 +387,18 @@ export const ProfileTab: React.FC = () => {
             <input type="text" name="adresse" value={profile.adresse} onChange={handleProfileChange} className={inputClass} />
           </div>
 
-          <div className="md:col-span-2 bg-amber-50 p-6 rounded-3xl border border-amber-100">
+          <div className="md:col-span-2 bg-warning-surface p-6 rounded-3xl border border-warning-border">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-600 shadow-sm">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-warning shadow-sm">
                 <PaletteIcon size={20} />
               </div>
-              <h4 className="font-black text-amber-900">Logo du Cabinet</h4>
+              <h4 className="font-black text-warning">Logo du Cabinet</h4>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-8">
               <button
                 type="button"
                 aria-label="Choisir le logo du cabinet"
-                className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center cursor-pointer hover:bg-amber-100/50 transition-all relative group overflow-hidden"
+                className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-warning-border flex items-center justify-center cursor-pointer hover:brightness-95 transition-all relative group overflow-hidden"
                 onClick={() => document.getElementById('logo-input')?.click()}
               >
                 {profile.logo_path ? (
@@ -414,22 +414,22 @@ export const ProfileTab: React.FC = () => {
                   </>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <ImageIcon className="text-amber-200" size={32} />
-                    <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Choisir Logo</span>
+                    <ImageIcon className="text-warning" size={32} />
+                    <span className="text-[9px] font-black text-warning uppercase tracking-widest">Choisir Logo</span>
                   </div>
                 )}
               </button>
               <div className="flex-1 space-y-2">
-                <p className="text-xs font-bold text-amber-800">Traitement du fichier</p>
-                <h5 className="text-sm font-bold text-amber-900 mb-2">Logo optimisé pour les documents</h5>
-                <p className="text-xs text-amber-700/80 leading-relaxed">
+                <p className="text-xs font-bold text-warning">Traitement du fichier</p>
+                <h5 className="text-sm font-bold text-warning mb-2">Logo optimisé pour les documents</h5>
+                <p className="text-xs text-warning leading-relaxed">
                   Importez un fichier PNG, JPEG ou SVG. Les images raster sont redimensionnées sans déformation et enregistrées en PNG ; la transparence existante est conservée. Aucun détourage automatique n'est appliqué.
                 </p>
                 <input id="logo-input" type="file" className="hidden" accept="image/png,image/jpeg,image/svg+xml" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
                 {profile.logo_path && (
                   <button
                     onClick={deleteLogo}
-                    className="mt-4 text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2 hover:text-rose-600 transition-colors"
+                    className="mt-4 text-[10px] font-black text-danger uppercase tracking-widest flex items-center gap-2 hover:brightness-90 transition-colors"
                   >
                     <Trash2 size={12} /> Supprimer le logo
                   </button>
@@ -474,7 +474,7 @@ export const ProfileTab: React.FC = () => {
               <h3 className="font-black text-slate-900">En-tête bilingue</h3>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
-                profile.header_customized ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
+                profile.header_customized ? "bg-warning-surface text-warning" : "bg-success-surface text-success"
               )}>
                 {profile.header_customized ? 'Personnalisé' : 'Automatique'}
               </span>
@@ -520,7 +520,7 @@ export const ProfileTab: React.FC = () => {
                       />
                       <button
                         onClick={() => updateProfile({ header_lines_fr: profile.header_lines_fr?.filter((_, i) => i !== idx), header_customized: true })}
-                        className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-danger hover:bg-danger-surface rounded-lg transition-colors"
                         aria-label={`Supprimer la ligne française ${idx + 1}`}
                       >×</button>
                     </div>
@@ -534,7 +534,7 @@ export const ProfileTab: React.FC = () => {
                 <div className="space-y-2">
                   {(profile.header_lines_ar || []).map((line, idx) => (
                     <div key={`ar-${idx}`} className="flex gap-2 relative group">
-                      <button onClick={() => updateProfile({ header_lines_ar: profile.header_lines_ar?.filter((_, i) => i !== idx), header_customized: true })} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" aria-label={`Supprimer la ligne arabe ${idx + 1}`}>×</button>
+                      <button onClick={() => updateProfile({ header_lines_ar: profile.header_lines_ar?.filter((_, i) => i !== idx), header_customized: true })} className="p-2 text-danger hover:bg-danger-surface rounded-lg transition-colors" aria-label={`Supprimer la ligne arabe ${idx + 1}`}>×</button>
                       <div className="flex-1 relative">
                         <input
                           className={cn(inputClass, "py-2 px-3 text-right font-arabic", idx === 0 && "text-primary text-base")}
@@ -569,6 +569,56 @@ export const ProfileTab: React.FC = () => {
       </div>
 
       <SettingsSection
+        title="Affichage écran mural"
+        subtitle="Choisissez comment identifier les patients sur l’écran visible depuis la salle d’attente."
+        icon={<Users size={20} />}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {([
+            {
+              value: 'initials',
+              title: 'Initiales',
+              description: 'Ex. A. B. — recommandé pour préserver la confidentialité.',
+            },
+            {
+              value: 'full_name',
+              title: 'Nom complet',
+              description: 'Ex. Aya Benali — identité visible publiquement dans la salle d’attente.',
+            },
+            {
+              value: 'number_only',
+              title: 'Numéro uniquement',
+              description: 'Ex. N° 12 — aucun nom ni initiale affiché.',
+            },
+          ] as const).map((option) => {
+            const active = (profile.wall_display_identity_mode ?? 'initials') === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => updateProfile({ wall_display_identity_mode: option.value })}
+                className={cn(
+                  "rounded-2xl border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  active ? "border-primary bg-primary/5 shadow-sm" : "border-slate-100 bg-white hover:border-slate-200"
+                )}
+              >
+                <span className={cn("block text-sm font-black", active ? "text-primary" : "text-slate-800")}>
+                  {option.title}
+                </span>
+                <span className="mt-2 block text-xs font-medium leading-relaxed text-slate-500">
+                  {option.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-4 text-[11px] font-semibold leading-relaxed text-slate-500">
+          Le mode par défaut est « Initiales ». Le choix « Nom complet » rend volontairement l’identité du patient visible sur un écran public.
+        </p>
+      </SettingsSection>
+
+      <SettingsSection
         title="Contacts & Visibilité"
         subtitle="Gérez vos numéros de contact en pied de page."
         icon={<Smartphone size={20} />}
@@ -588,7 +638,7 @@ export const ProfileTab: React.FC = () => {
                   </div>
                   <button
                     onClick={() => toggleContact(type)}
-                    className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-emerald-500" : "bg-slate-200")}
+                    className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-success" : "bg-slate-200")}
                     aria-label={`${c.enabled ? 'Désactiver' : 'Activer'} ${label}`}
                     aria-pressed={c.enabled}
                   >
@@ -614,7 +664,7 @@ export const ProfileTab: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-8 py-3 bg-primary text-white rounded-2xl font-black text-sm shadow-xl shadow-primary/30 hover:bg-primary/90 transition-all disabled:opacity-60"
+          className="flex items-center gap-2 px-8 py-3 bg-primary text-on-primary rounded-2xl font-black text-sm shadow-xl shadow-primary/30 hover:bg-primary/90 transition-all disabled:opacity-60"
           style={{ backgroundColor: 'var(--primary)' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}

@@ -149,8 +149,8 @@ export const StationKioskShell = ({
                   setLanguage(locale);
                   setScreen('home');
                 }}
-                className={`min-h-11 min-w-11 rounded-xl px-2.5 text-xs font-black uppercase transition-elite focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  language === locale ? 'bg-primary text-card-bg' : 'text-text-muted hover:bg-primary/5 hover:text-main'
+                className={`min-h-11 min-w-11 rounded-xl px-2.5 text-xs font-black uppercase transition-elite motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  language === locale ? 'bg-primary text-on-primary' : 'text-text-muted hover:bg-primary/5 hover:text-main'
                 }`}
               >
                 {locale === 'ar' ? 'ع' : locale.toUpperCase()}
@@ -170,7 +170,7 @@ export const StationKioskShell = ({
               {screen === 'home' ? copy.title : copy[ACTIONS.find((action) => action.id === screen)?.title ?? 'appointment']}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-relaxed text-text-muted sm:text-lg">
-              {screen === 'home' ? copy.subtitle : copy.building}
+              {screen === 'home' ? copy.subtitle : screen === 'appointment' ? copy.appointmentHint : copy.building}
             </p>
           </div>
 
@@ -182,7 +182,7 @@ export const StationKioskShell = ({
                   type="button"
                   data-station-action={id}
                   onClick={() => setScreen(id)}
-                  className="group min-h-40 rounded-elite-lg border border-border-main bg-card-bg p-5 text-start shadow-elite transition-elite hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elite-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-48 sm:p-6"
+                  className="group min-h-40 rounded-elite-lg border border-border-main bg-card-bg p-5 text-start shadow-elite transition-elite motion-reduce:transition-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 hover:border-primary/30 hover:shadow-elite-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-48 sm:p-6"
                 >
                   <span className="flex h-12 w-12 items-center justify-center rounded-elite-sm bg-primary/10 text-primary">
                     <Icon size={24} aria-hidden="true" />
@@ -193,13 +193,13 @@ export const StationKioskShell = ({
               ))}
             </div>
           ) : screen === 'appointment' ? (
-            <StationPatientIdentity onBack={() => setScreen('home')} backLabel={copy.back} />
+            <StationPatientIdentity onBack={() => setScreen('home')} backLabel={copy.back} language={language} />
           ) : (
             <div className="mx-auto mt-9 w-full max-w-xl rounded-elite-lg border border-border-main bg-card-bg p-6 text-center shadow-elite sm:p-8">
               <button
                 type="button"
                 onClick={() => setScreen('home')}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 <ChevronLeft size={18} className={dir === 'rtl' ? 'rotate-180' : ''} aria-hidden="true" />
                 {copy.back}

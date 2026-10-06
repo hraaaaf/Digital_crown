@@ -1,0 +1,60 @@
+name: V1.5-04.1 Eligibility Engine Proof
+
+on:
+  push:
+    branches:
+      - feat/v1-5-04-1-eligibility-engine
+    paths:
+      - "backend/services/station_document_eligibility.py"
+      - "backend/tests/test_station_document_eligibility_v15.py"
+      - ".github/workflows/v15-04-1-eligibility-engine-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-04-1-eligibility-${{ github.sha }}-${{ github.run_attempt }}
+  cancel-in-progress: false
+
+jobs:
+  eligibility-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v15-04-1-eligibility-proof-secret-long-enough
+      DATABASE_URL: sqlite:///./v15-04-1-test.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/requirements-v15-04-1.txt
+          pip install -r /tmp/requirements-v15-04-1.txt
+
+      - name: Syntax proof
+        run: |
+          python -m py_compile backend/services/station_document_eligibility.py
+          python -m py_compile backend/tests/test_station_document_eligibility_v15.py
+
+      - name: Collect targeted tests
+        run: |
+          python -m pytest backend/tests/test_station_document_eligibility_v15.py --collect-only -q | tee /tmp/v15-04-1-collect.txt
+          grep -Eq '[0-9]+ tests? collected' /tmp/v15-04-1-collect.txt
+
+      - name: Run targeted eligibility tests
+        run: python -m pytest backend/tests/test_station_document_eligibility_v15.py -q

@@ -26,6 +26,7 @@ const viewports = [
   { width: 768, height: 1024, label: '768x1024' },
   { width: 1280, height: 900, label: '1280x900' },
 ];
+const languages = phase === 'after' ? ['fr', 'en', 'ar'] : ['fr'];
 const scales = [
   { label: 'normal', rootFontSize: null },
   { label: 'text200', rootFontSize: '200%' },
@@ -45,6 +46,7 @@ const report = [];
 
 try {
   for (const scenario of scenarios) {
+    for (const language of languages) {
     for (const vp of viewports) {
       for (const scale of scales) {
         const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
@@ -80,6 +82,16 @@ try {
             : { status: 'pending', sessionId: 'proof-session', expiresAt: '2026-10-04T01:02:00' };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
         });
+        await context.route('**/api/workstation/patient-session/proof-session/appointments/today', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'none', appointments: [], staffActionRequired: scenario.mode === 'identified' }),
+        }));
+        await context.route('**/api/workstation/patient-session/proof-session/staff-assistance', route => route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'STAFF_NOTIFIED', alertId: 3401 }),
+        }));
         await context.route('**/api/workstation/patient-session/proof-session/purge', route => route.fulfill({ status: 204, body: '' }));
         await context.route('**/api/workstation/patient-session/proof-session/fallback', route => route.fulfill({
           status: 200,
@@ -100,6 +112,10 @@ try {
           await page.waitForTimeout(100);
         }
 
+        if (language !== 'fr') {
+          const label = language === 'en' ? 'English' : 'العربية';
+          await page.getByRole('button', { name: label }).click();
+        }
         await page.locator('[data-station-action="appointment"]').click();
 
         if (phase === 'before') {
@@ -109,7 +125,8 @@ try {
           await page.locator('[data-station-fallback-toggle]').click();
           await page.locator('[data-station-fallback-form]').waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'identified') {
-          await page.locator('[data-station-patient-identified]').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-arrival-bridge]').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-staff-notified]').waitFor({ timeout: 10000 });
         } else {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
         }
@@ -120,7 +137,7 @@ try {
           stationVisible: Boolean(document.querySelector('[data-workstation-experience="station"]')),
           patientSessionVisible: Boolean(document.querySelector('[data-station-patient-session]')),
           fallbackVisible: Boolean(document.querySelector('[data-station-fallback-form]')),
-          identifiedVisible: Boolean(document.querySelector('[data-station-patient-identified]')),
+          identifiedVisible: Boolean(document.querySelector('[data-station-arrival-bridge]')),
           cameraInputs: document.querySelectorAll('input[accept*="image"], video').length,
           clinicalLinks: Array.from(document.querySelectorAll('a'))
             .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
@@ -128,11 +145,12 @@ try {
           bodyText: document.body.textContent || '',
         }));
 
-        const filename = `${phase}-${scenario.name}-${vp.label}-${scale.label}.png`;
+        const filename = `${phase}-${scenario.name}-${language}-${vp.label}-${scale.label}.png`;
         await page.screenshot({ path: path.join(out, filename), fullPage: true, animations: 'disabled' });
         report.push({ phase, scenario: scenario.name, viewport: vp.label, scale: scale.label, filename, ...meta, errors });
         await context.close();
       }
+    }
     }
   }
 } finally {
@@ -155,7 +173,7 @@ const failures = report.filter(item =>
   item.errors.length > 0 ||
   (phase === 'after' && item.scenario === 'appointment' && !item.patientSessionVisible) ||
   (phase === 'after' && item.scenario === 'fallback' && !item.fallbackVisible) ||
-  (phase === 'after' && item.scenario === 'identified' && (!item.identifiedVisible || !item.bodyText.includes('Aucune arrivée n’a encore été enregistrée.')))
+  (phase === 'after' && item.scenario === 'identified' && !item.identifiedVisible)
 );
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length > 0) {

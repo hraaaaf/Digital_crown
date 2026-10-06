@@ -35,6 +35,7 @@ def test_v1_5_01_loopback_first_boot_contract():
     contract = resolve_cabinet_network(_env())
     assert contract.base_url == "http://127.0.0.1:8005"
     assert contract.lan_exposed is False
+    assert contract.diagnostics()["connectionUrl"] is None
     assert contract.diagnostics()["remediation"] == "LAN_DISABLED_LOOPBACK_ONLY"
 
 
@@ -60,6 +61,7 @@ def test_v1_5_01_https_uses_canonical_mobile_origin(tmp_path: Path):
     assert contract.base_url == "https://192.168.1.20:8005"
     assert contract.lan_exposed is True
     assert contract.tls_ready is True
+    assert contract.diagnostics()["connectionUrl"] == "https://192.168.1.20:8005"
 
 
 def test_v1_5_01_lan_discovery_has_no_public_internet_dependency():

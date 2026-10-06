@@ -5,7 +5,7 @@ import { ClinicPractitionerBar } from './ClinicPractitionerBar';
 import { api } from '../../services/api';
 
 const s = vi.hoisted(() => ({
-  user: { id: 7, role: 'ADMIN', employer_id: null, nom_complet: 'Dr Owner' } as any,
+  user: { id: 7, role: 'ADMIN', employer_id: null, nom_complet: 'Dr Owner', subscription_plan: 'PREMIUM' } as any,
   practitioners: [{ id: 7, name: 'Dr Owner', appointmentCount: 2 }, { id: 8, name: 'Dr Associate', appointmentCount: 1 }] as any[],
   selectedPractitionerId: 7 as number | null,
   setPractitioners: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('./practitionerContext', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  s.user = { id: 7, role: 'ADMIN', employer_id: null, nom_complet: 'Dr Owner' };
+  s.user = { id: 7, role: 'ADMIN', employer_id: null, nom_complet: 'Dr Owner', subscription_plan: 'PREMIUM' };
   vi.mocked(api.get).mockResolvedValue({ data: { dentists: [
     { dentist_id: 7, dentist_name: 'Dr Owner', appointments: [{}, {}] },
     { dentist_id: 8, dentist_name: 'Dr Associate', appointments: [{}] },
@@ -44,6 +44,26 @@ describe('ClinicPractitionerBar G5', () => {
     expect(s.selectPractitioner).toHaveBeenCalledWith({ id: 8, name: 'Dr Associate', appointmentCount: 1 });
   });
 
+  it('uses the current practitioner immediately outside Agenda without probing PREMIUM multi-practitioner', async () => {
+    s.practitioners = [];
+    render(<MemoryRouter initialEntries={['/dashboard']}><ClinicPractitionerBar /></MemoryRouter>);
+    await waitFor(() => expect(s.setPractitioners).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 7, name: 'Dr Owner', isFallback: true }),
+    ]));
+    expect(api.get).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Synchronisation des praticiens/i)).not.toBeInTheDocument();
+  });
+
+  it('does not probe multi-practitioner on GOLD even on Agenda', async () => {
+    s.user = { id: 7, role: 'ADMIN', employer_id: null, nom_complet: 'Dr Owner', subscription_plan: 'GOLD' };
+    s.practitioners = [];
+    render(<MemoryRouter initialEntries={['/agenda']}><ClinicPractitionerBar /></MemoryRouter>);
+    await waitFor(() => expect(s.setPractitioners).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 7, name: 'Dr Owner', isFallback: true }),
+    ]));
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
   it('falls back to owner identity when multi-practitioner read fails', async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error('unavailable'));
     render(<MemoryRouter initialEntries={['/agenda']}><ClinicPractitionerBar /></MemoryRouter>);
@@ -53,7 +73,7 @@ describe('ClinicPractitionerBar G5', () => {
   });
 
   it('falls back to employer practitioner for a secretary', async () => {
-    s.user = { id: 99, role: 'SECRETAIRE', employer_id: 7, nom_complet: 'Assistante' };
+    s.user = { id: 99, role: 'SECRETAIRE', employer_id: 7, nom_complet: 'Assistante', subscription_plan: 'PREMIUM' };
     vi.mocked(api.get).mockRejectedValueOnce(new Error('unavailable'));
     render(<MemoryRouter initialEntries={['/agenda']}><ClinicPractitionerBar /></MemoryRouter>);
     await waitFor(() => expect(s.setPractitioners).toHaveBeenCalledWith([

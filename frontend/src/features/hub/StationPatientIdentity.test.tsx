@@ -8,11 +8,14 @@ vi.mock('../../services/stationPatientSession', () => ({
     create: vi.fn(),
     status: vi.fn(),
     fallback: vi.fn(),
+    todayAppointments: vi.fn(),
+    arrive: vi.fn(),
     purge: vi.fn(),
+    requestStaffAssistance: vi.fn(),
   },
 }));
 
-describe('StationPatientIdentity V1.5-03.3', () => {
+describe('StationPatientIdentity V1.5-03.3/03.4', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(stationPatientSessionService.create).mockResolvedValue({
@@ -23,10 +26,16 @@ describe('StationPatientIdentity V1.5-03.3', () => {
       expiresAt: new Date(Date.now() + 120_000).toISOString(),
       fallbackMode: 'phone_dob',
     });
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
+      status: 'none',
+      appointments: [],
+      staffActionRequired: true,
+    });
     vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
+    vi.mocked(stationPatientSessionService.requestStaffAssistance).mockResolvedValue({ status: 'STAFF_NOTIFIED', alertId: 7 });
   });
 
-  it('shows one-shot QR/NFC handoff and never claims arrival', async () => {
+  it('shows one-shot QR/NFC handoff and never claims arrival before identification', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'pending',
       sessionId: 'session-1',
@@ -41,10 +50,9 @@ describe('StationPatientIdentity V1.5-03.3', () => {
     );
     expect(screen.getByText(/NFC utilise le même lien sécurisé/i)).toBeInTheDocument();
     expect(screen.queryByText(/ARRIVED/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/file d’attente/i)).not.toBeInTheDocument();
   });
 
-  it('uses configured phone + birth date fallback with a generic failure surface', async () => {
+  it('uses configured phone + birth date fallback then resolves today only after identity', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'pending',
       sessionId: 'session-1',
@@ -69,10 +77,11 @@ describe('StationPatientIdentity V1.5-03.3', () => {
       { birthDate: '1992-05-04', phone: '+212612345678' },
     ));
     expect(await screen.findByText('Aya Audit')).toBeInTheDocument();
-    expect(screen.getByText('Aucune arrivée n’a encore été enregistrée.')).toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.todayAppointments).toHaveBeenCalledWith('session-1'));
+    expect(await screen.findByText("Aucun rendez-vous retrouvé aujourd’hui")).toBeInTheDocument();
   });
 
-  it('renders identified proof then purges before returning', async () => {
+  it('resolves the appointment bridge after QR identity then returns and starts purge', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'identified',
       sessionId: 'session-1',
@@ -85,10 +94,86 @@ describe('StationPatientIdentity V1.5-03.3', () => {
 
     expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
     expect(screen.getByText('Aya Audit')).toBeInTheDocument();
-    expect(screen.getByText('Aucune arrivée n’a encore été enregistrée.')).toBeInTheDocument();
+    expect(await screen.findByText("Aucun rendez-vous retrouvé aujourd’hui")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
     expect(onBack).toHaveBeenCalled();
   });
+  it('returns immediately even when server purge remains unavailable', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.purge).mockReturnValue(new Promise<void>(() => undefined));
+    const onBack = vi.fn();
+
+    render(<StationPatientIdentity onBack={onBack} backLabel='Retour' />);
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1');
+  });
+
+  it('retries session purge up to three times before leaving the patient flow', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.purge)
+      .mockRejectedValueOnce(new Error('offline-1'))
+      .mockRejectedValueOnce(new Error('offline-2'))
+      .mockResolvedValueOnce(undefined);
+    const onBack = vi.fn();
+
+    render(<StationPatientIdentity onBack={onBack} backLabel='Retour' />);
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledTimes(3));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('still leaves locally after three failed purge attempts so patient data is not left on screen', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.purge).mockRejectedValue(new Error('offline'));
+    const onBack = vi.fn();
+
+    render(<StationPatientIdentity onBack={onBack} backLabel='Retour' />);
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledTimes(3));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('localizes pending identity UI in English and Arabic', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending',
+      sessionId: 'session-1',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+
+    const english = render(<StationPatientIdentity onBack={vi.fn()} backLabel='Back' language='en' />);
+    expect(await screen.findByAltText('Patient Companion identification QR code')).toBeInTheDocument();
+    expect(screen.getByText('Scan with your phone')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'I do not have my phone' })).toBeInTheDocument();
+    english.unmount();
+
+    render(<StationPatientIdentity onBack={vi.fn()} backLabel='العودة' language='ar' />);
+    expect(await screen.findByAltText('رمز QR للتعرّف عبر Patient Companion')).toBeInTheDocument();
+    expect(screen.getByText('امسحوا الرمز بهاتفكم')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ليس لدي هاتفي' })).toBeInTheDocument();
+  });
+
 });

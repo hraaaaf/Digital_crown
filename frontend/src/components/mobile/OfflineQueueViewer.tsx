@@ -2,8 +2,9 @@ import React from 'react';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { CloudOff, Cloud, RefreshCw, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 
-export const OfflineQueueViewer: React.FC = () => {
+const OfflineQueueViewerContent: React.FC = () => {
   const { queue, isOffline } = useOfflineQueue();
 
   if (!isOffline && queue.length === 0) return null;
@@ -65,4 +66,13 @@ export const OfflineQueueViewer: React.FC = () => {
       </motion.div>
     </AnimatePresence>
   );
+};
+
+export const OfflineQueueViewer: React.FC = () => {
+  const location = useLocation();
+
+  // Public wall is isolated from staff/offline operational state entirely:
+  // do not mount the queue hook, do not read staff MobileStorage, render nothing.
+  if (location.pathname === '/station/wall') return null;
+  return <OfflineQueueViewerContent />;
 };

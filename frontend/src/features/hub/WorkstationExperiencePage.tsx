@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, KeyRound, MonitorCog } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { workstationModeService } from '../../services/workstationMode';
 import { StationKioskShell } from './StationKioskShell';
+import { ControlCenterTopologyPanel } from './ControlCenterTopologyPanel';
 
 const errorDetail = (error: unknown): string => {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -128,24 +129,8 @@ export const WorkstationExperiencePage = ({ experience }: { experience: 'station
   }
 
   return (
-    <main data-workstation-experience={experience} className="relative flex min-h-screen items-center justify-center overflow-hidden bg-main-bg px-5 py-10 text-main">
-      <section className="relative z-10 w-full max-w-2xl rounded-elite-lg border border-border-main bg-card-bg/95 p-7 text-center shadow-elite backdrop-blur-sm sm:p-10">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-elite-sm bg-primary/10 text-primary">
-          <MonitorCog size={30} aria-hidden="true" />
-        </div>
-        <p className="mt-6 text-xs font-black uppercase tracking-widest text-primary">Digital Crown</p>
-        <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight">Centre de contrôle</h1>
-        <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-relaxed text-text-muted">
-          Espace technique en cours de construction. Le diagnostic local restera accessible même si le serveur cabinet est indisponible.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/hub')}
-          className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-elite-sm border border-border-main px-5 text-sm font-black text-main transition-elite hover:bg-primary/5"
-        >
-          <ArrowLeft size={16} aria-hidden="true" /> Retour au Hub
-        </button>
-      </section>
+    <main data-workstation-experience={experience} className="relative min-h-screen overflow-x-hidden bg-main-bg px-4 py-6 text-main sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <ControlCenterTopologyPanel />
     </main>
   );
 };

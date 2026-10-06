@@ -27,6 +27,7 @@ permissions:
 
 jobs:
   before:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:

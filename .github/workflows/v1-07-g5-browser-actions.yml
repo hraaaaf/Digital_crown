@@ -10,8 +10,8 @@ on:
       - ".github/workflows/v1-07-g5-browser-actions.yml"
   workflow_dispatch:
 concurrency:
-  group: v1-07-g5-browser-actions-${{ github.ref }}
-  cancel-in-progress: true
+  group: v1-07-g5-browser-actions-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
@@ -68,10 +68,14 @@ jobs:
           cat /tmp/g5-frontend.log; exit 1
       - name: Certify Settings actions
         working-directory: frontend
-        run: node scripts/certify-v1-07-g5-browser-actions.mjs
+        env:
+          T2_USER: t2-browser@cabinet.ma
+        run: node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g5-browser-actions.mjs
       - name: Capture runtime preference BEFORE / AFTER
         working-directory: frontend
-        run: node scripts/capture-v1-07-g5-runtime-preferences-visual.mjs
+        env:
+          T2_USER: t2-browser@cabinet.ma
+        run: node scripts/run-with-t2-workstation.mjs scripts/capture-v1-07-g5-runtime-preferences-visual.mjs
       - name: Upload G5 runtime preference visual evidence
         uses: actions/upload-artifact@v4
         with:

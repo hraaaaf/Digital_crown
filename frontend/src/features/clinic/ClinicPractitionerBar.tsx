@@ -44,15 +44,30 @@ export const ClinicPractitionerBar: React.FC = () => {
   const selectedPractitionerId = usePractitionerContextStore((state) => state.selectedPractitionerId);
   const setPractitioners = usePractitionerContextStore((state) => state.setPractitioners);
   const selectPractitioner = usePractitionerContextStore((state) => state.selectPractitioner);
-  const [loading, setLoading] = useState(true);
+  const isAgendaRoute = location.pathname.startsWith('/agenda');
+  const [loading, setLoading] = useState(isAgendaRoute);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadPractitioners = async () => {
-      setLoading(true);
       const fallback = resolveFallbackPractitioner(user);
 
+      if (!isAgendaRoute) {
+        if (!cancelled) setPractitioners(fallback);
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      const plan = String(user?.subscription_plan || '').toUpperCase();
+      const canReadMultiPractitioner = plan === 'PREMIUM' || plan === 'ELITE';
+      if (!canReadMultiPractitioner) {
+        if (!cancelled) setPractitioners(fallback);
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      setLoading(true);
       try {
         const start = new Date();
         start.setHours(0, 0, 0, 0);
@@ -87,7 +102,7 @@ export const ClinicPractitionerBar: React.FC = () => {
 
     loadPractitioners();
     return () => { cancelled = true; };
-  }, [setPractitioners, user]);
+  }, [isAgendaRoute, setPractitioners, user]);
 
   const selected = useMemo(
     () => practitioners.find((practitioner) => practitioner.id === selectedPractitionerId) ?? practitioners[0] ?? null,

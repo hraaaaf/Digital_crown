@@ -38,7 +38,7 @@ vi.mock('./PendingRequestCard', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.get).mockImplementation(async (url: string) => {
-    if (url === '/upcoming-holidays') return { data: [{ name: 'Test Holiday', date: '2026-09-21' }] } as never;
+    if (url === '/agenda/upcoming-holidays') return { data: [{ name: 'Test Holiday', date: '2026-09-21' }] } as never;
     if (url === '/agenda/settings') return { data: {} } as never;
     if (url === '/agenda/exceptions') return { data: [] } as never;
     if (url === '/appointments/pending') return { data: [{ id: 5 }] } as never;
@@ -51,6 +51,13 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('AgendaStudio G3 interactive shell matrix', () => {
+  it('uses the canonical agenda holidays endpoint and never probes the legacy root route', async () => {
+    render(<MemoryRouter><AgendaStudio /></MemoryRouter>);
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/agenda/upcoming-holidays'));
+    expect(api.get).not.toHaveBeenCalledWith('/upcoming-holidays');
+  });
+
   it('switches day/week/month/multi views and loads multi-practitioner data', async () => {
     render(<MemoryRouter><AgendaStudio /></MemoryRouter>);
     expect(await screen.findByText('Week view')).toBeTruthy();

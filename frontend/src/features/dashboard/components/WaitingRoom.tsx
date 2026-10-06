@@ -1,4 +1,5 @@
-import { AlertTriangle, Calendar, Clock, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, BellRing, Calendar, Clock, Loader2, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../../utils/cn';
@@ -12,17 +13,29 @@ export const WaitingRoom = ({
   loading,
   onRefresh,
   onStatusChange,
+  onCallPatient,
 }: {
   visible: boolean;
   appointments: DashboardAppointment[] | null;
   loading: boolean;
   onRefresh: () => void;
   onStatusChange: (appointmentId: number, status: string) => void;
+  onCallPatient?: (appointmentId: number, ticketNumber?: number) => Promise<void>;
 }) => {
+  const [ticketDrafts, setTicketDrafts] = useState<Record<number, string>>({});
+  const [callingId, setCallingId] = useState<number | null>(null);
+
   if (!visible) return null;
 
   const isUnavailable = appointments === null;
   const safeAppointments = appointments ?? [];
+  const waitingTicketCounts = safeAppointments.reduce<Record<number, number>>((counts, item) => {
+    const ticket = item.ticket_number;
+    if (item.status === 'EN_S_ATTENTE' && Number.isInteger(ticket) && ticket != null) {
+      counts[ticket] = (counts[ticket] ?? 0) + 1;
+    }
+    return counts;
+  }, {});
 
   return (
     <motion.section variants={dashboardItemVariants} className="space-y-5 min-w-0">
@@ -44,8 +57,8 @@ export const WaitingRoom = ({
         <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 min-w-0">
           {isUnavailable ? (
             <div role="status" className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/15">
-                <AlertTriangle size={28} className="text-amber-500" aria-hidden="true" />
+              <div className="w-16 h-16 bg-warning-surface rounded-full flex items-center justify-center border border-warning-border">
+                <AlertTriangle size={28} className="text-warning" aria-hidden="true" />
               </div>
               <div>
                 <h4 className="text-lg font-black text-primary font-outfit mb-2">Rendez-vous indisponibles</h4>
@@ -56,7 +69,7 @@ export const WaitingRoom = ({
               <button
                 type="button"
                 onClick={onRefresh}
-                className="min-h-11 mt-4 px-5 py-2.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all"
+                className="min-h-11 mt-4 px-5 py-2.5 bg-warning-surface text-warning rounded-lg text-xs font-black uppercase tracking-widest hover:brightness-95 transition-all"
               >
                 Réessayer
               </button>
@@ -71,45 +84,109 @@ export const WaitingRoom = ({
                 });
 
                 let statusLabel = 'Prévu';
-                let statusColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                let statusColor = 'bg-background text-text-muted border-border-main';
                 let actionButton = null;
 
                 if (appointment.status === 'EN_S_ATTENTE') {
                   statusLabel = "Salle d'attente";
-                  statusColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse';
+                  statusColor = 'bg-success-surface text-success border-success-border animate-pulse';
+                  const persistedTicket = appointment.ticket_number ?? null;
+                  const persistedTicketValid = Number.isInteger(persistedTicket)
+                    && persistedTicket != null
+                    && persistedTicket >= 1
+                    && persistedTicket <= 999;
+                  const persistedTicketDuplicate = persistedTicketValid
+                    && (waitingTicketCounts[persistedTicket!] ?? 0) > 1;
+                  const ticketNeedsInput = persistedTicket == null || !persistedTicketValid || persistedTicketDuplicate;
+                  const draftTicket = Number.parseInt(ticketDrafts[appointment.id] || '', 10);
+                  const draftTicketInUse = Number.isInteger(draftTicket) && safeAppointments.some(
+                    item => item.id !== appointment.id
+                      && item.status === 'EN_S_ATTENTE'
+                      && item.ticket_number === draftTicket,
+                  );
+                  const validDraftTicket = Number.isInteger(draftTicket)
+                    && draftTicket >= 1
+                    && draftTicket <= 999
+                    && !draftTicketInUse
+                    ? draftTicket
+                    : null;
+                  const callableTicket = ticketNeedsInput ? validDraftTicket : persistedTicket;
                   actionButton = (
-                    <button
-                      type="button"
-                      onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
-                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                    >
-                      Installer au Fauteuil
-                    </button>
+                    <div className="flex w-full flex-col gap-2 sm:w-auto">
+                      <div className="flex min-h-11 items-center gap-2">
+                        {!ticketNeedsInput ? (
+                          <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-primary/15 bg-primary/5 px-3 text-[10px] font-black uppercase tracking-wider text-primary">
+                            <Ticket size={13} aria-hidden="true" /> N° {persistedTicket}
+                          </span>
+                        ) : (
+                          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border-main bg-card-bg px-2">
+                            <span className="sr-only">{persistedTicket == null ? 'Numéro de file' : 'Corriger le numéro de file'}</span>
+                            <Ticket size={13} className="text-text-muted" aria-hidden="true" />
+                            <input
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              aria-label={persistedTicket == null ? 'Numéro de file' : 'Corriger le numéro de file'}
+                              value={ticketDrafts[appointment.id] || ''}
+                              onChange={(event) => setTicketDrafts(current => ({ ...current, [appointment.id]: event.target.value.replace(/\D/g, '').slice(0, 3) }))}
+                              className="w-14 bg-transparent text-center text-xs font-black text-main outline-none"
+                              placeholder="N°"
+                            />
+                          </label>
+                        )}
+                        {onCallPatient && (
+                          <button
+                            type="button"
+                            disabled={callableTicket == null || callingId === appointment.id}
+                            onClick={() => {
+                              setCallingId(appointment.id);
+                              void onCallPatient(appointment.id, ticketNeedsInput ? callableTicket ?? undefined : undefined)
+                                .finally(() => setCallingId(null));
+                            }}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-3 text-[10px] font-black uppercase tracking-wider text-primary transition-all hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {callingId === appointment.id ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <BellRing size={13} aria-hidden="true" />}
+                            Appeler
+                          </button>
+                        )}
+                      </div>
+                      {persistedTicket != null && ticketNeedsInput && (
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-warning">
+                          Numéro de file à corriger
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
+                        className="w-full sm:w-auto min-h-11 px-3 py-2 bg-primary text-on-primary text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      >
+                        Installer au Fauteuil
+                      </button>
+                    </div>
                   );
                 } else if (appointment.status === 'EN_FAUTEUIL') {
                   statusLabel = 'Au Fauteuil';
-                  statusColor = 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+                  statusColor = 'bg-info-surface text-info border-info-border';
                   actionButton = (
                     <button
                       type="button"
                       onClick={() => onStatusChange(appointment.id, 'TERMINÉ')}
-                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
+                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-text-main text-card text-[10px] font-black uppercase tracking-wider rounded-lg hover:brightness-110 transition-all"
                     >
                       Terminer la Séance
                     </button>
                   );
                 } else if (appointment.status === 'TERMINÉ') {
                   statusLabel = 'Terminé';
-                  statusColor = 'bg-slate-500/10 text-slate-400 border-slate-500/10';
+                  statusColor = 'bg-background text-text-muted border-border-main';
                 } else if (appointment.status === 'ANNULÉ') {
                   statusLabel = 'Annulé';
-                  statusColor = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+                  statusColor = 'bg-danger-surface text-danger border-danger-border';
                 } else {
                   actionButton = (
                     <button
                       type="button"
                       onClick={() => onStatusChange(appointment.id, 'EN_S_ATTENTE')}
-                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-success text-card text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                     >
                       Marquer Arrivé
                     </button>
@@ -119,7 +196,7 @@ export const WaitingRoom = ({
                 return (
                   <div
                     key={appointment.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-3 sm:gap-4 min-w-0"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-card/40 border border-border-main rounded-elite-sm hover:bg-card/60 transition-all gap-3 sm:gap-4 min-w-0"
                   >
                     <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
                       <div className="shrink-0 text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
@@ -156,8 +233,8 @@ export const WaitingRoom = ({
               })
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
-                <Calendar size={28} className="text-emerald-500" aria-hidden="true" />
+              <div className="w-16 h-16 bg-gradient-to-br from-success-surface to-success-surface rounded-full flex items-center justify-center">
+                <Calendar size={28} className="text-success" aria-hidden="true" />
               </div>
               <div>
                 <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
@@ -167,7 +244,7 @@ export const WaitingRoom = ({
               </div>
               <Link
                 to="/agenda"
-                className="min-h-11 mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all inline-flex items-center"
+                className="min-h-11 mt-4 px-5 py-2.5 bg-success-surface text-success rounded-lg text-xs font-black uppercase tracking-widest hover:brightness-95 transition-all inline-flex items-center"
               >
                 Ouvrir l'agenda
               </Link>
@@ -177,11 +254,11 @@ export const WaitingRoom = ({
 
         <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[9px] font-black text-text-muted uppercase tracking-wider">
           {isUnavailable ? (
-            <span className="text-amber-600 dark:text-amber-300">État non vérifié</span>
+            <span className="text-warning">État non vérifié</span>
           ) : (
             <>
               <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" aria-hidden="true" />
                 En Salle d'Attente : {safeAppointments.filter(item => item.status === 'EN_S_ATTENTE').length}
               </span>
               <span>Au Fauteuil : {safeAppointments.filter(item => item.status === 'EN_FAUTEUIL').length}</span>
