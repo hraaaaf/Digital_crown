@@ -9,7 +9,7 @@ import math
 import uuid
 from typing import Any, Mapping, Optional, Sequence
 
-from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin, SourceEvidence
+from backend.schemas.cephalo_evidence import EvidenceStatus, ImageOrientationEvidence, LandmarkEvidence, LandmarkOrigin, SourceEvidence
 from backend.schemas.clinical import CephaloAnalysisResult
 from backend.services.cephalo_auto_calibration_evidence import (
     AutoCalibrationEvidenceError,
