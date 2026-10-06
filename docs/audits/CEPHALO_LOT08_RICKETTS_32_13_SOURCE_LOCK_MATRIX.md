@@ -94,7 +94,7 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked Xi from manual/manual-corrected R1-R4 + anatomical Frankfort, manual/manual-corrected `Pm_Ricketts` + ANS |
 | 9 | Upper molar position | `M_U6_PTV_MM_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `U6_DISTAL_Ricketts` + manual/manual-corrected `PR_Ricketts_PTV` + anatomical Frankfort + verified calibration |
 | 10 | Mandibular incisor protrusion | `M_L1_EDGE_APOG_MM_V1` | EXECUTABLE: Ricketts incisal-edge/tip to A-Pog; previous facial-surface mapping rejected as McNamara semantic collision |
-| 11 | Maxillary incisor protrusion | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | EXECUTABLE with verified calibration: `U1_incisal` to A-Pog, anterior-positive |
+| 11 | Maxillary incisor protrusion | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | SOURCE_LOCKED_BLOCKED: `U1_incisal` + A-Pog identities locked; measurement direction unresolved across recovered sources |
 | 12 | Mandibular incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
 | 13 | Maxillary incisor inclination to A-Pog | `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | EXECUTABLE: explicit `U1_incisal/U1_apex` axis vs A-Pog |
 | 14 | Occlusal plane to ramus/Xi | none | NEW_CANONICAL_ID + Xi + functional occlusal plane |
@@ -118,10 +118,10 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 32 | Corpus length | none | NEW_CANONICAL_ID + Xi/Pm/A-Pog source geometry |
 
 ### 32-factor runtime summary
-- Exact executable canonical members: **9** (#6, #7, #10, #11, #12, #13, #16, #19, #22).
+- Exact executable canonical members: **8** (#6, #7, #10, #12, #13, #16, #19, #22).
 - Conditional executable: **9** (#1 molar relation; #2 canine relation; #3 overjet; #5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #20 facial axis; #25 mandibular plane; #31 mandibular arc).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
-- Source-locked but blocked: **1** (#4 overbite sign/orientation).
+- Source-locked but blocked: **2** (#4 overbite sign/orientation; #11 upper-incisor protrusion direction).
 - New source-specific canonical contract required: **12**.
 - Total accounted factors: **32/32**.
 
