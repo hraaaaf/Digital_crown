@@ -54,13 +54,13 @@ from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical
 from backend.services.cephalo_canonical_constructions_v2 import materialize_canonical_constructions_v2
 
 
-def _lm(landmark_id, x, y):
+def _lm(landmark_id, x, y, source_image_ref="source:ceph"):
     return LandmarkEvidence(
         evidence_id=f"landmark:gregoret:{landmark_id}",
         landmark_id=landmark_id,
         x=float(x),
         y=float(y),
-        source_image_ref="source:ceph",
+        source_image_ref=source_image_ref,
         origin=LandmarkOrigin.MANUAL,
         evidence_refs=["source:ceph"],
         evidence_status=EvidenceStatus.OBSERVED,
@@ -215,4 +215,52 @@ def test_gregoret_l1_occlusal_extrusion_fails_closed_without_explicit_fop_anchor
     by_method = {item.method_id: item for item in out}
     item = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
     assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
+
+
+def test_gregoret_l1_occlusal_extrusion_requires_verified_calibration():
+    pts = {
+        "L1_incisal": (5, 3), "L1_apex": (5, 8),
+        "FOP_PREMOLAR_Ricketts": (0, 5), "FOP_MOLAR_Ricketts": (10, 5),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"
+    ]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
+    assert item.calibration_ref is None
+
+
+def test_gregoret_l1_occlusal_extrusion_rejects_cross_image_fop_and_incisor_evidence():
+    landmarks = {
+        "L1_incisal": _lm("L1_incisal", 5, 3, "source:l1"),
+        "L1_apex": _lm("L1_apex", 5, 8, "source:l1"),
+        "FOP_PREMOLAR_Ricketts": _lm("FOP_PREMOLAR_Ricketts", 0, 5, "source:fop"),
+        "FOP_MOLAR_Ricketts": _lm("FOP_MOLAR_Ricketts", 10, 5, "source:fop"),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"
+    ]
+    assert item.availability_status.value == "INVALID"
     assert item.value is None
