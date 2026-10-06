@@ -126,7 +126,7 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | `M_RICKETTS_COMMISSURE_FOP_MM_V1` | Ricketts commissure to FOP | signed commissure/FOP relation | `LABIAL_COMMISSURE_Ricketts` + source-locked FOP | mm | `SOURCE_LOCKED_DEFINITION__SIGNED_NORMAL_ORIENTATION_BLOCKED` |
 | `M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1` | Ricketts facial taper | acute angle N-Pog / source-locked Ricketts MP | N,Pog + Ricketts MP construction | angle ° | `GEOMETRY_COVERED` |
 | `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | Ricketts maxillary height | angle N-CF-A | N,A + `RICKETTS_CF_FH_PTV_INTERSECTION_V1` | angle ° | `GEOMETRY_COVERED` |
-| `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | Ricketts palatal plane | acute angle ANS-PNS / anatomical FH | ANS,`PNS_Ricketts`,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED`; manual PNS |
+| `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | Ricketts palatal plane | directional ANS-PNS / anatomical FH angle; sign unresolved | ANS,`PNS_Ricketts`,Po_anatomic,Or | angle ° | `SOURCE_LOCKED_DEFINITION__SIGNED_ANGLE_ORIENTATION_BLOCKED` |
 
 # 6. Dento-alvéolaire mandibulaire
 
