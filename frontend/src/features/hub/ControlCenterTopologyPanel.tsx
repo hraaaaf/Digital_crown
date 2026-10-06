@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
   ArrowRight,
   CheckCircle2,
   Database,
@@ -246,7 +245,7 @@ export const ControlCenterTopologyPanel = () => {
             <p className="mt-5 text-xs font-black uppercase tracking-widest text-primary">Digital Crown · Technique</p>
             <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight sm:text-4xl">Connexion du poste au cabinet</h1>
             <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">
-              Vérifiez le serveur avant d’ouvrir Digital Crown sur ce poste. Les cibles saisies sont testées sans credential ; la session n’est vérifiée que sur le serveur actuellement ouvert.
+              Vérifiez le serveur de ce poste ou saisissez l’adresse LAN du cabinet. Aucun identifiant ni donnée patient n’est envoyé à une autre origine avant votre action explicite.
             </p>
           </div>
           <StatusPill
@@ -281,7 +280,9 @@ export const ControlCenterTopologyPanel = () => {
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              className="min-h-12 w-full rounded-elite-sm border border-border-main bg-card-bg px-4 text-sm font-bold text-main outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary"
+              aria-describedby="cabinet-server-help"
+              aria-invalid={Boolean(inputError || normalized.error)}
+              className="min-h-12 w-full rounded-elite-sm border border-border-main bg-card-bg px-4 text-sm font-bold text-main outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               placeholder="https://192.168.1.20:8005"
             />
             <button
@@ -289,19 +290,19 @@ export const ControlCenterTopologyPanel = () => {
               data-control-center-probe
               disabled={busy}
               onClick={() => void runProbe(target)}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary transition-elite disabled:opacity-50"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary transition-elite focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
             >
               {busy ? <Loader2 className="animate-spin" size={17} aria-hidden="true" /> : <RefreshCw size={17} aria-hidden="true" />}
-              {busy ? 'Vérification…' : 'Vérifier maintenant'}
+              {busy ? 'Vérification…' : result && isCurrentTarget ? 'Relancer le diagnostic' : 'Vérifier maintenant'}
             </button>
           </div>
-          <p className="mt-2 text-xs font-semibold text-text-muted">
-            Adresse détectée pour cette application : <span className="font-black text-main">{API_BASE}</span>
+          <p id="cabinet-server-help" className="mt-2 text-xs font-semibold text-text-muted">
+            Serveur actuellement ouvert : <span className="font-black text-main">{API_BASE}</span>
           </p>
           {(inputError || normalized.error) && <p role="alert" className="mt-3 text-sm font-black text-danger">{inputError || normalized.error}</p>}
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
             <Server className="text-primary" size={20} aria-hidden="true" />
             <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Backend</p>
@@ -326,26 +327,27 @@ export const ControlCenterTopologyPanel = () => {
               {result?.authOk === true ? 'Authentifiée' : result?.authOk === false ? 'Connexion requise' : 'Après ouverture'}
             </p>
           </article>
-          <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
-            <Activity className="text-primary" size={20} aria-hidden="true" />
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Latence probe</p>
-            <p data-control-center-latency className="mt-1 text-lg font-black">{result ? `${result.latencyMs} ms` : '—'}</p>
-          </article>
         </div>
 
         {result?.topology && (
-          <div data-control-center-topology-details className="mt-5 grid gap-3 rounded-elite-sm border border-border-main bg-main-bg p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div><span className="font-bold text-text-muted">Rôle</span><p className="mt-1 font-black">{result.topology.topologyRole || '—'}</p></div>
-            <div><span className="font-bold text-text-muted">Adresse bind</span><p className="mt-1 font-black">{result.topology.bindHost || '—'}</p></div>
-            <div><span className="font-bold text-text-muted">Port</span><p className="mt-1 font-black">{result.topology.port || '—'}</p></div>
-            <div><span className="font-bold text-text-muted">Mode réseau</span><p className="mt-1 font-black">{result.topology.lanExposed ? 'LAN' : 'Local uniquement'}</p></div>
-            <div className="sm:col-span-2 lg:col-span-4">
-              <span className="font-bold text-text-muted">URL poste annexe</span>
-              <p data-control-center-connection-url className="mt-1 break-all font-black">
-                {result.topology.connectionUrl || 'Non publiée — serveur limité au loopback'}
-              </p>
+          <details data-control-center-topology-details className="mt-5 rounded-elite-sm border border-border-main bg-main-bg p-4 text-sm">
+            <summary className="cursor-pointer font-black text-main outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+              Détails techniques
+              <span className="ml-2 font-semibold text-text-muted">· {result.latencyMs} ms</span>
+            </summary>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div><span className="font-bold text-text-muted">Rôle</span><p className="mt-1 font-black">{result.topology.topologyRole || '—'}</p></div>
+              <div><span className="font-bold text-text-muted">Adresse bind</span><p className="mt-1 font-black">{result.topology.bindHost || '—'}</p></div>
+              <div><span className="font-bold text-text-muted">Port</span><p className="mt-1 font-black">{result.topology.port || '—'}</p></div>
+              <div><span className="font-bold text-text-muted">Mode réseau</span><p className="mt-1 font-black">{result.topology.lanExposed ? 'LAN' : 'Local uniquement'}</p></div>
+              <div className="sm:col-span-2 lg:col-span-4">
+                <span className="font-bold text-text-muted">URL poste annexe</span>
+                <p data-control-center-connection-url className="mt-1 break-all font-black">
+                  {result.topology.connectionUrl || 'Non publiée — serveur limité au loopback'}
+                </p>
+              </div>
             </div>
-          </div>
+          </details>
         )}
 
         <div data-control-center-remediation role="status" aria-live="polite" className="mt-5 rounded-elite-sm border border-primary/20 bg-primary/5 p-4 sm:p-5">
@@ -358,22 +360,27 @@ export const ControlCenterTopologyPanel = () => {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={() => window.location.assign('/hub?select=1')}
-            className="inline-flex min-h-12 items-center justify-center rounded-elite-sm border border-border-main px-5 text-sm font-black text-main transition-elite hover:bg-primary/5"
-          >
-            Retour
-          </button>
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+          {!isCurrentTarget && (
+            <button
+              type="button"
+              onClick={() => window.location.assign('/hub?select=1')}
+              className="inline-flex min-h-12 items-center justify-center rounded-elite-sm border border-border-main px-5 text-sm font-black text-main transition-elite hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              Retour au Hub
+            </button>
+          )}
           <button
             type="button"
             data-control-center-open
-            disabled={!canOpen}
-            onClick={openValidatedServer}
-            className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm border px-5 text-sm font-black transition-elite ${canOpen ? 'border-primary bg-primary text-on-primary' : 'border-border-main bg-main-bg text-text-muted'}`}
+            onClick={() => {
+              if (isCurrentTarget) window.location.assign('/hub?select=1');
+              else openValidatedServer();
+            }}
+            disabled={!isCurrentTarget && !canOpen}
+            className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm border px-5 text-sm font-black transition-elite focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${isCurrentTarget || canOpen ? 'border-primary bg-primary text-on-primary' : 'border-border-main bg-main-bg text-text-muted'}`}
           >
-            {isCurrentTarget ? 'Serveur actuel' : 'Ouvrir et vérifier'} <ArrowRight size={16} aria-hidden="true" />
+            {isCurrentTarget ? 'Continuer vers le Hub' : 'Ouvrir et vérifier'} <ArrowRight size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
