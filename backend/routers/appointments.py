@@ -296,6 +296,48 @@ def update_appointment(
     return db_appt
 
 
+@router.post("/{id}/presence-confirmation")
+def confirm_appointment_presence(
+    id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    employer_id = int(current_user.get_employer_id())
+    appointment = db.query(models.Appointment).filter(
+        models.Appointment.id == id,
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
+    ).first()
+    if appointment is None:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if appointment.patient_id is None:
+        raise HTTPException(status_code=409, detail="APPOINTMENT_PATIENT_REQUIRED")
+    if appointment.status != models.AppointmentStatus.EN_SALLE_ATTENTE:
+        raise HTTPException(status_code=409, detail="APPOINTMENT_PRESENCE_NOT_CONFIRMABLE")
+
+    existing = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == "APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
+        models.AuditLog.resource_type == "Appointment",
+        models.AuditLog.resource_id == str(id),
+    ).order_by(models.AuditLog.id.asc()).first()
+    if existing is not None:
+        return {"status": "CONFIRMED", "proofId": existing.id}
+
+    event = models.AuditLog(
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="APPOINTMENT_PRESENCE_CONFIRMED_STAFF",
+        resource_type="Appointment",
+        resource_id=str(id),
+        details="Presence explicitly confirmed by authenticated staff.",
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return {"status": "CONFIRMED", "proofId": event.id}
+
+
 @router.delete("/{id}")
 def delete_appointment(
     id: int,
