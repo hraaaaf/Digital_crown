@@ -1,0 +1,99 @@
+name: S775 Image Orientation Final Certification
+
+on:
+  push:
+    branches:
+      - S775-image-orientation-final-28695af
+
+jobs:
+  raw-head-pytest:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 28695af2ce770a13c6cd9c39c030ba43ef208d1f
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "28695af2ce770a13c6cd9c39c030ba43ef208d1f"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+      - name: Run orientation and Atlas targeted tests
+        run: python -m pytest backend/tests/test_cephalo_lot08_image_orientation_evidence.py backend/tests/test_cephalo_runtime_evidence.py backend/tests/test_cephalo_evidence_graph.py backend/tests/test_cephalo_lot08_ricketts_atlas33_profile.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_d.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_c.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_b.py backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_a.py backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py -q
+
+  cephalo-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: cephalo-runtime-certification-secret-key-000001
+      DATABASE_URL: sqlite:///./cephalo-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      T2_USER: t2-browser@cabinet.ma
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 28695af2ce770a13c6cd9c39c030ba43ef208d1f
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "28695af2ce770a13c6cd9c39c030ba43ef208d1f"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate isolated runtime credential
+        run: python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-cephalo-runtime.txt
+          pip install -r /tmp/requirements-cephalo-runtime.txt
+          python -m pip check
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install chromium
+      - name: Start isolated backend
+        run: |
+          rm -f cephalo-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/cephalo-backend.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cephalo-backend.log
+          exit 1
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/cephalo-frontend.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cephalo-frontend.log
+          exit 1
+      - name: Certify G4 Cephalo browser actions
+        working-directory: frontend
+        run: node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g4-cephalo-actions.mjs
