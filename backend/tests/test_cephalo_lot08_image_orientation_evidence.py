@@ -57,7 +57,7 @@ def _landmarks():
         "U1_incisal": _lm("U1_incisal", 5, -1),
         "L1_incisal": _lm("L1_incisal", 5, 1),
         "LABIAL_COMMISSURE_Ricketts": _lm("LABIAL_COMMISSURE_Ricketts", 5, 2),
-        "ANS": _lm("ANS", 10, math.tan(math.radians(10))),
+        "ANS": _lm("ANS", 10, 10 * math.tan(math.radians(10))),
         "PNS_Ricketts": _lm("PNS_Ricketts", 0, 0),
         "R1_Ricketts": _lm("R1_Ricketts", 0, -3),
         "R2_Ricketts": _lm("R2_Ricketts", 2, -3),
