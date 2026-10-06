@@ -79,6 +79,14 @@ for (const profile of profiles) {
   await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('[data-control-center-db]').filter({ hasText: 'Disponible' }).waitFor({ state: 'visible', timeout: 10000 });
 
+  const firstUseNextAction = page.getByRole('button', { name: 'Continuer vers le Hub' });
+  const firstUseNextActionBox = await firstUseNextAction.boundingBox();
+  const nextActionInViewport = Boolean(
+    firstUseNextActionBox
+    && firstUseNextActionBox.y >= 0
+    && firstUseNextActionBox.y + firstUseNextActionBox.height <= profile.height
+  );
+
   await page.screenshot({ path: path.join(outDir, profile.label + '-03-control-center-verified.png'), fullPage: true });
 
   const technicalDetails = page.locator('[data-control-center-topology-details]');
@@ -100,10 +108,7 @@ for (const profile of profiles) {
     && bodyText.includes('Non publiée — serveur limité au loopback');
   const inputAccessible = await targetInput.getAttribute('aria-describedby') === 'cabinet-server-help'
     && await targetInput.getAttribute('aria-invalid') === 'false';
-  const nextAction = page.getByRole('button', { name: 'Continuer vers le Hub' });
   const nextActionVisible = buttons.some(text => text.includes('Continuer vers le Hub'));
-  const nextActionBox = await nextAction.boundingBox();
-  const nextActionInViewport = Boolean(nextActionBox && nextActionBox.y >= 0 && nextActionBox.y + nextActionBox.height <= profile.height);
 
   await page.screenshot({ path: path.join(outDir, profile.label + '-04-control-center-details.png'), fullPage: true });
 
