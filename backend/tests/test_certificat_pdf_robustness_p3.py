@@ -83,13 +83,13 @@ def test_free_certificate_last_page_keeps_body_with_signature(tmp_path):
 
     gen = CertificatGenerator(output_dir=str(tmp_path))
     patient = SimpleNamespace(nom="PDF-ROBUST", prenom="Élodie", date_naissance=date(1990, 1, 1), sexe="F")
-    paragraph = "Évaluation médico-dentaire — contrôle : sensibilité, œdème, évolution post-opératoire et tolérance fonctionnelle."
-    content = "\n\n".join(f"{paragraph} Bloc {i}." for i in range(1, 19))
+    stress_unit = "Évaluation médico-dentaire — contrôle : sensibilité, œdème, évolution post-opératoire et tolérance fonctionnelle. Texte de robustesse : à â ç é è ê ë î ï ô ù û ü œ « » — ’."
+    content = "\n\n".join(stress_unit.replace("contrôle", f"contrôle n° {i}") for i in range(1, 19))
     data = SimpleNamespace(doc_date=date(2026, 10, 2), reason=CERTIFICATE_REASON_FREE, days=0, content=content, observations="")
 
     path = gen.generate(patient, data, db=_DbStub(), user_id=signer.id)
     pages = PdfReader(path).pages
-    assert len(pages) >= 2
+    assert len(pages) == 4
     last_text = pages[-1].extract_text() or ""
     assert "Signature manuscrite du praticien" in last_text
-    assert "Évaluation médico-dentaire" in last_text
+    assert "contrôle n° 18" in last_text
