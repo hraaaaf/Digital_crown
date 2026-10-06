@@ -87,7 +87,7 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 1 | Molar relation | `M_RICKETTS_MOLAR_RELATION_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: manual `L6_DISTAL_Ricketts` + `U6_DISTAL_Ricketts` + source-locked FOP + verified calibration |
 | 2 | Canine relation | `M_RICKETTS_CANINE_RELATION_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: manual `L3_CUSP_Ricketts` + `U3_CUSP_Ricketts` + source-locked FOP + verified calibration |
 | 3 | Incisor overjet | `M_RICKETTS_OVERJET_FOP_MM_V1` | CONDITIONAL_EXECUTABLE: `L1_incisal` + `U1_incisal` + source-locked FOP + verified calibration; positive upper-anterior |
-| 4 | Incisor overbite | `M_RICKETTS_OVERBITE_FOP_MM_V1` | SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED; no runtime promotion |
+| 4 | Incisor overbite | `M_RICKETTS_OVERBITE_FOP_MM_V1` | SOURCE_LOCKED_BLOCKED: source sign known (open bite negative); superior/inferior image axis not evidenced; no runtime promotion |
 | 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + `L1_incisal/L1_apex` crownward-positive sign + verified calibration |
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
@@ -118,7 +118,7 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 32 | Corpus length | `M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1` | CONDITIONAL_EXECUTABLE: canonical Xi + manual Pm + calibration |
 
 ### 32-factor runtime summary
-- Exact executable canonical members: **9** (#6, #7, #10, #12, #13, #16, #19, #22, #26).
+- Exact executable canonical members: **10** (#6, #7, #10, #11, #12, #13, #16, #19, #22, #26).
 - Conditional executable: **18** (#1, #2, #3, #5, #8, #9, #15, #17, #20, #21, #23, #25, #27, #28, #29, #30, #31, #32).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **0**.
 - Source-locked but blocked: **4** (#4 overbite; #14 FOP→Xi; #18 commissure→FOP; #24 palatal-plane angle). Their source signs are known; the remaining gate is explicit superior/inferior image orientation evidence.
@@ -260,7 +260,7 @@ Re-reviewed the source/profile architecture after the fixes.
 - New MAJOR: 0.
 - Significant open scientific work: explicit and accepted as open, not hidden.
 
-A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts are now source-locked with 7 executable + 6 conditional rows and 0 blocked landmark rows. The complete Atlas/compatibility Ricketts program remains open.**
+A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts remain source-locked with 7 executable + 6 conditional rows and 0 blocked landmark rows. Atlas/33 is mapped 33/33 with 10 executable + 19 conditional + 4 orientation-blocked rows; direct Facad parity remains open.**
 
 ## Gate
 
