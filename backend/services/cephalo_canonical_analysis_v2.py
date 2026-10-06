@@ -280,24 +280,24 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         name="RICKETTS_MOLAR_RELATION_FOP",
         method="RICKETTS_MOLAR_RELATION_FOP_CANONICAL_MM_V2",
         canonical_id="M_RICKETTS_MOLAR_RELATION_FOP_MM_V1",
-        first_id="U6_DISTAL_Ricketts",
-        second_id="L6_DISTAL_Ricketts",
+        first_id="L6_DISTAL_Ricketts",
+        second_id="U6_DISTAL_Ricketts",
         require_manual=True,
     )
     _fop_projection_measure(
         name="RICKETTS_CANINE_RELATION_FOP",
         method="RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2",
         canonical_id="M_RICKETTS_CANINE_RELATION_FOP_MM_V1",
-        first_id="U3_CUSP_Ricketts",
-        second_id="L3_CUSP_Ricketts",
+        first_id="L3_CUSP_Ricketts",
+        second_id="U3_CUSP_Ricketts",
         require_manual=True,
     )
     _fop_projection_measure(
         name="RICKETTS_OVERJET_FOP",
         method="RICKETTS_OVERJET_FOP_CANONICAL_MM_V2",
         canonical_id="M_RICKETTS_OVERJET_FOP_MM_V1",
-        first_id="U1_incisal",
-        second_id="L1_incisal",
+        first_id="L1_incisal",
+        second_id="U1_incisal",
         require_manual=False,
     )
 
