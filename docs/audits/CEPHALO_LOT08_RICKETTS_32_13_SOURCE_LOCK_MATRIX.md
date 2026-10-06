@@ -119,9 +119,9 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 
 ### 32-factor runtime summary
 - Exact executable canonical members: **10** (#6, #7, #10, #11, #12, #13, #16, #19, #22, #26).
-- Conditional executable: **18** (#1, #2, #3, #5, #8, #9, #15, #17, #20, #21, #23, #25, #27, #28, #29, #30, #31, #32).
+- Conditional executable: **22** (#1, #2, #3, #4, #5, #8, #9, #14, #15, #17, #18, #20, #21, #23, #24, #25, #27, #28, #29, #30, #31, #32).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **0**.
-- Source-locked but blocked: **4** (#4 overbite; #14 FOP→Xi; #18 commissure→FOP; #24 palatal-plane angle). Their source signs are known; the remaining gate is explicit superior/inferior image orientation evidence.
+- Source-locked but blocked: **0**. #4/#14/#18/#24 are now CONDITIONAL_EXECUTABLE behind versioned `ImageOrientationEvidence`.
 - New source-specific canonical contract required: **0**.
 - Total accounted factors: **32/32**.
 
@@ -260,7 +260,7 @@ Re-reviewed the source/profile architecture after the fixes.
 - New MAJOR: 0.
 - Significant open scientific work: explicit and accepted as open, not hidden.
 
-A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts remain source-locked with 7 executable + 6 conditional rows and 0 blocked landmark rows. Atlas/33 is mapped 33/33 with 10 executable + 19 conditional + 4 orientation-blocked rows; direct Facad parity remains open.**
+A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts remain source-locked with 7 executable + 6 conditional rows and 0 blocked landmark rows. Atlas/33 is mapped 33/33 with 10 executable + 23 conditional + 0 blocked rows; four signed measures require versioned image-orientation evidence. Direct Facad parity remains open.**
 
 ## Gate
 
