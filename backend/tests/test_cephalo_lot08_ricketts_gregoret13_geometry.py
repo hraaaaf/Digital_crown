@@ -6,6 +6,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_maxillary_depth_deg_v1,
+    ricketts_mandibular_plane_fh_deg_v1,
 )
 
 
@@ -29,6 +30,22 @@ def test_ricketts_l1_apog_inclination_uses_incisal_to_apex_axis():
 def test_ricketts_new_angles_fail_closed_on_degenerate_axes():
     assert ricketts_maxillary_depth_deg_v1((0, 0), (0, 0), (0, 0), (0, 10)) is None
     assert ricketts_l1_apog_inclination_deg_v1((0, 0), (0, 0), (0, 0), (0, 10)) is None
+
+
+def test_ricketts_mandibular_plane_uses_explicit_angle_point_to_menton_against_fh():
+    value = ricketts_mandibular_plane_fh_deg_v1(
+        (0, 0), (10, 0), (0, 0), (10, 5)
+    )
+    assert value == pytest.approx(math.degrees(math.atan2(5, 10)), abs=1e-9)
+
+
+def test_ricketts_mandibular_plane_fails_closed_on_degenerate_axis():
+    assert ricketts_mandibular_plane_fh_deg_v1(
+        (0, 0), (0, 0), (0, 0), (10, 5)
+    ) is None
+    assert ricketts_mandibular_plane_fh_deg_v1(
+        (0, 0), (10, 0), (0, 0), (0, 0)
+    ) is None
 
 
 from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin
