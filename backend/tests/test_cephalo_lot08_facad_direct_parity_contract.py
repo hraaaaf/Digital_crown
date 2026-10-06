@@ -107,7 +107,28 @@ def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
         "membership_status",
         "sign_status",
         "numeric_status",
+        "comparison_details",
         "evidence_refs",
+    }
+    assert set(row_contract["comparison_details_required_fields"]) == {
+        "digital_crown_label",
+        "label_status",
+        "digital_crown_unit",
+        "unit_status",
+        "facad_landmarks_constructions",
+        "digital_crown_landmarks_constructions",
+        "construction_status",
+        "facad_value",
+        "digital_crown_value",
+        "numeric_delta",
+        "facad_norm",
+        "digital_crown_norm",
+        "norm_status",
+        "facad_display_value",
+        "digital_crown_display_value",
+        "rounding_status",
+        "atlas_divergence_status",
+        "atlas_divergence_note",
     }
     assert set(row_contract["allowed_membership_status"]) == {
         "OBSERVED_MATCH",
@@ -130,3 +151,4 @@ def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
     assert rules["evidence_hash_required"] is True
     assert rules["evidence_file_presence_required"] is True
     assert rules["facad_version_required"] is True
+    assert rules["all_declared_comparison_dimensions_must_be_recordable"] is True
