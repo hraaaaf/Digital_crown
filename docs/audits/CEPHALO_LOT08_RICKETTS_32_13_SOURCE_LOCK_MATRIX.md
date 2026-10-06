@@ -109,20 +109,20 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 23 | Maxillary height | `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | CONDITIONAL_EXECUTABLE: N-CF-A, CF = anatomical FH ∩ source-locked PTV |
 | 24 | Palatal plane | `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | SOURCE_LOCKED_BLOCKED: signed angular orientation unresolved; no unsigned runtime |
 | 25 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: explicit `MP_ANGLE_INFERIOR_Ricketts` + Me + anatomical Frankfort; generic Go/Go-Gn substitution forbidden |
-| 26 | Cranial deflection | none | NEW_CANONICAL_ID |
-| 27 | Anterior cranial length | none | NEW_CANONICAL_ID + CC |
-| 28 | Posterior facial height | none | NEW_CANONICAL_ID + CF/Go definition |
-| 29 | Ramus position | none | NEW_CANONICAL_ID + CF/Xi |
-| 30 | Porion location / TMJ | none | NEW_CANONICAL_ID + exact Ricketts construction |
+| 26 | Cranial deflection | `M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1` | EXECUTABLE: anatomical FH vs Ba-N |
+| 27 | Anterior cranial length | `M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1` | CONDITIONAL_EXECUTABLE: Atlas2009 CC + N + calibration |
+| 28 | Posterior facial height | `M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1` | CONDITIONAL_EXECUTABLE: manual `GO_Ricketts_PFH` + canonical CF + calibration |
+| 29 | Ramus position | `M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1` | CONDITIONAL_EXECUTABLE: anatomical FH + canonical CF + canonical Xi |
+| 30 | Porion location / TMJ | `M_RICKETTS_PORION_LOCATION_PTV_MM_V1` | CONDITIONAL_EXECUTABLE: source-locked PTV + anatomical Po + calibration; posterior negative |
 | 31 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | CONDITIONAL_EXECUTABLE: manual/manual-corrected `DC_Ricketts` + source-locked Xi + manual/manual-corrected `Pm_Ricketts` |
-| 32 | Corpus length | none | NEW_CANONICAL_ID + Xi/Pm/A-Pog source geometry |
+| 32 | Corpus length | `M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1` | CONDITIONAL_EXECUTABLE: canonical Xi + manual Pm + calibration |
 
 ### 32-factor runtime summary
-- Exact executable canonical members: **8** (#6, #7, #10, #12, #13, #16, #19, #22).
-- Conditional executable: **13** (#1 molar relation; #2 canine relation; #3 overjet; #5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #15 occlusal-plane inclination; #17 upper-lip length; #20 facial axis; #21 facial taper; #23 maxillary height; #25 mandibular plane; #31 mandibular arc).
+- Exact executable canonical members: **9** (#6, #7, #10, #12, #13, #16, #19, #22, #26).
+- Conditional executable: **18** (#1, #2, #3, #5, #8, #9, #15, #17, #20, #21, #23, #25, #27, #28, #29, #30, #31, #32).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **0**.
 - Source-locked but blocked: **5** (#4 overbite sign/orientation; #11 upper-incisor protrusion direction; #14 FOP→Xi sign; #18 commissure→FOP sign; #24 palatal-plane signed angle).
-- New source-specific canonical contract required: **6**.
+- New source-specific canonical contract required: **0**.
 - Total accounted factors: **32/32**.
 
 This proves that the current five-measure LOT06 Ricketts pack is only a seed, not a complete protocol.
