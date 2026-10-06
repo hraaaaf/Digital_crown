@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react';
-import { API_BASE } from '../../services/api';
+import { API_BASE, getRuntimeAuthToken } from '../../services/api';
 
 type TopologyPayload = {
   status?: string;
@@ -33,8 +33,10 @@ type ProbeResult = {
   latencyMs: number;
   backendOk: boolean;
   databaseOk: boolean;
+  authOk: boolean | null;
   topology: TopologyPayload | null;
   error: string | null;
+  crossOriginLimited: boolean;
 };
 
 const isLoopback = (hostname: string) => {
@@ -83,6 +85,7 @@ const remediationCopy = (result: ProbeResult | null) => {
   if (result.error) return result.error;
   if (!result.backendOk) return 'Backend injoignable. Vérifiez que Digital Crown est démarré, l’adresse saisie et le pare-feu du poste serveur.';
   if (!result.databaseOk) return 'Backend joignable mais base indisponible. Vérifiez PostgreSQL puis relancez le diagnostic.';
+  if (result.authOk === false) return 'Serveur et base disponibles, mais la session de ce poste n’est pas authentifiée. Ouvrez le serveur puis connectez-vous.';
   if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') {
     return 'Serveur limité à la machine locale. Pour un poste annexe, configurez explicitement une adresse LAN et HTTPS/TLS sur le serveur.';
   }
@@ -110,8 +113,8 @@ export const ControlCenterTopologyPanel = () => {
 
   const normalized = useMemo(() => normalizeTarget(target), [target]);
 
-  const runProbe = useCallback(async () => {
-    const parsed = normalizeTarget(target);
+  const runProbe = useCallback(async (rawTarget: string) => {
+    const parsed = normalizeTarget(rawTarget);
     if (!parsed.baseUrl) {
       setInputError(parsed.error || 'Adresse invalide.');
       setResult(null);
@@ -125,7 +128,10 @@ export const ControlCenterTopologyPanel = () => {
     const started = performance.now();
 
     try {
-      const [topologyResponse, dbResponse] = await Promise.all([
+      const currentBase = normalizeTarget(API_BASE).baseUrl;
+      const isCurrentAuthority = parsed.baseUrl === currentBase;
+      const authToken = isCurrentAuthority ? getRuntimeAuthToken() : null;
+      const [topologyResponse, dbResponse, authResponse] = await Promise.all([
         fetch(`${parsed.baseUrl}/api/health/topology`, {
           credentials: 'omit',
           cache: 'no-store',
@@ -136,6 +142,14 @@ export const ControlCenterTopologyPanel = () => {
           cache: 'no-store',
           signal: controller.signal,
         }),
+        isCurrentAuthority
+          ? fetch(`${parsed.baseUrl}/api/clinics/me`, {
+              credentials: 'include',
+              cache: 'no-store',
+              signal: controller.signal,
+              headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+            })
+          : Promise.resolve(null),
       ]);
       const topology = await topologyResponse.json().catch(() => null) as TopologyPayload | null;
       setResult({
@@ -143,8 +157,10 @@ export const ControlCenterTopologyPanel = () => {
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
         backendOk: topologyResponse.ok,
         databaseOk: dbResponse.ok,
+        authOk: authResponse ? authResponse.ok : null,
         topology,
         error: null,
+        crossOriginLimited: false,
       });
     } catch (error) {
       setResult({
@@ -152,32 +168,31 @@ export const ControlCenterTopologyPanel = () => {
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
         backendOk: false,
         databaseOk: false,
+        authOk: null,
         topology: null,
         error: error instanceof DOMException && error.name === 'AbortError'
           ? 'Délai dépassé. Vérifiez que le serveur est démarré et joignable sur le réseau local.'
-          : 'Connexion impossible depuis ce poste. Vérifiez l’adresse, HTTPS, le port 8005 et le pare-feu.',
+          : 'Le navigateur ne peut pas vérifier cette cible depuis l’autorité actuelle. Ouvrez cette adresse pour terminer le diagnostic directement sur ce serveur.',
+        crossOriginLimited: true,
       });
     } finally {
       window.clearTimeout(timeout);
       setBusy(false);
     }
-  }, [target]);
+  }, []);
 
   useEffect(() => {
-    void runProbe();
+    void runProbe(API_BASE);
   }, [runProbe]);
 
-  const canOpen = Boolean(
-    result
-    && result.backendOk
-    && result.databaseOk
-    && result.baseUrl
-    && !result.error,
-  );
+  const currentBase = normalizeTarget(API_BASE).baseUrl;
+  const targetBase = normalized.baseUrl;
+  const isCurrentTarget = Boolean(targetBase && targetBase === currentBase);
+  const canOpen = Boolean(targetBase && !normalized.error && !isCurrentTarget);
 
   const openValidatedServer = () => {
-    if (!canOpen || !result) return;
-    window.location.assign(`${result.baseUrl}/control-center`);
+    if (!canOpen || !targetBase) return;
+    window.location.assign(`${targetBase}/control-center`);
   };
 
   return (
@@ -221,7 +236,7 @@ export const ControlCenterTopologyPanel = () => {
               type="button"
               data-control-center-probe
               disabled={busy}
-              onClick={() => void runProbe()}
+              onClick={() => void runProbe(target)}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:opacity-50"
             >
               {busy ? <Loader2 className="animate-spin" size={17} aria-hidden="true" /> : <RefreshCw size={17} aria-hidden="true" />}
@@ -234,7 +249,7 @@ export const ControlCenterTopologyPanel = () => {
           {(inputError || normalized.error) && <p role="alert" className="mt-3 text-sm font-black text-danger">{inputError || normalized.error}</p>}
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
             <Server className="text-primary" size={20} aria-hidden="true" />
             <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Backend</p>
@@ -250,6 +265,13 @@ export const ControlCenterTopologyPanel = () => {
             <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Transport</p>
             <p data-control-center-transport className="mt-1 text-lg font-black">
               {result?.topology?.tlsReady ? 'HTTPS prêt' : result?.topology?.lanExposed ? 'Action requise' : 'Local'}
+            </p>
+          </article>
+          <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
+            <ShieldCheck className="text-primary" size={20} aria-hidden="true" />
+            <p className="mt-3 text-xs font-black uppercase tracking-wide text-text-muted">Session</p>
+            <p data-control-center-auth className="mt-1 text-lg font-black">
+              {result?.authOk === true ? 'Authentifiée' : result?.authOk === false ? 'Connexion requise' : 'Après ouverture'}
             </p>
           </article>
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-4">
@@ -293,7 +315,7 @@ export const ControlCenterTopologyPanel = () => {
             onClick={openValidatedServer}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-elite-sm bg-primary px-5 text-sm font-black text-card-bg transition-elite disabled:border disabled:border-border-main disabled:bg-main-bg disabled:text-text-muted disabled:opacity-100"
           >
-            Ouvrir ce serveur <ArrowRight size={16} aria-hidden="true" />
+            {isCurrentTarget ? 'Serveur actuel' : 'Ouvrir et vérifier'} <ArrowRight size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
