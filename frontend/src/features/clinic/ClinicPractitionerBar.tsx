@@ -52,6 +52,13 @@ export const ClinicPractitionerBar: React.FC = () => {
     const loadPractitioners = async () => {
       setLoading(true);
       const fallback = resolveFallbackPractitioner(user);
+      const plan = String(user?.subscription_plan || '').toUpperCase();
+      const canReadMultiPractitioner = plan === 'PREMIUM' || plan === 'ELITE';
+      if (!canReadMultiPractitioner) {
+        if (!cancelled) setPractitioners(fallback);
+        if (!cancelled) setLoading(false);
+        return;
+      }
 
       try {
         const start = new Date();
