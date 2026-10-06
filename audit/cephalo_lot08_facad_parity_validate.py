@@ -17,9 +17,36 @@ _ALLOWED_TARGETS = {
     "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET": 13,
 }
 _ALLOWED_PROFILE_STATUS = {"UNOBSERVED", "PARTIAL", "OBSERVED"}
-_ALLOWED_MEMBERSHIP = {"OBSERVED_MATCH", "OBSERVED_FACAD_ONLY", "OBSERVED_DC_ONLY", "UNOBSERVED"}
+_ALLOWED_MANIFEST_STATUS = {
+    "AWAITING_DIRECT_FACAD_EXPORTS",
+    "DIRECT_EVIDENCE_PARTIAL",
+    "DIRECT_PARITY_OBSERVED",
+}
+_ALLOWED_MEMBERSHIP = {"OBSERVED_MATCH", "OBSERVED_FACAD_ONLY", "OBSERVED_DC_ONLY"}
 _ALLOWED_SIGN = {"OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"}
 _ALLOWED_NUMERIC = {"OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_COMPARABLE"}
+_EVIDENCE_REQUIRED_FIELDS = {
+    "evidence_id",
+    "artifact_kind",
+    "profile_target_id",
+    "source_path",
+    "source_filename",
+    "sha256",
+    "facad_version",
+    "observed_at",
+    "same_trace_case_id",
+}
+_PARITY_REQUIRED_FIELDS = {
+    "profile_target_id",
+    "facad_order",
+    "facad_export_label",
+    "facad_unit",
+    "digital_crown_measurement_id",
+    "membership_status",
+    "sign_status",
+    "numeric_status",
+    "evidence_refs",
+}
 
 
 def _error(errors: list[str], message: str) -> None:
@@ -45,6 +72,10 @@ def _valid_observed_at(value: Any) -> bool:
     return True
 
 
+def _nonempty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
     errors: list[str] = []
 
@@ -54,6 +85,44 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         _error(errors, "scientific_authority must remain false")
     if manifest.get("compatibility_only") is not True:
         _error(errors, "compatibility_only must remain true")
+    if set(manifest.get("allowed_manifest_status") or []) != _ALLOWED_MANIFEST_STATUS:
+        _error(errors, "allowed_manifest_status contract mismatch")
+    if set(manifest.get("allowed_profile_observation_status") or []) != _ALLOWED_PROFILE_STATUS:
+        _error(errors, "allowed_profile_observation_status contract mismatch")
+
+    exports = manifest.get("required_direct_exports")
+    if not isinstance(exports, list):
+        _error(errors, "required_direct_exports must be a list")
+    else:
+        export_kinds = {item.get("kind") for item in exports if isinstance(item, dict)}
+        if export_kinds != _ALLOWED_KINDS:
+            _error(errors, "required_direct_exports must define exactly the three direct export families")
+        if any(isinstance(item, dict) and "status" in item for item in exports):
+            _error(errors, "required_direct_exports status must be derived from evidence, not stored")
+
+    evidence_contract = manifest.get("evidence_record_contract")
+    if not isinstance(evidence_contract, dict):
+        _error(errors, "evidence_record_contract must be an object")
+    else:
+        if set(evidence_contract.get("required_fields") or []) != _EVIDENCE_REQUIRED_FIELDS:
+            _error(errors, "evidence_record_contract.required_fields mismatch")
+        if set(evidence_contract.get("allowed_artifact_kinds") or []) != _ALLOWED_KINDS:
+            _error(errors, "evidence_record_contract.allowed_artifact_kinds mismatch")
+        if set(evidence_contract.get("allowed_profile_target_ids") or []) != set(_ALLOWED_TARGETS):
+            _error(errors, "evidence_record_contract.allowed_profile_target_ids mismatch")
+
+    row_contract = manifest.get("parity_row_contract")
+    if not isinstance(row_contract, dict):
+        _error(errors, "parity_row_contract must be an object")
+    else:
+        if set(row_contract.get("required_fields") or []) != _PARITY_REQUIRED_FIELDS:
+            _error(errors, "parity_row_contract.required_fields mismatch")
+        if set(row_contract.get("allowed_membership_status") or []) != _ALLOWED_MEMBERSHIP:
+            _error(errors, "parity_row_contract.allowed_membership_status mismatch")
+        if set(row_contract.get("allowed_sign_status") or []) != _ALLOWED_SIGN:
+            _error(errors, "parity_row_contract.allowed_sign_status mismatch")
+        if set(row_contract.get("allowed_numeric_status") or []) != _ALLOWED_NUMERIC:
+            _error(errors, "parity_row_contract.allowed_numeric_status mismatch")
 
     profiles = manifest.get("profiles")
     if not isinstance(profiles, list):
@@ -92,8 +161,12 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             _error(errors, f"{prefix} must be an object")
             continue
 
+        missing = _EVIDENCE_REQUIRED_FIELDS - set(record)
+        if missing:
+            _error(errors, f"{prefix} missing required fields: {sorted(missing)}")
+
         evidence_id = record.get("evidence_id")
-        if not isinstance(evidence_id, str) or not evidence_id.strip():
+        if not _nonempty_string(evidence_id):
             _error(errors, f"{prefix}.evidence_id is required")
         elif evidence_id in evidence_by_id:
             _error(errors, f"duplicate evidence_id: {evidence_id}")
@@ -130,11 +203,11 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         if not isinstance(declared_hash, str) or not _SHA256_RE.fullmatch(declared_hash):
             _error(errors, f"{prefix}.sha256 must be 64 lowercase hexadecimal characters")
 
-        if not isinstance(record.get("facad_version"), str) or not record.get("facad_version", "").strip():
+        if not _nonempty_string(record.get("facad_version")):
             _error(errors, f"{prefix}.facad_version is required")
         if not _valid_observed_at(record.get("observed_at")):
             _error(errors, f"{prefix}.observed_at must be ISO-8601")
-        if not isinstance(record.get("same_trace_case_id"), str) or not record.get("same_trace_case_id", "").strip():
+        if not _nonempty_string(record.get("same_trace_case_id")):
             _error(errors, f"{prefix}.same_trace_case_id is required")
 
     rows = manifest.get("parity_rows")
@@ -149,6 +222,11 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         if not isinstance(row, dict):
             _error(errors, f"{prefix} must be an object")
             continue
+
+        missing = _PARITY_REQUIRED_FIELDS - set(row)
+        if missing:
+            _error(errors, f"{prefix} missing required fields: {sorted(missing)}")
+
         target_id = row.get("profile_target_id")
         if target_id not in _ALLOWED_TARGETS:
             _error(errors, f"{prefix}.profile_target_id is invalid")
@@ -159,7 +237,7 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         sign_status = row.get("sign_status")
         numeric_status = row.get("numeric_status")
         if membership not in _ALLOWED_MEMBERSHIP:
-            _error(errors, f"{prefix}.membership_status is invalid")
+            _error(errors, f"{prefix}.membership_status is invalid or speculative")
         if sign_status not in _ALLOWED_SIGN:
             _error(errors, f"{prefix}.sign_status is invalid")
         if numeric_status not in _ALLOWED_NUMERIC:
@@ -170,6 +248,8 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             _error(errors, f"{prefix}.evidence_refs must contain at least one direct evidence reference")
             referenced: list[dict[str, Any]] = []
         else:
+            if len(refs) != len(set(refs)):
+                _error(errors, f"{prefix}.evidence_refs contains duplicates")
             referenced = []
             for ref in refs:
                 record = evidence_by_id.get(ref)
@@ -181,11 +261,14 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 referenced.append(record)
 
         kinds = {record.get("artifact_kind") for record in referenced}
-        if membership != "UNOBSERVED" and "ANALYSIS_VALUES" not in kinds:
+        if "ANALYSIS_VALUES" not in kinds:
             _error(errors, f"{prefix} observed membership requires ANALYSIS_VALUES evidence")
+
         if sign_status in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"} and "MARKER_POSITIONS" not in kinds:
             _error(errors, f"{prefix} observed sign requires MARKER_POSITIONS evidence")
         if numeric_status in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
+            if membership != "OBSERVED_MATCH":
+                _error(errors, f"{prefix} numeric comparison is only valid for OBSERVED_MATCH rows")
             if not {"ANALYSIS_VALUES", "MARKER_POSITIONS"} <= kinds:
                 _error(errors, f"{prefix} observed numeric parity requires ANALYSIS_VALUES + MARKER_POSITIONS")
             trace_ids = {record.get("same_trace_case_id") for record in referenced}
@@ -195,6 +278,8 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         facad_included = membership in {"OBSERVED_MATCH", "OBSERVED_FACAD_ONLY"}
         order = row.get("facad_order")
         label = row.get("facad_export_label")
+        dc_id = row.get("digital_crown_measurement_id")
+
         if facad_included:
             if not isinstance(order, int) or order < 1:
                 _error(errors, f"{prefix}.facad_order must be a positive integer for a Facad-observed row")
@@ -202,11 +287,23 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 if order in seen_orders[target_id]:
                     _error(errors, f"{prefix}.facad_order is duplicated for {target_id}: {order}")
                 seen_orders[target_id].add(order)
-            if not isinstance(label, str) or not label.strip():
+            if not _nonempty_string(label):
                 _error(errors, f"{prefix}.facad_export_label is required for a Facad-observed row")
+
+        if membership == "OBSERVED_MATCH" and not _nonempty_string(dc_id):
+            _error(errors, f"{prefix} matched rows require digital_crown_measurement_id")
+        elif membership == "OBSERVED_FACAD_ONLY":
+            if dc_id is not None:
+                _error(errors, f"{prefix} Facad-only rows must not invent digital_crown_measurement_id")
+            if sign_status != "NOT_APPLICABLE" or numeric_status != "NOT_COMPARABLE":
+                _error(errors, f"{prefix} Facad-only rows require NOT_APPLICABLE sign and NOT_COMPARABLE numeric status")
         elif membership == "OBSERVED_DC_ONLY":
+            if not _nonempty_string(dc_id):
+                _error(errors, f"{prefix} DC-only rows require digital_crown_measurement_id")
             if order is not None or label is not None:
                 _error(errors, f"{prefix} DC-only rows must not invent Facad order or label")
+            if sign_status != "NOT_APPLICABLE" or numeric_status != "NOT_COMPARABLE":
+                _error(errors, f"{prefix} DC-only rows require NOT_APPLICABLE sign and NOT_COMPARABLE numeric status")
 
     for target_id, profile in profile_by_id.items():
         status = profile.get("observation_status")
@@ -223,6 +320,19 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         elif status == "OBSERVED":
             if kinds != _ALLOWED_KINDS:
                 _error(errors, f"{target_id} OBSERVED requires all three direct export families")
+
+            traces_by_kind = {
+                kind: {
+                    record.get("same_trace_case_id")
+                    for record in profile_records
+                    if record.get("artifact_kind") == kind and _nonempty_string(record.get("same_trace_case_id"))
+                }
+                for kind in _ALLOWED_KINDS
+            }
+            common_traces = set.intersection(*(traces_by_kind[kind] for kind in _ALLOWED_KINDS))
+            if not common_traces:
+                _error(errors, f"{target_id} OBSERVED requires a same-trace triplet across all three export families")
+
             expected = _ALLOWED_TARGETS[target_id]
             observed_facad_rows = [
                 row for row in profile_rows
@@ -232,6 +342,23 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 _error(errors, f"{target_id} OBSERVED requires exactly {expected} Facad rows")
             if seen_orders[target_id] != set(range(1, expected + 1)):
                 _error(errors, f"{target_id} OBSERVED requires complete Facad order 1..{expected}")
+
+    profile_statuses = {
+        profile.get("observation_status")
+        for profile in profile_by_id.values()
+        if profile.get("observation_status") in _ALLOWED_PROFILE_STATUS
+    }
+    if not records and not rows and profile_statuses == {"UNOBSERVED"}:
+        expected_manifest_status = "AWAITING_DIRECT_FACAD_EXPORTS"
+    elif len(profile_by_id) == len(_ALLOWED_TARGETS) and all(
+        profile.get("observation_status") == "OBSERVED" for profile in profile_by_id.values()
+    ):
+        expected_manifest_status = "DIRECT_PARITY_OBSERVED"
+    else:
+        expected_manifest_status = "DIRECT_EVIDENCE_PARTIAL"
+
+    if manifest.get("status") != expected_manifest_status:
+        _error(errors, f"status must be derived as {expected_manifest_status}")
 
     return errors
 
