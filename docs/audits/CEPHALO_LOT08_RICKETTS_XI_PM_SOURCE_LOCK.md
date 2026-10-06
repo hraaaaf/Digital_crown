@@ -74,7 +74,7 @@ The Xi side of the mandibular arc is now source-locked. The full arc remains `BL
 
 ## Sources
 
-- Ricketts RM. A four-step method to distinguish orthodontic changes from natural growth. J Clin Orthod. 1972. Primary Xi construction figure/text.
+- Ricketts RM. A principle of arcial growth of the mandible. Angle Orthod. 1972;42(4):368-386. DOI `10.1043/0003-3219(1972)042<0368:APOAGO>2.0.CO;2`. Primary Xi construction figure/text.
 - Ricketts RM. Perspectives in the clinical application of cephalometrics. Angle Orthod. 1981;51(2):115-150. Xi center of ramus, Pm above pogonion, Xi-Pm corpus axis, ANS-Xi-Pm oral gnomon.
 - Later peer-reviewed literature is used only to corroborate the R1-R4 rectangle and ANS-Xi-Pm geometry; it does not replace the primary source contract.
 
