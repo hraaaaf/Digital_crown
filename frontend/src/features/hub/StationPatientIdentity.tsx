@@ -319,11 +319,11 @@ export const StationPatientIdentity = ({
         </>
       )}
 
-      {error && status !== 'error' && <p role="alert" className="mt-4 font-black text-rose-700">{error}</p>}
+      {error && status !== 'error' && <p role="alert" className="mt-4 font-black text-danger">{error}</p>}
 
       {status === 'error' && (
         <>
-          <p role="alert" className="font-black text-rose-700">{error}</p>
+          <p role="alert" className="font-black text-danger">{error}</p>
           <button type="button" onClick={() => void start()} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-elite-sm border border-border-main px-5 text-sm font-black">
             <RefreshCw size={16} aria-hidden="true" /> {copy.retry}
           </button>
