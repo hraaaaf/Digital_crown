@@ -119,9 +119,9 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 
 ### 32-factor runtime summary
 - Exact executable canonical members: **8** (#6, #7, #10, #12, #13, #16, #19, #22).
-- Conditional executable: **9** (#1 molar relation; #2 canine relation; #3 overjet; #5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #20 facial axis; #25 mandibular plane; #31 mandibular arc).
-- Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
-- Source-locked but blocked: **2** (#4 overbite sign/orientation; #11 upper-incisor protrusion direction).
+- Conditional executable: **13** (#1 molar relation; #2 canine relation; #3 overjet; #5 lower-incisor extrusion; #8 lower-face height; #9 upper molar/PTV; #15 occlusal-plane inclination; #17 upper-lip length; #20 facial axis; #21 facial taper; #23 maxillary height; #25 mandibular plane; #31 mandibular arc).
+- Primitive/geometry exists but cannot yet be labelled Ricketts: **0**.
+- Source-locked but blocked: **5** (#4 overbite sign/orientation; #11 upper-incisor protrusion direction; #14 FOP→Xi sign; #18 commissure→FOP sign; #24 palatal-plane signed angle).
 - New source-specific canonical contract required: **6**.
 - Total accounted factors: **32/32**.
 
@@ -272,7 +272,7 @@ A1 matrix framing is converged. **Gregoret-lineage 13-factor execution contracts
 ## Next exact
 
 1. Complete validation/convergence of the Gregoret 13 source-lock on the final exact HEAD.
-2. Then continue the Atlas 2009 complete-profile contracts, beginning with remaining source-specific identities such as CF/CC and the 16 missing canonical contracts.
+2. Continue the Atlas 2009 complete-profile contracts with the 6 remaining new canonical contracts in structures internes (#26-#33), plus the explicitly quarantined signed/label conflicts.
 3. Keep norms, age/sex interpretation, VERT and clinical classification disabled until separately validated.
 4. Only then wire any new UI/report/tracing for the expanded protocol.
 5. Keep Facad 32F/13F as parity checks, not scientific source identifiers.
