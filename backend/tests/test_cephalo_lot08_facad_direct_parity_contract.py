@@ -152,3 +152,4 @@ def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
     assert rules["evidence_file_presence_required"] is True
     assert rules["facad_version_required"] is True
     assert rules["all_declared_comparison_dimensions_must_be_recordable"] is True
+    assert rules["observed_profile_requires_all_dimensions_resolved"] is True
