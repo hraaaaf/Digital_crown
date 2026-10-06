@@ -419,3 +419,28 @@ def test_gregoret_lower_facial_height_rejects_cross_image_xi_and_pm():
     ]
     assert item.availability_status.value == "INVALID"
     assert item.value is None
+
+
+def test_gregoret_lower_facial_height_does_not_promote_generic_xi_or_pm_aliases():
+    landmarks = {
+        "ANS": _lm("ANS", 5, -4),
+        "Xi": _lm("Xi", 5, 6),
+        "Pm": _lm("Pm", 15, 6),
+        "Po_anatomic": _lm("Po_anatomic", 0, 0),
+        "Or": _lm("Or", 10, 0),
+    }
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=None,
+        calibration_ref=None,
+        constructions=constructions,
+    )
+    item = {entry.method_id: entry for entry in out}[
+        "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2"
+    ]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
