@@ -129,3 +129,15 @@ def test_atlas2009_factor29_is_total_facial_height_after_source_conflict_resolut
     assert row["measurement_id"] == "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1"
     assert row["state"] == "CONDITIONAL_EXECUTABLE"
     assert "SOURCE_LABEL_CONFLICT_RESOLVED_AS_TOTAL_FACIAL_HEIGHT" in row["gate"]
+
+
+def test_atlas2009_complete_profile_has_no_unmapped_contract_rows():
+    data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    rows = data["measurements"]
+    assert data["status"] == "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__FAIL_CLOSED"
+    assert all(row["measurement_id"] is not None for row in rows)
+    assert not any(row["state"] in {"NEW_CANONICAL_REQUIRED", "SOURCE_LABEL_CONFLICT_BLOCKED"} for row in rows)
+    states = [row["state"] for row in rows]
+    assert states.count("EXECUTABLE") == 8
+    assert states.count("CONDITIONAL_EXECUTABLE") == 19
+    assert states.count("SOURCE_LOCKED_BLOCKED") == 6
