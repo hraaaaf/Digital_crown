@@ -97,17 +97,17 @@ Source membership observed in a published 32-factor Ricketts implementation. Thi
 | 11 | Maxillary incisor protrusion | `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | SOURCE_LOCKED_BLOCKED: `U1_incisal` + A-Pog identities locked; measurement direction unresolved across recovered sources |
 | 12 | Mandibular incisor inclination to A-Pog | `M_RICKETTS_L1_APOG_INCLINATION_DEG_V1` | EXECUTABLE |
 | 13 | Maxillary incisor inclination to A-Pog | `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | EXECUTABLE: explicit `U1_incisal/U1_apex` axis vs A-Pog |
-| 14 | Occlusal plane to ramus/Xi | none | NEW_CANONICAL_ID + Xi + functional occlusal plane |
-| 15 | Occlusal plane inclination | none | NEW_CANONICAL_ID + Xi/Pm + functional occlusal plane |
+| 14 | Occlusal plane to ramus/Xi | `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | SOURCE_LOCKED_BLOCKED: signed FOP-normal orientation unresolved |
+| 15 | Occlusal plane inclination | `M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + canonical Xi + manual Pm |
 | 16 | Lip protrusion | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
 | 17 | Upper lip length | `M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1` | CONDITIONAL_EXECUTABLE: ANS + manual `LABIAL_COMMISSURE_Ricketts` + calibration |
-| 18 | Lip embrasure/comissure to occlusal plane | none | NEW_CANONICAL_ID + commissure identity |
+| 18 | Lip embrasure/comissure to occlusal plane | `M_RICKETTS_COMMISSURE_FOP_MM_V1` | SOURCE_LOCKED_BLOCKED: signed FOP-normal orientation unresolved |
 | 19 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
 | 20 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | EXECUTABLE only with explicit/audited `Pt_Ricketts`; auto legacy Pt fails closed |
-| 21 | Facial taper / facial cone | none | NEW_CANONICAL_ID |
+| 21 | Facial taper / facial cone | `M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1` | CONDITIONAL_EXECUTABLE: N-Pog + source-locked Ricketts mandibular plane |
 | 22 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
-| 23 | Maxillary height | none | NEW_CANONICAL_ID + CF |
-| 24 | Palatal plane | `M_PALATAL_PLANE_FH_DEG_V1` | PRIMITIVE_AVAILABLE; Ricketts source-specific execution contract still required |
+| 23 | Maxillary height | `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | CONDITIONAL_EXECUTABLE: N-CF-A, CF = anatomical FH ∩ source-locked PTV |
+| 24 | Palatal plane | `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | SOURCE_LOCKED_BLOCKED: signed angular orientation unresolved; no unsigned runtime |
 | 25 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: explicit `MP_ANGLE_INFERIOR_Ricketts` + Me + anatomical Frankfort; generic Go/Go-Gn substitution forbidden |
 | 26 | Cranial deflection | none | NEW_CANONICAL_ID |
 | 27 | Anterior cranial length | none | NEW_CANONICAL_ID + CC |
