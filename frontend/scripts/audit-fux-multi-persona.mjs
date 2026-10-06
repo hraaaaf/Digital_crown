@@ -31,8 +31,10 @@ await api.dispose();
 const browser = await chromium.launch({ headless: true });
 
 const viewports = [
-  { key: 'desktop', width: 1280, height: 900 },
-  { key: 'mobile', width: 390, height: 844 },
+  { key: 'mobile-390', width: 390, height: 844 },
+  { key: 'mobile-430', width: 430, height: 932 },
+  { key: 'tablet-768', width: 768, height: 1024 },
+  { key: 'desktop-1280', width: 1280, height: 900 },
 ];
 
 const personas = [
@@ -341,7 +343,7 @@ await fs.writeFile(
     `Generated: ${report.generatedAt}`,
     '',
     'Personas: Dentiste propriétaire, Dentiste collaborateur pressé, Assistante, Secrétaire, Technicien.',
-    'Viewports: 1280x900 and 390x844.',
+    'Viewports: 390x844, 430x932, 768x1024 and 1280x900.',
     '',
     'Important role-model limitation: current UserRole exposes ADMIN, DENTISTE, SECRETAIRE only. Assistante and Technicien are audited as workflow perspectives, not distinct authorization roles.',
     '',
