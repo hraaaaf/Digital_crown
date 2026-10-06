@@ -396,3 +396,51 @@ def ricketts_u6_distal_to_ptv_signed_px_v1(
     delta = (u6_distal[0] - pr_ptv[0], u6_distal[1] - pr_ptv[1])
     value = delta[0] * anterior[0] + delta[1] * anterior[1]
     return value if math.isfinite(value) else None
+
+
+def ricketts_signed_projection_on_plane_px_v1(
+    first: Point,
+    second: Point,
+    plane_direction: Point,
+) -> Optional[float]:
+    """Signed first-minus-second separation along a source-locked plane."""
+    if not _finite_points(first, second, plane_direction):
+        return None
+    norm = math.hypot(*plane_direction)
+    if norm <= _EPS:
+        return None
+    unit = (plane_direction[0] / norm, plane_direction[1] / norm)
+    delta = (first[0] - second[0], first[1] - second[1])
+    value = delta[0] * unit[0] + delta[1] * unit[1]
+    return value if math.isfinite(value) else None
+
+
+def ricketts_incisal_edge_apog_signed_distance_px_v1(
+    incisal_edge: Point,
+    a: Point,
+    pog: Point,
+    po: Point,
+    or_: Point,
+) -> Optional[float]:
+    """Signed perpendicular incisal-edge distance to A-Pog; anterior positive."""
+    return ricketts_l1_edge_apog_signed_distance_px_v1(
+        incisal_edge, a, pog, po, or_
+    )
+
+
+def ricketts_u1_apog_inclination_deg_v1(
+    u1_incisal: Point,
+    u1_apex: Point,
+    a: Point,
+    pog: Point,
+) -> Optional[float]:
+    """Acute line angle between the maxillary-incisor long axis and A-Pog."""
+    if not _finite_points(u1_incisal, u1_apex, a, pog):
+        return None
+    angle = _angle_deg(
+        (u1_apex[0] - u1_incisal[0], u1_apex[1] - u1_incisal[1]),
+        (pog[0] - a[0], pog[1] - a[1]),
+    )
+    if angle is None:
+        return None
+    return min(angle, 180.0 - angle)
