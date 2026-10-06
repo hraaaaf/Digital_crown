@@ -27,6 +27,7 @@ from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_edge_apog_signed_distance_px_v1,
     ricketts_l1_occlusal_extrusion_signed_px_v1,
     ricketts_lower_facial_height_ans_xi_pm_deg_v1,
+    ricketts_mandibular_arc_deg_v1,
     ricketts_maxillary_depth_deg_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
@@ -53,6 +54,7 @@ CANONICAL_V2_METHOD_IDS = {
     "RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2",
     "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2",
     "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2",
+    "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2",
     "RICKETTS_CONVEXITY_CANONICAL_MM_V2",
     "RICKETTS_E_LINE_LS_CANONICAL_MM_V3",
     "RICKETTS_E_LINE_LI_CANONICAL_MM_V3",
@@ -320,6 +322,55 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             canonical_id="M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",ids=ricketts_lfh_ids,
             lm=landmarks,value=ricketts_lfh_value,unit="deg",
             construction_refs=ricketts_lfh_refs,availability=ricketts_lfh_status,
+        ))
+
+    ricketts_arc_ids=("DC_Ricketts","Pm_Ricketts")
+    ricketts_arc_deps,ricketts_arc_status=_deps(landmarks,ricketts_arc_ids)
+    if (
+        "DC_Ricketts" in landmarks
+        and landmarks["DC_Ricketts"].origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+    ):
+        ricketts_arc_status=AvailabilityStatus.NOT_COMPUTABLE
+    if (
+        "Pm_Ricketts" in landmarks
+        and landmarks["Pm_Ricketts"].origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+    ):
+        ricketts_arc_status=AvailabilityStatus.NOT_COMPUTABLE
+    ricketts_arc_xi=constructions.get(RICKETTS_XI_CONSTRUCTION_ID)
+    if ricketts_arc_deps:
+        ricketts_arc_value=None
+        ricketts_arc_refs:tuple[str,...]=()
+        if ricketts_arc_xi is None:
+            ricketts_arc_status=AvailabilityStatus.NOT_COMPUTABLE
+        else:
+            ricketts_arc_refs=(ricketts_arc_xi.construction_id,)
+            if ricketts_arc_xi.availability_status!=AvailabilityStatus.AVAILABLE:
+                ricketts_arc_status=ricketts_arc_xi.availability_status
+            elif ricketts_arc_status==AvailabilityStatus.AVAILABLE:
+                x=ricketts_arc_xi.geometry.get("x")
+                y=ricketts_arc_xi.geometry.get("y")
+                source_image_ref=ricketts_arc_xi.geometry.get("source_image_ref")
+                if (
+                    not isinstance(x,(int,float))
+                    or not isinstance(y,(int,float))
+                    or source_image_ref != landmarks["DC_Ricketts"].source_image_ref
+                    or source_image_ref != landmarks["Pm_Ricketts"].source_image_ref
+                ):
+                    ricketts_arc_status=AvailabilityStatus.INVALID
+                else:
+                    ricketts_arc_value=ricketts_mandibular_arc_deg_v1(
+                        _p(landmarks,"DC_Ricketts"),
+                        (float(x),float(y)),
+                        _p(landmarks,"Pm_Ricketts"),
+                    )
+                    if ricketts_arc_value is None:
+                        ricketts_arc_status=AvailabilityStatus.INVALID
+        out.append(_measurement(
+            namespace=measurement_namespace,name="RICKETTS_MANDIBULAR_ARC",analysis="RICKETTS",
+            method="RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2",
+            canonical_id="M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",ids=ricketts_arc_ids,
+            lm=landmarks,value=ricketts_arc_value,unit="deg",
+            construction_refs=ricketts_arc_refs,availability=ricketts_arc_status,
         ))
 
     def convexity():
