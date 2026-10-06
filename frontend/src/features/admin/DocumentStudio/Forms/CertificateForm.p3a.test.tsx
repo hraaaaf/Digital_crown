@@ -75,6 +75,35 @@ describe('CertificateForm P3', () => {
     await waitFor(() => expect(api.get).not.toHaveBeenCalled());
   });
 
+  it('ignore une réponse tardive de suggestion après changement de patient', async () => {
+    let resolveFirst: (value: any) => void = () => undefined;
+    const first = new Promise(resolve => { resolveFirst = resolve; });
+    vi.mocked(api.get)
+      .mockImplementationOnce(() => first as never)
+      .mockResolvedValueOnce({ data: { confidence: 'low', type: 'Certificat de Présence', days: 0, reason: 'Patient 2' } } as never);
+
+    const props = {
+      certifType: 'Certificat de Présence',
+      setCertifType: vi.fn(),
+      certifDays: 1,
+      setCertifDays: vi.fn(),
+      docDate: '2026-08-15',
+      certifStartDate: '',
+      setCertifStartDate: vi.fn(),
+      certifCustomMotif: '',
+      setCertifCustomMotif: vi.fn(),
+    };
+
+    const { rerender } = render(<CertificateForm patientId="1" {...props} />);
+    rerender(<CertificateForm patientId="2" {...props} />);
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/prescriptions/certif-suggest/2'));
+    resolveFirst({ data: { confidence: 'high', type: 'Arrêt de travail', days: 30, reason: 'Patient 1' } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(screen.queryByText(/Patient 1/i)).toBeNull();
+  });
+
   it('affiche Certificat médical comme dernier choix et ouvre une rédaction libre', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({ data: null } as never);
     const setCertifType = vi.fn();
