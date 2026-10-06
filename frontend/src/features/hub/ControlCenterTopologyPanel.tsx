@@ -317,7 +317,7 @@ export const ControlCenterTopologyPanel = () => {
             <ShieldCheck className="text-primary" size={20} aria-hidden="true" />
             <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Transport</p>
             <p data-control-center-transport className="mt-1 text-lg font-black">
-              {result?.topology?.tlsReady ? 'HTTPS prêt' : result?.topology?.lanExposed ? 'Action requise' : 'Local'}
+              {result?.topology?.tlsReady ? 'Connexion sécurisée' : result?.topology?.lanExposed ? 'Action requise' : 'Local'}
             </p>
           </article>
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
