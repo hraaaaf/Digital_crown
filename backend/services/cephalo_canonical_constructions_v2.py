@@ -9,7 +9,7 @@ from backend.schemas.cephalo_evidence import (
     LandmarkEvidence,
     LandmarkOrigin,
 )
-from backend.services.cephalo_ricketts_geometry import ricketts_constructed_gn_v1, ricketts_xi_from_r1_r4_fh_v1
+from backend.services.cephalo_ricketts_geometry import ricketts_cc_atlas2009_v1, ricketts_constructed_gn_v1, ricketts_xi_from_r1_r4_fh_v1
 
 RICKETTS_GN_CONSTRUCTION_ID = "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
 RICKETTS_GN_REQUIRED_LANDMARKS = ("N", "Pog_hard", "Go", "Me")
@@ -25,6 +25,7 @@ RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS = ("MP_ANGLE_INFERIOR_Ricketts", "M
 RICKETTS_XI_CONSTRUCTION_ID = "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
 RICKETTS_XI_REQUIRED_LANDMARKS = ("R1_Ricketts", "R2_Ricketts", "R3_Ricketts", "R4_Ricketts", "Po_anatomic", "Or")
 RICKETTS_CF_CONSTRUCTION_ID = "RICKETTS_CF_FH_PTV_INTERSECTION_V1"
+RICKETTS_CC_ATLAS2009_CONSTRUCTION_ID = "RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1"
 
 
 def materialize_canonical_constructions_v2(
@@ -343,6 +344,82 @@ def materialize_canonical_constructions_v2(
         availability_status=xi_availability,
     )
 
+
+    cc_refs: list[str] = []
+    cc_missing: list[str] = []
+    cc_sources: set[str] = set()
+    for landmark_id in ("Ba", "N", "Pt_Ricketts"):
+        item = landmarks.get(landmark_id)
+        if item is None:
+            cc_missing.append(landmark_id)
+            continue
+        cc_refs.append(item.evidence_id)
+        cc_sources.add(item.source_image_ref)
+        if item.availability_status != AvailabilityStatus.AVAILABLE:
+            cc_missing.append(landmark_id)
+        if (
+            landmark_id == "Pt_Ricketts"
+            and item.origin not in {LandmarkOrigin.MANUAL, LandmarkOrigin.MANUAL_CORRECTED}
+            and landmark_id not in cc_missing
+        ):
+            cc_missing.append(landmark_id)
+
+    cc_geometry: dict[str, object] = {
+        "kind": "constructed_landmark",
+        "constructed_landmark_id": "CC_Ricketts_Atlas2009",
+        "construction_rule": "intersection_of_Ba_N_and_source_locked_facial_axis_Pt_Ricketts_Gn_constructed",
+        "coordinate_space": "source_image_pixels",
+        "upstream_construction_id": construction.construction_id,
+    }
+    cc_availability = AvailabilityStatus.AVAILABLE
+    if cc_missing:
+        cc_availability = AvailabilityStatus.NOT_COMPUTABLE
+    elif construction.availability_status != AvailabilityStatus.AVAILABLE:
+        cc_availability = construction.availability_status
+    else:
+        gn_x = construction.geometry.get("x")
+        gn_y = construction.geometry.get("y")
+        gn_source = construction.geometry.get("source_image_ref")
+        if (
+            not isinstance(gn_x, (int, float))
+            or not isinstance(gn_y, (int, float))
+            or gn_source is None
+        ):
+            cc_availability = AvailabilityStatus.INVALID
+        else:
+            cc_sources.add(str(gn_source))
+            if len(cc_sources) != 1:
+                cc_availability = AvailabilityStatus.INVALID
+            else:
+                cc_point = ricketts_cc_atlas2009_v1(
+                    (landmarks["Ba"].x, landmarks["Ba"].y),
+                    (landmarks["N"].x, landmarks["N"].y),
+                    (landmarks["Pt_Ricketts"].x, landmarks["Pt_Ricketts"].y),
+                    (float(gn_x), float(gn_y)),
+                )
+                if cc_point is None:
+                    cc_availability = AvailabilityStatus.INVALID
+                else:
+                    cc_geometry.update({
+                        "x": cc_point[0],
+                        "y": cc_point[1],
+                        "source_image_ref": next(iter(cc_sources)),
+                    })
+                    cc_refs.extend(
+                        ref for ref in construction.landmark_refs if ref not in cc_refs
+                    )
+
+    cc_construction = ConstructionEvidence(
+        construction_id=f"{construction_namespace}:{RICKETTS_CC_ATLAS2009_CONSTRUCTION_ID}",
+        definition_id=RICKETTS_CC_ATLAS2009_CONSTRUCTION_ID,
+        definition_version="1",
+        landmark_refs=cc_refs,
+        missing_landmark_ids=cc_missing,
+        geometry=cc_geometry,
+        evidence_refs=cc_refs,
+        availability_status=cc_availability,
+    )
+
     return {
         RICKETTS_GN_CONSTRUCTION_ID: construction,
         RICKETTS_PTV_CONSTRUCTION_ID: ptv,
@@ -350,4 +427,5 @@ def materialize_canonical_constructions_v2(
         RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID: mandibular_plane,
         RICKETTS_XI_CONSTRUCTION_ID: xi_construction,
         RICKETTS_CF_CONSTRUCTION_ID: cf_construction,
+        RICKETTS_CC_ATLAS2009_CONSTRUCTION_ID: cc_construction,
     }
