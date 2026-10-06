@@ -34,11 +34,12 @@ Construction ID:
 
 ## Construction rule
 
-The ramal rectangle is expressed in the anatomical Frankfort basis so the result does not depend on display rotation or mirroring.
+The primary 1972 paper source-locks the R1-R4 rectangle and its centroid Xi. Digital Crown expresses that rectangle in the anatomical Frankfort / pterygoid-vertical basis because later peer-reviewed Ricketts implementations explicitly key the Xi construction to FH and PtV, with the four tangents parallel to one of those orthogonal axes. This distinction is intentional: the R1-R4 centroid is primary-source evidence; the FH/PtV numerical orientation is corroborated implementation evidence.
 
 - R1/R2 provide the opposed limits along the Frankfort axis.
-- R3/R4 provide the superior/inferior limits along the perpendicular axis.
+- R3/R4 provide the superior/inferior limits along the perpendicular (PtV-parallel) axis.
 - Xi is reconstructed from the midpoint of those two coordinate intervals.
+- No screen-horizontal or image-handedness convention is used.
 
 All evidence must come from one source image. Degenerate Frankfort or a collapsed rectangle returns `INVALID`.
 
@@ -76,6 +77,7 @@ The Xi side of the mandibular arc is now source-locked. The full arc remains `BL
 
 - Ricketts RM. A principle of arcial growth of the mandible. Angle Orthod. 1972;42(4):368-386. DOI `10.1043/0003-3219(1972)042<0368:APOAGO>2.0.CO;2`. Primary Xi construction figure/text.
 - Ricketts RM. Perspectives in the clinical application of cephalometrics. Angle Orthod. 1981;51(2):115-150. Xi center of ramus, Pm above pogonion, Xi-Pm corpus axis, ANS-Xi-Pm oral gnomon.
-- Later peer-reviewed literature is used only to corroborate the R1-R4 rectangle and ANS-Xi-Pm geometry; it does not replace the primary source contract.
+- Mangla R, Singh N, Dua V, Padmanabhan P, Khanna M. Evaluation of mandibular morphology in different facial types. Contemp Clin Dent. 2011;2(3):200-206. DOI `10.4103/0976-237X.86458`. Corroborates that Xi is keyed to FH/PtV and that the four tangent planes through R1-R4 form the enclosing rectangle.
+- Later peer-reviewed literature is corroborative only; it does not replace the primary Ricketts identity contract.
 
 No UI/report activation. No merge/deployment authorization.
