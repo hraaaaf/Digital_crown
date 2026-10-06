@@ -356,6 +356,7 @@ def validate_evidence_graph(
     validation_target_ids: Mapping[str, Set[str]] = {
         "source": source_ids,
         "landmark": landmark_ids,
+        "image_orientation": orientation_ids,
         "construction": construction_ids,
         "measurement": measurement_ids,
         "normative_evaluation": evaluation_ids,
