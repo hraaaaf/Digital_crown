@@ -5,6 +5,7 @@ import pytest
 from backend.services.cephalo_ricketts_geometry import (
     ricketts_l1_apog_inclination_deg_v1,
     ricketts_l1_edge_apog_signed_distance_px_v1,
+    ricketts_l1_occlusal_extrusion_signed_px_v1,
     ricketts_maxillary_depth_deg_v1,
     ricketts_mandibular_plane_fh_deg_v1,
 )
@@ -128,3 +129,90 @@ def test_gregoret_l1_edge_apog_materializes_with_calibration_and_correct_sign():
     assert item.value == pytest.approx(1.0)
     assert item.calibration_ref == "source:calibration"
     assert item.requires_calibration is True
+
+
+def test_ricketts_l1_occlusal_extrusion_sign_is_crownward_positive_and_apical_negative():
+    plane_point = (0.0, 5.0)
+    plane_direction = (10.0, 0.0)
+    assert ricketts_l1_occlusal_extrusion_signed_px_v1(
+        (5.0, 3.0), (5.0, 8.0), plane_point, plane_direction
+    ) == pytest.approx(2.0)
+    assert ricketts_l1_occlusal_extrusion_signed_px_v1(
+        (5.0, 7.0), (5.0, 10.0), plane_point, plane_direction
+    ) == pytest.approx(-2.0)
+
+
+def test_ricketts_l1_occlusal_extrusion_is_rotation_and_mirror_invariant():
+    original = ricketts_l1_occlusal_extrusion_signed_px_v1(
+        (5.0, 3.0), (5.0, 8.0), (0.0, 5.0), (10.0, 0.0)
+    )
+    rotated = ricketts_l1_occlusal_extrusion_signed_px_v1(
+        (-3.0, 5.0), (-8.0, 5.0), (-5.0, 0.0), (0.0, 10.0)
+    )
+    mirrored = ricketts_l1_occlusal_extrusion_signed_px_v1(
+        (-5.0, 3.0), (-5.0, 8.0), (0.0, 5.0), (-10.0, 0.0)
+    )
+    assert original == pytest.approx(2.0)
+    assert rotated == pytest.approx(2.0)
+    assert mirrored == pytest.approx(2.0)
+
+
+def test_ricketts_l1_occlusal_extrusion_fails_closed_when_sign_orientation_is_ambiguous():
+    assert ricketts_l1_occlusal_extrusion_signed_px_v1(
+        (5.0, 3.0), (0.0, 3.0), (0.0, 5.0), (10.0, 0.0)
+    ) is None
+    assert ricketts_l1_occlusal_extrusion_signed_px_v1(
+        (5.0, 3.0), (5.0, 8.0), (0.0, 5.0), (0.0, 0.0)
+    ) is None
+
+
+def test_gregoret_l1_occlusal_extrusion_materializes_from_canonical_fop_with_calibration():
+    pts = {
+        "S": (0, 0), "N": (0, 0), "A": (0, 10), "Go": (0, 20), "Me": (15, 20),
+        "Ba": (-8, -4), "Pt_Ricketts": (5, 6), "Or": (10, 0), "Po_anatomic": (0, 0),
+        "Co_anatomic": (-5, 5), "Gn_anatomic": (15, 18), "Pog_hard": (0, 20),
+        "L1_incisal": (5, 3), "L1_apex": (5, 8),
+        "FOP_PREMOLAR_Ricketts": (0, 5), "FOP_MOLAR_Ricketts": (10, 5),
+        "Prn": (18, 4), "Pog_soft": (17, 9), "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    by_method = {item.method_id: item for item in out}
+    item = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
+    assert item.availability_status.value == "AVAILABLE"
+    assert item.value == pytest.approx(1.0)
+    assert item.requires_calibration is True
+    assert item.calibration_ref == "source:calibration"
+    assert item.construction_refs == [
+        "construction:gregoret:RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+    ]
+
+
+def test_gregoret_l1_occlusal_extrusion_fails_closed_without_explicit_fop_anchors():
+    pts = {
+        "L1_incisal": (5, 3), "L1_apex": (5, 8),
+    }
+    landmarks = {key: _lm(key, *value) for key, value in pts.items()}
+    constructions = materialize_canonical_constructions_v2(
+        landmarks, construction_namespace="construction:gregoret"
+    )
+    out = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:gregoret",
+        landmarks=landmarks,
+        mm_per_pixel=0.5,
+        calibration_ref="source:calibration",
+        constructions=constructions,
+    )
+    by_method = {item.method_id: item for item in out}
+    item = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
+    assert item.availability_status.value == "NOT_COMPUTABLE"
+    assert item.value is None
