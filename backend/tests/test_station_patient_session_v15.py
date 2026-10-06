@@ -1225,3 +1225,28 @@ def test_v15_04_2_explicit_staff_confirmation_unlocks_station_arrival_receipt(cl
     )
     assert receipt.status_code == 200, receipt.text
     assert receipt.content.startswith(b"%PDF")
+
+
+def test_v15_04_2_presence_receipt_supports_arabic_patient_name(client, db, dentiste):
+    headers, session_id, patient = _claimed_station_session(
+        client, db, dentiste, dossier="ST04-2-AR"
+    )
+    patient.prenom = "آية"
+    patient.nom = "المختبر"
+    db.commit()
+    appointment = _presence_appointment(db, dentiste, patient)
+
+    updated = client.put(
+        f"/api/appointments/{appointment.id}",
+        headers=headers,
+        json={"status": "EN_S_ATTENTE"},
+    )
+    assert updated.status_code == 200, updated.text
+
+    receipt = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.content.startswith(b"%PDF")
+    assert len(receipt.content) > 1000
