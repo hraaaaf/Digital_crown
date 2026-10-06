@@ -8,7 +8,7 @@ from backend.schemas.cephalo_evidence import (
     ConstructionEvidence,
     LandmarkEvidence,
 )
-from backend.services.cephalo_ricketts_geometry import ricketts_constructed_gn_v1
+from backend.services.cephalo_ricketts_geometry import ricketts_constructed_gn_v1, ricketts_xi_from_r1_r4_fh_v1
 
 RICKETTS_GN_CONSTRUCTION_ID = "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
 RICKETTS_GN_REQUIRED_LANDMARKS = ("N", "Pog_hard", "Go", "Me")
@@ -21,6 +21,8 @@ RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED_LANDMARKS = (
 )
 RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID = "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1"
 RICKETTS_MANDIBULAR_PLANE_REQUIRED_LANDMARKS = ("MP_ANGLE_INFERIOR_Ricketts", "Me")
+RICKETTS_XI_CONSTRUCTION_ID = "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+RICKETTS_XI_REQUIRED_LANDMARKS = ("R1_Ricketts", "R2_Ricketts", "R3_Ricketts", "R4_Ricketts", "Po_anatomic", "Or")
 
 
 def materialize_canonical_constructions_v2(
@@ -220,9 +222,69 @@ def materialize_canonical_constructions_v2(
         "line_through_explicit_Ricketts_inferior_angle_point_and_Menton",
     )
 
+
+    xi_refs: list[str] = []
+    xi_missing: list[str] = []
+    xi_sources: set[str] = set()
+    for landmark_id in RICKETTS_XI_REQUIRED_LANDMARKS:
+        item = landmarks.get(landmark_id)
+        if item is None:
+            xi_missing.append(landmark_id)
+            continue
+        if item.landmark_id != landmark_id:
+            raise ValueError(
+                f"Landmark mapping key {landmark_id} resolves to {item.landmark_id}"
+            )
+        xi_refs.append(item.evidence_id)
+        xi_sources.add(item.source_image_ref)
+        if item.availability_status != AvailabilityStatus.AVAILABLE:
+            xi_missing.append(landmark_id)
+
+    xi_geometry: dict[str, object] = {
+        "kind": "constructed_landmark",
+        "constructed_landmark_id": "Xi_Ricketts",
+        "required_landmark_ids": list(RICKETTS_XI_REQUIRED_LANDMARKS),
+        "construction_rule": "center_of_R1_R2_R3_R4_ramal_rectangle_in_anatomical_Frankfort_basis",
+        "coordinate_space": "source_image_pixels",
+    }
+    xi_availability = AvailabilityStatus.AVAILABLE
+    if xi_missing:
+        xi_availability = AvailabilityStatus.NOT_COMPUTABLE
+    elif len(xi_sources) != 1:
+        xi_availability = AvailabilityStatus.INVALID
+    else:
+        xi_point = ricketts_xi_from_r1_r4_fh_v1(
+            (landmarks["R1_Ricketts"].x, landmarks["R1_Ricketts"].y),
+            (landmarks["R2_Ricketts"].x, landmarks["R2_Ricketts"].y),
+            (landmarks["R3_Ricketts"].x, landmarks["R3_Ricketts"].y),
+            (landmarks["R4_Ricketts"].x, landmarks["R4_Ricketts"].y),
+            (landmarks["Po_anatomic"].x, landmarks["Po_anatomic"].y),
+            (landmarks["Or"].x, landmarks["Or"].y),
+        )
+        if xi_point is None:
+            xi_availability = AvailabilityStatus.INVALID
+        else:
+            xi_geometry.update({
+                "x": xi_point[0],
+                "y": xi_point[1],
+                "source_image_ref": next(iter(xi_sources)),
+            })
+
+    xi_construction = ConstructionEvidence(
+        construction_id=f"{construction_namespace}:{RICKETTS_XI_CONSTRUCTION_ID}",
+        definition_id=RICKETTS_XI_CONSTRUCTION_ID,
+        definition_version="1",
+        landmark_refs=xi_refs,
+        missing_landmark_ids=xi_missing,
+        geometry=xi_geometry,
+        evidence_refs=xi_refs,
+        availability_status=xi_availability,
+    )
+
     return {
         RICKETTS_GN_CONSTRUCTION_ID: construction,
         RICKETTS_PTV_CONSTRUCTION_ID: ptv,
         RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_CONSTRUCTION_ID: functional_occlusal_plane,
         RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID: mandibular_plane,
+        RICKETTS_XI_CONSTRUCTION_ID: xi_construction,
     }
