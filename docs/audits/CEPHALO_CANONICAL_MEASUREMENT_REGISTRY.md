@@ -113,6 +113,12 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | `M_U1_A_VERTICAL_MM_V1` | U1 → A vertical | surface faciale U1 → verticale par A parallèle à N-perp | U1_facial_surface,A,Po_anatomic,Or | mm | `BLOCKED_LANDMARK` |
 | `M_U6_NA_MM_V1` | U6–NA | position molaire U6 par rapport à NA selon point molaire source-locké | U6_exact,N,A | mm | `BLOCKED_LANDMARK` |
 | `M_U6_PTV_MM_V1` | U6→PTV | Ricketts A6 distal reference → source-locked PTV | `U6_DISTAL_Ricketts`,`RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1` | mm | `CONDITIONAL_EXECUTABLE`; manual U6/PR + verified calibration |
+| `M_RICKETTS_MOLAR_RELATION_FOP_MM_V1` | Ricketts molar relation | lower minus upper first-molar distal references projected on posterior-positive Ricketts FOP | `L6_DISTAL_Ricketts,U6_DISTAL_Ricketts` + FOP | mm signed | `GEOMETRY_COVERED`; manual molar distals + calibration |
+| `M_RICKETTS_CANINE_RELATION_FOP_MM_V1` | Ricketts canine relation | lower minus upper canine cusp references projected on posterior-positive Ricketts FOP | `L3_CUSP_Ricketts,U3_CUSP_Ricketts` + FOP | mm signed | `GEOMETRY_COVERED`; manual canine cusps + calibration |
+| `M_RICKETTS_OVERJET_FOP_MM_V1` | Ricketts overjet | lower minus upper incisal edges projected on posterior-positive Ricketts FOP | `L1_incisal,U1_incisal` + FOP | mm signed | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_OVERBITE_FOP_MM_V1` | Ricketts overbite | incisal-edge separation perpendicular to Ricketts FOP | `L1_incisal,U1_incisal` + FOP | mm signed | `SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED` |
+| `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | Ricketts upper-incisor protrusion | shortest signed U1 incisal-edge distance to A-Pog | `U1_incisal,A,Pog_hard` + FH sign | mm signed | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | Ricketts upper-incisor inclination | acute line angle U1 long axis / A-Pog | `U1_incisal,U1_apex,A,Pog_hard` | angle ° | `GEOMETRY_COVERED` |
 
 # 6. Dento-alvéolaire mandibulaire
 
