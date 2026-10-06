@@ -245,7 +245,7 @@ export const ControlCenterTopologyPanel = () => {
             <p className="mt-4 text-xs font-black uppercase tracking-widest text-primary">Digital Crown · Technique</p>
             <h1 className="mt-2 font-outfit text-3xl font-black tracking-tight sm:text-4xl">Connexion du poste au cabinet</h1>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-text-muted">
-              Vérifiez le serveur de ce poste ou saisissez l’adresse LAN du cabinet. Aucun identifiant ni donnée patient n’est envoyé à une autre origine avant votre action explicite.
+              Vérifiez le serveur de ce poste ou saisissez l’adresse du réseau local du cabinet. Aucun identifiant ni donnée patient n’est envoyé à une autre origine avant votre action explicite.
             </p>
           </div>
           <StatusPill
@@ -305,7 +305,7 @@ export const ControlCenterTopologyPanel = () => {
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <Server className="text-primary" size={20} aria-hidden="true" />
-            <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Backend</p>
+            <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Serveur</p>
             <p data-control-center-backend className="mt-1 text-lg font-black">{result?.backendOk ? 'Joignable' : busy ? 'Test…' : 'Non vérifié'}</p>
           </article>
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
