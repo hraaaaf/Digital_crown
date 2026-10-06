@@ -88,7 +88,7 @@ Source membership observed in the published 32-factor table.
 | 2 | Canine relation | none | NEW_CANONICAL_ID + canine identities |
 | 3 | Incisor overjet | `M_OVERJET_MM_V1` | LEGACY_TO_AUDIT; source-specific Ricketts convention not executable |
 | 4 | Incisor overbite | `M_OVERBITE_V1` | LEGACY_TO_AUDIT |
-| 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | FOP SOURCE_LOCKED / BLOCKED_LANDMARK+SIGN: explicit Ricketts premolar+molar occlusal anchors and sign convention required |
+| 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | CONDITIONAL_EXECUTABLE: source-locked FOP + `L1_incisal/L1_apex` crownward-positive sign + verified calibration |
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | BLOCKED_LANDMARK: Xi/Pm |
@@ -119,9 +119,9 @@ Source membership observed in the published 32-factor table.
 
 ### 32-factor runtime summary
 - Exact executable canonical members: **6** (#6, #7, #12, #16, #19, #22).
-- Conditional executable: **2** (#20 facial axis with explicit Pt_Ricketts; #25 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
+- Conditional executable: **3** (#5 lower-incisor extrusion with explicit FOP/L1 axis/calibration; #20 facial axis with explicit Pt_Ricketts; #25 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
 - Primitive/geometry exists but cannot yet be labelled Ricketts: **1** (#24).
-- Existing canonical but blocked/legacy: **7** (#3, #4, #5, #8, #9, #10, #31).
+- Existing canonical but blocked/legacy: **6** (#3, #4, #8, #9, #10, #31).
 - New source-specific canonical contract required: **16**.
 - Total accounted factors: **32/32**.
 
@@ -148,7 +148,7 @@ Recovered membership:
 
 | # | Factor | LOT06 / registry mapping | Current state |
 |---:|---|---|---|
-| 1 | Lower incisor extrusion to occlusal plane | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | FOP SOURCE_LOCKED / BLOCKED_LANDMARK+SIGN: explicit `FOP_PREMOLAR_Ricketts` + `FOP_MOLAR_Ricketts` and sign convention required |
+| 1 | Lower incisor extrusion to occlusal plane | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | CONDITIONAL_EXECUTABLE: explicit `FOP_PREMOLAR_Ricketts` + `FOP_MOLAR_Ricketts` + `L1_incisal/L1_apex` + verified calibration; crownward positive |
 | 2 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 3 | Facial convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 4 | Lower facial height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | BLOCKED_LANDMARK: Xi/Pm |
@@ -164,8 +164,8 @@ Recovered membership:
 
 ### 13-factor runtime summary
 - Exact executable: **7** (#2, #3, #5, #6, #8, #10, #12).
-- Conditional executable: **2** (#9 facial axis with explicit `Pt_Ricketts`; #11 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
-- Source-locked but blocked by landmark/sign authority: **4** (#1, #4, #7, #13).
+- Conditional executable: **3** (#1 lower-incisor extrusion; #9 facial axis with explicit `Pt_Ricketts`; #11 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
+- Source-locked but blocked by landmark authority: **3** (#4, #7, #13).
 - No historical norm or VERT classification is activated by these execution states.
 
 ---
