@@ -54,36 +54,40 @@ const personas = [
   {
     key: 'dentiste-collaborateur',
     label: 'Dentiste collaborateur pressé',
-    email: mainUser,
+    email: 't2-collaborator@cabinet.ma',
     tasks: async (session) => {
       await session.go('/dashboard', '01-dashboard');
       await session.go(`/patients/${patient.id}?tab=analysis`, '02-analysis');
       await session.go(`/patients/${patient.id}?tab=admin`, '03-documents');
       await session.go('/agenda', '04-agenda');
+      await session.go('/settings', '05-settings-denied', { expectedRedirect: '/dashboard' });
     },
   },
   {
     key: 'assistante',
     label: 'Assistante',
-    email: mainUser,
-    implementationNote: 'No dedicated ASSISTANTE role exists in UserRole; this is a workflow-perspective audit on the authenticated cabinet surface.',
+    email: 't2-assistant@cabinet.ma',
+    implementationNote: 'No dedicated ASSISTANTE enum exists; this persona uses the existing SECRETAIRE role with explicit assistant-oriented permissions.',
     tasks: async (session) => {
-      await session.go('/agenda', '01-agenda');
-      await session.go('/patients', '02-patients');
-      await session.go(`/patients/${patient.id}`, '03-patient-dossier');
-      await session.go(`/patients/${patient.id}?tab=admin`, '04-documents');
+      await session.go('/dashboard', '01-dashboard');
+      await session.go('/agenda', '02-agenda');
+      await session.go('/patients', '03-patients');
+      await session.go(`/patients/${patient.id}`, '04-patient-dossier');
+      await session.go(`/patients/${patient.id}?tab=admin`, '05-documents');
+      await session.go('/settings', '06-settings-denied', { expectedRedirect: '/dashboard' });
     },
   },
   {
     key: 'secretaire',
     label: 'Secrétaire',
-    email: 't2-restricted@cabinet.ma',
+    email: 't2-secretary@cabinet.ma',
     tasks: async (session) => {
       await session.go('/dashboard', '01-dashboard');
       await session.go('/agenda', '02-agenda');
-      await session.go('/patients', '03-patients-denied', { expectedRedirect: '/dashboard' });
-      await session.go('/accounting', '04-accounting-denied', { expectedRedirect: '/dashboard' });
-      await session.go('/settings', '05-settings-denied', { expectedRedirect: '/dashboard' });
+      await session.go('/patients', '03-patients');
+      await session.go(`/patients/${patient.id}?tab=admin`, '04-documents');
+      await session.go('/accounting', '05-accounting');
+      await session.go('/settings', '06-settings-denied', { expectedRedirect: '/dashboard' });
     },
   },
   {
