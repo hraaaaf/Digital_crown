@@ -1,6 +1,6 @@
 import pytest
 
-from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin
+from backend.schemas.cephalo_evidence import EvidenceStatus, ImageOrientationEvidence, ImageOrientationOrigin, LandmarkEvidence, LandmarkOrigin
 from backend.services.cephalo_canonical_analysis_v2 import (
     CANONICAL_V2_METHOD_IDS,
     materialize_canonical_analysis_v2_measurements,
@@ -45,6 +45,22 @@ def _landmarks():
         "R3_Ricketts": (5, 12), "R4_Ricketts": (5, 20),
     }
     return {key: _lm(key, *value) for key, value in pts.items()}
+def _orientation():
+    return ImageOrientationEvidence(
+        evidence_id="orientation:test",
+        source_image_ref="source:ceph",
+        anterior_x=1.0,
+        anterior_y=0.0,
+        superior_x=0.0,
+        superior_y=-1.0,
+        is_mirrored=False,
+        origin=ImageOrientationOrigin.ACQUISITION_METADATA,
+        provenance_ref="source:ceph",
+        evidence_refs=["source:ceph"],
+        evidence_status=EvidenceStatus.OBSERVED,
+    )
+
+
 def _materialize(*, mm_per_pixel=None, calibration_ref=None, landmarks=None):
     landmarks = landmarks or _landmarks()
     constructions = materialize_canonical_constructions_v2(
@@ -54,6 +70,7 @@ def _materialize(*, mm_per_pixel=None, calibration_ref=None, landmarks=None):
         measurement_namespace="measurement:test",
         landmarks=landmarks, mm_per_pixel=mm_per_pixel,
         calibration_ref=calibration_ref, constructions=constructions,
+        image_orientation=_orientation(),
     )
 
 
