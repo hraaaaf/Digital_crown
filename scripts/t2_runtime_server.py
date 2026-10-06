@@ -10,6 +10,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+# Ensure targeted T2 evidence sinks exist before later shell pipelines open tee outputs.
+(REPO_ROOT / "artifacts" / "t2-browser").mkdir(parents=True, exist_ok=True)
+
 # Runtime CI volontairement isolé : SQLite jetable, aucune donnée cabinet réelle.
 # Le mode "cabinet" reste fail-closed sur SQLCipher dans le produit normal.
 os.environ["ENVIRONMENT"] = "test"
