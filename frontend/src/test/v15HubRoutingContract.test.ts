@@ -49,6 +49,8 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).toContain('isCurrentAuthority');
     expect(controlCenter).toContain('getRuntimeAuthToken');
     expect(controlCenter).toContain('HTTPS est obligatoire pour une adresse LAN');
+    expect(controlCenter).toContain('Utilisez uniquement une adresse locale du cabinet');
+    expect(controlCenter).toContain('Aucune requête n’est envoyée à une origine distante');
     expect(controlCenter).toContain('Digital Crown utilise le port cabinet 8005');
     expect(controlCenter).not.toContain('localStorage.setItem');
     expect(controlCenter).not.toContain('sessionStorage.setItem');
