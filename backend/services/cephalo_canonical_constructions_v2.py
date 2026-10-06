@@ -143,6 +143,8 @@ def materialize_canonical_constructions_v2(
                 "point_y": pt.y,
                 "direction_x": dx,
                 "direction_y": dy,
+                "anterior_x": fh_x / norm,
+                "anterior_y": fh_y / norm,
                 "source_image_ref": next(iter(ptv_sources)),
             })
 
