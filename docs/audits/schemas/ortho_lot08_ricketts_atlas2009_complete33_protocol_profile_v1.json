@@ -1,0 +1,223 @@
+{
+  "schema_version": "ORTHO_LOT08_RICKETTS_ATLAS2009_COMPLETE33_PROTOCOL_PROFILE_V1",
+  "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "status": "COMPOSITION_SOURCE_LOCKED__EXECUTION_PARTIAL_FAIL_CLOSED",
+  "source_authority": {
+    "title": "Atlas cefalometría y análisis facial",
+    "authors": [
+      "Jesús Fernández Sánchez",
+      "Omar Gabriel Da Silva Filho"
+    ],
+    "publisher": "Ripano",
+    "year": 2009,
+    "isbn": "978-84-936756-7-7",
+    "chapter": "13 — Análisis de Ricketts",
+    "table": "Cuadro 13.1 — Descripción de los 33 factores"
+  },
+  "rules": {
+    "facad_labels_are_not_scientific_authority": true,
+    "historical_norms_reference_only": true,
+    "unsupported_measurements_fail_closed": true,
+    "source_specific_method_required": true
+  },
+  "measurements": [
+    {
+      "order": 1,
+      "measurement_id": "M_RICKETTS_MOLAR_RELATION_FOP_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_MOLAR_DISTALS_SOURCE_LOCKED_FOP_VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 2,
+      "measurement_id": "M_RICKETTS_CANINE_RELATION_FOP_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_CANINE_CUSPS_SOURCE_LOCKED_FOP_VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 3,
+      "measurement_id": "M_RICKETTS_OVERJET_FOP_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "INCISAL_EDGES_SOURCE_LOCKED_FOP_VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 4,
+      "measurement_id": "M_RICKETTS_OVERBITE_FOP_MM_V1",
+      "state": "SOURCE_LOCKED_BLOCKED",
+      "gate": "PERPENDICULAR_TO_FOP_SIGN_ORIENTATION_NOT_YET_DETERMINISTIC"
+    },
+    {
+      "order": 5,
+      "measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_FOP_L1_AXIS_VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 6,
+      "measurement_id": "M_INTERINCISAL_DEG_V1",
+      "state": "EXECUTABLE"
+    },
+    {
+      "order": 7,
+      "measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "state": "EXECUTABLE",
+      "gate": "VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 8,
+      "measurement_id": "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "SOURCE_LOCKED_XI_MANUAL_PM_RICKETTS"
+    },
+    {
+      "order": 9,
+      "measurement_id": "M_U6_PTV_MM_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_U6_DISTAL_MANUAL_PR_PTV_VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 10,
+      "measurement_id": "M_L1_EDGE_APOG_MM_V1",
+      "state": "EXECUTABLE",
+      "gate": "EXACT_INCISAL_EDGE_VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 11,
+      "measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+      "state": "EXECUTABLE",
+      "gate": "U1_INCISAL_EDGE_VERIFIED_CALIBRATION"
+    },
+    {
+      "order": 12,
+      "measurement_id": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+      "state": "EXECUTABLE"
+    },
+    {
+      "order": 13,
+      "measurement_id": "M_RICKETTS_U1_APOG_INCLINATION_DEG_V1",
+      "state": "EXECUTABLE"
+    },
+    {
+      "order": 14,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "OCCLUSAL_PLANE_TO_XI_EXACT_GEOMETRY_SOURCE_LOCK"
+    },
+    {
+      "order": 15,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "OCCLUSAL_PLANE_INCLINATION_EXACT_GEOMETRY_SOURCE_LOCK"
+    },
+    {
+      "order": 16,
+      "measurement_id": "M_LI_EPLANE_MM_V1",
+      "state": "EXECUTABLE",
+      "gate": "VERIFIED_CALIBRATION_CANONICAL_SOFT_IDENTITIES"
+    },
+    {
+      "order": 17,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "UPPER_LIP_LENGTH_IDENTITIES"
+    },
+    {
+      "order": 18,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "LABIAL_COMMISSURE_TO_OCCLUSAL_PLANE_IDENTITY_SIGN"
+    },
+    {
+      "order": 19,
+      "measurement_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+      "state": "EXECUTABLE"
+    },
+    {
+      "order": 20,
+      "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "EXPLICIT_PT_RICKETTS_CONSTRUCTED_GN"
+    },
+    {
+      "order": 21,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "FACIAL_TAPER_EXACT_PLANES"
+    },
+    {
+      "order": 22,
+      "measurement_id": "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
+      "state": "EXECUTABLE"
+    },
+    {
+      "order": 23,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "MAXILLARY_HEIGHT_CF_OR_SOURCE_GEOMETRY"
+    },
+    {
+      "order": 24,
+      "measurement_id": "M_PALATAL_PLANE_FH_DEG_V1",
+      "state": "PRIMITIVE_AVAILABLE",
+      "gate": "RICKETTS_SOURCE_SPECIFIC_EXECUTION_CONTRACT_REQUIRED"
+    },
+    {
+      "order": 25,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "EXPLICIT_RICKETTS_INFERIOR_ANGLE_POINT_ANATOMICAL_FH"
+    },
+    {
+      "order": 26,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "CRANIAL_DEFLECTION_EXACT_GEOMETRY"
+    },
+    {
+      "order": 27,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "ANTERIOR_CRANIAL_COMPRESSION_LENGTH_CC_N"
+    },
+    {
+      "order": 28,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "POSTERIOR_FACIAL_HEIGHT_EXACT_CF_GO_GEOMETRY"
+    },
+    {
+      "order": 29,
+      "measurement_id": null,
+      "state": "SOURCE_LABEL_CONFLICT_BLOCKED",
+      "gate": "ATLAS_INDEXED_TEXT_LABELS_ROW_AS_POSTERIOR_FACIAL_HEIGHT_60_DEG_OTHER_RICKETTS_SOURCES_CALL_TOTAL_FACIAL_HEIGHT"
+    },
+    {
+      "order": 30,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "RAMUS_POSITION_CF_XI_EXACT_GEOMETRY"
+    },
+    {
+      "order": 31,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "PORION_POSITION_EXACT_RICKETTS_REFERENCE"
+    },
+    {
+      "order": 32,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+      "state": "CONDITIONAL_EXECUTABLE",
+      "gate": "MANUAL_DC_SOURCE_LOCKED_XI_MANUAL_PM"
+    },
+    {
+      "order": 33,
+      "measurement_id": null,
+      "state": "NEW_CANONICAL_REQUIRED",
+      "gate": "MANDIBULAR_BODY_LENGTH_XI_PM_SOURCE_GEOMETRY"
+    }
+  ],
+  "normative_state": {
+    "universal_classification": false,
+    "vert_enabled": false,
+    "historical_reference_display_only": true
+  }
+}
