@@ -26,6 +26,7 @@ def test_atlas2009_wave_a_rows_are_source_specific_and_fail_closed():
     assert rows[3]["measurement_id"] == "M_RICKETTS_OVERJET_FOP_MM_V1"
     assert rows[4]["measurement_id"] == "M_RICKETTS_OVERBITE_FOP_MM_V1"
     assert rows[4]["state"] == "SOURCE_LOCKED_BLOCKED"
+    assert rows[4]["gate"] == "OVERBITE_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
     assert rows[10]["measurement_id"] == "M_L1_EDGE_APOG_MM_V1"
     assert rows[10]["state"] == "EXECUTABLE"
     assert "PERPENDICULAR_APOG__ANTERIOR_POSITIVE" in rows[10]["gate"]
@@ -77,12 +78,14 @@ def test_atlas2009_wave_b_rows_are_locked_and_fail_closed():
 
     assert rows[14]["measurement_id"] == "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1"
     assert rows[14]["state"] == "SOURCE_LOCKED_BLOCKED"
+    assert rows[14]["gate"] == "FOP_XI_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
     assert rows[15]["measurement_id"] == "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1"
     assert rows[15]["state"] == "CONDITIONAL_EXECUTABLE"
     assert rows[17]["measurement_id"] == "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1"
     assert rows[17]["state"] == "CONDITIONAL_EXECUTABLE"
     assert rows[18]["measurement_id"] == "M_RICKETTS_COMMISSURE_FOP_MM_V1"
     assert rows[18]["state"] == "SOURCE_LOCKED_BLOCKED"
+    assert rows[18]["gate"] == "COMMISSURE_FOP_SIGN_KNOWN__SUPERIOR_INFERIOR_IMAGE_AXIS_NOT_EVIDENCED"
     assert rows[21]["measurement_id"] == "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1"
     assert rows[23]["measurement_id"] == "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1"
     assert rows[24]["measurement_id"] == "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1"
