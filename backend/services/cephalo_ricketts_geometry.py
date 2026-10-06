@@ -376,3 +376,26 @@ def ricketts_mandibular_arc_deg_v1(
         (dc[0] - xi[0], dc[1] - xi[1]),
         (xi[0] - pm[0], xi[1] - pm[1]),
     )
+
+
+def ricketts_u6_distal_to_ptv_signed_px_v1(
+    u6_distal: Point,
+    pr_ptv: Point,
+    po: Point,
+    or_: Point,
+) -> Optional[float]:
+    """Signed U6 distal-to-PTV distance measured along anatomical Frankfort.
+
+    PTV is perpendicular to Frankfort through PR_Ricketts_PTV. Positive is
+    anterior to PTV in the anatomical Po→Or direction.
+    """
+    if not _finite_points(u6_distal, pr_ptv, po, or_):
+        return None
+    fh = (or_[0] - po[0], or_[1] - po[1])
+    fh_len = math.hypot(*fh)
+    if fh_len <= _EPS:
+        return None
+    anterior = (fh[0] / fh_len, fh[1] / fh_len)
+    delta = (u6_distal[0] - pr_ptv[0], u6_distal[1] - pr_ptv[1])
+    value = delta[0] * anterior[0] + delta[1] * anterior[1]
+    return value if math.isfinite(value) else None
