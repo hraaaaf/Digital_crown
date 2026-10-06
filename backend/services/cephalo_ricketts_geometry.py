@@ -415,19 +415,6 @@ def ricketts_signed_projection_on_plane_px_v1(
     return value if math.isfinite(value) else None
 
 
-def ricketts_incisal_edge_apog_signed_distance_px_v1(
-    incisal_edge: Point,
-    a: Point,
-    pog: Point,
-    po: Point,
-    or_: Point,
-) -> Optional[float]:
-    """Signed perpendicular incisal-edge distance to A-Pog; anterior positive."""
-    return ricketts_l1_edge_apog_signed_distance_px_v1(
-        incisal_edge, a, pog, po, or_
-    )
-
-
 def ricketts_u1_apog_inclination_deg_v1(
     u1_incisal: Point,
     u1_apex: Point,
