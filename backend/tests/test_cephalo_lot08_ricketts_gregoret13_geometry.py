@@ -664,13 +664,13 @@ def test_gregoret_mandibular_arc_rejects_auto_pm_authority():
 
 def test_ricketts_u6_ptv_distance_is_anterior_positive_and_rotation_mirror_invariant():
     original = ricketts_u6_distal_to_ptv_signed_px_v1(
-        (8.0, 5.0), (2.0, 5.0), (0.0, 0.0), (10.0, 0.0)
+        (8.0, 5.0), (2.0, 5.0), (1.0, 0.0)
     )
     rotated = ricketts_u6_distal_to_ptv_signed_px_v1(
-        (-5.0, 8.0), (-5.0, 2.0), (0.0, 0.0), (0.0, 10.0)
+        (-5.0, 8.0), (-5.0, 2.0), (0.0, 1.0)
     )
     mirrored = ricketts_u6_distal_to_ptv_signed_px_v1(
-        (-8.0, 5.0), (-2.0, 5.0), (0.0, 0.0), (-10.0, 0.0)
+        (-8.0, 5.0), (-2.0, 5.0), (-1.0, 0.0)
     )
     assert original == pytest.approx(6.0)
     assert rotated == pytest.approx(6.0)
@@ -679,7 +679,7 @@ def test_ricketts_u6_ptv_distance_is_anterior_positive_and_rotation_mirror_invar
 
 def test_ricketts_u6_ptv_distance_fails_closed_on_degenerate_frankfort():
     assert ricketts_u6_distal_to_ptv_signed_px_v1(
-        (8.0, 5.0), (2.0, 5.0), (0.0, 0.0), (0.0, 0.0)
+        (8.0, 5.0), (2.0, 5.0), (0.0, 0.0)
     ) is None
 
 
