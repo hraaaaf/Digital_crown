@@ -307,3 +307,54 @@ def ricketts_l1_occlusal_extrusion_signed_px_v1(
         + (l1_incisal[1] - plane_point[1]) * normal[1]
     )
     return signed_distance if math.isfinite(signed_distance) else None
+
+
+def ricketts_xi_from_r1_r4_fh_v1(
+    r1: Point,
+    r2: Point,
+    r3: Point,
+    r4: Point,
+    po: Point,
+    or_: Point,
+) -> Optional[Point]:
+    """Construct Xi as the center of the Ricketts ramal rectangle.
+
+    R1/R2 define the opposed ramal limits along the Frankfort axis; R3/R4
+    define the superior/inferior limits along the perpendicular axis. The
+    construction is expressed in the anatomical Frankfort basis so it is
+    invariant to image rotation and mirroring.
+    """
+    if not _finite_points(r1, r2, r3, r4, po, or_):
+        return None
+    fh = (or_[0] - po[0], or_[1] - po[1])
+    fh_len = math.hypot(*fh)
+    if fh_len <= _EPS:
+        return None
+    u = (fh[0] / fh_len, fh[1] / fh_len)
+    v = (-u[1], u[0])
+
+    h1 = r1[0] * u[0] + r1[1] * u[1]
+    h2 = r2[0] * u[0] + r2[1] * u[1]
+    k3 = r3[0] * v[0] + r3[1] * v[1]
+    k4 = r4[0] * v[0] + r4[1] * v[1]
+    if abs(h1 - h2) <= _EPS or abs(k3 - k4) <= _EPS:
+        return None
+
+    h = (h1 + h2) / 2.0
+    k = (k3 + k4) / 2.0
+    xi = (h * u[0] + k * v[0], h * u[1] + k * v[1])
+    return xi if _finite_points(xi) else None
+
+
+def ricketts_lower_facial_height_ans_xi_pm_deg_v1(
+    ans: Point,
+    xi: Point,
+    pm: Point,
+) -> Optional[float]:
+    """Oral-gnomon/lower-facial-height angle ANS-Xi-Pm with vertex at Xi."""
+    if not _finite_points(ans, xi, pm):
+        return None
+    return _angle_deg(
+        (ans[0] - xi[0], ans[1] - xi[1]),
+        (pm[0] - xi[0], pm[1] - xi[1]),
+    )
