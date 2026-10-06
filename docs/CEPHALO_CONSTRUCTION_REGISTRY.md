@@ -230,7 +230,7 @@ These constructions extend the LOT06 deterministic authority without activating 
 - Required landmarks: `R1_Ricketts`, `R2_Ricketts`, `R3_Ricketts`, `R4_Ricketts`, `Po_anatomic`, `Or`.
 - Source geometry: R1/R2 define opposed ramal limits along Frankfort; R3/R4 define superior/inferior limits along the perpendicular axis; Xi is the center of the resulting rectangle.
 - Numerical rule: compute the midpoint of the R1/R2 limits on the anatomical Frankfort axis and the midpoint of the R3/R4 limits on its perpendicular, then reconstruct the point in source-image coordinates.
-- Evidence gate: all six identities available from one source image; degenerate Frankfort or collapsed rectangle => `INVALID`.
+- Evidence gate: `R1_Ricketts`..`R4_Ricketts` must be `MANUAL` or `MANUAL_CORRECTED`; Po/Or may use their established canonical authority; all six identities must come from one source image; degenerate Frankfort or collapsed rectangle => `INVALID`.
 - Forbidden substitutions: generic `Xi`, `Go`, `Ar`, `PT_point`; no detector alias is promoted by name.
 - State: `SOURCE_LOCKED_GEOMETRY`.
 - Downstream: `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` is `CONDITIONAL_EXECUTABLE` with constructed Xi + explicit `ANS` + explicit `Pm_Ricketts`.
