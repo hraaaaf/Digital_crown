@@ -1,0 +1,107 @@
+name: FUX Multi Persona Audit
+
+on:
+  push:
+    branches:
+      - "audit/fux-multi-persona-20261006"
+    paths:
+      - "frontend/scripts/audit-fux-multi-persona.mjs"
+      - ".github/workflows/fux-multi-persona-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: First User Experience — 5 personas
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: fux-multi-persona-audit-secret-20261006
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+    steps:
+      - name: Checkout exact audit HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify exact audit HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "EVALUATED_SHA=$(git rev-parse HEAD)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Create isolated credentials
+        shell: bash
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+      - name: Install backend dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt >/tmp/requirements-fux.txt
+          pip install -r /tmp/requirements-fux.txt
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated backend
+        shell: bash
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/fux-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/fux-backend.log
+          exit 1
+      - name: Start frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/fux-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/fux-frontend.log
+          exit 1
+      - name: Run multi-persona FUX audit
+        working-directory: frontend
+        shell: bash
+        run: node scripts/run-with-t2-workstation.mjs scripts/audit-fux-multi-persona.mjs
+      - name: Verify evidence bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s audit-artifacts/fux-multi-persona/report.json
+          test -s audit-artifacts/fux-multi-persona/summary.json
+          test "$(find audit-artifacts/fux-multi-persona -name '*.jpg' | wc -l)" -ge 20
+          cat audit-artifacts/fux-multi-persona/summary.json
+      - name: Upload FUX evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fux-multi-persona-${{ github.sha }}
+          path: audit-artifacts/fux-multi-persona/
+          if-no-files-found: error
+          retention-days: 14
