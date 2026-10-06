@@ -157,7 +157,10 @@ def test_wave_a_registry_keeps_ricketts_overbite_blocked_without_runtime_promoti
     assert item.source_status == "CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED"
 
     out = _materialize(_base_dental_landmarks())
-    assert "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2" not in out
+    overbite = out.get("RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2")
+    assert overbite is not None
+    assert overbite.availability_status.value == "NOT_COMPUTABLE"
+    assert overbite.value is None
 
 
 def test_wave_a_lower_incisor_protrusion_uses_incisal_edge_not_facial_surface():
