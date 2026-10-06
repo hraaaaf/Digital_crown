@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { request } from 'playwright';
+import { execFileSync } from 'node:child_process';
 
 const outDir = path.resolve('../artifacts/t2-browser/certificat-pdf-gate');
 fs.mkdirSync(outDir, { recursive: true });
@@ -109,6 +110,41 @@ for (const scenario of scenarios) {
     pdfFile: file,
     expectedNeedles: scenario.expectedNeedles,
   });
+}
+
+for (const scenario of report.scenarios) {
+  const pdfPath = path.join(outDir, scenario.pdfFile);
+  const stem = scenario.id;
+  let info;
+  try {
+    info = execFileSync('pdfinfo', [pdfPath], { encoding: 'utf8' });
+  } catch {
+    throw new Error('pdfinfo is required for Certificat PDF evidence');
+  }
+  const pagesMatch = info.match(/^Pages:\\s+(\\d+)/m);
+  if (!pagesMatch) throw new Error(stem + ' missing PDF page count');
+  const pages = Number(pagesMatch[1]);
+  if (!Number.isInteger(pages) || pages < 1) throw new Error(stem + ' invalid PDF page count: ' + pages);
+
+  const renderDir = path.join(outDir, 'renders', stem);
+  fs.mkdirSync(renderDir, { recursive: true });
+  execFileSync('pdftoppm', ['-png', '-r', '144', pdfPath, path.join(renderDir, 'page')], { stdio: 'pipe' });
+  const rendered = fs.readdirSync(renderDir).filter(name => /^page-\\d+\\.png$/.test(name)).length;
+  if (rendered !== pages) throw new Error(stem + ' render/page mismatch: ' + rendered + '/' + pages);
+
+  const textPath = path.join(outDir, stem + '.txt');
+  execFileSync('pdftotext', ['-layout', pdfPath, textPath], { stdio: 'pipe' });
+  const extracted = fs.readFileSync(textPath, 'utf8');
+  if (extracted.trim().length < 40) throw new Error(stem + ' extracted text unexpectedly short');
+  for (const needle of scenario.expectedNeedles) {
+    if (!extracted.includes(needle)) throw new Error(stem + ' missing expected PDF text: ' + needle);
+  }
+
+  scenario.pages = pages;
+  scenario.renderedPages = rendered;
+  scenario.textBytes = Buffer.byteLength(extracted);
+  scenario.renderDir = path.relative(outDir, renderDir);
+  scenario.textFile = path.basename(textPath);
 }
 
 fs.writeFileSync(path.join(outDir, 'certificate-matrix.json'), JSON.stringify(report, null, 2));
