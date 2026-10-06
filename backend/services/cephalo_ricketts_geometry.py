@@ -431,3 +431,59 @@ def ricketts_u1_apog_inclination_deg_v1(
     if angle is None:
         return None
     return min(angle, 180.0 - angle)
+
+
+def ricketts_line_angle_acute_deg_v1(
+    first_direction: Point,
+    second_direction: Point,
+) -> Optional[float]:
+    """Acute/non-oriented angle between two source-locked cephalometric lines."""
+    if not _finite_points(first_direction, second_direction):
+        return None
+    angle = _angle_deg(first_direction, second_direction)
+    if angle is None:
+        return None
+    return min(angle, 180.0 - angle)
+
+
+def ricketts_upper_lip_length_px_v1(
+    ans: Point,
+    labial_commissure: Point,
+) -> Optional[float]:
+    """Atlas/Ricketts upper-lip length: straight-line ANS to labial commissure."""
+    if not _finite_points(ans, labial_commissure):
+        return None
+    value = math.hypot(
+        labial_commissure[0] - ans[0],
+        labial_commissure[1] - ans[1],
+    )
+    return value if math.isfinite(value) else None
+
+
+def ricketts_maxillary_height_n_cf_a_deg_v1(
+    n: Point,
+    cf: Point,
+    a: Point,
+) -> Optional[float]:
+    """Ricketts maxillary height: N-CF-A angle with vertex at CF."""
+    if not _finite_points(n, cf, a):
+        return None
+    return _angle_deg(
+        (n[0] - cf[0], n[1] - cf[1]),
+        (a[0] - cf[0], a[1] - cf[1]),
+    )
+
+
+def ricketts_palatal_plane_fh_deg_v1(
+    po: Point,
+    or_: Point,
+    ans: Point,
+    pns_ricketts: Point,
+) -> Optional[float]:
+    """Acute angle between anatomical Frankfort and Atlas/Ricketts palatal plane."""
+    if not _finite_points(po, or_, ans, pns_ricketts):
+        return None
+    return ricketts_line_angle_acute_deg_v1(
+        (or_[0] - po[0], or_[1] - po[1]),
+        (pns_ricketts[0] - ans[0], pns_ricketts[1] - ans[1]),
+    )
