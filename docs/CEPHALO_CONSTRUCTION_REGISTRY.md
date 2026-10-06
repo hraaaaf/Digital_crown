@@ -253,3 +253,16 @@ These constructions extend the LOT06 deterministic authority without activating 
 - Generic/manual `CF` aliases are not promoted.
 - Downstream Wave B: `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1`.
 - Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md`.
+
+
+## RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1
+
+- Purpose: Atlas-2009 cranial center (CC) for anterior cranial length.
+- Definition: intersection of `Ba-N` with source-locked facial axis `Pt_Ricketts-Gn_constructed_Ricketts`.
+- Authority gate: `Pt_Ricketts` must be MANUAL or MANUAL_CORRECTED.
+- Upstream construction: `RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1`.
+- Output: `CC_Ricketts_Atlas2009`.
+- Same-source gate: all contributing landmark evidence must resolve to one image.
+- Historical variant: Ricketts 1981 also contains perpendicular-from-Pt wording; this Atlas-specific construction does not merge the variants.
+- Downstream: `M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md`.
