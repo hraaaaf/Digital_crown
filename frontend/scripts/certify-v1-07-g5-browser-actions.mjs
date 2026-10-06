@@ -1128,14 +1128,8 @@ for(const viewport of viewports){
     let bridgeOptionsCalls=0,bridgePairingCalls=0,revokeMobileCalls=0;
     let failBridgeOptions=false,failNextBridgePairing=false;
     const bridgeTargets=[
-      {id:1,name:'Dr T2 Browser',email:'t2-browser@cabinet.ma',role:'DENTISTE',is_current_user:true,destinations:[
-        {id:'dashboard',label:'Tableau de bord mobile'},
-        {id:'agenda',label:'Agenda mobile'}
-      ]},
-      {id:2,name:'Assistante G5',email:'assistante-g5@cabinet.ma',role:'SECRETAIRE',is_current_user:false,destinations:[
-        {id:'agenda',label:'Agenda mobile'},
-        {id:'frontdesk',label:'Accueil mobile'}
-      ]}
+      {id:1,name:'Dr T2 Browser',email:'t2-browser@cabinet.ma',role:'DENTISTE',is_current_user:true},
+      {id:2,name:'Assistante G5',email:'assistante-g5@cabinet.ma',role:'SECRETAIRE',is_current_user:false}
     ];
     await page.route('**/api/mobile/bridge-options',route=>{
       bridgeOptionsCalls+=1;
@@ -1150,7 +1144,6 @@ for(const viewport of viewports){
       }
       const body=route.request().postDataJSON();
       const target=bridgeTargets.find(x=>x.id===body.target_user_id);
-      const destination=target?.destinations.find(x=>x.id===body.destination);
       const qrSvg=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="black"/></svg>').toString('base64');
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
         qr_code:'data:image/svg+xml;base64,'+qrSvg,
@@ -1159,8 +1152,8 @@ for(const viewport of viewports){
         target_user_id:body.target_user_id,
         target_user_name:target?.name||'Utilisateur',
         target_role:target?.role||'',
-        destination:body.destination,
-        destination_label:destination?.label||body.destination,
+        destination:target?.role==='SECRETAIRE'?'frontdesk':'dashboard',
+        destination_label:target?.role==='SECRETAIRE'?'Accueil mobile':'Tableau de bord mobile',
         contains_patient_data:false
       })});
     });
@@ -1202,17 +1195,15 @@ for(const viewport of viewports){
 
     await security.click();
 
-    // Mobile Security — options, target/destination, pairing success/refusal, revoke cancel/ACK, options retry.
-    await page.getByRole('heading',{name:'Compagnon Mobile',exact:true}).waitFor({state:'visible',timeout:10000});
+    // Pocket Security — options, role-derived destination, pairing success/refusal, revoke cancel/ACK, options retry.
+    await page.getByRole('heading',{name:'Digital Crown Pocket',exact:true}).waitFor({state:'visible',timeout:10000});
     const targetSelect=page.getByRole('combobox',{name:'Utilisateur mobile cible'});
-    const destinationSelect=page.getByRole('combobox',{name:'Destination mobile'});
     await targetSelect.waitFor({state:'visible',timeout:10000});
     if(bridgeOptionsCalls<1) throw new Error('mobile bridge options were not loaded');
 
     await targetSelect.selectOption('2');
-    await destinationSelect.selectOption('frontdesk');
     await page.getByRole('button',{name:'Générer le QR de connexion',exact:true}).click();
-    const mobileQr=page.getByAltText('QR de connexion Digital Crown Mobile');
+    const mobileQr=page.getByAltText('QR de connexion Digital Crown Pocket');
     await mobileQr.waitFor({state:'visible',timeout:10000});
     if((await page.getByText('G5MOBILE',{exact:true}).textContent())!=='G5MOBILE') throw new Error('mobile pairing token consumer mismatch');
     if(bridgePairingCalls!==1) throw new Error('mobile pairing success call mismatch');
