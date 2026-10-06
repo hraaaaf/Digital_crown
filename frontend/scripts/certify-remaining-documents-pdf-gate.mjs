@@ -76,7 +76,8 @@ for (const scenario of scenarios) {
   if (!response.ok()) throw new Error(scenario.document+'/'+scenario.id+' generation failed: '+response.status()+' '+await response.text());
   const payload=await response.json();
   const clean=fetchPdfPath(payload);
-  const pdf=await api.get('/api/'+clean,{headers});
+  const pdfPath = scenario.document === 'echeancier' ? '/'+clean : '/api/'+clean;
+  const pdf=await api.get(pdfPath,{headers});
   if (!pdf.ok()) throw new Error(scenario.document+'/'+scenario.id+' PDF fetch failed: '+pdf.status());
   const bytes=await pdf.body();
   if(bytes.length<5||bytes.subarray(0,4).toString('ascii')!=='%PDF') throw new Error(scenario.document+'/'+scenario.id+' invalid PDF signature');
