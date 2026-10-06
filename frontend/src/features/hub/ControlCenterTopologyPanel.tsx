@@ -25,6 +25,7 @@ type TopologyPayload = {
   lanExposed?: boolean;
   tlsEnabled?: boolean;
   tlsReady?: boolean;
+  connectionUrl?: string | null;
   remediation?: string | null;
 };
 
@@ -287,6 +288,12 @@ export const ControlCenterTopologyPanel = () => {
             <div><span className="font-bold text-text-muted">Adresse bind</span><p className="mt-1 font-black">{result.topology.bindHost || '—'}</p></div>
             <div><span className="font-bold text-text-muted">Port</span><p className="mt-1 font-black">{result.topology.port || '—'}</p></div>
             <div><span className="font-bold text-text-muted">Mode réseau</span><p className="mt-1 font-black">{result.topology.lanExposed ? 'LAN' : 'Local uniquement'}</p></div>
+            <div className="sm:col-span-2 lg:col-span-4">
+              <span className="font-bold text-text-muted">URL poste annexe</span>
+              <p data-control-center-connection-url className="mt-1 break-all font-black">
+                {result.topology.connectionUrl || 'Non publiée — serveur limité au loopback'}
+              </p>
+            </div>
           </div>
         )}
 
