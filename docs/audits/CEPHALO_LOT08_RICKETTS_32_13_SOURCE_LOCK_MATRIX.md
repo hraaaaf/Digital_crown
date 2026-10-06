@@ -88,7 +88,7 @@ Source membership observed in the published 32-factor table.
 | 2 | Canine relation | none | NEW_CANONICAL_ID + canine identities |
 | 3 | Incisor overjet | `M_OVERJET_MM_V1` | LEGACY_TO_AUDIT; source-specific Ricketts convention not executable |
 | 4 | Incisor overbite | `M_OVERBITE_V1` | LEGACY_TO_AUDIT |
-| 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION: Ricketts functional occlusal plane |
+| 5 | Lower incisor extrusion | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | FOP SOURCE_LOCKED / BLOCKED_LANDMARK+SIGN: explicit Ricketts premolar+molar occlusal anchors and sign convention required |
 | 6 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 7 | Convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 8 | Lower face height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | BLOCKED_LANDMARK: Xi/Pm |
@@ -108,7 +108,7 @@ Source membership observed in the published 32-factor table.
 | 22 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
 | 23 | Maxillary height | none | NEW_CANONICAL_ID + CF |
 | 24 | Palatal plane | `M_PALATAL_PLANE_FH_DEG_V1` | PRIMITIVE_AVAILABLE; Ricketts source-specific execution contract still required |
-| 25 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION; Go-Me substitution forbidden |
+| 25 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: explicit `MP_ANGLE_INFERIOR_Ricketts` + Me + anatomical Frankfort; generic Go/Go-Gn substitution forbidden |
 | 26 | Cranial deflection | none | NEW_CANONICAL_ID |
 | 27 | Anterior cranial length | none | NEW_CANONICAL_ID + CC |
 | 28 | Posterior facial height | none | NEW_CANONICAL_ID + CF/Go definition |
@@ -148,7 +148,7 @@ Recovered membership:
 
 | # | Factor | LOT06 / registry mapping | Current state |
 |---:|---|---|---|
-| 1 | Lower incisor extrusion to occlusal plane | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION: Ricketts functional occlusal plane |
+| 1 | Lower incisor extrusion to occlusal plane | `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` | FOP SOURCE_LOCKED / BLOCKED_LANDMARK+SIGN: explicit `FOP_PREMOLAR_Ricketts` + `FOP_MOLAR_Ricketts` and sign convention required |
 | 2 | Interincisal angle | `M_INTERINCISAL_DEG_V1` | EXECUTABLE |
 | 3 | Facial convexity | `M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1` | EXECUTABLE with verified calibration |
 | 4 | Lower facial height | `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` | BLOCKED_LANDMARK: Xi/Pm |
@@ -158,14 +158,14 @@ Recovered membership:
 | 8 | Lower lip to E-plane | `M_LI_EPLANE_MM_V1` | EXECUTABLE with calibration/canonical soft identities |
 | 9 | Facial axis | `M_FACIAL_AXIS_RICKETTS_DEG_V1` | CONDITIONAL: explicit/audited Pt_Ricketts |
 | 10 | Facial depth | `M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1` | EXECUTABLE |
-| 11 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | SOURCE_LOCKED_MEANING / BLOCKED_CONSTRUCTION; Go-Me substitution forbidden |
+| 11 | Mandibular plane angle | `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` | CONDITIONAL_EXECUTABLE: explicit `MP_ANGLE_INFERIOR_Ricketts` + Me + anatomical Frankfort; generic Go/Go-Gn substitution forbidden |
 | 12 | Maxillary depth | `M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1` | EXECUTABLE |
 | 13 | Mandibular arc | `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` | SOURCE_LOCKED_GEOMETRY / BLOCKED_LANDMARK: DC_Ricketts/Xi_Ricketts/Pm_Ricketts |
 
 ### 13-factor runtime summary
 - Exact executable: **7** (#2, #3, #5, #6, #8, #10, #12).
-- Conditional executable: **1** (#9 facial axis with explicit `Pt_Ricketts`).
-- Source-locked but blocked by landmark/construction authority: **5** (#1, #4, #7, #11, #13).
+- Conditional executable: **2** (#9 facial axis with explicit `Pt_Ricketts`; #11 mandibular plane with explicit `MP_ANGLE_INFERIOR_Ricketts`).
+- Source-locked but blocked by landmark/sign authority: **4** (#1, #4, #7, #13).
 - No historical norm or VERT classification is activated by these execution states.
 
 ---
