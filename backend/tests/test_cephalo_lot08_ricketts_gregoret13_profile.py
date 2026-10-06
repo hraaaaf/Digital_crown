@@ -24,6 +24,11 @@ FOP_MP_SOURCE_LOCK = (
     / "audits"
     / "CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md"
 )
+CONSTRUCTION_REGISTRY = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "CEPHALO_CONSTRUCTION_REGISTRY.md"
+)
 
 
 def test_gregoret13_profile_has_exactly_13_unique_measurements_in_order():
@@ -160,3 +165,11 @@ def test_gregoret13_profile_links_the_ricketts_plane_source_lock():
     assert "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1" in text
     assert "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1" in text
     assert "BLOCKED_SIGN_CONVENTION" in text
+
+
+def test_gregoret13_registry_contains_both_ricketts_plane_constructions():
+    text = CONSTRUCTION_REGISTRY.read_text(encoding="utf-8")
+    assert "## RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1" in text
+    assert "## RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1" in text
+    assert "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1" in text
+    assert "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1" in text
