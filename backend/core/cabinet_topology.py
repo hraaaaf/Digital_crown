@@ -31,6 +31,13 @@ class CabinetNetworkContract:
         return "https" if self.https_enabled else "http"
 
     @property
+    def connection_url(self) -> str | None:
+        """Reachable LAN URL for annex workstations, never loopback/wildcard."""
+        if not self.lan_exposed:
+            return None
+        return self.base_url
+
+    @property
     def base_url(self) -> str:
         host = self.host
         if host == "0.0.0.0":
@@ -53,6 +60,7 @@ class CabinetNetworkContract:
             "lanExposed": self.lan_exposed,
             "tlsEnabled": self.https_enabled,
             "tlsReady": self.tls_ready,
+            "connectionUrl": self.connection_url,
             "remediation": _remediation_code(self),
         }
 
