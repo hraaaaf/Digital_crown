@@ -7,11 +7,13 @@
     {
       "target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
       "vendor_label": "Ricketts (32 F)",
+      "expected_facad_factor_count": 32,
       "observation_status": "UNOBSERVED"
     },
     {
       "target_id": "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
       "vendor_label": "Ricketts (13 F)",
+      "expected_facad_factor_count": 13,
       "observation_status": "UNOBSERVED"
     }
   ],
@@ -34,8 +36,10 @@
   ],
   "evidence_record_contract": {
     "required_fields": [
+      "evidence_id",
       "artifact_kind",
       "profile_target_id",
+      "source_path",
       "source_filename",
       "sha256",
       "facad_version",
@@ -52,6 +56,7 @@
       "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET"
     ],
     "sha256_format": "64 lowercase hexadecimal characters",
+    "source_path_rule": "Repository-relative path to the exact immutable Facad export artifact; absolute paths and parent traversal are forbidden.",
     "same_trace_rule": "Artifacts used for numeric parity must share the same_trace_case_id."
   },
   "parity_row_contract": {
@@ -70,6 +75,7 @@
     "allowed_sign_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_APPLICABLE"],
     "allowed_numeric_status": ["OBSERVED_MATCH", "OBSERVED_DIFFERENT", "UNOBSERVED", "NOT_COMPARABLE"]
   },
+  "allowed_profile_observation_status": ["UNOBSERVED", "PARTIAL", "OBSERVED"],
   "comparison_dimensions": [
     "membership",
     "order",
@@ -93,6 +99,7 @@
     "no_scientific_equivalence_claim": true,
     "unobserved_fields_remain_unobserved": true,
     "evidence_hash_required": true,
+    "evidence_file_presence_required": true,
     "facad_version_required": true
   },
   "evidence_records": [],
