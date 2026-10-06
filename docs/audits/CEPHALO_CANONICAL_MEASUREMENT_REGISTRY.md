@@ -215,3 +215,11 @@ Le moteur d'analyse ne doit jamais devenir une seconde implémentation de géom�
 3. implémenter au niveau du registre les mesures non bloquées réellement manquantes ;
 4. poursuivre le tracé SVG synchronisé, normes/interprétation et sorties Céphalo-N ;
 5. **terminer le closeout Céphalo-N avant tout démarrage de `ORTHO_MODULE_V2`**.
+
+| `M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1` | Ricketts cranial deflection | acute angle anatomical FH / Ba-N | Po_anatomic,Or,Ba,N | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1` | Ricketts anterior cranial length | CC→N | Atlas CC construction + N | mm | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1` | Ricketts posterior facial height | Go→CF | manual `GO_Ricketts_PFH` + source-locked CF | mm | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1` | Ricketts total facial height | acute angle Ba-N / Pm-Xi | Ba,N + canonical Xi + manual Pm | angle ° | `GEOMETRY_COVERED`; Atlas row-29 transcription conflict resolved |
+| `M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1` | Ricketts ramus position | acute angle FH / CF-Xi | anatomical FH + canonical CF + canonical Xi | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_PORION_LOCATION_PTV_MM_V1` | Ricketts Porion location | signed PTV→Po distance along FH; posterior negative | Po_anatomic + source-locked PTV | mm signed | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1` | Ricketts mandibular corpus length | Xi→Pm | canonical Xi + manual Pm | mm | `GEOMETRY_COVERED`; calibration |
