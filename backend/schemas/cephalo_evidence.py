@@ -36,6 +36,51 @@ class LandmarkOrigin(str, Enum):
     MANUAL_CORRECTED = "MANUAL_CORRECTED"
 
 
+class ImageOrientationOrigin(str, Enum):
+    ACQUISITION_METADATA = "ACQUISITION_METADATA"
+    MANUAL_VERIFIED = "MANUAL_VERIFIED"
+
+
+class ImageOrientationEvidence(_StrictModel):
+    evidence_id: str = Field(min_length=1)
+    source_image_ref: str = Field(min_length=1)
+    anterior_x: float
+    anterior_y: float
+    superior_x: float
+    superior_y: float
+    is_mirrored: bool
+    origin: ImageOrientationOrigin
+    provenance_ref: str = Field(min_length=1)
+    validated_by: Optional[str] = None
+    validated_at: Optional[datetime.datetime] = None
+    evidence_refs: List[str] = Field(min_length=1)
+    evidence_status: EvidenceStatus = EvidenceStatus.OBSERVED
+    availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE
+
+    @model_validator(mode="after")
+    def validate_orientation_contract(self):
+        values = (
+            self.anterior_x, self.anterior_y,
+            self.superior_x, self.superior_y,
+        )
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError("Image orientation axes must be finite")
+        anterior_norm = math.hypot(self.anterior_x, self.anterior_y)
+        superior_norm = math.hypot(self.superior_x, self.superior_y)
+        if anterior_norm <= 1e-12 or superior_norm <= 1e-12:
+            raise ValueError("Image orientation axes must be non-degenerate")
+        dot = (
+            self.anterior_x * self.superior_x
+            + self.anterior_y * self.superior_y
+        ) / (anterior_norm * superior_norm)
+        if abs(dot) > 1e-3:
+            raise ValueError("Image orientation axes must be orthogonal")
+        if self.origin == ImageOrientationOrigin.MANUAL_VERIFIED:
+            if not self.validated_by or not self.validated_at:
+                raise ValueError("Manual image orientation requires clinician/operator audit")
+        return self
+
+
 class ReviewState(str, Enum):
     PROPOSED = "PROPOSED"
     ACCEPTED = "ACCEPTED"
@@ -144,6 +189,7 @@ class MeasurementEvidence(_StrictModel):
     landmark_refs: List[str] = Field(default_factory=list)
     construction_refs: List[str] = Field(default_factory=list)
     calibration_ref: Optional[str] = None
+    orientation_ref: Optional[str] = None
     requires_calibration: bool = False
     evidence_refs: List[str] = Field(min_length=1)
     evidence_status: EvidenceStatus = EvidenceStatus.COMPUTED
