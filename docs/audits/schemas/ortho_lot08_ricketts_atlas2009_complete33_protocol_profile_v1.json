@@ -83,8 +83,8 @@
     {
       "order": 11,
       "measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
-      "state": "EXECUTABLE",
-      "gate": "U1_INCISAL_EDGE_VERIFIED_CALIBRATION"
+      "state": "SOURCE_LOCKED_BLOCKED",
+      "gate": "U1_INCISAL_EDGE_AND_A_POG_LOCKED__DISTANCE_DIRECTION_UNRESOLVED"
     },
     {
       "order": 12,
