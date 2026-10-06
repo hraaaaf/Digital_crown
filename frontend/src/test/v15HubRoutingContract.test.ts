@@ -46,10 +46,14 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).toContain('data-control-center-probe');
     expect(controlCenter).toContain('data-control-center-remediation');
     expect(controlCenter).toContain("credentials: 'omit'");
+    expect(controlCenter).toContain('isCurrentAuthority');
+    expect(controlCenter).toContain('getRuntimeAuthToken');
     expect(controlCenter).toContain('HTTPS est obligatoire pour une adresse LAN');
     expect(controlCenter).toContain('Digital Crown utilise le port cabinet 8005');
     expect(controlCenter).not.toContain('localStorage.setItem');
     expect(controlCenter).not.toContain('sessionStorage.setItem');
+    expect(controlCenter).toContain("void runProbe(API_BASE)");
+    expect(controlCenter).not.toContain("}, [target])");
   });
 
   it('exposes a clean Cabinet return to Hub', () => {
