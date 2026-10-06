@@ -314,3 +314,5 @@ await api.dispose();
 const summary = { status: 'PASS', evidence };
 fs.writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
 console.log('G4_REMAINING_DOCUMENTS ' + JSON.stringify({ status: summary.status, viewports: evidence.length }));
+// Batch PDF evidence for every remaining Document Studio family.
+await import('./certify-remaining-documents-pdf-gate.mjs');
