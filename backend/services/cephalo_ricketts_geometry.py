@@ -269,3 +269,41 @@ def ricketts_l1_edge_apog_signed_distance_px_v1(
     if not math.isfinite(anterior_score) or abs(anterior_score) <= _EPS:
         return None
     return math.copysign(magnitude, anterior_score)
+
+
+def ricketts_l1_occlusal_extrusion_signed_px_v1(
+    l1_incisal: Point,
+    l1_apex: Point,
+    plane_point: Point,
+    plane_direction: Point,
+) -> Optional[float]:
+    """Signed perpendicular lower-incisor distance to the Ricketts functional occlusal plane.
+
+    Positive is the crownward/incisal side of the plane (greater extrusion /
+    supraocclusion); negative is the apical side (reduced extrusion / open-bite
+    direction). The lower-incisor long axis orients the plane normal, making the
+    sign independent of image rotation or horizontal mirroring.
+    """
+    if not _finite_points(l1_incisal, l1_apex, plane_point, plane_direction):
+        return None
+    plane_len = math.hypot(*plane_direction)
+    incisal_axis = (
+        l1_incisal[0] - l1_apex[0],
+        l1_incisal[1] - l1_apex[1],
+    )
+    axis_len = math.hypot(*incisal_axis)
+    if plane_len <= _EPS or axis_len <= _EPS:
+        return None
+
+    normal = (-plane_direction[1] / plane_len, plane_direction[0] / plane_len)
+    orientation = normal[0] * incisal_axis[0] + normal[1] * incisal_axis[1]
+    if not math.isfinite(orientation) or abs(orientation) <= _EPS:
+        return None
+    if orientation < 0:
+        normal = (-normal[0], -normal[1])
+
+    signed_distance = (
+        (l1_incisal[0] - plane_point[0]) * normal[0]
+        + (l1_incisal[1] - plane_point[1]) * normal[1]
+    )
+    return signed_distance if math.isfinite(signed_distance) else None
