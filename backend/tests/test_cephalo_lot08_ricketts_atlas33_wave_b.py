@@ -11,7 +11,6 @@ from backend.services.cephalo_measure_registry import canonical_measurement
 from backend.services.cephalo_ricketts_geometry import (
     ricketts_line_angle_acute_deg_v1,
     ricketts_maxillary_height_n_cf_a_deg_v1,
-    ricketts_palatal_plane_fh_deg_v1,
     ricketts_upper_lip_length_px_v1,
 )
 
@@ -90,9 +89,6 @@ def test_wave_b_geometry_primitives_are_deterministic():
     assert ricketts_maxillary_height_n_cf_a_deg_v1(
         (0, 8), (4, 0), (8, 8)
     ) == pytest.approx(53.13010235415598)
-    assert ricketts_palatal_plane_fh_deg_v1(
-        (0, 0), (10, 0), (0, 2), (10, 2)
-    ) == pytest.approx(0.0)
 
 
 def test_wave_b_cf_is_constructed_only_from_source_locked_ptv_and_fh():
@@ -118,14 +114,12 @@ def test_wave_b_runtime_materializes_only_source_locked_executable_factors():
         "RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2",
         "RICKETTS_FACIAL_TAPER_CANONICAL_DEG_V2",
         "RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2",
-        "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
     }
     assert expected <= set(out)
     assert all(out[method].availability_status.value == "AVAILABLE" for method in expected)
     assert out["RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2"].value == pytest.approx(5.0)
     assert out["RICKETTS_FACIAL_TAPER_CANONICAL_DEG_V2"].value == pytest.approx(45.0)
     assert out["RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2"].value == pytest.approx(53.13010235415598)
-    assert out["RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2"].value == pytest.approx(0.0)
 
 
 def test_wave_b_authority_gates_fail_closed():
@@ -139,10 +133,6 @@ def test_wave_b_authority_gates_fail_closed():
     _, out = _materialize(landmarks)
     assert out["RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2"].availability_status.value == "NOT_COMPUTABLE"
 
-    landmarks = _landmarks()
-    landmarks["PNS_Ricketts"] = _auto("PNS_Ricketts", 10, 2)
-    _, out = _materialize(landmarks)
-    assert out["RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2"].availability_status.value == "NOT_COMPUTABLE"
 
 
 def test_wave_b_linear_lip_length_requires_verified_calibration():
@@ -168,10 +158,13 @@ def test_wave_b_blocked_signed_distances_have_no_runtime_method():
 
     op_xi = canonical_measurement("M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1")
     commissure = canonical_measurement("M_RICKETTS_COMMISSURE_FOP_MM_V1")
+    palatal = canonical_measurement("M_RICKETTS_PALATAL_PLANE_FH_DEG_V1")
     assert op_xi is not None
     assert commissure is not None
+    assert palatal is not None
     assert op_xi.source_status == "SOURCE_LOCKED_DEFINITION__SIGN_ORIENTATION_BLOCKED"
     assert commissure.source_status == "SOURCE_LOCKED_DEFINITION__SIGNED_NORMAL_ORIENTATION_BLOCKED"
+    assert palatal.source_status == "SOURCE_LOCKED_DEFINITION__SIGNED_ANGLE_ORIENTATION_BLOCKED"
 
 
 def test_wave_b_generic_soft_tissue_and_pns_aliases_are_not_promoted():
