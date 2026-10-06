@@ -75,6 +75,12 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
+    transition: none;
+  }
+}
+
 
 [data-theme='emerald'] {
   /* ESCALE ZEN */
