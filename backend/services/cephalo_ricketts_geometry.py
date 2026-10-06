@@ -473,17 +473,3 @@ def ricketts_maxillary_height_n_cf_a_deg_v1(
         (a[0] - cf[0], a[1] - cf[1]),
     )
 
-
-def ricketts_palatal_plane_fh_deg_v1(
-    po: Point,
-    or_: Point,
-    ans: Point,
-    pns_ricketts: Point,
-) -> Optional[float]:
-    """Acute angle between anatomical Frankfort and Atlas/Ricketts palatal plane."""
-    if not _finite_points(po, or_, ans, pns_ricketts):
-        return None
-    return ricketts_line_angle_acute_deg_v1(
-        (or_[0] - po[0], or_[1] - po[1]),
-        (pns_ricketts[0] - ans[0], pns_ricketts[1] - ans[1]),
-    )
