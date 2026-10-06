@@ -295,6 +295,8 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             if details.get("norm_status") not in _ALLOWED_NORM_STATUS:
                 _error(errors, f"{prefix}.comparison_details.norm_status is invalid")
 
+            if details.get("label_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"} and not _nonempty_string(details.get("digital_crown_label")):
+                _error(errors, f"{prefix} observed label comparison requires Digital Crown label")
             if details.get("unit_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
                 if not _nonempty_string(row.get("facad_unit")) or not _nonempty_string(details.get("digital_crown_unit")):
                     _error(errors, f"{prefix} observed unit comparison requires both Facad and Digital Crown units")
@@ -304,6 +306,8 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             if numeric_status in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
                 if details.get("facad_value") is None or details.get("digital_crown_value") is None:
                     _error(errors, f"{prefix} observed numeric parity requires both numeric values")
+                if details.get("numeric_delta") is None:
+                    _error(errors, f"{prefix} observed numeric parity requires numeric_delta")
             if details.get("norm_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"}:
                 if details.get("facad_norm") is None or details.get("digital_crown_norm") is None:
                     _error(errors, f"{prefix} observed norm comparison requires both norms")
@@ -333,6 +337,8 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         kinds = {record.get("artifact_kind") for record in referenced}
         if not {"ANALYSIS_VALUES", "ANALYSIS_PROPERTIES"} <= kinds:
             _error(errors, f"{prefix} observed membership requires ANALYSIS_VALUES + ANALYSIS_PROPERTIES evidence")
+        if details.get("construction_status") in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"} and "MARKER_POSITIONS" not in kinds:
+            _error(errors, f"{prefix} observed construction comparison requires MARKER_POSITIONS evidence")
 
         if sign_status in {"OBSERVED_MATCH", "OBSERVED_DIFFERENT"} and "MARKER_POSITIONS" not in kinds:
             _error(errors, f"{prefix} observed sign requires MARKER_POSITIONS evidence")
@@ -422,6 +428,19 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 _error(errors, f"{target_id} OBSERVED requires exactly {expected} Facad rows")
             if seen_orders[target_id] != set(range(1, expected + 1)):
                 _error(errors, f"{target_id} OBSERVED requires complete Facad order 1..{expected}")
+
+            for row_index, row in enumerate(profile_rows):
+                details = row.get("comparison_details") if isinstance(row.get("comparison_details"), dict) else {}
+                unresolved = []
+                if row.get("sign_status") == "UNOBSERVED":
+                    unresolved.append("sign_status")
+                if row.get("numeric_status") == "UNOBSERVED":
+                    unresolved.append("numeric_status")
+                for key in ("label_status", "unit_status", "construction_status", "norm_status", "rounding_status", "atlas_divergence_status"):
+                    if details.get(key) == "UNOBSERVED":
+                        unresolved.append(key)
+                if unresolved:
+                    _error(errors, f"{target_id} OBSERVED row {row_index} has unresolved dimensions: {sorted(unresolved)}")
 
     profile_statuses = {
         profile.get("observation_status")
