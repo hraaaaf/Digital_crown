@@ -1,6 +1,6 @@
 {
   "schema_version": "ORTHO_LOT08_STEINER_FACAD_GAP_RESOLUTION_V1",
-  "status": "SOURCE_LOCKED_PARTIAL__IINB_DEPENDENCY_REVIEW_PENDING",
+  "status": "SOURCE_LOCKED__RUNTIME_GATED",
   "scope": [
     "Ii-Pog // NB",
     "Ls-SL",
@@ -22,6 +22,16 @@
       "head_sha": "d9dbb247527f38d03b75072d6418381728a40aa6",
       "artifact_id": 11474115025,
       "artifact_digest": "sha256:f48cbf19f435674b2e455de2e4fae69fdd2d43481ce03cd5e516cdd99141ab95"
+    },
+    "vendor_landmark_manual": {
+      "version": "3.12",
+      "url": "https://www.facad.com/dox/dox312/FacadUsersGuide_ENG.pdf",
+      "observed_definitions": {
+        "MS": "Steiner's S-point (columnella tangent point)",
+        "PGs": "Soft tissue Pogonion",
+        "Iil": "Incisor inferior labial outline",
+        "Ii": "Incisor inferior (lower incisor tip)"
+      }
     }
   },
   "external_scientific_support": [
@@ -57,10 +67,16 @@
           "M_L1_NB_MM_V1",
           "M_POG_NB_MM_V1"
         ],
-        "status": "DERIVED_RELATION_PROVEN__DEPENDENCY_GEOMETRY_REVIEW_PENDING",
+        "status": "DERIVED_RELATION_SOURCE_LOCKED__NUMERIC_EQUIVALENCE_GATED",
         "runtime_formula": "input_1_minus_input_2",
         "runtime_activation": false,
-        "reason": "Facad proves subtraction semantics, but Ii-NB dependency geometry must be verified before promoting numeric equivalence."
+        "reason": "Facad proves subtraction semantics, but Ii-NB dependency geometry must be verified before promoting numeric equivalence.",
+        "dependency_geometry": {
+          "facad_iinb": "DistLine(NB, Iil)",
+          "facad_iil": "Incisor inferior labial outline",
+          "dc_candidate": "M_L1_NB_MM_V1 using L1_facial_surface",
+          "compatibility_status": "SEMANTIC_MATCH__SAME_TRACE_NUMERIC_PARITY_REQUIRED"
+        }
       }
     },
     "Ls-SL": {
@@ -129,6 +145,7 @@
     "no_silent_Sn_alias": true,
     "no_facad_norm_runtime_classification": true,
     "no_numeric_parity_claim_without_same_trace_export": true,
-    "missing_MS_must_fail_closed": true
+    "missing_MS_must_fail_closed": true,
+    "iinb_same_trace_numeric_parity_required": true
   }
 }
