@@ -4,7 +4,8 @@
     "exact_label_match_is_not_sufficient_for_geometry_equivalence": true,
     "direct_match_requires_existing_dc_canonical_id_and_same_declared_construction": true,
     "candidate_requires_manual_geometry_review": true,
-    "facad_norms_are_reference_only_not_runtime_authority": true
+    "facad_norms_are_reference_only_not_runtime_authority": true,
+    "canonical_label_match_does_not_prove_geometry_equivalence": true
   },
   "profiles": {
     "Steiner": {
@@ -12,35 +13,35 @@
       "mappings": {
         "SNA": {
           "dc_id": "M_SNA_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "SNB": {
           "dc_id": "M_SNB_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "ANB": {
           "dc_id": "M_ANB_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "Is-NA": {
           "dc_id": "M_U1_NA_MM_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "ILs/NA": {
           "dc_id": "M_U1_NA_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "Ii-NB": {
           "dc_id": "M_L1_NB_MM_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "ILi/NB": {
           "dc_id": "M_L1_NB_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "InterIncisal": {
           "dc_id": "M_INTERINCISAL_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "OL/NSL": {
           "dc_id": "M_OCCLUSAL_PLANE_SN_DEG_V1",
@@ -52,7 +53,7 @@
         },
         "Pog-NB": {
           "dc_id": "M_POG_NB_MM_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         }
       }
     },
@@ -73,15 +74,15 @@
         },
         "SNA": {
           "dc_id": "M_SNA_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "SNB": {
           "dc_id": "M_SNB_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "ANB": {
           "dc_id": "M_ANB_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "Z": {
           "dc_id": "M_MERRIFIELD_Z_FH_DEG_V1",
@@ -94,7 +95,7 @@
       "mappings": {
         "A-NP": {
           "dc_id": "M_A_NPERP_MM_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "ML/FH": {
           "dc_id": "M_FH_GOME_DEG_V1",
@@ -106,7 +107,7 @@
         },
         "Pog-NP": {
           "dc_id": "M_POG_NPERP_MM_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         }
       }
     },
@@ -127,7 +128,7 @@
         },
         "InterIncisal": {
           "dc_id": "M_INTERINCISAL_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         },
         "ILi/ML": {
           "dc_id": "M_IMPA_GOME_DEG_V1",
@@ -160,7 +161,7 @@
         },
         "InterIncisal": {
           "dc_id": "M_INTERINCISAL_DEG_V1",
-          "status": "DIRECT_CANONICAL_MATCH"
+          "status": "CANONICAL_LABEL_MATCH"
         }
       }
     }
