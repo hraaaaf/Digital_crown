@@ -33,6 +33,17 @@
         "ProjLine": "Projection onto a named line of the displacement between marker 1 and marker 2.",
         "Normal": "Line perpendicular to a named line and passing through a named marker."
       }
+    },
+    "user_guide": {
+      "url": "https://www.facad.com/dox/dox313/FacadTracingUsersGuide_ENG.pdf",
+      "observed_landmarks": {
+        "Co": "Condyle, posterior point",
+        "Gn": "Gnathion",
+        "Is": "Incisor superior (upper incisor tip)",
+        "Ii": "Incisor inferior (lower incisor tip)",
+        "MS": "Steiner's S-point (columnella tangent point)",
+        "SN": "Subnasale; Retronasale"
+      }
     }
   },
   "scientific_authorities": {
@@ -64,10 +75,12 @@
         "norm": "20-33"
       },
       "dc": {
-        "status": "CANONICAL_GEOMETRY_MATCH",
-        "measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+        "status": "FACAD_VENDOR_CO_POSTERIOR_VARIANT__MCNAMARA_CONDYLION_STRICT_EQUIVALENCE_UNPROVEN",
         "runtime_activation": false,
-        "same_trace_numeric_parity_required": true
+        "same_trace_numeric_parity_required": true,
+        "nearest_dc_measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+        "direct_alias_allowed": false,
+        "reason": "Facad Co is documented as 'Condyle, posterior point'; DC Co_anatomic is anatomical Condylion/posterosuperior condylar point. Same formula family does not prove landmark identity."
       }
     },
     "LAFH": {
@@ -204,8 +217,9 @@
     "preserve_facad_is_a_argument_order": true,
     "preserve_facad_ii_apog_argument_order": true,
     "preserve_facad_nasolabial_angle3p_order": true,
-    "no_surface_alias_even_when_edge_geometry_family_exists": true
+    "no_surface_alias_even_when_edge_geometry_family_exists": true,
+    "no_facad_co_posterior_alias_to_dc_co_anatomic": true
   },
-  "verification_revision": 3,
-  "verification_note": "Triggers exact-HEAD certification after adversarial fixes for edge-family mapping and Angle3p center/order."
+  "verification_revision": 4,
+  "verification_note": "Triggers exact-HEAD certification after convergence fixes including Facad Co posterior-point identity split."
 }
