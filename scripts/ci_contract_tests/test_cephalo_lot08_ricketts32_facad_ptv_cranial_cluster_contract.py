@@ -69,13 +69,14 @@ def test_porion_position_keeps_ptv_anchor_and_signed_parity_gate():
     assert "PTV_ANCHOR_AND_SIGN_PARITY_GATED" in row["dc"]["status"]
 
 
-def test_backlog_moves_only_ptv_cranial_cluster_and_reaches_seven():
+def test_ptv_cranial_cluster_stays_resolved_in_current_final_backlog():
     data = _backlog()
-    unresolved = set(data["profiles"]["Ricketts (32 F)"]["unmapped"])
+    profile = data["profiles"]["Ricketts (32 F)"]
+    unresolved = set(profile["unmapped"])
+    resolved = {row["facad_label"] for row in profile["resolved_items"]}
     moved = {"Ms-PtV", "Cranium ant len", "PFH", "Ramus Xi pos", "Porion pos"}
     assert moved.isdisjoint(unresolved)
-    assert unresolved == {"Xi-OL", "Xi-PM/OL", "Upper lip len", "STi-OL", "Facial cone angle", "Mand arc", "Mand len"}
-    assert len(unresolved) == 7
-    assert data["totals"]["unmapped_items"] == 7
-    assert data["high_review_progress"]["Ricketts (32 F)"]["resolved_total"] == 19
-    assert data["high_review_progress"]["Ricketts (32 F)"]["remaining_unmapped"] == 7
+    assert moved.issubset(resolved)
+    assert data["totals"]["unmapped_items"] == 0
+    assert data["high_review_progress"]["Ricketts (32 F)"]["resolved_total"] == 26
+    assert data["high_review_progress"]["Ricketts (32 F)"]["remaining_unmapped"] == 0
