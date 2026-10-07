@@ -93,7 +93,7 @@
       "dc_resolution": {
         "lip_landmark": "Ls_soft",
         "soft_tissue_pogonion": "Pog_soft",
-        "required_new_identity": "MS_Steiner",
+        "required_new_identity": "MS_STEINER_FACAD_TANGENT_POINT_V1",
         "required_construction": "SL_STEINER_POGSOFT_MS_V1",
         "status": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
         "runtime_activation": false,
@@ -114,7 +114,7 @@
       "dc_resolution": {
         "lip_landmark": "Li_soft",
         "soft_tissue_pogonion": "Pog_soft",
-        "required_new_identity": "MS_Steiner",
+        "required_new_identity": "MS_STEINER_FACAD_TANGENT_POINT_V1",
         "required_construction": "SL_STEINER_POGSOFT_MS_V1",
         "status": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
         "runtime_activation": false,
@@ -125,14 +125,16 @@
   "identities": {
     "MS_Steiner": {
       "vendor_definition": "Steiner's S-point (columnella tangent point)",
-      "scientific_support": "midpoint/tangent point of nasal columella used as S-line endpoint",
+      "scientific_support": "Independent literature supports a columellar Steiner S-line endpoint, but descriptions vary between midpoint/inflection formulations.",
       "dc_alias_policy": {
         "Cm": "FORBIDDEN_UNLESS_EQUIVALENCE_PROVEN",
         "Sn_soft": "FORBIDDEN",
         "Prn": "FORBIDDEN"
       },
       "acquisition_policy": "EXPLICIT_MANUAL_OR_SOURCE_LOCKED_CONSTRUCTION_ONLY",
-      "current_runtime_status": "MISSING_EXACT_IDENTITY"
+      "current_runtime_status": "MISSING_EXACT_IDENTITY",
+      "vendor_to_historical_variant_equivalence": "UNPROVEN",
+      "canonical_vendor_identity": "MS_STEINER_FACAD_TANGENT_POINT_V1"
     },
     "PGs": {
       "vendor_definition": "Soft tissue Pogonion",
@@ -147,7 +149,8 @@
     "no_numeric_parity_claim_without_same_trace_export": true,
     "missing_MS_must_fail_closed": true,
     "iinb_same_trace_numeric_parity_required": true,
-    "no_canonical_steiner_profile_promotion_without_primary_sline_source": true
+    "no_canonical_steiner_profile_promotion_without_primary_sline_source": true,
+    "no_midpoint_tangent_variant_equivalence_without_primary_proof": true
   },
   "historical_attribution": {
     "exact_primary_steiner_sline_publication_status": "NOT_SOURCE_LOCKED_IN_THIS_COMPATIBILITY_LOT",
