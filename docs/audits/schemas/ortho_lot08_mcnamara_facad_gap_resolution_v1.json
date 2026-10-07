@@ -82,7 +82,17 @@
           "A",
           "Is"
         ],
-        "norm": "4-6"
+        "norm": "4-6",
+        "argument_order": [
+          "FH",
+          "A",
+          "Is"
+        ],
+        "projection_vector_order": [
+          "A",
+          "Is"
+        ],
+        "sign_semantics": "Preserve serialized ProjLine argument order; do not reorder. Exact numeric sign parity remains gated."
       },
       "dc": {
         "status": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
@@ -100,7 +110,18 @@
           "Ii"
         ],
         "norm": "1-3",
-        "changeRightLeft": true
+        "changeRightLeft": true,
+        "argument_order": [
+          "Pog",
+          "A",
+          "Ii"
+        ],
+        "line_argument_order": [
+          "Pog",
+          "A"
+        ],
+        "target_point": "Ii",
+        "sign_semantics": "Preserve serialized Dist3p order plus changeRightLeft=true; do not normalize/reorder."
       },
       "dc": {
         "status": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
@@ -156,6 +177,8 @@
     "no_alias_facad_nasolabial_to_legacy_angle_nasolabial": true,
     "no_alias_incisisal_tip_variants_to_mcnamara_surface_measurements": true,
     "no_alias_facad_ls_cant_to_mcnamara_upper_lip_tangent": true,
-    "preserve_facad_changeRightLeft_for_ii_apog": true
+    "preserve_facad_changeRightLeft_for_ii_apog": true,
+    "preserve_facad_is_a_argument_order": true,
+    "preserve_facad_ii_apog_argument_order": true
   }
 }
