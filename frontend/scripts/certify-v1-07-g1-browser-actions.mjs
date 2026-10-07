@@ -1,5 +1,5 @@
 import { chromium, request } from 'playwright';
-
+import { enrollT2Workstation } from './t2-workstation-session.mjs';
 const password=process.env.T2_PASSWORD;
 if(!password) throw new Error('T2_PASSWORD required');
 
