@@ -108,10 +108,18 @@ async function removeViaUi(page) {
 }
 
 async function assertAvatarState(page, state) {
-  const avatar = page.locator(`[data-patient-avatar][data-patient-id="${patient.id}"]`).first();
+  const selector = `[data-patient-avatar][data-patient-id="${patient.id}"]:visible`;
+  const avatar = page.locator(selector).first();
   await avatar.waitFor({ state: 'visible', timeout: 30000 });
   await page.waitForFunction(
-    ({ id, expected }) => document.querySelector(`[data-patient-avatar][data-patient-id="${id}"]`)?.getAttribute('data-photo-state') === expected,
+    ({ id, expected }) => Array.from(document.querySelectorAll(`[data-patient-avatar][data-patient-id="${id}"]`)).some(node => {
+      const element = node instanceof HTMLElement ? node : null;
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const visible = style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+      return visible && element.getAttribute('data-photo-state') === expected;
+    }),
     { id: String(patient.id), expected: state },
     { timeout: 30000 },
   );
