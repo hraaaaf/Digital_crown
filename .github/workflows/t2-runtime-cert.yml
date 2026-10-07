@@ -185,7 +185,7 @@ jobs:
       - name: Certify setup-to-workstation handoff
         run: python -m pytest backend/tests/test_workstation_mode_v15.py -k clinic_init_status_remains_available_during_workstation_identity_handoff -q
       - name: Test cabinet identity response contract
-        run: python -m pytest backend/tests/test_admin_router.py -k get_cabinet_exposes_cabinet_name -q
+        run: python -m pytest backend/tests/test_admin_router.py -k "get_cabinet_exposes_cabinet_name or update_cabinet_preserves_cabinet_name_in_response" -q
       - name: Install frontend and Chromium
         working-directory: frontend
         run: |
