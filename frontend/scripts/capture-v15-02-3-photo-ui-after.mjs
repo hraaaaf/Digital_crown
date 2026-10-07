@@ -278,7 +278,7 @@ try {
 }
 
 fs.writeFileSync(path.join(outDir, 'evidence.json'), JSON.stringify({
-  productHead: process.env.GITHUB_SHA || null,
+  productHead: process.env.EVALUATED_SHA || process.env.GITHUB_HEAD_SHA || process.env.GITHUB_SHA || null,
   patientId: patient.id,
   phases: ['initials', 'added', 'replaced', 'deleted'],
   surfaces: ['patient-list', 'search', 'waiting-room', 'agenda', 'dossier'],
