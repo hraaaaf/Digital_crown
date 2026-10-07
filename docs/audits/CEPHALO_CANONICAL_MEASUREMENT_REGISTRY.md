@@ -157,6 +157,8 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 |---|---|---|---|---|---|
 | `M_LI_EPLANE_MM_V1` | Lèvre inférieure → E-plane | distance perpendiculaire signée Li_soft → Prn-Pog_soft | Li_soft,Prn,Pog_soft | mm signé | `GEOMETRY_COVERED` |
 | `M_LS_EPLANE_MM_V1` | Lèvre supérieure → E-plane | distance perpendiculaire signée Ls_soft → Prn-Pog_soft | Ls_soft,Prn,Pog_soft | mm signé | `GEOMETRY_COVERED` comme extension DC ; non core Ricketts 1981 11 facteurs |
+| `M_LS_STEINER_SLINE_MM_V1` | Lèvre supérieure → Steiner S-line | distance perpendiculaire Ls_soft → ligne Pog_soft–MS_Steiner ; convention de signe DC à verrouiller avant parité numérique Facad | Ls_soft,Pog_soft,MS_Steiner | mm | `BLOCKED_LANDMARK` + `FACAD_SAME_TRACE_SIGN_PARITY_PENDING` |
+| `M_LI_STEINER_SLINE_MM_V1` | Lèvre inférieure → Steiner S-line | distance perpendiculaire Li_soft → ligne Pog_soft–MS_Steiner ; convention de signe DC à verrouiller avant parité numérique Facad | Li_soft,Pog_soft,MS_Steiner | mm | `BLOCKED_LANDMARK` + `FACAD_SAME_TRACE_SIGN_PARITY_PENDING` |
 | `M_NASOLABIAL_ANGLE_DEG_V1` | Angle nasolabial | convention columelle/Prn'-Sn-Ls à verrouiller exactement | soft-tissue dédiés | angle ° | `SOURCE_LOCK_REQUIRED` ; contextuel McNamara, hors 13 variables quantitatives principales |
 
 # 9. Voies aériennes
@@ -200,7 +202,7 @@ Ces entrées décrivent des **mesures de changement**, distinctes de la mesure s
 
 # 12. Conclusion d'architecture
 
-Ce registre est la **source de vérité des identités de mesure** du chantier Céphalo-N.
+Ce registre est la **source de vérité des identités de mesure** du chantier Céphalo-N. Les deux identités Steiner S-line ci-dessus restent non exécutables tant que `MS_Steiner` n'est pas explicitement fourni ; `Cm`, `Sn_soft` et `Prn` ne sont pas des alias autorisés.
 
 Le profil d'analyse répond ensuite seulement à la question :
 
