@@ -17,11 +17,17 @@ class McNamaraFacadGapContractTests(unittest.TestCase):
     def test_incisisal_tip_variants_do_not_alias_surface_measurements(self):
         self.assertIn('STRICT_SURFACE_EQUIVALENCE_FORBIDDEN', self.data['resolutions']['Is-A']['dc']['status'])
         self.assertIn('STRICT_SURFACE_EQUIVALENCE_FORBIDDEN', self.data['resolutions']['Ii to A-Pog']['dc']['status'])
+        self.assertEqual(self.data['resolutions']['Ii to A-Pog']['dc']['geometry_family_measurement_id'], 'M_L1_EDGE_APOG_MM_V1')
+        self.assertEqual(self.data['resolutions']['Ii to A-Pog']['dc']['strict_mcnamara_measurement_id'], 'M_L1_FACIAL_SURFACE_APOG_MM_V1')
         self.assertTrue(self.data['safety_rules']['no_alias_incisisal_tip_variants_to_mcnamara_surface_measurements'])
 
     def test_nasolabial_vendor_variant_is_separate(self):
         row = self.data['resolutions']['Nasolabial']
         self.assertEqual(row['facad']['refs'], ['SN','MS','Ls'])
+        self.assertEqual(row['facad']['center_marker'], 'SN')
+        self.assertEqual(row['facad']['rays'], ['SN->MS','SN->Ls'])
+        self.assertEqual(row['facad']['positive_rotation'], 'clockwise')
+        self.assertTrue(self.data['safety_rules']['preserve_facad_nasolabial_angle3p_order'])
         self.assertIn('EQUIVALENCE_FORBIDDEN', row['dc']['status'])
         self.assertFalse(row['dc']['runtime_activation'])
 
