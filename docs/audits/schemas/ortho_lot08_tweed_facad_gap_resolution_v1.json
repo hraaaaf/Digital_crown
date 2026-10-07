@@ -215,5 +215,7 @@
     "no_numeric_parity_claim_without_same_trace_export": true,
     "preserve_facad_ol_argument_order": true,
     "preserve_facad_wits_marker_order": true
-  }
+  },
+  "verification_revision": 1,
+  "verification_note": "Triggers exact-HEAD certification after adversarial fixes and provenance binding."
 }
