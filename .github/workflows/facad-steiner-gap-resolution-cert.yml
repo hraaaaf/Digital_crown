@@ -9,6 +9,8 @@ on:
       - audit/cephalo_lot08_facad_dc_map.py
       - audit/cephalo_lot08_facad_steiner_resolution_validate.py
       - backend/tests/test_cephalo_lot08_facad_dc_map.py
+      - backend/tests/test_cephalo_measure_registry.py
+      - backend/services/cephalo_measure_registry.py
       - backend/data/cephalometry/steiner_protocol_profile_v1.json
       - docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json
       - docs/audits/schemas/ortho_lot08_facad_dc_steiner_gap_resolution_v1.json
