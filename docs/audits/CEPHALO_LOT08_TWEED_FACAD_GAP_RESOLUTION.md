@@ -72,3 +72,14 @@ The CPH argument order is semantically preserved:
 - `Wits = ProjLine(OL, B, A)`, so the projected displacement is ordered `B -> A`.
 
 These orders must not be normalized, alphabetically reordered, or silently reversed. A reversal can flip the sign of the projected Wits value. Direct same-trace numeric parity remains required before runtime compatibility is claimed.
+
+
+## Explicit literature support for the plane distinction
+
+- Jacobson 1975: primary Wits authority, DOI `10.1016/0002-9416(75)90065-2`.
+- Peer-reviewed Wits description: `https://pmc.ncbi.nlm.nih.gov/articles/PMC4072364/` — functional plane through posterior first-molar/premolar occlusion.
+- Thayer 1990, DOI `10.1016/0889-5406(90)70114-R` — functional versus bisected occlusal planes produce different Wits values, proving that plane choice is not interchangeable.
+- Downs occlusal-cant corroboration: `https://pmc.ncbi.nlm.nih.gov/articles/PMC3059215/` — bisected molar/incisal occlusal plane to Frankfort.
+- Tweed triangle corroboration: `https://pmc.ncbi.nlm.nih.gov/articles/PMC8402232/` — FMA, FMIA and IMPA form the Tweed diagnostic triangle.
+
+These sources justify the compatibility boundary; they do not authorize Facad vendor norms or historical-profile promotion.
