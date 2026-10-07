@@ -1,0 +1,129 @@
+name: Facad 3.14 settings bootstrap probe
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-settings-bootstrap-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Extract official Facad installer and runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path facad-settings | Out-Null
+          $installer='facad-settings/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-settings/outer | Out-Null
+          & $seven x $installer '-ofacad-settings/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-settings/release | Out-Null
+          & $seven x 'facad-settings/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-settings/release' -y | Out-Null
+          Get-FileHash $installer -Algorithm SHA256 | Format-List | Set-Content facad-settings/installer-sha256.txt
+
+      - name: Find shipped settings and configuration artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Get-ChildItem facad-settings/outer,facad-settings/release -File -Recurse |
+            Where-Object {
+              $_.Name -match 'settings|config|admin|configuration|install' -or
+              $_.Extension -in @('.settings','.config','.xml','.ini','.json')
+            } |
+            Select-Object FullName,Name,Length |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-settings/settings-file-inventory.txt -Width 500
+          Get-ChildItem facad-settings/outer,facad-settings/release -File -Recurse |
+            Where-Object { $_.Name -eq 'Facad.Admin.settings' } |
+            Select-Object FullName,Length |
+            Format-Table -AutoSize |
+            Out-File facad-settings/exact-settings-file-hits.txt -Width 500
+          Write-Host '=== EXACT FILE HITS ==='
+          Get-Content facad-settings/exact-settings-file-hits.txt
+          Write-Host '=== SETTINGS/CONFIG INVENTORY ==='
+          Get-Content facad-settings/settings-file-inventory.txt | Select-Object -First 500
+
+      - name: Find exact Facad.Admin.settings references and nearby strings
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $needle='Facad.Admin.settings'
+          $rows=New-Object System.Collections.Generic.List[string]
+          foreach($file in Get-ChildItem facad-settings/outer,facad-settings/release -File -Recurse) {
+            if($file.Length -gt 80MB){ continue }
+            try {
+              $bytes=[IO.File]::ReadAllBytes($file.FullName)
+              foreach($enc in @([Text.Encoding]::ASCII,[Text.Encoding]::UTF8,[Text.Encoding]::Unicode)){
+                $text=$enc.GetString($bytes)
+                $idx=$text.IndexOf($needle,[StringComparison]::OrdinalIgnoreCase)
+                if($idx -ge 0){
+                  $start=[Math]::Max(0,$idx-1200)
+                  $len=[Math]::Min(3500,$text.Length-$start)
+                  $snippet=$text.Substring($start,$len).Replace([char]13,' ').Replace([char]10,' ')
+                  $rows.Add("FILE=$($file.FullName) | ENC=$($enc.WebName) | SNIPPET=$snippet")
+                }
+              }
+            } catch {}
+          }
+          $rows | Set-Content facad-settings/admin-settings-references.txt
+          Get-Content facad-settings/admin-settings-references.txt | Select-Object -First 200
+
+      - name: Inventory official bootstrap executables
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Get-ChildItem facad-settings/outer,facad-settings/release -File -Recurse -Filter '*.exe' |
+            Where-Object { $_.Name -match 'config|install|admin|facad' } |
+            Select-Object FullName,Name,Length |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-settings/bootstrap-executables.txt -Width 500
+          Get-Content facad-settings/bootstrap-executables.txt
+
+      - name: Probe official configuration executable help only
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference='Continue'
+          $candidates=Get-ChildItem facad-settings/release -File -Recurse -Filter '*.exe' |
+            Where-Object { $_.Name -match '^Configuration\.exe$|Config.*\.exe$|Admin.*\.exe$' }
+          foreach($exe in $candidates){
+            "===== EXE=$($exe.FullName) =====" | Add-Content facad-settings/config-help-probe.txt
+            foreach($arg in @('/?','-?','--help')){
+              "ARG=$arg" | Add-Content facad-settings/config-help-probe.txt
+              $out='facad-settings/config-out.txt'
+              $err='facad-settings/config-err.txt'
+              $p=Start-Process -FilePath $exe.FullName -ArgumentList $arg -WorkingDirectory $exe.DirectoryName -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+              if(-not $p.WaitForExit(8000)){ try{$p.Kill()}catch{}; 'TIMEOUT' | Add-Content facad-settings/config-help-probe.txt }
+              else { "EXIT=$($p.ExitCode)" | Add-Content facad-settings/config-help-probe.txt }
+              if(Test-Path $out){Get-Content $out | Add-Content facad-settings/config-help-probe.txt}
+              if(Test-Path $err){Get-Content $err | Add-Content facad-settings/config-help-probe.txt}
+            }
+          }
+          if(Test-Path facad-settings/config-help-probe.txt){Get-Content facad-settings/config-help-probe.txt}
+
+      - name: Upload focused settings evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-settings-bootstrap-probe-${{ github.sha }}
+          path: |
+            facad-settings/installer-sha256.txt
+            facad-settings/settings-file-inventory.txt
+            facad-settings/exact-settings-file-hits.txt
+            facad-settings/admin-settings-references.txt
+            facad-settings/bootstrap-executables.txt
+            facad-settings/config-help-probe.txt
+          if-no-files-found: warn
