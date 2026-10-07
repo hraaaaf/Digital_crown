@@ -31,7 +31,7 @@
       "resolved_items": [
         {
           "facad_label": "Ii-Pog // NB",
-          "resolution": "DERIVED_RELATION_PROVEN__DEPENDENCY_GEOMETRY_REVIEW_PENDING",
+          "resolution": "DERIVED_RELATION_SOURCE_LOCKED__NUMERIC_EQUIVALENCE_GATED",
           "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
         },
         {
@@ -139,13 +139,13 @@
   },
   "high_review_progress": {
     "Steiner": {
-      "status": "SCIENTIFICALLY_RESOLVED_RUNTIME_GATED",
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
       "original_unmapped": 3,
       "remaining_unmapped": 0,
       "runtime_blockers": [
-        "Ii-NB dependency geometry review",
-        "explicit MS_Steiner identity",
-        "Facad signed numeric parity"
+        "explicit MS_Steiner identity/acquisition path",
+        "same-trace Facad numeric parity for Ii-NB/Pog-NB derived relation",
+        "same-trace Facad sign convention for Ls-SL/Li-SL"
       ]
     }
   }
