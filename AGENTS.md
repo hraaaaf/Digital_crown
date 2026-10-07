@@ -225,7 +225,10 @@ Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation corresp
 - ne jamais réduire la validation pour masquer un risque réel ;
 - ne jamais exiger une full regression à chaque commit si une preuve ciblée suffit.
 
+**Convergence adversariale :** cette optimisation ne réduit jamais les exigences de revue. Pour tout lot significatif ou risqué, les 2+ perspectives adversariales et la passe de confirmation doivent être refaites **from-zero sur le même HEAD final**. Lors de cette revue, une preuve antérieure ne peut être conservée qu'après vérification explicite que le code qu'elle couvre, son harness et ses dépendances pertinentes sont inchangés depuis le SHA prouvé.
+
 **Closeout :** recalculer une dernière fois le graphe `HEAD → changements → invariants → preuves`. La full regression n'est requise que lorsqu'elle est imposée par la politique du lot, par un risque transverse, par un invariant critique ou par le closeout/release concerné — pas par habitude.
+
 Pendant une phase de correction ou de stabilisation :
 
 - un micro-correctif doit être validé d'abord par le **test, job ou workflow directement impacté** ;
