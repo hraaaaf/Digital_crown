@@ -33,6 +33,8 @@ describe('Dashboard G2 interactive component matrix', () => {
         <DashboardHeader
           displayName="Dr Test"
           dateLabel="19 septembre 2026"
+          roleLabel={null}
+          cabinetName={null}
           canReadPatients
           canUseAgenda
           canAdmin
@@ -63,6 +65,8 @@ describe('Dashboard G2 interactive component matrix', () => {
         <DashboardHeader
           displayName="Assistante"
           dateLabel="19 septembre 2026"
+          roleLabel={null}
+          cabinetName={null}
           canReadPatients={false}
           canUseAgenda={false}
           canAdmin={false}
