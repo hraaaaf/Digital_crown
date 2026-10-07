@@ -35,8 +35,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           python -m py_compile audit/cephalo_lot08_facad_dc_map.py audit/cephalo_lot08_facad_steiner_resolution_validate.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python audit/cephalo_lot08_facad_steiner_resolution_validate.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python backend/tests/test_cephalo_lot08_facad_dc_map.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Download and extract official Facad release
         shell: pwsh
@@ -56,12 +59,14 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           python audit/cephalo_lot08_facad_dc_map.py --ceph-dir facad-steiner-cert/release/Ceph --registry docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json --dc-contract docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json --protocol-profile backend/data/cephalometry/steiner_protocol_profile_v1.json --out facad-steiner-cert/facad-dc-map.json | Tee-Object -FilePath facad-steiner-cert/facad-dc-map.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Assert Steiner resolution counts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           python -c "import json,pathlib; d=json.loads(pathlib.Path('facad-steiner-cert/facad-dc-map.json').read_text(encoding='utf-8'))['profiles']['Steiner']; expected={'CANONICAL_LABEL_MATCH':9,'CANDIDATE_GEOMETRY_REVIEW':2,'EXISTING_DERIVED_RELATIONSHIP':1,'BLOCKED_EXACT_LANDMARK':2,'UNMAPPED':0}; print('STEINER_COUNTS=',d['counts']); assert d['facad_measurement_count']==14; assert d['counts']==expected"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload minimized certification evidence
         uses: actions/upload-artifact@v4
