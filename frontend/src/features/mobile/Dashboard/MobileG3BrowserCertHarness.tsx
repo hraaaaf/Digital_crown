@@ -24,9 +24,10 @@ export function MobileG3BrowserCertHarness() {
   );
   const [appointments, setAppointments] = useState(initialAppointments);
 
+  const certificationToken = localStorage.getItem('token');
+  if (certificationToken) MobileStorage.setBiometricAccessToken(certificationToken);
+
   useEffect(() => {
-    const certificationToken = localStorage.getItem('token');
-    if (certificationToken) MobileStorage.setBiometricAccessToken(certificationToken);
     void useAuthStore.getState().checkAuth();
     return () => {
       MobileStorage.clearBiometricAccessToken();
