@@ -1,6 +1,6 @@
 # LOT08 Steiner Facad gap resolution — S-line and derived Ii/Pog relation
 
-Status: **SOURCE-LOCKED PARTIAL — RUNTIME ACTIVATION FORBIDDEN UNTIL EXPLICIT MS AND SIGN/DEPENDENCY GATES**
+Status: **SOURCE-LOCKED — RUNTIME ACTIVATION GATED**
 
 Date: 2026-10-07
 
@@ -31,7 +31,7 @@ Evidence:
 
 Peer-reviewed descriptions converge on the S-line as a line from the soft-tissue pogonion to a columellar Steiner point, commonly described as the midpoint of the columella or the midpoint/inflection of the S-shaped nasal-columellar contour.
 
-Supporting sources:
+Official vendor landmark source: Facad 3.12 User Guide (`https://www.facad.com/dox/dox312/FacadUsersGuide_ENG.pdf`) defines `MS`, `PGs`, `Iil`, and `Ii` explicitly.\n\nSupporting independent sources:
 - `PMC6066709` — upper/lower lip to Steiner S-line; line described as pogonion to columella.
 - `PMC13526246` — S-line joins midpoint of columella to soft-tissue pogonion.
 - `PMC4520143` — S-line drawn from soft-tissue pogonion to midpoint of nasal columella.
@@ -70,7 +70,7 @@ Classification: **DERIVED RELATION — NO NEW GEOMETRY**.
 
 Facad directly encodes subtraction of `Ii-NB` and `Pog-NB`. Digital Crown has candidate inputs `M_L1_NB_MM_V1` and `M_POG_NB_MM_V1`.
 
-Promotion remains gated until the Facad `Ii-NB` dependency geometry is confirmed against the Digital Crown crown-surface convention. No direct numeric parity claim is made.
+Facad's official 3.12 landmark guide defines `Iil` as the lower-incisor labial outline. This is semantically compatible with Digital Crown's explicit `L1_facial_surface` dependency, but direct same-trace numeric equivalence is still required before claiming Facad parity. No new standalone geometry is required.
 
 ### Ls-SL
 
