@@ -93,8 +93,10 @@
         },
         {
           "facad_label": "Ii to A-Pog",
-          "resolution": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
-          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+          "resolution": "CANONICAL_EDGE_GEOMETRY_FAMILY_MATCH__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json",
+          "geometry_family_measurement_id": "M_L1_EDGE_APOG_MM_V1",
+          "strict_mcnamara_measurement_id": "M_L1_FACIAL_SURFACE_APOG_MM_V1"
         }
       ]
     },
