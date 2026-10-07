@@ -85,7 +85,12 @@
         "OLa"
       ],
       "canonical_vendor_identity": "FACAD_TWEED_BISECTED_OCCLUSAL_LINE_V1",
-      "status": "SOURCE_LOCKED_VENDOR_GEOMETRY"
+      "status": "SOURCE_LOCKED_VENDOR_GEOMETRY",
+      "direction": "OLp_to_OLa",
+      "argument_order": [
+        "OLp",
+        "OLa"
+      ]
     }
   },
   "resolutions": {
@@ -98,7 +103,13 @@
           "A"
         ],
         "interpretation": "projection of B-to-A displacement onto Facad OL",
-        "norm": "0-4"
+        "norm": "0-4",
+        "projection_vector_order": [
+          "B",
+          "A"
+        ],
+        "line_direction": "OLp_to_OLa",
+        "sign_semantics": "Projection sign depends on ordered B-to-A vector and ordered OLp-to-OLa line; do not reorder."
       },
       "dc_resolution": {
         "status": "FACAD_VENDOR_VARIANT_SOURCE_LOCKED__JACOBSON_STRICT_EQUIVALENCE_FORBIDDEN",
@@ -175,6 +186,8 @@
     "no_historical_tweed_membership_inference": true,
     "no_facad_norm_runtime_classification": true,
     "no_runtime_activation_without_explicit_olp": true,
-    "no_numeric_parity_claim_without_same_trace_export": true
+    "no_numeric_parity_claim_without_same_trace_export": true,
+    "preserve_facad_ol_argument_order": true,
+    "preserve_facad_wits_marker_order": true
   }
 }
