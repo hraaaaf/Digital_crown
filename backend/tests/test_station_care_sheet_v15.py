@@ -183,7 +183,6 @@ def test_station_care_sheet_refuses_non_finalized_archive(client, db, dentiste):
     document = _care_sheet(db, patient, status="READY_FOR_REVIEW")
 
     _set_mode(client, headers, "cabinet")
-    _set_mode(client, headers, "cabinet")
     denied = client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
@@ -300,6 +299,7 @@ def test_station_care_sheet_rejects_forged_validated_metadata_without_finalizer_
         payment_status=models.PaiementStatut.EN_ATTENTE,
     )
 
+    _set_mode(client, headers, "cabinet")
     denied = client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
