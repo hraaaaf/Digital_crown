@@ -181,6 +181,6 @@
     "preserve_facad_is_a_argument_order": true,
     "preserve_facad_ii_apog_argument_order": true
   },
-  "verification_revision": 1,
-  "verification_note": "Triggers exact-HEAD certification after adversarial fixes."
+  "verification_revision": 2,
+  "verification_note": "Triggers exact-HEAD McNamara contract certification after clean two-perspective review."
 }
