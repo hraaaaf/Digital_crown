@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
+
 ROOT = Path(__file__).resolve().parents[1]
 
 BACKEND_PROFILE = ROOT / "backend/data/cephalometry/steiner_protocol_profile_v1.json"
@@ -98,7 +100,14 @@ def main():
         fail("Blocked Steiner S-line measurements leaked into executable contract")
     for measurement_id in blocked_ids:
         if measurement_id not in canonical:
-            fail(f"Canonical registry missing {measurement_id}")
+            fail(f"Canonical registry markdown missing {measurement_id}")
+        item = CANONICAL_MEASUREMENTS.get(measurement_id)
+        if item is None:
+            fail(f"Runtime canonical registry missing {measurement_id}")
+        if item.unit != "mm":
+            fail(f"Runtime canonical unit mismatch for {measurement_id}")
+        if item.source_status != "BLOCKED_LANDMARK_MS_STEINER+FACAD_SAME_TRACE_SIGN_PARITY_PENDING":
+            fail(f"Runtime canonical blocked status mismatch for {measurement_id}")
 
     guards = resolution.get("runtime_guards") or {}
     if guards.get("primary_historical_authority_for_sline_locked") is not False:
