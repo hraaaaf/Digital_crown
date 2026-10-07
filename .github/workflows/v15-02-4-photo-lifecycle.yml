@@ -7,6 +7,7 @@ on:
   pull_request:
     branches: [master]
     paths:
+      - "backend/routers/mobile.py"
       - "frontend/src/features/patients/components/PatientAvatar.tsx"
       - "frontend/src/features/patients/components/PatientAvatar.test.tsx"
       - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
