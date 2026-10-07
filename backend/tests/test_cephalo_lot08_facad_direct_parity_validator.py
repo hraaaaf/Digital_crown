@@ -363,3 +363,38 @@ def test_observed_profile_rejects_unresolved_comparison_dimensions(tmp_path):
     errors = validate_manifest(manifest, tmp_path)
 
     assert any("has unresolved dimensions" in item for item in errors)
+
+
+def test_static_cph_definition_count_cannot_be_tampered():
+    manifest = _base_manifest()
+    static_profile = next(
+        item for item in manifest["static_definition_evidence"]["profiles"]
+        if item["target_id"] == TARGET_13
+    )
+    static_profile["observed_factor_count"] = 12
+
+    errors = validate_manifest(manifest, ROOT)
+
+    assert any("static definition observed_factor_count mismatch" in item for item in errors)
+
+
+def test_static_cph_proof_must_match_verified_run_and_artifact():
+    manifest = _base_manifest()
+    manifest["static_definition_evidence"]["proof"]["artifact_id"] = 1
+
+    errors = validate_manifest(manifest, ROOT)
+
+    assert any("static definition artifact_id mismatch" in item for item in errors)
+
+
+def test_static_cph_definition_cannot_claim_patient_numeric_values():
+    manifest = _base_manifest()
+    static_profile = next(
+        item for item in manifest["static_definition_evidence"]["profiles"]
+        if item["target_id"] == TARGET_32
+    )
+    static_profile["numeric_patient_values_observed"] = True
+
+    errors = validate_manifest(manifest, ROOT)
+
+    assert any("must not claim patient numeric values" in item for item in errors)
