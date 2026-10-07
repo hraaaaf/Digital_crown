@@ -133,9 +133,6 @@ const isUserNoticeCall = (node: ts.CallExpression): boolean => {
 };
 
 const auditFile = (file: string): Finding[] => {
-  const relativePath = relative(SRC_ROOT, file).replace(/\\/g, '/');
-  if (NON_PRACTITIONER_TECHNICAL_SURFACES.has(relativePath)) return [];
-
   const text = readFileSync(file, 'utf8');
   const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const findings: Finding[] = [];
