@@ -1,0 +1,214 @@
+name: Facad 3.14 quick demo bootstrap
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-quick-demo-bootstrap.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quick-demo:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Extract official Facad installer wrapper
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path facad-quick-demo | Out-Null
+          $installer='facad-quick-demo/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-quick-demo/outer | Out-Null
+          & $seven x $installer '-ofacad-quick-demo/outer' -y | Out-Null
+          Get-FileHash 'facad-quick-demo/outer/FacadNstaller.exe' -Algorithm SHA256 |
+            Format-List | Set-Content facad-quick-demo/installer-wrapper-meta.txt
+
+      - name: Select Quick demo installation only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+
+          $exe=(Resolve-Path 'facad-quick-demo/outer/FacadNstaller.exe').Path
+          $wd=Split-Path $exe
+          $before=Get-Date
+          $p=Start-Process -FilePath $exe -WorkingDirectory $wd -PassThru
+          "INSTALLER_PID=$($p.Id)" | Set-Content facad-quick-demo/quick-demo-process.txt
+
+          $deadline=(Get-Date).AddSeconds(120)
+          $button=$null
+          while((Get-Date) -lt $deadline -and $null -eq $button){
+            Start-Sleep -Milliseconds 500
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $buttons=$root.FindAll(
+              [System.Windows.Automation.TreeScope]::Descendants,
+              New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Button
+              )
+            )
+            foreach($b in $buttons){
+              if($b.Current.Name -like '*Quick demo installation*'){
+                $button=$b
+                break
+              }
+            }
+          }
+          if($null -eq $button){ throw 'Quick demo installation button not found' }
+
+          "BUTTON_NAME=$($button.Current.Name)" | Add-Content facad-quick-demo/quick-demo-process.txt
+          $invoke=$button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+          $invoke.Invoke()
+          'QUICK_DEMO_CLICKED=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+
+          Start-Sleep -Seconds 8
+
+          function Dump-Ui {
+            param([string]$Path)
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            $rows=New-Object System.Collections.Generic.List[string]
+            foreach($n in $nodes){
+              try{
+                if(-not [string]::IsNullOrWhiteSpace($n.Current.Name)){
+                  $rows.Add("TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name) | ENABLED=$($n.Current.IsEnabled)")
+                }
+              }catch{}
+            }
+            $rows | Sort-Object -Unique | Set-Content $Path
+          }
+
+          Dump-Ui 'facad-quick-demo/ui-after-click.txt'
+
+          $consentRegex='(?i)eula|license agreement|licence agreement|terms and conditions|terms of use|i agree|accept|agreement'
+          $consentHits=Get-Content facad-quick-demo/ui-after-click.txt | Where-Object { $_ -match $consentRegex }
+          if($consentHits){
+            'CONSENT_GATE_DETECTED=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            $consentHits | Set-Content facad-quick-demo/consent-gate.txt
+          } else {
+            'CONSENT_GATE_DETECTED=false' | Add-Content facad-quick-demo/quick-demo-process.txt
+          }
+
+          try{
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'after-click-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose();$bmp.Dispose()
+          }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
+
+          if($consentHits){
+            Get-Process FacadNstaller,FacadInstall,Facad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            exit 0
+          }
+
+          # No new consent gate detected: allow the authorized quick-demo install to settle.
+          $installDeadline=(Get-Date).AddMinutes(8)
+          while((Get-Date) -lt $installDeadline){
+            Start-Sleep -Seconds 5
+            $settings=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.Admin.settings' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if($settings){ break }
+            $installerProcesses=Get-Process FacadNstaller,FacadInstall -ErrorAction SilentlyContinue
+            if(-not $installerProcesses){ Start-Sleep -Seconds 5 }
+          }
+
+          $settingsHits=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.Admin.settings' -File -Recurse -ErrorAction SilentlyContinue
+          $settingsHits | Select-Object FullName,Length,LastWriteTime |
+            Format-Table -AutoSize | Out-File facad-quick-demo/settings-found.txt -Width 500
+
+          $facadExe=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if($facadExe){
+            "INSTALLED_FACAD_EXE=$($facadExe.FullName)" | Add-Content facad-quick-demo/quick-demo-process.txt
+          } else {
+            'INSTALLED_FACAD_EXE=NOT_FOUND' | Add-Content facad-quick-demo/quick-demo-process.txt
+          }
+
+          if($settingsHits){
+            'FACAD_ADMIN_SETTINGS_FOUND=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+          } else {
+            'FACAD_ADMIN_SETTINGS_FOUND=false' | Add-Content facad-quick-demo/quick-demo-process.txt
+          }
+
+          Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $before -and $_.FullName -match 'Facad|Ilexis' } |
+            Select-Object FullName,Length,LastWriteTime |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-quick-demo/installed-files.txt -Width 500
+
+          Get-Content facad-quick-demo/quick-demo-process.txt
+          if(Test-Path facad-quick-demo/settings-found.txt){Get-Content facad-quick-demo/settings-found.txt}
+          if(Test-Path facad-quick-demo/consent-gate.txt){Get-Content facad-quick-demo/consent-gate.txt}
+
+      - name: Probe installed Facad on bundled example if bootstrap completed
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference='Continue'
+          $state=Get-Content facad-quick-demo/quick-demo-process.txt -Raw
+          if($state -match 'CONSENT_GATE_DETECTED=true'){ Write-Host 'Stopped at consent gate'; exit 0 }
+          if($state -notmatch 'FACAD_ADMIN_SETTINGS_FOUND=true'){ Write-Host 'Bootstrap incomplete'; exit 0 }
+
+          $installed=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          $bundled=(Resolve-Path 'facad-quick-demo/outer/FacadRelease-3.14.1.1111.zip' -ErrorAction SilentlyContinue)
+          if(-not $installed){ Write-Host 'No installed Facad.exe'; exit 0 }
+
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-quick-demo/release | Out-Null
+          & $seven x 'facad-quick-demo/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-quick-demo/release' -y | Out-Null
+          $case=(Resolve-Path 'facad-quick-demo/release/Examples/Robert-2.0.fcd').Path
+
+          $p=Start-Process -FilePath $installed.FullName -ArgumentList ('"'+$case+'"') -WorkingDirectory $installed.DirectoryName -PassThru
+          "FACAD_PID=$($p.Id)" | Set-Content facad-quick-demo/facad-example-process.txt
+          Start-Sleep -Seconds 20
+          try{$p.Refresh()}catch{}
+          "HAS_EXITED=$($p.HasExited)" | Add-Content facad-quick-demo/facad-example-process.txt
+          if($p.HasExited){"EXIT_CODE=$($p.ExitCode)" | Add-Content facad-quick-demo/facad-example-process.txt}
+
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $rows=New-Object System.Collections.Generic.List[string]
+          foreach($n in $nodes){
+            try{
+              if(-not [string]::IsNullOrWhiteSpace($n.Current.Name)){
+                $rows.Add("TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name)")
+              }
+            }catch{}
+          }
+          $rows | Sort-Object -Unique | Set-Content facad-quick-demo/facad-ui-tree.txt
+          Get-Content facad-quick-demo/facad-ui-tree.txt | Select-Object -First 800
+
+          try{
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'facad-example-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose();$bmp.Dispose()
+          }catch{}
+
+          if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+
+      - name: Upload quick demo evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-quick-demo-bootstrap-${{ github.sha }}
+          path: facad-quick-demo/
+          if-no-files-found: error
