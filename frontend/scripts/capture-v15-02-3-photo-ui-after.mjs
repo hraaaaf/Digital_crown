@@ -62,9 +62,6 @@ const appointment = {
 };
 
 const json = (route, body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-let waitingPhotoState = 'initials';
-let waitingPhotoBuffer = null;
-
 async function resetNoPhoto() {
   const res = await api.delete(`/api/patients/${patient.id}/photo`, { headers });
   if (![200, 204, 404].includes(res.status())) throw new Error(`reset photo failed: ${res.status()} ${await res.text()}`);
@@ -80,17 +77,6 @@ async function preparePage(context) {
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
-  await page.route('**/api/patients/', route => json(route, [{
-    ...patient,
-    photo_url: waitingPhotoState === 'photo' ? `/api/patients/${patient.id}/photo` : null,
-  }]));
-  await page.route(`**/api/patients/${patient.id}/photo`, route => {
-    if (route.request().method() !== 'GET') return route.continue();
-    if (waitingPhotoState !== 'photo' || !waitingPhotoBuffer) {
-      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Photo absente"}' });
-    }
-    return route.fulfill({ status: 200, contentType: 'image/png', body: waitingPhotoBuffer });
-  });
   await page.route('**/api/appointments/pending', route => json(route, []));
   await page.route('**/api/appointments/multi-practitioner**', route => json(route, [appointment]));
   await page.route('**/api/appointments/**', route => {
@@ -140,10 +126,6 @@ async function assertAvatarState(page, state) {
 
 async function assertSurfaces(page, expectedState, viewportLabel, phase) {
   const shots = [];
-  waitingPhotoState = expectedState;
-  waitingPhotoBuffer = expectedState === 'photo'
-    ? await (await api.get(`/api/patients/${patient.id}/photo`, { headers })).body()
-    : null;
   await page.goto('http://127.0.0.1:5173/patients', { waitUntil: 'networkidle', timeout: 90000 });
   const patientEntry = page.locator('[role="button"]').filter({ hasText: fullName }).first();
   await patientEntry.waitFor({ state: 'visible', timeout: 30000 });
