@@ -1,0 +1,232 @@
+{
+  "schema_version": "ORTHO_LOT08_RICKETTS32_FACAD_DENTAL_CLUSTER_RESOLUTION_V1",
+  "status": "SOURCE_LOCKED__RUNTIME_GATED",
+  "scope": [
+    "Molar rel",
+    "Canine rel",
+    "Overjet",
+    "Overbite",
+    "Ii-OL",
+    "Ii to A-Pog",
+    "Is to A-Pog",
+    "ILi/A-Pog",
+    "ILs/A-Pog"
+  ],
+  "facad_provenance": {
+    "product": "Facad",
+    "release": "3.14.1.1111",
+    "profile": "Ricketts (32 F).cph",
+    "profile_sha256": "d0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518",
+    "reverse_run_id": 37595714768,
+    "artifact_id": 11469783515,
+    "artifact_digest": "sha256:812b39f6effad24cf7e3cd95f71089207da68a594dce5e15a4ba2d7f014c9bd5",
+    "facad_reference_manual": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf"
+  },
+  "facad_constructions": {
+    "OLa": {
+      "calc_type": "Mid-point",
+      "refs": [
+        "Is",
+        "Ii"
+      ],
+      "definition": "midpoint of upper and lower incisor tips"
+    },
+    "OLp": {
+      "type": "marker",
+      "definition": "Occlusal Line, posterior point",
+      "exact_tooth_contact_semantics": "UNOBSERVED_IN_CPH"
+    },
+    "OL": {
+      "calc_type": "Line",
+      "refs": [
+        "OLp",
+        "OLa"
+      ],
+      "direction": "OLp_to_OLa",
+      "status": "SOURCE_LOCKED_VENDOR_GEOMETRY"
+    }
+  },
+  "marker_identities": {
+    "Mi-d": "Molar inferior, most distal point",
+    "Ms-d": "Molar superior, most distal point",
+    "CNi": "Canine inferior (lower canine tip)",
+    "CNs": "Canine superior (upper canine tip)",
+    "Ii": "Incisor inferior (lower incisor tip)",
+    "Iia": "Incisor inferior apex (lower incisor root)",
+    "Is": "Incisor superior (upper incisor tip)",
+    "Isa": "Incisor superior apex (upper incisor root)",
+    "A": "Downs' A-point; Subspinale",
+    "Pog": "Pogonion"
+  },
+  "resolutions": {
+    "Molar rel": {
+      "facad": {
+        "order": 1,
+        "calc_type": "ProjLine",
+        "refs": [
+          "OL",
+          "Mi-d",
+          "Ms-d"
+        ],
+        "norm": "-3±3"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_MOLAR_RELATION_FOP_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Distal molar identities agree by anatomy, but Facad projects on incisor-midpoint OL while DC requires source-locked functional premolar/molar FOP."
+      }
+    },
+    "Canine rel": {
+      "facad": {
+        "order": 2,
+        "calc_type": "ProjLine",
+        "refs": [
+          "OL",
+          "CNi",
+          "CNs"
+        ],
+        "norm": "2±3"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_CANINE_RELATION_FOP_MM_V1",
+        "direct_alias_allowed": false
+      }
+    },
+    "Overjet": {
+      "facad": {
+        "order": 3,
+        "calc_type": "ProjLine",
+        "refs": [
+          "OL",
+          "Ii",
+          "Is"
+        ],
+        "norm": "2.5±2.5"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_OVERJET_FOP_MM_V1",
+        "direct_alias_allowed": false
+      }
+    },
+    "Overbite": {
+      "facad": {
+        "order": 4,
+        "calc_type": "Proj90Line",
+        "refs": [
+          "OL",
+          "Is",
+          "Ii"
+        ],
+        "norm": "2.5±2.5"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__SIGNED_PARITY_GATED",
+        "nearest_measurement_id": "M_RICKETTS_OVERBITE_FOP_MM_V1",
+        "direct_alias_allowed": false
+      }
+    },
+    "Ii-OL": {
+      "facad": {
+        "order": 5,
+        "calc_type": "DistLine",
+        "refs": [
+          "OL",
+          "Ii"
+        ],
+        "norm": "1.2±2",
+        "changeSign": true,
+        "changeRightLeft": true
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__SIGN_MODEL_DIFFERENT__STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "DC uses source-locked functional FOP and crownward sign oriented by the lower-incisor axis; Facad uses vendor OL plus sign/right-left flags."
+      }
+    },
+    "Ii to A-Pog": {
+      "facad": {
+        "order": 10,
+        "calc_type": "Dist3p",
+        "refs": [
+          "Pog",
+          "A",
+          "Ii"
+        ],
+        "norm": "1±2",
+        "changeRightLeft": true
+      },
+      "dc": {
+        "status": "CANONICAL_GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_GATED",
+        "geometry_family_measurement_id": "M_L1_EDGE_APOG_MM_V1",
+        "direct_alias_allowed": false
+      }
+    },
+    "Is to A-Pog": {
+      "facad": {
+        "order": 11,
+        "calc_type": "Dist3p",
+        "refs": [
+          "Pog",
+          "A",
+          "Is"
+        ],
+        "norm": "3.5±2.5",
+        "changeRightLeft": true
+      },
+      "dc": {
+        "status": "CANONICAL_GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_GATED",
+        "geometry_family_measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+        "direct_alias_allowed": false
+      }
+    },
+    "ILi/A-Pog": {
+      "facad": {
+        "order": 12,
+        "calc_type": "Angle4p",
+        "refs": [
+          "Pog",
+          "A",
+          "Iia",
+          "Ii"
+        ],
+        "norm": "22±4"
+      },
+      "dc": {
+        "status": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+        "geometry_family_measurement_id": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+        "direct_alias_allowed": false
+      }
+    },
+    "ILs/A-Pog": {
+      "facad": {
+        "order": 13,
+        "calc_type": "Angle4p",
+        "refs": [
+          "Isa",
+          "Is",
+          "A",
+          "Pog"
+        ],
+        "norm": "28±4"
+      },
+      "dc": {
+        "status": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+        "geometry_family_measurement_id": "M_RICKETTS_U1_APOG_INCLINATION_DEG_V1",
+        "direct_alias_allowed": false
+      }
+    }
+  },
+  "safety_rules": {
+    "no_runtime_activation_in_this_lot": true,
+    "no_facad_norm_runtime_classification": true,
+    "no_numeric_or_signed_parity_claim_without_same_trace_export": true,
+    "no_facad_ol_alias_to_ricketts_functional_occlusal_plane": true,
+    "preserve_facad_argument_order": true,
+    "preserve_change_sign_and_change_right_left_flags": true,
+    "angle4p_direct_alias_requires_same_trace_presentation_parity": true
+  }
+}
