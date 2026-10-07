@@ -4,11 +4,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "docs" / "audits" / "schemas" / "ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+BACKLOG = ROOT / "docs" / "audits" / "schemas" / "ortho_lot08_facad_dc_unmapped_backlog_v1.json"
 
 class Ricketts32FacadDentalClusterTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.data = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        cls.backlog = json.loads(BACKLOG.read_text(encoding="utf-8"))
 
     def test_vendor_occlusal_line_is_not_ricketts_functional_fop(self):
         ol = self.data["facad_constructions"]["OL"]
@@ -51,6 +53,15 @@ class Ricketts32FacadDentalClusterTests(unittest.TestCase):
         self.assertTrue(row["facad"]["changeRightLeft"])
         self.assertEqual(row["dc"]["nearest_measurement_id"], "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1")
         self.assertFalse(row["dc"]["direct_alias_allowed"])
+
+    def test_backlog_moves_exactly_this_cluster_out_of_unmapped(self):
+        profile = self.backlog["profiles"]["Ricketts (32 F)"]
+        resolved = {row["facad_label"] for row in profile["resolved_items"]}
+        cluster = set(self.data["scope"])
+        self.assertTrue(cluster.issubset(resolved))
+        self.assertTrue(cluster.isdisjoint(profile["unmapped"]))
+        self.assertEqual(len(profile["unmapped"]), 17)
+        self.assertEqual(self.backlog["totals"]["unmapped_items"], 17)
 
     def test_runtime_and_norms_remain_gated(self):
         rules = self.data["safety_rules"]
