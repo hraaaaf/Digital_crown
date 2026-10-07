@@ -16,6 +16,8 @@ class TweedFacadGapContractTests(unittest.TestCase):
         self.assertFalse(row['canonical_wits_profile_promotion'])
         self.assertFalse(row['legacy_alias_allowed'])
         self.assertFalse(row['runtime_activation'])
+        self.assertEqual(self.data['resolutions']['Wits']['facad_definition']['projection_vector_order'], ['B', 'A'])
+        self.assertEqual(self.data['resolutions']['Wits']['facad_definition']['line_direction'], 'OLp_to_OLa')
 
     def test_facad_occlusal_line_is_explicit_and_manual_posteriorly(self):
         c = self.data['facad_constructions']
@@ -23,6 +25,8 @@ class TweedFacadGapContractTests(unittest.TestCase):
         self.assertEqual(c['OLa']['calc_type'], 'Mid-point')
         self.assertEqual(c['OLp']['acquisition'], 'MANUAL_VENDOR_MARKER')
         self.assertEqual(c['OL']['refs'], ['OLp', 'OLa'])
+        self.assertEqual(c['OL']['argument_order'], ['OLp', 'OLa'])
+        self.assertEqual(c['OL']['direction'], 'OLp_to_OLa')
 
     def test_olfh_cannot_claim_strict_downs_or_tweed_membership(self):
         row = self.data['resolutions']['OL/FH']['dc_resolution']
