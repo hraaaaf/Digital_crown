@@ -1,0 +1,46 @@
+name: Facad Steiner Ii-NB definition probe
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-steiner-iinb-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download and extract Facad release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path iinb | Out-Null
+          $installer = 'iinb/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path iinb/outer | Out-Null
+          & $seven x $installer '-oiinb/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path iinb/release | Out-Null
+          & $seven x 'iinb/outer/FacadRelease-3.14.1.1111.zip' '-oiinb/release' -y | Out-Null
+
+      - name: Extract Ii-NB dependency definitions only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -c "import xml.etree.ElementTree as ET,json,pathlib; p=pathlib.Path(r'iinb/release/Ceph/Steiner.cph'); root=ET.parse(p).getroot(); wanted={'Ii-NB','Iil','NB','Pog-NB','Pog'}; out=[]; [out.append({'tag':e.tag,'fields':{c.tag:(c.text or '').strip() for c in list(e) if len(list(c))==0},'refs':[(x.text or '').strip() for x in e.iter('point_ref') if (x.text or '').strip()]}) for e in root.iter() if any(c.tag=='name' and (c.text or '').strip() in wanted for c in list(e))]; print(json.dumps(out,ensure_ascii=False,indent=2)); assert any(x['fields'].get('name')=='Ii-NB' for x in out); assert any(x['fields'].get('name')=='Iil' for x in out)" | Tee-Object -FilePath iinb/steiner-iinb-definition.txt
+
+      - name: Upload minimized proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-steiner-iinb-probe-${{ github.sha }}
+          path: iinb/steiner-iinb-definition.txt
+          if-no-files-found: error
