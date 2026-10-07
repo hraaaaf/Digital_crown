@@ -32,6 +32,14 @@ def main():
     if backend != docs:
         fail("Steiner backend/docs profiles diverge")
 
+    sources = {item.get("id"): item for item in backend.get("sources", []) if isinstance(item, dict)}
+    vendor_source = sources.get("FACAD_314_STEINER_CPH")
+    if not isinstance(vendor_source, dict) or vendor_source.get("scientific_authority") is not False:
+        fail("Facad Steiner CPH must remain vendor compatibility evidence only")
+    secondary_source = sources.get("PMID_38909276_STEINER_SLINE")
+    if not isinstance(secondary_source, dict) or secondary_source.get("primary_historical_authority") is not False:
+        fail("Steiner S-line secondary source must not become primary historical authority")
+
     rels = backend["layers"]["STEINER_1959_EXTENSION"]["derived_relationships"]
     rel = next((x for x in rels if x.get("relationship_id") == "STEINER_L1_NB_VS_POG_NB_V1"), None)
     if rel is None:
