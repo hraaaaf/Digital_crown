@@ -1,0 +1,116 @@
+name: Facad 3.14 configuration bootstrap probe
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-configuration-bootstrap-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Extract official Facad runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path facad-config-probe | Out-Null
+          $installer='facad-config-probe/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-config-probe/outer | Out-Null
+          & $seven x $installer '-ofacad-config-probe/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-config-probe/release | Out-Null
+          & $seven x 'facad-config-probe/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-config-probe/release' -y | Out-Null
+          Copy-Item facad-config-probe/outer/Facad.exe.config facad-config-probe/release/Facad/Facad.exe.config -Force
+          Get-FileHash 'facad-config-probe/release/Facad/Configuration.exe' -Algorithm SHA256 |
+            Format-List | Set-Content facad-config-probe/configuration-meta.txt
+
+      - name: Observe Configuration.exe bounded launch
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference='Continue'
+          Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          using System.Text;
+          public class ProbeWin32 {
+            public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+            [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+            [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+            [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+          }
+          "@
+          $exe=(Resolve-Path 'facad-config-probe/release/Facad/Configuration.exe').Path
+          $wd=Split-Path $exe
+          $before=Get-Date
+          $p=Start-Process -FilePath $exe -WorkingDirectory $wd -PassThru
+          "PID=$($p.Id)" | Set-Content facad-config-probe/config-process.txt
+          Start-Sleep -Seconds 10
+          try{$p.Refresh()}catch{}
+          "HAS_EXITED=$($p.HasExited)" | Add-Content facad-config-probe/config-process.txt
+          if($p.HasExited){"EXIT_CODE=$($p.ExitCode)" | Add-Content facad-config-probe/config-process.txt}
+
+          $rows=New-Object System.Collections.Generic.List[string]
+          [ProbeWin32]::EnumWindows({
+            param($h,$l)
+            if([ProbeWin32]::IsWindowVisible($h)){
+              $sb=New-Object Text.StringBuilder 1024
+              [void][ProbeWin32]::GetWindowText($h,$sb,$sb.Capacity)
+              [uint32]$windowProcessId=0
+              [void][ProbeWin32]::GetWindowThreadProcessId($h,[ref]$windowProcessId)
+              if($sb.Length -gt 0){$rows.Add("PID=$windowProcessId | TITLE=$($sb.ToString())")}
+            }
+            return $true
+          },[IntPtr]::Zero) | Out-Null
+          $rows | Sort-Object | Set-Content facad-config-probe/windows.txt
+          Get-Content facad-config-probe/windows.txt
+
+          try{
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Resolve-Path 'facad-config-probe').Path 'configuration-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose();$bmp.Dispose()
+          }catch{$_ | Out-String | Set-Content facad-config-probe/screenshot-error.txt}
+
+          Get-ChildItem facad-config-probe/release/Facad,"$env:APPDATA\Ilexis","$env:LOCALAPPDATA\Ilexis" -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $before -or $_.Extension -eq '.settings' } |
+            Select-Object FullName,Name,Length,LastWriteTime |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-config-probe/settings-after-launch.txt -Width 500
+          if(Test-Path facad-config-probe/settings-after-launch.txt){Get-Content facad-config-probe/settings-after-launch.txt}
+
+          if(-not $p.HasExited){
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            'PROCESS_TERMINATED_AFTER_OBSERVATION=true' | Add-Content facad-config-probe/config-process.txt
+          }
+          Get-Content facad-config-probe/config-process.txt
+
+      - name: Upload focused configuration evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-configuration-bootstrap-probe-${{ github.sha }}
+          path: |
+            facad-config-probe/configuration-meta.txt
+            facad-config-probe/config-process.txt
+            facad-config-probe/windows.txt
+            facad-config-probe/configuration-screen.png
+            facad-config-probe/screenshot-error.txt
+            facad-config-probe/settings-after-launch.txt
+          if-no-files-found: warn
