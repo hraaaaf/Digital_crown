@@ -1,0 +1,58 @@
+name: Facad to DC existing protocol map
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-dc-protocol-map.yml
+      - audit/cephalo_lot08_facad_dc_map.py
+      - backend/tests/test_cephalo_lot08_facad_dc_map.py
+      - docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  map:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download and extract Facad release payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path facad-map | Out-Null
+          $installer = 'facad-map/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-map/outer | Out-Null
+          & $seven x $installer '-ofacad-map/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-map/release | Out-Null
+          & $seven x 'facad-map/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-map/release' -y | Out-Null
+
+      - name: Run conservative protocol mapping
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python audit/cephalo_lot08_facad_dc_map.py --ceph-dir facad-map/release/Ceph --registry docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json --out facad-map/facad-dc-map.json | Tee-Object -FilePath facad-map/facad-dc-map.txt
+          Get-Content facad-map/facad-dc-map.txt
+
+      - name: Run targeted mapping tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pytest backend/tests/test_cephalo_lot08_facad_dc_map.py -q
+
+      - name: Upload mapping evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-dc-protocol-map-${{ github.sha }}
+          path: |
+            facad-map/facad-dc-map.json
+            facad-map/facad-dc-map.txt
+          if-no-files-found: error
