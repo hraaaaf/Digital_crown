@@ -64,13 +64,38 @@
     },
     "McNamara": {
       "priority": 3,
-      "unmapped": [
-        "Nasolabial",
-        "Ls Cant",
-        "Max-Mand diff",
-        "LAFH",
-        "Is-A",
-        "Ii to A-Pog"
+      "unmapped": [],
+      "resolved_items": [
+        {
+          "facad_label": "Nasolabial",
+          "resolution": "FACAD_VENDOR_SOFT_TISSUE_VARIANT__MCNAMARA_PRN_SN_LS_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ls Cant",
+          "resolution": "FACAD_VENDOR_LS_N_VARIANT__MCNAMARA_UPPER_LIP_TANGENT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Max-Mand diff",
+          "resolution": "CANONICAL_GEOMETRY_MATCH",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "LAFH",
+          "resolution": "CANONICAL_GEOMETRY_MATCH",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Is-A",
+          "resolution": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ii to A-Pog",
+          "resolution": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        }
       ]
     },
     "Downs": {
@@ -117,7 +142,7 @@
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 37
+    "unmapped_items": 31
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -167,6 +192,17 @@
         "same-trace Facad numeric parity for ProjLine Wits variant",
         "same-trace Facad numeric parity for OL/FH",
         "no promotion to canonical Jacobson/Downs/Tweed historical profiles without stricter source equivalence"
+      ]
+    },
+    "McNamara": {
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 6,
+      "remaining_unmapped": 0,
+      "runtime_blockers": [
+        "same-trace numeric parity for all Facad vendor variants",
+        "no incisal-tip alias to canonical McNamara facial-surface measures",
+        "no Facad nasolabial/Ls-cant alias to canonical McNamara soft-tissue geometry",
+        "Facad norms remain non-authoritative"
       ]
     }
   }
