@@ -1,0 +1,114 @@
+name: Facad 3.14 ceph export plugin probe
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-export-plugin-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Extract official Facad runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path facad-export-probe | Out-Null
+          $installer='facad-export-probe/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-export-probe/outer | Out-Null
+          & $seven x $installer '-ofacad-export-probe/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-export-probe/release | Out-Null
+          & $seven x 'facad-export-probe/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-export-probe/release' -y | Out-Null
+          $plugin=Resolve-Path 'facad-export-probe/release/Plugins/Misc/FacadExportCephDataPlugin.exe'
+          $case=Resolve-Path 'facad-export-probe/release/Examples/Robert-2.0.fcd'
+          Get-FileHash $plugin -Algorithm SHA256 | Format-List | Set-Content facad-export-probe/plugin-meta.txt
+          Get-FileHash $case -Algorithm SHA256 | Format-List | Add-Content facad-export-probe/plugin-meta.txt
+
+      - name: Extract focused printable strings from export plugin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $plugin=(Resolve-Path 'facad-export-probe/release/Plugins/Misc/FacadExportCephDataPlugin.exe').Path
+          $bytes=[IO.File]::ReadAllBytes($plugin)
+          $texts=@(
+            [Text.Encoding]::ASCII.GetString($bytes),
+            [Text.Encoding]::UTF8.GetString($bytes),
+            [Text.Encoding]::Unicode.GetString($bytes)
+          )
+          $all=New-Object System.Collections.Generic.List[string]
+          foreach($text in $texts){
+            [regex]::Matches($text,'[ -~]{4,}') | ForEach-Object { $all.Add($_.Value) }
+          }
+          $focus=$all | Sort-Object -Unique | Where-Object {
+            $_ -match 'Analysis Values|Analysis Properties|Marker Positions|Object Values|Object Properties|Export|Usage|Command|Argument|\.fcd|\.txt|\.xml|File|Patient|Ceph|Silent|License|Licence|Demo'
+          }
+          $focus | Set-Content facad-export-probe/plugin-focused-strings.txt
+          Get-Content facad-export-probe/plugin-focused-strings.txt | Select-Object -First 1200
+
+      - name: Probe plugin help and no-arg behavior
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference='Continue'
+          $plugin=(Resolve-Path 'facad-export-probe/release/Plugins/Misc/FacadExportCephDataPlugin.exe').Path
+          $wd=Split-Path $plugin
+          $cases=@(
+            @{name='NOARGS'; args=''},
+            @{name='SLASHQ'; args='/?'},
+            @{name='DASHQ'; args='-?'},
+            @{name='HELP'; args='--help'}
+          )
+          foreach($probe in $cases){
+            "===== $($probe.name) =====" | Add-Content facad-export-probe/plugin-invocations.txt
+            $out="facad-export-probe/$($probe.name)-stdout.txt"
+            $err="facad-export-probe/$($probe.name)-stderr.txt"
+            $p=Start-Process -FilePath $plugin -ArgumentList $probe.args -WorkingDirectory $wd -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+            if(-not $p.WaitForExit(8000)){ try{$p.Kill()}catch{}; "TIMEOUT" | Add-Content facad-export-probe/plugin-invocations.txt }
+            else { "EXIT=$($p.ExitCode)" | Add-Content facad-export-probe/plugin-invocations.txt }
+            if(Test-Path $out){Get-Content $out | Add-Content facad-export-probe/plugin-invocations.txt}
+            if(Test-Path $err){Get-Content $err | Add-Content facad-export-probe/plugin-invocations.txt}
+          }
+          Get-Content facad-export-probe/plugin-invocations.txt
+
+      - name: Probe plugin with bundled same-trace example
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference='Continue'
+          $plugin=(Resolve-Path 'facad-export-probe/release/Plugins/Misc/FacadExportCephDataPlugin.exe').Path
+          $case=(Resolve-Path 'facad-export-probe/release/Examples/Robert-2.0.fcd').Path
+          $wd=Split-Path $plugin
+          $before=Get-Date
+          New-Item -ItemType Directory -Force -Path facad-export-probe/generated | Out-Null
+          $p=Start-Process -FilePath $plugin -ArgumentList ('"'+$case+'"') -WorkingDirectory $wd -PassThru -RedirectStandardOutput facad-export-probe/case-stdout.txt -RedirectStandardError facad-export-probe/case-stderr.txt
+          if(-not $p.WaitForExit(12000)){ try{$p.Kill()}catch{}; "TIMEOUT" | Set-Content facad-export-probe/case-result.txt }
+          else { "EXIT=$($p.ExitCode)" | Set-Content facad-export-probe/case-result.txt }
+          Get-ChildItem facad-export-probe/release,facad-export-probe -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $before } |
+            Select-Object FullName,Length,LastWriteTime |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-export-probe/files-written-after-case.txt -Width 500
+          Get-Content facad-export-probe/case-result.txt
+          if(Test-Path facad-export-probe/case-stdout.txt){Get-Content facad-export-probe/case-stdout.txt}
+          if(Test-Path facad-export-probe/case-stderr.txt){Get-Content facad-export-probe/case-stderr.txt}
+          Get-Content facad-export-probe/files-written-after-case.txt
+
+      - name: Upload export plugin evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-export-plugin-probe-${{ github.sha }}
+          path: facad-export-probe/
+          if-no-files-found: error
