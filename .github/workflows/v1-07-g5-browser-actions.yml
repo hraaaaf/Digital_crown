@@ -1,13 +1,5 @@
 name: V1-07 G5 Browser Action Certification
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/admin/Settings/**"
-      - "frontend/src/features/admin/TeamManager.tsx"
-      - "frontend/scripts/certify-v1-07-g5-browser-actions.mjs"
-      - "frontend/scripts/capture-v1-07-g5-runtime-preferences-visual.mjs"
-      - "scripts/t2_runtime_server.py"
-      - ".github/workflows/v1-07-g5-browser-actions.yml"
   workflow_dispatch:
 concurrency:
   group: v1-07-g5-browser-actions-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}

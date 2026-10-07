@@ -1,13 +1,6 @@
 name: Voluntary Tutorial Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/tutorial/**"
-      - "frontend/src/components/Header.tsx"
-      - "frontend/src/components/Layout/MainLayout.tsx"
-      - "frontend/src/features/dashboard/**"
-      - ".github/workflows/voluntary-tutorial-visual-cert.yml"
   workflow_dispatch:
 
 permissions:
