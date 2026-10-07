@@ -19,6 +19,7 @@ on:
       - "frontend/src/features/agenda/MultiPractitionerTimelineView.tsx"
       - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.tsx"
       - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx"
+      - "frontend/src/features/mobile/Dashboard/MobileG3BrowserCertHarness.tsx"
       - "frontend/scripts/capture-v15-02-3-photo-ui-after.mjs"
       - ".github/workflows/v15-02-3-photo-ui-after.yml"
   workflow_dispatch:
