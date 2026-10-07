@@ -16,13 +16,13 @@ The default path is:
 
 ## Allowed automatic trigger
 
-`.github/workflows/ci-scope-gate.yml` is the only pull-request workflow intended to run automatically by default.
+Target state: `.github/workflows/ci-scope-gate.yml` becomes the only pull-request workflow intended to run automatically by default. Until the migration of legacy workflows is completed and reviewed, existing automatic triggers remain authoritative.
 
 Reusable workflows may keep `workflow_call` because it does not execute independently.
 
 ## Heavy workflow contract
 
-Existing certification workflows must expose `workflow_dispatch`. They may additionally expose `workflow_call` when another explicitly selected workflow reuses them. They must not independently run on `pull_request`, `push`, `schedule`, `workflow_run`, or similar automatic events unless a future exception is separately justified, reviewed, and documented.
+Target contract for migrated certification workflows: preserve any runtime context they require, expose an explicit targeted invocation path, and stop consuming runners automatically unless an exception is separately justified, reviewed, and documented. Do not convert a workflow to manual-only if it depends on `github.event.pull_request` without first providing an equivalent explicit PR context.
 
 ## Human gate
 
