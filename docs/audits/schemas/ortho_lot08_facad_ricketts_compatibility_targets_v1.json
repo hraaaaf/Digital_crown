@@ -1,17 +1,19 @@
 {
   "schema_version": "ORTHO_LOT08_FACAD_RICKETTS_COMPATIBILITY_TARGETS_V1",
-  "status": "PARITY_TARGETS_ONLY__MEMBERSHIP_NOT_DIRECTLY_OBSERVED",
+  "status": "DIRECT_VENDOR_DEFINITION_OBSERVED__NUMERIC_PARITY_PENDING",
   "targets": [
     {
       "vendor_label": "Ricketts (32 F)",
       "target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
-      "scientific_profile_equivalence": false
+      "scientific_profile_equivalence": false,
+      "definition_membership_observed": true
     },
     {
       "vendor_label": "Ricketts (13 F)",
       "target_id": "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
-      "scientific_profile_equivalence": false
+      "scientific_profile_equivalence": false,
+      "definition_membership_observed": true
     }
   ],
-  "rule": "Do not infer Facad row membership, signs, norms, export labels, or equivalence from the vendor label alone. Direct Facad trace/export observation is required."
+  "rule": "Vendor membership/order/labels/norms/construction metadata may be taken only from the official Facad standard-analysis .cph definitions observed in the signed Facad 3.14.1 installer. Same-trace patient numeric values, displayed rounding, and runtime parity remain unobserved until direct Facad exports are captured."
 }
