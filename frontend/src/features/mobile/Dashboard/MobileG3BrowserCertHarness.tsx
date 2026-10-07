@@ -23,16 +23,24 @@ export function MobileG3BrowserCertHarness() {
     [params, patientId, patientName, ticketNumber],
   );
   const [appointments, setAppointments] = useState(initialAppointments);
+  const [authReady, setAuthReady] = useState(false);
+  const authenticatedUser = useAuthStore(state => state.user);
 
   const certificationToken = localStorage.getItem('token');
   if (certificationToken) MobileStorage.setBiometricAccessToken(certificationToken);
 
   useEffect(() => {
+    let cancelled = false;
     // Preview-cert harness: keep the injected mobile token stable across React
     // StrictMode's development effect replay. The whole harness is isolated
     // behind the preview-only /mobile/g3-cert entrypoint.
     if (certificationToken) MobileStorage.setBiometricAccessToken(certificationToken);
-    void useAuthStore.getState().checkAuth();
+    void useAuthStore.getState().checkAuth().finally(() => {
+      if (!cancelled) setAuthReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [certificationToken]);
 
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +64,16 @@ export function MobileG3BrowserCertHarness() {
     }
   };
 
+  if (!authReady) {
+    return <main data-g3-browser-cert data-auth-state="loading" className="min-h-screen bg-background p-6 text-text-main">Chargement certification…</main>;
+  }
+
+  if (!authenticatedUser) {
+    return <main data-g3-browser-cert data-auth-state="error" className="min-h-screen bg-background p-6 text-text-main"><p role="alert">Authentification certification indisponible</p></main>;
+  }
+
   return (
-    <main data-g3-browser-cert className="min-h-screen bg-background p-6 text-text-main">
+    <main data-g3-browser-cert data-auth-state="ready" className="min-h-screen bg-background p-6 text-text-main">
       <p className="mb-4 text-xs font-black uppercase tracking-widest text-primary">G3 browser certification harness</p>
       {error && <p role="alert" className="mb-4 text-sm font-bold text-rose-600">{error}</p>}
       {lastNavigation && <p data-testid="g3-mobile-navigation">navigate:{lastNavigation}</p>}
