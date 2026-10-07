@@ -1,0 +1,24 @@
+import json, subprocess, sys
+from pathlib import Path
+
+def test_mapping_reports_direct_candidate_and_unmapped(tmp_path):
+    ceph=tmp_path/"Ceph"
+    ceph.mkdir()
+    (ceph/"Demo.cph").write_text("""<?xml version="1.0" encoding="UTF-8"?>
+<Facad><cephfile><name>Demo</name><AnalysisType>Lateral</AnalysisType><ceph_set>
+<ceph_calc><name>SNA</name><norm>82±2</norm></ceph_calc>
+<ceph_calc><name>ML/FH</name><norm>25±4</norm></ceph_calc>
+<ceph_calc><name>Unknown</name><norm>1±1</norm></ceph_calc>
+</ceph_set></cephfile></Facad>""",encoding="utf-8")
+    reg={
+      "profiles":{"Demo":{"facad_filename":"Demo.cph","mappings":{
+        "SNA":{"dc_id":"M_SNA_DEG_V1","status":"DIRECT_CANONICAL_MATCH"},
+        "ML/FH":{"dc_id":"M_FH_GOME_DEG_V1","status":"CANDIDATE_GEOMETRY_REVIEW"}
+      }}}
+    }
+    rp=tmp_path/"r.json"; rp.write_text(json.dumps(reg),encoding="utf-8")
+    out=tmp_path/"out.json"
+    subprocess.run([sys.executable,"audit/cephalo_lot08_facad_dc_map.py","--ceph-dir",str(ceph),"--registry",str(rp),"--out",str(out)],check=True)
+    data=json.loads(out.read_text(encoding="utf-8"))["profiles"]["Demo"]
+    assert data["facad_measurement_count"]==3
+    assert data["counts"]=={"DIRECT_CANONICAL_MATCH":1,"CANDIDATE_GEOMETRY_REVIEW":1,"UNMAPPED":1}
