@@ -39,6 +39,13 @@ class TweedFacadGapContractTests(unittest.TestCase):
         self.assertTrue(self.data['safety_rules']['no_alias_to_legacy_occ_ant_post'])
         self.assertTrue(self.data['safety_rules']['no_runtime_activation_without_explicit_olp'])
 
+    def test_functional_vs_bisected_plane_claim_has_explicit_sources(self):
+        evidence = self.data["scientific_authorities"]["wits_functional_plane_corrobation"]
+        ids = {item["id"] for item in evidence["sources"]}
+        self.assertIn("PMC4072364", ids)
+        self.assertIn("THAYER_1990", ids)
+        self.assertIn("vendor bisected-plane variant", evidence["conclusion"])
+
     def test_vendor_norms_and_numeric_parity_remain_gated(self):
         self.assertTrue(self.data['safety_rules']['no_facad_norm_runtime_classification'])
         self.assertTrue(self.data['safety_rules']['no_numeric_parity_claim_without_same_trace_export'])
