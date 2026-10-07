@@ -176,13 +176,31 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
   shots.push(await snap(page, `${phase}-waiting-room-${viewportLabel}.png`));
 
   await page.goto('http://127.0.0.1:5173/agenda', { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
-  await assertAvatarState(page, expectedState);
+  await page.getByRole('button', { name: 'Mois', exact: true }).click();
+  const monthView = page.getByTestId('agenda-month-view');
+  await monthView.waitFor({ state: 'visible', timeout: 30000 });
+  const monthAppointment = monthView.locator('[data-m4d-month-appointment]').filter({ hasText: fullName }).first();
+  await monthAppointment.waitFor({ state: 'visible', timeout: 30000 });
+  const agendaAvatar = monthAppointment.locator(`[data-patient-avatar][data-patient-id="${patient.id}"]`).first();
+  await agendaAvatar.waitFor({ state: 'visible', timeout: 30000 });
+  await page.waitForFunction(
+    ({ id, expected }) => document.querySelector(`[data-testid="agenda-month-view"] [data-m4d-month-appointment] [data-patient-avatar][data-patient-id="${id}"]`)?.getAttribute('data-photo-state') === expected,
+    { id: String(patient.id), expected: expectedState },
+    { timeout: 30000 },
+  );
   shots.push(await snap(page, `${phase}-agenda-${viewportLabel}.png`));
 
   await page.goto(`http://127.0.0.1:5173/patients/${patient.id}`, { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('heading', { name: fullName }).waitFor({ state: 'visible', timeout: 30000 });
-  await assertAvatarState(page, expectedState);
+  const dossierHeader = page.locator('header').filter({ hasText: fullName }).first();
+  await dossierHeader.waitFor({ state: 'visible', timeout: 30000 });
+  const dossierAvatar = dossierHeader.locator(`[data-patient-avatar][data-patient-id="${patient.id}"]`).first();
+  await dossierAvatar.waitFor({ state: 'visible', timeout: 30000 });
+  await page.waitForFunction(
+    ({ id, expected }) => document.querySelector(`header [data-patient-avatar][data-patient-id="${id}"]`)?.getAttribute('data-photo-state') === expected,
+    { id: String(patient.id), expected: expectedState },
+    { timeout: 30000 },
+  );
   shots.push(await snap(page, `${phase}-dossier-${viewportLabel}.png`));
   return shots;
 }
