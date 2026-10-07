@@ -17,7 +17,9 @@ class SteinerFacadGapContractTests(unittest.TestCase):
         self.assertEqual(ms["dc_alias_policy"]["Cm"], "FORBIDDEN_UNLESS_EQUIVALENCE_PROVEN")
         self.assertEqual(ms["dc_alias_policy"]["Sn_soft"], "FORBIDDEN")
         self.assertEqual(ms["dc_alias_policy"]["Prn"], "FORBIDDEN")
-        self.assertEqual(ms["current_runtime_status"], "MISSING_EXACT_IDENTITY")\n        self.assertEqual(ms["vendor_to_historical_variant_equivalence"], "UNPROVEN")\n        self.assertTrue(self.data["safety_rules"]["no_midpoint_tangent_variant_equivalence_without_primary_proof"])
+        self.assertEqual(ms["current_runtime_status"], "MISSING_EXACT_IDENTITY")
+        self.assertEqual(ms["vendor_to_historical_variant_equivalence"], "UNPROVEN")
+        self.assertTrue(self.data["safety_rules"]["no_midpoint_tangent_variant_equivalence_without_primary_proof"])
         self.assertTrue(self.data["safety_rules"]["missing_MS_must_fail_closed"])
 
     def test_sline_measurements_cannot_claim_runtime_parity(self):
@@ -34,7 +36,12 @@ class SteinerFacadGapContractTests(unittest.TestCase):
         self.assertEqual(row["facad_definition"]["operands"], ["Ii-NB", "Pog-NB"])
         self.assertFalse(row["facad_definition"]["new_geometry"])
         self.assertFalse(row["dc_resolution"]["runtime_activation"])
-        self.assertEqual(row["dc_resolution"]["status"], "DERIVED_RELATION_SOURCE_LOCKED__DC_UNSIGNED_DISTANCE_MISMATCH_BLOCKS_RUNTIME_PARITY")\n        self.assertEqual(row["dc_resolution"]["dependency_geometry"]["facad_iil"], "Incisor inferior labial outline")\n        self.assertEqual(row["dc_resolution"]["dependency_geometry"]["compatibility_status"], "GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_BLOCKED")\n        self.assertIsNone(row["dc_resolution"]["runtime_formula"])\n        self.assertTrue(self.data["safety_rules"]["do_not_compute_facad_iipog_from_unsigned_dc_inputs"])\n        self.assertTrue(self.data["safety_rules"]["iinb_same_trace_numeric_parity_required"])
+        self.assertEqual(row["dc_resolution"]["status"], "DERIVED_RELATION_SOURCE_LOCKED__DC_UNSIGNED_DISTANCE_MISMATCH_BLOCKS_RUNTIME_PARITY")
+        self.assertEqual(row["dc_resolution"]["dependency_geometry"]["facad_iil"], "Incisor inferior labial outline")
+        self.assertEqual(row["dc_resolution"]["dependency_geometry"]["compatibility_status"], "GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_BLOCKED")
+        self.assertIsNone(row["dc_resolution"]["runtime_formula"])
+        self.assertTrue(self.data["safety_rules"]["do_not_compute_facad_iipog_from_unsigned_dc_inputs"])
+        self.assertTrue(self.data["safety_rules"]["iinb_same_trace_numeric_parity_required"])
 
     def test_historical_primary_attribution_remains_gated(self):
         gate = self.data["historical_attribution"]
