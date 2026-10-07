@@ -70,7 +70,7 @@ Classification: **DERIVED RELATION — NO NEW GEOMETRY**.
 
 Facad directly encodes subtraction of `Ii-NB` and `Pog-NB`. Digital Crown has candidate inputs `M_L1_NB_MM_V1` and `M_POG_NB_MM_V1`.
 
-Facad's official 3.12 landmark guide defines `Iil` as the lower-incisor labial outline. This is semantically compatible with Digital Crown's explicit `L1_facial_surface` dependency, but direct same-trace numeric equivalence is still required before claiming Facad parity. No new standalone geometry is required.
+Facad's official landmark guide defines `Iil` as the lower-incisor labial outline. A direct CPH probe additionally shows `Ii-NB` and `Pog-NB` are `DistLine` measurements with `changeRightLeft=true`. Facad's reference manual documents `DistLine` as signed and exposes sign/right-left controls. Digital Crown's current Steiner point-to-line helper uses an absolute unsigned distance. Therefore the geometry family is related, but current DC numeric values are **not** valid Facad parity inputs and must not be subtracted to emulate `Ii-Pog // NB`.
 
 ### Ls-SL
 
@@ -100,9 +100,9 @@ The Facad values `0` and `0±2` are observed vendor profile references, not univ
 
 Before implementation/promotion:
 
-1. explicit `MS_Steiner` acquisition path;
+1. explicit `MS_STEINER_FACAD_TANGENT_POINT_V1` acquisition path;
 2. no silent alias to `Cm`, `Sn_soft`, or `Prn`;
-3. dependency geometry of `Ii-NB` confirmed;
+3. signed/oriented Facad `DistLine` semantics resolved; current unsigned DC `M_L1_NB_MM_V1` / `M_POG_NB_MM_V1` must not be used as parity inputs;
 4. signed-distance convention defined for DC and direct Facad numeric parity kept separate;
 5. fail-closed tests for missing `MS_Steiner`;
 6. no norm-based classification without a dedicated normative gate.
@@ -122,3 +122,19 @@ Forbidden claim until a primary historical source is locked: that `Ls-SL` / `Li-
 The Facad vendor definition is specifically a **columella tangent point**. Independent literature uses several descriptions for the Steiner endpoint, including the midpoint of the columella and the midpoint/inflection of the S-shaped curve between the nasal base and tip. This lot does not prove those constructions are identical.
 
 Therefore the vendor tangent-point identity must not be silently replaced by a midpoint, inflection point, generic `Cm`, `Sn_soft`, or `Prn`. Historical/vendor variant equivalence remains `UNPROVEN`.
+
+
+## Signed-distance parity finding
+
+The direct `Ii-NB` probe (run `37604835052`) observed:
+
+- `Ii-NB = DistLine(NB, Iil)`, `changeRightLeft=true`;
+- `Pog-NB = DistLine(NB, Pog)`, `changeRightLeft=true`;
+- `NB = Line(B, N)`;
+- `Iil = Incisor inferior labial outline`.
+
+Facad's reference manual states that `DistLine` is a signed perpendicular point-to-line distance and provides both “Change sign” and “Change for left/right” behavior.
+
+Digital Crown's current `steiner_l1_nb_mm_v1` and `steiner_pog_nb_mm_v1` call the absolute-distance helper `_point_line_distance_mm_v1`. Consequently, subtracting current DC values would erase orientation/sign information and can produce false Facad parity.
+
+This is a runtime BLOCKER for Facad numeric compatibility, not a blocker to the source-lock of the vendor formula.
