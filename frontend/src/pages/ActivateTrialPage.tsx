@@ -125,10 +125,11 @@ export const ActivateTrialPage: React.FC = () => {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-sm font-bold text-slate-700">Code d'activation</label>
+                  <label htmlFor="trial-code" className="mb-2 block text-sm font-bold text-slate-700">Code d'activation</label>
                   <div className="relative">
                     <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
+                      id="trial-code"
                       value={code}
                       onChange={(e) => setCode(e.target.value.toUpperCase())}
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 font-black uppercase tracking-[0.16em] outline-none transition-all focus:border-[#003380] focus:ring-2 focus:ring-[#003380]/10"
@@ -140,10 +141,11 @@ export const ActivateTrialPage: React.FC = () => {
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">Email professionnel</label>
+                    <label htmlFor="trial-email" className="mb-2 block text-sm font-bold text-slate-700">Email professionnel</label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input
+                        id="trial-email"
                         type="email"
                         value={form.email}
                         onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
@@ -153,10 +155,11 @@ export const ActivateTrialPage: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">Mot de passe</label>
+                    <label htmlFor="trial-password" className="mb-2 block text-sm font-bold text-slate-700">Mot de passe</label>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input
+                        id="trial-password"
                         type="password"
                         value={form.password}
                         onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
@@ -168,10 +171,11 @@ export const ActivateTrialPage: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">Nom complet</label>
+                    <label htmlFor="trial-full-name" className="mb-2 block text-sm font-bold text-slate-700">Nom complet</label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input
+                        id="trial-full-name"
                         value={form.nom_complet}
                         onChange={(e) => setForm((prev) => ({ ...prev, nom_complet: e.target.value }))}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 outline-none transition-all focus:border-[#003380] focus:ring-2 focus:ring-[#003380]/10"
@@ -180,10 +184,11 @@ export const ActivateTrialPage: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">Nom du cabinet</label>
+                    <label htmlFor="trial-cabinet-name" className="mb-2 block text-sm font-bold text-slate-700">Nom du cabinet</label>
                     <div className="relative">
                       <Crown className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input
+                        id="trial-cabinet-name"
                         value={form.cabinet_name}
                         onChange={(e) => setForm((prev) => ({ ...prev, cabinet_name: e.target.value }))}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 outline-none transition-all focus:border-[#003380] focus:ring-2 focus:ring-[#003380]/10"
