@@ -60,8 +60,14 @@ class Ricketts32FacadDentalClusterTests(unittest.TestCase):
         cluster = set(self.data["scope"])
         self.assertTrue(cluster.issubset(resolved))
         self.assertTrue(cluster.isdisjoint(profile["unmapped"]))
-        self.assertEqual(len(profile["unmapped"]), 17)
-        self.assertEqual(self.backlog["totals"]["unmapped_items"], 17)
+        self.assertEqual(profile["unmapped"], [])
+        self.assertEqual(self.backlog["totals"]["unmapped_items"], 0)
+        self.assertEqual(
+            self.backlog["high_review_progress"]["Ricketts (32 F)"]["resolved_total"], 26
+        )
+        self.assertEqual(
+            self.backlog["high_review_progress"]["Ricketts (32 F)"]["remaining_unmapped"], 0
+        )
 
     def test_runtime_and_norms_remain_gated(self):
         rules = self.data["safety_rules"]
