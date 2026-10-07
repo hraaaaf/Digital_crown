@@ -495,7 +495,7 @@ def download_backup(filename: str, current_user: models.User = Depends(require_p
     return FileResponse(path=file_path, filename=filename, media_type="application/octet-stream")
 
 
-_HEALTH_SEVERITY_RANK = {"ok": 0, "warning": 1, "unknown": 1, "none": 2, "critical": 2}
+_HEALTH_SEVERITY_RANK = {"ok": 0, "warning": 1, "unknown": 1, "none": 1, "critical": 2}
 
 
 @router.get("/cabinet-health")
