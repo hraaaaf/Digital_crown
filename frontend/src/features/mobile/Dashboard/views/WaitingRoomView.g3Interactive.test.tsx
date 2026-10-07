@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../../patients/components/PatientAvatar', () => ({
-  PatientAvatar: ({ patientId, fullName }: { patientId: number | string; fullName?: string | null }) => (
-    <span data-testid="patient-avatar" data-patient-id={patientId}>{fullName}</span>
+  PatientAvatar: ({ patientId, fullName, photoUrl }: { patientId: number | string; fullName?: string | null; photoUrl?: string | null }) => (
+    <span data-testid="patient-avatar" data-patient-id={patientId} data-photo-url={photoUrl || ''}>{fullName}</span>
   ),
 }));
 
@@ -50,6 +50,10 @@ describe('WaitingRoomView G3 interactive matrix', () => {
     expect(names).toEqual(['Sara BENALI', 'Omar ALAMI']);
     expect(screen.queryByText('Hors salle')).toBeNull();
     expect(screen.getAllByTestId('patient-avatar').map(node => node.getAttribute('data-patient-id'))).toEqual(['101', '102']);
+    expect(screen.getAllByTestId('patient-avatar').map(node => node.getAttribute('data-photo-url'))).toEqual([
+      '/api/patients/101/photo',
+      '/api/patients/102/photo',
+    ]);
   });
 
   it('delegates the Au fauteuil action with the canonical EN_COURS status', () => {
