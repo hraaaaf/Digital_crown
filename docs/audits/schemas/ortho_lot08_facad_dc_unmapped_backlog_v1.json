@@ -1,0 +1,101 @@
+{
+  "schema_version": "FACAD_DC_UNMAPPED_BACKLOG_V1",
+  "source_mapping_head": "c206e51c09fb41d42c7d851fbc48c016e9fb0c06",
+  "source_mapping_run_id": 37600880912,
+  "rules": {
+    "no_new_equivalence_claims_in_medium": true,
+    "no_runtime_change_in_medium": true,
+    "every_item_requires_high_before_geometry_or_clinical_promotion": true
+  },
+  "profiles": {
+    "Steiner": {
+      "priority": 1,
+      "unmapped": [
+        "Ii-Pog // NB",
+        "Ls-SL",
+        "Li-SL"
+      ]
+    },
+    "Tweed": {
+      "priority": 2,
+      "unmapped": [
+        "Wits",
+        "OL/FH"
+      ]
+    },
+    "McNamara": {
+      "priority": 3,
+      "unmapped": [
+        "Nasolabial",
+        "Ls Cant",
+        "Max-Mand diff",
+        "LAFH",
+        "Is-A",
+        "Ii to A-Pog"
+      ]
+    },
+    "Downs": {
+      "priority": 4,
+      "unmapped": [
+        "Convexity",
+        "A-B plane",
+        "OL/FH",
+        "ILi/OL",
+        "Is to A-Pog"
+      ]
+    },
+    "Ricketts (32 F)": {
+      "priority": 5,
+      "unmapped": [
+        "Molar rel",
+        "Canine rel",
+        "Overjet",
+        "Overbite",
+        "Ii-OL",
+        "LFH",
+        "Ms-PtV",
+        "Ii to A-Pog",
+        "Is to A-Pog",
+        "ILi/A-Pog",
+        "ILs/A-Pog",
+        "Xi-OL",
+        "Xi-PM/OL",
+        "Upper lip len",
+        "STi-OL",
+        "Facial cone angle",
+        "Max depth",
+        "Max hgh",
+        "NL/FH",
+        "CBL/FH",
+        "Cranium ant len",
+        "PFH",
+        "Ramus Xi pos",
+        "Porion pos",
+        "Mand arc",
+        "Mand len"
+      ]
+    }
+  },
+  "totals": {
+    "profiles": 5,
+    "unmapped_items": 42
+  },
+  "medium_closeout": {
+    "status": "READY_FOR_HIGH_REVIEW",
+    "completed": [
+      "official Facad CPH inventory",
+      "conservative Facad-to-DC mapping",
+      "fail-closed mapping validation",
+      "exact unmapped extraction",
+      "priority ordering for review"
+    ],
+    "deferred_to_high": [
+      "scientific equivalence adjudication",
+      "geometry equivalence adjudication",
+      "landmark/construction identity decisions",
+      "new canonical measurement definitions",
+      "norm applicability decisions",
+      "runtime implementation"
+    ]
+  }
+}
