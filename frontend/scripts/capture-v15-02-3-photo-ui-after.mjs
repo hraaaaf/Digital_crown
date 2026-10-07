@@ -75,10 +75,15 @@ async function photoHash() {
 
 async function preparePage(context) {
   const page = await context.newPage();
-  await page.addInitScript(({ access, refresh }) => {
+  await page.addInitScript(({ access, refresh, mobileAccess }) => {
     localStorage.setItem('token', access);
     localStorage.setItem('refresh_token', refresh || '');
-  }, { access: tokens.access_token, refresh: tokens.refresh_token });
+    if (mobileAccess) localStorage.setItem('dc_mobile_cert_token', mobileAccess);
+  }, {
+    access: tokens.access_token,
+    refresh: tokens.refresh_token,
+    mobileAccess: process.env.T2_MOBILE_ACCESS_TOKEN || '',
+  });
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
   await page.route('**/api/appointments/pending', route => json(route, []));
