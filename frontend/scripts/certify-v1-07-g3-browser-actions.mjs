@@ -395,12 +395,17 @@ for(const viewport of viewports){
     await importButton.click();
     importDialog=page.getByRole('dialog',{name:'Import Google Agenda'});
     file=importDialog.locator('input[type="file"]');
+    const importDay=new Date();
+    const y=importDay.getUTCFullYear();
+    const m=String(importDay.getUTCMonth()+1).padStart(2,'0');
+    const d=String(importDay.getUTCDate()).padStart(2,'0');
+    const icsDay=`${y}${m}${d}`;
     const ics=[
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'BEGIN:VEVENT',
-      'DTSTART:20260923T100000Z',
-      'DTEND:20260923T104500Z',
+      'DTSTART:'+icsDay+'T100000Z',
+      'DTEND:'+icsDay+'T104500Z',
       'SUMMARY:'+importName,
       'DESCRIPTION:Import browser certification',
       'END:VEVENT',

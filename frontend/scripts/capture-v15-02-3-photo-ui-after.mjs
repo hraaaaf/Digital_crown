@@ -85,6 +85,7 @@ async function preparePage(context) {
     photo_url: waitingPhotoState === 'photo' ? `/api/patients/${patient.id}/photo` : null,
   }]));
   await page.route(`**/api/patients/${patient.id}/photo`, route => {
+    if (route.request().method() !== 'GET') return route.continue();
     if (waitingPhotoState !== 'photo' || !waitingPhotoBuffer) {
       return route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Photo absente"}' });
     }
