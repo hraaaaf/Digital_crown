@@ -19,6 +19,7 @@ on:
       - "frontend/src/features/agenda/MultiPractitionerTimelineView.tsx"
       - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.tsx"
       - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx"
+      - "frontend/scripts/capture-v15-02-3-photo-ui-after.mjs"
       - ".github/workflows/v15-02-3-photo-ui-after.yml"
   workflow_dispatch:
 
@@ -93,15 +94,7 @@ jobs:
           cat /tmp/v15-02-3-frontend.log; exit 1
       - name: Capture AFTER matrix
         working-directory: frontend
-        run: |
-          node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-3-photo-ui-before.mjs
-          mkdir -p ../artifacts/v15-02-3-photo-ui-after
-          cp -R ../artifacts/v15-02-3-photo-ui-before/. ../artifacts/v15-02-3-photo-ui-after/
-          for file in ../artifacts/v15-02-3-photo-ui-after/before-*.png; do
-            [ -e "$file" ] || continue
-            mv "$file" "${file/before-/after-}"
-          done
-          sed -i 's/before-/after-/g' ../artifacts/v15-02-3-photo-ui-after/evidence.json
+        run: node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-3-photo-ui-after.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
