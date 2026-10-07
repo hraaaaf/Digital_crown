@@ -358,6 +358,17 @@ def create_mobile_patient_canonical(
     }
 
 
+@router.get('/patients/{patient_id}/photo', summary='Photo patient canonique pour session mobile appairée')
+def get_mobile_patient_profile_photo(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(require_mobile_permission("patients")),
+):
+    from backend.routers import patients as _patients
+
+    return _patients.read_patient_profile_photo(patient_id, db, mobile_user)
+
+
 
 _FINANCIAL_NOTIFICATION_PREFIXES = (
     "OVERDUE_PAYMENT",

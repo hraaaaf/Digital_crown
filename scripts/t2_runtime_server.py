@@ -3,7 +3,7 @@ import os
 import sys
 import struct
 import zlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +91,23 @@ with database.SessionLocal() as db:
         db.add(user)
         db.commit()
         db.refresh(user)
+
+    mobile_pairing_token = os.environ.get("T2_MOBILE_PAIRING_TOKEN")
+    if mobile_pairing_token:
+        db.query(models.ZKAPairingToken).filter(
+            models.ZKAPairingToken.token == mobile_pairing_token
+        ).delete(synchronize_session=False)
+        db.add(models.ZKAPairingToken(
+            token=mobile_pairing_token,
+            manual_code=None,
+            employer_id=user.id,
+            user_id=user.id,
+            public_id="t2-photo-cert",
+            master_key="1" * 64,
+            role=models.UserRole.DENTISTE.value,
+            expires_at=datetime.utcnow() + timedelta(minutes=30),
+        ))
+        db.commit()
 
     # The product catalog is tenant-scoped. This isolated runtime creates several
     # root users later, so legacy ownership cannot be inferred safely. Provision

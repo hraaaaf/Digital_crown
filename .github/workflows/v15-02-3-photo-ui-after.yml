@@ -41,6 +41,7 @@ jobs:
       - name: Credential
         run: |
           echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_MOBILE_PAIRING_TOKEN=$(python -c 'import secrets; print(secrets.token_urlsafe(24))')" >> "$GITHUB_ENV"
           echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
       - name: Backend deps
         run: |
@@ -56,7 +57,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Unit tests
         working-directory: frontend
-        run: npx vitest run src/features/patients/components/PatientAvatar.test.tsx src/features/patients/components/PatientPhotoEditor.test.tsx
+        run: npx vitest run src/features/patients/components/PatientAvatar.test.tsx src/features/patients/components/PatientPhotoEditor.test.tsx src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx
       - name: Build frontend
         working-directory: frontend
         run: npm run build
@@ -68,21 +69,15 @@ jobs:
           cat /tmp/v15-02-3-backend.log; exit 1
       - name: Start frontend
         working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
         run: |
           npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-02-3-frontend.log 2>&1 &
           for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
           cat /tmp/v15-02-3-frontend.log; exit 1
       - name: Capture AFTER matrix
         working-directory: frontend
-        run: |
-          node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-3-photo-ui-before.mjs
-          mkdir -p ../artifacts/v15-02-3-photo-ui-after
-          cp -R ../artifacts/v15-02-3-photo-ui-before/. ../artifacts/v15-02-3-photo-ui-after/
-          for file in ../artifacts/v15-02-3-photo-ui-after/before-*.png; do
-            [ -e "$file" ] || continue
-            mv "$file" "${file/before-/after-}"
-          done
-          sed -i 's/before-/after-/g' ../artifacts/v15-02-3-photo-ui-after/evidence.json
+        run: node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-3-photo-ui-after.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

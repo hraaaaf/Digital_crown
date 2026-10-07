@@ -55,6 +55,17 @@ describe('PatientAvatar', () => {
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the paired mobile photo route on /mobile surfaces', async () => {
+    window.history.pushState({}, '', '/mobile/g3-cert');
+    vi.mocked(api.get).mockResolvedValue({ data: new Blob(['jpeg'], { type: 'image/jpeg' }) } as never);
+
+    render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" photoUrl="/api/patients/7/photo" />);
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/mobile/patients/7/photo', expect.objectContaining({ responseType: 'blob' })));
+    await waitFor(() => expect(screen.getByLabelText(/Photo de Sara Benali/)).toBeTruthy());
+    window.history.pushState({}, '', '/');
+  });
+
   it.each([404, 503])('falls back to initials on a %s read failure', async status => {
     vi.mocked(api.get).mockRejectedValue({ response: { status } });
     render(<PatientAvatar patientId={7} firstName="Sara" lastName="Benali" photoUrl="/api/patients/7/photo" />);

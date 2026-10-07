@@ -1,4 +1,5 @@
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { chromium, request } from 'playwright';
 import { enrollT2Workstation } from './t2-workstation-session.mjs';
@@ -18,6 +19,23 @@ if (!login.ok()) {
 }
 const tokens = await login.json();
 const workstationStorage = await enrollT2Workstation(bootstrap, tokens.access_token, password);
+
+const mobilePairingToken = process.env.T2_MOBILE_PAIRING_TOKEN;
+if (mobilePairingToken) {
+  const ecdh = crypto.createECDH('prime256v1');
+  ecdh.generateKeys();
+  const mobileClaim = await bootstrap.post('/api/mobile/claim-token', {
+    data: {
+      token: mobilePairingToken,
+      client_public_key_hex: ecdh.getPublicKey('hex', 'uncompressed'),
+    },
+  });
+  if (!mobileClaim.ok()) {
+    throw new Error(`T2 mobile bootstrap failed: ${mobileClaim.status()}`);
+  }
+  const mobileTokens = await mobileClaim.json();
+  process.env.T2_MOBILE_ACCESS_TOKEN = mobileTokens.access_token;
+}
 await bootstrap.dispose();
 
 const originalRequestNewContext = request.newContext.bind(request);
