@@ -1,0 +1,134 @@
+{
+  "schema_version": "ORTHO_LOT08_STEINER_FACAD_GAP_RESOLUTION_V1",
+  "status": "SOURCE_LOCKED_PARTIAL__IINB_DEPENDENCY_REVIEW_PENDING",
+  "scope": [
+    "Ii-Pog // NB",
+    "Ls-SL",
+    "Li-SL"
+  ],
+  "facad_provenance": {
+    "product": "Facad",
+    "release": "3.14.1.1111",
+    "profile": "Steiner.cph",
+    "official_distribution": "https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe",
+    "gap_probe": {
+      "run_id": 37602332789,
+      "head_sha": "58769d3d8fda913cadf5d614aae83592c38975fa",
+      "artifact_id": 11473615833,
+      "artifact_digest": "sha256:35201612eeb1fd6a90a174fe73a33b676a9d531d7ce1019967cd1c88ab2f5bad"
+    },
+    "sline_probe": {
+      "run_id": 37602712135,
+      "head_sha": "d9dbb247527f38d03b75072d6418381728a40aa6",
+      "artifact_id": 11474115025,
+      "artifact_digest": "sha256:f48cbf19f435674b2e455de2e4fae69fdd2d43481ce03cd5e516cdd99141ab95"
+    }
+  },
+  "external_scientific_support": [
+    {
+      "source": "PMC6066709",
+      "claim": "Steiner S-line is soft-tissue pogonion to columella; upper/lower lip distances are measured to that line.",
+      "authority": "PEER_REVIEWED_SECONDARY_SUPPORT"
+    },
+    {
+      "source": "PMC13526246",
+      "claim": "Steiner S-line joins midpoint of columella to soft-tissue pogonion.",
+      "authority": "PEER_REVIEWED_REVIEW_SUPPORT"
+    },
+    {
+      "source": "PMC4520143",
+      "claim": "Steiner S-line is drawn from soft-tissue pogonion to midpoint of nasal columella.",
+      "authority": "PEER_REVIEWED_INDEPENDENT_SUPPORT"
+    }
+  ],
+  "resolutions": {
+    "Ii-Pog // NB": {
+      "facad_definition": {
+        "calc_type": "Sub",
+        "operands": [
+          "Ii-NB",
+          "Pog-NB"
+        ],
+        "norm": "0±2",
+        "new_geometry": false
+      },
+      "dc_resolution": {
+        "candidate_inputs": [
+          "M_L1_NB_MM_V1",
+          "M_POG_NB_MM_V1"
+        ],
+        "status": "DERIVED_RELATION_PROVEN__DEPENDENCY_GEOMETRY_REVIEW_PENDING",
+        "runtime_formula": "input_1_minus_input_2",
+        "runtime_activation": false,
+        "reason": "Facad proves subtraction semantics, but Ii-NB dependency geometry must be verified before promoting numeric equivalence."
+      }
+    },
+    "Ls-SL": {
+      "facad_definition": {
+        "calc_type": "DistLine",
+        "point": "Ls",
+        "line": "SL",
+        "line_definition": [
+          "PGs",
+          "MS"
+        ],
+        "norm": "0"
+      },
+      "dc_resolution": {
+        "lip_landmark": "Ls_soft",
+        "soft_tissue_pogonion": "Pog_soft",
+        "required_new_identity": "MS_Steiner",
+        "required_construction": "SL_STEINER_POGSOFT_MS_V1",
+        "status": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
+        "runtime_activation": false,
+        "sign_convention": "UNOBSERVED_FOR_FACAD_RUNTIME_PARITY"
+      }
+    },
+    "Li-SL": {
+      "facad_definition": {
+        "calc_type": "DistLine",
+        "point": "Li",
+        "line": "SL",
+        "line_definition": [
+          "PGs",
+          "MS"
+        ],
+        "norm": "0"
+      },
+      "dc_resolution": {
+        "lip_landmark": "Li_soft",
+        "soft_tissue_pogonion": "Pog_soft",
+        "required_new_identity": "MS_Steiner",
+        "required_construction": "SL_STEINER_POGSOFT_MS_V1",
+        "status": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
+        "runtime_activation": false,
+        "sign_convention": "UNOBSERVED_FOR_FACAD_RUNTIME_PARITY"
+      }
+    }
+  },
+  "identities": {
+    "MS_Steiner": {
+      "vendor_definition": "Steiner's S-point (columnella tangent point)",
+      "scientific_support": "midpoint/tangent point of nasal columella used as S-line endpoint",
+      "dc_alias_policy": {
+        "Cm": "FORBIDDEN_UNLESS_EQUIVALENCE_PROVEN",
+        "Sn_soft": "FORBIDDEN",
+        "Prn": "FORBIDDEN"
+      },
+      "acquisition_policy": "EXPLICIT_MANUAL_OR_SOURCE_LOCKED_CONSTRUCTION_ONLY",
+      "current_runtime_status": "MISSING_EXACT_IDENTITY"
+    },
+    "PGs": {
+      "vendor_definition": "Soft tissue Pogonion",
+      "dc_candidate": "Pog_soft",
+      "status": "LABEL_SEMANTIC_MATCH__CHANNEL_IDENTITY_STILL_FAIL_CLOSED"
+    }
+  },
+  "safety_rules": {
+    "no_silent_Cm_alias": true,
+    "no_silent_Sn_alias": true,
+    "no_facad_norm_runtime_classification": true,
+    "no_numeric_parity_claim_without_same_trace_export": true,
+    "missing_MS_must_fail_closed": true
+  }
+}
