@@ -9,7 +9,7 @@ Date: 2026-10-07
 The six previously unmapped rows from Facad `McNamara.cph` are resolved as either canonical geometry matches or explicit vendor variants. No runtime clinical activation is authorized.
 
 ### Canonical geometry matches
-- `Max-Mand diff = Co-Gn - Co-A` -> `M_CO_GN_MINUS_CO_A_MM_V1`.
+- `Max-Mand diff` uses the same subtraction family `Co-Gn - Co-A`, but Facad documents `Co` as **Condyle, posterior point** while Digital Crown `Co_anatomic` is Condylion/posterosuperior. Therefore strict canonical aliasing to `M_CO_GN_MINUS_CO_A_MM_V1` is forbidden until landmark identity is proven.
 - `LAFH = ANS-Me` -> `M_ANS_ME_MM_V1`.
 
 ### Vendor variants that must not be silently promoted
@@ -50,3 +50,10 @@ These are compatibility invariants only. Same-trace numeric parity remains requi
 - `Ii to A-Pog` uses the lower incisor tip `Ii`. Digital Crown already has the edge-based geometry family `M_L1_EDGE_APOG_MM_V1`; that family match is now explicit. It still must **not** alias the strict McNamara facial-surface measure `M_L1_FACIAL_SURFACE_APOG_MM_V1`.
 - Facad `Angle3p` semantics make the first marker the center/apex. Therefore `Nasolabial = Angle3p(SN, MS, Ls)` is locked as center `SN`, with rays `SN->MS` and `SN->Ls`; positive rotation is clockwise. Reordering these markers is forbidden.
 - Same-trace numeric parity remains required before any signed/vendor-compatibility runtime claim.
+
+
+## Condylar identity split
+
+Facad's official landmark guide defines `Co` as **Condyle, posterior point**. Digital Crown's `Co_anatomic` identity is anatomical Condylion/posterosuperior condylar point. The shared label `Co` and shared subtraction structure are insufficient to establish geometric equivalence.
+
+Therefore `Max-Mand diff` is retained as a vendor formula-family match with strict McNamara/Condylion equivalence unproven; no direct alias is allowed.
