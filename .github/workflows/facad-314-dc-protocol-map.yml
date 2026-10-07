@@ -37,6 +37,17 @@ jobs:
           New-Item -ItemType Directory -Force -Path facad-map/release | Out-Null
           & $seven x 'facad-map/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-map/release' -y | Out-Null
 
+      - name: Verify pinned Downs profile bytes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expected = '3415d02e655c5f4cb6b1e0ef466a0f75fa1947f971b3b200568f8f00925625de'
+          $path = 'facad-map/release/Ceph/Downs.cph'
+          if (-not (Test-Path $path)) { throw "Missing expected Facad profile: $path" }
+          $actual = (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant()
+          Write-Host "Downs.cph sha256=$actual"
+          if ($actual -ne $expected) { throw "Downs.cph SHA256 drift: expected $expected got $actual" }
+
       - name: Run conservative protocol mapping
         shell: pwsh
         run: |
