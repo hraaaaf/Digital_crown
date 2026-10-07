@@ -212,39 +212,48 @@
       "resolved_items": [
         {
           "facad_label": "Molar rel",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "Canine rel",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "Overjet",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "Overbite",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "Ii-OL",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__SIGN_MODEL_DIFFERENT__STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "Ii to A-Pog",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "Is to A-Pog",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "ILi/A-Pog",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         },
         {
           "facad_label": "ILs/A-Pog",
-          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+          "resolution": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
         }
       ]
     }
