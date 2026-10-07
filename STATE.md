@@ -4,7 +4,7 @@
 
 # Etat canonique scientifique — 2026-10-07
 
-## LOT08 — Facad Ricketts 32F compatibility disposition — MERGED / POST-MERGE CLOSEOUT PENDING
+## LOT08 — Facad Ricketts 32F compatibility disposition — CLOSED
 
 - Repository: `hraaaaf/Digital_crown`
 - PR: `#775` — MERGED / CLOSED
@@ -29,7 +29,7 @@
 Canonical closeout source:
 - `docs/handovers/2026-10-07-ricketts32-compatibility-closeout.md`
 
-**Next exact:** merge the docs-only post-merge reconciliation PR after its exact-head documentary checks are green; then perform a read-only master coherence check and mark the LOT08 Ricketts 32F compatibility closeout fully closed.
+**Next exact:** open **V1.5-02 — Patient Identity & Photo**, the next canonical lot already identified by the current post-V1 state.
 
 # Etat canonique manuel - 2026-10-01
 
