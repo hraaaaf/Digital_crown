@@ -1,0 +1,148 @@
+name: Facad 3.14 runtime install probe
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-runtime-install-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download and extract official Facad installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path facad-runtime-probe | Out-Null
+          $installer = 'facad-runtime-probe/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-runtime-probe/outer | Out-Null
+          & $seven x $installer '-ofacad-runtime-probe/outer' -y | Out-Null
+          if ($LASTEXITCODE -gt 1) { throw "outer extraction failed: $LASTEXITCODE" }
+          New-Item -ItemType Directory -Force -Path facad-runtime-probe/release | Out-Null
+          & $seven x 'facad-runtime-probe/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-runtime-probe/release' -y | Out-Null
+          if ($LASTEXITCODE -gt 1) { throw "release extraction failed: $LASTEXITCODE" }
+          Get-FileHash $installer -Algorithm SHA256 | Format-List | Out-File facad-runtime-probe/installer-sha256.txt
+
+      - name: Capture installer control files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $names = @('StartMe.bat','FacadInstall.xml','FacadUpdate.xml','Facad.exe.config','eula.xml')
+          foreach ($name in $names) {
+            $p = Join-Path 'facad-runtime-probe/outer' $name
+            if (Test-Path $p) {
+              "===== $name =====" | Add-Content facad-runtime-probe/installer-control-files.txt
+              Get-Content -LiteralPath $p -Raw | Add-Content facad-runtime-probe/installer-control-files.txt
+            } else {
+              "MISSING=$name" | Add-Content facad-runtime-probe/installer-control-files.txt
+            }
+          }
+          Get-Content facad-runtime-probe/installer-control-files.txt
+
+      - name: Inventory runtime executables and candidate sample cases
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem facad-runtime-probe/release -File -Recurse |
+            Where-Object { $_.Extension -in @('.exe','.dll','.config','.xml','.ini','.txt','.fac','.fcd','.fca','.ftr','.jpg','.jpeg','.png','.bmp','.tif','.tiff') } |
+            Select-Object FullName,Length |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-runtime-probe/runtime-inventory.txt -Width 500
+
+          Get-ChildItem facad-runtime-probe/release -File -Recurse |
+            Where-Object {
+              $_.Name -match 'sample|demo|example|case|patient|trace|ceph|facad' -or
+              $_.Extension -in @('.fac','.fcd','.fca','.ftr')
+            } |
+            Select-Object FullName,Length |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-runtime-probe/candidate-cases.txt -Width 500
+
+          Write-Host '=== EXECUTABLES ==='
+          Get-ChildItem facad-runtime-probe/release -File -Recurse -Filter '*.exe' |
+            Select-Object FullName,Length | Format-Table -AutoSize
+          Write-Host '=== CANDIDATE CASES ==='
+          Get-Content facad-runtime-probe/candidate-cases.txt
+
+      - name: Search installer and runtime for install license demo export clues
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $patterns = @(
+            'silent','quiet','unattended','install','license','licence','trial','demo',
+            'FacadInstallationInfo','Analysis Values','Analysis Properties','Marker Positions',
+            'Object Values','Object Properties','export','command line','cmdline','Cephalometry'
+          )
+          $roots = @('facad-runtime-probe/outer','facad-runtime-probe/release')
+          $hits = New-Object System.Collections.Generic.List[string]
+          foreach ($root in $roots) {
+            Get-ChildItem $root -File -Recurse | ForEach-Object {
+              $file = $_
+              if ($file.Length -gt 30MB) { return }
+              try {
+                $bytes = [IO.File]::ReadAllBytes($file.FullName)
+                $texts = @(
+                  [Text.Encoding]::UTF8.GetString($bytes),
+                  [Text.Encoding]::Unicode.GetString($bytes),
+                  [Text.Encoding]::ASCII.GetString($bytes)
+                )
+                foreach ($pattern in $patterns) {
+                  foreach ($text in $texts) {
+                    if ($text.IndexOf($pattern,[StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                      $hits.Add("$pattern | $($file.FullName) | $($file.Length)")
+                      break
+                    }
+                  }
+                }
+              } catch {}
+            }
+          }
+          $hits | Sort-Object -Unique | Set-Content facad-runtime-probe/runtime-clues.txt
+          Get-Content facad-runtime-probe/runtime-clues.txt | Select-Object -First 500
+
+      - name: Probe installer wrapper help without installation
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $exe = Resolve-Path 'facad-runtime-probe/outer/FacadNstaller.exe'
+          foreach ($arg in @('/?','-?','--help','/help')) {
+            "===== ARG $arg =====" | Add-Content facad-runtime-probe/installer-help.txt
+            $p = Start-Process -FilePath $exe -ArgumentList $arg -PassThru -RedirectStandardOutput facad-runtime-probe/help-out.txt -RedirectStandardError facad-runtime-probe/help-err.txt
+            if (-not $p.WaitForExit(10000)) {
+              try { $p.Kill() } catch {}
+              "TIMEOUT" | Add-Content facad-runtime-probe/installer-help.txt
+            } else {
+              "EXIT=$($p.ExitCode)" | Add-Content facad-runtime-probe/installer-help.txt
+            }
+            if (Test-Path facad-runtime-probe/help-out.txt) { Get-Content facad-runtime-probe/help-out.txt | Add-Content facad-runtime-probe/installer-help.txt }
+            if (Test-Path facad-runtime-probe/help-err.txt) { Get-Content facad-runtime-probe/help-err.txt | Add-Content facad-runtime-probe/installer-help.txt }
+          }
+          Get-Content facad-runtime-probe/installer-help.txt
+
+      - name: Upload runtime probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-runtime-install-probe-${{ github.sha }}
+          path: |
+            facad-runtime-probe/installer-sha256.txt
+            facad-runtime-probe/installer-control-files.txt
+            facad-runtime-probe/runtime-inventory.txt
+            facad-runtime-probe/candidate-cases.txt
+            facad-runtime-probe/runtime-clues.txt
+            facad-runtime-probe/installer-help.txt
+          if-no-files-found: error
