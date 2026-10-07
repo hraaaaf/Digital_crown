@@ -482,8 +482,8 @@ for(const viewport of viewports){
   await page.getByText('Contrôle patient',{exact:true}).waitFor({state:'visible',timeout:5000});
 
   const urgentArticle=page.locator('article').filter({hasText:'Paiement en retard'});
-  await urgentArticle.getByRole('button',{name:'Voir finance',exact:true}).click();
-  await page.getByTestId('g3-mobile-navigation').filter({hasText:'navigate:finance'}).waitFor({state:'visible',timeout:5000});
+  await urgentArticle.getByRole('button',{name:'Voir patient',exact:true}).click();
+  await page.getByTestId('g3-mobile-navigation').filter({hasText:'navigate:patients'}).waitFor({state:'visible',timeout:5000});
   prove(viewport,'mobile-notifications-navigation-consequence');
 
   await urgentArticle.getByRole('button',{name:/Lu$/}).click();
