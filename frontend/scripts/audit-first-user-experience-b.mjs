@@ -20,6 +20,7 @@ const personas = [
     allowedPatients: true,
     firstRoute: '/patients',
     firstValueHeading: 'Dossiers Patients',
+    firstActionName: 'Créer un dossier',
   },
   {
     id: 'restricted-secretary',
@@ -28,6 +29,7 @@ const personas = [
     allowedPatients: false,
     firstRoute: '/agenda',
     firstValueHeading: 'Agenda',
+    firstActionName: 'Nouveau RV',
   },
 ];
 
@@ -186,6 +188,8 @@ for (const persona of personas) {
     interactions += 1;
     const firstValueHeading = page.getByRole('heading', { name: persona.firstValueHeading, exact: true });
     await firstValueHeading.waitFor({ state: 'visible', timeout: 15000 });
+    const firstAction = page.getByRole(persona.id === 'secondary-dentist' ? 'link' : 'button', { name: persona.firstActionName, exact: true });
+    await firstAction.waitFor({ state: 'visible', timeout: 15000 });
     const firstValueMs = Date.now() - started;
     await checkpoint('first-business-action', 'FIRST VALUE — première action métier observable');
 
