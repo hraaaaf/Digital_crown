@@ -3,6 +3,7 @@ import { NotificationsView, type MobileAlert } from './views/NotificationsView';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { MobileStorage } from '../../../services/zka/MobileStorage';
 
 const DEFAULT_WAITING_FIXTURE = [
   { id: 9101, patient_id: 101, patient_name: 'Sara BENALI', time: '09:00', motif: 'Détartrage', status: 'EN_ATTENTE', ticket_number: 4 },
@@ -24,7 +25,12 @@ export function MobileG3BrowserCertHarness() {
   const [appointments, setAppointments] = useState(initialAppointments);
 
   useEffect(() => {
+    const certificationToken = localStorage.getItem('token');
+    if (certificationToken) MobileStorage.setBiometricAccessToken(certificationToken);
     void useAuthStore.getState().checkAuth();
+    return () => {
+      MobileStorage.clearBiometricAccessToken();
+    };
   }, []);
 
   const [error, setError] = useState<string | null>(null);
