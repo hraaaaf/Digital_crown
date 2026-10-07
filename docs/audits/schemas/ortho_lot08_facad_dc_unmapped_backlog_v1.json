@@ -190,15 +190,7 @@
     },
     "Ricketts (32 F)": {
       "priority": 5,
-      "unmapped": [
-        "Xi-OL",
-        "Xi-PM/OL",
-        "Upper lip len",
-        "STi-OL",
-        "Facial cone angle",
-        "Mand arc",
-        "Mand len"
-      ],
+      "unmapped": [],
       "resolved_items": [
         {
           "facad_label": "Molar rel",
@@ -294,13 +286,48 @@
           "facad_label": "Porion pos",
           "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__PTV_ANCHOR_AND_SIGN_PARITY_GATED",
           "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Xi-OL",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN__SIGN_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Xi-PM/OL",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__PM_AUTHORITY_AND_ANGLE_PRESENTATION_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Upper lip len",
+          "resolution": "FACAD_VENDOR_STOMION_SUPERIOR_VARIANT__ATLAS_COMMISSURE_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "STi-OL",
+          "resolution": "FACAD_VENDOR_STOMION_INFERIOR_PLUS_OCCLUSAL_LINE_VARIANT__COMMISSURE_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Facial cone angle",
+          "resolution": "FACAD_GENERIC_GO_ME_MANDIBULAR_PLANE_VARIANT__RICKETTS_SOURCE_LOCKED_MP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Mand arc",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__DC_PM_XI_AUTHORITY_AND_ANGLE_PRESENTATION_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Mand len",
+          "resolution": "FACAD_PM_PRIME_INTERSECTION_VARIANT__RICKETTS_XI_PM_CORPUS_LENGTH_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
         }
       ]
     }
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 7
+    "unmapped_items": 0
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -385,24 +412,25 @@
       "documentation": "docs/handovers/2026-09-11-cephalo-r7-wits-downs-scientific-gate.md"
     },
     "Ricketts (32 F)": {
-      "status": "IN_PROGRESS__DENTAL_VERTICAL_FH_PTV_CRANIAL_CLUSTERS_SOURCE_LOCKED__RUNTIME_GATED",
+      "status": "COMPATIBILITY_DISPOSITION_COMPLETE__RUNTIME_GATED",
       "original_unmapped": 26,
-      "resolved_in_current_cluster": 5,
-      "remaining_unmapped": 7,
+      "resolved_in_current_cluster": 7,
+      "remaining_unmapped": 0,
       "runtime_blockers": [
         "Facad OL is an incisor-midpoint vendor line and must not alias the source-locked Ricketts functional occlusal plane",
-        "same-trace signed/presentation parity remains required for previously dispositioned dental and FH rows",
-        "Facad Pt must not alias DC PR_Ricketts_PTV without identity proof",
-        "Facad Ms-d must not alias DC Ricketts A6/U6_DISTAL_Ricketts without identity proof",
-        "Facad direct Gn must not alias DC constructed Ricketts Gn",
-        "Facad generic Go must not alias DC GO_Ricketts_PFH",
+        "Facad STs/STi are Stomion landmarks and must not alias the Atlas/DC labial commissure",
+        "Facad generic Go-Me mandibular plane must not alias the source-locked Ricketts mandibular plane",
+        "Facad DC labelled 'Centre of condyle' must not alias DC_Ricketts without condylar-neck identity proof",
+        "Facad PM' is an A-Pog/Xi-PM intersection and must not alias Pm_Ricketts",
+        "same-trace numeric/sign/angle presentation parity remains required where explicitly gated",
         "Facad norms remain non-authoritative"
       ],
-      "resolved_total": 19,
+      "resolved_total": 26,
       "sources": [
         "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json",
         "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json",
-        "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json",
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
       ]
     }
   }
