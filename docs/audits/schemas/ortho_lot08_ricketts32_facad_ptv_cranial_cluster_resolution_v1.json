@@ -15,7 +15,8 @@
     "reverse_run_id": 37595714768,
     "artifact_id": 11469783515,
     "artifact_digest": "sha256:812b39f6effad24cf7e3cd95f71089207da68a594dce5e15a4ba2d7f014c9bd5",
-    "profile_sha256": "d0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518"
+    "profile_sha256": "d0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518",
+    "reference_manual": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf"
   },
   "facad_markers": {
     "P": "Porion",
