@@ -34,6 +34,14 @@ class McNamaraFacadGapContractTests(unittest.TestCase):
     def test_signed_lower_incisor_vendor_semantics_are_preserved(self):
         self.assertTrue(self.data['resolutions']['Ii to A-Pog']['facad']['changeRightLeft'])
         self.assertTrue(self.data['safety_rules']['preserve_facad_changeRightLeft_for_ii_apog'])
+        self.assertEqual(self.data['resolutions']['Ii to A-Pog']['facad']['argument_order'], ['Pog','A','Ii'])
+        self.assertTrue(self.data['safety_rules']['preserve_facad_ii_apog_argument_order'])
+
+    def test_is_a_projection_order_is_preserved(self):
+        row = self.data["resolutions"]["Is-A"]["facad"]
+        self.assertEqual(row["argument_order"], ["FH","A","Is"])
+        self.assertEqual(row["projection_vector_order"], ["A","Is"])
+        self.assertTrue(self.data["safety_rules"]["preserve_facad_is_a_argument_order"])
 
     def test_runtime_and_norms_remain_gated(self):
         self.assertTrue(self.data['safety_rules']['no_runtime_activation_in_this_lot'])
