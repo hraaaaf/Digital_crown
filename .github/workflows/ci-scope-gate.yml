@@ -30,6 +30,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          shopt -s nocasematch
 
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/changed.txt
@@ -37,7 +38,6 @@ jobs:
             git diff --name-only HEAD^ HEAD > /tmp/changed.txt || true
           fi
 
-          classify=false
           frontend=false
           backend=false
           browser=false
@@ -51,7 +51,6 @@ jobs:
 
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
-            classify=true
             case "$file" in
               frontend/*) frontend=true ;;
             esac
@@ -62,7 +61,7 @@ jobs:
               frontend/scripts/*|frontend/src/*|frontend/src/**/*) browser=true ;;
             esac
             case "$file" in
-              frontend/src/**/*|frontend/public/*|frontend/public/**/*) visual=true ;;
+              frontend/src/*|frontend/src/**/*|frontend/public/*|frontend/public/**/*) visual=true ;;
             esac
             case "$file" in
               *cephalo*|*ortho*|*pharmacology*|*scientific*) scientific=true ;;
