@@ -55,7 +55,7 @@ jobs:
             [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
             [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
           }
-"@
+          "@
           $exe=(Resolve-Path 'facad-launch/release/Facad/Facad.exe').Path
           $case=(Resolve-Path 'facad-launch/release/Examples/Robert-2.0.fcd').Path
           $before=Get-Date
