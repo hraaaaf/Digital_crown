@@ -82,6 +82,10 @@
         "ANB": {
           "dc_id": "M_ANB_DEG_V1",
           "status": "DIRECT_CANONICAL_MATCH"
+        },
+        "Z": {
+          "dc_id": "M_MERRIFIELD_Z_FH_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
         }
       }
     },
