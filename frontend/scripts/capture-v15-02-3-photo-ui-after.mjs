@@ -140,6 +140,10 @@ async function assertAvatarState(page, state) {
 
 async function assertSurfaces(page, expectedState, viewportLabel, phase) {
   const shots = [];
+  waitingPhotoState = expectedState;
+  waitingPhotoBuffer = expectedState === 'photo'
+    ? await (await api.get(`/api/patients/${patient.id}/photo`, { headers })).body()
+    : null;
   await page.goto('http://127.0.0.1:5173/patients', { waitUntil: 'networkidle', timeout: 90000 });
   const patientEntry = page.locator('[role="button"]').filter({ hasText: fullName }).first();
   await patientEntry.waitFor({ state: 'visible', timeout: 30000 });
@@ -178,10 +182,6 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
     if (await close.count()) await close.click();
   }
 
-  waitingPhotoState = expectedState;
-  waitingPhotoBuffer = expectedState === 'photo'
-    ? await (await api.get(`/api/patients/${patient.id}/photo`, { headers })).body()
-    : null;
   const waitingUrl = `http://127.0.0.1:5173/mobile/g3-cert?demo=1&tab=waiting-room&patientId=${patient.id}&patientName=${encodeURIComponent(fullName)}&ticket=23`;
   await page.goto(waitingUrl, { waitUntil: 'networkidle', timeout: 90000 });
   await page.locator('[data-mob5i-waiting-room]').waitFor({ state: 'visible', timeout: 30000 });

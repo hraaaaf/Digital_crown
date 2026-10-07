@@ -422,7 +422,7 @@ for(const viewport of viewports){
     await page.getByText(importName,{exact:true}).filter({visible:true}).first().waitFor({state:'visible',timeout:10000});
     prove(viewport,'agenda-import-success-persistence-visible',{appointmentId:imported.id});
 
-    const cleanup=await api.delete('/api/appointments/'+imported.id,{headers});
+    const cleanup=await page.context().request.delete('http://127.0.0.1:8005/api/appointments/'+imported.id,{headers});
     if(!cleanup.ok()) throw new Error('agenda ICS cleanup delete failed');
     const afterCleanup=await listAppointments(page);
     if(afterCleanup.some(x=>x.id===imported.id)) throw new Error('agenda ICS cleanup did not remove appointment');
