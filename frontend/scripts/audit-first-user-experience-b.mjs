@@ -19,7 +19,7 @@ const personas = [
     expectedRole: 'DENTISTE',
     allowedPatients: true,
     firstRoute: '/patients',
-    firstValue: /CERTIFICATION|Patients/i,
+    firstValueHeading: 'Dossiers Patients',
   },
   {
     id: 'restricted-secretary',
@@ -27,7 +27,7 @@ const personas = [
     expectedRole: 'SECRETAIRE',
     allowedPatients: false,
     firstRoute: '/agenda',
-    firstValue: /Agenda/i,
+    firstValueHeading: 'Agenda',
   },
 ];
 
@@ -183,11 +183,8 @@ for (const persona of personas) {
 
     await page.goto(baseURL + persona.firstRoute, { waitUntil: 'domcontentloaded', timeout: 30000 });
     interactions += 1;
-    await page.waitForTimeout(700);
-    const firstValueText = await page.locator('body').innerText();
-    if (!persona.firstValue.test(firstValueText)) {
-      throw new Error(label + ': first useful route did not expose expected business value at ' + persona.firstRoute);
-    }
+    const firstValueHeading = page.getByRole('heading', { name: persona.firstValueHeading, exact: true });
+    await firstValueHeading.waitFor({ state: 'visible', timeout: 15000 });
     const firstValueMs = Date.now() - started;
     await checkpoint('first-business-action', 'FIRST VALUE — première action métier observable');
 
