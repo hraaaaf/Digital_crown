@@ -1,0 +1,22 @@
+name: Facad Tweed gap contract
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-tweed-gap-contract.yml
+      - docs/audits/schemas/ortho_lot08_tweed_facad_gap_resolution_v1.json
+      - backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run self-contained contract tests
+        run: python backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py
