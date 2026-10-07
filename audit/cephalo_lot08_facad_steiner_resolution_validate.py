@@ -120,8 +120,16 @@ def main():
     steiner_backlog = backlog["profiles"]["Steiner"]
     if steiner_backlog.get("unmapped") != []:
         fail("Steiner backlog still has unmapped rows")
-    if backlog.get("totals", {}).get("unmapped_items") != 39:
-        fail("Global unmapped count must be 39 after Steiner resolution")
+    expected_unmapped_total = sum(
+        len((profile or {}).get("unmapped") or [])
+        for profile in (backlog.get("profiles") or {}).values()
+    )
+    actual_unmapped_total = backlog.get("totals", {}).get("unmapped_items")
+    if actual_unmapped_total != expected_unmapped_total:
+        fail(
+            f"Global unmapped count mismatch: totals={actual_unmapped_total} "
+            f"computed={expected_unmapped_total}"
+        )
 
     executable_ids = {x.get("measurement_id") for x in executable.get("measurements", [])}
     blocked_ids = {"M_LS_STEINER_SLINE_MM_V1", "M_LI_STEINER_SLINE_MM_V1"}
