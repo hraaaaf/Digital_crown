@@ -7,6 +7,7 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const apiLogin=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
 if(!apiLogin.ok()) throw new Error('G1 API login failed');
 const apiTokens=await apiLogin.json();
+await enrollT2Workstation(api,apiTokens.access_token,password);
 const apiHeaders={Authorization:'Bearer '+apiTokens.access_token};
 
 const browser=await chromium.launch({headless:true});
