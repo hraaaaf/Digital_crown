@@ -49,6 +49,32 @@
       "doi": "10.1016/0002-9416(48)90015-3",
       "pubmed": "https://pubmed.ncbi.nlm.nih.gov/18882558/",
       "role": "PRIMARY_DOWNS_AUTHORITY"
+    },
+    "wits_functional_plane_corrobation": {
+      "sources": [
+        {
+          "id": "PMC4072364",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4072364/",
+          "claim": "Peer-reviewed description of Jacobson Wits functional occlusal plane through first-molar mesiobuccal cusp overlap and first-premolar buccal cusps."
+        },
+        {
+          "id": "THAYER_1990",
+          "pubmed": "https://pubmed.ncbi.nlm.nih.gov/2333856/",
+          "doi": "10.1016/0889-5406(90)70114-R",
+          "claim": "Functional and bisected occlusal planes produce materially different Wits appraisals; plane choice is not interchangeable."
+        }
+      ],
+      "conclusion": "Facad OL using incisor midpoint OLa is a vendor bisected-plane variant and must not be claimed as strict Jacobson functional-plane parity."
+    },
+    "downs_occlusal_cant_corrobation": {
+      "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3059215/",
+      "claim": "Peer-reviewed reconstruction of original Downs occlusal-plane-to-FH norm; occlusal plane bisects posterior molar occlusion and incisal overbite.",
+      "conclusion": "Facad OL/FH belongs to the same bisected occlusal-cant family, but exact strict Downs parity remains unproven because OLp is only a manual vendor marker in inspected evidence."
+    },
+    "tweed_triangle_corrobation": {
+      "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8402232/",
+      "claim": "Peer-reviewed description of Tweed diagnostic triangle as FMA, FMIA and IMPA formed by Frankfort, mandibular plane and lower-incisor axis.",
+      "conclusion": "Wits and OL/FH membership in Facad Tweed.cph is vendor-profile compatibility evidence, not historical Tweed-core authority."
     }
   },
   "facad_constructions": {
