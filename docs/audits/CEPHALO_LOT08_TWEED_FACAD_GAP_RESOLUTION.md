@@ -63,3 +63,12 @@ Before either Facad-compatible row can execute:
 - `Wits`: `FACAD_VENDOR_VARIANT_SOURCE_LOCKED__JACOBSON_STRICT_EQUIVALENCE_FORBIDDEN`.
 - `OL/FH`: `FACAD_VENDOR_OCCLUSAL_CANT_SOURCE_LOCKED__DOWNS_STRICT_EQUIVALENCE_UNPROVEN`.
 - Both: no runtime activation in this lot.
+
+## Orientation/sign invariant
+
+The CPH argument order is semantically preserved:
+
+- `OL = Line(OLp, OLa)` and therefore has vendor direction `OLp -> OLa`;
+- `Wits = ProjLine(OL, B, A)`, so the projected displacement is ordered `B -> A`.
+
+These orders must not be normalized, alphabetically reordered, or silently reversed. A reversal can flip the sign of the projected Wits value. Direct same-trace numeric parity remains required before runtime compatibility is claimed.
