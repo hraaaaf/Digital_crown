@@ -10,6 +10,7 @@ SCRIPT = "audit/cephalo_lot08_facad_dc_map.py"
 ROOT = Path(__file__).resolve().parents[2]
 BACKLOG = ROOT / "docs" / "audits" / "schemas" / "ortho_lot08_facad_dc_unmapped_backlog_v1.json"
 WORKFLOW = ROOT / ".github" / "workflows" / "facad-314-dc-protocol-map.yml"
+STEINER_VALIDATOR = ROOT / "audit" / "cephalo_lot08_facad_steiner_resolution_validate.py"
 
 
 def _run(tmp_path, ceph_xml, registry, contract, protocol_profile=None):
@@ -169,6 +170,18 @@ class DownsFacadHighReviewContractTests(unittest.TestCase):
         )
         self.assertIn("Get-FileHash -Algorithm SHA256", workflow)
         self.assertIn("Downs.cph SHA256 drift", workflow)
+
+
+class HarnessIsolationRegressionTests(unittest.TestCase):
+    def test_steiner_validator_runs_without_backend_package_dependencies(self):
+        proc = subprocess.run(
+            [sys.executable, str(STEINER_VALIDATOR)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("STEINER_FACAD_GAP_RESOLUTION=PASS", proc.stdout)
 
 
 if __name__ == "__main__":
