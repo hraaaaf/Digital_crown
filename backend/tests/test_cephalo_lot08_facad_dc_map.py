@@ -114,11 +114,12 @@ class DownsFacadHighReviewContractTests(unittest.TestCase):
         cls.downs = cls.data["profiles"]["Downs"]
         cls.rows = {row["facad_label"]: row for row in cls.downs["resolved_items"]}
 
-    def test_downs_five_gaps_are_dispositioned_and_global_backlog_is_26(self):
+    def test_downs_five_gaps_are_dispositioned_and_global_backlog_reflects_ricketts_progress(self):
         self.assertEqual(self.downs["unmapped"], [])
         self.assertEqual(set(self.rows), {"Convexity", "A-B plane", "OL/FH", "ILi/OL", "Is to A-Pog"})
         self.assertEqual(self.data["high_review_progress"]["Downs"]["remaining_unmapped"], 0)
-        self.assertEqual(self.data["totals"]["unmapped_items"], 26)
+        self.assertEqual(self.data["totals"]["unmapped_items"], 17)
+        self.assertEqual(self.data["high_review_progress"]["Ricketts (32 F)"]["remaining_unmapped"], 17)
 
     def test_downs_convexity_and_ab_plane_remain_signed_parity_gated(self):
         convexity = self.rows["Convexity"]
