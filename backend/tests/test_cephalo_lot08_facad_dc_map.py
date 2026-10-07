@@ -9,6 +9,7 @@ from pathlib import Path
 SCRIPT = "audit/cephalo_lot08_facad_dc_map.py"
 ROOT = Path(__file__).resolve().parents[2]
 BACKLOG = ROOT / "docs" / "audits" / "schemas" / "ortho_lot08_facad_dc_unmapped_backlog_v1.json"
+WORKFLOW = ROOT / ".github" / "workflows" / "facad-314-dc-protocol-map.yml"
 
 
 def _run(tmp_path, ceph_xml, registry, contract, protocol_profile=None):
@@ -158,6 +159,16 @@ class DownsFacadHighReviewContractTests(unittest.TestCase):
             "3415d02e655c5f4cb6b1e0ef466a0f75fa1947f971b3b200568f8f00925625de",
         )
         self.assertEqual(evidence["facad_profile_measurement_count"], 10)
+
+    def test_downs_workflow_fails_closed_on_profile_sha_drift(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Verify pinned Downs profile bytes", workflow)
+        self.assertIn(
+            "3415d02e655c5f4cb6b1e0ef466a0f75fa1947f971b3b200568f8f00925625de",
+            workflow,
+        )
+        self.assertIn("Get-FileHash -Algorithm SHA256", workflow)
+        self.assertIn("Downs.cph SHA256 drift", workflow)
 
 
 if __name__ == "__main__":
