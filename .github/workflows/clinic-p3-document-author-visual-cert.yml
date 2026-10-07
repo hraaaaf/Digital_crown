@@ -1,12 +1,6 @@
 name: Clinic P3 Document Author Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/admin/DocumentStudio/StudioHeader.tsx"
-      - "frontend/src/features/admin/DocumentStudio/DocumentAuthorSelection.ts"
-      - "frontend/src/features/admin/DocumentStudio/DocumentAuthorSelection.test.ts"
-      - ".github/workflows/clinic-p3-document-author-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

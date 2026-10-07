@@ -1,12 +1,6 @@
 name: V1-07 G4 Treasury Guard AFTER
 
 on:
-  pull_request:
-    paths:
-      - "frontend/scripts/certify-v1-07-g4-treasury-partial-guard-after.mjs"
-      - ".github/workflows/v1-07-g4-treasury-guard-after.yml"
-      - "frontend/src/features/admin/AccountingStudio.tsx"
-      - "frontend/src/features/admin/AccountingStudioLegacy.tsx"
   workflow_dispatch:
 
 concurrency:

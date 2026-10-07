@@ -1,16 +1,6 @@
 name: Patient Companion D1 backend security
 
 on:
-  push:
-    branches:
-      - feat/patient-companion-d1-ui
-    paths:
-      - '.github/workflows/patient-companion-d1-backend.yml'
-      - 'backend/routers/patient_companion*.py'
-      - 'backend/models_patient_companion.py'
-      - 'backend/services/firebase_patient_auth.py'
-      - 'backend/tests/test_patient_companion*.py'
-      - 'frontend/src/patient-companion/**'
   workflow_dispatch:
 
 concurrency:

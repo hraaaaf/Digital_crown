@@ -1,16 +1,6 @@
 name: Mobile Documents MOB-5F Cert
 
 on:
-  push:
-    branches: [ux/mobile-documents-mob5f]
-    paths:
-      - backend/routers/mobile_patient_cockpit.py
-      - frontend/src/features/mobile/Dashboard/views/MobilePatientsView.tsx
-      - frontend/src/features/mobile/Dashboard/views/MobilePatientsView.test.tsx
-      - frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.tsx
-      - frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.test.tsx
-      - frontend/scripts/capture-mobile-documents-mob5f-after.mjs
-      - .github/workflows/mobile-documents-mob5f-cert.yml
   workflow_dispatch:
 
 concurrency:

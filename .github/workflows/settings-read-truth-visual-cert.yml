@@ -1,13 +1,6 @@
 name: Settings Read Truth Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/admin/Settings/tabs/AgendaTab.tsx"
-      - "frontend/src/features/admin/Settings/tabs/CatalogTab.tsx"
-      - "frontend/src/features/admin/Settings/hooks/useCatalogStore.ts"
-      - "frontend/src/features/admin/Settings/components/SharedUI.tsx"
-      - ".github/workflows/settings-read-truth-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

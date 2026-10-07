@@ -2,13 +2,6 @@ name: Cephalo R15 BEFORE
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feat/cephalo-r15-clinical-studio-ux
-    paths:
-      - 'frontend/scripts/capture-cephalo-r15-before.mjs'
-      - '.github/workflows/cephalo-r15-before.yml'
-
 permissions:
   contents: read
 

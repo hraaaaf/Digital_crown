@@ -1,13 +1,7 @@
 name: CUST-05 Stock Lab Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - ".github/workflows/cust-05-stock-lab-visual.yml"
-      - "frontend/src/components/LabJobsBoard.tsx"
-      - "docs/customization/CUST_05_STOCK_LAB_GOAL.md"
-
+  workflow_dispatch:
 permissions:
   contents: read
 

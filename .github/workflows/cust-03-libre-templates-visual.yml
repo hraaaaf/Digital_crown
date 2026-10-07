@@ -1,14 +1,7 @@
 name: CUST-03 Document Libre Templates Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - ".github/workflows/cust-03-libre-templates-visual.yml"
-      - "frontend/src/features/admin/DocumentStudio/Forms/LibreForm.tsx"
-      - "frontend/src/features/admin/DocumentStudio/Forms/LibreTemplatePresets.cust03.test.tsx"
-      - "docs/customization/CUST_03_USER_TEMPLATES_GOAL.md"
-
+  workflow_dispatch:
 permissions:
   contents: read
 

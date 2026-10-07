@@ -1,13 +1,6 @@
 name: V1.5-04.1 Eligibility Engine Proof
 
 on:
-  push:
-    branches:
-      - feat/v1-5-04-1-eligibility-engine
-    paths:
-      - "backend/services/station_document_eligibility.py"
-      - "backend/tests/test_station_document_eligibility_v15.py"
-      - ".github/workflows/v15-04-1-eligibility-engine-proof.yml"
   workflow_dispatch:
 
 permissions:

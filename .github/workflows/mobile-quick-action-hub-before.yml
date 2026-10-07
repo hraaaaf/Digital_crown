@@ -1,10 +1,6 @@
 name: Mobile Quick Action Hub BEFORE
 
 on:
-  push:
-    branches: [ux/mobile-quick-action-hub-mob3]
-    paths:
-      - .github/workflows/mobile-quick-action-hub-before.yml
   workflow_dispatch:
 
 concurrency:

@@ -1,18 +1,6 @@
 name: Settings Guided Restore AFTER
 
 on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'frontend/src/features/admin/Settings/tabs/SecurityTab.tsx'
-      - 'backend/services/guided_restore.py'
-      - 'backend/services/guided_restore_archive.py'
-      - 'backend/services/guided_restore_worker.py'
-      - 'backend/routers/admin.py'
-      - 'backend/tests/test_guided_restore.py'
-      - 'run.py'
-      - '.github/workflows/settings-guided-restore-after.yml'
   workflow_dispatch:
 
 permissions:

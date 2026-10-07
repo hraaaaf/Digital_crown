@@ -1,12 +1,7 @@
 name: Document History Actions Visual Certification
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/patients/PatientDocuments.tsx'
-      - '.github/workflows/document-history-actions-visual-cert.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

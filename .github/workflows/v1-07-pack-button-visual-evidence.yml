@@ -1,17 +1,7 @@
 name: V1-07 Pack Button Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/v1-07-pack-button-visual-evidence.yml
-      - frontend/pack-button-audit.html
-      - frontend/src/preview/PackButtonAuditEntry.tsx
-      - frontend/scripts/capture-pack-button-audit.mjs
-      - frontend/src/features/admin/TeamManager.tsx
-      - frontend/src/features/superadmin/SuperAdminDashboard.tsx
-      - docs/ux/V1_07_PACK_BUTTON_STATES_GOAL_UI.md
-
+  workflow_dispatch:
 concurrency:
   group: v1-07-pack-button-visual-${{ github.ref }}
   cancel-in-progress: true

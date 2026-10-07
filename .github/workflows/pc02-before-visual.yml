@@ -1,15 +1,7 @@
 name: PC-02 BEFORE Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc02-before-visual.yml
-      - frontend/scripts/capture-pc02-before.mjs
-      - frontend/src/features/patient-companion/**
-      - docs/ux/PC_01_PATIENT_WALLET_TARGET.md
-      - docs/clinic/patient_companion/**
-
+  workflow_dispatch:
 concurrency:
   group: pc02-agenda-before-${{ github.ref }}
   cancel-in-progress: true

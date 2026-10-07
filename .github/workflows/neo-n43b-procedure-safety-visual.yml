@@ -1,19 +1,6 @@
 name: Neo N4.3B Procedure Safety Visual Proof
 
 on:
-  pull_request:
-    paths:
-      - 'frontend/src/features/admin/DocumentStudio/Forms/ProcedureSafetyNotice.tsx'
-      - 'frontend/src/features/admin/DocumentStudio/Forms/ProcedureSafetyNotice.test.tsx'
-      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
-      - 'frontend/scripts/certify-neo-n43b-procedure-safety-visual.mjs'
-      - 'frontend/scripts/certify-neo-dol-quick-search.mjs'
-      - 'backend/services/prescription_procedure_safety.py'
-      - 'backend/routers/prescriptions.py'
-      - 'backend/routers/patient_clinical_context.py'
-      - 'backend/schemas/patient_clinical_context.py'
-      - 'alembic/versions/neo000000025_add_procedure_safety_context.py'
-      - '.github/workflows/neo-n43b-procedure-safety-visual.yml'
   workflow_dispatch:
 
 jobs:

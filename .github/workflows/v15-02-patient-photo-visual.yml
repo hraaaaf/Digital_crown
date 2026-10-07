@@ -1,14 +1,6 @@
 name: V1.5-02 Patient Photo Visual Evidence
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/patients/EditPatientForm.tsx"
-      - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
-      - "frontend/src/features/patients/components/PatientPhotoEditor.test.tsx"
-      - "frontend/scripts/capture-v15-02-patient-photo-before.mjs"
-      - "frontend/scripts/capture-v15-02-patient-photo-after.mjs"
-      - ".github/workflows/v15-02-patient-photo-visual.yml"
   workflow_dispatch:
 
 concurrency:

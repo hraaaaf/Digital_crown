@@ -1,12 +1,6 @@
 name: Settings Audit Read Truth Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/admin/Security/AuditLogViewer.tsx"
-      - "frontend/src/features/admin/Security/AuditLogViewer.test.tsx"
-      - "frontend/src/features/admin/Settings/components/SharedUI.tsx"
-      - ".github/workflows/settings-audit-read-truth-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

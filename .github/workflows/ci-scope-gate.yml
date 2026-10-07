@@ -1,0 +1,105 @@
+name: CI Scope Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-scope-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    name: Classify change scope
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/changed.txt
+          else
+            git diff --name-only HEAD^ HEAD > /tmp/changed.txt || true
+          fi
+
+          classify=false
+          frontend=false
+          backend=false
+          browser=false
+          visual=false
+          scientific=false
+          patient=false
+          mobile=false
+          settings=false
+          data=false
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            classify=true
+            case "$file" in
+              frontend/*) frontend=true ;;
+            esac
+            case "$file" in
+              backend/*) backend=true ;;
+            esac
+            case "$file" in
+              frontend/scripts/*|frontend/src/*|frontend/src/**/*) browser=true ;;
+            esac
+            case "$file" in
+              frontend/src/**/*|frontend/public/*|frontend/public/**/*) visual=true ;;
+            esac
+            case "$file" in
+              *cephalo*|*ortho*|*pharmacology*|*scientific*) scientific=true ;;
+            esac
+            case "$file" in
+              *patient*|*patients*) patient=true ;;
+            esac
+            case "$file" in
+              *mobile*|frontend/src/features/mobile/*|frontend/src/features/mobile/**/*) mobile=true ;;
+            esac
+            case "$file" in
+              *settings*|*clinic*|*team*|*rbac*) settings=true ;;
+            esac
+            case "$file" in
+              backend/alembic/*|backend/alembic/**/*|*migration*|*schema*|*postgres*) data=true ;;
+            esac
+          done < /tmp/changed.txt
+
+          {
+            echo "## CI scope gate"
+            echo
+            echo "No heavy certification is dispatched automatically."
+            echo
+            echo "| Scope | Relevant |"
+            echo "| --- | --- |"
+            echo "| frontend | $frontend |"
+            echo "| backend | $backend |"
+            echo "| browser/runtime | $browser |"
+            echo "| visual | $visual |"
+            echo "| scientific/clinical | $scientific |"
+            echo "| patient | $patient |"
+            echo "| mobile | $mobile |"
+            echo "| settings/RBAC | $settings |"
+            echo "| data/migration | $data |"
+            echo
+            echo "### Changed files"
+            sed 's/^/- `/; s/$/`/' /tmp/changed.txt
+            echo
+            echo "### Decision rule"
+            echo "Run only the manual workflow(s) whose scope is demonstrated above. Full matrices are reserved for explicit closeout/release."
+          } >> "$GITHUB_STEP_SUMMARY"

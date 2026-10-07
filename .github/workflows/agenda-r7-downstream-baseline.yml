@@ -1,10 +1,7 @@
 name: Agenda R7 Downstream Visual Baseline
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/agenda-r7-downstream-baseline.yml"
-
+  workflow_dispatch:
 permissions:
   contents: read
 

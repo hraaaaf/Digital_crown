@@ -1,26 +1,6 @@
 name: V1-07 Truth Safety Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/v1-07-truth-safety-visual-evidence.yml
-      - frontend/truth-safety-audit.html
-      - frontend/src/preview/TruthSafetyAuditEntry.tsx
-      - frontend/scripts/capture-truth-safety-audit.mjs
-      - frontend/src/pages/LicenseStatusPage.tsx
-      - frontend/src/pages/StockPage.tsx
-      - docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md
-  push:
-    branches: [master]
-    paths:
-      - .github/workflows/v1-07-truth-safety-visual-evidence.yml
-      - frontend/truth-safety-audit.html
-      - frontend/src/preview/TruthSafetyAuditEntry.tsx
-      - frontend/scripts/capture-truth-safety-audit.mjs
-      - frontend/src/pages/LicenseStatusPage.tsx
-      - frontend/src/pages/StockPage.tsx
-      - docs/ux/V1_07_G6_G7_TRUTH_SAFETY_GOAL_UI.md
   workflow_dispatch:
 
 permissions:

@@ -1,21 +1,6 @@
 name: V1.5-03.3 Patient Session QR NFC Visual Gate
 
 on:
-  push:
-    branches:
-      - feat/v1-5-03-3-patient-session-qr-nfc
-  pull_request:
-    branches: [master]
-    paths:
-      - "frontend/src/features/hub/StationKioskShell.tsx"
-      - "frontend/src/features/hub/StationPatientIdentity.tsx"
-      - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
-      - "frontend/src/features/hub/WorkstationIdentityPanel.tsx"
-      - "frontend/src/features/hub/WorkstationIdentityPanel.test.tsx"
-      - "frontend/src/services/stationPatientSession.ts"
-      - "frontend/src/test/v15StationPatientSessionContract.test.ts"
-      - "frontend/scripts/capture-v15-03-3-patient-session.mjs"
-      - ".github/workflows/v15-03-3-patient-session-visual.yml"
   workflow_dispatch:
 
 concurrency:

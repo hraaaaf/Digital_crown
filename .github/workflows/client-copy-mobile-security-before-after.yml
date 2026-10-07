@@ -1,12 +1,7 @@
 name: Client Copy Mobile Security BEFORE AFTER
 
 on:
-  pull_request:
-    paths:
-      - 'frontend/src/features/mobile/Dashboard/views/SecuriteView.tsx'
-      - 'frontend/src/ClientFacingCopyCandidateAudit.test.ts'
-      - '.github/workflows/client-copy-mobile-security-before-after.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

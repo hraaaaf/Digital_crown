@@ -1,14 +1,7 @@
 name: Settings Agenda R7 Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/settings-agenda-r7-visual-cert.yml"
-      - "frontend/src/features/admin/Settings/tabs/AgendaTab.tsx"
-      - "backend/routers/agenda_settings.py"
-      - "backend/schemas/agenda.py"
-      - "frontend/src/test/agendaR7Truth.test.ts"
-
+  workflow_dispatch:
 permissions:
   contents: read
 

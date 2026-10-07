@@ -2,11 +2,6 @@
 name: Agenda A3 BEFORE Visual
 
 on:
-  push:
-    branches:
-      - feat/agenda-clinic-a3-practitioner-availability-20260916
-    paths:
-      - ".github/workflows/agenda-a3-before-visual.yml"
   workflow_dispatch:
 
 permissions:

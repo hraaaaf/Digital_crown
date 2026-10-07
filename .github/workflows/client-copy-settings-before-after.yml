@@ -1,12 +1,7 @@
 name: Client Copy Settings BEFORE AFTER
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/admin/Settings/**'
-      - '.github/workflows/client-copy-settings-before-after.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

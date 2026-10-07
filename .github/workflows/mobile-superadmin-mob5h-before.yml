@@ -1,13 +1,7 @@
 name: Mobile SuperAdmin MOB-5H BEFORE
 
 on:
-  push:
-    branches:
-      - ux/mobile-superadmin-mob5h
-    paths:
-      - .github/workflows/mobile-superadmin-mob5h-before.yml
-      - frontend/scripts/capture-mobile-superadmin-mob5h-before.mjs
-
+  workflow_dispatch:
 permissions:
   contents: read
 

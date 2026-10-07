@@ -1,9 +1,5 @@
 name: G2 Ortho Cephalo Targeted
 on:
-  pull_request:
-    paths:
-      - "frontend/scripts/certify-v1-07-g2-ortho-targeted.mjs"
-      - ".github/workflows/g2-ortho-cephalo-targeted.yml"
   workflow_dispatch:
 concurrency:
   group: g2-ortho-cephalo-targeted-${{ github.ref }}

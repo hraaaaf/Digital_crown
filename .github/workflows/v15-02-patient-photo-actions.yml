@@ -1,11 +1,5 @@
 name: V1.5-02 Patient Photo Actions
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
-      - "frontend/src/features/patients/components/PatientPhotoEditor.test.tsx"
-      - "frontend/scripts/certify-v15-02-patient-photo-actions.mjs"
-      - ".github/workflows/v15-02-patient-photo-actions.yml"
   workflow_dispatch:
 concurrency:
   group: v15-02-patient-photo-actions-${{ github.ref }}

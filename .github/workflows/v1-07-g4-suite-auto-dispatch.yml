@@ -1,9 +1,6 @@
 name: V1-07 G4 Suite Auto Dispatch
 
 on:
-  push:
-    branches:
-      - audit/g0-global-interactive-inventory
   workflow_dispatch:
 
 permissions:

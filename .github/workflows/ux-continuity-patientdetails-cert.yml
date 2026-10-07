@@ -1,14 +1,7 @@
 name: UX Continuity PatientDetails AFTER
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
-      - 'frontend/src/features/patients/PatientDetailsFlowHandoff.test.ts'
-      - 'frontend/src/hooks/useFlowHandoff.ts'
-      - '.github/workflows/ux-continuity-patientdetails-cert.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

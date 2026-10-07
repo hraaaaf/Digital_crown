@@ -1,18 +1,6 @@
 name: V1.5-02.4 Photo Lifecycle Gate
 
 on:
-  push:
-    branches:
-      - fix/v1-5-02-4-photo-lifecycle-permissions
-  pull_request:
-    branches: [master]
-    paths:
-      - "frontend/src/features/patients/components/PatientAvatar.tsx"
-      - "frontend/src/features/patients/components/PatientAvatar.test.tsx"
-      - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
-      - "frontend/src/features/patients/components/PatientPhotoEditor.test.tsx"
-      - "backend/tests/test_patient_profile_photo_v15.py"
-      - ".github/workflows/v15-02-4-photo-lifecycle.yml"
   workflow_dispatch:
 
 concurrency:

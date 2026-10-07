@@ -1,15 +1,7 @@
 name: Settings Catalog R6 Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/settings-catalog-r6-visual-cert.yml"
-      - "frontend/src/features/admin/Settings/tabs/CatalogTab.tsx"
-      - "frontend/src/features/admin/Settings/hooks/useCatalogStore.ts"
-      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
-      - "frontend/src/features/admin/Settings/components/SharedUI.tsx"
-      - "frontend/src/test/catalogR6Crud.test.ts"
-
+  workflow_dispatch:
 permissions:
   contents: read
 

@@ -1,12 +1,6 @@
 name: AMMPS Wave1 RCP Availability Scan
 
 on:
-  push:
-    branches:
-      - feat/neo-medication-dictionary-rcp-clinical
-    paths:
-      - 'scripts/scan_ammps_wave1_rcp.py'
-      - '.github/workflows/ammps-wave1-rcp-scan.yml'
   workflow_dispatch:
 
 jobs:

@@ -1,16 +1,6 @@
 name: Clinic P3 Document Signature Certification
 
 on:
-  pull_request:
-    paths:
-      - "backend/routers/document_provenance_p3.py"
-      - "backend/services/document_signature_p3.py"
-      - "backend/tests/test_document_signature_p3.py"
-      - "backend/tests/test_document_signature_archive_surface_p3.py"
-      - "backend/tests/test_document_signature_permissions_p3.py"
-      - "backend/tests/test_document_signature_read_failclosed_p3.py"
-      - "backend/tests/test_document_signature_file_preservation_p3.py"
-      - ".github/workflows/clinic-p3-document-signature-cert.yml"
   workflow_dispatch:
 
 permissions:

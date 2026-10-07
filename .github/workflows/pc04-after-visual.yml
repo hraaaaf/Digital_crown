@@ -1,18 +1,7 @@
 name: PC-04 AFTER Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc04-after-visual.yml
-      - frontend/scripts/capture-pc04-after.mjs
-      - frontend/src/features/patient-companion/**
-      - backend/routers/patient_companion_consents.py
-      - backend/services/patient_companion_consents.py
-      - backend/services/patient_signature_png.py
-      - backend/models_patient_companion.py
-      - docs/clinic/patient_companion/**
-
+  workflow_dispatch:
 concurrency:
   group: pc04-after-${{ github.ref }}
   cancel-in-progress: true

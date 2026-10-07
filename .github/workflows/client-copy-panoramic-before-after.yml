@@ -1,14 +1,7 @@
 name: Client Copy Panoramic BEFORE AFTER
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/panoramic/PanoramicStudio.tsx'
-      - 'frontend/src/features/panoramic/ReportViewer.tsx'
-      - 'frontend/src/ClientFacingCopyCandidateAudit.test.ts'
-      - '.github/workflows/client-copy-panoramic-before-after.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

@@ -1,9 +1,6 @@
 name: Settings Visual Baseline
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/settings-visual-baseline.yml"
   workflow_dispatch:
 
 permissions:

@@ -1,10 +1,7 @@
 name: Settings R9 Audit Log Visual Baseline
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/settings-r9-audit-before.yml"
-
+  workflow_dispatch:
 permissions:
   contents: read
 

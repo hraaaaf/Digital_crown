@@ -1,7 +1,6 @@
 name: M6-I Biometric Passkey Certification
 
 on:
-  pull_request:
   workflow_dispatch:
 
 concurrency:

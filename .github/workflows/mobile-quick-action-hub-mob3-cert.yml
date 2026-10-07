@@ -1,15 +1,6 @@
 name: Mobile Quick Action Hub MOB-3 Cert
 
 on:
-  push:
-    branches: [ux/mobile-quick-action-hub-mob3]
-    paths:
-      - .github/workflows/mobile-quick-action-hub-mob3-cert.yml
-      - frontend/src/features/mobile/**
-      - frontend/src/main.tsx
-      - frontend/scripts/capture-mobile-quick-action-hub-after.mjs
-      - backend/routers/mobile_patient_cockpit.py
-      - backend/tests/test_mobile_patient_cockpit.py
   workflow_dispatch:
 
 concurrency:

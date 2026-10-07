@@ -1,21 +1,6 @@
 name: Agenda A3 Certification
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/agenda-a3-certification.yml"
-      - "backend/models_agenda_a3.py"
-      - "backend/schemas/agenda.py"
-      - "backend/services/agenda_availability.py"
-      - "backend/routers/agenda_settings.py"
-      - "backend/routers/appointments.py"
-      - "backend/tests/test_agenda_a3_*.py"
-      - "alembic/versions/a3pa0000003_add_practitioner_agenda_availability.py"
-      - "frontend/src/features/agenda/**"
-      - "frontend/src/features/admin/Settings/tabs/AgendaTab.tsx"
-      - "frontend/src/features/admin/Settings/tabs/PractitionerAvailabilityPanel.tsx"
-      - "frontend/src/AgendaClinicA2.test.ts"
-      - "frontend/src/AgendaClinicA3.test.ts"
   workflow_dispatch:
 
 permissions:

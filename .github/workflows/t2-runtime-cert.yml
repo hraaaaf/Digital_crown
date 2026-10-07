@@ -1,7 +1,6 @@
 name: T2 Runtime Browser Certification
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       resume_from_23:

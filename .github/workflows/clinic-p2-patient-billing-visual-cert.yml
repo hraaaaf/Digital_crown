@@ -1,11 +1,6 @@
 name: Clinic P2 Patient Billing Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/patients/**"
-      - "frontend/src/types/**"
-      - ".github/workflows/clinic-p2-patient-billing-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

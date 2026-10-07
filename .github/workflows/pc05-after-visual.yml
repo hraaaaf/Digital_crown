@@ -1,17 +1,7 @@
 name: PC-05 AFTER Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc05-after-visual.yml
-      - frontend/scripts/capture-pc05-after.mjs
-      - frontend/src/features/patient-companion/**
-      - backend/routers/patient_companion_notifications.py
-      - backend/services/patient_companion_notifications.py
-      - backend/models_patient_companion_notifications.py
-      - docs/clinic/patient_companion/**
-
+  workflow_dispatch:
 concurrency:
   group: pc05-after-${{ github.ref }}
   cancel-in-progress: true

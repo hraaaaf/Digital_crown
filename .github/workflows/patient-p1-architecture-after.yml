@@ -1,13 +1,7 @@
 name: Patient P1 Architecture After
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
-      - 'docs/PATIENT_P1_ARCHITECTURE_GOAL.md'
-      - '.github/workflows/patient-p1-architecture-after.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

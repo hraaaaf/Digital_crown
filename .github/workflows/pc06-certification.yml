@@ -1,16 +1,6 @@
 name: PC-06 Patient Finance Certification
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - "backend/routers/patient_companion.py"
-      - "backend/routers/patient_companion_finance.py"
-      - "backend/services/patient_companion_finance.py"
-      - "backend/tests/test_patient_companion_finance.py"
-      - "frontend/src/features/patient-companion/**"
-      - ".github/workflows/pc06-certification.yml"
-      - "docs/clinic/patient_companion/PC_06_*.md"
   workflow_dispatch:
 
 permissions:

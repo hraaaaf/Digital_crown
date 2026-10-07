@@ -1,15 +1,7 @@
 name: PC-03 BEFORE Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc03-before-visual.yml
-      - frontend/scripts/capture-pc03-before.mjs
-      - frontend/src/features/patient-companion/PatientCompanionQuestionnaires.tsx
-      - frontend/src/features/patient-companion/PatientCompanionQuestionnaires.test.tsx
-      - docs/clinic/patient_companion/PC_03_*.md
-
+  workflow_dispatch:
 concurrency:
   group: pc03-before-${{ github.ref }}
   cancel-in-progress: true

@@ -1,9 +1,6 @@
 name: Onboarding Settings P0 Certification
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/onboarding-settings-p0-cert.yml"
   workflow_dispatch:
 
 permissions:

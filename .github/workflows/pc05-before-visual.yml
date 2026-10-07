@@ -1,14 +1,7 @@
 name: PC-05 BEFORE Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc05-before-visual.yml
-      - frontend/scripts/capture-pc05-before.mjs
-      - frontend/src/features/patient-companion/**
-      - docs/clinic/patient_companion/**
-
+  workflow_dispatch:
 concurrency:
   group: pc05-before-${{ github.ref }}
   cancel-in-progress: true

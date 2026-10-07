@@ -1,17 +1,7 @@
 name: Cephalo R1 AFTER
 
 on:
-  pull_request:
-    paths:
-      - .github/workflows/cephalo-r1-after.yml
-      - frontend/scripts/capture-cephalo-r1-after.mjs
-      - frontend/src/features/ortho/CephaloWorkspace.tsx
-      - frontend/src/features/ortho/cephaloCalibration.ts
-      - frontend/src/features/ortho/cephaloCalibration.test.ts
-      - frontend/src/features/ortho/cephaloRepository.ts
-      - frontend/src/features/ortho/cephaloRepository.test.ts
-      - frontend/src/features/ortho/components/Step1Cephalo.tsx
-
+  workflow_dispatch:
 permissions:
   contents: read
 

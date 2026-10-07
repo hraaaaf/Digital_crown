@@ -1,15 +1,6 @@
 name: Windows Build Dependency Contract
 
 on:
-  pull_request:
-    paths:
-      - "requirements.txt"
-      - "backend/requirements.txt"
-      - "backend/requirements-p5-native.txt"
-      - "backend/requirements-windows-build.txt"
-      - "backend/scripts/windows_build_dependency_contract.py"
-      - "DigitalCrown.spec"
-      - ".github/workflows/windows-build-dependency-contract.yml"
   workflow_dispatch:
 
 concurrency:

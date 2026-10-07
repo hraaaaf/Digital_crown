@@ -1,15 +1,6 @@
 name: Onboarding Settings P2 Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/admin/SetupWizard/**"
-      - "frontend/src/features/admin/components/CrownGuide.tsx"
-      - "frontend/src/features/admin/types.ts"
-      - "frontend/src/services/templateApi.ts"
-      - "backend/routers/clinic_setup_p4.py"
-      - "backend/routers/__init__.py"
-      - ".github/workflows/onboarding-settings-p2-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

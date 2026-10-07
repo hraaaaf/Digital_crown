@@ -1,16 +1,7 @@
 name: PC-03 AFTER Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc03-after-visual.yml
-      - frontend/scripts/capture-pc03-after.mjs
-      - frontend/src/features/patient-companion/**
-      - backend/routers/patient_companion_questionnaires.py
-      - backend/models_patient_companion.py
-      - docs/clinic/patient_companion/**
-
+  workflow_dispatch:
 concurrency:
   group: pc03-after-${{ github.ref }}
   cancel-in-progress: true

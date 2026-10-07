@@ -2,19 +2,6 @@ name: Connect Hub E BEFORE
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feat/lot-e-connect-hub
-    paths:
-      - 'frontend/scripts/capture-connect-hub-e-before.mjs'
-      - '.github/workflows/connect-hub-e-before.yml'
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'frontend/scripts/capture-connect-hub-e-before.mjs'
-      - '.github/workflows/connect-hub-e-before.yml'
-
 permissions:
   contents: read
 

@@ -1,16 +1,6 @@
 name: Mobile Theme Runtime Certification
 
 on:
-  push:
-    branches: [ux/mobile-patient-cockpit-mob2]
-    paths:
-      - .github/workflows/mobile-theme-runtime-cert.yml
-      - frontend/src/features/mobile/**
-      - frontend/src/main.tsx
-      - frontend/scripts/capture-mobile-theme-after.mjs
-      - backend/routers/clinic_profile_p4.py
-      - backend/routers/mobile_patient_cockpit.py
-      - backend/tests/test_mobile_patient_cockpit.py
   workflow_dispatch:
 
 concurrency:

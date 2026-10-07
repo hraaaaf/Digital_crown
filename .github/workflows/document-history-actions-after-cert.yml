@@ -1,17 +1,7 @@
 name: Document History Actions AFTER Certification
 
 on:
-  push:
-    branches: [fix/document-archive-consistency]
-    paths:
-      - 'frontend/src/features/patients/PatientDocuments.tsx'
-      - '.github/workflows/document-history-actions-after-cert.yml'
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/patients/PatientDocuments.tsx'
-      - '.github/workflows/document-history-actions-after-cert.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

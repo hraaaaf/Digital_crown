@@ -2,18 +2,6 @@ name: Cephalo R15bis BEFORE
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feat/cephalo-r15bis-uiux
-    paths:
-      - '.github/workflows/cephalo-r15bis-before.yml'
-      - 'frontend/scripts/capture-cephalo-r15bis-before-viewer.mjs'
-  pull_request:
-    branches: [master]
-    paths:
-      - '.github/workflows/cephalo-r15bis-before.yml'
-      - 'frontend/scripts/capture-cephalo-r15bis-before-viewer.mjs'
-
 permissions:
   contents: read
 

@@ -1,12 +1,7 @@
 name: UX Continuity BEFORE
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'docs/ux/DIGITAL_CROWN_UX_CONTINUITY_GOAL_UI.md'
-      - '.github/workflows/ux-continuity-before.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

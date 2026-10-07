@@ -1,15 +1,7 @@
 name: PC-00 Patient Companion Visual Certification
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc00-patient-companion-visual.yml
-      - frontend/scripts/capture-pc00-companion.mjs
-      - frontend/src/App.tsx
-      - frontend/src/features/patient-companion/**
-      - docs/ux/PC_00_PATIENT_COMPANION_TARGET.md
-
+  workflow_dispatch:
 concurrency:
   group: pc00-patient-companion-visual-${{ github.ref }}
   cancel-in-progress: true

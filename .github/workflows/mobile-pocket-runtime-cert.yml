@@ -1,16 +1,6 @@
 name: Mobile Pocket Real Runtime Cert
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/mobile-pocket-runtime-cert.yml
-      - frontend/src/features/mobile/**
-      - frontend/src/services/zka/**
-      - frontend/src/App.tsx
-      - frontend/scripts/capture-mobile-pocket-runtime-after.mjs
-      - backend/routers/mobile.py
-      - backend/tests/test_mobile_pocket_security_boundary.py
   workflow_dispatch:
 
 concurrency:

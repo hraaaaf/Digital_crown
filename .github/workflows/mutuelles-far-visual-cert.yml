@@ -1,17 +1,6 @@
 name: Mutuelles FAR Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "backend/routers/insurance_submissions.py"
-      - "backend/schemas/insurance_submission.py"
-      - "backend/services/insurance_*.py"
-      - "backend/tests/test_insurance_*.py"
-      - "frontend/src/MutuellesFarUI.test.ts"
-      - "frontend/src/features/patients/FarInsuranceSubmissionReview.tsx"
-      - "frontend/src/features/patients/CnssInsuranceAction.tsx"
-      - "frontend/src/features/patients/InsuranceSubmissionTypes.ts"
-      - ".github/workflows/mutuelles-far-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

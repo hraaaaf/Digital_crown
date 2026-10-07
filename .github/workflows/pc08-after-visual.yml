@@ -1,15 +1,7 @@
 name: PC-08 AFTER Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc08-after-visual.yml
-      - frontend/scripts/capture-pc08-after.mjs
-      - frontend/src/features/patient-companion/**
-      - frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx
-      - docs/clinic/patient_companion/PC_08_*.md
-
+  workflow_dispatch:
 permissions:
   contents: read
 

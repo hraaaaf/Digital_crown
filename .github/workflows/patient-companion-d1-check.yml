@@ -1,19 +1,6 @@
 name: Patient Companion D1 check
 
 on:
-  push:
-    branches:
-      - feat/patient-companion-d1-ui
-    paths:
-      - '.github/workflows/patient-companion-d1-check.yml'
-      - 'frontend/src/pages/PatientCompanionPage.tsx'
-      - 'frontend/src/patient-companion/**'
-      - 'frontend/src/PatientCompanionD1.test.tsx'
-      - 'frontend/src/PatientCompanionTransport.test.ts'
-      - 'frontend/src/main.tsx'
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
-      - 'frontend/.env.example'
   workflow_dispatch:
 
 concurrency:

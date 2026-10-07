@@ -1,15 +1,7 @@
 name: PC-02 AFTER Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc02-after-visual.yml
-      - frontend/scripts/capture-pc02-after.mjs
-      - frontend/src/features/patient-companion/**
-      - docs/ux/PC_01_PATIENT_WALLET_TARGET.md
-      - docs/clinic/patient_companion/**
-
+  workflow_dispatch:
 concurrency:
   group: pc02-agenda-after-${{ github.ref }}
   cancel-in-progress: true

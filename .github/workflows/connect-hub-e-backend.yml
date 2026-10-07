@@ -2,25 +2,6 @@ name: Connect Hub E Backend Certification
 
 on:
   workflow_dispatch:
-  push:
-    branches: [feat/lot-e-connect-hub]
-    paths:
-      - 'backend/routers/connect_hub.py'
-      - 'backend/routers/mobile_push.py'
-      - 'backend/tests/test_connect_hub_contract.py'
-      - 'backend/tests/test_connect_hub_runtime.py'
-      - 'backend/tests/test_mobile_identity_security.py'
-      - '.github/workflows/connect-hub-e-backend.yml'
-  pull_request:
-    branches: [master]
-    paths:
-      - 'backend/routers/connect_hub.py'
-      - 'backend/routers/mobile_push.py'
-      - 'backend/tests/test_connect_hub_contract.py'
-      - 'backend/tests/test_connect_hub_runtime.py'
-      - 'backend/tests/test_mobile_identity_security.py'
-      - '.github/workflows/connect-hub-e-backend.yml'
-
 permissions:
   contents: read
 

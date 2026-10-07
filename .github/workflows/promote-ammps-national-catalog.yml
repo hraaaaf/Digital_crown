@@ -1,12 +1,6 @@
 name: Promote AMMPS National Catalog
 
 on:
-  push:
-    branches:
-      - feat/neo-medication-search-intelligence
-    paths:
-      - 'scripts/promote_ammps_national_catalog.py'
-      - '.github/workflows/promote-ammps-national-catalog.yml'
   workflow_dispatch:
 
 permissions:

@@ -2,18 +2,6 @@
 name: Patient Companion D1 AFTER
 
 on:
-  push:
-    branches:
-      - feat/patient-companion-d1-ui
-    paths:
-      - '.github/workflows/patient-companion-d1-after.yml'
-      - 'frontend/scripts/capture-patient-companion-d1-after.mjs'
-      - 'frontend/src/pages/PatientCompanionPage.tsx'
-      - 'frontend/src/patient-companion/**'
-      - 'frontend/src/main.tsx'
-      - 'frontend/src/styles/patientCompanionTheme.css'
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
   workflow_dispatch:
 
 concurrency:

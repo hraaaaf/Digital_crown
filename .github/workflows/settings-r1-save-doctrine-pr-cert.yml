@@ -1,16 +1,6 @@
 name: Settings R1 Save Doctrine PR Certification
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
-      - "frontend/src/features/admin/Settings/saveDoctrine.ts"
-      - "frontend/src/features/admin/Settings/saveDoctrine.test.ts"
-      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
-      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.test.ts"
-      - "docs/settings/R1_SAVE_DOCTRINE_GOAL.md"
-      - ".github/workflows/settings-r1-save-doctrine-pr-cert.yml"
   workflow_dispatch:
 
 permissions:

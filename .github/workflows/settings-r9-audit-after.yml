@@ -1,10 +1,6 @@
 name: Settings R9 Audit Log Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/admin/Security/AuditLogViewer.tsx"
-      - ".github/workflows/settings-r9-audit-after.yml"
   workflow_dispatch:
 
 permissions:

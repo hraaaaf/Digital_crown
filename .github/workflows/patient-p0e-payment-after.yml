@@ -1,17 +1,6 @@
 name: Patient P0-E Payment After
 
 on:
-  push:
-    branches:
-      - agent/patient-p0e2-payment-ui-truth-v2
-    paths:
-      - .github/workflows/patient-p0e-payment-after.yml
-      - frontend/scripts/capture-patient-p0e-payment-after.mjs
-      - frontend/src/features/patients/components/QuickPayModal.tsx
-      - frontend/src/features/patients/components/PayActeModal.tsx
-      - frontend/src/features/patients/components/PaymentMethodExplicit.p0e.test.tsx
-      - frontend/src/features/patients/components/PatientFinances.tsx
-      - scripts/t2_runtime_server.py
   workflow_dispatch:
 
 concurrency:

@@ -1,15 +1,6 @@
 name: Ortho F5 AFTER
 
 on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx'
-      - 'frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx'
-      - 'frontend/src/features/ortho/orthoSuperimposition.ts'
-      - 'frontend/scripts/capture-ortho-f5-after.mjs'
-      - '.github/workflows/ortho-f5-after.yml'
   workflow_dispatch:
 
 permissions:

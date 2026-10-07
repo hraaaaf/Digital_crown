@@ -1,15 +1,7 @@
 name: Patient P2 Journey After
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'frontend/src/features/patients/components/PatientJourney.tsx'
-      - 'frontend/src/components/clinical/FlashSummary.tsx'
-      - 'backend/tests/test_patient_p2_journey_truth.py'
-      - 'docs/PATIENT_P2_JOURNEY_GOAL.md'
-      - '.github/workflows/patient-p2-journey-after.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

@@ -1,14 +1,7 @@
 name: Patient Indicators BEFORE
 
 on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'docs/settings/INDICATEURS_PATIENT_EXPLICABLES_GOAL.md'
-      - 'docs/settings/INDICATEURS_PATIENT_EXPLICABLES_MOCKUP.svg'
-      - '.github/workflows/patient-indicators-before.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

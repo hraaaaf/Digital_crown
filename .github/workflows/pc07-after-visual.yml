@@ -1,15 +1,7 @@
 name: PC-07 AFTER Visual Evidence
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - .github/workflows/pc07-after-visual.yml
-      - frontend/scripts/capture-pc07-after.mjs
-      - frontend/src/features/patient-companion/**
-      - backend/services/patient_companion_emergency_photo.py
-      - docs/clinic/patient_companion/PC_07_*.md
-
+  workflow_dispatch:
 concurrency:
   group: pc07-after-${{ github.ref }}
   cancel-in-progress: true

@@ -1,16 +1,6 @@
 name: PostgreSQL Alembic Schema Certification
 
 on:
-  pull_request:
-    paths:
-      - "alembic/**"
-      - "backend/models*.py"
-      - "backend/core/schema_runtime.py"
-      - "backend/core/runtime_safety.py"
-      - "backend/core/sqlite_alembic_baseline.py"
-      - "backend/core/postgresql_alembic_baseline.py"
-      - "backend/tests/test_schema_runtime_head_sync.py"
-      - ".github/workflows/postgresql-alembic-schema-cert.yml"
   workflow_dispatch:
 
 permissions:

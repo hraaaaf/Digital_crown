@@ -2,15 +2,6 @@ name: Ortho F4 BEFORE
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'frontend/scripts/capture-ortho-f4-before.mjs'
-      - '.github/workflows/ortho-f4-before.yml'
-      - 'docs/clinic/audits/V1_05_F4_ORTHO_COCKPIT_DATA_CONTRACT_GOAL.md'
-      - 'docs/clinic/audits/V1_05_F4_ORTHO_COCKPIT_MOCKUP.md'
-
 permissions:
   contents: read
 

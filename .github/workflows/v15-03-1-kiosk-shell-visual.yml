@@ -1,18 +1,6 @@
 name: V1.5-03.1 Kiosk Shell Visual Evidence
 
 on:
-  push:
-    branches:
-      - feat/v1-5-03-1-kiosk-shell
-  pull_request:
-    branches: [master]
-    paths:
-      - "frontend/src/features/hub/WorkstationExperiencePage.tsx"
-      - "frontend/src/features/hub/WorkstationExperiencePage.test.tsx"
-      - "frontend/src/features/hub/StationKioskShell.tsx"
-      - "frontend/src/features/hub/StationKioskShell.test.tsx"
-      - "frontend/scripts/capture-v15-03-1-kiosk-shell.mjs"
-      - ".github/workflows/v15-03-1-kiosk-shell-visual.yml"
   workflow_dispatch:
 
 concurrency:

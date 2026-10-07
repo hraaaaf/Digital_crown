@@ -1,12 +1,6 @@
 name: Media C5 Visual Certification
 
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/patients/components/PatientMediaTimeline.tsx"
-      - "frontend/src/features/patients/PatientMediaTimeline.c5.test.tsx"
-      - "frontend/scripts/certify-media-c5-browser.mjs"
-      - ".github/workflows/media-c5-visual-cert.yml"
   workflow_dispatch:
 
 concurrency:

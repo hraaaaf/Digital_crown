@@ -1,8 +1,6 @@
 name: Mobile Clean Visual Evidence
 
 on:
-  push:
-    branches: [mobile/sim-cert]
   workflow_dispatch:
 
 concurrency:
