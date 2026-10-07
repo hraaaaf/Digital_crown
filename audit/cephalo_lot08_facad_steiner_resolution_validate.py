@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -7,7 +8,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
+REGISTRY_PY = ROOT / "backend/services/cephalo_measure_registry.py"
+_REGISTRY_SPEC = importlib.util.spec_from_file_location(
+    "cephalo_measure_registry_standalone",
+    REGISTRY_PY,
+)
+if _REGISTRY_SPEC is None or _REGISTRY_SPEC.loader is None:
+    raise SystemExit("Unable to load canonical measurement registry module")
+_REGISTRY_MODULE = importlib.util.module_from_spec(_REGISTRY_SPEC)
+sys.modules[_REGISTRY_SPEC.name] = _REGISTRY_MODULE
+_REGISTRY_SPEC.loader.exec_module(_REGISTRY_MODULE)
+CANONICAL_MEASUREMENTS = _REGISTRY_MODULE.CANONICAL_MEASUREMENTS
 
 BACKEND_PROFILE = ROOT / "backend/data/cephalometry/steiner_protocol_profile_v1.json"
 DOCS_PROFILE = ROOT / "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json"
