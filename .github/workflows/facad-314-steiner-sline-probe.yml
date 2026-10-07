@@ -1,0 +1,46 @@
+name: Facad Steiner S-line definition probe
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-steiner-sline-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download and extract Facad release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path sline | Out-Null
+          $installer = 'sline/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path sline/outer | Out-Null
+          & $seven x $installer '-osline/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path sline/release | Out-Null
+          & $seven x 'sline/outer/FacadRelease-3.14.1.1111.zip' '-osline/release' -y | Out-Null
+
+      - name: Extract SL definition only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -c "import xml.etree.ElementTree as ET,json,pathlib; p=pathlib.Path(r'sline/release/Ceph/Steiner.cph'); root=ET.parse(p).getroot(); out=[]; [out.append({'tag':e.tag,'fields':{c.tag:(c.text or '').strip() for c in list(e) if len(list(c))==0},'refs':[(x.text or '').strip() for x in e.iter('point_ref') if (x.text or '').strip()]}) for e in root.iter() if any(c.tag=='name' and (c.text or '').strip()=='SL' for c in list(e))]; print(json.dumps(out,ensure_ascii=False,indent=2)); assert out" | Tee-Object -FilePath sline/steiner-sl-definition.txt
+
+      - name: Upload minimized proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-steiner-sline-probe-${{ github.sha }}
+          path: sline/steiner-sl-definition.txt
+          if-no-files-found: error
