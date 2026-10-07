@@ -43,5 +43,8 @@ def test_facad_cph_parser_extracts_norm_bearing_measurements(tmp_path):
     assert profile["profile_name"] == "Ricketts (2 F)"
     assert profile["measurement_candidate_count"] == 2
     assert [m["name"] for m in profile["measurement_candidates"]] == ["Facial depth", "Convexity"]
+    assert [m["order"] for m in profile["measurement_candidates"]] == [1, 2]
+    assert profile["measurement_candidates"][0]["xml_path"].endswith("/analysis[1]")
+    assert profile["measurement_candidates"][1]["xml_path"].endswith("/analysis[2]")
     assert profile["measurement_candidates"][1]["changeSign"] == "true"
     assert profile["measurement_candidates"][0]["point_refs"] == ["N", "Pog"]
