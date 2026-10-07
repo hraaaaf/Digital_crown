@@ -1,0 +1,45 @@
+import json
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SCHEMA = ROOT / "docs" / "audits" / "schemas" / "ortho_lot08_steiner_facad_gap_resolution_v1.json"
+
+
+class SteinerFacadGapContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.data = json.loads(SCHEMA.read_text(encoding="utf-8"))
+
+    def test_sline_requires_explicit_steiner_ms_and_forbids_silent_aliases(self):
+        ms = self.data["identities"]["MS_Steiner"]
+        self.assertEqual(ms["dc_alias_policy"]["Cm"], "FORBIDDEN_UNLESS_EQUIVALENCE_PROVEN")
+        self.assertEqual(ms["dc_alias_policy"]["Sn_soft"], "FORBIDDEN")
+        self.assertEqual(ms["dc_alias_policy"]["Prn"], "FORBIDDEN")
+        self.assertEqual(ms["current_runtime_status"], "MISSING_EXACT_IDENTITY")
+        self.assertTrue(self.data["safety_rules"]["missing_MS_must_fail_closed"])
+
+    def test_sline_measurements_cannot_claim_runtime_parity(self):
+        for key in ("Ls-SL", "Li-SL"):
+            resolution = self.data["resolutions"][key]["dc_resolution"]
+            self.assertFalse(resolution["runtime_activation"])
+            self.assertEqual(resolution["sign_convention"], "UNOBSERVED_FOR_FACAD_RUNTIME_PARITY")
+            self.assertEqual(resolution["required_new_identity"], "MS_Steiner")
+            self.assertEqual(resolution["required_construction"], "SL_STEINER_POGSOFT_MS_V1")
+
+    def test_iipog_is_derived_not_new_geometry(self):
+        row = self.data["resolutions"]["Ii-Pog // NB"]
+        self.assertEqual(row["facad_definition"]["calc_type"], "Sub")
+        self.assertEqual(row["facad_definition"]["operands"], ["Ii-NB", "Pog-NB"])
+        self.assertFalse(row["facad_definition"]["new_geometry"])
+        self.assertFalse(row["dc_resolution"]["runtime_activation"])
+        self.assertIn("DEPENDENCY_GEOMETRY_REVIEW_PENDING", row["dc_resolution"]["status"])
+
+    def test_vendor_norms_are_not_runtime_classification_authority(self):
+        self.assertTrue(self.data["safety_rules"]["no_facad_norm_runtime_classification"])
+        self.assertTrue(self.data["safety_rules"]["no_numeric_parity_claim_without_same_trace_export"])
+
+
+if __name__ == "__main__":
+    unittest.main()
