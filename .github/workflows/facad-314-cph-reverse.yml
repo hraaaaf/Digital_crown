@@ -6,6 +6,8 @@ on:
       - feat/ortho-studio-lot08-ricketts-protocol-v2
     paths:
       - .github/workflows/facad-314-cph-reverse.yml
+      - audit/cephalo_lot08_facad_cph_parse.py
+      - backend/tests/test_cephalo_lot08_facad_cph_parser.py
   workflow_dispatch:
 
 permissions:
@@ -87,6 +89,22 @@ jobs:
             $interesting | Select-Object -First 300 | ForEach-Object { Write-Host $_ }
           }
 
+      - name: Parse CPH XML deterministically
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python audit/cephalo_lot08_facad_cph_parse.py cph-reverse/Ricketts-32F.cph cph-reverse/Ricketts-13F.cph --out cph-reverse/ricketts-cph-parsed.json | Tee-Object -FilePath cph-reverse/ricketts-cph-parsed.txt
+          @'
+import json
+from pathlib import Path
+data = json.loads(Path("cph-reverse/ricketts-cph-parsed.json").read_text(encoding="utf-8"))
+expected = {"Ricketts (32 F)": 32, "Ricketts (13 F)": 13}
+observed = {x["profile_name"]: x["measurement_candidate_count"] for x in data}
+print("OBSERVED_COUNTS=", observed)
+if observed != expected:
+    raise SystemExit(f"Unexpected CPH measurement counts: {observed} != {expected}")
+'@ | python -
+
       - name: Compare 32F and 13F textual atoms
         shell: pwsh
         run: |
@@ -112,4 +130,6 @@ jobs:
             cph-reverse/Ricketts-32F.interesting.txt
             cph-reverse/Ricketts-13F.interesting.txt
             cph-reverse/strings-diff.txt
+            cph-reverse/ricketts-cph-parsed.json
+            cph-reverse/ricketts-cph-parsed.txt
           if-no-files-found: error
