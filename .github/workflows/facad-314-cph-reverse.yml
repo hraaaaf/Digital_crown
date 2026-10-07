@@ -94,16 +94,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           python audit/cephalo_lot08_facad_cph_parse.py cph-reverse/Ricketts-32F.cph cph-reverse/Ricketts-13F.cph --out cph-reverse/ricketts-cph-parsed.json | Tee-Object -FilePath cph-reverse/ricketts-cph-parsed.txt
-          @'
-import json
-from pathlib import Path
-data = json.loads(Path("cph-reverse/ricketts-cph-parsed.json").read_text(encoding="utf-8"))
-expected = {"Ricketts (32 F)": 32, "Ricketts (13 F)": 13}
-observed = {x["profile_name"]: x["measurement_candidate_count"] for x in data}
-print("OBSERVED_COUNTS=", observed)
-if observed != expected:
-    raise SystemExit(f"Unexpected CPH measurement counts: {observed} != {expected}")
-'@ | python -
+          python -c "import json,pathlib; data=json.loads(pathlib.Path('cph-reverse/ricketts-cph-parsed.json').read_text(encoding='utf-8')); expected={'Ricketts (32 F)':32,'Ricketts (13 F)':13}; observed={x['profile_name']:x['measurement_candidate_count'] for x in data}; print('OBSERVED_COUNTS=',observed); assert observed==expected, f'{observed} != {expected}'"
 
       - name: Compare 32F and 13F textual atoms
         shell: pwsh
