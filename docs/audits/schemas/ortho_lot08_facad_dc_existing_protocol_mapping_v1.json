@@ -5,7 +5,9 @@
     "direct_match_requires_existing_dc_canonical_id_and_same_declared_construction": true,
     "candidate_requires_manual_geometry_review": true,
     "facad_norms_are_reference_only_not_runtime_authority": true,
-    "canonical_label_match_does_not_prove_geometry_equivalence": true
+    "canonical_label_match_does_not_prove_geometry_equivalence": true,
+    "derived_relationship_match_requires_existing_profile_relationship": true,
+    "blocked_mapping_requires_explicit_identity_and_forbidden_aliases": true
   },
   "profiles": {
     "Steiner": {
@@ -54,6 +56,49 @@
         "Pog-NB": {
           "dc_id": "M_POG_NB_MM_V1",
           "status": "CANONICAL_LABEL_MATCH"
+        },
+        "Ii-Pog // NB": {
+          "dc_relationship_id": "STEINER_L1_NB_VS_POG_NB_V1",
+          "status": "EXISTING_DERIVED_RELATIONSHIP",
+          "facad_calc_type": "Sub",
+          "ordered_inputs": [
+            "M_L1_NB_MM_V1",
+            "M_POG_NB_MM_V1"
+          ]
+        },
+        "Ls-SL": {
+          "status": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner",
+          "forbidden_aliases": [
+            "Cm",
+            "Sn_soft",
+            "Prn"
+          ],
+          "facad_line_refs": [
+            "PGs",
+            "MS"
+          ],
+          "existing_dc_identities": {
+            "PGs": "Pog_soft",
+            "Ls": "Ls_soft"
+          }
+        },
+        "Li-SL": {
+          "status": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner",
+          "forbidden_aliases": [
+            "Cm",
+            "Sn_soft",
+            "Prn"
+          ],
+          "facad_line_refs": [
+            "PGs",
+            "MS"
+          ],
+          "existing_dc_identities": {
+            "PGs": "Pog_soft",
+            "Li": "Li_soft"
+          }
         }
       }
     },
