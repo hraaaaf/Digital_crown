@@ -162,7 +162,11 @@ export function PatientAvatar({
       };
     }
 
-    api.get(`/patients/${patientId}/photo`, {
+    const photoReadPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')
+      ? `/mobile/patients/${patientId}/photo`
+      : `/patients/${patientId}/photo`;
+
+    api.get(photoReadPath, {
       responseType: 'blob',
       signal: controller.signal,
     })
