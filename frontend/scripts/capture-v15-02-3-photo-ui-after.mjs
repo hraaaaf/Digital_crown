@@ -78,6 +78,22 @@ async function preparePage(context) {
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
+  await page.route('**/api/mobile/snapshot?*', route => json(route, {
+    generated_at: new Date().toISOString(),
+    role: 'DENTISTE',
+    is_superadmin: false,
+    appointments: [appointment],
+    finance: {
+      today_revenue: 0,
+      month_revenue: 0,
+      month_variation: null,
+      appointments_count: 1,
+      weekly_revenue: [],
+      total_patients: 1,
+      total_debt: 0,
+    },
+    debtors: [],
+  }));
   await page.route('**/api/appointments/pending', route => json(route, []));
   await page.route('**/api/appointments/multi-practitioner**', route => json(route, [appointment]));
   await page.route('**/api/appointments/**', route => {
