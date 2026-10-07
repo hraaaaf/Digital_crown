@@ -147,7 +147,7 @@ jobs:
                 if(u.pathname==='/api/appointments/multi-practitioner') return route.fulfill(json(multi));
                 if(u.pathname==='/api/appointments/check-conflicts') return route.fulfill(json({has_conflict:false,conflicts:[]}));
                 if(u.pathname==='/api/appointments/'||u.pathname.startsWith('/api/appointments?')) return route.fulfill(json(all));
-                if(u.pathname==='/api/appointments/pending'||u.pathname==='/api/patients/'||u.pathname==='/api/upcoming-holidays'||u.pathname==='/api/catalog/specialties'||u.pathname==='/api/actes/catalog/search') return route.fulfill(json([]));
+                if(u.pathname==='/api/appointments/pending'||u.pathname==='/api/patients/'||u.pathname==='/api/agenda/upcoming-holidays'||u.pathname==='/api/catalog/specialties'||u.pathname==='/api/actes/catalog/search') return route.fulfill(json([]));
                 if(u.pathname==='/api/agenda/settings') return route.fulfill(json(settings));
                 if(u.pathname==='/api/agenda/exceptions') return route.fulfill(json([]));
                 if(u.pathname==='/api/agenda/practitioners') return route.fulfill(json(practitioners));
@@ -161,7 +161,7 @@ jobs:
               await page.getByLabel('Dr Youssef Benali indisponible à 16:15 : Absence : Congé').waitFor();
               await page.getByLabel('Dr Salma Idrissi indisponible à 10:00 : Praticien absent ce jour').waitFor();
               await page.getByLabel('Dr Lina Alaoui indisponible à 13:15 : Cabinet fermé ou hors horaires du cabinet').waitFor();
-              const sara=await page.getByText('09:00 · Sara El Amrani',{exact:true}).locator('..').boundingBox(); const yasmine=await page.getByText('09:00 · Yasmine Fassi',{exact:true}).locator('..').boundingBox(); const syncDelta=sara&&yasmine?Math.abs(sara.y-yasmine.y):null;
+              const sara=await page.getByRole('button',{name:/09:00 · Sara El Amrani/}).boundingBox(); const yasmine=await page.getByRole('button',{name:/09:00 · Yasmine Fassi/}).boundingBox(); const syncDelta=sara&&yasmine?Math.abs(sara.y-yasmine.y):null;
               const agendaLayout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})); const internal=await page.getByTestId('multi-practitioner-scroll').evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth}));
               if(syncDelta===null||syncDelta>2) throw new Error(`AFTER lane sync mismatch ${width}: ${syncDelta}`); if(agendaLayout.scrollWidth>agendaLayout.clientWidth) throw new Error(`AFTER agenda page overflow ${width}`); if(width===390&&internal.scrollWidth<=internal.clientWidth) throw new Error('AFTER mobile internal scroll missing'); if(errors.length) throw new Error(errors.join(' | '));
               await page.screenshot({path:`${out}/agenda-${width}x${height}.png`,fullPage:true,animations:'disabled'});
