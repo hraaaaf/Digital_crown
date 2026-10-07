@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import json
+import sys
 from pathlib import Path
 
-from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
 
 BACKEND_PROFILE = ROOT / "backend/data/cephalometry/steiner_protocol_profile_v1.json"
 DOCS_PROFILE = ROOT / "docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json"
