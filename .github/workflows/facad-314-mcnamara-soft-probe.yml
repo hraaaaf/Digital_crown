@@ -1,0 +1,40 @@
+name: Facad McNamara soft-tissue dependency probe
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-mcnamara-soft-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and extract Facad release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path probe | Out-Null
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile probe/facad.exe
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path probe/outer | Out-Null
+          & $seven x probe/facad.exe '-oprobe/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path probe/release | Out-Null
+          & $seven x 'probe/outer/FacadRelease-3.14.1.1111.zip' '-oprobe/release' -y | Out-Null
+      - name: Extract soft-tissue dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -c "import xml.etree.ElementTree as ET,json,pathlib; root=ET.parse(pathlib.Path(r'probe/release/Ceph/McNamara.cph')).getroot(); wanted={'SN','MS','Ls-N','NP','Ls','N','Prn','Sn'}; out=[]; [out.append({'tag':e.tag,'fields':{c.tag:(c.text or '').strip() for c in list(e) if len(list(c))==0},'refs':[(x.text or '').strip() for x in e.iter('point_ref') if (x.text or '').strip()]}) for e in root.iter() if any(c.tag=='name' and ((c.text or '').strip() in wanted) for c in list(e))]; print(json.dumps(out,ensure_ascii=False,indent=2)); names={x['fields'].get('name') for x in out}; assert {'SN','MS','Ls-N','NP'}.issubset(names), names" | Tee-Object -FilePath probe/mcnamara-soft-dependencies.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-mcnamara-soft-probe-${{ github.sha }}
+          path: probe/mcnamara-soft-dependencies.txt
+          if-no-files-found: error

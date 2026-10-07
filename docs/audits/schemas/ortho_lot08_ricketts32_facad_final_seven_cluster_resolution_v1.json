@@ -1,0 +1,212 @@
+{
+  "schema_version": "ORTHO_LOT08_RICKETTS32_FACAD_FINAL_SEVEN_CLUSTER_RESOLUTION_V1",
+  "status": "SOURCE_LOCKED__RUNTIME_GATED",
+  "scope": [
+    "Xi-OL",
+    "Xi-PM/OL",
+    "Upper lip len",
+    "STi-OL",
+    "Facial cone angle",
+    "Mand arc",
+    "Mand len"
+  ],
+  "facad_provenance": {
+    "product": "Facad",
+    "release": "3.14.1.1111",
+    "profile": "Ricketts (32 F).cph",
+    "reverse_run_id": 37595714768,
+    "artifact_id": 11469783515,
+    "artifact_digest": "sha256:812b39f6effad24cf7e3cd95f71089207da68a594dce5e15a4ba2d7f014c9bd5",
+    "profile_sha256": "d0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518",
+    "reference_manual": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf"
+  },
+  "facad_markers": {
+    "PM": "Protuberance Menti; Suprapogonion",
+    "DC": "Centre of condyle",
+    "STs": "Stomion superior",
+    "STi": "Stomion inferior",
+    "Go": "Gonion",
+    "Me": "Menton",
+    "N": "Nasion",
+    "Pog": "Pogonion",
+    "OLp": "Occlusal Line, posterior point"
+  },
+  "facad_constructions": {
+    "OLa": {
+      "calc_type": "Mid-point",
+      "refs": [
+        "Is",
+        "Ii"
+      ]
+    },
+    "OL": {
+      "calc_type": "Line",
+      "refs": [
+        "OLp",
+        "OLa"
+      ],
+      "meaning": "vendor occlusal line through posterior OLp and incisor midpoint OLa"
+    },
+    "Xi": {
+      "calc_type": "Intersect",
+      "refs": [
+        "R23",
+        "R14",
+        "R13",
+        "R24"
+      ]
+    },
+    "PM'": {
+      "calc_type": "Intersect",
+      "refs": [
+        "Xi",
+        "PM",
+        "A",
+        "Pog"
+      ],
+      "meaning": "intersection of Xi-PM and A-Pog"
+    }
+  },
+  "resolutions": {
+    "Xi-OL": {
+      "facad": {
+        "order": 14,
+        "calc_type": "DistLine",
+        "refs": [
+          "OL",
+          "Xi"
+        ],
+        "norm": "-3.5±3",
+        "changeSign": true,
+        "changeRightLeft": true
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN__SIGN_PARITY_GATED",
+        "nearest_measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad OL is an incisor-midpoint vendor line, while DC requires the source-locked posterior functional occlusal plane. Facad also applies changeSign/changeRightLeft; no signed parity is inferred."
+      }
+    },
+    "Xi-PM/OL": {
+      "facad": {
+        "order": 15,
+        "calc_type": "Angle4p",
+        "refs": [
+          "OLa",
+          "OLp",
+          "PM",
+          "Xi"
+        ],
+        "norm": "26±4"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__PM_AUTHORITY_AND_ANGLE_PRESENTATION_GATED",
+        "nearest_measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad compares vendor OL to the PM-Xi line. DC requires the source-locked functional occlusal plane, canonical Xi and manual/manual-corrected Pm_Ricketts. The OL mismatch alone forbids direct equivalence."
+      }
+    },
+    "Upper lip len": {
+      "facad": {
+        "order": 17,
+        "calc_type": "Dist2p",
+        "refs": [
+          "ANS",
+          "STs"
+        ],
+        "norm": "24±2"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_STOMION_SUPERIOR_VARIANT__ATLAS_COMMISSURE_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad endpoint is STs = Stomion superior. The Atlas/DC contract explicitly uses a clinician-controlled labial commissure and rejects Stomion as a silent substitute."
+      }
+    },
+    "STi-OL": {
+      "facad": {
+        "order": 18,
+        "calc_type": "DistLine",
+        "refs": [
+          "OL",
+          "STi"
+        ],
+        "norm": "-3±2",
+        "changeRightLeft": true
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_STOMION_INFERIOR_PLUS_OCCLUSAL_LINE_VARIANT__COMMISSURE_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_COMMISSURE_FOP_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad uses STi = Stomion inferior against vendor OL. DC Atlas uses labial commissure against the source-locked functional occlusal plane. Both landmark and plane identities differ."
+      }
+    },
+    "Facial cone angle": {
+      "facad": {
+        "order": 21,
+        "calc_type": "Angle4p",
+        "refs": [
+          "Go",
+          "Me",
+          "N",
+          "Pog"
+        ],
+        "norm": "68±3"
+      },
+      "dc": {
+        "status": "FACAD_GENERIC_GO_ME_MANDIBULAR_PLANE_VARIANT__RICKETTS_SOURCE_LOCKED_MP_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad uses generic Go-Me versus N-Pog. DC requires the Ricketts mandibular plane through MP_ANGLE_INFERIOR_Ricketts and Me; generic Go-Me substitution is explicitly forbidden."
+      }
+    },
+    "Mand arc": {
+      "facad": {
+        "order": 31,
+        "calc_type": "Angle4p",
+        "refs": [
+          "Xi",
+          "PM",
+          "DC",
+          "Xi"
+        ],
+        "norm": "30±4"
+      },
+      "dc": {
+        "status": "CANONICAL_GEOMETRY_FAMILY_MATCH__DC_PM_XI_AUTHORITY_AND_ANGLE_PRESENTATION_GATED",
+        "nearest_measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad uses the same Xi-PM and DC-Xi line family, but its DC marker is only identified as 'Centre of condyle' and PM is vendor-direct. DC requires manual DC_Ricketts with condylar-neck bisection semantics, canonical Xi, and manual Pm_Ricketts. Exact Angle4p presentation parity remains unobserved."
+      }
+    },
+    "Mand len": {
+      "facad": {
+        "order": 32,
+        "calc_type": "Dist2p",
+        "refs": [
+          "Xi",
+          "PM'"
+        ],
+        "norm": "78±2.5"
+      },
+      "dc": {
+        "status": "FACAD_PM_PRIME_INTERSECTION_VARIANT__RICKETTS_XI_PM_CORPUS_LENGTH_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad measures Xi to PM', where PM' is the intersection of Xi-PM and A-Pog. DC measures Xi_Ricketts directly to manual Pm_Ricketts. PM' is a distinct constructed endpoint."
+      }
+    }
+  },
+  "safety_rules": {
+    "no_runtime_activation": true,
+    "no_facad_norm_runtime_classification": true,
+    "no_direct_alias_until_identity_and_presentation_parity": true,
+    "no_numeric_or_signed_parity_claim_without_same_trace_export": true,
+    "facad_ol_must_not_alias_ricketts_functional_occlusal_plane": true,
+    "facad_sts_must_not_alias_labial_commissure_ricketts": true,
+    "facad_sti_must_not_alias_labial_commissure_ricketts": true,
+    "facad_generic_go_me_must_not_alias_ricketts_mandibular_plane": true,
+    "facad_dc_must_not_alias_dc_ricketts_without_identity_proof": true,
+    "facad_pm_prime_must_not_alias_pm_ricketts": true
+  }
+}

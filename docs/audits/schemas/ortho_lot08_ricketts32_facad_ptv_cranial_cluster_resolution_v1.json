@@ -1,0 +1,174 @@
+{
+  "schema_version": "ORTHO_LOT08_RICKETTS32_FACAD_PTV_CRANIAL_CLUSTER_RESOLUTION_V1",
+  "status": "SOURCE_LOCKED__RUNTIME_GATED",
+  "scope": [
+    "Ms-PtV",
+    "Cranium ant len",
+    "PFH",
+    "Ramus Xi pos",
+    "Porion pos"
+  ],
+  "facad_provenance": {
+    "product": "Facad",
+    "release": "3.14.1.1111",
+    "profile": "Ricketts (32 F).cph",
+    "reverse_run_id": 37595714768,
+    "artifact_id": 11469783515,
+    "artifact_digest": "sha256:812b39f6effad24cf7e3cd95f71089207da68a594dce5e15a4ba2d7f014c9bd5",
+    "profile_sha256": "d0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518",
+    "reference_manual": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf"
+  },
+  "facad_markers": {
+    "P": "Porion",
+    "Or": "Orbitale",
+    "Pt": "Pterygo-maxillary fissure; Foramen rotundum",
+    "Ms-d": "Molar superior, most distal point",
+    "Go": "Gonion",
+    "Gn": "Gnathion",
+    "N": "Nasion",
+    "Ba": "Basion"
+  },
+  "facad_constructions": {
+    "FH": {
+      "calc_type": "Line",
+      "refs": [
+        "P",
+        "Or"
+      ]
+    },
+    "PtV": {
+      "calc_type": "Normal",
+      "refs": [
+        "FH",
+        "Pt"
+      ]
+    },
+    "CF": {
+      "calc_type": "Inter2ln",
+      "refs": [
+        "FH",
+        "PtV"
+      ]
+    },
+    "CC": {
+      "calc_type": "Intersect",
+      "refs": [
+        "N",
+        "Ba",
+        "Pt",
+        "Gn"
+      ],
+      "meaning": "intersection of N-Ba and Pt-Gn"
+    },
+    "Xi": {
+      "calc_type": "Intersect",
+      "refs": [
+        "R23",
+        "R14",
+        "R13",
+        "R24"
+      ],
+      "meaning": "ramal rectangle center from R1-R4 with FH/PtV directions"
+    }
+  },
+  "resolutions": {
+    "Ms-PtV": {
+      "facad": {
+        "order": 9,
+        "calc_type": "ProjLine",
+        "refs": [
+          "FH",
+          "Pt",
+          "Ms-d"
+        ],
+        "norm": "19±3"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_PTV_MOLAR_VARIANT__RICKETTS_A6_PR_PTV_STRICT_EQUIVALENCE_FORBIDDEN",
+        "nearest_measurement_id": "M_U6_PTV_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad uses vendor Pt and generic most-distal upper-molar marker Ms-d. DC requires manual PR_Ricketts_PTV at the source-locked posterior pterygopalatine-fossa outline and manual U6_DISTAL_Ricketts with Ricketts A6 semantics. Neither identity is proven equivalent from the CPH."
+      }
+    },
+    "Cranium ant len": {
+      "facad": {
+        "order": 27,
+        "calc_type": "Dist2p",
+        "refs": [
+          "CC",
+          "N"
+        ],
+        "norm": "61±2.5"
+      },
+      "dc": {
+        "status": "CANONICAL_GEOMETRY_FAMILY_MATCH__CC_PT_AND_GN_IDENTITY_GATED",
+        "nearest_measurement_id": "M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Both measure CC-N, but Facad CC intersects N-Ba with Pt-Gn using a direct Gn marker. DC Atlas2009 CC intersects Ba-N with Pt_Ricketts and the canonical constructed Ricketts Gn. Direct Pt and Gn identity parity is not established."
+      }
+    },
+    "PFH": {
+      "facad": {
+        "order": 28,
+        "calc_type": "Dist2p",
+        "refs": [
+          "CF",
+          "Go"
+        ],
+        "norm": "63±3.5"
+      },
+      "dc": {
+        "status": "CANONICAL_GEOMETRY_FAMILY_MATCH__CF_PTV_AND_GO_IDENTITY_GATED",
+        "nearest_measurement_id": "M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Both are linear Go-CF families, but Facad CF inherits vendor PtV through Pt and Facad Go is generic Gonion. DC requires canonical CF from source-locked PR_Ricketts_PTV and source-specific manual GO_Ricketts_PFH."
+      }
+    },
+    "Ramus Xi pos": {
+      "facad": {
+        "order": 29,
+        "calc_type": "Angle3p",
+        "refs": [
+          "CF",
+          "Xi",
+          "P"
+        ],
+        "norm": "76±3"
+      },
+      "dc": {
+        "status": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__CF_PTV_ANCHOR_AND_ANGLE_PRESENTATION_GATED",
+        "nearest_measurement_id": "M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Facad angle uses CF as vertex, with rays CF-Xi and CF-P; because CF and P lie on FH this is the same line family as FH versus CF-Xi. Strict identity remains gated because Facad CF depends on vendor PtV/Pt, and exact Angle3p presentation parity is unobserved."
+      }
+    },
+    "Porion pos": {
+      "facad": {
+        "order": 30,
+        "calc_type": "DistLine",
+        "refs": [
+          "PtV",
+          "P"
+        ],
+        "norm": "-33.5±2",
+        "changeRightLeft": true
+      },
+      "dc": {
+        "status": "CANONICAL_GEOMETRY_FAMILY_MATCH__PTV_ANCHOR_AND_SIGN_PARITY_GATED",
+        "nearest_measurement_id": "M_RICKETTS_PORION_LOCATION_PTV_MM_V1",
+        "direct_alias_allowed": false,
+        "rationale": "Both express Porion position relative to a PTV perpendicular to FH, but Facad PTV is anchored at vendor Pt while DC PTV is anchored at manual PR_Ricketts_PTV. Facad DistLine sign/presentation, including changeRightLeft, also requires same-trace parity before aliasing."
+      }
+    }
+  },
+  "safety_rules": {
+    "no_runtime_activation": true,
+    "no_facad_norm_runtime_classification": true,
+    "no_direct_alias_until_identity_and_presentation_parity": true,
+    "no_numeric_or_signed_parity_claim_without_same_trace_export": true,
+    "facad_pt_must_not_alias_dc_pr_ricketts_ptv": true,
+    "facad_ms_d_must_not_alias_dc_ricketts_a6": true,
+    "facad_direct_gn_must_not_alias_dc_constructed_gn": true,
+    "facad_generic_go_must_not_alias_dc_go_ricketts_pfh": true
+  }
+}

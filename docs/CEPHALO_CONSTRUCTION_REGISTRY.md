@@ -188,3 +188,81 @@ These constructions extend the LOT06 deterministic authority without activating 
 - `STEINER_OCCLUSAL_SN_1953_V1` ? SN vs version-scoped Steiner 1953 occlusal plane using explicit/constructed `Occ_Steiner_Ant` and `Occ_Steiner_Post`; Wits/Ricketts occlusal planes are not aliases.
 - `STEINER_L1_DLINE_LINEAR_1959_V1` ? L1 facial-crown surface to D-line; D-line passes through explicit `D_Steiner_1959` perpendicular to Go-Gn; verified calibration required.
 - `STEINER_L1_DLINE_ANGULAR_1959_V1` ? lower-incisor long axis vs D-line orientation; explicit Steiner D remains an evidence dependency even though line orientation is determined by Go-Gn.
+
+
+## RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1
+
+- Purpose: Ricketts pterygoid vertical construction for upper-molar position.
+- Required landmarks: `PR_Ricketts_PTV`, `Po_anatomic`, `Or`.
+- Rule: infinite line through `PR_Ricketts_PTV`, perpendicular to anatomical Frankfort `Po_anatomic-Or`.
+- Coordinate space: source-image pixels.
+- Evidence gate: all identities available from one source image; degenerate Frankfort => INVALID.
+- Forbidden alias: generic `PT_point`, `Ptm`, and facial-axis `Pt_Ricketts` must not be promoted by name.
+- Authority gate: `PR_Ricketts_PTV` must be `MANUAL` or `MANUAL_CORRECTED`.
+- Downstream measurement `M_U6_PTV_MM_V1` is `CONDITIONAL_EXECUTABLE` only with manual/manual-corrected `U6_DISTAL_Ricketts` and verified calibration.
+- Forbidden substitutions: generic `PTV`, `Pt`, `PT_point`, `Ptm`, generic/cusp/centroid/mesial `U6`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_U6_PTV_SOURCE_LOCK.md`.
+
+
+## RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1
+
+- Purpose: functional occlusal plane for the Ricketts/Gregoret source-locked profile.
+- Required landmarks: `FOP_PREMOLAR_Ricketts`, `FOP_MOLAR_Ricketts`.
+- Rule: line through the explicit premolar- and molar-occlusion identities; incisors are not anchors.
+- Evidence gate: both identities available from one source image; coincident anchors => `INVALID`.
+- Forbidden substitutions: generic occlusal anchors, incisor-defined planes, Steiner/Downs occlusal planes.
+- State: `SOURCE_LOCKED_GEOMETRY`.
+- Downstream: `M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1` is `CONDITIONAL_EXECUTABLE` with explicit FOP anchors, `L1_incisal`, `L1_apex`, and verified calibration. Sign is positive on the crownward/incisal side of the FOP and negative on the apical side; the L1 long axis orients the plane normal.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md`.
+
+## RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1
+
+- Purpose: Ricketts mandibular plane for MP–FH.
+- Required landmarks: `MP_ANGLE_INFERIOR_Ricketts`, `Me`.
+- Rule: line through the source-specific inferior mandibular-angle point and Menton.
+- Evidence gate: both identities available from one source image; coincident anchors => `INVALID`.
+- Forbidden substitutions: generic `Go`, `Go-Me`, `Go-Gn`, Tweed FMA geometry.
+- State: `SOURCE_LOCKED_GEOMETRY`.
+- Downstream: `M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1` is `CONDITIONAL_EXECUTABLE` and consumes this canonical `ConstructionEvidence` plus anatomical Frankfort `Po_anatomic-Or`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md`.
+
+
+## RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1
+
+- Purpose: source-locked construction of `Xi_Ricketts`, the geometric center of the mandibular ramus.
+- Required landmarks: `R1_Ricketts`, `R2_Ricketts`, `R3_Ricketts`, `R4_Ricketts`, `Po_anatomic`, `Or`.
+- Source geometry: R1/R2 define opposed ramal limits along Frankfort; R3/R4 define superior/inferior limits along the perpendicular axis; Xi is the center of the resulting rectangle.
+- Numerical rule: compute the midpoint of the R1/R2 limits on the anatomical Frankfort axis and the midpoint of the R3/R4 limits on its perpendicular, then reconstruct the point in source-image coordinates.
+- Evidence gate: `R1_Ricketts`..`R4_Ricketts` must be `MANUAL` or `MANUAL_CORRECTED`; Po/Or may use their established canonical authority; all six identities must come from one source image; degenerate Frankfort or collapsed rectangle => `INVALID`.
+- Forbidden substitutions: generic `Xi`, `Go`, `Ar`, `PT_point`; no detector alias is promoted by name.
+- State: `SOURCE_LOCKED_GEOMETRY`.
+- Downstream: `M_ORAL_GNOMON_ANS_XI_PM_DEG_V1` is `CONDITIONAL_EXECUTABLE` with constructed Xi + explicit `ANS` + explicit `Pm_Ricketts`.
+- `M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1` is `CONDITIONAL_EXECUTABLE` with manual/manual-corrected `DC_Ricketts`, this canonical Xi construction, and manual/manual-corrected `Pm_Ricketts`; generic condylar/chin aliases remain forbidden.
+- Source authority: Ricketts RM 1972 source-locks the R1-R4 ramal rectangle/centroid; Ricketts RM 1981 confirms Xi-Pm/oral-gnomon use. FH/PtV axis orientation is corroborated by peer-reviewed Ricketts implementations (e.g. Mangla et al., 2011, DOI `10.4103/0976-237X.86458`).
+
+- Mandibular-arc DC authority source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_DC_MANDIBULAR_ARC_SOURCE_LOCK.md`.
+
+
+## RICKETTS_CF_FH_PTV_INTERSECTION_V1
+
+- Purpose: Ricketts facial center (CF) for Atlas maxillary height and later internal-structure factors.
+- Definition: intersection of anatomical Frankfort with source-locked Ricketts PTV.
+- Runtime authority: consumes `RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1`; therefore `PR_Ricketts_PTV` remains MANUAL or MANUAL_CORRECTED.
+- Output: constructed landmark `CF_Ricketts`.
+- Same-source gate: inherited from PTV/FH evidence.
+- Generic/manual `CF` aliases are not promoted.
+- Downstream Wave B: `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md`.
+
+
+## RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1
+
+- Purpose: Atlas-2009 cranial center (CC) for anterior cranial length.
+- Definition: intersection of `Ba-N` with source-locked facial axis `Pt_Ricketts-Gn_constructed_Ricketts`.
+- Authority gate: `Pt_Ricketts` must be MANUAL or MANUAL_CORRECTED.
+- Upstream construction: `RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1`.
+- Output: `CC_Ricketts_Atlas2009`.
+- Same-source gate: all contributing landmark evidence must resolve to one image.
+- Historical variant: Ricketts 1981 also contains perpendicular-from-Pt wording; this Atlas-specific construction does not merge the variants.
+- Downstream: `M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1`.
+- Source contract: `docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md`.

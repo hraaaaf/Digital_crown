@@ -1,0 +1,225 @@
+{
+  "schema_version": "ORTHO_LOT08_MCNAMARA_FACAD_GAP_RESOLUTION_V1",
+  "status": "SOURCE_LOCKED__RUNTIME_GATED",
+  "scope": [
+    "Nasolabial",
+    "Ls Cant",
+    "Max-Mand diff",
+    "LAFH",
+    "Is-A",
+    "Ii to A-Pog"
+  ],
+  "facad_provenance": {
+    "product": "Facad",
+    "release": "3.14.1.1111",
+    "profile": "McNamara.cph",
+    "geometry_probe": {
+      "run_id": 37614595578,
+      "head_sha": "478aa7d6dd636c97be0b9af79b083149ffba07c7",
+      "artifact_id": 11479502780,
+      "artifact_digest": "sha256:634861473da5928654b2887c4d3cfc141cd29a26c1b6067b4a4c837ef1c73fb4"
+    },
+    "soft_probe": {
+      "run_id": 37614708086,
+      "head_sha": "4fb273ee6cb0d97b84f272653f6fffc3612a139f",
+      "artifact_id": 11479682810,
+      "artifact_digest": "sha256:68faa24e8e9158dfe3f02d901bd0a541e52a991515f4e3121cf048a92d1f5514"
+    },
+    "reference_manual": {
+      "url": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf",
+      "facts": {
+        "Angle3p": "The first marker is the center/apex; marker 2 and marker 3 define the rays; positive rotation is clockwise.",
+        "Dist3p": "Distance from the line defined by line-marker 1 and line-marker 2 to the target marker; sign controls may apply.",
+        "ProjLine": "Projection onto a named line of the displacement between marker 1 and marker 2.",
+        "Normal": "Line perpendicular to a named line and passing through a named marker."
+      }
+    },
+    "user_guide": {
+      "url": "https://www.facad.com/dox/dox313/FacadTracingUsersGuide_ENG.pdf",
+      "observed_landmarks": {
+        "Co": "Condyle, posterior point",
+        "Gn": "Gnathion",
+        "Is": "Incisor superior (upper incisor tip)",
+        "Ii": "Incisor inferior (lower incisor tip)",
+        "MS": "Steiner's S-point (columnella tangent point)",
+        "SN": "Subnasale; Retronasale"
+      }
+    }
+  },
+  "scientific_authorities": {
+    "mcnamara_1984": {
+      "doi": "10.1016/S0002-9416(84)90352-X",
+      "pubmed": "https://pubmed.ncbi.nlm.nih.gov/6594933/",
+      "role": "PRIMARY_MCNAMARA_AUTHORITY"
+    },
+    "modern_parameter_corrobation": {
+      "pubmed": "https://pubmed.ncbi.nlm.nih.gov/33759961/",
+      "role": "CORROBORATES Prn-Sn-Ls nasolabial, Co-A, Co-Gn, ANS-Me, U1-A vertical, L1-A-Pog",
+      "claim": "Figure definitions explicitly identify nasolabial angle Prn'-Sn-Ls, lower anterior facial height ANS-Me, upper incisor to Point A vertical, and lower incisor to A-Po line."
+    },
+    "upper_lip_cant_corrobation": {
+      "url": "https://www.dovepress.com/hard-and-soft-tissue-correlations-in-facial-profiles-a-canonical-corre-peer-reviewed-fulltext-article-CCIDE",
+      "doi": "10.2147/CCIDE.S73457",
+      "role": "CORROBORATES upper-lip tangent vs N-perpendicular",
+      "claim": "Upper lip cant is defined as the angle between a line tangent to the upper lip and a line perpendicular to Frankfort horizontal through Nasion."
+    }
+  },
+  "resolutions": {
+    "Max-Mand diff": {
+      "facad": {
+        "calc_type": "Sub",
+        "refs": [
+          "Co-Gn",
+          "Co-A"
+        ],
+        "norm": "20-33"
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_CO_POSTERIOR_VARIANT__MCNAMARA_CONDYLION_STRICT_EQUIVALENCE_UNPROVEN",
+        "runtime_activation": false,
+        "same_trace_numeric_parity_required": true,
+        "nearest_dc_measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+        "direct_alias_allowed": false,
+        "reason": "Facad Co is documented as 'Condyle, posterior point'; DC Co_anatomic is anatomical Condylion/posterosuperior condylar point. Same formula family does not prove landmark identity."
+      }
+    },
+    "LAFH": {
+      "facad": {
+        "calc_type": "Dist2p",
+        "refs": [
+          "ANS",
+          "Me"
+        ],
+        "norm": "60-73"
+      },
+      "dc": {
+        "status": "CANONICAL_GEOMETRY_MATCH",
+        "measurement_id": "M_ANS_ME_MM_V1",
+        "runtime_activation": false,
+        "same_trace_numeric_parity_required": true
+      }
+    },
+    "Is-A": {
+      "facad": {
+        "calc_type": "ProjLine",
+        "refs": [
+          "FH",
+          "A",
+          "Is"
+        ],
+        "norm": "4-6",
+        "argument_order": [
+          "FH",
+          "A",
+          "Is"
+        ],
+        "projection_vector_order": [
+          "A",
+          "Is"
+        ],
+        "sign_semantics": "Preserve serialized ProjLine argument order; do not reorder. Exact numeric sign parity remains gated."
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
+        "candidate_measurement_id": "M_U1_A_VERTICAL_MM_V1",
+        "difference": "Facad uses upper-incisor tip Is; DC/McNamara source-lock requires facial crown surface U1_facial_surface.",
+        "runtime_activation": false
+      }
+    },
+    "Ii to A-Pog": {
+      "facad": {
+        "calc_type": "Dist3p",
+        "refs": [
+          "Pog",
+          "A",
+          "Ii"
+        ],
+        "norm": "1-3",
+        "changeRightLeft": true,
+        "argument_order": [
+          "Pog",
+          "A",
+          "Ii"
+        ],
+        "line_argument_order": [
+          "Pog",
+          "A"
+        ],
+        "target_point": "Ii",
+        "sign_semantics": "Preserve serialized Dist3p order plus changeRightLeft=true; do not normalize/reorder."
+      },
+      "dc": {
+        "status": "CANONICAL_EDGE_GEOMETRY_FAMILY_MATCH__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN__SIGNED_PARITY_GATED",
+        "difference": "Facad uses lower-incisor tip Ii. This matches the existing DC edge-to-A-Pog geometry family, but strict McNamara core uses L1_facial_surface; signed/right-left numeric parity remains unproven.",
+        "runtime_activation": false,
+        "geometry_family_measurement_id": "M_L1_EDGE_APOG_MM_V1",
+        "strict_mcnamara_measurement_id": "M_L1_FACIAL_SURFACE_APOG_MM_V1",
+        "signed_same_trace_parity_required": true
+      }
+    },
+    "Nasolabial": {
+      "facad": {
+        "calc_type": "Angle3p",
+        "refs": [
+          "SN",
+          "MS",
+          "Ls"
+        ],
+        "norm": "102±8",
+        "MS": "Steiner's S-point (columnella tangent point)",
+        "SN": "Subnasale; Retronasale",
+        "center_marker": "SN",
+        "marker_2": "MS",
+        "marker_3": "Ls",
+        "rays": [
+          "SN->MS",
+          "SN->Ls"
+        ],
+        "positive_rotation": "clockwise",
+        "angle_order_semantics": "Preserve SN as center/apex and MS/Ls ray order; do not reorder."
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_SOFT_TISSUE_VARIANT__MCNAMARA_PRN_SN_LS_EQUIVALENCE_FORBIDDEN",
+        "legacy_candidate": "Angle_Nasolabial",
+        "legacy_candidate_status": "QUARANTINED_INVALID_DEFINITION",
+        "runtime_activation": false,
+        "rationale": "McNamara literature convention is Prn'/Sn/Ls or tangents to nasal base and upper lip; Facad uses SN/MS/Ls with Steiner MS."
+      }
+    },
+    "Ls Cant": {
+      "facad": {
+        "calc_type": "Angle2ln",
+        "refs": [
+          "Ls-N",
+          "NP"
+        ],
+        "norm": "14±8",
+        "dependencies": {
+          "Ls-N": "Line(Ls,N)",
+          "NP": "Normal(FH,N)"
+        }
+      },
+      "dc": {
+        "status": "FACAD_VENDOR_LS_N_VARIANT__MCNAMARA_UPPER_LIP_TANGENT_EQUIVALENCE_FORBIDDEN",
+        "runtime_activation": false,
+        "rationale": "Independent McNamara-style descriptions define upper lip cant as upper-lip tangent vs N-perpendicular; Facad instead uses N-Ls line vs N-perpendicular."
+      }
+    }
+  },
+  "safety_rules": {
+    "no_runtime_activation_in_this_lot": true,
+    "no_facad_norm_runtime_classification": true,
+    "no_numeric_parity_claim_without_same_trace_export": true,
+    "no_alias_facad_nasolabial_to_legacy_angle_nasolabial": true,
+    "no_alias_incisisal_tip_variants_to_mcnamara_surface_measurements": true,
+    "no_alias_facad_ls_cant_to_mcnamara_upper_lip_tangent": true,
+    "preserve_facad_changeRightLeft_for_ii_apog": true,
+    "preserve_facad_is_a_argument_order": true,
+    "preserve_facad_ii_apog_argument_order": true,
+    "preserve_facad_nasolabial_angle3p_order": true,
+    "no_surface_alias_even_when_edge_geometry_family_exists": true,
+    "no_facad_co_posterior_alias_to_dc_co_anatomic": true
+  },
+  "verification_revision": 5,
+  "verification_note": "Triggers exact-HEAD McNamara certification after converged adversarial fixes."
+}

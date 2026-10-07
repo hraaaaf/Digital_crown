@@ -1,0 +1,231 @@
+{
+  "schema_version": "ORTHO_LOT08_FACAD_RICKETTS_DIRECT_PARITY_EVIDENCE_V1",
+  "status": "DIRECT_DEFINITION_OBSERVED",
+  "allowed_manifest_status": [
+    "AWAITING_DIRECT_FACAD_EXPORTS",
+    "DIRECT_DEFINITION_OBSERVED",
+    "DIRECT_EVIDENCE_PARTIAL",
+    "DIRECT_PARITY_OBSERVED"
+  ],
+  "scientific_authority": false,
+  "compatibility_only": true,
+  "evidence_root": "docs/audits/evidence/facad",
+  "profiles": [
+    {
+      "target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+      "vendor_label": "Ricketts (32 F)",
+      "expected_facad_factor_count": 32,
+      "observation_status": "UNOBSERVED"
+    },
+    {
+      "target_id": "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
+      "vendor_label": "Ricketts (13 F)",
+      "expected_facad_factor_count": 13,
+      "observation_status": "UNOBSERVED"
+    }
+  ],
+  "required_direct_exports": [
+    {
+      "kind": "ANALYSIS_VALUES",
+      "required_for": [
+        "membership",
+        "order",
+        "labels",
+        "units",
+        "numeric_values",
+        "rounding"
+      ]
+    },
+    {
+      "kind": "ANALYSIS_PROPERTIES",
+      "required_for": [
+        "profile_identity",
+        "norms_if_exported",
+        "analysis_metadata"
+      ]
+    },
+    {
+      "kind": "MARKER_POSITIONS",
+      "required_for": [
+        "landmarks",
+        "constructions",
+        "sign_investigation",
+        "same_trace_numeric_comparison"
+      ]
+    }
+  ],
+  "evidence_record_contract": {
+    "required_fields": [
+      "evidence_id",
+      "artifact_kind",
+      "profile_target_id",
+      "source_path",
+      "source_filename",
+      "sha256",
+      "facad_version",
+      "observed_at",
+      "same_trace_case_id"
+    ],
+    "allowed_artifact_kinds": [
+      "ANALYSIS_VALUES",
+      "ANALYSIS_PROPERTIES",
+      "MARKER_POSITIONS"
+    ],
+    "allowed_profile_target_ids": [
+      "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+      "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET"
+    ],
+    "sha256_format": "64 lowercase hexadecimal characters",
+    "source_path_rule": "Repository-relative path under docs/audits/evidence/facad pointing to the exact immutable Facad export artifact; absolute paths and parent traversal are forbidden.",
+    "same_trace_rule": "A profile may become OBSERVED only when ANALYSIS_VALUES, ANALYSIS_PROPERTIES and MARKER_POSITIONS share at least one same_trace_case_id and the same facad_version. Numeric parity rows must reference one same_trace_case_id and one facad_version."
+  },
+  "parity_row_contract": {
+    "required_fields": [
+      "profile_target_id",
+      "facad_order",
+      "facad_export_label",
+      "facad_unit",
+      "digital_crown_measurement_id",
+      "membership_status",
+      "sign_status",
+      "numeric_status",
+      "comparison_details",
+      "evidence_refs"
+    ],
+    "comparison_details_required_fields": [
+      "digital_crown_label",
+      "label_status",
+      "digital_crown_unit",
+      "unit_status",
+      "facad_landmarks_constructions",
+      "digital_crown_landmarks_constructions",
+      "construction_status",
+      "facad_value",
+      "digital_crown_value",
+      "numeric_delta",
+      "facad_norm",
+      "digital_crown_norm",
+      "norm_status",
+      "facad_display_value",
+      "digital_crown_display_value",
+      "rounding_status",
+      "atlas_divergence_status",
+      "atlas_divergence_note"
+    ],
+    "allowed_membership_status": [
+      "OBSERVED_MATCH",
+      "OBSERVED_FACAD_ONLY",
+      "OBSERVED_DC_ONLY"
+    ],
+    "allowed_sign_status": [
+      "OBSERVED_MATCH",
+      "OBSERVED_DIFFERENT",
+      "UNOBSERVED",
+      "NOT_APPLICABLE"
+    ],
+    "allowed_numeric_status": [
+      "OBSERVED_MATCH",
+      "OBSERVED_DIFFERENT",
+      "UNOBSERVED",
+      "NOT_COMPARABLE"
+    ],
+    "allowed_dimension_status": [
+      "OBSERVED_MATCH",
+      "OBSERVED_DIFFERENT",
+      "UNOBSERVED",
+      "NOT_APPLICABLE"
+    ],
+    "allowed_norm_status": [
+      "OBSERVED_MATCH",
+      "OBSERVED_DIFFERENT",
+      "UNOBSERVED",
+      "NOT_EXPORTED",
+      "NOT_APPLICABLE"
+    ]
+  },
+  "allowed_profile_observation_status": [
+    "UNOBSERVED",
+    "PARTIAL",
+    "OBSERVED"
+  ],
+  "comparison_dimensions": [
+    "membership",
+    "order",
+    "export_labels",
+    "units",
+    "landmarks_and_constructions",
+    "sign_convention",
+    "same_trace_numeric_values",
+    "norms_if_exported",
+    "rounding",
+    "facad_without_digital_crown_equivalent",
+    "digital_crown_without_facad_equivalent",
+    "atlas_vs_facad_divergence"
+  ],
+  "rules": {
+    "direct_export_required": true,
+    "observed_membership_requires_analysis_values_and_properties": true,
+    "observed_profile_requires_same_trace_triplet": true,
+    "same_trace_triplet_requires_same_facad_version": true,
+    "observed_at_requires_timezone": true,
+    "no_membership_inference_from_vendor_label": true,
+    "no_speculative_parity_rows": true,
+    "no_sign_inference_without_observation": true,
+    "no_norm_inference_without_observation": true,
+    "no_scientific_equivalence_claim": true,
+    "unobserved_fields_remain_unobserved": true,
+    "evidence_hash_required": true,
+    "evidence_file_presence_required": true,
+    "facad_version_required": true,
+    "all_declared_comparison_dimensions_must_be_recordable": true,
+    "observed_profile_requires_all_dimensions_resolved": true,
+    "static_cph_definition_may_prove_membership_order_labels_norms_and_construction_metadata": true,
+    "static_cph_definition_must_not_prove_patient_numeric_values_or_rounding": true,
+    "direct_export_required_for_same_trace_numeric_parity": true
+  },
+  "evidence_records": [],
+  "parity_rows": [],
+  "static_definition_evidence": {
+    "artifact_kind": "STANDARD_ANALYSIS_DEFINITION_CPH",
+    "source": "Official Facad 3.14.1 installer payload",
+    "installer_filename": "Facad-Installer-3.14.1.1111.exe",
+    "profiles": [
+      {
+        "target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+        "source_filename": "Ricketts (32 F).cph",
+        "observed_factor_count": 32,
+        "observation_scope": [
+          "membership",
+          "order",
+          "labels",
+          "norms",
+          "calc_type",
+          "point_refs",
+          "changeSign_if_present"
+        ],
+        "numeric_patient_values_observed": false
+      },
+      {
+        "target_id": "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
+        "source_filename": "Ricketts (13 F).cph",
+        "observed_factor_count": 13,
+        "observation_scope": [
+          "membership",
+          "order",
+          "labels",
+          "norms",
+          "calc_type",
+          "point_refs",
+          "changeSign_if_present"
+        ],
+        "numeric_patient_values_observed": false
+      }
+    ],
+    "proof": {
+      "workflow_run_id": 37595714768,
+      "exact_head": "497b464b1ffa74ed02cd2644ca508889b0a080c3",
+      "artifact_id": 11469783515,
+      "artifact_digest": "sha256:812b39f6effad24cf7e3cd95f71089207da68a594dce5e15a4ba2d7f014c9bd5"
+    }
+  }
+}

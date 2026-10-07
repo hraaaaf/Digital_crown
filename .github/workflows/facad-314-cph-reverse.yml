@@ -1,0 +1,126 @@
+name: Facad 3.14 CPH reverse engineering
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-cph-reverse.yml
+      - audit/cephalo_lot08_facad_cph_parse.py
+      - backend/tests/test_cephalo_lot08_facad_cph_parser.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reverse:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download and extract official Facad 3.14.1 payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path cph-reverse | Out-Null
+          $installer = 'cph-reverse/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path cph-reverse/outer | Out-Null
+          & $seven x $installer '-ocph-reverse/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path cph-reverse/release | Out-Null
+          & $seven x 'cph-reverse/outer/FacadRelease-3.14.1.1111.zip' '-ocph-reverse/release' -y | Out-Null
+          $src32 = 'cph-reverse/release/Ceph/Ricketts (32 F).cph'
+          $src13 = 'cph-reverse/release/Ceph/Ricketts (13 F).cph'
+          if (-not (Test-Path $src32)) { throw 'Missing Ricketts 32F CPH' }
+          if (-not (Test-Path $src13)) { throw 'Missing Ricketts 13F CPH' }
+          Copy-Item $src32 'cph-reverse/Ricketts-32F.cph'
+          Copy-Item $src13 'cph-reverse/Ricketts-13F.cph'
+          Get-FileHash 'cph-reverse/Ricketts-32F.cph' -Algorithm SHA256 | Format-List | Out-File cph-reverse/Ricketts-32F.sha256.txt
+          Get-FileHash 'cph-reverse/Ricketts-13F.cph' -Algorithm SHA256 | Format-List | Out-File cph-reverse/Ricketts-13F.sha256.txt
+
+      - name: Characterize CPH format
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $targets = @('Ricketts-32F.cph','Ricketts-13F.cph')
+          foreach ($name in $targets) {
+            $path = Join-Path 'cph-reverse' $name
+            $bytes = [IO.File]::ReadAllBytes($path)
+            $head = $bytes[0..([Math]::Min(127,$bytes.Length-1))]
+            $hex = ($head | ForEach-Object { $_.ToString('X2') }) -join ' '
+            "FILE=$name`nSIZE=$($bytes.Length)`nHEAD_HEX=$hex`n" | Add-Content cph-reverse/format-report.txt
+
+            foreach ($encName in @('UTF8','Unicode','BigEndianUnicode','ASCII')) {
+              $enc = [Text.Encoding]::$encName
+              try {
+                $text = $enc.GetString($bytes)
+                $printable = ($text.ToCharArray() | Where-Object { [char]::IsLetterOrDigit($_) -or [char]::IsWhiteSpace($_) -or [char]::IsPunctuation($_) }).Count
+                $ratio = if ($text.Length) { [Math]::Round($printable / $text.Length, 4) } else { 0 }
+                "ENC=$encName PRINTABLE_RATIO=$ratio SAMPLE=$($text.Substring(0,[Math]::Min(300,$text.Length)).Replace("`r",' ').Replace("`n",' '))" | Add-Content cph-reverse/format-report.txt
+              } catch {}
+            }
+          }
+          Get-Content cph-reverse/format-report.txt
+
+      - name: Extract printable strings and likely records
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($stem in @('Ricketts-32F','Ricketts-13F')) {
+            $path = "cph-reverse/$stem.cph"
+            $bytes = [IO.File]::ReadAllBytes($path)
+            $ascii = [Text.Encoding]::ASCII.GetString($bytes)
+            $unicode = [Text.Encoding]::Unicode.GetString($bytes)
+
+            $asciiMatches = [regex]::Matches($ascii,'[ -~]{4,}') | ForEach-Object { $_.Value }
+            $unicodeMatches = [regex]::Matches($unicode,'[ -~]{4,}') | ForEach-Object { $_.Value }
+            $all = @($asciiMatches + $unicodeMatches) | Sort-Object -Unique
+            $all | Set-Content "cph-reverse/$stem.strings.txt"
+
+            $interesting = $all | Where-Object {
+              $_ -match 'Ricketts|Factor|Analysis|Ceph|mm|deg|degree|Norm|Mean|SD|Landmark|Point|Line|Plane|Incisor|Molar|Facial|Mandib|Maxill|Occlus|Lip|Convex|Axis|Depth|Height|Arc|Porion|Palatal|Corpus|Ramus|Overjet|Overbite'
+            }
+            $interesting | Set-Content "cph-reverse/$stem.interesting.txt"
+            Write-Host "=== $stem INTERESTING ==="
+            $interesting | Select-Object -First 300 | ForEach-Object { Write-Host $_ }
+          }
+
+      - name: Parse CPH XML deterministically
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python audit/cephalo_lot08_facad_cph_parse.py cph-reverse/Ricketts-32F.cph cph-reverse/Ricketts-13F.cph --out cph-reverse/ricketts-cph-parsed.json | Tee-Object -FilePath cph-reverse/ricketts-cph-parsed.txt
+          python -c "import json,pathlib; data=json.loads(pathlib.Path('cph-reverse/ricketts-cph-parsed.json').read_text(encoding='utf-8')); expected={'Ricketts (32 F)':32,'Ricketts (13 F)':13}; observed={x['profile_name']:x['measurement_candidate_count'] for x in data}; print('OBSERVED_COUNTS=',observed); assert observed==expected, f'{observed} != {expected}'"
+
+      - name: Compare 32F and 13F textual atoms
+        shell: pwsh
+        run: |
+          $a = Get-Content cph-reverse/Ricketts-32F.strings.txt
+          $b = Get-Content cph-reverse/Ricketts-13F.strings.txt
+          Compare-Object -ReferenceObject $a -DifferenceObject $b |
+            ForEach-Object { "SIDE=$($_.SideIndicator) | $($_.InputObject)" } |
+            Set-Content cph-reverse/strings-diff.txt
+          Get-Content cph-reverse/strings-diff.txt | Select-Object -First 500
+
+      - name: Upload CPH reverse-engineering evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-cph-reverse-${{ github.sha }}
+          path: |
+            cph-reverse/Ricketts-32F.cph
+            cph-reverse/Ricketts-13F.cph
+            cph-reverse/Ricketts-32F.sha256.txt
+            cph-reverse/Ricketts-13F.sha256.txt
+            cph-reverse/format-report.txt
+            cph-reverse/Ricketts-32F.strings.txt
+            cph-reverse/Ricketts-13F.strings.txt
+            cph-reverse/Ricketts-32F.interesting.txt
+            cph-reverse/Ricketts-13F.interesting.txt
+            cph-reverse/strings-diff.txt
+            cph-reverse/ricketts-cph-parsed.json
+            cph-reverse/ricketts-cph-parsed.txt
+          if-no-files-found: error

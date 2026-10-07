@@ -18,6 +18,18 @@
       "id": "STEINER_1960",
       "doi": "10.1016/0002-9416(60)90145-7",
       "role": "PLANNING_ASSESSMENT_CONTEXT"
+    },
+    {
+      "id": "FACAD_314_STEINER_CPH",
+      "url": "https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe",
+      "role": "VENDOR_COMPATIBILITY_DEFINITION_ONLY",
+      "scientific_authority": false
+    },
+    {
+      "id": "PMID_38909276_STEINER_SLINE",
+      "pmid": "38909276",
+      "role": "SECONDARY_CLINICAL_DESCRIPTION_OF_STEINER_SLINE_ONLY",
+      "primary_historical_authority": false
     }
   ],
   "layers": {
@@ -56,7 +68,21 @@
           ],
           "kind": "COMPARE_LINEAR_DISTANCES",
           "authority": "PROTOCOL_DERIVED_INTERPRETATION_ONLY",
-          "autonomous_treatment": false
+          "autonomous_treatment": false,
+          "facad_compatibility": {
+            "facad_label": "Ii-Pog // NB",
+            "calc_type": "Sub",
+            "ordered_inputs": [
+              "M_L1_NB_MM_V1",
+              "M_POG_NB_MM_V1"
+            ],
+            "numeric_difference_formula": "M_L1_NB_MM_V1 - M_POG_NB_MM_V1",
+            "facad_raw_reference": "0±2",
+            "runtime_numeric_presentation": "NOT_EXPOSED",
+            "reference_authority": "VENDOR_COMPATIBILITY_ONLY",
+            "runtime_reference_authority": false,
+            "classification_authority": false
+          }
         }
       ]
     }
@@ -67,7 +93,8 @@
     "D_Steiner_1959": "manual_explicit_only; detector D_point alias forbidden",
     "Occ_Steiner_Ant": "constructed_or_manual_anchor",
     "Occ_Steiner_Post": "constructed_or_manual_anchor",
-    "Gn_anatomic": "manual_explicit_only; generic detector Gn alias forbidden for LOT08 Steiner activation"
+    "Gn_anatomic": "manual_explicit_only; generic detector Gn alias forbidden for LOT08 Steiner activation",
+    "MS_Steiner": "manual_explicit_only; Facad defines Steiner S-point as columella tangent point; Cm/Sn_soft/Prn aliases forbidden"
   },
   "execution_policy": {
     "missing_required_identity": "FAIL_CLOSED_NOT_COMPUTABLE",
@@ -83,22 +110,22 @@
       "applicability": "NOT_VALIDATED_FOR_UNIVERSAL_MODERN_USE",
       "out_of_domain_behavior": "DISPLAY_MEASUREMENT_AND_REFERENCE_WITHOUT_CLASSIFICATION",
       "values": {
-        "M_SNA_DEG_V1": 82.0,
-        "M_SNB_DEG_V1": 80.0,
-        "M_ANB_DEG_V1": 2.0,
-        "M_U1_NA_DEG_V1": 22.0,
-        "M_U1_NA_MM_V1": 4.0,
-        "M_L1_NB_DEG_V1": 25.0,
-        "M_L1_NB_MM_V1": 4.0,
-        "M_SN_GOGN_DEG_V1": 32.0,
+        "M_SNA_DEG_V1": 82,
+        "M_SNB_DEG_V1": 80,
+        "M_ANB_DEG_V1": 2,
+        "M_U1_NA_DEG_V1": 22,
+        "M_U1_NA_MM_V1": 4,
+        "M_L1_NB_DEG_V1": 25,
+        "M_L1_NB_MM_V1": 4,
+        "M_SN_GOGN_DEG_V1": 32,
         "M_OCCLUSAL_PLANE_SN_DEG_V1": 14.5,
-        "M_L1_GOGN_DEG_V1": 93.0
+        "M_L1_GOGN_DEG_V1": 93
       }
     }
   ],
   "scope_resolutions": {
     "U6_L6": "EXCLUDED_FROM_STATIC_REQUIRED_PROFILE; AUXILIARY_SERIAL_ONLY_UNTIL_EXACT_POINT_SEMANTICS_SOURCE_LOCKED",
-    "SL_SE_LE": "EXCLUDED_FROM_STATIC_PROFILE; DEFERRED_TO_STEINER_SERIAL_ASSESSMENT_V1",
+    "SL_SE_LE": "STEINER S-LINE SEPARATED FROM SERIAL SEMANTICS; S-LINE COMPATIBILITY PROFILE BLOCKED ON EXACT MS_STEINER; SE/LE SERIAL SEMANTICS REMAIN DEFERRED",
     "AUTONOMOUS_TREATMENT": "FORBIDDEN",
     "EXTRACTION_NON_EXTRACTION": "CLINICIAN_ONLY"
   },
@@ -110,6 +137,35 @@
         "M_SERIAL_MOLAR_DISPLACEMENT_V1"
       ],
       "reason": "serial superimposition semantics are not required to source-lock the static analysis profile"
+    },
+    "STEINER_SLINE_COMPATIBILITY_V1": {
+      "status": "SOURCE_LOCKED_VENDOR_GEOMETRY__BLOCKED_EXACT_MS_STEINER",
+      "authority": "FACAD_VENDOR_DEFINITION_WITH_SECONDARY_CLINICAL_DESCRIPTION__NOT_PRIMARY_HISTORICAL_CORE",
+      "required_identities": [
+        "MS_Steiner",
+        "Pog_soft",
+        "Ls_soft",
+        "Li_soft"
+      ],
+      "forbidden_aliases_for_MS_Steiner": [
+        "Cm",
+        "Sn_soft",
+        "Prn"
+      ],
+      "candidate_measurements": [
+        {
+          "measurement_id": "M_LS_STEINER_SLINE_MM_V1",
+          "definition": "perpendicular distance from Ls_soft to line Pog_soft-MS_Steiner",
+          "runtime_status": "BLOCKED_EXACT_MS_STEINER"
+        },
+        {
+          "measurement_id": "M_LI_STEINER_SLINE_MM_V1",
+          "definition": "perpendicular distance from Li_soft to line Pog_soft-MS_Steiner",
+          "runtime_status": "BLOCKED_EXACT_MS_STEINER"
+        }
+      ],
+      "facad_reference_values_runtime_authority": false,
+      "same_trace_numeric_parity_observed": false
     }
   },
   "pre_code_gate": {

@@ -1,0 +1,437 @@
+{
+  "schema_version": "FACAD_DC_UNMAPPED_BACKLOG_V1",
+  "source_mapping_head": "c206e51c09fb41d42c7d851fbc48c016e9fb0c06",
+  "source_mapping_run_id": 37600880912,
+  "rules": {
+    "no_new_equivalence_claims_in_medium": true,
+    "no_runtime_change_in_medium": true,
+    "every_item_requires_high_before_geometry_or_clinical_promotion": true
+  },
+  "profiles": {
+    "Steiner": {
+      "priority": 1,
+      "unmapped": [],
+      "resolved_high": [
+        {
+          "facad_label": "Ii-Pog // NB",
+          "decision": "EXISTING_DERIVED_RELATIONSHIP",
+          "dc_relationship_id": "STEINER_L1_NB_VS_POG_NB_V1"
+        },
+        {
+          "facad_label": "Ls-SL",
+          "decision": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner"
+        },
+        {
+          "facad_label": "Li-SL",
+          "decision": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner"
+        }
+      ],
+      "resolved_items": [
+        {
+          "facad_label": "Ii-Pog // NB",
+          "resolution": "DERIVED_RELATION_SOURCE_LOCKED__DC_UNSIGNED_DISTANCE_MISMATCH_BLOCKS_RUNTIME_PARITY",
+          "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ls-SL",
+          "resolution": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
+          "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Li-SL",
+          "resolution": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
+          "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
+        }
+      ]
+    },
+    "Tweed": {
+      "priority": 2,
+      "unmapped": [],
+      "resolved_items": [
+        {
+          "facad_label": "Wits",
+          "resolution": "FACAD_VENDOR_VARIANT_SOURCE_LOCKED__JACOBSON_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_tweed_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "OL/FH",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_CANT_SOURCE_LOCKED__DOWNS_STRICT_EQUIVALENCE_UNPROVEN",
+          "source": "docs/audits/schemas/ortho_lot08_tweed_facad_gap_resolution_v1.json"
+        }
+      ]
+    },
+    "McNamara": {
+      "priority": 3,
+      "unmapped": [],
+      "resolved_items": [
+        {
+          "facad_label": "Nasolabial",
+          "resolution": "FACAD_VENDOR_SOFT_TISSUE_VARIANT__MCNAMARA_PRN_SN_LS_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ls Cant",
+          "resolution": "FACAD_VENDOR_LS_N_VARIANT__MCNAMARA_UPPER_LIP_TANGENT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Max-Mand diff",
+          "resolution": "FACAD_VENDOR_CO_POSTERIOR_VARIANT__MCNAMARA_CONDYLION_STRICT_EQUIVALENCE_UNPROVEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json",
+          "nearest_dc_measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+          "direct_alias_allowed": false
+        },
+        {
+          "facad_label": "LAFH",
+          "resolution": "CANONICAL_GEOMETRY_MATCH",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Is-A",
+          "resolution": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ii to A-Pog",
+          "resolution": "CANONICAL_EDGE_GEOMETRY_FAMILY_MATCH__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json",
+          "geometry_family_measurement_id": "M_L1_EDGE_APOG_MM_V1",
+          "strict_mcnamara_measurement_id": "M_L1_FACIAL_SURFACE_APOG_MM_V1"
+        }
+      ]
+    },
+    "Downs": {
+      "priority": 4,
+      "unmapped": [],
+      "resolved_items": [
+        {
+          "facad_label": "Convexity",
+          "resolution": "DOWNS_HISTORICAL_GEOMETRY_SOURCE_LOCKED__CANONICAL_ID_MISSING__SIGNED_PARITY_GATED",
+          "proposed_measurement_id": "M_DOWNS_CONVEXITY_NA_APOG_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle4p",
+            "refs": [
+              "N",
+              "A",
+              "A",
+              "Pog"
+            ],
+            "norm": "0±5.1"
+          },
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "A-B plane",
+          "resolution": "DOWNS_HISTORICAL_GEOMETRY_SOURCE_LOCKED__CANONICAL_ID_MISSING__SIGNED_PARITY_GATED",
+          "proposed_measurement_id": "M_DOWNS_AB_PLANE_AB_NPOG_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle4p",
+            "refs": [
+              "A",
+              "B",
+              "N",
+              "Pog"
+            ],
+            "norm": "-4.6±3.7"
+          },
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "OL/FH",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_CANT__DOWNS_STRICT_OLP_SEMANTICS_UNPROVEN",
+          "proposed_measurement_id": "M_FACAD_DOWNS_OL_FH_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle2ln",
+            "refs": [
+              "FH",
+              "OL"
+            ],
+            "norm": "9.3±3.8"
+          },
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "ILi/OL",
+          "resolution": "FACAD_RAW_L1_OL_ANGLE__DOWNS_REPORTED_DEVIATION_IS_COMPLEMENT__RUNTIME_GATED",
+          "proposed_measurement_id": "M_FACAD_DOWNS_L1_OL_RAW_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle4p",
+            "refs": [
+              "Iia",
+              "Ii",
+              "OLp",
+              "OLa"
+            ],
+            "norm": "75.5±3.5"
+          },
+          "candidate_downs_relation": "90_deg_minus_raw_angle",
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "Is to A-Pog",
+          "resolution": "DOWNS_U1_EDGE_APOG_GEOMETRY_SOURCE_LOCKED__SIGNED_PARITY_GATED",
+          "proposed_measurement_id": "M_DOWNS_U1_EDGE_APOG_MM_V1",
+          "existing_geometry_family_reference": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+          "direct_alias_allowed": false,
+          "facad_definition": {
+            "calc_type": "Dist3p",
+            "refs": [
+              "Pog",
+              "A",
+              "Is"
+            ],
+            "norm": "2.7±1.8"
+          },
+          "runtime_activation": false
+        }
+      ]
+    },
+    "Ricketts (32 F)": {
+      "priority": 5,
+      "unmapped": [],
+      "resolved_items": [
+        {
+          "facad_label": "Molar rel",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Canine rel",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Overjet",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Overbite",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ii-OL",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__SIGN_MODEL_DIFFERENT__STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ii to A-Pog",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Is to A-Pog",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "ILi/A-Pog",
+          "resolution": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "ILs/A-Pog",
+          "resolution": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "LFH",
+          "resolution": "CANONICAL_GEOMETRY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Max depth",
+          "resolution": "CANONICAL_LINE_GEOMETRY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Max hgh",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__CF_PTV_ANCHOR_IDENTITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "NL/FH",
+          "resolution": "CANONICAL_LINE_GEOMETRY_MATCH__SIGNED_ORIENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "CBL/FH",
+          "resolution": "CANONICAL_LINE_GEOMETRY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ms-PtV",
+          "resolution": "FACAD_VENDOR_PTV_MOLAR_VARIANT__RICKETTS_A6_PR_PTV_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Cranium ant len",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__CC_PT_AND_GN_IDENTITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "PFH",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__CF_PTV_AND_GO_IDENTITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ramus Xi pos",
+          "resolution": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__CF_PTV_ANCHOR_AND_ANGLE_PRESENTATION_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Porion pos",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__PTV_ANCHOR_AND_SIGN_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Xi-OL",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__RICKETTS_FOP_STRICT_EQUIVALENCE_FORBIDDEN__SIGN_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Xi-PM/OL",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_LINE_VARIANT__PM_AUTHORITY_AND_ANGLE_PRESENTATION_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Upper lip len",
+          "resolution": "FACAD_VENDOR_STOMION_SUPERIOR_VARIANT__ATLAS_COMMISSURE_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "STi-OL",
+          "resolution": "FACAD_VENDOR_STOMION_INFERIOR_PLUS_OCCLUSAL_LINE_VARIANT__COMMISSURE_FOP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Facial cone angle",
+          "resolution": "FACAD_GENERIC_GO_ME_MANDIBULAR_PLANE_VARIANT__RICKETTS_SOURCE_LOCKED_MP_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Mand arc",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__DC_PM_XI_AUTHORITY_AND_ANGLE_PRESENTATION_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Mand len",
+          "resolution": "FACAD_PM_PRIME_INTERSECTION_VARIANT__RICKETTS_XI_PM_CORPUS_LENGTH_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+        }
+      ]
+    }
+  },
+  "totals": {
+    "profiles": 5,
+    "unmapped_items": 0
+  },
+  "medium_closeout": {
+    "status": "READY_FOR_HIGH_REVIEW",
+    "completed": [
+      "official Facad CPH inventory",
+      "conservative Facad-to-DC mapping",
+      "fail-closed mapping validation",
+      "exact unmapped extraction",
+      "priority ordering for review"
+    ],
+    "deferred_to_high": [
+      "scientific equivalence adjudication",
+      "geometry equivalence adjudication",
+      "landmark/construction identity decisions",
+      "new canonical measurement definitions",
+      "norm applicability decisions",
+      "runtime implementation"
+    ]
+  },
+  "high_progress": {
+    "Steiner": {
+      "decision_resolved": 3,
+      "remaining_unmapped": 0,
+      "runtime_blocked": 2,
+      "existing_relationship_resolved": 1,
+      "status": "SCIENTIFIC_DECISION_COMPLETE__RUNTIME_PARTIAL"
+    }
+  },
+  "high_review_progress": {
+    "Steiner": {
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 3,
+      "remaining_unmapped": 0,
+      "runtime_blockers": [
+        "explicit MS_STEINER_FACAD_TANGENT_POINT_V1 identity/acquisition path",
+        "signed/oriented Facad DistLine parity for Ii-NB and Pog-NB; current DC inputs are unsigned",
+        "same-trace Facad sign convention for Ls-SL/Li-SL",
+        "exact historical Steiner S-line primary attribution before canonical historical-profile promotion"
+      ]
+    },
+    "Tweed": {
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 2,
+      "remaining_unmapped": 0,
+      "runtime_blockers": [
+        "explicit OLp_Facad_Tweed manual/source-bound identity",
+        "same-trace Facad numeric parity for ProjLine Wits variant",
+        "same-trace Facad numeric parity for OL/FH",
+        "no promotion to canonical Jacobson/Downs/Tweed historical profiles without stricter source equivalence"
+      ]
+    },
+    "McNamara": {
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 6,
+      "remaining_unmapped": 0,
+      "runtime_blockers": [
+        "same-trace numeric parity for all Facad vendor variants",
+        "no Facad Co posterior-point alias to DC Co_anatomic/Condylion without landmark-equivalence proof",
+        "no incisal-tip alias to canonical McNamara facial-surface measures",
+        "no Facad nasolabial/Ls-cant alias to canonical McNamara soft-tissue geometry",
+        "Facad norms remain non-authoritative"
+      ]
+    },
+    "Downs": {
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 5,
+      "remaining_unmapped": 0,
+      "evidence": {
+        "inventory_run_id": 37596906703,
+        "artifact_id": 11470928482,
+        "artifact_digest": "sha256:e520adef6c6c1a3faf0fbf5c2bda5c4bc9c6419d676ca43a352e388fb65f86e1",
+        "facad_profile_sha256": "3415d02e655c5f4cb6b1e0ef466a0f75fa1947f971b3b200568f8f00925625de",
+        "facad_profile_measurement_count": 10
+      },
+      "runtime_blockers": [
+        "same-trace signed parity for Downs Convexity and A-B plane angles",
+        "strict Downs posterior occlusal anchor semantics for Facad OLp",
+        "ILi/OL complement-to-90 reporting convention must stay explicit",
+        "same-trace sign parity for Is to A-Pog",
+        "Facad norms remain non-authoritative"
+      ],
+      "documentation": "docs/handovers/2026-09-11-cephalo-r7-wits-downs-scientific-gate.md"
+    },
+    "Ricketts (32 F)": {
+      "status": "COMPATIBILITY_DISPOSITION_COMPLETE__RUNTIME_GATED",
+      "original_unmapped": 26,
+      "resolved_in_current_cluster": 7,
+      "remaining_unmapped": 0,
+      "runtime_blockers": [
+        "Facad OL is an incisor-midpoint vendor line and must not alias the source-locked Ricketts functional occlusal plane",
+        "Facad STs/STi are Stomion landmarks and must not alias the Atlas/DC labial commissure",
+        "Facad generic Go-Me mandibular plane must not alias the source-locked Ricketts mandibular plane",
+        "Facad DC labelled 'Centre of condyle' must not alias DC_Ricketts without condylar-neck identity proof",
+        "Facad PM' is an A-Pog/Xi-PM intersection and must not alias Pm_Ricketts",
+        "same-trace numeric/sign/angle presentation parity remains required where explicitly gated",
+        "Facad norms remain non-authoritative"
+      ],
+      "resolved_total": 26,
+      "sources": [
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json",
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json",
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json",
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+      ]
+    }
+  }
+}

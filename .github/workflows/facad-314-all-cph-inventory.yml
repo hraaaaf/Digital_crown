@@ -1,0 +1,54 @@
+name: Facad 3.14 full ceph analysis inventory
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-all-cph-inventory.yml
+      - audit/cephalo_lot08_facad_cph_inventory.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download and extract Facad release payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path facad-all | Out-Null
+          $installer = 'facad-all/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-all/outer | Out-Null
+          & $seven x $installer '-ofacad-all/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-all/release | Out-Null
+          & $seven x 'facad-all/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-all/release' -y | Out-Null
+          Get-ChildItem facad-all/release/Ceph -File -Filter '*.cph' | Sort-Object Name |
+            Select-Object Name,Length | Format-Table -AutoSize | Tee-Object -FilePath facad-all/cph-files.txt
+
+      - name: Parse all CPH analyses
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python audit/cephalo_lot08_facad_cph_inventory.py facad-all/release/Ceph --json facad-all/cph-inventory.json --markdown facad-all/cph-inventory.md | Tee-Object -FilePath facad-all/cph-inventory.txt
+          Get-Content facad-all/cph-inventory.txt
+
+      - name: Upload full inventory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-all-cph-inventory-${{ github.sha }}
+          path: |
+            facad-all/cph-files.txt
+            facad-all/cph-inventory.json
+            facad-all/cph-inventory.md
+            facad-all/cph-inventory.txt
+          if-no-files-found: error

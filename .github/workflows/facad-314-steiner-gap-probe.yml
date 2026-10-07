@@ -1,0 +1,47 @@
+name: Facad Steiner unmapped geometry probe
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-314-steiner-gap-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download and extract Facad release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path steiner-gap | Out-Null
+          $installer = 'steiner-gap/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path steiner-gap/outer | Out-Null
+          & $seven x $installer '-osteiner-gap/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path steiner-gap/release | Out-Null
+          & $seven x 'steiner-gap/outer/FacadRelease-3.14.1.1111.zip' '-osteiner-gap/release' -y | Out-Null
+
+      - name: Parse Steiner and print only unmapped rows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python audit/cephalo_lot08_facad_cph_parse.py 'steiner-gap/release/Ceph/Steiner.cph' --out steiner-gap/steiner.json
+          python -c "import json,pathlib; d=json.loads(pathlib.Path('steiner-gap/steiner.json').read_text(encoding='utf-8'))[0]; wanted={'Ii-Pog // NB','Ls-SL','Li-SL'}; rows=[r for r in d['measurement_candidates'] if r['name'] in wanted]; print(json.dumps(rows,ensure_ascii=False,indent=2)); assert len(rows)==3, rows" | Tee-Object -FilePath steiner-gap/steiner-unmapped.txt
+
+      - name: Upload minimized proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-steiner-gap-probe-${{ github.sha }}
+          path: steiner-gap/steiner-unmapped.txt
+          if-no-files-found: error
