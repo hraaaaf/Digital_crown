@@ -43,3 +43,10 @@ The Facad serialized argument order is preserved as evidence:
 - `Ii to A-Pog = Dist3p(Pog, A, Ii)` with `changeRightLeft=true`; A-Pog line argument order and target-point identity must not be silently reordered.
 
 These are compatibility invariants only. Same-trace numeric parity remains required before a signed runtime implementation can claim Facad equivalence.
+
+
+## Adversarial hardening — edge family and Angle3p order
+
+- `Ii to A-Pog` uses the lower incisor tip `Ii`. Digital Crown already has the edge-based geometry family `M_L1_EDGE_APOG_MM_V1`; that family match is now explicit. It still must **not** alias the strict McNamara facial-surface measure `M_L1_FACIAL_SURFACE_APOG_MM_V1`.
+- Facad `Angle3p` semantics make the first marker the center/apex. Therefore `Nasolabial = Angle3p(SN, MS, Ls)` is locked as center `SN`, with rays `SN->MS` and `SN->Ls`; positive rotation is clockwise. Reordering these markers is forbidden.
+- Same-trace numeric parity remains required before any signed/vendor-compatibility runtime claim.
