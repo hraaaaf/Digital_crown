@@ -1,5 +1,6 @@
 import { Armchair, Clock3, Ticket, UsersRound } from 'lucide-react';
 import type { ApptStatus, Snapshot } from '../types';
+import { PatientAvatar } from '../../../patients/components/PatientAvatar';
 
 export function WaitingRoomView({
   snapshot,
@@ -51,9 +52,18 @@ export function WaitingRoomView({
               className="rounded-[24px] border border-glass-border bg-glass-bg p-4 shadow-elite backdrop-blur-md"
             >
               <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] border border-primary/10 bg-primary/5 text-primary">
-                  <Clock3 size={19} />
-                </div>
+                {appointment.patient_id ? (
+                  <PatientAvatar
+                    patientId={appointment.patient_id}
+                    fullName={appointment.patient_name}
+                    resolveFromDirectory
+                    className="h-12 w-12 rounded-[16px] border border-primary/10 text-[11px]"
+                  />
+                ) : (
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] border border-primary/10 bg-primary/5 text-primary" aria-label="Patient sans dossier lié">
+                    <Clock3 size={19} />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
                     {appointment.ticket_number != null && (
