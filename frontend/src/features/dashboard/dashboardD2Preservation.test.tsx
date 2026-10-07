@@ -9,6 +9,8 @@ const renderHeader = (canAdmin: boolean) => render(
     <DashboardHeader
       displayName="Praticien"
       dateLabel="16 août 2026"
+      roleLabel={null}
+      cabinetName={null}
       canReadPatients={false}
       canUseAgenda={false}
       canAdmin={canAdmin}
