@@ -10,7 +10,8 @@ Close the engineering/documentation phase of the Facad Ricketts 32F compatibilit
 - PR: `#775`
 - Branch: `feat/ortho-studio-lot08-ricketts-protocol-v2`
 - Evidence HEAD before this documentation closeout: `575fc9e2ad21133763bdacbe512e7591a39b9f59`
-- PR state at closeout start: OPEN / DRAFT / NOT MERGED
+- PR state after human-authorized merge: CLOSED / MERGED
+- Merge commit: `c7209e9d35f0a85a12ee1725589bca2863aa6607`
 - Vercel: not authorized, not used
 
 ## Verified result on evidence HEAD
@@ -97,18 +98,13 @@ Scores:
 
 Engineering/scientific compatibility disposition is verified on the evidence HEAD.
 
-PR #775 is **not yet closed** because:
-- it is still open/draft;
-- no merge authorization has been given;
-- no merge has been performed;
-- post-merge coherence therefore does not yet exist.
+PR #775 is **merged and closed on GitHub**. The remaining closeout work is documentation-only reconciliation of canonical repo state after the merge. Product/scientific evidence from the exact candidate remains acquired because the merge preserved the critical blobs byte-identically.
 
 ## Next exact
 
-1. certify this docs-only closeout HEAD for documentary coherence only;
-2. request explicit human merge authorization for PR #775;
-3. if authorized, merge under exact-head guard;
-4. perform post-merge read-only coherence checks on master;
-5. only then mark PR #775 closed and move to the next canonical lot.
+1. merge this docs-only post-merge reconciliation follow-up after exact-head documentary checks are green;
+2. perform a final read-only coherence check on master;
+3. mark the LOT08 Ricketts 32F compatibility closeout fully closed in canonical state;
+4. move to the next canonical lot.
 
 No Vercel deployment is required or authorized by this handover.
