@@ -4,10 +4,10 @@
 
 # Etat canonique scientifique — 2026-10-07
 
-## LOT08 — Facad Ricketts 32F compatibility disposition — ENGINEERING VERIFIED / MERGE PENDING
+## LOT08 — Facad Ricketts 32F compatibility disposition — MERGED / POST-MERGE CLOSEOUT PENDING
 
 - Repository: `hraaaaf/Digital_crown`
-- PR: `#775` — OPEN / DRAFT / NOT MERGED
+- PR: `#775` — MERGED / CLOSED
 - Branch: `feat/ortho-studio-lot08-ricketts-protocol-v2`
 - exact evidence HEAD before docs closeout: `575fc9e2ad21133763bdacbe512e7591a39b9f59`
 - Facad source: official 3.14.1.1111 `Ricketts (32 F).cph`
@@ -24,12 +24,12 @@
 - final scores on evidence HEAD: EXECUTION **9.4/10**, ADVERSARIAL **9.4/10**, RETAINED **9.4/10**
 - no frontend product delta; no clinical runtime activation in the final compatibility-disposition clusters
 - Vercel: **NOT AUTHORIZED / NOT USED**
-- merge: **NOT AUTHORIZED / NOT PERFORMED**
+- merge commit: `c7209e9d35f0a85a12ee1725589bca2863aa6607` — **MERGED**
 
 Canonical closeout source:
 - `docs/handovers/2026-10-07-ricketts32-compatibility-closeout.md`
 
-**Next exact:** certify this docs-only closeout HEAD for documentary coherence only, then request explicit human merge authorization for PR #775. After any merge, perform the applicable post-merge read-only coherence check before calling PR #775 closed.
+**Next exact:** merge the docs-only post-merge reconciliation PR after its exact-head documentary checks are green; then perform a read-only master coherence check and mark the LOT08 Ricketts 32F compatibility closeout fully closed.
 
 # Etat canonique manuel - 2026-10-01
 
