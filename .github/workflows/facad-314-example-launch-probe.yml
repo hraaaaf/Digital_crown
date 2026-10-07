@@ -1,0 +1,120 @@
+name: Facad 3.14 example launch probe
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-example-launch-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  launch:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Extract official Facad runtime and example
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path facad-launch | Out-Null
+          $installer='facad-launch/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-launch/outer | Out-Null
+          & $seven x $installer '-ofacad-launch/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-launch/release | Out-Null
+          & $seven x 'facad-launch/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-launch/release' -y | Out-Null
+          $exe=Resolve-Path 'facad-launch/release/Facad/Facad.exe'
+          $case=Resolve-Path 'facad-launch/release/Examples/Robert-2.0.fcd'
+          "EXE=$exe" | Set-Content facad-launch/launch-meta.txt
+          "CASE=$case" | Add-Content facad-launch/launch-meta.txt
+          Get-FileHash $exe -Algorithm SHA256 | Format-List | Add-Content facad-launch/launch-meta.txt
+          Get-FileHash $case -Algorithm SHA256 | Format-List | Add-Content facad-launch/launch-meta.txt
+          Get-Content facad-launch/launch-meta.txt
+
+      - name: Launch Facad on bundled example without interaction
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference='Continue'
+          Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          using System.Text;
+          public class Win32 {
+            public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+            [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+            [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+            [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+          }
+"@
+          $exe=(Resolve-Path 'facad-launch/release/Facad/Facad.exe').Path
+          $case=(Resolve-Path 'facad-launch/release/Examples/Robert-2.0.fcd').Path
+          $before=Get-Date
+          $p=Start-Process -FilePath $exe -ArgumentList ('"'+$case+'"') -WorkingDirectory (Split-Path $exe) -PassThru
+          "PID=$($p.Id)" | Set-Content facad-launch/process.txt
+          Start-Sleep -Seconds 15
+          try { $p.Refresh() } catch {}
+          "HAS_EXITED=$($p.HasExited)" | Add-Content facad-launch/process.txt
+          if ($p.HasExited) { "EXIT_CODE=$($p.ExitCode)" | Add-Content facad-launch/process.txt }
+
+          $rows = New-Object System.Collections.Generic.List[string]
+          [Win32]::EnumWindows({
+            param($h,$l)
+            if ([Win32]::IsWindowVisible($h)) {
+              $sb=New-Object Text.StringBuilder 1024
+              [void][Win32]::GetWindowText($h,$sb,$sb.Capacity)
+              [uint32]$pid=0
+              [void][Win32]::GetWindowThreadProcessId($h,[ref]$pid)
+              if ($sb.Length -gt 0) { $rows.Add("PID=$pid | TITLE=$($sb.ToString())") }
+            }
+            return $true
+          },[IntPtr]::Zero) | Out-Null
+          $rows | Sort-Object | Set-Content facad-launch/windows.txt
+          Get-Content facad-launch/windows.txt
+
+          try {
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Resolve-Path 'facad-launch').Path 'screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose(); $bmp.Dispose()
+          } catch {
+            $_ | Out-String | Set-Content facad-launch/screenshot-error.txt
+          }
+
+          Get-ChildItem "$env:LOCALAPPDATA","$env:APPDATA" -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $before -and $_.FullName -match 'Facad|Ilexis|Citodent' } |
+            Select-Object FullName,Length,LastWriteTime |
+            Format-Table -AutoSize |
+            Out-File facad-launch/runtime-written-files.txt -Width 500
+
+          if (-not $p.HasExited) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            "PROCESS_TERMINATED_AFTER_OBSERVATION=true" | Add-Content facad-launch/process.txt
+          }
+          Get-Content facad-launch/process.txt
+
+      - name: Upload launch evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-example-launch-${{ github.sha }}
+          path: |
+            facad-launch/launch-meta.txt
+            facad-launch/process.txt
+            facad-launch/windows.txt
+            facad-launch/screen.png
+            facad-launch/screenshot-error.txt
+            facad-launch/runtime-written-files.txt
+          if-no-files-found: warn
