@@ -100,12 +100,88 @@
     },
     "Downs": {
       "priority": 4,
-      "unmapped": [
-        "Convexity",
-        "A-B plane",
-        "OL/FH",
-        "ILi/OL",
-        "Is to A-Pog"
+      "unmapped": [],
+      "resolved_items": [
+        {
+          "facad_label": "Convexity",
+          "resolution": "DOWNS_HISTORICAL_GEOMETRY_SOURCE_LOCKED__CANONICAL_ID_MISSING__SIGNED_PARITY_GATED",
+          "proposed_measurement_id": "M_DOWNS_CONVEXITY_NA_APOG_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle4p",
+            "refs": [
+              "N",
+              "A",
+              "A",
+              "Pog"
+            ],
+            "norm": "0±5.1"
+          },
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "A-B plane",
+          "resolution": "DOWNS_HISTORICAL_GEOMETRY_SOURCE_LOCKED__CANONICAL_ID_MISSING__SIGNED_PARITY_GATED",
+          "proposed_measurement_id": "M_DOWNS_AB_PLANE_AB_NPOG_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle4p",
+            "refs": [
+              "A",
+              "B",
+              "N",
+              "Pog"
+            ],
+            "norm": "-4.6±3.7"
+          },
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "OL/FH",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_CANT__DOWNS_STRICT_OLP_SEMANTICS_UNPROVEN",
+          "proposed_measurement_id": "M_FACAD_DOWNS_OL_FH_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle2ln",
+            "refs": [
+              "FH",
+              "OL"
+            ],
+            "norm": "9.3±3.8"
+          },
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "ILi/OL",
+          "resolution": "FACAD_RAW_L1_OL_ANGLE__DOWNS_REPORTED_DEVIATION_IS_COMPLEMENT__RUNTIME_GATED",
+          "proposed_measurement_id": "M_FACAD_DOWNS_L1_OL_RAW_DEG_V1",
+          "facad_definition": {
+            "calc_type": "Angle4p",
+            "refs": [
+              "Iia",
+              "Ii",
+              "OLp",
+              "OLa"
+            ],
+            "norm": "75.5±3.5"
+          },
+          "candidate_downs_relation": "90_deg_minus_raw_angle",
+          "runtime_activation": false
+        },
+        {
+          "facad_label": "Is to A-Pog",
+          "resolution": "DOWNS_U1_EDGE_APOG_GEOMETRY_SOURCE_LOCKED__SIGNED_PARITY_GATED",
+          "proposed_measurement_id": "M_DOWNS_U1_EDGE_APOG_MM_V1",
+          "existing_geometry_family_reference": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+          "direct_alias_allowed": false,
+          "facad_definition": {
+            "calc_type": "Dist3p",
+            "refs": [
+              "Pog",
+              "A",
+              "Is"
+            ],
+            "norm": "2.7±1.8"
+          },
+          "runtime_activation": false
+        }
       ]
     },
     "Ricketts (32 F)": {
@@ -142,7 +218,7 @@
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 31
+    "unmapped_items": 26
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -204,6 +280,26 @@
         "no Facad nasolabial/Ls-cant alias to canonical McNamara soft-tissue geometry",
         "Facad norms remain non-authoritative"
       ]
+    },
+    "Downs": {
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 5,
+      "remaining_unmapped": 0,
+      "evidence": {
+        "inventory_run_id": 37596906703,
+        "artifact_id": 11470928482,
+        "artifact_digest": "sha256:e520adef6c6c1a3faf0fbf5c2bda5c4bc9c6419d676ca43a352e388fb65f86e1",
+        "facad_profile_sha256": "3415d02e655c5f4cb6b1e0ef466a0f75fa1947f971b3b200568f8f00925625de",
+        "facad_profile_measurement_count": 10
+      },
+      "runtime_blockers": [
+        "same-trace signed parity for Downs Convexity and A-B plane angles",
+        "strict Downs posterior occlusal anchor semantics for Facad OLp",
+        "ILi/OL complement-to-90 reporting convention must stay explicit",
+        "same-trace sign parity for Is to A-Pog",
+        "Facad norms remain non-authoritative"
+      ],
+      "documentation": "docs/handovers/2026-09-11-cephalo-r7-wits-downs-scientific-gate.md"
     }
   }
 }
