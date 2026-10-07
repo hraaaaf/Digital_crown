@@ -2,6 +2,35 @@
 
 > Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
+# Etat canonique scientifique — 2026-10-07
+
+## LOT08 — Facad Ricketts 32F compatibility disposition — ENGINEERING VERIFIED / MERGE PENDING
+
+- Repository: `hraaaaf/Digital_crown`
+- PR: `#775` — OPEN / DRAFT / NOT MERGED
+- Branch: `feat/ortho-studio-lot08-ricketts-protocol-v2`
+- exact evidence HEAD before docs closeout: `575fc9e2ad21133763bdacbe512e7591a39b9f59`
+- Facad source: official 3.14.1.1111 `Ricketts (32 F).cph`
+- pinned profile SHA-256: `d0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518`
+- originally unmapped compatibility rows: **26**
+- explicitly dispositioned compatibility rows: **26/26**
+- remaining `unmapped`: **0**
+- important boundary: **26/26 dispositioned does not mean 26 runtime aliases**. Vendor variants, landmark-authority differences, signed/presentation parity gates and non-authoritative Facad norms remain fail-closed.
+- final targeted workflow: `Facad Ricketts 32F final seven contract #2` — **SUCCESS** on `575fc9e...`
+- explicit adversarial review A (science/provenance): **15/15 PASS**, 0 BLOCKER / 0 MAJOR
+- explicit adversarial review B (CI/reproducibility): **14/14 PASS**, 0 BLOCKER / 0 MAJOR
+- additional confirmation pass: **10/10 PASS**
+- final Perfection Pass: **16/16 PASS**
+- final scores on evidence HEAD: EXECUTION **9.4/10**, ADVERSARIAL **9.4/10**, RETAINED **9.4/10**
+- no frontend product delta; no clinical runtime activation in the final compatibility-disposition clusters
+- Vercel: **NOT AUTHORIZED / NOT USED**
+- merge: **NOT AUTHORIZED / NOT PERFORMED**
+
+Canonical closeout source:
+- `docs/handovers/2026-10-07-ricketts32-compatibility-closeout.md`
+
+**Next exact:** certify this docs-only closeout HEAD for documentary coherence only, then request explicit human merge authorization for PR #775. After any merge, perform the applicable post-merge read-only coherence check before calling PR #775 closed.
+
 # Etat canonique manuel - 2026-10-01
 
 ## V1.5-01 — Cabinet topology & workstation roles — CLOSED
