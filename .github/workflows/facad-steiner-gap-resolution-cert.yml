@@ -1,0 +1,71 @@
+name: Facad Steiner Gap Resolution Certification
+
+on:
+  push:
+    branches:
+      - feat/ortho-studio-lot08-ricketts-protocol-v2
+    paths:
+      - .github/workflows/facad-steiner-gap-resolution-cert.yml
+      - audit/cephalo_lot08_facad_dc_map.py
+      - audit/cephalo_lot08_facad_steiner_resolution_validate.py
+      - backend/tests/test_cephalo_lot08_facad_dc_map.py
+      - backend/data/cephalometry/steiner_protocol_profile_v1.json
+      - docs/audits/schemas/ortho_lot08_steiner_protocol_profile_v1.json
+      - docs/audits/schemas/ortho_lot08_facad_dc_steiner_gap_resolution_v1.json
+      - docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json
+      - docs/audits/schemas/ortho_lot08_facad_dc_unmapped_backlog_v1.json
+      - docs/audits/CEPHALO_CANONICAL_MEASUREMENT_REGISTRY.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Validate repository contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m py_compile audit/cephalo_lot08_facad_dc_map.py audit/cephalo_lot08_facad_steiner_resolution_validate.py
+          python audit/cephalo_lot08_facad_steiner_resolution_validate.py
+          python backend/tests/test_cephalo_lot08_facad_dc_map.py
+
+      - name: Download and extract official Facad release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path facad-steiner-cert | Out-Null
+          $installer = 'facad-steiner-cert/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-steiner-cert/outer | Out-Null
+          & $seven x $installer '-ofacad-steiner-cert/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-steiner-cert/release | Out-Null
+          & $seven x 'facad-steiner-cert/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-steiner-cert/release' -y | Out-Null
+
+      - name: Recompute Facad to DC mapping
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python audit/cephalo_lot08_facad_dc_map.py --ceph-dir facad-steiner-cert/release/Ceph --registry docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json --dc-contract docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json --protocol-profile backend/data/cephalometry/steiner_protocol_profile_v1.json --out facad-steiner-cert/facad-dc-map.json | Tee-Object -FilePath facad-steiner-cert/facad-dc-map.txt
+
+      - name: Assert Steiner resolution counts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -c "import json,pathlib; d=json.loads(pathlib.Path('facad-steiner-cert/facad-dc-map.json').read_text(encoding='utf-8'))['profiles']['Steiner']; expected={'CANONICAL_LABEL_MATCH':9,'CANDIDATE_GEOMETRY_REVIEW':2,'EXISTING_DERIVED_RELATIONSHIP':1,'BLOCKED_EXACT_LANDMARK':2,'UNMAPPED':0}; print('STEINER_COUNTS=',d['counts']); assert d['facad_measurement_count']==14; assert d['counts']==expected"
+
+      - name: Upload minimized certification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-steiner-gap-resolution-${{ github.sha }}
+          path: |
+            facad-steiner-cert/facad-dc-map.json
+            facad-steiner-cert/facad-dc-map.txt
+          if-no-files-found: error
