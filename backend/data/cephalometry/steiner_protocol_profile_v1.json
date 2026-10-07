@@ -78,7 +78,10 @@
             ],
             "numeric_difference_formula": "M_L1_NB_MM_V1 - M_POG_NB_MM_V1",
             "facad_raw_reference": "0±2",
-            "runtime_numeric_presentation": "NOT_EXPOSED"
+            "runtime_numeric_presentation": "NOT_EXPOSED",
+            "reference_authority": "VENDOR_COMPATIBILITY_ONLY",
+            "runtime_reference_authority": false,
+            "classification_authority": false
           }
         }
       ]
