@@ -48,9 +48,18 @@
     },
     "Tweed": {
       "priority": 2,
-      "unmapped": [
-        "Wits",
-        "OL/FH"
+      "unmapped": [],
+      "resolved_items": [
+        {
+          "facad_label": "Wits",
+          "resolution": "FACAD_VENDOR_VARIANT_SOURCE_LOCKED__JACOBSON_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_tweed_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "OL/FH",
+          "resolution": "FACAD_VENDOR_OCCLUSAL_CANT_SOURCE_LOCKED__DOWNS_STRICT_EQUIVALENCE_UNPROVEN",
+          "source": "docs/audits/schemas/ortho_lot08_tweed_facad_gap_resolution_v1.json"
+        }
       ]
     },
     "McNamara": {
@@ -108,7 +117,7 @@
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 39
+    "unmapped_items": 37
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -147,6 +156,17 @@
         "signed/oriented Facad DistLine parity for Ii-NB and Pog-NB; current DC inputs are unsigned",
         "same-trace Facad sign convention for Ls-SL/Li-SL",
         "exact historical Steiner S-line primary attribution before canonical historical-profile promotion"
+      ]
+    },
+    "Tweed": {
+      "status": "SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 2,
+      "remaining_unmapped": 0,
+      "runtime_blockers": [
+        "explicit OLp_Facad_Tweed manual/source-bound identity",
+        "same-trace Facad numeric parity for ProjLine Wits variant",
+        "same-trace Facad numeric parity for OL/FH",
+        "no promotion to canonical Jacobson/Downs/Tweed historical profiles without stricter source equivalence"
       ]
     }
   }
