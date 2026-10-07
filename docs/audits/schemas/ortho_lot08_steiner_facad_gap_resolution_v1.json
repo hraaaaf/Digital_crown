@@ -180,5 +180,7 @@
     "canonical_steiner_profile_promotion": false,
     "allowed_claim": "Facad Steiner profile compatibility definition with independent scientific support",
     "forbidden_claim": "Exact historical Steiner-version membership/source attribution for S-line"
-  }
+  },
+  "verification_revision": 1,
+  "verification_note": "Semantic source-lock complete; this revision triggers exact-HEAD contract certification after adversarial fixes."
 }
