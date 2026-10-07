@@ -16,6 +16,15 @@ def _login(client, email: str, password: str = "TestPass123!") -> dict[str, str]
     return {"Authorization": f"Bearer {token}"}
 
 
+def _set_mode(client, headers: dict[str, str], mode: str) -> None:
+    response = client.post(
+        "/api/workstation/mode",
+        headers=headers,
+        json={"mode": mode, "ownerPin": "2468"},
+    )
+    assert response.status_code == 200, response.text
+
+
 def _station(client, owner) -> dict[str, str]:
     headers = _login(client, owner.email)
     assert client.get("/api/workstation/state", headers=headers).status_code == 200
@@ -24,12 +33,7 @@ def _station(client, owner) -> dict[str, str]:
         headers=headers,
         json={"accountPassword": "TestPass123!", "newPin": "2468"},
     ).status_code == 200
-    mode = client.post(
-        "/api/workstation/mode",
-        headers=headers,
-        json={"mode": "station", "ownerPin": "2468"},
-    )
-    assert mode.status_code == 200, mode.text
+    _set_mode(client, headers, "station")
     return headers
 
 
@@ -118,6 +122,7 @@ def test_station_care_sheet_requires_explicit_withdrawal_authorization(client, d
     assert denied.status_code == 409
     assert denied.json()["detail"] == "STATION_CARE_SHEET_NOT_ELIGIBLE"
 
+    _set_mode(client, headers, "cabinet")
     authorized = client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
@@ -128,6 +133,7 @@ def test_station_care_sheet_requires_explicit_withdrawal_authorization(client, d
         "documentId": document.id,
         "created": True,
     }
+    _set_mode(client, headers, "station")
 
     downloaded = client.get(
         f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
@@ -155,6 +161,7 @@ def test_station_care_sheet_authorization_is_idempotent(client, db, dentiste):
     )
     document = _care_sheet(db, patient)
 
+    _set_mode(client, headers, "cabinet")
     first = client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
@@ -175,6 +182,8 @@ def test_station_care_sheet_refuses_non_finalized_archive(client, db, dentiste):
     )
     document = _care_sheet(db, patient, status="READY_FOR_REVIEW")
 
+    _set_mode(client, headers, "cabinet")
+    _set_mode(client, headers, "cabinet")
     denied = client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
@@ -199,10 +208,12 @@ def test_station_care_sheet_hides_other_patient_document(client, db, dentiste):
     db.commit()
     document = _care_sheet(db, other)
 
+    _set_mode(client, headers, "cabinet")
     assert client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
     ).status_code == 200
+    _set_mode(client, headers, "station")
 
     hidden = client.get(
         f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
@@ -218,10 +229,12 @@ def test_station_care_sheet_authorization_is_invalidated_by_file_replacement(cli
     )
     document = _care_sheet(db, patient)
 
+    _set_mode(client, headers, "cabinet")
     assert client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
     ).status_code == 200
+    _set_mode(client, headers, "station")
 
     previous_hash = document.file_hash
     replaced_content = b"%PDF-1.4\n% replaced station care sheet\n%%EOF\n"
@@ -257,6 +270,7 @@ def test_station_care_sheet_authorization_is_invalidated_by_file_replacement(cli
     assert denied.status_code == 409
     assert denied.json()["detail"] == "STATION_CARE_SHEET_NOT_ELIGIBLE"
 
+    _set_mode(client, headers, "cabinet")
     renewed = client.post(
         f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
         headers=headers,
@@ -292,3 +306,17 @@ def test_station_care_sheet_rejects_forged_validated_metadata_without_finalizer_
     )
     assert denied.status_code == 409
     assert denied.json()["detail"] == "CARE_SHEET_NOT_FINALIZED"
+
+
+def test_station_workstation_cannot_authorize_care_sheet_withdrawal(client, db, dentiste):
+    headers, _session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-BOUNDARY"
+    )
+    document = _care_sheet(db, patient)
+
+    denied = client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    )
+    assert denied.status_code == 423
+    assert denied.json()["detail"] == "STAFF_WORKSTATION_REQUIRED"
