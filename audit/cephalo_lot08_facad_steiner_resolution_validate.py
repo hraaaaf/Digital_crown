@@ -57,6 +57,12 @@ def main():
         fail("Facad relationship ordered inputs mismatch")
     if compat.get("runtime_numeric_presentation") != "NOT_EXPOSED":
         fail("Facad relationship must remain non-exposed")
+    if compat.get("reference_authority") != "VENDOR_COMPATIBILITY_ONLY":
+        fail("Facad relationship reference authority mismatch")
+    if compat.get("runtime_reference_authority") is not False:
+        fail("Facad relationship reference must not gain runtime authority")
+    if compat.get("classification_authority") is not False:
+        fail("Facad relationship reference must not classify patients")
 
     identities = backend.get("explicit_manual_or_constructed_identities") or {}
     ms = identities.get("MS_Steiner", "")
