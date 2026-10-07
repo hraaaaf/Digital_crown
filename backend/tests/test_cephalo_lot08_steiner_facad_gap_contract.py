@@ -17,7 +17,7 @@ class SteinerFacadGapContractTests(unittest.TestCase):
         self.assertEqual(ms["dc_alias_policy"]["Cm"], "FORBIDDEN_UNLESS_EQUIVALENCE_PROVEN")
         self.assertEqual(ms["dc_alias_policy"]["Sn_soft"], "FORBIDDEN")
         self.assertEqual(ms["dc_alias_policy"]["Prn"], "FORBIDDEN")
-        self.assertEqual(ms["current_runtime_status"], "MISSING_EXACT_IDENTITY")
+        self.assertEqual(ms["current_runtime_status"], "MISSING_EXACT_IDENTITY")\n        self.assertEqual(ms["vendor_to_historical_variant_equivalence"], "UNPROVEN")\n        self.assertTrue(self.data["safety_rules"]["no_midpoint_tangent_variant_equivalence_without_primary_proof"])
         self.assertTrue(self.data["safety_rules"]["missing_MS_must_fail_closed"])
 
     def test_sline_measurements_cannot_claim_runtime_parity(self):
@@ -25,7 +25,7 @@ class SteinerFacadGapContractTests(unittest.TestCase):
             resolution = self.data["resolutions"][key]["dc_resolution"]
             self.assertFalse(resolution["runtime_activation"])
             self.assertEqual(resolution["sign_convention"], "UNOBSERVED_FOR_FACAD_RUNTIME_PARITY")
-            self.assertEqual(resolution["required_new_identity"], "MS_Steiner")
+            self.assertEqual(resolution["required_new_identity"], "MS_STEINER_FACAD_TANGENT_POINT_V1")
             self.assertEqual(resolution["required_construction"], "SL_STEINER_POGSOFT_MS_V1")
 
     def test_iipog_is_derived_not_new_geometry(self):
