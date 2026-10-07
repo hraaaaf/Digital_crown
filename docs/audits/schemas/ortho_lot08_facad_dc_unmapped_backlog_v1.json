@@ -27,6 +27,23 @@
           "decision": "BLOCKED_EXACT_LANDMARK",
           "required_identity": "MS_Steiner"
         }
+      ],
+      "resolved_items": [
+        {
+          "facad_label": "Ii-Pog // NB",
+          "resolution": "DERIVED_RELATION_PROVEN__DEPENDENCY_GEOMETRY_REVIEW_PENDING",
+          "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ls-SL",
+          "resolution": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
+          "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
+        },
+        {
+          "facad_label": "Li-SL",
+          "resolution": "PROVEN_MEASUREMENT_DEFINITION__BLOCKED_EXPLICIT_MS",
+          "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
+        }
       ]
     },
     "Tweed": {
@@ -118,6 +135,18 @@
       "runtime_blocked": 2,
       "existing_relationship_resolved": 1,
       "status": "SCIENTIFIC_DECISION_COMPLETE__RUNTIME_PARTIAL"
+    }
+  },
+  "high_review_progress": {
+    "Steiner": {
+      "status": "SCIENTIFICALLY_RESOLVED_RUNTIME_GATED",
+      "original_unmapped": 3,
+      "remaining_unmapped": 0,
+      "runtime_blockers": [
+        "Ii-NB dependency geometry review",
+        "explicit MS_Steiner identity",
+        "Facad signed numeric parity"
+      ]
     }
   }
 }
