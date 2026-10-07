@@ -1,30 +1,6 @@
 name: V1.5-03.2 Station Identity & Pairing Gate
 
 on:
-  push:
-    branches:
-      - feat/v1-5-03-2-station-pairing-identity
-  pull_request:
-    branches: [master]
-    paths:
-      - "backend/.env.example"
-      - "backend/config.py"
-      - "backend/core/schema_runtime.py"
-      - "backend/models.py"
-      - "backend/models_platform.py"
-      - "backend/routers/workstation_mode.py"
-      - "backend/tests/test_workstation_mode_v15.py"
-      - "backend/tests/test_station_identity_pairing_migration_v15.py"
-      - "alembic/versions/neo000000026_station_identity_pairing.py"
-      - "frontend/src/services/workstationMode.ts"
-      - "frontend/src/features/hub/WorkstationModeAdminPanel.tsx"
-      - "frontend/src/features/hub/WorkstationModeAdminPanel.test.tsx"
-      - "frontend/src/features/hub/WorkstationIdentityPanel.tsx"
-      - "frontend/src/features/hub/WorkstationIdentityPanel.test.tsx"
-      - "frontend/scripts/capture-v15-03-2-station-identity.mjs"
-      - "run.py"
-      - "docs/CABINET_ONPREM_GUIDE.md"
-      - ".github/workflows/v15-03-2-station-identity.yml"
   workflow_dispatch:
 
 permissions:

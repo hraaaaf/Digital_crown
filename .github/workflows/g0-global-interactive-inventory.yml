@@ -1,14 +1,6 @@
 name: G0 Global Interactive Inventory
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - scripts/inventory_interactive_controls.py
-      - scripts/reconcile_interactive_evidence.py
-      - docs/clinic/audits/V1_07_GLOBAL_INTERACTIVE_AUDIT_G*.md
-      - .github/workflows/g0-global-interactive-inventory.yml
-      - frontend/src/**
   workflow_dispatch:
 
 concurrency:

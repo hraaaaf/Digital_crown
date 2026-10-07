@@ -1,30 +1,6 @@
 name: V1.5-02.3 Patient Photo UI AFTER
 
 on:
-  pull_request:
-    paths:
-      - "frontend/scripts/run-with-t2-workstation.mjs"
-      - "scripts/t2_runtime_server.py"
-      - "backend/routers/mobile.py"
-      - "frontend/src/types/index.ts"
-      - "frontend/src/features/patients/components/PatientAvatar.tsx"
-      - "frontend/src/features/patients/components/PatientAvatar.test.tsx"
-      - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
-      - "frontend/src/features/patients/components/PatientPhotoEditor.test.tsx"
-      - "frontend/src/features/patients/PatientList.tsx"
-      - "frontend/src/features/patients/PatientDetailsInner.tsx"
-      - "frontend/src/features/dashboard/types.ts"
-      - "frontend/src/features/dashboard/components/DashboardHeader.tsx"
-      - "frontend/src/features/dashboard/components/WaitingRoom.tsx"
-      - "frontend/src/features/agenda/DailyView.tsx"
-      - "frontend/src/features/agenda/WeeklyView.tsx"
-      - "frontend/src/features/agenda/MonthlyView.tsx"
-      - "frontend/src/features/agenda/MultiPractitionerTimelineView.tsx"
-      - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.tsx"
-      - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx"
-      - "frontend/src/features/mobile/Dashboard/MobileG3BrowserCertHarness.tsx"
-      - "frontend/scripts/capture-v15-02-3-photo-ui-after.mjs"
-      - ".github/workflows/v15-02-3-photo-ui-after.yml"
   workflow_dispatch:
 
 concurrency:

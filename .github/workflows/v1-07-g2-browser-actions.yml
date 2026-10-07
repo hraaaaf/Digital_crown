@@ -1,13 +1,5 @@
 name: V1-07 G2 Browser Action Certification
 on:
-  pull_request:
-    paths:
-      - "frontend/src/features/dashboard/**"
-      - "frontend/src/features/patients/**"
-      - "frontend/src/pages/Dashboard.tsx"
-      - "frontend/scripts/certify-v1-07-g2-browser-actions.mjs"
-      - "scripts/t2_runtime_server.py"
-      - ".github/workflows/v1-07-g2-browser-actions.yml"
   workflow_dispatch:
 concurrency:
   group: v1-07-g2-browser-actions-${{ github.ref }}

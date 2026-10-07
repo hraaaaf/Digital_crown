@@ -15,9 +15,6 @@ name: CI
 # et, lorsqu'il touche DB/patients/documents, être complété par le rehearsal approprié.
 
 on:
-  push:
-    branches: [main, master, "S[0-9]*", "redressement*"]
-  pull_request:
   workflow_dispatch:
     inputs:
       backend_only:

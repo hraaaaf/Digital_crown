@@ -103,6 +103,10 @@ export const SetupWizard: React.FC = () => {
       if (hasSessionDraft || cancelled) return;
 
       try {
+        const { workstationModeService } = await import('../../../services/workstationMode');
+        const bootstrap = await workstationModeService.getBootstrapState();
+        if (cancelled || (bootstrap as any).hasClinicConfig !== true) return;
+
         const draft = await cabinetApi.getMine() as any;
         if (cancelled || draft?.is_initialized) return;
 

@@ -1,6 +1,5 @@
 name: Agenda A5 Visual Evidence
 on:
-  pull_request:
   workflow_dispatch:
 
 concurrency:

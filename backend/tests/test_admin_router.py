@@ -276,6 +276,14 @@ class TestCabinetHealth:
         assert body["disk"]["status"] in ("ok", "warning", "critical", "unknown")
         assert "overall_severity" in body
 
+    def test_fresh_cabinet_without_backup_is_not_critical(self, client, auth_headers, tmp_path, monkeypatch):
+        monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
+        r = client.get("/api/admin/cabinet-health", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["backup_local"]["status"] == "none"
+        assert body["overall_severity"] != "critical"
+
     def test_reflects_real_manifest_overall_status_and_age(self, client, auth_headers, tmp_path, monkeypatch):
         monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
         self._write_manifest(tmp_path, overall_status="SUCCESS")
