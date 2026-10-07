@@ -220,6 +220,6 @@
     "no_surface_alias_even_when_edge_geometry_family_exists": true,
     "no_facad_co_posterior_alias_to_dc_co_anatomic": true
   },
-  "verification_revision": 4,
-  "verification_note": "Triggers exact-HEAD certification after convergence fixes including Facad Co posterior-point identity split."
+  "verification_revision": 5,
+  "verification_note": "Triggers exact-HEAD McNamara certification after converged adversarial fixes."
 }
