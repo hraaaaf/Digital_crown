@@ -14,7 +14,7 @@ permissions:
 jobs:
   inspect:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
           Get-Content facad-inspect/hash.txt
           Get-Content facad-inspect/authenticode.txt
 
-      - name: Inspect installer archive structure
+      - name: Extract installer and nested Facad payload zips
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -47,39 +47,61 @@ jobs:
           & $seven x facad-inspect/Facad-Installer-3.14.1.1111.exe "-ofacad-inspect/extracted" -y | Tee-Object -FilePath facad-inspect/extract-log.txt
           if ($LASTEXITCODE -gt 1) { throw "7-Zip extraction failed with $LASTEXITCODE" }
 
-      - name: Search extracted payload for Ricketts standard analyses
+          $nested = Get-ChildItem facad-inspect/extracted -File -Recurse | Where-Object {
+            $_.Name -in @('FacadDoc-3.14.1.1111.zip','FacadRelease-3.14.1.1111.zip')
+          }
+          if ($nested.Count -lt 2) { throw "Expected FacadDoc and FacadRelease zips; found $($nested.Count)" }
+          foreach ($zip in $nested) {
+            $dest = Join-Path 'facad-inspect/nested' $zip.BaseName
+            New-Item -ItemType Directory -Force -Path $dest | Out-Null
+            & $seven x $zip.FullName "-o$dest" -y | Tee-Object -FilePath (Join-Path $dest 'extract-log.txt')
+            if ($LASTEXITCODE -gt 1) { throw "Nested extraction failed for $($zip.Name)" }
+          }
+
+      - name: Search nested payload for exact Ricketts 32F and 13F definitions
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $patterns = @('Ricketts (32 F)','Ricketts (13 F)','Ricketts','32 F','13 F')
-          $files = Get-ChildItem facad-inspect/extracted -File -Recurse
-          $files | Select-Object FullName,Length | Format-Table -AutoSize | Out-File facad-inspect/extracted-inventory.txt -Width 300
-          $textExt = @('.txt','.xml','.ini','.cfg','.json','.csv','.dat','.properties','.config','.html','.htm','.rtf')
+          $files = Get-ChildItem facad-inspect/nested -File -Recurse
+          $files | Select-Object FullName,Length | Format-Table -AutoSize | Out-File facad-inspect/nested-inventory.txt -Width 400
+
           $hits = New-Object System.Collections.Generic.List[string]
           foreach ($file in $files) {
-            if ($textExt -contains $file.Extension.ToLowerInvariant()) {
-              try {
-                $content = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction Stop
-                foreach ($pattern in $patterns) {
-                  if ($content -like "*$pattern*") { $hits.Add("$pattern | $($file.FullName)") }
-                }
-              } catch {}
-            }
-          }
-          $hits | Sort-Object -Unique | Set-Content facad-inspect/ricketts-text-hits.txt
-          foreach ($file in ($files | Where-Object { $_.Length -gt 0 -and $_.Length -lt 100MB })) {
             try {
               $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+              if ($bytes.Length -gt 100MB) { continue }
               $ascii = [System.Text.Encoding]::ASCII.GetString($bytes)
+              $utf8 = [System.Text.Encoding]::UTF8.GetString($bytes)
+              $unicode = [System.Text.Encoding]::Unicode.GetString($bytes)
               foreach ($pattern in $patterns) {
-                if ($ascii.Contains($pattern)) { "$pattern | $($file.FullName)" | Add-Content facad-inspect/ricketts-binary-hits.txt }
+                if ($ascii.Contains($pattern) -or $utf8.Contains($pattern) -or $unicode.Contains($pattern)) {
+                  $hits.Add("$pattern | $($file.FullName) | $($file.Length)")
+                }
               }
             } catch {}
           }
-          Write-Host '=== TEXT HITS ==='
-          if (Test-Path facad-inspect/ricketts-text-hits.txt) { Get-Content facad-inspect/ricketts-text-hits.txt }
-          Write-Host '=== BINARY HITS ==='
-          if (Test-Path facad-inspect/ricketts-binary-hits.txt) { Get-Content facad-inspect/ricketts-binary-hits.txt }
+          $hits | Sort-Object -Unique | Set-Content facad-inspect/ricketts-nested-hits.txt
+
+          Write-Host '=== NESTED HITS ==='
+          Get-Content facad-inspect/ricketts-nested-hits.txt
+
+          $candidatePaths = $hits | ForEach-Object { ($_ -split ' \| ')[1] } | Sort-Object -Unique
+          foreach ($path in $candidatePaths) {
+            $name = [System.IO.Path]::GetFileName($path)
+            "===== $path =====" | Add-Content facad-inspect/ricketts-context.txt
+            try {
+              $text = Get-Content -LiteralPath $path -Raw -ErrorAction Stop
+              foreach ($pattern in @('Ricketts (32 F)','Ricketts (13 F)')) {
+                $idx = $text.IndexOf($pattern)
+                if ($idx -ge 0) {
+                  $start = [Math]::Max(0,$idx-1500)
+                  $len = [Math]::Min(5000,$text.Length-$start)
+                  $text.Substring($start,$len) | Add-Content facad-inspect/ricketts-context.txt
+                }
+              }
+            } catch {}
+          }
 
       - name: Upload static inspection evidence
         uses: actions/upload-artifact@v4
@@ -90,7 +112,7 @@ jobs:
             facad-inspect/authenticode.txt
             facad-inspect/archive-list.txt
             facad-inspect/extract-log.txt
-            facad-inspect/extracted-inventory.txt
-            facad-inspect/ricketts-text-hits.txt
-            facad-inspect/ricketts-binary-hits.txt
+            facad-inspect/nested-inventory.txt
+            facad-inspect/ricketts-nested-hits.txt
+            facad-inspect/ricketts-context.txt
           if-no-files-found: warn
