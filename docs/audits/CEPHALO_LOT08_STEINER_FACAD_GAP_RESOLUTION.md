@@ -45,12 +45,12 @@ Digital Crown currently exposes local ID `Cm` / “Columella”, but the landmar
 
 Therefore:
 
-- `MS_Steiner` is a distinct scientific identity.
-- `Cm -> MS_Steiner` alias is **FORBIDDEN unless exact equivalence is independently proven**.
-- `Sn_soft -> MS_Steiner` is forbidden.
-- `Prn -> MS_Steiner` is forbidden.
+- Facad's endpoint is frozen as `MS_STEINER_FACAD_TANGENT_POINT_V1`, a vendor-specific scientific identity.
+- `Cm -> MS_STEINER_FACAD_TANGENT_POINT_V1` alias is **FORBIDDEN unless exact equivalence is independently proven**.
+- `Sn_soft -> MS_STEINER_FACAD_TANGENT_POINT_V1` is forbidden.
+- `Prn -> MS_STEINER_FACAD_TANGENT_POINT_V1` is forbidden.
 - acquisition must be explicit manual placement or a separately source-locked construction/detector.
-- missing `MS_Steiner` must fail closed.
+- missing `MS_STEINER_FACAD_TANGENT_POINT_V1` must fail closed.
 
 This is additionally supported by contemporary landmark literature where `Cm` may denote an anterior-inferior columellar point used for the nasolabial angle, which is not definitionally identical to the Steiner midpoint/tangent point.
 
@@ -58,7 +58,7 @@ This is additionally supported by contemporary landmark literature where `Cm` ma
 
 Future geometry may use:
 
-`SL_STEINER_POGSOFT_MS_V1 = infinite line(Pog_soft, MS_Steiner)`
+`SL_STEINER_POGSOFT_MS_V1 = infinite line(Pog_soft, MS_STEINER_FACAD_TANGENT_POINT_V1)`
 
 No runtime activation is authorized by this document.
 
@@ -76,7 +76,7 @@ Facad's official 3.12 landmark guide defines `Iil` as the lower-incisor labial o
 
 Classification: **MEASUREMENT DEFINITION PROVEN; RUNTIME BLOCKED BY EXPLICIT MS**.
 
-Required identities: `Ls_soft`, `Pog_soft`, `MS_Steiner`.
+Required identities: `Ls_soft`, `Pog_soft`, `MS_STEINER_FACAD_TANGENT_POINT_V1`.
 Required construction: `SL_STEINER_POGSOFT_MS_V1`.
 Operation: perpendicular distance from upper lip to S-line.
 
@@ -86,7 +86,7 @@ Facad runtime sign convention is not yet observed on a same-trace patient export
 
 Classification: **MEASUREMENT DEFINITION PROVEN; RUNTIME BLOCKED BY EXPLICIT MS**.
 
-Required identities: `Li_soft`, `Pog_soft`, `MS_Steiner`.
+Required identities: `Li_soft`, `Pog_soft`, `MS_STEINER_FACAD_TANGENT_POINT_V1`.
 Required construction: `SL_STEINER_POGSOFT_MS_V1`.
 Operation: perpendicular distance from lower lip to S-line.
 
@@ -115,3 +115,10 @@ This compatibility lot does not source-lock the exact original Steiner publicati
 Allowed claim: Facad's shipped Steiner profile defines these rows and their geometry as documented above, with independent scientific literature supporting the S-line concept.
 
 Forbidden claim until a primary historical source is locked: that `Ls-SL` / `Li-SL` belong to a specific Steiner 1953/1959 canonical layer.
+
+
+## Variant-equivalence warning
+
+The Facad vendor definition is specifically a **columella tangent point**. Independent literature uses several descriptions for the Steiner endpoint, including the midpoint of the columella and the midpoint/inflection of the S-shaped curve between the nasal base and tip. This lot does not prove those constructions are identical.
+
+Therefore the vendor tangent-point identity must not be silently replaced by a midpoint, inflection point, generic `Cm`, `Sn_soft`, or `Prn`. Historical/vendor variant equivalence remains `UNPROVEN`.
