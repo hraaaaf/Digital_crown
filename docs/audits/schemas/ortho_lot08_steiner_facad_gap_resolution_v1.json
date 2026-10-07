@@ -32,6 +32,16 @@
         "Iil": "Incisor inferior labial outline",
         "Ii": "Incisor inferior (lower incisor tip)"
       }
+    },
+    "iinb_probe": {
+      "run_id": 37604835052,
+      "head_sha": "59ba611c75d42556d1d595dae3a28f6bafa07b3b",
+      "artifact_id": 11474737029,
+      "artifact_digest": "sha256:de12a19a7ca0d7fe1b1315053a164eb59ac9171694883d05282e38f5aff286f2"
+    },
+    "distline_reference_manual": {
+      "url": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf",
+      "fact": "DistLine is a signed point-to-line distance; Change sign and Change for left/right control sign behavior."
     }
   },
   "external_scientific_support": [
@@ -70,16 +80,18 @@
           "M_L1_NB_MM_V1",
           "M_POG_NB_MM_V1"
         ],
-        "status": "DERIVED_RELATION_SOURCE_LOCKED__NUMERIC_EQUIVALENCE_GATED",
-        "runtime_formula": "input_1_minus_input_2",
+        "status": "DERIVED_RELATION_SOURCE_LOCKED__DC_UNSIGNED_DISTANCE_MISMATCH_BLOCKS_RUNTIME_PARITY",
+        "runtime_formula": null,
         "runtime_activation": false,
         "reason": "Facad proves subtraction semantics, but Ii-NB dependency geometry must be verified before promoting numeric equivalence.",
         "dependency_geometry": {
-          "facad_iinb": "DistLine(NB, Iil)",
+          "facad_iinb": "DistLine(NB, Iil), changeRightLeft=true",
           "facad_iil": "Incisor inferior labial outline",
-          "dc_candidate": "M_L1_NB_MM_V1 using L1_facial_surface",
-          "compatibility_status": "SEMANTIC_MATCH__SAME_TRACE_NUMERIC_PARITY_REQUIRED"
-        }
+          "dc_candidate": "M_L1_NB_MM_V1 and M_POG_NB_MM_V1 currently use unsigned absolute point-to-line distance",
+          "compatibility_status": "GEOMETRY_FAMILY_MATCH__SIGNED_PARITY_BLOCKED",
+          "facad_pognb": "DistLine(NB, Pog), changeRightLeft=true"
+        },
+        "runtime_blocker": "Do not subtract current unsigned DC values to emulate Facad."
       }
     },
     "Ls-SL": {
@@ -159,7 +171,9 @@
     "missing_MS_must_fail_closed": true,
     "iinb_same_trace_numeric_parity_required": true,
     "no_canonical_steiner_profile_promotion_without_primary_sline_source": true,
-    "no_midpoint_tangent_variant_equivalence_without_primary_proof": true
+    "no_midpoint_tangent_variant_equivalence_without_primary_proof": true,
+    "do_not_compute_facad_iipog_from_unsigned_dc_inputs": true,
+    "facad_distline_sign_orientation_must_be_source_locked_or_same_trace_validated": true
   },
   "historical_attribution": {
     "exact_primary_steiner_sline_publication_status": "NOT_SOURCE_LOCKED_IN_THIS_COMPATIBILITY_LOT",
