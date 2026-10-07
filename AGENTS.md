@@ -50,6 +50,22 @@ Source : `backend/main.py::validate_environment_invariants()`.
 
 ### Scoring d'exécution et vérification
 
+### Revue adversariale explicite obligatoire
+
+Pour tout lot significatif, correction importante, migration, changement architectural, sécurité, données ou logique métier critique :
+
+- écrire **au minimum deux prompts adversariaux distincts** avant le closeout ;
+- chaque prompt doit adopter une perspective réellement différente et adaptée au risque du lot ;
+- exécuter les deux prompts séparément **depuis zéro sur le même HEAD** ;
+- chaque revue doit chercher activement : BLOCKER, MAJOR, dette significative, contradiction spec/doc/code/tests, invariant annoncé mais non implémenté, test absent/skippé/non collecté, faux vert, fail-open, régression, dette de migration/rétrocompatibilité, hypothèse non prouvée et preuve non reproductible ;
+- tout finding démontré doit être documenté, corrigé lorsqu'il appartient au scope et que la correction est sûre, puis protégé par un test/preuve anti-régression ;
+- toute correction produisant un nouveau HEAD **invalide les deux revues précédentes** : les deux prompts doivent être réexécutés depuis zéro sur le nouveau HEAD ;
+- la boucle obligatoire est : **REVIEW → FINDINGS → FIX → TEST → NEW HEAD → REVIEW AGAIN** jusqu'à une passe complète avec 0 nouveau BLOCKER, 0 nouveau MAJOR et 0 dette significative non traitée ;
+- après convergence, exécuter une **passe supplémentaire de confirmation depuis zéro** sur le même HEAD ;
+- aucun `ADVERSARIAL_SCORE`, `RETAINED_SCORE`, `VERIFIED`, `CONVERGED`, `READY`, `CLOSED` ou équivalent final ne peut être retenu sans trace des deux prompts, de leur exécution et de la passe de confirmation ;
+- une CI verte ne remplace jamais ces revues ; vérifier collecte, exécution, skips, SHA exact et portée réelle des tests ;
+- si aucune vraie revue indépendante n'est disponible, nommer explicitement les deux passes **revues adversariales internes** ; le plafond d'auto-revue `9.4/10` reste applicable. Une revendication `>= 9.5/10` exige toujours une vraie revue indépendante conformément à la règle de scoring.
+
 Lire et appliquer **à chaque étape matérielle** `.claude/rules/execution-scoring-verification.md`.
 
 - produire `EXECUTION_SCORE /10` puis `ADVERSARIAL_SCORE /10` ;

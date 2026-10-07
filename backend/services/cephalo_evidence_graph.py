@@ -19,6 +19,7 @@ from backend.schemas.cephalo_evidence import (
     DiagnosticHypothesisEvidence,
     FinalPlanEvidence,
     FindingEvidence,
+    ImageOrientationEvidence,
     LandmarkEvidence,
     MeasurementEvidence,
     NormativeEvaluationEvidence,
@@ -62,6 +63,7 @@ def _require_refs(refs: Iterable[str], allowed: Set[str], context: str) -> None:
 class EvidenceGraphSnapshot:
     sources: Sequence[SourceEvidence] = ()
     landmarks: Sequence[LandmarkEvidence] = ()
+    image_orientations: Sequence[ImageOrientationEvidence] = ()
     constructions: Sequence[ConstructionEvidence] = ()
     measurements: Sequence[MeasurementEvidence] = ()
     normative_evaluations: Sequence[NormativeEvaluationEvidence] = ()
@@ -83,6 +85,7 @@ def validate_evidence_graph(
 
     sources = _index_unique(graph.sources, "evidence_id", "source")
     landmarks = _index_unique(graph.landmarks, "evidence_id", "landmark evidence")
+    orientations = _index_unique(graph.image_orientations, "evidence_id", "image orientation evidence")
     constructions = _index_unique(graph.constructions, "construction_id", "construction")
     measurements = _index_unique(graph.measurements, "measurement_id", "measurement")
     evaluations = _index_unique(
@@ -99,6 +102,7 @@ def validate_evidence_graph(
     namespaces: Mapping[str, Mapping[str, object]] = {
         "source": sources,
         "landmark": landmarks,
+        "image_orientation": orientations,
         "construction": constructions,
         "measurement": measurements,
         "normative_evaluation": evaluations,
@@ -123,6 +127,7 @@ def validate_evidence_graph(
 
     source_ids = set(sources)
     landmark_ids = set(landmarks)
+    orientation_ids = set(orientations)
     construction_ids = set(constructions)
     measurement_ids = set(measurements)
     evaluation_ids = set(evaluations)
@@ -134,11 +139,28 @@ def validate_evidence_graph(
     validation_ids = set(validations)
     plan_ids = set(plans)
 
-    geometric_upstream = source_ids | landmark_ids | construction_ids
+    geometric_upstream = source_ids | landmark_ids | construction_ids | orientation_ids
     measurement_upstream = geometric_upstream | measurement_ids
     interpretation_upstream = measurement_upstream | evaluation_ids
     diagnostic_upstream = interpretation_upstream | finding_ids | diagnosis_ids
     planning_upstream = diagnostic_upstream | problem_ids | objective_ids
+
+    for orientation in graph.image_orientations:
+        _require_refs(
+            [orientation.source_image_ref],
+            source_ids,
+            f"Image orientation {orientation.evidence_id} source_image_ref",
+        )
+        _require_refs(
+            orientation.evidence_refs,
+            source_ids,
+            f"Image orientation {orientation.evidence_id} evidence_refs",
+        )
+        _require_refs(
+            [orientation.provenance_ref],
+            source_ids | validation_ids,
+            f"Image orientation {orientation.evidence_id} provenance_ref",
+        )
 
     for landmark in graph.landmarks:
         _require_refs(
@@ -185,6 +207,12 @@ def validate_evidence_graph(
                 [measurement.calibration_ref],
                 source_ids,
                 f"Measurement {measurement.measurement_id} calibration_ref",
+            )
+        if measurement.orientation_ref is not None:
+            _require_refs(
+                [measurement.orientation_ref],
+                orientation_ids,
+                f"Measurement {measurement.measurement_id} orientation_ref",
             )
 
     norm_source_ids = set(norm_registry.sources)
@@ -328,6 +356,7 @@ def validate_evidence_graph(
     validation_target_ids: Mapping[str, Set[str]] = {
         "source": source_ids,
         "landmark": landmark_ids,
+        "image_orientation": orientation_ids,
         "construction": construction_ids,
         "measurement": measurement_ids,
         "normative_evaluation": evaluation_ids,

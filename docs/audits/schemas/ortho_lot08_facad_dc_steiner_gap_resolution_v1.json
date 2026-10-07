@@ -1,0 +1,55 @@
+{
+  "schema_version": "FACAD_DC_STEINER_GAP_RESOLUTION_V1",
+  "status": "SOURCE_LOCKED_DECISIONS__RUNTIME_PARTIAL",
+  "facad_evidence": {
+    "steiner_gap_probe_run_id": 37602332789,
+    "sline_probe_run_id": 37602712135,
+    "official_landmark_manual": "https://www.facad.com/dox/dox38/FacadTracingUsersGuide_ENG.pdf"
+  },
+  "decisions": {
+    "Ii-Pog // NB": {
+      "decision": "EXISTING_DERIVED_RELATIONSHIP",
+      "facad_calc_type": "Sub",
+      "facad_ordered_refs": ["Ii-NB", "Pog-NB"],
+      "facad_raw_reference": "0±2",
+      "dc_relationship_id": "STEINER_L1_NB_VS_POG_NB_V1",
+      "dc_ordered_inputs": ["M_L1_NB_MM_V1", "M_POG_NB_MM_V1"],
+      "dc_numeric_difference_formula": "M_L1_NB_MM_V1 - M_POG_NB_MM_V1",
+      "new_canonical_measurement_required": false
+    },
+    "Ls-SL": {
+      "decision": "BLOCKED_EXACT_LANDMARK_AND_HISTORICAL_PRIMARY_AUTHORITY",
+      "facad_calc_type": "DistLine",
+      "facad_line_refs": ["PGs", "MS"],
+      "facad_point_ref": "Ls",
+      "facad_raw_reference": "0",
+      "dc_existing_identities": {"PGs": "Pog_soft", "Ls": "Ls_soft"},
+      "dc_missing_exact_identity": "MS_Steiner",
+      "forbidden_aliases": ["Cm", "Sn_soft", "Prn"],
+      "candidate_measurement_id": "M_LS_STEINER_SLINE_MM_V1"
+    },
+    "Li-SL": {
+      "decision": "BLOCKED_EXACT_LANDMARK_AND_HISTORICAL_PRIMARY_AUTHORITY",
+      "facad_calc_type": "DistLine",
+      "facad_line_refs": ["PGs", "MS"],
+      "facad_point_ref": "Li",
+      "facad_raw_reference": "0",
+      "dc_existing_identities": {"PGs": "Pog_soft", "Li": "Li_soft"},
+      "dc_missing_exact_identity": "MS_Steiner",
+      "forbidden_aliases": ["Cm", "Sn_soft", "Prn"],
+      "candidate_measurement_id": "M_LI_STEINER_SLINE_MM_V1"
+    }
+  },
+  "sline_identity": {
+    "Facad_MS": "Steiner's S-point (columnella tangent point)",
+    "Facad_PGs": "Soft tissue Pogonion",
+    "Facad_SL": "Line through PGs and MS",
+    "dc_policy": "MS_Steiner must be an explicit identity; existing Cm is not an alias without direct proof."
+  },
+  "runtime_guards": {
+    "facad_reference_values_are_not_runtime_authority": true,
+    "facad_same_trace_numeric_parity_observed": false,
+    "primary_historical_authority_for_sline_locked": false,
+    "no_silent_landmark_aliasing": true
+  }
+}

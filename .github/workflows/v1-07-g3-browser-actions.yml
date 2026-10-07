@@ -34,7 +34,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Credential
-        run: echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+        shell: bash
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
       - name: Backend deps
         run: |
           python -m pip install --upgrade pip
@@ -63,10 +68,10 @@ jobs:
           cat /tmp/g3-frontend.log; exit 1
       - name: Certify Agenda / Frontdesk actions
         working-directory: frontend
-        run: node scripts/certify-v1-07-g3-browser-actions.mjs
+        run: node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g3-browser-actions.mjs
       - name: Capture pending-only BEFORE / AFTER
         working-directory: frontend
-        run: node scripts/capture-v1-07-g3-pending-only-visual.mjs
+        run: node scripts/run-with-t2-workstation.mjs scripts/capture-v1-07-g3-pending-only-visual.mjs
       - name: Upload G3 pending-only visual evidence
         uses: actions/upload-artifact@v4
         with:

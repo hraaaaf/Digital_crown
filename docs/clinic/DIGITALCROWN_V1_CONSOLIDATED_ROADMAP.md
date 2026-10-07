@@ -45,6 +45,42 @@ At the end of every lot, before moving to the next lot, provide the product owne
 
 This recap is a mandatory closeout deliverable in addition to tests, severe scoring, merge evidence and canonical roadmap updates.
 
+## Scientific compatibility closeout — LOT08 / Facad Ricketts 32F — 2026-10-07
+
+Status: **MERGED / POST-MERGE DOCUMENTARY RECONCILIATION PENDING**.
+
+Scope:
+- compatibility disposition of the 26 Facad `Ricketts (32 F)` rows that were initially unmapped to Digital Crown contracts;
+- source-locked separation between Facad vendor definitions and Atlas/Gregoret scientific profiles;
+- no silent promotion of vendor labels, norms, landmarks or planes into Digital Crown runtime authority.
+
+Observable result:
+- Facad Ricketts 32F compatibility backlog: **26/26 dispositioned, 0 unmapped**;
+- this is **not** a claim of 26 direct aliases or numeric parity;
+- runtime activation remains fail-closed where identity, sign, orientation or same-trace presentation parity is not proven;
+- Facad norms remain non-authoritative.
+
+Evidence HEAD before docs-only closeout:
+`575fc9e2ad21133763bdacbe512e7591a39b9f59`.
+
+Evidence:
+- official Facad 3.14.1.1111 `Ricketts (32 F).cph`, SHA-256 `d0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518`;
+- final targeted contract workflow: **SUCCESS** on the evidence HEAD;
+- explicit adversarial review A — science/provenance: **15/15 PASS**, 0 BLOCKER / 0 MAJOR;
+- explicit adversarial review B — CI/reproducibility: **14/14 PASS**, 0 BLOCKER / 0 MAJOR;
+- additional confirmation pass: **10/10 PASS**;
+- Perfection Pass: **16/16 PASS**;
+- retained score: **9.4/10** under same-agent review ceiling.
+
+Release boundary:
+- PR #775 merged as `c7209e9d35f0a85a12ee1725589bca2863aa6607`;
+- GitHub PR state is CLOSED / MERGED;
+- no Vercel deployment authorized or performed;
+- this follow-up is documentation-only reconciliation after merge; final lot closeout requires this reconciliation to reach master and a read-only master coherence check.
+
+Canonical handover:
+`docs/handovers/2026-10-07-ricketts32-compatibility-closeout.md`.
+
 ## 2. Global Goal / Success / Proof
 
 **Goal:** produce the first operational V1 cabinet release from canonical V0 while preserving real cabinet data, historical integrity and rollback capability.

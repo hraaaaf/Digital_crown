@@ -1,0 +1,214 @@
+{
+  "schema_version": "FACAD_DC_PROTOCOL_MAPPING_V1",
+  "rules": {
+    "exact_label_match_is_not_sufficient_for_geometry_equivalence": true,
+    "direct_match_requires_existing_dc_canonical_id_and_same_declared_construction": true,
+    "candidate_requires_manual_geometry_review": true,
+    "facad_norms_are_reference_only_not_runtime_authority": true,
+    "canonical_label_match_does_not_prove_geometry_equivalence": true,
+    "derived_relationship_match_requires_existing_profile_relationship": true,
+    "blocked_mapping_requires_explicit_identity_and_forbidden_aliases": true
+  },
+  "profiles": {
+    "Steiner": {
+      "facad_filename": "Steiner.cph",
+      "mappings": {
+        "SNA": {
+          "dc_id": "M_SNA_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "SNB": {
+          "dc_id": "M_SNB_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "ANB": {
+          "dc_id": "M_ANB_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "Is-NA": {
+          "dc_id": "M_U1_NA_MM_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "ILs/NA": {
+          "dc_id": "M_U1_NA_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "Ii-NB": {
+          "dc_id": "M_L1_NB_MM_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "ILi/NB": {
+          "dc_id": "M_L1_NB_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "InterIncisal": {
+          "dc_id": "M_INTERINCISAL_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "OL/NSL": {
+          "dc_id": "M_OCCLUSAL_PLANE_SN_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "ML/NSL": {
+          "dc_id": "M_SN_GOGN_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "Pog-NB": {
+          "dc_id": "M_POG_NB_MM_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "Ii-Pog // NB": {
+          "dc_relationship_id": "STEINER_L1_NB_VS_POG_NB_V1",
+          "status": "EXISTING_DERIVED_RELATIONSHIP",
+          "facad_calc_type": "Sub",
+          "ordered_inputs": [
+            "M_L1_NB_MM_V1",
+            "M_POG_NB_MM_V1"
+          ]
+        },
+        "Ls-SL": {
+          "status": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner",
+          "forbidden_aliases": [
+            "Cm",
+            "Sn_soft",
+            "Prn"
+          ],
+          "facad_line_refs": [
+            "PGs",
+            "MS"
+          ],
+          "existing_dc_identities": {
+            "PGs": "Pog_soft",
+            "Ls": "Ls_soft"
+          }
+        },
+        "Li-SL": {
+          "status": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner",
+          "forbidden_aliases": [
+            "Cm",
+            "Sn_soft",
+            "Prn"
+          ],
+          "facad_line_refs": [
+            "PGs",
+            "MS"
+          ],
+          "existing_dc_identities": {
+            "PGs": "Pog_soft",
+            "Li": "Li_soft"
+          }
+        }
+      }
+    },
+    "Tweed": {
+      "facad_filename": "Tweed.cph",
+      "mappings": {
+        "FMA (ML/FH)": {
+          "dc_id": "M_FH_GOME_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "IMPA (ILi/ML)": {
+          "dc_id": "M_IMPA_GOME_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "FMIA (ILi/FH)": {
+          "dc_id": "M_FMIA_L1_FH_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "SNA": {
+          "dc_id": "M_SNA_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "SNB": {
+          "dc_id": "M_SNB_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "ANB": {
+          "dc_id": "M_ANB_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "Z": {
+          "dc_id": "M_MERRIFIELD_Z_FH_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        }
+      }
+    },
+    "McNamara": {
+      "facad_filename": "McNamara.cph",
+      "mappings": {
+        "A-NP": {
+          "dc_id": "M_A_NPERP_MM_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "ML/FH": {
+          "dc_id": "M_FH_GOME_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "Facial axis": {
+          "dc_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "Pog-NP": {
+          "dc_id": "M_POG_NPERP_MM_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        }
+      }
+    },
+    "Downs": {
+      "facad_filename": "Downs.cph",
+      "mappings": {
+        "Facial angle": {
+          "dc_id": "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "Y-axis/FH": {
+          "dc_id": "M_DOWNS_Y_AXIS_SGN_FH_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "ML/FH": {
+          "dc_id": "M_FH_GOME_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "InterIncisal": {
+          "dc_id": "M_INTERINCISAL_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        },
+        "ILi/ML": {
+          "dc_id": "M_IMPA_GOME_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        }
+      }
+    },
+    "Ricketts (32 F)": {
+      "facad_filename": "Ricketts (32 F).cph",
+      "mappings": {
+        "Convexity": {
+          "dc_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "Li-EL": {
+          "dc_id": "M_LI_EPLANE_MM_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "Facial depth": {
+          "dc_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "Facial axis": {
+          "dc_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "ML/FH": {
+          "dc_id": "M_FH_GOME_DEG_V1",
+          "status": "CANDIDATE_GEOMETRY_REVIEW"
+        },
+        "InterIncisal": {
+          "dc_id": "M_INTERINCISAL_DEG_V1",
+          "status": "CANONICAL_LABEL_MATCH"
+        }
+      }
+    }
+  }
+}

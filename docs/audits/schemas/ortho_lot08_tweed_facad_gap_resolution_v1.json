@@ -1,0 +1,221 @@
+{
+  "schema_version": "ORTHO_LOT08_TWEED_FACAD_GAP_RESOLUTION_V1",
+  "status": "SOURCE_LOCKED__RUNTIME_GATED",
+  "scope": [
+    "Wits",
+    "OL/FH"
+  ],
+  "facad_provenance": {
+    "product": "Facad",
+    "release": "3.14.1.1111",
+    "profile": "Tweed.cph",
+    "geometry_probe": {
+      "run_id": 37613466736,
+      "head_sha": "c3189e55a9717a26ef8e83a9f0fd2dc1d41a9269",
+      "artifact_id": 11479156059,
+      "artifact_digest": "sha256:0c38c1a672a6865431e48454b9ad04afc7ad22c0f5072ec858a3b2222529d555"
+    },
+    "endpoint_probe": {
+      "run_id": 37613642979,
+      "head_sha": "51bdb7904b6ea09655c57e530f27986640cc41fe",
+      "artifact_id": 11479441309,
+      "artifact_digest": "sha256:bbf9828bc5a42aefd61995ac9c51a9fc9b95190a4de77cfd94f59abd8810d327"
+    },
+    "reference_manual": {
+      "url": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf",
+      "facts": [
+        "ProjLine projects the distance between two markers onto an existing line.",
+        "Angle2ln is the angle between two existing lines."
+      ]
+    },
+    "user_guide": {
+      "url": "https://www.facad.com/dox/dox313/FacadTracingUsersGuide_ENG.pdf",
+      "facts": [
+        "OLp = Occlusal Line, posterior point",
+        "P = Porion",
+        "Or = Orbitale"
+      ]
+    }
+  },
+  "scientific_authorities": {
+    "wits_jacobson_1975": {
+      "citation": "Jacobson A. The Wits appraisal of jaw disharmony. Am J Orthod. 1975;67(2):125-138.",
+      "doi": "10.1016/0002-9416(75)90065-2",
+      "pubmed": "https://pubmed.ncbi.nlm.nih.gov/1054214/",
+      "role": "PRIMARY_WITS_AUTHORITY"
+    },
+    "downs_1948": {
+      "citation": "Downs WB. Variations in facial relationships; their significance in treatment and prognosis. Am J Orthod. 1948;34(10):812-840.",
+      "doi": "10.1016/0002-9416(48)90015-3",
+      "pubmed": "https://pubmed.ncbi.nlm.nih.gov/18882558/",
+      "role": "PRIMARY_DOWNS_AUTHORITY"
+    },
+    "wits_functional_plane_corrobation": {
+      "sources": [
+        {
+          "id": "PMC4072364",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4072364/",
+          "claim": "Peer-reviewed description of Jacobson Wits functional occlusal plane through first-molar mesiobuccal cusp overlap and first-premolar buccal cusps."
+        },
+        {
+          "id": "THAYER_1990",
+          "pubmed": "https://pubmed.ncbi.nlm.nih.gov/2333856/",
+          "doi": "10.1016/0889-5406(90)70114-R",
+          "claim": "Functional and bisected occlusal planes produce materially different Wits appraisals; plane choice is not interchangeable."
+        }
+      ],
+      "conclusion": "Facad OL using incisor midpoint OLa is a vendor bisected-plane variant and must not be claimed as strict Jacobson functional-plane parity."
+    },
+    "downs_occlusal_cant_corrobation": {
+      "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3059215/",
+      "claim": "Peer-reviewed reconstruction of original Downs occlusal-plane-to-FH norm; occlusal plane bisects posterior molar occlusion and incisal overbite.",
+      "conclusion": "Facad OL/FH belongs to the same bisected occlusal-cant family, but exact strict Downs parity remains unproven because OLp is only a manual vendor marker in inspected evidence."
+    },
+    "tweed_triangle_corrobation": {
+      "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8402232/",
+      "claim": "Peer-reviewed description of Tweed diagnostic triangle as FMA, FMIA and IMPA formed by Frankfort, mandibular plane and lower-incisor axis.",
+      "conclusion": "Wits and OL/FH membership in Facad Tweed.cph is vendor-profile compatibility evidence, not historical Tweed-core authority."
+    }
+  },
+  "facad_constructions": {
+    "FH": {
+      "calc_type": "Line",
+      "refs": [
+        "P",
+        "Or"
+      ],
+      "dc_candidates": [
+        "Po_anatomic",
+        "Or"
+      ],
+      "status": "ANATOMY_LABEL_MATCH__CHANNEL_AUTHORITY_STILL_FAIL_CLOSED"
+    },
+    "OLa": {
+      "calc_type": "Mid-point",
+      "refs": [
+        "Is",
+        "Ii"
+      ],
+      "definition": "midpoint of upper and lower incisor tips"
+    },
+    "OLp": {
+      "type": "marker",
+      "definition": "Occlusal Line, posterior point",
+      "acquisition": "MANUAL_VENDOR_MARKER",
+      "exact_tooth_contact_semantics": "UNOBSERVED_IN_CPH"
+    },
+    "OL": {
+      "calc_type": "Line",
+      "refs": [
+        "OLp",
+        "OLa"
+      ],
+      "canonical_vendor_identity": "FACAD_TWEED_BISECTED_OCCLUSAL_LINE_V1",
+      "status": "SOURCE_LOCKED_VENDOR_GEOMETRY",
+      "direction": "OLp_to_OLa",
+      "argument_order": [
+        "OLp",
+        "OLa"
+      ]
+    }
+  },
+  "resolutions": {
+    "Wits": {
+      "facad_definition": {
+        "calc_type": "ProjLine",
+        "refs": [
+          "OL",
+          "B",
+          "A"
+        ],
+        "interpretation": "projection of B-to-A displacement onto Facad OL",
+        "norm": "0-4",
+        "projection_vector_order": [
+          "B",
+          "A"
+        ],
+        "line_direction": "OLp_to_OLa",
+        "sign_semantics": "Projection sign depends on ordered B-to-A vector and ordered OLp-to-OLa line; do not reorder."
+      },
+      "dc_resolution": {
+        "status": "FACAD_VENDOR_VARIANT_SOURCE_LOCKED__JACOBSON_STRICT_EQUIVALENCE_FORBIDDEN",
+        "proposed_compatibility_id": "M_FACAD_TWEED_WITS_BISECTED_OL_MM_V1",
+        "required_construction": "FACAD_TWEED_BISECTED_OCCLUSAL_LINE_V1",
+        "required_identities": [
+          "A",
+          "B",
+          "U1_incisal",
+          "L1_incisal",
+          "OLp_Facad_Tweed"
+        ],
+        "legacy_candidate": "Wits_Appraisal",
+        "legacy_candidate_status": "QUARANTINED_OCCLUSAL_PROVENANCE_UNVERIFIED",
+        "legacy_alias_allowed": false,
+        "canonical_wits_profile_promotion": false,
+        "runtime_activation": false,
+        "same_trace_numeric_parity_required": true,
+        "rationale": "Jacobson Wits uses projections onto an occlusal plane; independent literature identifies the original functional occlusal plane using posterior premolar/molar occlusion, while Facad OL explicitly uses an incisor midpoint plus manual posterior point."
+      }
+    },
+    "OL/FH": {
+      "facad_definition": {
+        "calc_type": "Angle2ln",
+        "refs": [
+          "FH",
+          "OL"
+        ],
+        "norm": "8-12"
+      },
+      "dc_resolution": {
+        "status": "FACAD_VENDOR_OCCLUSAL_CANT_SOURCE_LOCKED__DOWNS_STRICT_EQUIVALENCE_UNPROVEN",
+        "proposed_compatibility_id": "M_FACAD_TWEED_OL_FH_DEG_V1",
+        "required_constructions": [
+          "FH_PO_OR_V1",
+          "FACAD_TWEED_BISECTED_OCCLUSAL_LINE_V1"
+        ],
+        "required_identities": [
+          "Po_anatomic",
+          "Or",
+          "U1_incisal",
+          "L1_incisal",
+          "OLp_Facad_Tweed"
+        ],
+        "canonical_tweed_profile_promotion": false,
+        "canonical_downs_profile_promotion": false,
+        "runtime_activation": false,
+        "same_trace_numeric_parity_required": true,
+        "rationale": "The Facad line family is compatible with a bisected occlusal-plane cant concept, but the exact posterior anchor is a manual vendor marker and is not proven identical to the Downs posterior bisector construction."
+      }
+    }
+  },
+  "profile_membership_boundary": {
+    "facad_tweed_profile_membership_observed": true,
+    "historical_tweed_membership_inferred": false,
+    "dc_tweed_core": [
+      "M_FH_GOME_DEG_V1",
+      "M_IMPA_GOME_DEG_V1",
+      "M_FMIA_L1_FH_DEG_V1"
+    ],
+    "dc_merrifield_extension": [
+      "M_MERRIFIELD_Z_FH_DEG_V1"
+    ],
+    "facad_vendor_extensions": [
+      "Wits",
+      "OL/FH"
+    ],
+    "rule": "Vendor profile membership is compatibility evidence, not historical authorship or canonical-analysis authority."
+  },
+  "safety_rules": {
+    "no_alias_to_legacy_occ_ant_post": true,
+    "no_jacobson_strict_claim_for_facad_wits": true,
+    "no_downs_strict_claim_for_facad_olfh": true,
+    "no_historical_tweed_membership_inference": true,
+    "no_facad_norm_runtime_classification": true,
+    "no_runtime_activation_without_explicit_olp": true,
+    "no_numeric_parity_claim_without_same_trace_export": true,
+    "preserve_facad_ol_argument_order": true,
+    "preserve_facad_wits_marker_order": true
+  },
+  "verification_revision": 1,
+  "verification_note": "Triggers exact-HEAD certification after adversarial fixes and provenance binding."
+}

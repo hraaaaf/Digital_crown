@@ -112,7 +112,21 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 | `M_U1_FH_DEG_V1` | U1–Frankfort | axe U1 / FH | U1_apex,U1_incisal,Po_anatomic,Or | angle ° | `GEOMETRY_COVERED` côté DC/COM |
 | `M_U1_A_VERTICAL_MM_V1` | U1 → A vertical | surface faciale U1 → verticale par A parallèle à N-perp | U1_facial_surface,A,Po_anatomic,Or | mm | `BLOCKED_LANDMARK` |
 | `M_U6_NA_MM_V1` | U6–NA | position molaire U6 par rapport à NA selon point molaire source-locké | U6_exact,N,A | mm | `BLOCKED_LANDMARK` |
-| `M_U6_PTV_MM_V1` | U6→PTV | distal crown U6 → PTV | U6_distal_crown,PR/PTV construction | mm | `BLOCKED_LANDMARK` |
+| `M_U6_PTV_MM_V1` | U6→PTV | Ricketts A6 distal reference → source-locked PTV | `U6_DISTAL_Ricketts`,`RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1` | mm | `CONDITIONAL_EXECUTABLE`; manual U6/PR + verified calibration |
+| `M_RICKETTS_MOLAR_RELATION_FOP_MM_V1` | Ricketts molar relation | lower minus upper first-molar distal references projected on posterior-positive Ricketts FOP | `L6_DISTAL_Ricketts,U6_DISTAL_Ricketts` + FOP | mm signed | `GEOMETRY_COVERED`; manual molar distals + calibration |
+| `M_RICKETTS_CANINE_RELATION_FOP_MM_V1` | Ricketts canine relation | lower minus upper canine cusp references projected on posterior-positive Ricketts FOP | `L3_CUSP_Ricketts,U3_CUSP_Ricketts` + FOP | mm signed | `GEOMETRY_COVERED`; manual canine cusps + calibration |
+| `M_RICKETTS_OVERJET_FOP_MM_V1` | Ricketts overjet | lower minus upper incisal edges projected on posterior-positive Ricketts FOP | `L1_incisal,U1_incisal` + FOP | mm signed | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_OVERBITE_FOP_MM_V1` | Ricketts overbite | incisal-edge separation perpendicular to Ricketts FOP; open bite negative in source convention | `L1_incisal,U1_incisal` + FOP | mm signed | `CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED` |
+| `M_RICKETTS_U1_APOG_PROTRUSION_MM_V1` | Ricketts upper-incisor protrusion | perpendicular signed U1 incisal-edge distance to A-Pog; anterior positive | `U1_incisal,A,Pog_hard,Po_anatomic,Or` | mm signed | `GEOMETRY_COVERED_EXPLICIT_U1_EDGE_PERPENDICULAR_APOG_ANTERIOR_POSITIVE`; calibration |
+| `M_RICKETTS_U1_APOG_INCLINATION_DEG_V1` | Ricketts upper-incisor inclination | acute line angle U1 long axis / A-Pog | `U1_incisal,U1_apex,A,Pog_hard` | angle ° | `GEOMETRY_COVERED` |
+
+| `M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1` | Ricketts FOP→Xi | signed perpendicular Xi/FOP relation; + FOP above Xi / − below | canonical Xi + source-locked FOP | mm | `CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED` |
+| `M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1` | Ricketts occlusal-plane inclination | acute angle FOP / Xi-Pm | canonical FOP, canonical Xi, manual Pm | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1` | Ricketts upper-lip length | straight-line ANS to labial commissure | ANS, `LABIAL_COMMISSURE_Ricketts` | mm | `GEOMETRY_COVERED`; manual commissure + calibration |
+| `M_RICKETTS_COMMISSURE_FOP_MM_V1` | Ricketts commissure to FOP | signed relation; negative when FOP passes below commissure | `LABIAL_COMMISSURE_Ricketts` + source-locked FOP | mm | `CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED` |
+| `M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1` | Ricketts facial taper | acute angle N-Pog / source-locked Ricketts MP | N,Pog + Ricketts MP construction | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1` | Ricketts maxillary height | angle N-CF-A | N,A + `RICKETTS_CF_FH_PTV_INTERSECTION_V1` | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_PALATAL_PLANE_FH_DEG_V1` | Ricketts palatal plane | directional ANS-PNS / anatomical FH angle; source direction known | ANS,`PNS_Ricketts`,Po_anatomic,Or | angle ° | `CONDITIONAL_EXECUTABLE__IMAGE_ORIENTATION_EVIDENCE_REQUIRED` |
 
 # 6. Dento-alvéolaire mandibulaire
 
@@ -143,6 +157,8 @@ Ces deux mesures portent un nom proche mais **ne sont pas fusionnées** car leur
 |---|---|---|---|---|---|
 | `M_LI_EPLANE_MM_V1` | Lèvre inférieure → E-plane | distance perpendiculaire signée Li_soft → Prn-Pog_soft | Li_soft,Prn,Pog_soft | mm signé | `GEOMETRY_COVERED` |
 | `M_LS_EPLANE_MM_V1` | Lèvre supérieure → E-plane | distance perpendiculaire signée Ls_soft → Prn-Pog_soft | Ls_soft,Prn,Pog_soft | mm signé | `GEOMETRY_COVERED` comme extension DC ; non core Ricketts 1981 11 facteurs |
+| `M_LS_STEINER_SLINE_MM_V1` | Lèvre supérieure → Steiner S-line | distance perpendiculaire Ls_soft → ligne Pog_soft–MS_Steiner ; convention de signe DC à verrouiller avant parité numérique Facad | Ls_soft,Pog_soft,MS_Steiner | mm | `BLOCKED_LANDMARK` + `FACAD_SAME_TRACE_SIGN_PARITY_PENDING` |
+| `M_LI_STEINER_SLINE_MM_V1` | Lèvre inférieure → Steiner S-line | distance perpendiculaire Li_soft → ligne Pog_soft–MS_Steiner ; convention de signe DC à verrouiller avant parité numérique Facad | Li_soft,Pog_soft,MS_Steiner | mm | `BLOCKED_LANDMARK` + `FACAD_SAME_TRACE_SIGN_PARITY_PENDING` |
 | `M_NASOLABIAL_ANGLE_DEG_V1` | Angle nasolabial | convention columelle/Prn'-Sn-Ls à verrouiller exactement | soft-tissue dédiés | angle ° | `SOURCE_LOCK_REQUIRED` ; contextuel McNamara, hors 13 variables quantitatives principales |
 
 # 9. Voies aériennes
@@ -186,7 +202,7 @@ Ces entrées décrivent des **mesures de changement**, distinctes de la mesure s
 
 # 12. Conclusion d'architecture
 
-Ce registre est la **source de vérité des identités de mesure** du chantier Céphalo-N.
+Ce registre est la **source de vérité des identités de mesure** du chantier Céphalo-N. Les deux identités Steiner S-line ci-dessus restent non exécutables tant que `MS_Steiner` n'est pas explicitement fourni ; `Cm`, `Sn_soft` et `Prn` ne sont pas des alias autorisés.
 
 Le profil d'analyse répond ensuite seulement à la question :
 
@@ -201,3 +217,11 @@ Le moteur d'analyse ne doit jamais devenir une seconde implémentation de géom�
 3. implémenter au niveau du registre les mesures non bloquées réellement manquantes ;
 4. poursuivre le tracé SVG synchronisé, normes/interprétation et sorties Céphalo-N ;
 5. **terminer le closeout Céphalo-N avant tout démarrage de `ORTHO_MODULE_V2`**.
+
+| `M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1` | Ricketts cranial deflection | acute angle anatomical FH / Ba-N | Po_anatomic,Or,Ba,N | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1` | Ricketts anterior cranial length | CC→N | Atlas CC construction + N | mm | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1` | Ricketts posterior facial height | Go→CF | manual `GO_Ricketts_PFH` + source-locked CF | mm | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1` | Ricketts total facial height | acute angle Ba-N / Pm-Xi | Ba,N + canonical Xi + manual Pm | angle ° | `GEOMETRY_COVERED`; Atlas row-29 transcription conflict resolved |
+| `M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1` | Ricketts ramus position | acute angle FH / CF-Xi | anatomical FH + canonical CF + canonical Xi | angle ° | `GEOMETRY_COVERED` |
+| `M_RICKETTS_PORION_LOCATION_PTV_MM_V1` | Ricketts Porion location | signed PTV→Po distance along FH; posterior negative | Po_anatomic + source-locked PTV | mm signed | `GEOMETRY_COVERED`; calibration |
+| `M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1` | Ricketts mandibular corpus length | Xi→Pm | canonical Xi + manual Pm | mm | `GEOMETRY_COVERED`; calibration |

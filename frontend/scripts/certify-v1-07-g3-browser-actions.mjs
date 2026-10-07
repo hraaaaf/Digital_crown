@@ -22,6 +22,18 @@ async function seed(page){
 }
 function prove(viewport,action,detail={}){proofs.push({viewport:viewport.width+'x'+viewport.height,action,status:'PASS',...detail});}
 
+async function listAppointments(page){
+  const response=await page.context().request.get('http://127.0.0.1:8005/api/appointments/',{headers});
+  const body=await response.text();
+  if(!response.ok()) throw new Error('appointments list failed '+response.status()+': '+body.slice(0,500));
+  let parsed;
+  try{ parsed=JSON.parse(body); }catch{ throw new Error('appointments list returned non-JSON: '+body.slice(0,500)); }
+  if(Array.isArray(parsed)) return parsed;
+  if(Array.isArray(parsed?.items)) return parsed.items;
+  if(Array.isArray(parsed?.appointments)) return parsed.appointments;
+  throw new Error('appointments list contract mismatch: '+JSON.stringify(parsed).slice(0,500));
+}
+
 for(const viewport of viewports){
   const ctx=await browser.newContext({viewport,colorScheme:'light'});
   const page=await ctx.newPage();
@@ -232,7 +244,7 @@ for(const viewport of viewports){
   if(!createAck.ok()) throw new Error('appointment create ACK failed '+createAck.status()+': '+await createAck.text());
   await successDialog.waitFor({state:'hidden',timeout:10000});
 
-  let persisted=(await (await api.get('/api/appointments/',{headers})).json()).find(x=>x.patient_name===uniquePatient);
+  let persisted=(await listAppointments(page)).find(x=>x.patient_name===uniquePatient);
   if(!persisted) throw new Error('created appointment not persisted in backend');
   prove(viewport,'agenda-create-success-persistence',{appointmentId:persisted.id});
 
@@ -268,7 +280,7 @@ for(const viewport of viewports){
   const persistedId=persisted.id;
   let persistedAfterEdit=null;
   for(let attempt=0;attempt<5;attempt+=1){
-    const rows=await (await api.get('/api/appointments/',{headers})).json();
+    const rows=await listAppointments(page);
     persistedAfterEdit=rows.find(x=>x.id===persistedId) || null;
     if(persistedAfterEdit?.motif===updatedMotif) break;
     await page.waitForTimeout(100);
@@ -295,7 +307,7 @@ for(const viewport of viewports){
   await deletedVisibleItem.first().waitFor({state:'detached',timeout:10000}).catch(async()=>{
     if(await deletedVisibleItem.count()) throw new Error('deleted appointment remained visible');
   });
-  const afterDelete=await (await api.get('/api/appointments/',{headers})).json();
+  const afterDelete=await listAppointments(page);
   if(afterDelete.some(x=>x.id===persisted.id)) throw new Error('deleted appointment remained persisted');
   prove(viewport,'agenda-delete-success-persistence',{appointmentId:persisted.id});
 
@@ -383,12 +395,17 @@ for(const viewport of viewports){
     await importButton.click();
     importDialog=page.getByRole('dialog',{name:'Import Google Agenda'});
     file=importDialog.locator('input[type="file"]');
+    const importDay=new Date();
+    const y=importDay.getUTCFullYear();
+    const m=String(importDay.getUTCMonth()+1).padStart(2,'0');
+    const d=String(importDay.getUTCDate()).padStart(2,'0');
+    const icsDay=`${y}${m}${d}`;
     const ics=[
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'BEGIN:VEVENT',
-      'DTSTART:20260923T100000Z',
-      'DTEND:20260923T104500Z',
+      'DTSTART:'+icsDay+'T100000Z',
+      'DTEND:'+icsDay+'T104500Z',
       'SUMMARY:'+importName,
       'DESCRIPTION:Import browser certification',
       'END:VEVENT',
@@ -399,15 +416,15 @@ for(const viewport of viewports){
     await importDialog.getByRole('button',{name:"Confirmer l'import",exact:true}).click();
     await importDialog.waitFor({state:'detached',timeout:10000});
 
-    const importedList=await (await api.get('/api/appointments/',{headers})).json();
+    const importedList=await listAppointments(page);
     const imported=importedList.find(x=>x.patient_name===importName);
     if(!imported) throw new Error('agenda ICS import not persisted');
     await page.getByText(importName,{exact:true}).filter({visible:true}).first().waitFor({state:'visible',timeout:10000});
     prove(viewport,'agenda-import-success-persistence-visible',{appointmentId:imported.id});
 
-    const cleanup=await api.delete('/api/appointments/'+imported.id,{headers});
+    const cleanup=await page.context().request.delete('http://127.0.0.1:8005/api/appointments/'+imported.id,{headers});
     if(!cleanup.ok()) throw new Error('agenda ICS cleanup delete failed');
-    const afterCleanup=await (await api.get('/api/appointments/',{headers})).json();
+    const afterCleanup=await listAppointments(page);
     if(afterCleanup.some(x=>x.id===imported.id)) throw new Error('agenda ICS cleanup did not remove appointment');
     prove(viewport,'agenda-import-fixture-cleanup',{appointmentId:imported.id});
   }
@@ -465,8 +482,8 @@ for(const viewport of viewports){
   await page.getByText('Contrôle patient',{exact:true}).waitFor({state:'visible',timeout:5000});
 
   const urgentArticle=page.locator('article').filter({hasText:'Paiement en retard'});
-  await urgentArticle.getByRole('button',{name:'Voir finance',exact:true}).click();
-  await page.getByTestId('g3-mobile-navigation').filter({hasText:'navigate:finance'}).waitFor({state:'visible',timeout:5000});
+  await urgentArticle.getByRole('button',{name:'Voir patient',exact:true}).click();
+  await page.getByTestId('g3-mobile-navigation').filter({hasText:'navigate:patients'}).waitFor({state:'visible',timeout:5000});
   prove(viewport,'mobile-notifications-navigation-consequence');
 
   await urgentArticle.getByRole('button',{name:/Lu$/}).click();

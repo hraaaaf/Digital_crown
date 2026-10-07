@@ -1,6 +1,6 @@
 {
   "schema_version": "CEPHALO_LOT06_EXECUTABLE_MEASUREMENT_CONTRACT_V1",
-  "status": "EXECUTABLE_35_CANONICAL_MEASUREMENTS",
+  "status": "EXECUTABLE_38_CANONICAL_MEASUREMENTS",
   "clinical_interpretation": false,
   "measurements": [
     {
@@ -668,6 +668,63 @@
         "docs/audits/CEPHALO_STEINER_SCIENTIFIC_AUDIT.md"
       ],
       "availability_gate": "EXPLICIT_STEINER_D_AND_GN_ANATOMIC_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "N",
+        "A"
+      ],
+      "required_constructions": [
+        "FH_PO_OR_V1"
+      ],
+      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_maxillary_depth_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+      "unit": "°",
+      "required_landmarks": [
+        "L1_incisal",
+        "L1_apex",
+        "A",
+        "Pog_hard"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_l1_apog_inclination_deg_v1",
+      "requires_calibration": false,
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT"
+    },
+    {
+      "measurement_id": "M_L1_EDGE_APOG_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "L1_incisal",
+        "A",
+        "Pog_hard",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_ricketts_geometry:ricketts_l1_edge_apog_signed_distance_px_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+        "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+      ],
+      "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_INCISAL_EDGE"
     }
   ],
   "non_promoted_geometry_covered": []
