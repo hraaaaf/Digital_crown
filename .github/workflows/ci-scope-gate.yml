@@ -48,6 +48,7 @@ jobs:
           settings=false
           data=false
           workflow=false
+          recommend_t2=false
 
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
@@ -81,6 +82,11 @@ jobs:
             case "$file" in
               .github/workflows/*|.github/workflows/**/*|.github/CI_GOVERNANCE.md) workflow=true ;;
             esac
+            case "$file" in
+              .github/workflows/t2-runtime-cert.yml|scripts/t2_runtime_server.py|frontend/scripts/audit-first-user-experience*.mjs|frontend/scripts/run-with-t2-workstation.mjs|frontend/scripts/certify-*.mjs|backend/tests/test_panoramic_*|backend/tests/test_ia_router.py)
+                recommend_t2=true
+                ;;
+            esac
           done < /tmp/changed.txt
 
           {
@@ -100,6 +106,13 @@ jobs:
             echo "| settings/RBAC | $settings |"
             echo "| data/migration | $data |"
             echo "| CI/workflow | $workflow |"
+            echo
+            echo "### Recommended targeted certifications"
+            if [[ "$recommend_t2" == "true" ]]; then
+              echo "- T2 Runtime Browser Certification — relevant to the changed files above."
+            else
+              echo "- None proven by the current classifier."
+            fi
             echo
             echo "### Changed files"
             sed 's/^/- `/; s/$/`/' /tmp/changed.txt
