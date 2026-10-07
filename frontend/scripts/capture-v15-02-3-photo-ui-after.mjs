@@ -62,6 +62,8 @@ const appointment = {
 };
 
 const json = (route, body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+let waitingPhotoState = 'initials';
+let waitingPhotoBuffer = null;
 
 async function resetNoPhoto() {
   const res = await api.delete(`/api/patients/${patient.id}/photo`, { headers });
@@ -78,22 +80,16 @@ async function preparePage(context) {
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
-  await page.route('**/api/mobile/snapshot?*', route => json(route, {
-    generated_at: new Date().toISOString(),
-    role: 'DENTISTE',
-    is_superadmin: false,
-    appointments: [appointment],
-    finance: {
-      today_revenue: 0,
-      month_revenue: 0,
-      month_variation: null,
-      appointments_count: 1,
-      weekly_revenue: [],
-      total_patients: 1,
-      total_debt: 0,
-    },
-    debtors: [],
-  }));
+  await page.route('**/api/patients/', route => json(route, [{
+    ...patient,
+    photo_url: waitingPhotoState === 'photo' ? `/api/patients/${patient.id}/photo` : null,
+  }]));
+  await page.route(`**/api/patients/${patient.id}/photo`, route => {
+    if (waitingPhotoState !== 'photo' || !waitingPhotoBuffer) {
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Photo absente"}' });
+    }
+    return route.fulfill({ status: 200, contentType: 'image/png', body: waitingPhotoBuffer });
+  });
   await page.route('**/api/appointments/pending', route => json(route, []));
   await page.route('**/api/appointments/multi-practitioner**', route => json(route, [appointment]));
   await page.route('**/api/appointments/**', route => {
@@ -181,7 +177,12 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
     if (await close.count()) await close.click();
   }
 
-  await page.goto('http://127.0.0.1:5173/mobile/dashboard?tab=waiting-room', { waitUntil: 'networkidle', timeout: 90000 });
+  waitingPhotoState = expectedState;
+  waitingPhotoBuffer = expectedState === 'photo'
+    ? await (await api.get(`/api/patients/${patient.id}/photo`, { headers })).body()
+    : null;
+  const waitingUrl = `http://127.0.0.1:5173/mobile/g3-cert?tab=waiting-room&patientId=${patient.id}&patientName=${encodeURIComponent(fullName)}&ticket=23`;
+  await page.goto(waitingUrl, { waitUntil: 'networkidle', timeout: 90000 });
   await page.locator('[data-mob5i-waiting-room]').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
   await assertAvatarState(page, expectedState);
