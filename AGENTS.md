@@ -192,6 +192,43 @@ Ne déclarer aucun SHA `CODE_CERTIFIED` sans preuve du run + attestation corresp
 
 **RÈGLE ABSOLUE — NE JAMAIS RELANCER TOUTE LA CI PAR DÉFAUT.** Relancer uniquement les tests, builds, jobs et workflows directement touchés par le code modifié. **En particulier, ne jamais relancer tout le frontend lorsqu'une modification n'affecte qu'une sous-partie du frontend ou n'affecte pas le frontend du tout.** Un élargissement de la validation n'est autorisé que si le diff touche une dépendance transverse, un harness partagé, un invariant sécurité/données/release, ou si une preuve concrète montre qu'une surface plus large peut régresser. Les gates déjà verts et non impactés restent acquis.
 
+### Sélection adaptative des gates — PROTOCOLE AVANT EXÉCUTION
+
+`workflow_dispatch` signifie **gate disponible à la demande**, pas « validation manuelle obligatoire par un humain ». Lorsque l'agent dispose de l'action GitHub nécessaire et que l'exécution est autorisée, il doit choisir et lancer lui-même les gates utiles.
+
+**Avant tout déclenchement de test/job/workflow, l'agent DOIT produire mentalement un `VALIDATION_PLAN` minimal suffisant :**
+
+1. comparer le HEAD courant au dernier HEAD réellement prouvé ;
+2. identifier les fichiers, dépendances partagées, harness et invariants touchés ;
+3. lister les preuves encore réutilisables — uniquement si leur code, leur harness et leurs dépendances pertinentes n'ont pas changé ;
+4. sélectionner le plus petit ensemble de gates capable de prouver le changement ;
+5. justifier tout élargissement par un risque concret, un invariant transverse ou un finding démontré ;
+6. après chaque résultat, recalculer le plan avant de lancer autre chose.
+
+**Matrice de décision par défaut :**
+
+- docs/commentaires sans comportement exécutable → aucun test produit par réflexe ;
+- test seul → exécuter ce test ; élargir seulement si le test révèle une régression ou modifie un harness partagé ;
+- composant/frontend local → tests du composant/scope + build ciblé si nécessaire ; ajouter browser/visual uniquement si comportement ou rendu utilisateur change ;
+- route/service backend local → tests backend du module + permission/tenant/security ciblés si concernés ;
+- mobile/auth/workstation/permissions → tests de sécurité/identité correspondants + runtime/browser réellement dépendants ;
+- DB/migration/données patients/documents → tests ciblés + rehearsal/backup/preservation exigés par la politique ; élargissement proportionné au risque ;
+- sécurité/release/packaging/startup → gates dédiés obligatoires, jamais remplacés par une CI générique ;
+- workflow, harness ou helper partagé → rerun de chaque gate qui dépend directement de ce fichier ;
+- changement transverse ou finding nouveau → invalider les preuves affectées et élargir le plan.
+
+**Interdictions :**
+
+- ne jamais lancer tous les `workflow_dispatch` « pour être sûr » ;
+- ne jamais considérer « manual-only » comme « l'humain doit cliquer » si l'agent peut déclencher le gate ;
+- ne jamais réutiliser une preuve verte d'un ancien HEAD si le code, harness ou dépendance qu'elle prouve a changé ;
+- ne jamais réduire la validation pour masquer un risque réel ;
+- ne jamais exiger une full regression à chaque commit si une preuve ciblée suffit.
+
+**Convergence adversariale :** cette optimisation ne réduit jamais les exigences de revue. Pour tout lot significatif ou risqué, les 2+ perspectives adversariales et la passe de confirmation doivent être refaites **from-zero sur le même HEAD final**. Lors de cette revue, une preuve antérieure ne peut être conservée qu'après vérification explicite que le code qu'elle couvre, son harness et ses dépendances pertinentes sont inchangés depuis le SHA prouvé.
+
+**Closeout :** recalculer une dernière fois le graphe `HEAD → changements → invariants → preuves`. La full regression n'est requise que lorsqu'elle est imposée par la politique du lot, par un risque transverse, par un invariant critique ou par le closeout/release concerné — pas par habitude.
+
 Pendant une phase de correction ou de stabilisation :
 
 - un micro-correctif doit être validé d'abord par le **test, job ou workflow directement impacté** ;
