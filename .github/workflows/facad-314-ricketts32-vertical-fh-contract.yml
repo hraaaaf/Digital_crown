@@ -71,8 +71,18 @@ jobs:
               "R2-line": ("Parallel", ["PtV", "R2"]),
               "R3-line": ("Parallel", ["FH", "R3"]),
               "R4-line": ("Parallel", ["FH", "R4"]),
+              "R13": ("Inter2ln", ["R1-line", "R3-line"]),
+              "R14": ("Inter2ln", ["R1-line", "R4-line"]),
+              "R23": ("Inter2ln", ["R2-line", "R3-line"]),
+              "R24": ("Inter2ln", ["R2-line", "R4-line"]),
           }
-          expected_markers = {"P": "Porion", "Or": "Orbitale", "Pt": "Pterygo-maxillary fissure; Foramen rotundum"}
+          expected_markers = {
+              "P": "Porion", "Or": "Orbitale", "Pt": "Pterygo-maxillary fissure; Foramen rotundum",
+              "N": "Nasion", "PNS": "Posterior Nasal Spine", "ANS": "Anterior Nasal Spine",
+              "A": "Downs' A-point; Subspinale", "PM": "Protuberance Menti; Suprapogonion", "Ba": "Basion",
+              "R1": "Deepest point on anterior border of ramus", "R2": "Point on posterior border of ramus",
+              "R3": "Most inferior/centre point on sigmoid notch", "R4": "Point on lower border of mandible, below R3",
+          }
           found = {}
           constructions = {}
           markers = {}
