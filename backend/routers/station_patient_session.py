@@ -794,6 +794,10 @@ def authorize_station_care_sheet_withdrawal(
     current_user: models.User = Depends(require_permission("accounting")),
 ):
     employer_id = int(current_user.get_employer_id())
+    staff_workstation = _find_workstation(request, db, employer_id)
+    if staff_workstation is None or staff_workstation.default_experience == "station":
+        raise HTTPException(status_code=423, detail="STAFF_WORKSTATION_REQUIRED")
+
     document = db.query(models.DocumentArchive).join(
         models.Patient,
         models.Patient.id == models.DocumentArchive.patient_id,
