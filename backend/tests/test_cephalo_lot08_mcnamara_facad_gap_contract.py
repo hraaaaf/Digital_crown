@@ -11,7 +11,9 @@ class McNamaraFacadGapContractTests(unittest.TestCase):
         cls.data = json.loads(SCHEMA.read_text(encoding='utf-8'))
 
     def test_canonical_geometry_matches_are_explicit(self):
-        self.assertEqual(self.data['resolutions']['Max-Mand diff']['dc']['measurement_id'], 'M_CO_GN_MINUS_CO_A_MM_V1')
+        self.assertEqual(self.data['resolutions']['Max-Mand diff']['dc']['nearest_dc_measurement_id'], 'M_CO_GN_MINUS_CO_A_MM_V1')
+        self.assertFalse(self.data['resolutions']['Max-Mand diff']['dc']['direct_alias_allowed'])
+        self.assertTrue(self.data['safety_rules']['no_facad_co_posterior_alias_to_dc_co_anatomic'])
         self.assertEqual(self.data['resolutions']['LAFH']['dc']['measurement_id'], 'M_ANS_ME_MM_V1')
 
     def test_incisisal_tip_variants_do_not_alias_surface_measurements(self):
