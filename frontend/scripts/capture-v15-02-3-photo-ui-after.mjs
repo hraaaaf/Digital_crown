@@ -144,8 +144,20 @@ async function assertAvatarState(page, state) {
 async function assertSurfaces(page, expectedState, viewportLabel, phase) {
   const shots = [];
   await page.goto('http://127.0.0.1:5173/patients', { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
-  await assertAvatarState(page, expectedState);
+  const patientEntry = page.locator('[role="button"]').filter({ hasText: fullName }).first();
+  await patientEntry.waitFor({ state: 'visible', timeout: 30000 });
+  const listAvatar = patientEntry.locator(`[data-patient-avatar][data-patient-id="${patient.id}"]`).first();
+  await listAvatar.waitFor({ state: 'visible', timeout: 30000 });
+  await page.waitForFunction(
+    ({ id, expected }) => Array.from(document.querySelectorAll(`[role="button"] [data-patient-avatar][data-patient-id="${id}"]`)).some(node => {
+      const element = node instanceof HTMLElement ? node : null;
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && element.getAttribute('data-photo-state') === expected;
+    }),
+    { id: String(patient.id), expected: expectedState },
+    { timeout: 30000 },
+  );
   shots.push(await snap(page, `${phase}-patient-list-${viewportLabel}.png`));
 
   await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
