@@ -31,7 +31,7 @@
       "resolved_items": [
         {
           "facad_label": "Ii-Pog // NB",
-          "resolution": "DERIVED_RELATION_SOURCE_LOCKED__NUMERIC_EQUIVALENCE_GATED",
+          "resolution": "DERIVED_RELATION_SOURCE_LOCKED__DC_UNSIGNED_DISTANCE_MISMATCH_BLOCKS_RUNTIME_PARITY",
           "source": "docs/audits/schemas/ortho_lot08_steiner_facad_gap_resolution_v1.json"
         },
         {
@@ -143,9 +143,10 @@
       "original_unmapped": 3,
       "remaining_unmapped": 0,
       "runtime_blockers": [
-        "explicit MS_Steiner identity/acquisition path",
-        "same-trace Facad numeric parity for Ii-NB/Pog-NB derived relation",
-        "same-trace Facad sign convention for Ls-SL/Li-SL"
+        "explicit MS_STEINER_FACAD_TANGENT_POINT_V1 identity/acquisition path",
+        "signed/oriented Facad DistLine parity for Ii-NB and Pog-NB; current DC inputs are unsigned",
+        "same-trace Facad sign convention for Ls-SL/Li-SL",
+        "exact historical Steiner S-line primary attribution before canonical historical-profile promotion"
       ]
     }
   }
