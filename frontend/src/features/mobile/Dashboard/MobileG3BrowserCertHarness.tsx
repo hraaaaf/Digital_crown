@@ -28,11 +28,12 @@ export function MobileG3BrowserCertHarness() {
   if (certificationToken) MobileStorage.setBiometricAccessToken(certificationToken);
 
   useEffect(() => {
+    // Preview-cert harness: keep the injected mobile token stable across React
+    // StrictMode's development effect replay. The whole harness is isolated
+    // behind the preview-only /mobile/g3-cert entrypoint.
+    if (certificationToken) MobileStorage.setBiometricAccessToken(certificationToken);
     void useAuthStore.getState().checkAuth();
-    return () => {
-      MobileStorage.clearBiometricAccessToken();
-    };
-  }, []);
+  }, [certificationToken]);
 
   const [error, setError] = useState<string | null>(null);
   const [lastNavigation, setLastNavigation] = useState<string | null>(null);
