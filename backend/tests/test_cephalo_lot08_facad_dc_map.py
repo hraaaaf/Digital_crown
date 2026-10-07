@@ -7,6 +7,8 @@ from pathlib import Path
 
 
 SCRIPT = "audit/cephalo_lot08_facad_dc_map.py"
+ROOT = Path(__file__).resolve().parents[2]
+BACKLOG = ROOT / "docs" / "audits" / "schemas" / "ortho_lot08_facad_dc_unmapped_backlog_v1.json"
 
 
 def _run(tmp_path, ceph_xml, registry, contract, protocol_profile=None):
@@ -101,6 +103,61 @@ class FacadDcMapTests(unittest.TestCase):
             proc, _ = _run(tmp_path, xml, registry, {"measurements": []})
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("missing forbidden_aliases", proc.stdout + proc.stderr)
+
+
+class DownsFacadHighReviewContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.data = json.loads(BACKLOG.read_text(encoding="utf-8"))
+        cls.downs = cls.data["profiles"]["Downs"]
+        cls.rows = {row["facad_label"]: row for row in cls.downs["resolved_items"]}
+
+    def test_downs_five_gaps_are_dispositioned_and_global_backlog_is_26(self):
+        self.assertEqual(self.downs["unmapped"], [])
+        self.assertEqual(set(self.rows), {"Convexity", "A-B plane", "OL/FH", "ILi/OL", "Is to A-Pog"})
+        self.assertEqual(self.data["high_review_progress"]["Downs"]["remaining_unmapped"], 0)
+        self.assertEqual(self.data["totals"]["unmapped_items"], 26)
+
+    def test_downs_convexity_and_ab_plane_remain_signed_parity_gated(self):
+        convexity = self.rows["Convexity"]
+        ab_plane = self.rows["A-B plane"]
+        self.assertEqual(convexity["facad_definition"]["refs"], ["N", "A", "A", "Pog"])
+        self.assertEqual(ab_plane["facad_definition"]["refs"], ["A", "B", "N", "Pog"])
+        self.assertIn("SIGNED_PARITY_GATED", convexity["resolution"])
+        self.assertIn("SIGNED_PARITY_GATED", ab_plane["resolution"])
+        self.assertFalse(convexity["runtime_activation"])
+        self.assertFalse(ab_plane["runtime_activation"])
+
+    def test_downs_occlusal_cant_does_not_claim_strict_olp_semantics(self):
+        row = self.rows["OL/FH"]
+        self.assertEqual(row["facad_definition"]["refs"], ["FH", "OL"])
+        self.assertIn("STRICT_OLP_SEMANTICS_UNPROVEN", row["resolution"])
+        self.assertFalse(row["runtime_activation"])
+
+    def test_downs_ili_ol_preserves_raw_angle_and_complement_relation(self):
+        row = self.rows["ILi/OL"]
+        self.assertEqual(row["facad_definition"]["refs"], ["Iia", "Ii", "OLp", "OLa"])
+        self.assertEqual(row["facad_definition"]["norm"], "75.5±3.5")
+        self.assertEqual(row["candidate_downs_relation"], "90_deg_minus_raw_angle")
+        self.assertIn("COMPLEMENT", row["resolution"])
+        self.assertFalse(row["runtime_activation"])
+
+    def test_downs_upper_incisor_apog_does_not_alias_ricketts(self):
+        row = self.rows["Is to A-Pog"]
+        self.assertEqual(row["facad_definition"]["refs"], ["Pog", "A", "Is"])
+        self.assertEqual(row["existing_geometry_family_reference"], "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1")
+        self.assertFalse(row["direct_alias_allowed"])
+        self.assertFalse(row["runtime_activation"])
+
+    def test_downs_vendor_evidence_is_pinned(self):
+        evidence = self.data["high_review_progress"]["Downs"]["evidence"]
+        self.assertEqual(evidence["inventory_run_id"], 37596906703)
+        self.assertEqual(evidence["artifact_id"], 11470928482)
+        self.assertEqual(
+            evidence["facad_profile_sha256"],
+            "3415d02e655c5f4cb6b1e0ef466a0f75fa1947f971b3b200568f8f00925625de",
+        )
+        self.assertEqual(evidence["facad_profile_measurement_count"], 10)
 
 
 if __name__ == "__main__":
