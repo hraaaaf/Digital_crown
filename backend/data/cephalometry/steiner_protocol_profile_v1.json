@@ -18,6 +18,18 @@
       "id": "STEINER_1960",
       "doi": "10.1016/0002-9416(60)90145-7",
       "role": "PLANNING_ASSESSMENT_CONTEXT"
+    },
+    {
+      "id": "FACAD_314_STEINER_CPH",
+      "url": "https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe",
+      "role": "VENDOR_COMPATIBILITY_DEFINITION_ONLY",
+      "scientific_authority": false
+    },
+    {
+      "id": "PMID_38909276_STEINER_SLINE",
+      "pmid": "38909276",
+      "role": "SECONDARY_CLINICAL_DESCRIPTION_OF_STEINER_SLINE_ONLY",
+      "primary_historical_authority": false
     }
   ],
   "layers": {
