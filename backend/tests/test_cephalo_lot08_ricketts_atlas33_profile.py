@@ -60,9 +60,10 @@ def test_atlas2009_factor_29_conflict_resolution_is_explicit_and_auditable():
 
 def test_facad_targets_remain_parity_only_and_not_scientific_equivalence():
     data = json.loads(COMPAT.read_text(encoding="utf-8"))
-    assert data["status"] == "PARITY_TARGETS_ONLY__MEMBERSHIP_NOT_DIRECTLY_OBSERVED"
+    assert data["status"] == "DIRECT_VENDOR_DEFINITION_OBSERVED__NUMERIC_PARITY_PENDING"
     assert {item["vendor_label"] for item in data["targets"]} == {"Ricketts (32 F)", "Ricketts (13 F)"}
     assert all(item["scientific_profile_equivalence"] is False for item in data["targets"])
+    assert all(item["definition_membership_observed"] is True for item in data["targets"])
 
 
 def test_atlas2009_normative_classification_stays_disabled():
