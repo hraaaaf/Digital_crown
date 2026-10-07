@@ -554,6 +554,22 @@ def test_station_escape_replay_is_rejected_after_pin_rotation(client, db, dentis
     assert replay.json()["detail"] == "WORKSTATION_STATION_LOCKED"
 
 
+def test_clinic_init_status_remains_available_during_workstation_identity_handoff(client, db, dentiste):
+    token = _token(client, dentiste.email, "TestPass123!")
+
+    created = client.get("/api/workstation/state", headers=_headers(token))
+    assert created.status_code == 200, created.text
+    client.cookies.delete("dc_workstation")
+
+    init_status = client.get("/api/clinics/init-status", headers=_headers(token))
+    assert init_status.status_code == 200, init_status.text
+    assert set(init_status.json()) == {"is_initialized", "needs_setup"}
+
+    clinical = client.get("/api/patients/", headers=_headers(token))
+    assert clinical.status_code == 423
+    assert clinical.json()["detail"] == "WORKSTATION_IDENTITY_REQUIRED"
+
+
 def test_lost_or_tampered_workstation_identity_is_fail_closed_until_owner_reenrolls(client, db, dentiste):
     token = _token(client, dentiste.email, "TestPass123!")
     initial = client.get("/api/workstation/state", headers=_headers(token))

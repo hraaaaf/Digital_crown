@@ -17,6 +17,7 @@ class PraticienProfileOut(BaseModel):
     header_lines_fr: Optional[List[str]] = None
     header_lines_ar: Optional[List[str]] = None
     specialty_ids: Optional[List[str]] = None
+    nom_cabinet: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 

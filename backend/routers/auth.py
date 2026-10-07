@@ -113,10 +113,10 @@ async def get_current_user(
     # the Station boundary. Any other endpoint that resolves a cabinet web
     # session through get_current_user remains subject to workstation authority,
     # including privileged /api/mobile/* and /api/patient-companion/* routes.
-    workstation_guard_exempt = request.url.path.startswith((
-        "/api/auth",
-        "/api/workstation",
-    ))
+    workstation_guard_exempt = (
+        request.url.path.startswith(("/api/auth", "/api/workstation"))
+        or request.url.path == "/api/clinics/init-status"
+    )
     if not workstation_guard_exempt:
         # Lazy import avoids the auth <-> workstation router import cycle while
         # enforcing Station at the backend dependency used by clinical APIs.

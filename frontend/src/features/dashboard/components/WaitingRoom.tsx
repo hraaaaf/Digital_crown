@@ -55,7 +55,17 @@ export const WaitingRoom = ({
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
         <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 min-w-0">
-          {isUnavailable ? (
+          {loading && appointments === null ? (
+            <div role="status" className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+              <div>
+                <h4 className="text-lg font-black text-primary font-outfit mb-2">Synchronisation de la file…</h4>
+                <p className="text-text-muted text-xs font-medium mt-1 max-w-[280px] mx-auto leading-relaxed">
+                  Le tableau de bord reste disponible pendant le chargement.
+                </p>
+              </div>
+            </div>
+          ) : isUnavailable ? (
             <div role="status" className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
               <div className="w-16 h-16 bg-warning-surface rounded-full flex items-center justify-center border border-warning-border">
                 <AlertTriangle size={28} className="text-warning" aria-hidden="true" />

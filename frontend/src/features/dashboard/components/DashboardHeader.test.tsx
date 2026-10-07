@@ -14,6 +14,8 @@ const systemStatus = {
 const baseProps = () => ({
   displayName: 'Dr Test',
   dateLabel: 'Dimanche 16 août 2026',
+  roleLabel: 'Dentiste',
+  cabinetName: 'Cabinet Test',
   canReadPatients: true,
   canUseAgenda: true,
   canAdmin: true,
@@ -24,6 +26,29 @@ const baseProps = () => ({
 });
 
 describe('DashboardHeader — accessibilité clavier D6', () => {
+  it('rend immédiatement compréhensible le rôle et le cabinet', () => {
+    render(
+      <MemoryRouter>
+        <DashboardHeader
+          {...baseProps()}
+          search={{
+            isExpanded: false,
+            query: '',
+            results: [],
+            loading: false,
+            open: vi.fn(),
+            close: vi.fn(),
+            change: vi.fn(),
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('dashboard-user-context').textContent).toContain('Dentiste');
+    expect(screen.getByTestId('dashboard-user-context').textContent).toContain('Cabinet Test');
+  });
+
+
   it('expose des noms accessibles pour les actions icônes', () => {
     render(
       <MemoryRouter>

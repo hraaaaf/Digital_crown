@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronRight, Clock, FileText, UserPlus } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Clock, FileText, Loader2, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../../utils/cn';
@@ -9,10 +9,12 @@ import type { DashboardStats } from '../types';
 export const RecentActivity = ({
   visible,
   stats,
+  loading,
   showPatientBadges,
 }: {
   visible: boolean;
   stats: DashboardStats | null;
+  loading: boolean;
   showPatientBadges: boolean;
 }) => {
   if (!visible) return null;
@@ -23,7 +25,12 @@ export const RecentActivity = ({
         <Clock size={16} aria-hidden="true" /> Activité Récente
       </h2>
       <div data-tour="dashboard-activity" className="bg-card-bg/80 backdrop-blur-xl border border-border-main rounded-elite-lg p-4 shadow-elite">
-        {stats === null ? (
+        {loading ? (
+          <div role="status" className="py-14 flex flex-col items-center justify-center text-center">
+            <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+            <h3 className="text-base font-black text-primary font-outfit">Synchronisation en cours…</h3>
+          </div>
+        ) : stats === null ? (
           <div role="status" className="py-14 flex flex-col items-center justify-center text-center">
             <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-6 border border-amber-500/15">
               <AlertTriangle className="text-amber-500 w-9 h-9" aria-hidden="true" />

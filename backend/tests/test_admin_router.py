@@ -184,6 +184,23 @@ class TestCabinetProfile:
         r = client.get("/api/admin/cabinet/me", headers=auth_headers)
         assert r.status_code == 200
 
+    def test_get_cabinet_exposes_cabinet_name(self, client, auth_headers, db, dentiste):
+        from backend import models
+        config = dentiste.cabinet_config
+        if config is None:
+            config = models.CabinetConfig(
+                owner_id=dentiste.id,
+                nom_cabinet="Cabinet Contract Test",
+            )
+            db.add(config)
+        else:
+            config.nom_cabinet = "Cabinet Contract Test"
+        db.commit()
+
+        r = client.get("/api/admin/cabinet/me", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["nom_cabinet"] == "Cabinet Contract Test"
+
     def test_update_cabinet_requires_auth(self, client):
         r = client.put("/api/admin/cabinet/me", json={"nom": "Test Cabinet"})
         assert r.status_code == 401
@@ -195,6 +212,24 @@ class TestCabinetProfile:
             headers=auth_headers,
         )
         assert r.status_code == 200
+
+    def test_update_cabinet_preserves_cabinet_name_in_response(self, client, auth_headers, db, dentiste):
+        from backend import models
+        config = dentiste.cabinet_config
+        if config is None:
+            config = models.CabinetConfig(owner_id=dentiste.id, nom_cabinet="Cabinet Update Contract")
+            db.add(config)
+        else:
+            config.nom_cabinet = "Cabinet Update Contract"
+        db.commit()
+
+        r = client.put(
+            "/api/admin/cabinet/me",
+            json={"telephone": "0522000000"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert r.json()["nom_cabinet"] == "Cabinet Update Contract"
 
     def test_update_cabinet_adresse(self, client, auth_headers):
         r = client.put(
