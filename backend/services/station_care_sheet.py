@@ -26,11 +26,22 @@ class CareSheetState:
 def is_finalized_care_sheet(document: models.DocumentArchive) -> bool:
     clinical_data = document.clinical_data if isinstance(document.clinical_data, dict) else {}
     draft = clinical_data.get("draft") if isinstance(clinical_data.get("draft"), dict) else {}
+    render_evidence = (
+        clinical_data.get("render_evidence")
+        if isinstance(clinical_data.get("render_evidence"), dict)
+        else {}
+    )
+    rendered_hash = str(render_evidence.get("rendered_pdf_sha256") or "")
     return bool(
         document.status == models.DocumentStatus.ACTIF
         and document.is_latest_version is True
         and clinical_data.get("kind") == INSURANCE_ARCHIVE_KIND
         and str(draft.get("status") or "").upper() == "VALIDATED"
+        and clinical_data.get("validated_by_practitioner_id") is not None
+        and bool(str(clinical_data.get("validated_at") or "").strip())
+        and render_evidence.get("renderer") == "PDF_OVERLAY_V1"
+        and bool(rendered_hash)
+        and rendered_hash == str(document.file_hash or "")
         and str(document.original_filename or document.filename or "").lower().endswith(".pdf")
     )
 
