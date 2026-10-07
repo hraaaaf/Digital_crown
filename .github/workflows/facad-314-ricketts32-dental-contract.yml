@@ -16,8 +16,34 @@ permissions:
 
 jobs:
   contract:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download official Facad 3.14.1 payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path facad-proof | Out-Null
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile facad-proof/facad.exe
+          $seven = "$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-proof/outer | Out-Null
+          & $seven x facad-proof/facad.exe '-ofacad-proof/outer' -y | Out-Null
+          New-Item -ItemType Directory -Force -Path facad-proof/release | Out-Null
+          & $seven x 'facad-proof/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-proof/release' -y | Out-Null
+
+      - name: Verify pinned Ricketts 32F profile bytes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expected = 'd0b442b39ac7db3dc9c46d807cb3c20bd937c69783b096b484872017f9376518'
+          $path = 'facad-proof/release/Ceph/Ricketts (32 F).cph'
+          if (-not (Test-Path $path)) { throw "Missing expected Facad profile: $path" }
+          $actual = (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant()
+          Write-Host "Ricketts (32 F).cph sha256=$actual"
+          if ($actual -ne $expected) { throw "Ricketts 32F SHA256 drift: expected $expected got $actual" }
+
       - name: Run self-contained contract tests
+        shell: pwsh
         run: python backend/tests/test_cephalo_lot08_ricketts32_facad_dental_cluster_contract.py
