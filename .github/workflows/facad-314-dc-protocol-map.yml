@@ -42,17 +42,11 @@ jobs:
           python audit/cephalo_lot08_facad_dc_map.py --ceph-dir facad-map/release/Ceph --registry docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json --dc-contract docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json --out facad-map/facad-dc-map.json | Tee-Object -FilePath facad-map/facad-dc-map.txt
           Get-Content facad-map/facad-dc-map.txt
 
-      - name: Install targeted test dependency
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          python -m pip install --disable-pip-version-check pytest
-
       - name: Run targeted mapping tests
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m pytest backend/tests/test_cephalo_lot08_facad_dc_map.py -q
+          python backend/tests/test_cephalo_lot08_facad_dc_map.py
 
       - name: Upload mapping evidence
         uses: actions/upload-artifact@v4
