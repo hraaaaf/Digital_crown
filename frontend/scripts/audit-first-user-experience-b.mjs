@@ -169,16 +169,17 @@ for (const persona of personas) {
       throw new Error(label + ': accounting=false did not fail closed with 403; got ' + state.accounting.status);
     }
 
-    const landingText = await page.locator('body').innerText();
-    const roleVisible = persona.expectedRole === 'SECRETAIRE'
-      ? /secr[eé]taire/i.test(landingText)
-      : /dentiste|praticien/i.test(landingText);
-    const clinicVisible = /Cabinet T2 Certification/i.test(landingText);
+    const userContext = page.getByTestId('dashboard-user-context');
+    await userContext.waitFor({ state: 'visible', timeout: 10000 });
+    const userContextText = await userContext.innerText();
+    const expectedRoleLabel = persona.expectedRole === 'SECRETAIRE' ? 'Secrétaire' : 'Dentiste';
+    const roleVisible = userContextText.includes(expectedRoleLabel);
+    const clinicVisible = userContextText.includes('Cabinet T2 Certification');
     if (!roleVisible) {
-      throw new Error(label + ': role/context is not understandable on first arrival');
+      throw new Error(label + ': authenticated user role is not visible in dashboard user context: ' + JSON.stringify(userContextText));
     }
     if (!clinicVisible) {
-      throw new Error(label + ': cabinet identity is not visible on first arrival');
+      throw new Error(label + ': cabinet identity is not visible in dashboard user context: ' + JSON.stringify(userContextText));
     }
 
     await page.goto(baseURL + persona.firstRoute, { waitUntil: 'domcontentloaded', timeout: 30000 });
