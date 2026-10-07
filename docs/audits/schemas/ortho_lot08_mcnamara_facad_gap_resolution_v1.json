@@ -24,6 +24,15 @@
       "head_sha": "4fb273ee6cb0d97b84f272653f6fffc3612a139f",
       "artifact_id": 11479682810,
       "artifact_digest": "sha256:68faa24e8e9158dfe3f02d901bd0a541e52a991515f4e3121cf048a92d1f5514"
+    },
+    "reference_manual": {
+      "url": "https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf",
+      "facts": {
+        "Angle3p": "The first marker is the center/apex; marker 2 and marker 3 define the rays; positive rotation is clockwise.",
+        "Dist3p": "Distance from the line defined by line-marker 1 and line-marker 2 to the target marker; sign controls may apply.",
+        "ProjLine": "Projection onto a named line of the displacement between marker 1 and marker 2.",
+        "Normal": "Line perpendicular to a named line and passing through a named marker."
+      }
     }
   },
   "scientific_authorities": {
@@ -34,11 +43,14 @@
     },
     "modern_parameter_corrobation": {
       "pubmed": "https://pubmed.ncbi.nlm.nih.gov/33759961/",
-      "role": "CORROBORATES Prn-Sn-Ls nasolabial, Co-A, Co-Gn, ANS-Me, U1-A vertical, L1-A-Pog"
+      "role": "CORROBORATES Prn-Sn-Ls nasolabial, Co-A, Co-Gn, ANS-Me, U1-A vertical, L1-A-Pog",
+      "claim": "Figure definitions explicitly identify nasolabial angle Prn'-Sn-Ls, lower anterior facial height ANS-Me, upper incisor to Point A vertical, and lower incisor to A-Po line."
     },
     "upper_lip_cant_corrobation": {
-      "url": "https://www.tandfonline.com/doi/pdf/10.2147/CCIDE.S73457",
-      "role": "CORROBORATES upper-lip tangent vs N-perpendicular"
+      "url": "https://www.dovepress.com/hard-and-soft-tissue-correlations-in-facial-profiles-a-canonical-corre-peer-reviewed-fulltext-article-CCIDE",
+      "doi": "10.2147/CCIDE.S73457",
+      "role": "CORROBORATES upper-lip tangent vs N-perpendicular",
+      "claim": "Upper lip cant is defined as the angle between a line tangent to the upper lip and a line perpendicular to Frankfort horizontal through Nasion."
     }
   },
   "resolutions": {
@@ -124,10 +136,12 @@
         "sign_semantics": "Preserve serialized Dist3p order plus changeRightLeft=true; do not normalize/reorder."
       },
       "dc": {
-        "status": "FACAD_VENDOR_INCISAL_TIP_VARIANT__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN",
-        "candidate_measurement_id": "M_L1_FACIAL_SURFACE_APOG_MM_V1",
-        "difference": "Facad uses lower-incisor tip Ii and signed/right-left behavior; DC McNamara source-lock requires facial crown surface L1_facial_surface.",
-        "runtime_activation": false
+        "status": "CANONICAL_EDGE_GEOMETRY_FAMILY_MATCH__MCNAMARA_STRICT_SURFACE_EQUIVALENCE_FORBIDDEN__SIGNED_PARITY_GATED",
+        "difference": "Facad uses lower-incisor tip Ii. This matches the existing DC edge-to-A-Pog geometry family, but strict McNamara core uses L1_facial_surface; signed/right-left numeric parity remains unproven.",
+        "runtime_activation": false,
+        "geometry_family_measurement_id": "M_L1_EDGE_APOG_MM_V1",
+        "strict_mcnamara_measurement_id": "M_L1_FACIAL_SURFACE_APOG_MM_V1",
+        "signed_same_trace_parity_required": true
       }
     },
     "Nasolabial": {
@@ -140,7 +154,16 @@
         ],
         "norm": "102±8",
         "MS": "Steiner's S-point (columnella tangent point)",
-        "SN": "Subnasale; Retronasale"
+        "SN": "Subnasale; Retronasale",
+        "center_marker": "SN",
+        "marker_2": "MS",
+        "marker_3": "Ls",
+        "rays": [
+          "SN->MS",
+          "SN->Ls"
+        ],
+        "positive_rotation": "clockwise",
+        "angle_order_semantics": "Preserve SN as center/apex and MS/Ls ray order; do not reorder."
       },
       "dc": {
         "status": "FACAD_VENDOR_SOFT_TISSUE_VARIANT__MCNAMARA_PRN_SN_LS_EQUIVALENCE_FORBIDDEN",
@@ -179,8 +202,10 @@
     "no_alias_facad_ls_cant_to_mcnamara_upper_lip_tangent": true,
     "preserve_facad_changeRightLeft_for_ii_apog": true,
     "preserve_facad_is_a_argument_order": true,
-    "preserve_facad_ii_apog_argument_order": true
+    "preserve_facad_ii_apog_argument_order": true,
+    "preserve_facad_nasolabial_angle3p_order": true,
+    "no_surface_alias_even_when_edge_geometry_family_exists": true
   },
-  "verification_revision": 2,
-  "verification_note": "Triggers exact-HEAD McNamara contract certification after clean two-perspective review."
+  "verification_revision": 3,
+  "verification_note": "Triggers exact-HEAD certification after adversarial fixes for edge-family mapping and Angle3p center/order."
 }
