@@ -10,15 +10,16 @@ def _load(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_facad_parity_remains_unobserved_without_direct_exports():
+def test_facad_definition_is_observed_while_runtime_numeric_parity_remains_pending():
     targets = _load(TARGETS)
     evidence = _load(EVIDENCE)
 
-    assert targets["status"] == "PARITY_TARGETS_ONLY__MEMBERSHIP_NOT_DIRECTLY_OBSERVED"
-    assert evidence["status"] == "AWAITING_DIRECT_FACAD_EXPORTS"
+    assert targets["status"] == "DIRECT_VENDOR_DEFINITION_OBSERVED__NUMERIC_PARITY_PENDING"
+    assert evidence["status"] == "DIRECT_DEFINITION_OBSERVED"
     assert evidence["evidence_root"] == "docs/audits/evidence/facad"
     assert set(evidence["allowed_manifest_status"]) == {
         "AWAITING_DIRECT_FACAD_EXPORTS",
+        "DIRECT_DEFINITION_OBSERVED",
         "DIRECT_EVIDENCE_PARTIAL",
         "DIRECT_PARITY_OBSERVED",
     }
@@ -38,6 +39,11 @@ def test_facad_parity_remains_unobserved_without_direct_exports():
         for item in evidence["profiles"]
     } == expected
     assert all(item["observation_status"] == "UNOBSERVED" for item in evidence["profiles"])
+    static_def = evidence["static_definition_evidence"]
+    assert static_def["artifact_kind"] == "STANDARD_ANALYSIS_DEFINITION_CPH"
+    assert {item["target_id"]: item["observed_factor_count"] for item in static_def["profiles"]} == expected
+    assert all(item["numeric_patient_values_observed"] is False for item in static_def["profiles"])
+    assert all(item["definition_membership_observed"] is True for item in targets["targets"])
 
 
 def test_facad_direct_parity_requires_all_three_export_families_without_stored_availability():
@@ -137,7 +143,9 @@ def test_facad_evidence_records_are_bound_to_immutable_same_trace_artifacts():
     }
 
     rules = evidence["rules"]
-    assert rules["direct_export_required"] is True
+    assert rules["static_cph_definition_may_prove_membership_order_labels_norms_and_construction_metadata"] is True
+    assert rules["static_cph_definition_must_not_prove_patient_numeric_values_or_rounding"] is True
+    assert rules["direct_export_required_for_same_trace_numeric_parity"] is True
     assert rules["observed_membership_requires_analysis_values_and_properties"] is True
     assert rules["observed_profile_requires_same_trace_triplet"] is True
     assert rules["same_trace_triplet_requires_same_facad_version"] is True
