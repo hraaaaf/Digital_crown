@@ -1,0 +1,111 @@
+name: Facad 3.14 installer UI gate probe
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-installer-ui-gate-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Extract official Facad installer wrapper
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path facad-installer-ui | Out-Null
+          $installer='facad-installer-ui/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-installer-ui/outer | Out-Null
+          & $seven x $installer '-ofacad-installer-ui/outer' -y | Out-Null
+          Get-FileHash 'facad-installer-ui/outer/FacadNstaller.exe' -Algorithm SHA256 |
+            Format-List | Set-Content facad-installer-ui/installer-wrapper-meta.txt
+
+      - name: Launch installer to first UI gate only
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference='Continue'
+          Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          using System.Text;
+          public class InstallerProbeWin32 {
+            public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+            [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+            [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+            [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+          }
+          "@
+          $exe=(Resolve-Path 'facad-installer-ui/outer/FacadNstaller.exe').Path
+          $wd=Split-Path $exe
+          $before=Get-Date
+          $p=Start-Process -FilePath $exe -WorkingDirectory $wd -PassThru
+          "PID=$($p.Id)" | Set-Content facad-installer-ui/process.txt
+          Start-Sleep -Seconds 10
+          try{$p.Refresh()}catch{}
+          "HAS_EXITED=$($p.HasExited)" | Add-Content facad-installer-ui/process.txt
+          if($p.HasExited){"EXIT_CODE=$($p.ExitCode)" | Add-Content facad-installer-ui/process.txt}
+
+          $rows=New-Object System.Collections.Generic.List[string]
+          [InstallerProbeWin32]::EnumWindows({
+            param($h,$l)
+            if([InstallerProbeWin32]::IsWindowVisible($h)){
+              $sb=New-Object Text.StringBuilder 1024
+              [void][InstallerProbeWin32]::GetWindowText($h,$sb,$sb.Capacity)
+              [uint32]$windowProcessId=0
+              [void][InstallerProbeWin32]::GetWindowThreadProcessId($h,[ref]$windowProcessId)
+              if($sb.Length -gt 0){$rows.Add("PID=$windowProcessId | TITLE=$($sb.ToString())")}
+            }
+            return $true
+          },[IntPtr]::Zero) | Out-Null
+          $rows | Sort-Object | Set-Content facad-installer-ui/windows.txt
+
+          try{
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Resolve-Path 'facad-installer-ui').Path 'installer-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose();$bmp.Dispose()
+          }catch{$_ | Out-String | Set-Content facad-installer-ui/screenshot-error.txt}
+
+          Get-ChildItem "$env:USERPROFILE\Desktop","$env:APPDATA\Ilexis","$env:LOCALAPPDATA\Ilexis",'C:\Facad','C:\Program Files\Ilexis AB' -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $before } |
+            Select-Object FullName,Name,Length,LastWriteTime |
+            Format-Table -AutoSize |
+            Out-File facad-installer-ui/files-written-before-consent.txt -Width 500
+
+          if(-not $p.HasExited){
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            'PROCESS_TERMINATED_WITHOUT_USER_INPUT=true' | Add-Content facad-installer-ui/process.txt
+          }
+          Get-Content facad-installer-ui/windows.txt
+          Get-Content facad-installer-ui/process.txt
+
+      - name: Upload installer UI gate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-installer-ui-gate-${{ github.sha }}
+          path: |
+            facad-installer-ui/installer-wrapper-meta.txt
+            facad-installer-ui/process.txt
+            facad-installer-ui/windows.txt
+            facad-installer-ui/installer-screen.png
+            facad-installer-ui/screenshot-error.txt
+            facad-installer-ui/files-written-before-consent.txt
+          if-no-files-found: warn
