@@ -36,6 +36,12 @@ class SteinerFacadGapContractTests(unittest.TestCase):
         self.assertFalse(row["dc_resolution"]["runtime_activation"])
         self.assertEqual(row["dc_resolution"]["status"], "DERIVED_RELATION_SOURCE_LOCKED__NUMERIC_EQUIVALENCE_GATED")\n        self.assertEqual(row["dc_resolution"]["dependency_geometry"]["facad_iil"], "Incisor inferior labial outline")\n        self.assertTrue(self.data["safety_rules"]["iinb_same_trace_numeric_parity_required"])
 
+    def test_historical_primary_attribution_remains_gated(self):
+        gate = self.data["historical_attribution"]
+        self.assertEqual(gate["exact_primary_steiner_sline_publication_status"], "NOT_SOURCE_LOCKED_IN_THIS_COMPATIBILITY_LOT")
+        self.assertFalse(gate["canonical_steiner_profile_promotion"])
+        self.assertTrue(self.data["safety_rules"]["no_canonical_steiner_profile_promotion_without_primary_sline_source"])
+
     def test_vendor_norms_are_not_runtime_classification_authority(self):
         self.assertTrue(self.data["safety_rules"]["no_facad_norm_runtime_classification"])
         self.assertTrue(self.data["safety_rules"]["no_numeric_parity_claim_without_same_trace_export"])
