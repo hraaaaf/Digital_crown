@@ -36,7 +36,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -c "import xml.etree.ElementTree as ET,json,pathlib; p=pathlib.Path(r'sline/release/Ceph/Steiner.cph'); root=ET.parse(p).getroot(); out=[]; [out.append({'tag':e.tag,'fields':{c.tag:(c.text or '').strip() for c in list(e) if len(list(c))==0},'refs':[(x.text or '').strip() for x in e.iter('point_ref') if (x.text or '').strip()]}) for e in root.iter() if any(c.tag=='name' and (c.text or '').strip()=='SL' for c in list(e))]; print(json.dumps(out,ensure_ascii=False,indent=2)); assert out" | Tee-Object -FilePath sline/steiner-sl-definition.txt
+          python -c "import xml.etree.ElementTree as ET,json,pathlib; p=pathlib.Path(r'sline/release/Ceph/Steiner.cph'); root=ET.parse(p).getroot(); wanted={'SL','PGs','MS'}; out=[]; [out.append({'tag':e.tag,'fields':{c.tag:(c.text or '').strip() for c in list(e) if len(list(c))==0},'refs':[(x.text or '').strip() for x in e.iter('point_ref') if (x.text or '').strip()]}) for e in root.iter() if any(c.tag=='name' and (c.text or '').strip() in wanted for c in list(e))]; print(json.dumps(out,ensure_ascii=False,indent=2)); assert any(x['fields'].get('name')=='SL' for x in out); assert any(x['fields'].get('name')=='PGs' for x in out); assert any(x['fields'].get('name')=='MS' for x in out)" | Tee-Object -FilePath sline/steiner-sl-definition.txt
 
       - name: Upload minimized proof
         uses: actions/upload-artifact@v4
