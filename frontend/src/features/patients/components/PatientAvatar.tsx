@@ -191,6 +191,7 @@ export function PatientAvatar({
   return (
     <span
       data-patient-avatar
+      data-patient-id={patientId}
       data-photo-state={blobUrl ? 'photo' : 'initials'}
       className={cn(
         'relative shrink-0 overflow-hidden bg-primary/10 text-primary flex items-center justify-center font-black',
