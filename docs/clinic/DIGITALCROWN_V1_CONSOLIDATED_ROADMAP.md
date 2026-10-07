@@ -47,7 +47,7 @@ This recap is a mandatory closeout deliverable in addition to tests, severe scor
 
 ## Scientific compatibility closeout — LOT08 / Facad Ricketts 32F — 2026-10-07
 
-Status: **MERGED / POST-MERGE DOCUMENTARY RECONCILIATION PENDING**.
+Status: **CLOSED — MERGED AND POST-MERGE RECONCILED**.
 
 Scope:
 - compatibility disposition of the 26 Facad `Ricketts (32 F)` rows that were initially unmapped to Digital Crown contracts;
@@ -76,7 +76,7 @@ Release boundary:
 - PR #775 merged as `c7209e9d35f0a85a12ee1725589bca2863aa6607`;
 - GitHub PR state is CLOSED / MERGED;
 - no Vercel deployment authorized or performed;
-- this follow-up is documentation-only reconciliation after merge; final lot closeout requires this reconciliation to reach master and a read-only master coherence check.
+- post-merge documentation reconciliation reached master as `6f01eb361c382a338111050ce03b37e66da5ac48` and the final read-only coherence check passed.
 
 Canonical handover:
 `docs/handovers/2026-10-07-ricketts32-compatibility-closeout.md`.
