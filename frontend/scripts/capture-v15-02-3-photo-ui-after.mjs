@@ -154,8 +154,16 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
     await searchButton.click();
     const search = page.getByRole('textbox', { name: 'Chercher un patient' });
     await search.fill(String(patient.nom));
-    await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
-    await assertAvatarState(page, expectedState);
+    const searchResults = page.locator('#dashboard-patient-search-results');
+    await searchResults.waitFor({ state: 'visible', timeout: 30000 });
+    await searchResults.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
+    const searchAvatar = searchResults.locator(`[data-patient-avatar][data-patient-id="${patient.id}"]`).first();
+    await searchAvatar.waitFor({ state: 'visible', timeout: 30000 });
+    await page.waitForFunction(
+      ({ id, expected }) => document.querySelector(`#dashboard-patient-search-results [data-patient-avatar][data-patient-id="${id}"]`)?.getAttribute('data-photo-state') === expected,
+      { id: String(patient.id), expected: expectedState },
+      { timeout: 30000 },
+    );
     shots.push(await snap(page, `${phase}-search-${viewportLabel}.png`));
     const close = page.getByRole('button', { name: 'Fermer la recherche patient' });
     if (await close.count()) await close.click();
