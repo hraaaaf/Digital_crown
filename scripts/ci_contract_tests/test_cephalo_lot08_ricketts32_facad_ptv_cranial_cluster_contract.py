@@ -74,6 +74,8 @@ def test_backlog_moves_only_ptv_cranial_cluster_and_reaches_seven():
     unresolved = set(data["profiles"]["Ricketts (32 F)"]["unmapped"])
     moved = {"Ms-PtV", "Cranium ant len", "PFH", "Ramus Xi pos", "Porion pos"}
     assert moved.isdisjoint(unresolved)
+    assert unresolved == {"Xi-OL", "Xi-PM/OL", "Upper lip len", "STi-OL", "Facial cone angle", "Mand arc", "Mand len"}
     assert len(unresolved) == 7
     assert data["totals"]["unmapped_items"] == 7
+    assert data["high_review_progress"]["Ricketts (32 F)"]["resolved_total"] == 19
     assert data["high_review_progress"]["Ricketts (32 F)"]["remaining_unmapped"] == 7
