@@ -202,6 +202,16 @@ CANONICAL_MEASUREMENTS: dict[str, CanonicalMeasurement] = {
     # Soft tissue and airway.
     "M_LI_EPLANE_MM_V1": _m("M_LI_EPLANE_MM_V1", "mm", "GEOMETRY_COVERED"),
     "M_LS_EPLANE_MM_V1": _m("M_LS_EPLANE_MM_V1", "mm", "GEOMETRY_COVERED"),
+    "M_LS_STEINER_SLINE_MM_V1": _m(
+        "M_LS_STEINER_SLINE_MM_V1",
+        "mm",
+        "BLOCKED_LANDMARK_MS_STEINER+FACAD_SAME_TRACE_SIGN_PARITY_PENDING",
+    ),
+    "M_LI_STEINER_SLINE_MM_V1": _m(
+        "M_LI_STEINER_SLINE_MM_V1",
+        "mm",
+        "BLOCKED_LANDMARK_MS_STEINER+FACAD_SAME_TRACE_SIGN_PARITY_PENDING",
+    ),
     "M_NASOLABIAL_ANGLE_DEG_V1": _m(
         "M_NASOLABIAL_ANGLE_DEG_V1", "°", "SOURCE_LOCK_REQUIRED"
     ),
