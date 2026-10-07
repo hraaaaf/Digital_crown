@@ -3,6 +3,8 @@ name: V1.5-02.3 Patient Photo UI AFTER
 on:
   pull_request:
     paths:
+      - "frontend/scripts/run-with-t2-workstation.mjs"
+      - "scripts/t2_runtime_server.py"
       - "backend/routers/mobile.py"
       - "frontend/src/types/index.ts"
       - "frontend/src/features/patients/components/PatientAvatar.tsx"
@@ -63,6 +65,7 @@ jobs:
       - name: Credential
         run: |
           echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_MOBILE_PAIRING_TOKEN=$(python -c 'import secrets; print(secrets.token_urlsafe(24))')" >> "$GITHUB_ENV"
           echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
       - name: Backend deps
         run: |
