@@ -12,6 +12,7 @@ on:
       - scripts/ci_contract_tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py
       - scripts/ci_contract_tests/test_cephalo_lot08_ricketts32_facad_ptv_cranial_cluster_contract.py
       - backend/tests/test_cephalo_lot08_ricketts32_facad_dental_cluster_contract.py
+      - backend/tests/test_cephalo_lot08_facad_dc_map.py
   workflow_dispatch:
 
 permissions:
@@ -140,3 +141,4 @@ jobs:
           python -m pytest scripts/ci_contract_tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py -q
           python -m pytest scripts/ci_contract_tests/test_cephalo_lot08_ricketts32_facad_ptv_cranial_cluster_contract.py -q
           python backend/tests/test_cephalo_lot08_ricketts32_facad_dental_cluster_contract.py
+          python backend/tests/test_cephalo_lot08_facad_dc_map.py
