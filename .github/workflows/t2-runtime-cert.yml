@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/t2-runtime-cert.yml"
       - "backend/routers/auth.py"
+      - "backend/routers/admin_legacy.py"
+      - "backend/schemas/patient.py"
+      - "backend/tests/test_admin_router.py"
       - "backend/tests/test_workstation_mode_v15.py"
       - "frontend/scripts/audit-first-user-experience.mjs"
       - "frontend/scripts/audit-first-user-experience-b.mjs"
@@ -181,6 +184,8 @@ jobs:
           python -m pip check
       - name: Certify setup-to-workstation handoff
         run: python -m pytest backend/tests/test_workstation_mode_v15.py -k clinic_init_status_remains_available_during_workstation_identity_handoff -q
+      - name: Test cabinet identity response contract
+        run: python -m pytest backend/tests/test_admin_router.py -k get_cabinet_exposes_cabinet_name -q
       - name: Install frontend and Chromium
         working-directory: frontend
         run: |
