@@ -78,8 +78,10 @@
         },
         {
           "facad_label": "Max-Mand diff",
-          "resolution": "CANONICAL_GEOMETRY_MATCH",
-          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json"
+          "resolution": "FACAD_VENDOR_CO_POSTERIOR_VARIANT__MCNAMARA_CONDYLION_STRICT_EQUIVALENCE_UNPROVEN",
+          "source": "docs/audits/schemas/ortho_lot08_mcnamara_facad_gap_resolution_v1.json",
+          "nearest_dc_measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+          "direct_alias_allowed": false
         },
         {
           "facad_label": "LAFH",
@@ -278,6 +280,7 @@
       "remaining_unmapped": 0,
       "runtime_blockers": [
         "same-trace numeric parity for all Facad vendor variants",
+        "no Facad Co posterior-point alias to DC Co_anatomic/Condylion without landmark-equivalence proof",
         "no incisal-tip alias to canonical McNamara facial-surface measures",
         "no Facad nasolabial/Ls-cant alias to canonical McNamara soft-tissue geometry",
         "Facad norms remain non-authoritative"
