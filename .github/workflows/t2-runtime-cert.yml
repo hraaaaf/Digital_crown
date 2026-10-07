@@ -80,8 +80,18 @@ jobs:
 
           pr_state="$(gh api "repos/$REPO/pulls/$PR" --jq '.state')"
           pr_head_sha="$(gh api "repos/$REPO/pulls/$PR" --jq '.head.sha')"
+          pr_head_repo="$(gh api "repos/$REPO/pulls/$PR" --jq '.head.repo.full_name')"
+          pr_base_ref="$(gh api "repos/$REPO/pulls/$PR" --jq '.base.ref')"
           if [[ "$pr_state" != "open" ]]; then
             echo "::error::PR #$PR is not open"
+            exit 1
+          fi
+          if [[ "$pr_head_repo" != "$REPO" ]]; then
+            echo "::error::PR #$PR is not a same-repository PR"
+            exit 1
+          fi
+          if [[ "$pr_base_ref" != "master" ]]; then
+            echo "::error::PR #$PR targets $pr_base_ref instead of master"
             exit 1
           fi
           if [[ "${pr_head_sha,,}" != "${EXPECTED_HEAD,,}" ]]; then
