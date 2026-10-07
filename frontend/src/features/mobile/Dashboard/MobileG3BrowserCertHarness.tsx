@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NotificationsView, type MobileAlert } from './views/NotificationsView';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { api } from '../../../services/api';
-import { useAuthStore } from '../../../stores/useAuthStore';
 
 const DEFAULT_WAITING_FIXTURE = [
   { id: 9101, patient_id: 101, patient_name: 'Sara BENALI', time: '09:00', motif: 'Détartrage', status: 'EN_ATTENTE', ticket_number: 4 },
@@ -23,18 +22,6 @@ export function MobileG3BrowserCertHarness() {
   );
   const [appointments, setAppointments] = useState(initialAppointments);
 
-  useEffect(() => {
-    useAuthStore.getState().setUser({
-      id: 999999,
-      email: 'g3-cert@local.test',
-      role: 'ADMIN',
-      nom_complet: 'G3 Certification',
-      is_superadmin: false,
-      employer_id: null,
-      permissions: { patients: true, agenda: true },
-    } as any);
-    return () => useAuthStore.getState().setUser(null);
-  }, []);
   const [error, setError] = useState<string | null>(null);
   const [lastNavigation, setLastNavigation] = useState<string | null>(null);
   const snapshot = useMemo(() => ({
