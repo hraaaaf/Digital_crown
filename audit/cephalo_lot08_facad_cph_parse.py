@@ -23,22 +23,29 @@ def direct_text_children(elem):
 
 def find_measurement_candidates(root):
     candidates = []
-    for elem in root.iter():
+
+    def walk(elem, path):
         direct = direct_text_children(elem)
-        if "name" not in direct or "norm" not in direct:
-            continue
-        refs = [(x.text or "").strip() for x in elem.iter("point_ref") if (x.text or "").strip()]
-        record = {
-            "xml_tag": elem.tag,
-            "name": direct["name"][0],
-            "norm": direct["norm"][0],
-            "unit": direct.get("unit", [None])[0],
-            "calc_type": direct.get("calc_type", [None])[0],
-            "changeSign": direct.get("changeSign", [None])[0],
-            "point_refs": refs,
-            "direct_fields": direct,
-        }
-        candidates.append(record)
+        if "name" in direct and "norm" in direct:
+            refs = [(x.text or "").strip() for x in elem.iter("point_ref") if (x.text or "").strip()]
+            candidates.append({
+                "order": len(candidates) + 1,
+                "xml_tag": elem.tag,
+                "xml_path": path,
+                "name": direct["name"][0],
+                "norm": direct["norm"][0],
+                "unit": direct.get("unit", [None])[0],
+                "calc_type": direct.get("calc_type", [None])[0],
+                "changeSign": direct.get("changeSign", [None])[0],
+                "point_refs": refs,
+                "direct_fields": direct,
+            })
+        child_counts = {}
+        for child in list(elem):
+            child_counts[child.tag] = child_counts.get(child.tag, 0) + 1
+            walk(child, f"{path}/{child.tag}[{child_counts[child.tag]}]")
+
+    walk(root, f"/{root.tag}[1]")
     return candidates
 
 def summarize(path: Path):
@@ -77,7 +84,7 @@ def main():
     for item in data:
         print(f'{item["profile_name"]}: {item["measurement_candidate_count"]} norm-bearing measurement candidates')
         for i, m in enumerate(item["measurement_candidates"], start=1):
-            print(f'{i:02d}. {m["name"]} | norm={m["norm"]} | unit={m["unit"]} | calc={m["calc_type"]} | sign={m["changeSign"]} | refs={",".join(m["point_refs"])}')
+            print(f'{m["order"]:02d}. {m["name"]} | tag={m["xml_tag"]} | path={m["xml_path"]} | norm={m["norm"]} | unit={m["unit"]} | calc={m["calc_type"]} | sign={m["changeSign"]} | refs={",".join(m["point_refs"])}')
 
 if __name__ == "__main__":
     main()
