@@ -191,17 +191,8 @@
     "Ricketts (32 F)": {
       "priority": 5,
       "unmapped": [
-        "Molar rel",
-        "Canine rel",
-        "Overjet",
-        "Overbite",
-        "Ii-OL",
         "LFH",
         "Ms-PtV",
-        "Ii to A-Pog",
-        "Is to A-Pog",
-        "ILi/A-Pog",
-        "ILs/A-Pog",
         "Xi-OL",
         "Xi-PM/OL",
         "Upper lip len",
@@ -217,12 +208,50 @@
         "Porion pos",
         "Mand arc",
         "Mand len"
+      ],
+      "resolved_items": [
+        {
+          "facad_label": "Molar rel",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Canine rel",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Overjet",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Overbite",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ii-OL",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ii to A-Pog",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Is to A-Pog",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "ILi/A-Pog",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "ILs/A-Pog",
+          "resolution_source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        }
       ]
     }
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 26
+    "unmapped_items": 17
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -305,6 +334,19 @@
         "Facad norms remain non-authoritative"
       ],
       "documentation": "docs/handovers/2026-09-11-cephalo-r7-wits-downs-scientific-gate.md"
+    },
+    "Ricketts (32 F)": {
+      "status": "IN_PROGRESS__DENTAL_CLUSTER_SOURCE_LOCKED__RUNTIME_GATED",
+      "original_unmapped": 26,
+      "resolved_in_current_cluster": 9,
+      "remaining_unmapped": 17,
+      "runtime_blockers": [
+        "Facad OL is an incisor-midpoint vendor line and must not alias the source-locked Ricketts functional occlusal plane",
+        "same-trace signed parity for A-Pog distances",
+        "same-trace angle presentation/sign parity for ILi/A-Pog and ILs/A-Pog",
+        "Facad norms remain non-authoritative"
+      ],
+      "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
     }
   }
 }
