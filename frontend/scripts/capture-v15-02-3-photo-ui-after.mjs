@@ -145,6 +145,8 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
     if (await close.count()) await close.click();
   }
 
+  await page.goto('http://127.0.0.1:5173/mobile/dashboard?tab=waiting-room', { waitUntil: 'networkidle', timeout: 90000 });
+  await page.locator('[data-mob5i-waiting-room]').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
   await assertAvatarState(page, expectedState);
   shots.push(await snap(page, `${phase}-waiting-room-${viewportLabel}.png`));
