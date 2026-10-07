@@ -60,3 +60,15 @@ def test_prohibited_false_equivalents_remain_distinct() -> None:
         assert CANONICAL_MEASUREMENTS[left].measurement_id == left
         assert CANONICAL_MEASUREMENTS[right].measurement_id == right
         assert CANONICAL_MEASUREMENTS[left] != CANONICAL_MEASUREMENTS[right]
+
+
+def test_blocked_steiner_sline_ids_are_canonical_but_not_executable_by_registry_status() -> None:
+    for measurement_id in (
+        "M_LS_STEINER_SLINE_MM_V1",
+        "M_LI_STEINER_SLINE_MM_V1",
+    ):
+        item = CANONICAL_MEASUREMENTS[measurement_id]
+        assert item.unit == "mm"
+        assert item.source_status == (
+            "BLOCKED_LANDMARK_MS_STEINER+FACAD_SAME_TRACE_SIGN_PARITY_PENDING"
+        )
