@@ -34,7 +34,7 @@ class SteinerFacadGapContractTests(unittest.TestCase):
         self.assertEqual(row["facad_definition"]["operands"], ["Ii-NB", "Pog-NB"])
         self.assertFalse(row["facad_definition"]["new_geometry"])
         self.assertFalse(row["dc_resolution"]["runtime_activation"])
-        self.assertIn("DEPENDENCY_GEOMETRY_REVIEW_PENDING", row["dc_resolution"]["status"])
+        self.assertEqual(row["dc_resolution"]["status"], "DERIVED_RELATION_SOURCE_LOCKED__NUMERIC_EQUIVALENCE_GATED")\n        self.assertEqual(row["dc_resolution"]["dependency_geometry"]["facad_iil"], "Incisor inferior labial outline")\n        self.assertTrue(self.data["safety_rules"]["iinb_same_trace_numeric_parity_required"])
 
     def test_vendor_norms_are_not_runtime_classification_authority(self):
         self.assertTrue(self.data["safety_rules"]["no_facad_norm_runtime_classification"])
