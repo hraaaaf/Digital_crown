@@ -1,6 +1,14 @@
 name: Onboarding Account Entry Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/pages/RegisterPage.tsx"
+      - "frontend/src/pages/ActivateTrialPage.tsx"
+      - "backend/routers/public.py"
+      - "backend/tests/test_trial_activation_identity.py"
+      - "docs/mockups/onboarding-account-entry.html"
+      - ".github/workflows/onboarding-account-entry-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

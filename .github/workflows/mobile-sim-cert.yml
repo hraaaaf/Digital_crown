@@ -1,6 +1,9 @@
 name: Mobile OS Simulation Certification
 
 on:
+  push:
+    branches:
+      - mobile/sim-cert
   workflow_dispatch:
 
 concurrency:

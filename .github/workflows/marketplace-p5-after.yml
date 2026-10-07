@@ -1,6 +1,26 @@
 name: Marketplace Final Certification
 
 on:
+  pull_request:
+    paths:
+      - "backend/**/*marketplace*"
+      - "backend/**/*partner*"
+      - "frontend/src/features/partnerMarketplace/**"
+      - "frontend/src/features/mobile/Dashboard/views/MarketplaceView*"
+      - "frontend/src/features/mobile/Dashboard/MobileDashboard.tsx"
+      - "frontend/src/features/mobile/Dashboard/MobilePreviewDashboard.tsx"
+      - "frontend/src/features/mobile/Dashboard/components/MobileBottomNav*"
+      - "frontend/src/features/mobile/Dashboard/types.tsx"
+      - "frontend/src/features/mobile/bridge*"
+      - "frontend/src/pages/PartnerMarketplacePage.tsx"
+      - "frontend/scripts/capture-mobile-marketplace-mob5g.mjs"
+      - "docs/marketplace/P5_UI_REFERENCE.md"
+      - "docs/marketplace/P5_UI_REFERENCE.svg"
+      - "docs/ux/DIGITAL_CROWN_MOBILE_MARKETPLACE_MOB5G_GOAL_UI.md"
+      - "requirements.txt"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/marketplace-p5-after.yml"
   workflow_dispatch:
 
 permissions:

@@ -1,6 +1,12 @@
 name: AMMPS RCP Transport Inspector
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-rcp-clinical
+    paths:
+      - 'scripts/inspect_ammps_rcp_transport.py'
+      - '.github/workflows/ammps-rcp-transport-inspector.yml'
   workflow_dispatch:
 
 jobs:

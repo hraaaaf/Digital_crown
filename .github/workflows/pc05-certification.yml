@@ -1,6 +1,18 @@
 name: PC-05 Patient Notifications Certification
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "alembic/versions/pc050000013_add_pc05_notifications.py"
+      - "backend/models_patient_companion_notifications.py"
+      - "backend/routers/patient_companion_notifications.py"
+      - "backend/services/patient_companion_notifications.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "backend/tests/test_patient_companion_notifications.py"
+      - "frontend/src/features/patient-companion/**"
+      - ".github/workflows/pc05-certification.yml"
+      - "docs/clinic/patient_companion/PC_05_*.md"
   workflow_dispatch:
 
 permissions:

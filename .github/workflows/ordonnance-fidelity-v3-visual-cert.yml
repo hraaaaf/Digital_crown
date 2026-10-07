@@ -1,6 +1,12 @@
 name: Ordonnance Fidelity V3 Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - 'frontend/src/features/admin/DocumentStudio/**'
+      - 'frontend/scripts/certify-ordonnance-fidelity-v3.mjs'
+      - 'frontend/scripts/capture-acig-autocomplete-proof.mjs'
+      - '.github/workflows/ordonnance-fidelity-v3-visual-cert.yml'
   workflow_dispatch:
 
 concurrency:

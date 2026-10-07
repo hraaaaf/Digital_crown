@@ -1,6 +1,12 @@
 name: Mobile Patient Cockpit MOB-2 Cert
 
 on:
+  push:
+    branches: [ux/mobile-patient-cockpit-mob2]
+    paths:
+      - frontend/src/features/mobile/Dashboard/**
+      - backend/routers/clinic_profile_p4.py
+      - .github/workflows/mobile-patient-cockpit-mob2-cert.yml
   workflow_dispatch:
 
 concurrency:

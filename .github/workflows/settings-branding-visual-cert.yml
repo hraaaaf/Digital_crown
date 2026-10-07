@@ -1,6 +1,13 @@
 name: Settings Branding Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/tabs/BrandingTab.tsx"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioPreview.tsx"
+      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
+      - "frontend/src/features/admin/Settings/hooks/themePersistenceTruth.test.ts"
+      - ".github/workflows/settings-branding-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

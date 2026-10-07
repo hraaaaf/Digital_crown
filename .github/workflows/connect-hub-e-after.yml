@@ -2,6 +2,19 @@ name: Connect Hub E AFTER
 
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/lot-e-connect-hub]
+    paths:
+      - 'frontend/src/components/Header.tsx'
+      - 'frontend/scripts/capture-connect-hub-e-after.mjs'
+      - '.github/workflows/connect-hub-e-after.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/components/Header.tsx'
+      - 'frontend/scripts/capture-connect-hub-e-after.mjs'
+      - '.github/workflows/connect-hub-e-after.yml'
+
 permissions:
   contents: read
 

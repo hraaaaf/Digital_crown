@@ -1,7 +1,12 @@
 name: UX Continuity Integration Patch
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ux/continuity-flow-handoff-runner
+    paths:
+      - '.github/workflows/ux-continuity-implement.yml'
+
 permissions:
   contents: write
 

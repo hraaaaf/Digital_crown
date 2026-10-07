@@ -1,6 +1,17 @@
 name: Clinic P1 Multi-Practitioner Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/pages/Dashboard.tsx"
+      - "frontend/src/features/dashboard/**"
+      - "frontend/src/features/agenda/**"
+      - "frontend/src/features/clinic/**"
+      - "frontend/src/pages/AgendaPage.tsx"
+      - "frontend/src/features/admin/TeamManager.tsx"
+      - "frontend/src/features/admin/Settings.tsx"
+      - "frontend/src/components/Layout/**"
+      - ".github/workflows/clinic-p1-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

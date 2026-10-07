@@ -1,6 +1,14 @@
 name: Ortho F5 BEFORE
 
 on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/ortho-f5-before.yml'
+      - '.audit/ortho-f5-goal.md'
+      - 'docs/assets/ortho/f5-superimposition-target.svg'
+      - 'frontend/scripts/capture-ortho-f5-before.mjs'
   workflow_dispatch:
 
 permissions:

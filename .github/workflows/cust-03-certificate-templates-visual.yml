@@ -1,7 +1,14 @@
 name: CUST-03 Certificate Templates Visual Evidence
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cust-03-certificate-templates-visual.yml"
+      - "frontend/src/features/admin/DocumentStudio/Forms/CertificateFormInner.tsx"
+      - "frontend/src/features/admin/DocumentStudio/Forms/CertificateTemplatePresets.cust03.test.tsx"
+      - "docs/customization/CUST_03_USER_TEMPLATES_GOAL.md"
+
 permissions:
   contents: read
 

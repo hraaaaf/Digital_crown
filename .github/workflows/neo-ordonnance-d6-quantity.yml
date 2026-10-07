@@ -1,6 +1,33 @@
 name: Neo Ordonnance D6 Quantity End-to-End
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-search-intelligence
+    paths:
+      - 'backend/schemas/documents.py'
+      - 'backend/services/generators/ordonnance_gen.py'
+      - 'backend/tests/test_document_layout_consistency.py'
+      - 'backend/services/far_ordonnance_bridge.py'
+      - 'backend/services/insurance_far_prescription_renderer.py'
+      - 'backend/tests/test_far_ordonnance_bridge.py'
+      - 'backend/tests/test_insurance_far_prescription_renderer.py'
+      - 'backend/services/prescription_service.py'
+      - 'backend/tests/test_neo_ordonnance_reusables.py'
+      - 'frontend/src/features/admin/DocumentStudio/useDocumentGenerator.ts'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionComposerFixture.tsx'
+      - 'frontend/src/features/admin/DocumentHub.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/DocumentGeneration.g4Interactive.test.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/DocumentEditConsistency.regression.test.ts'
+      - '.github/workflows/neo-ordonnance-d6-quantity.yml'
+      - '.github/workflows/ordonnance-composer-visual-cert.yml'
+      - 'frontend/scripts/certify-ordonnance-composer.mjs'
   workflow_dispatch:
 
 jobs:

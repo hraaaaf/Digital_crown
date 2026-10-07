@@ -1,6 +1,15 @@
 name: V1.5-01 First Use Experience
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "frontend/src/features/hub/**"
+      - "frontend/src/services/apiBase.ts"
+      - "backend/core/cabinet_topology.py"
+      - "backend/main.py"
+      - "frontend/scripts/audit-v15-01-first-use.mjs"
+      - ".github/workflows/v15-01-fue.yml"
   workflow_dispatch:
 
 permissions:

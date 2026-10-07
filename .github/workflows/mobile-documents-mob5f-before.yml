@@ -1,6 +1,10 @@
 name: Mobile Documents MOB-5F BEFORE
 
 on:
+  push:
+    branches: [ux/mobile-documents-mob5f]
+    paths:
+      - .github/workflows/mobile-documents-mob5f-before.yml
   workflow_dispatch:
 
 concurrency:

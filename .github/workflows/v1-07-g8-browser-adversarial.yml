@@ -1,5 +1,6 @@
 name: V1-07 G8 Browser Adversarial Certification
 on:
+  pull_request:
   workflow_dispatch:
 concurrency:
   group: v1-07-g8-browser-adversarial-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}

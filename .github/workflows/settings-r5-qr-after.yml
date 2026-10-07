@@ -1,7 +1,17 @@
 name: Settings R5 QR AFTER
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/settings-r5-qr-after.yml'
+      - 'frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx'
+      - 'frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx'
+      - 'backend/services/base_template.py'
+      - 'backend/services/base_template_core.py'
+      - 'backend/services/qr_document_routes.py'
+      - 'backend/tests/test_r5_qr_document_routes.py'
+
 permissions:
   contents: read
 

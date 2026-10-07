@@ -1,6 +1,19 @@
 name: Portability P5 Native Dependency Certification
 
 on:
+  pull_request:
+    paths:
+      - "backend/requirements.txt"
+      - "backend/requirements-p5-native.txt"
+      - "backend/scientific_assets.json"
+      - "backend/config.py"
+      - "backend/env_loader.py"
+      - "backend/services/sota_vision_service.py"
+      - "backend/services/vision_service.py"
+      - "backend/services/panoramic_service.py"
+      - "scripts/check_lazy_pytorch_contract.py"
+      - "scripts/portability_p5_check.py"
+      - ".github/workflows/portability-p5-native-cert.yml"
   workflow_dispatch:
 
 concurrency:

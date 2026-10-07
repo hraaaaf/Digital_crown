@@ -1,6 +1,14 @@
 name: Agenda A3 Theme Certification
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/agenda-a3-theme-certification.yml"
+      - "frontend/src/styles/agendaA3Theme.css"
+      - "frontend/src/utils/cn.ts"
+      - "frontend/src/AgendaClinicA3.test.ts"
+      - "frontend/src/features/agenda/MultiPractitionerTimelineView.tsx"
+      - "frontend/src/features/admin/Settings/tabs/PractitionerAvailabilityPanel.tsx"
   workflow_dispatch:
 
 permissions:

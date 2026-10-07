@@ -1,6 +1,13 @@
 name: Settings Profile R2 Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/saveDoctrine.ts"
+      - "frontend/src/features/admin/Settings/tabs/ProfileTab.tsx"
+      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
+      - ".github/workflows/settings-profile-r2-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

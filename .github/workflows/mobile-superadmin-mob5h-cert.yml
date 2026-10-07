@@ -1,6 +1,30 @@
 name: Mobile SuperAdmin MOB-5H Cert
 
 on:
+  push:
+    branches:
+      - ux/mobile-superadmin-mob5h
+    paths:
+      - "backend/routers/partner_superadmin_security.py"
+      - "backend/tests/test_marketplace_superadmin_security.py"
+      - "frontend/src/main.tsx"
+      - "frontend/src/features/mobile/superadmin/**"
+      - "frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView*"
+      - "frontend/src/features/mobile/Dashboard/MobilePreviewDashboard.tsx"
+      - "frontend/src/features/mobile/Dashboard/types.tsx"
+      - "frontend/scripts/capture-mobile-superadmin-mob5h-after.mjs"
+      - ".github/workflows/mobile-superadmin-mob5h-cert.yml"
+  pull_request:
+    paths:
+      - "backend/routers/partner_superadmin_security.py"
+      - "backend/tests/test_marketplace_superadmin_security.py"
+      - "frontend/src/main.tsx"
+      - "frontend/src/features/mobile/superadmin/**"
+      - "frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView*"
+      - "frontend/src/features/mobile/Dashboard/MobilePreviewDashboard.tsx"
+      - "frontend/src/features/mobile/Dashboard/types.tsx"
+      - "frontend/scripts/capture-mobile-superadmin-mob5h-after.mjs"
+      - ".github/workflows/mobile-superadmin-mob5h-cert.yml"
   workflow_dispatch:
 
 permissions:

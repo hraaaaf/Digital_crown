@@ -2,6 +2,17 @@ name: Neo Ordonnance Line UX Contract
 # Exact-head D5 convergence gate — final same-head proof
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-search-intelligence
+    paths:
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRowV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/DrugRow.r5.test.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/Forms/PrescriptionQuickAccessBar.test.tsx'
+      - '.github/workflows/neo-ordonnance-line-ux-contract.yml'
   workflow_dispatch:
 
 jobs:

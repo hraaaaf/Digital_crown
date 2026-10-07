@@ -1,5 +1,17 @@
 name: V1-07 G7 Browser Action Certification
 on:
+  pull_request:
+    paths:
+      - "frontend/src/pages/StockPage.tsx"
+      - "frontend/src/pages/PartnerMarketplacePage.tsx"
+      - "frontend/src/pages/PartnerCatalogAdminPage.tsx"
+      - "frontend/src/pages/PartnerSupplierPage.tsx"
+      - "frontend/src/pages/PartnerProductPage.tsx"
+      - "frontend/src/features/partnerMarketplace/**"
+      - "frontend/src/features/clinical-ref/**"
+      - "frontend/scripts/certify-v1-07-g7-browser-actions.mjs"
+      - "scripts/t2_runtime_server.py"
+      - ".github/workflows/v1-07-g7-browser-actions.yml"
   workflow_dispatch:
 concurrency:
   group: v1-07-g7-browser-actions-${{ github.ref }}

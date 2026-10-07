@@ -2,6 +2,25 @@ name: Cephalo R19 Analysis Reference AFTER
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/CephaloTracingLayerBase.tsx'
+      - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.test.ts'
+      - 'frontend/src/features/ortho/cephaloVisualSemantics.audit.test.ts'
+      - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
+      - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx'
+      - 'frontend/src/features/ortho/components/CephaloCalibrationOverlay.tsx'
+      - 'frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx'
+      - 'frontend/src/features/ortho/components/CephaloSvgDefs.tsx'
+      - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
+      - 'frontend/src/features/ortho/components/Step1CephaloBase.tsx'
+      - 'frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs'
+      - '.github/workflows/cephalo-r19-analysis-reference-after.yml'
+
 permissions:
   contents: read
 

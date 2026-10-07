@@ -1,6 +1,19 @@
 name: Clinic P3 Document Provenance Certification
 
 on:
+  pull_request:
+    paths:
+      - "backend/models_document_provenance_p3.py"
+      - "backend/routers/document_provenance_p3.py"
+      - "backend/routers/patient_practitioner_p2.py"
+      - "backend/schemas/document_provenance_p3.py"
+      - "backend/services/document_factory.py"
+      - "backend/services/document_provenance_context.py"
+      - "backend/services/honoraires_persistence.py"
+      - "backend/services/practitioner_policy.py"
+      - "backend/tests/test_document_provenance_p3.py"
+      - "alembic/versions/f5a55e700005_add_document_provenance.py"
+      - ".github/workflows/clinic-p3-document-provenance-cert.yml"
   workflow_dispatch:
 
 permissions:

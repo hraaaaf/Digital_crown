@@ -1,7 +1,16 @@
 name: CUST-02 Motif Selector Visual Evidence
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cust-02-motif-selector-visual.yml"
+      - "frontend/src/features/patients/components/MotifSelector.tsx"
+      - "frontend/src/test/customMotifsCust02.test.ts"
+      - "backend/routers/motifs.py"
+      - "backend/models.py"
+      - "alembic/versions/cust02000015_add_cabinet_motifs.py"
+
 permissions:
   contents: read
 

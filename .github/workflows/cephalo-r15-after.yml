@@ -2,6 +2,33 @@ name: Cephalo R15 AFTER
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/cephalo-r15-clinical-studio-ux
+    paths:
+      - 'backend/services/cephalo_r15_clinical_studio.py'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'backend/tests/test_cephalo_r15_clinical_studio.py'
+      - 'frontend/src/features/ortho/CephaloWorkspace.tsx'
+      - 'frontend/src/features/ortho/cephaloTheme.ts'
+      - 'frontend/src/features/ortho/cephaloTheme.test.ts'
+      - 'frontend/src/features/ortho/components/ClinicalScientificStudio.tsx'
+      - 'frontend/src/features/ortho/components/ClinicalScientificStudio.test.tsx'
+      - 'frontend/src/features/ortho/components/Step3Clinical.tsx'
+      - 'frontend/src/features/ortho/components/Step4Documents.tsx'
+      - 'frontend/scripts/capture-cephalo-r15-after.mjs'
+      - '.github/workflows/cephalo-r15-after.yml'
+      - 'docs/CEPHALO_R15_STUDIO_UX_UI.md'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/cephalo_r15_clinical_studio.py'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'frontend/src/features/ortho/**'
+      - 'frontend/scripts/capture-cephalo-r15-after.mjs'
+      - '.github/workflows/cephalo-r15-after.yml'
+      - 'docs/CEPHALO_R15_STUDIO_UX_UI.md'
+
 permissions:
   contents: read
 

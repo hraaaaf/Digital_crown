@@ -2,6 +2,16 @@ name: AMMPS Dictionary Incremental Merge
 # exact-head certification trigger
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-incremental-merge
+    paths:
+      - 'scripts/probe_ammps_dictionary_sync.py'
+      - 'scripts/test_probe_ammps_dictionary_sync.py'
+      - 'scripts/merge_ammps_dictionary_incremental.py'
+      - 'scripts/test_merge_ammps_dictionary_incremental.py'
+      - 'backend/data/medications_ma_ammps_current_2026.json'
+      - '.github/workflows/ammps-dictionary-incremental-merge.yml'
   workflow_dispatch:
 
 permissions:

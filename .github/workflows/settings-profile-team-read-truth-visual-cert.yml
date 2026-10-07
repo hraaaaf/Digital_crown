@@ -1,6 +1,12 @@
 name: Settings Profile Team Read Truth Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/components/TeamReadTruthGate.tsx"
+      - "frontend/src/features/admin/Settings/profileTeamReadTruth.test.ts"
+      - ".github/workflows/settings-profile-team-read-truth-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

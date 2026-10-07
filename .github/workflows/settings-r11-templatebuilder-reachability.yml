@@ -1,7 +1,21 @@
 name: Settings R11 TemplateBuilder Reachability Audit
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'docs/settings/R11_TEMPLATEBUILDER_REACHABILITY_GOAL.md'
+      - '.github/workflows/settings-r11-templatebuilder-reachability.yml'
+      - 'frontend/src/features/admin/TemplateBuilder.tsx'
+      - 'frontend/src/services/templateApi.ts'
+      - 'frontend/src/types/template.ts'
+      - 'frontend/src/App.tsx'
+      - 'backend/routers/templates.py'
+      - 'backend/services/template_engine.py'
+      - 'backend/services/document_factory.py'
+      - 'backend/models.py'
+      - 'backend/seed_templates.py'
+
 permissions:
   contents: read
 

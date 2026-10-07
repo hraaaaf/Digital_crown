@@ -2,6 +2,16 @@ name: Ortho F3 AFTER
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx'
+      - 'frontend/src/features/ortho/orthoLongitudinalCompare.ts'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/scripts/capture-ortho-f3-after.mjs'
+      - '.github/workflows/ortho-f3-after.yml'
+
 permissions:
   contents: read
 

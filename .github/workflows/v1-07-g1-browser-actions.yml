@@ -1,5 +1,15 @@
 name: V1-07 G1 Browser Action Certification
 on:
+  pull_request:
+    paths:
+      - "frontend/src/pages/LoginPage.tsx"
+      - "frontend/src/pages/RegisterPage.tsx"
+      - "frontend/src/pages/LandingPage.tsx"
+      - "frontend/src/pages/ActivateTrialPage.tsx"
+      - "frontend/src/features/mobile/Onboarding/**"
+      - "frontend/scripts/certify-v1-07-g1-browser-actions.mjs"
+      - "scripts/t2_runtime_server.py"
+      - ".github/workflows/v1-07-g1-browser-actions.yml"
   workflow_dispatch:
 concurrency:
   group: v1-07-g1-browser-actions-${{ github.ref }}

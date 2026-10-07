@@ -1,6 +1,10 @@
 name: Commercial Pack Team Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/TeamManager.tsx"
+      - ".github/workflows/commercial-pack-team-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

@@ -1,7 +1,12 @@
 name: UX Continuity PatientDetails Patch
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ux/continuity-flow-handoff-runner
+    paths:
+      - '.github/workflows/ux-continuity-patientdetails.yml'
+
 permissions:
   contents: write
 

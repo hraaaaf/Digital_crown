@@ -1,6 +1,13 @@
 name: Settings RBAC Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/**"
+      - "frontend/src/pages/Settings.tsx"
+      - "frontend/src/utils/settingsAccess.ts"
+      - "frontend/src/utils/settingsAccess.test.ts"
+      - ".github/workflows/settings-rbac-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

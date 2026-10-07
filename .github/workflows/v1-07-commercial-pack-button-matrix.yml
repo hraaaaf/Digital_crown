@@ -1,6 +1,23 @@
 name: V1-07 Commercial Pack Button Matrix
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v1-07-commercial-pack-button-matrix.yml
+      - backend/routers/team.py
+      - backend/routers/auth.py
+      - backend/routers/superadmin.py
+      - backend/services/subscription_policy.py
+      - backend/tests/test_commercial_pack_button_matrix.py
+      - frontend/src/features/admin/TeamManager.tsx
+      - frontend/src/features/admin/TeamManager.buttonMatrix.test.tsx
+      - frontend/src/features/superadmin/SuperAdminDashboard.tsx
+      - frontend/src/features/superadmin/SuperAdminDashboard.packButtons.test.tsx
+      - frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.tsx
+      - frontend/src/features/mobile/Dashboard/views/MobileSuperAdminView.packButtons.test.tsx
+      - frontend/src/features/mobile/superadmin/useMobileSuperAdmin.ts
+      - frontend/src/features/mobile/superadmin/useMobileSuperAdmin.packActions.test.tsx
   workflow_dispatch:
 
 concurrency:

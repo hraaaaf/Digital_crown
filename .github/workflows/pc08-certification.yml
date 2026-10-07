@@ -1,6 +1,31 @@
 name: PC-08 Secure Messaging Certification
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "alembic/versions/pc080000015_add_pc08_secure_messages.py"
+      - "backend/core/schema_runtime.py"
+      - "backend/models_patient_companion.py"
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_messages.py"
+      - "backend/services/patient_companion_messages.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "backend/utils/rate_limit.py"
+      - "backend/tests/test_patient_companion_messages.py"
+      - "backend/tests/test_patient_companion_messages_jose_size.py"
+      - "frontend/src/features/patient-companion/PatientCompanionMessageTransport.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionMessageTransport.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionMessages.contract.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionMessages.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionStorage.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionStorage.messaging.contract.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionMessagingPanel.contract.test.ts"
+      - "frontend/src/features/patients/components/PatientCompanionPanel.tsx"
+      - ".github/workflows/pc08-certification.yml"
+      - "docs/clinic/patient_companion/PC_08_*.md"
   workflow_dispatch:
 
 permissions:

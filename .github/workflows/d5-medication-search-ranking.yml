@@ -2,6 +2,13 @@ name: D5 Medication Search Ranking
 # Exact-head D5 convergence gate — final same-head proof
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-search-intelligence
+    paths:
+      - 'backend/services/medication_dict.py'
+      - 'backend/tests/test_medication_search_ranking_d5.py'
+      - '.github/workflows/d5-medication-search-ranking.yml'
   workflow_dispatch:
 
 jobs:

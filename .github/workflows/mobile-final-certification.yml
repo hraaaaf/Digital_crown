@@ -1,6 +1,9 @@
 name: Mobile Full Experience Final Certification
 
 on:
+  push:
+    branches:
+      - mobile/final-certification
   workflow_dispatch:
 
 concurrency:

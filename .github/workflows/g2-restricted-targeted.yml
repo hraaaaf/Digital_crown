@@ -1,5 +1,9 @@
 name: G2 Restricted Permissions Targeted
 on:
+  pull_request:
+    paths:
+      - "frontend/scripts/certify-v1-07-g2-restricted-targeted.mjs"
+      - ".github/workflows/g2-restricted-targeted.yml"
   workflow_dispatch:
 concurrency:
   group: g2-restricted-targeted-${{ github.ref }}

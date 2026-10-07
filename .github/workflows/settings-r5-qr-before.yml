@@ -1,7 +1,12 @@
 name: Settings R5 QR BEFORE
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/settings-r5-qr-before.yml'
+      - 'docs/settings/R5_QR_TRUTH_GOAL.md'
+
 permissions:
   contents: read
 

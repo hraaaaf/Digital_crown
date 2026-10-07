@@ -1,6 +1,22 @@
 name: PC-09 Runtime AFTER Visual Evidence
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/pc09-runtime-after-visual.yml"
+      - "frontend/scripts/capture-pc09-runtime-after.mjs"
+      - "backend/config.py"
+      - "backend/models_patient_companion.py"
+      - "backend/routers/patient_companion_teleconsultation.py"
+      - "backend/services/patient_companion_teleconsultation.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultation.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultTransport.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionTeleconsultationPanel.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionPanel.tsx"
+      - "docs/clinic/patient_companion/PC_09_*.md"
   workflow_dispatch:
 
 permissions:

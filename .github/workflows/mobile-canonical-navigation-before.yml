@@ -1,6 +1,10 @@
 name: Mobile Canonical Navigation BEFORE
 
 on:
+  push:
+    branches: [ux/mobile-canonical-navigation-mob4]
+    paths:
+      - .github/workflows/mobile-canonical-navigation-before.yml
   workflow_dispatch:
 
 concurrency:

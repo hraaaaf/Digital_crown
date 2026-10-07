@@ -1,6 +1,12 @@
 name: AMMPS Dictionary Incremental Pilot
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-incremental-sync
+    paths:
+      - 'scripts/probe_ammps_dictionary_sync.py'
+      - '.github/workflows/ammps-dictionary-incremental-pilot.yml'
   workflow_dispatch:
 
 jobs:

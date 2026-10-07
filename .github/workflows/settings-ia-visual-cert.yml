@@ -1,6 +1,12 @@
 name: Settings IA Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/tabs/IATab.tsx"
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/runtimePreferences.ts"
+      - ".github/workflows/settings-ia-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

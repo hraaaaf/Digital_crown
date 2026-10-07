@@ -1,6 +1,22 @@
 name: Settings TemplateEngine Reachability Certification
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/template_engine.py'
+      - 'backend/services/document_factory.py'
+      - 'backend/tests/test_template_engine.py'
+      - 'backend/tests/test_services_unit*.py'
+      - 'backend/tests/test_settings_branding_preview_files.py'
+      - 'backend/routers/documents.py'
+      - 'backend/routers/templates.py'
+      - 'backend/models.py'
+      - 'backend/seed_templates.py'
+      - 'backend/main.py'
+      - 'docs/settings/TEMPLATEENGINE_REACHABILITY_GOAL.md'
+      - '.github/workflows/settings-templateengine-reachability-cert.yml'
+      - '.github/workflows/settings-r11-templatebuilder-audit.yml'
   workflow_dispatch:
 
 permissions:

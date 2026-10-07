@@ -1,6 +1,21 @@
 name: PC-07 Emergency Photo Certification
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "backend/models_patient_companion.py"
+      - "alembic/versions/pc070000014_add_pc07_emergency_photo_chunks.py"
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_emergency_photo.py"
+      - "backend/routers/mobile_resource_bridge.py"
+      - "backend/services/clinical_photo_normalization.py"
+      - "backend/services/patient_companion_emergency_photo.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "backend/tests/test_patient_companion_emergency_photo.py"
+      - "frontend/src/features/patient-companion/**"
+      - ".github/workflows/pc07-certification.yml"
+      - "docs/clinic/patient_companion/PC_07_*.md"
   workflow_dispatch:
 
 permissions:

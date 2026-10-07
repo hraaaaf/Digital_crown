@@ -1,6 +1,13 @@
 name: AMMPS National Aggregation Tests
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-national-coverage
+    paths:
+      - 'scripts/aggregate_ammps_national_batches.py'
+      - 'scripts/test_aggregate_ammps_national_batches.py'
+      - '.github/workflows/ammps-national-aggregation-tests.yml'
   workflow_dispatch:
 
 jobs:

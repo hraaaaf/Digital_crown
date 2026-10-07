@@ -10,7 +10,9 @@ name: UI Human Visual Approval
 # new exact HEAD has been shown to Achraf and approved again.
 
 on:
-  workflow_dispatch:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
 permissions:
   contents: read
   pull-requests: read

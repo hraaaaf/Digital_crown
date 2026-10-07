@@ -1,7 +1,16 @@
 name: PC-06 AFTER Visual Evidence
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/pc06-after-visual.yml
+      - frontend/scripts/capture-pc06-after.mjs
+      - frontend/src/features/patient-companion/**
+      - backend/routers/patient_companion_finance.py
+      - backend/services/patient_companion_finance.py
+      - docs/clinic/patient_companion/PC_06_*.md
+
 concurrency:
   group: pc06-after-${{ github.ref }}
   cancel-in-progress: true

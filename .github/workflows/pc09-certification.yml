@@ -1,6 +1,25 @@
 name: PC-09 Teleconsultation Certification
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "alembic/versions/pc090000016_add_pc09_teleconsultation.py"
+      - "backend/config.py"
+      - "backend/models_patient_companion.py"
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_teleconsultation.py"
+      - "backend/services/patient_companion_remote_worker.py"
+      - "backend/services/patient_companion_teleconsultation.py"
+      - "backend/tests/test_patient_companion_teleconsultation.py"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultTransport.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultation.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultation.contract.test.ts"
+      - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionTeleconsultationPanel.tsx"
+      - "frontend/src/features/patients/components/PatientCompanionPanel.tsx"
+      - ".github/workflows/pc09-certification.yml"
+      - "docs/clinic/patient_companion/PC_09_*.md"
   workflow_dispatch:
 
 permissions:

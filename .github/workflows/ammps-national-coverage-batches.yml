@@ -1,6 +1,12 @@
 name: AMMPS National Coverage Batches
 
 on:
+  push:
+    branches:
+      - feat/neo-medication-dictionary-national-coverage
+    paths:
+      - 'scripts/crawl_ammps_catalog_batch.py'
+      - '.github/workflows/ammps-national-coverage-batches.yml'
   workflow_dispatch:
 
 jobs:

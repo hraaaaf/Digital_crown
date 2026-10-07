@@ -1,5 +1,6 @@
 name: V1-07 G1-G7 Browser Control Inventory
 on:
+  pull_request:
   workflow_dispatch:
 concurrency:
   group: v1-07-g1-g7-browser-inventory-${{ github.ref }}

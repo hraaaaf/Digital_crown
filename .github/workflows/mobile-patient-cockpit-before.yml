@@ -1,6 +1,10 @@
 name: Mobile Patient Cockpit BEFORE
 
 on:
+  push:
+    branches: [ux/mobile-product-canonical]
+    paths:
+      - .github/workflows/mobile-patient-cockpit-before.yml
   workflow_dispatch:
 
 concurrency:

@@ -1,6 +1,17 @@
 name: V1.5-04.2 Presence Receipt Proof
 
 on:
+  push:
+    branches:
+      - feat/v1-5-04-2-presence-receipt
+    paths:
+      - "backend/services/station_presence_receipt.py"
+      - "backend/services/station_document_eligibility.py"
+      - "backend/routers/station_patient_session.py"
+      - "backend/routers/appointments.py"
+      - "backend/tests/test_station_patient_session_v15.py"
+      - "backend/tests/test_station_document_eligibility_v15.py"
+      - ".github/workflows/v15-04-2-presence-receipt-proof.yml"
   workflow_dispatch:
 
 permissions:

@@ -2,6 +2,12 @@ name: Mutuelles CNSS UI BEFORE
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/mutuelles-dentaires-integration-v2-20260914
+    paths:
+      - '.github/workflows/mutuelles-cnss-ui-before.yml'
+
 permissions:
   contents: read
 

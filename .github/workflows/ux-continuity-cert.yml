@@ -1,7 +1,16 @@
 name: UX Continuity AFTER
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/components/CrownDialog.tsx'
+      - 'frontend/src/hooks/useFlowHandoff.ts'
+      - 'frontend/src/features/patients/PatientList.tsx'
+      - 'frontend/src/features/admin/SetupWizard/SetupWizard.tsx'
+      - 'frontend/src/UXContinuity.test.ts'
+      - '.github/workflows/ux-continuity-cert.yml'
+
 permissions:
   contents: read
 

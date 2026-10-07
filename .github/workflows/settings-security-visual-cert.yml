@@ -1,6 +1,15 @@
 name: Settings Security Visual Certification
 
 on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
+      - "frontend/src/features/admin/Security/MobileSecurity.tsx"
+      - "frontend/src/features/mobile/Dashboard/MobileDashboard.tsx"
+      - "frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx"
+      - "frontend/src/features/mobile/bridge.ts"
+      - ".audit/mobile-m64-after-scenario.yml"
+      - ".github/workflows/settings-security-visual-cert.yml"
   workflow_dispatch:
 
 permissions:

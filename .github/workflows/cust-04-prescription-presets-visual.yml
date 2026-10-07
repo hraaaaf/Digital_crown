@@ -1,7 +1,14 @@
 name: CUST-04 Prescription Presets Visual Evidence
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cust-04-prescription-presets-visual.yml"
+      - "frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudioV1.tsx"
+      - "frontend/src/features/admin/DocumentStudio/Forms/PrescriptionPresetBar.tsx"
+      - "docs/customization/CUST_04_PRACTITIONER_PRESETS_GOAL.md"
+
 permissions:
   contents: read
 

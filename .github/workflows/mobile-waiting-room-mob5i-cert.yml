@@ -1,6 +1,16 @@
 name: Mobile Waiting Room MOB-5I Certification
 
 on:
+  push:
+    branches: [ux/mobile-waiting-room-mob5i]
+    paths:
+      - .github/workflows/mobile-waiting-room-mob5i-cert.yml
+      - frontend/scripts/capture-mobile-waiting-room-mob5i-after.mjs
+      - frontend/src/features/mobile/Dashboard/**
+      - backend/routers/mobile_waiting_room.py
+      - backend/routers/__init__.py
+      - backend/tests/test_mobile_waiting_room.py
+      - frontend/src/features/mobile/__tests__/waitingRoomMob5i.test.tsx
   workflow_dispatch:
 
 concurrency:
