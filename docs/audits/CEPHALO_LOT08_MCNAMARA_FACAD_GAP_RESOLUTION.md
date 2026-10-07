@@ -1,0 +1,36 @@
+# LOT08 McNamara Facad gap resolution
+
+Status: **SOURCE-LOCKED — RUNTIME GATED**
+
+Date: 2026-10-07
+
+## Result
+
+The six previously unmapped rows from Facad `McNamara.cph` are resolved as either canonical geometry matches or explicit vendor variants. No runtime clinical activation is authorized.
+
+### Canonical geometry matches
+- `Max-Mand diff = Co-Gn - Co-A` -> `M_CO_GN_MINUS_CO_A_MM_V1`.
+- `LAFH = ANS-Me` -> `M_ANS_ME_MM_V1`.
+
+### Vendor variants that must not be silently promoted
+- `Is-A`: Facad uses `ProjLine(FH, A, Is)` with upper-incisor tip `Is`. Digital Crown's McNamara source-lock requires the upper-incisor facial crown surface for `M_U1_A_VERTICAL_MM_V1`. Strict equivalence is forbidden.
+- `Ii to A-Pog`: Facad uses `Dist3p(Pog, A, Ii)` with `changeRightLeft=true`, i.e. lower-incisor tip plus signed/right-left behavior. Digital Crown's McNamara contract requires `L1_facial_surface` for `M_L1_FACIAL_SURFACE_APOG_MM_V1`. Strict equivalence is forbidden.
+- `Nasolabial`: Facad uses `Angle3p(SN, MS, Ls)`, where `MS = Steiner's S-point (columnella tangent point)` and `SN = Subnasale; Retronasale`. McNamara literature is described with Prn'/Sn/Ls or tangents to the nasal base and upper lip. This Facad row is a vendor soft-tissue variant and must not alias the quarantined legacy `Angle_Nasolabial`.
+- `Ls Cant`: Facad uses the angle between `Line(Ls,N)` and `N-perpendicular`. Independent McNamara-style literature describes upper-lip cant using a tangent to the upper lip versus N-perpendicular. These are not the same geometry.
+
+## Vendor evidence
+- gap probe run `37614595578`, artifact `11479502780`, digest `sha256:634861473da5928654b2887c4d3cfc141cd29a26c1b6067b4a4c837ef1c73fb4`.
+- soft-tissue dependency probe run `37614708086`, artifact `11479682810`, digest `sha256:68faa24e8e9158dfe3f02d901bd0a541e52a991515f4e3121cf048a92d1f5514`.
+
+## Scientific boundary
+- Primary McNamara authority: 1984, DOI `10.1016/S0002-9416(84)90352-X`.
+- Modern peer-reviewed parameter reconstruction corroborates McNamara nasolabial `Prn'-Sn-Ls`, Co-A, Co-Gn, ANS-Me, U1-A vertical and L1-A-Pog.
+- Independent soft-tissue literature describes upper-lip cant as upper-lip tangent vs N-perpendicular.
+
+## Runtime gates
+1. no Facad norm becomes classification authority;
+2. no same-trace numeric parity claim without direct Facad export;
+3. no incisal-tip vendor variant may alias a McNamara facial-surface measurement;
+4. no `Nasolabial` alias to the quarantined legacy field;
+5. preserve Facad `changeRightLeft` semantics for `Ii to A-Pog`;
+6. no runtime activation in this lot.
