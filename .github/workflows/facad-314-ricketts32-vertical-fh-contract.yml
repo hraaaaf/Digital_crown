@@ -118,4 +118,4 @@ jobs:
 
       - name: Run vertical FH contract tests
         shell: pwsh
-        run: python -m pytest backend/tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py -q
+        run: python -m pytest backend/tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py -q --noconftest
