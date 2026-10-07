@@ -114,18 +114,43 @@ async function assertAvatarState(page, state) {
   const selector = `[data-patient-avatar][data-patient-id="${patient.id}"]:visible`;
   const avatar = page.locator(selector).first();
   await avatar.waitFor({ state: 'visible', timeout: 30000 });
-  await page.waitForFunction(
-    ({ id, expected }) => Array.from(document.querySelectorAll(`[data-patient-avatar][data-patient-id="${id}"]`)).some(node => {
-      const element = node instanceof HTMLElement ? node : null;
-      if (!element) return false;
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      const visible = style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-      return visible && element.getAttribute('data-photo-state') === expected;
-    }),
-    { id: String(patient.id), expected: state },
-    { timeout: 30000 },
-  );
+  try {
+    await page.waitForFunction(
+      ({ id, expected }) => Array.from(document.querySelectorAll(`[data-patient-avatar][data-patient-id="${id}"]`)).some(node => {
+        const element = node instanceof HTMLElement ? node : null;
+        if (!element) return false;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const visible = style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return visible && element.getAttribute('data-photo-state') === expected;
+      }),
+      { id: String(patient.id), expected: state },
+      { timeout: 30000 },
+    );
+  } catch (error) {
+    const diagnostic = await page.evaluate(async ({ id }) => {
+      const nodes = Array.from(document.querySelectorAll(`[data-patient-avatar][data-patient-id="${id}"]`)).map(node => ({
+        photoState: node.getAttribute('data-photo-state'),
+        ariaLabel: node.getAttribute('aria-label'),
+      }));
+      const authState = document.querySelector('[data-g3-browser-cert]')?.getAttribute('data-auth-state') || null;
+      const token = localStorage.getItem('token');
+      let directPhotoStatus = null;
+      if (token) {
+        try {
+          const response = await fetch(`http://127.0.0.1:8005/api/patients/${id}/photo`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          directPhotoStatus = response.status;
+        } catch {
+          directPhotoStatus = -1;
+        }
+      }
+      return { authState, hasLocalToken: Boolean(token), nodes, directPhotoStatus };
+    }, { id: String(patient.id) });
+    console.error('PHOTO_AVATAR_DIAGNOSTIC', JSON.stringify({ expected: state, ...diagnostic }));
+    throw error;
+  }
 }
 
 async function assertSurfaces(page, expectedState, viewportLabel, phase) {
