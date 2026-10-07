@@ -34,3 +34,12 @@ The six previously unmapped rows from Facad `McNamara.cph` are resolved as eithe
 4. no `Nasolabial` alias to the quarantined legacy field;
 5. preserve Facad `changeRightLeft` semantics for `Ii to A-Pog`;
 6. no runtime activation in this lot.
+
+## Orientation/sign invariant
+
+The Facad serialized argument order is preserved as evidence:
+
+- `Is-A = ProjLine(FH, A, Is)`; projected displacement order is `A -> Is`.
+- `Ii to A-Pog = Dist3p(Pog, A, Ii)` with `changeRightLeft=true`; A-Pog line argument order and target-point identity must not be silently reordered.
+
+These are compatibility invariants only. Same-trace numeric parity remains required before a signed runtime implementation can claim Facad equivalence.
