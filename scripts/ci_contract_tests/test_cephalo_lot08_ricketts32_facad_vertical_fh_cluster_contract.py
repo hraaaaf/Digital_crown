@@ -63,12 +63,14 @@ def test_cranial_deflection_preserves_reversed_line_equivalence_but_gates_presen
     assert "PRESENTATION_PARITY_GATED" in row["dc"]["status"]
 
 
-def test_backlog_moves_only_vertical_fh_cluster_and_reaches_twelve():
+def test_vertical_fh_cluster_stays_resolved_in_current_final_backlog():
     data = _backlog()
     profile = data["profiles"]["Ricketts (32 F)"]
     unresolved = set(profile["unmapped"])
+    resolved = {row["facad_label"] for row in profile["resolved_items"]}
     moved = {"LFH", "Max depth", "Max hgh", "NL/FH", "CBL/FH"}
     assert moved.isdisjoint(unresolved)
-    assert len(unresolved) == 12
-    assert data["totals"]["unmapped_items"] == 12
-    assert data["high_review_progress"]["Ricketts (32 F)"]["remaining_unmapped"] == 12
+    assert moved.issubset(resolved)
+    assert data["totals"]["unmapped_items"] == 0
+    assert data["high_review_progress"]["Ricketts (32 F)"]["remaining_unmapped"] == 0
+    assert data["high_review_progress"]["Ricketts (32 F)"]["resolved_total"] == 26
