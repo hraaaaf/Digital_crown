@@ -191,16 +191,11 @@
     "Ricketts (32 F)": {
       "priority": 5,
       "unmapped": [
-        "Ms-PtV",
         "Xi-OL",
         "Xi-PM/OL",
         "Upper lip len",
         "STi-OL",
         "Facial cone angle",
-        "Cranium ant len",
-        "PFH",
-        "Ramus Xi pos",
-        "Porion pos",
         "Mand arc",
         "Mand len"
       ],
@@ -274,13 +269,38 @@
           "facad_label": "CBL/FH",
           "resolution": "CANONICAL_LINE_GEOMETRY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
           "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ms-PtV",
+          "resolution": "FACAD_VENDOR_PTV_MOLAR_VARIANT__RICKETTS_A6_PR_PTV_STRICT_EQUIVALENCE_FORBIDDEN",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Cranium ant len",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__CC_PT_AND_GN_IDENTITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "PFH",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__CF_PTV_AND_GO_IDENTITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Ramus Xi pos",
+          "resolution": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__CF_PTV_ANCHOR_AND_ANGLE_PRESENTATION_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Porion pos",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__PTV_ANCHOR_AND_SIGN_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
         }
       ]
     }
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 12
+    "unmapped_items": 7
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -365,23 +385,24 @@
       "documentation": "docs/handovers/2026-09-11-cephalo-r7-wits-downs-scientific-gate.md"
     },
     "Ricketts (32 F)": {
-      "status": "IN_PROGRESS__DENTAL_PLUS_VERTICAL_FH_CLUSTERS_SOURCE_LOCKED__RUNTIME_GATED",
+      "status": "IN_PROGRESS__DENTAL_VERTICAL_FH_PTV_CRANIAL_CLUSTERS_SOURCE_LOCKED__RUNTIME_GATED",
       "original_unmapped": 26,
       "resolved_in_current_cluster": 5,
-      "remaining_unmapped": 12,
+      "remaining_unmapped": 7,
       "runtime_blockers": [
         "Facad OL is an incisor-midpoint vendor line and must not alias the source-locked Ricketts functional occlusal plane",
-        "same-trace signed parity for A-Pog distances",
-        "same-trace angle presentation/sign parity for dental A-Pog angles",
-        "Facad Max hgh CF depends on vendor Pt/PTV anchor identity not yet proven identical to DC PR_Ricketts_PTV",
-        "same-trace angle presentation parity for LFH, Max depth, and CBL/FH",
-        "versioned image-orientation evidence plus same-trace signed parity for NL/FH",
+        "same-trace signed/presentation parity remains required for previously dispositioned dental and FH rows",
+        "Facad Pt must not alias DC PR_Ricketts_PTV without identity proof",
+        "Facad Ms-d must not alias DC Ricketts A6/U6_DISTAL_Ricketts without identity proof",
+        "Facad direct Gn must not alias DC constructed Ricketts Gn",
+        "Facad generic Go must not alias DC GO_Ricketts_PFH",
         "Facad norms remain non-authoritative"
       ],
-      "resolved_total": 14,
+      "resolved_total": 19,
       "sources": [
         "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json",
-        "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json",
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json"
       ]
     }
   }
