@@ -16,6 +16,7 @@ MAPPING = ROOT / "docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_map
 BACKLOG = ROOT / "docs/audits/schemas/ortho_lot08_facad_dc_unmapped_backlog_v1.json"
 EXECUTABLE = ROOT / "docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json"
 CANONICAL_MD = ROOT / "docs/audits/CEPHALO_CANONICAL_MEASUREMENT_REGISTRY.md"
+CERT_WORKFLOW = ROOT / ".github/workflows/facad-steiner-gap-resolution-cert.yml"
 
 def load(path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -119,6 +120,30 @@ def main():
             fail(f"Runtime canonical unit mismatch for {measurement_id}")
         if item.source_status != "BLOCKED_LANDMARK_MS_STEINER+FACAD_SAME_TRACE_SIGN_PARITY_PENDING":
             fail(f"Runtime canonical blocked status mismatch for {measurement_id}")
+
+
+    workflow_lines = CERT_WORKFLOW.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(workflow_lines):
+        stripped = line.strip()
+        if stripped.startswith("python ") and not stripped.startswith("python -c \"import json,pathlib; d="):
+            next_nonempty = next(
+                (x.strip() for x in workflow_lines[index + 1:] if x.strip()),
+                "",
+            )
+            if next_nonempty != "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }":
+                fail(f"Certification workflow Python command is fail-open: {stripped}")
+    assert_count_line = next(
+        (i for i, line in enumerate(workflow_lines) if "STEINER_COUNTS=" in line),
+        None,
+    )
+    if assert_count_line is None:
+        fail("Certification workflow missing Steiner count assertion")
+    next_nonempty = next(
+        (x.strip() for x in workflow_lines[assert_count_line + 1:] if x.strip()),
+        "",
+    )
+    if next_nonempty != "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }":
+        fail("Certification workflow count assertion is fail-open")
 
     guards = resolution.get("runtime_guards") or {}
     if guards.get("primary_historical_authority_for_sline_locked") is not False:
