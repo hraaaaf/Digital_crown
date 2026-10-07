@@ -1,4 +1,5 @@
 from datetime import datetime
+import hashlib
 
 from backend import models
 from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
@@ -79,9 +80,11 @@ def _identified_session(client, db, owner, *, dossier: str = "ST043-001"):
 
 
 def _care_sheet(db, patient, *, status: str = "VALIDATED"):
+    pdf_content = b"%PDF-1.4\n% station care sheet\n%%EOF\n"
+    rendered_hash = hashlib.sha256(pdf_content).hexdigest()
     document, _ = ArchiveService(db).archive_document(
         patient_id=patient.id,
-        file_content=b"%PDF-1.4\n% station care sheet\n%%EOF\n",
+        file_content=pdf_content,
         filename=f"Feuille_soins_CNSS_{patient.id}.pdf",
         doc_type=models.DocumentType.AUTRE,
         title="Feuille de soins CNSS",
@@ -89,7 +92,13 @@ def _care_sheet(db, patient, *, status: str = "VALIDATED"):
         clinical_data={
             "kind": "INSURANCE_SUBMISSION",
             "schema_version": "1",
+            "validated_by_practitioner_id": 1,
+            "validated_at": "2026-10-07T12:00:00",
             "draft": {"status": status},
+            "render_evidence": {
+                "renderer": "PDF_OVERLAY_V1",
+                "rendered_pdf_sha256": rendered_hash,
+            },
         },
         is_accounted=False,
         is_collected=False,
@@ -215,17 +224,24 @@ def test_station_care_sheet_authorization_is_invalidated_by_file_replacement(cli
     ).status_code == 200
 
     previous_hash = document.file_hash
+    replaced_content = b"%PDF-1.4\n% replaced station care sheet\n%%EOF\n"
+    replaced_hash = hashlib.sha256(replaced_content).hexdigest()
+    replaced_clinical_data = dict(document.clinical_data)
+    replaced_clinical_data["render_evidence"] = {
+        **dict(replaced_clinical_data["render_evidence"]),
+        "rendered_pdf_sha256": replaced_hash,
+    }
     ArchiveService(db)._replace_document_in_place(
         document_id=document.id,
         patient_id=patient.id,
-        file_content=b"%PDF-1.4\n% replaced station care sheet\n%%EOF\n",
+        file_content=replaced_content,
         filename=document.original_filename,
         doc_type=document.document_type,
         uploaded_by_id=document.uploaded_by_id,
         title=document.title,
         description=document.description,
         tags=document.tags or [],
-        clinical_data=document.clinical_data,
+        clinical_data=replaced_clinical_data,
         analysis_id=document.analysis_id,
         is_accounted=document.is_accounted,
         is_collected=document.is_collected,
@@ -247,3 +263,32 @@ def test_station_care_sheet_authorization_is_invalidated_by_file_replacement(cli
     )
     assert renewed.status_code == 200
     assert renewed.json()["created"] is True
+
+
+def test_station_care_sheet_rejects_forged_validated_metadata_without_finalizer_hash(client, db, dentiste):
+    headers, _session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-FORGE"
+    )
+    document, _ = ArchiveService(db).archive_document(
+        patient_id=patient.id,
+        file_content=b"%PDF-1.4\n% forged metadata\n%%EOF\n",
+        filename="Feuille_soins_forged.pdf",
+        doc_type=models.DocumentType.AUTRE,
+        title="Feuille de soins forged",
+        clinical_data={
+            "kind": "INSURANCE_SUBMISSION",
+            "validated_by_practitioner_id": dentiste.id,
+            "validated_at": "2026-10-07T12:00:00",
+            "draft": {"status": "VALIDATED"},
+        },
+        is_accounted=False,
+        is_collected=False,
+        payment_status=models.PaiementStatut.EN_ATTENTE,
+    )
+
+    denied = client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    )
+    assert denied.status_code == 409
+    assert denied.json()["detail"] == "CARE_SHEET_NOT_FINALIZED"
