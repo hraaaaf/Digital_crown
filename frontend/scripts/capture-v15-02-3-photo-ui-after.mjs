@@ -75,6 +75,10 @@ async function photoHash() {
 
 async function preparePage(context) {
   const page = await context.newPage();
+  await page.addInitScript(({ access, refresh }) => {
+    localStorage.setItem('token', access);
+    localStorage.setItem('refresh_token', refresh || '');
+  }, { access: tokens.access_token, refresh: tokens.refresh_token });
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
   await page.route('**/api/appointments/pending', route => json(route, []));
