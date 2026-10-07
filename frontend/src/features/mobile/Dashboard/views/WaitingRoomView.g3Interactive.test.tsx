@@ -1,5 +1,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+vi.mock('../../../patients/components/PatientAvatar', () => ({
+  PatientAvatar: ({ patientId, fullName }: { patientId: number | string; fullName?: string | null }) => (
+    <span data-testid="patient-avatar" data-patient-id={patientId}>{fullName}</span>
+  ),
+}));
+
 import { WaitingRoomView } from './WaitingRoomView';
 
 afterEach(() => cleanup());
@@ -8,6 +14,7 @@ const snapshot = {
   appointments: [
     {
       id: 2,
+      patient_id: 102,
       patient_name: 'Omar ALAMI',
       time: '09:30',
       motif: 'Contrôle',
@@ -16,6 +23,7 @@ const snapshot = {
     },
     {
       id: 1,
+      patient_id: 101,
       patient_name: 'Sara BENALI',
       time: '09:00',
       motif: 'Détartrage',
@@ -41,6 +49,7 @@ describe('WaitingRoomView G3 interactive matrix', () => {
     const names = screen.getAllByRole('heading', { level: 3 }).map(el => el.textContent);
     expect(names).toEqual(['Sara BENALI', 'Omar ALAMI']);
     expect(screen.queryByText('Hors salle')).toBeNull();
+    expect(screen.getAllByTestId('patient-avatar').map(node => node.getAttribute('data-patient-id'))).toEqual(['101', '102']);
   });
 
   it('delegates the Au fauteuil action with the canonical EN_COURS status', () => {
