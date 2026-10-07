@@ -1,10 +1,12 @@
 from datetime import datetime
 from io import BytesIO
+import uuid
 
 from PIL import Image
 
 from backend import models
 from backend.models_media_core import ClinicalAsset
+from backend.routers.mobile import _create_mobile_jwt
 from backend.security import get_password_hash
 from backend.services.clinical_asset_service import list_clinical_assets_for_patient
 
@@ -225,3 +227,38 @@ def test_patient_contract_suppresses_legacy_external_photo_url(
 
     assert response.status_code == 200
     assert response.json()["photo_url"] is None
+
+
+def test_profile_photo_is_available_to_paired_mobile_session(
+    client, db, dentiste, auth_headers, tmp_path, monkeypatch
+):
+    _prepare_storage(monkeypatch, tmp_path)
+    patient = _patient(db, dentiste.id, "MOBILE")
+
+    uploaded = client.post(
+        f"/api/patients/{patient.id}/photo",
+        headers=auth_headers,
+        files={"file": ("portrait.png", _png_bytes(), "image/png")},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+
+    device_id = str(uuid.uuid4())
+    db.add(models.MobilePairedDevice(
+        device_id=device_id,
+        user_id=dentiste.id,
+        employer_id=dentiste.id,
+        client_public_key_hex="04" + ("11" * 64),
+        refresh_jti="photo-mobile-refresh",
+    ))
+    db.commit()
+    mobile_token = _create_mobile_jwt(dentiste.id, "DENTISTE", dentiste.id, device_id)
+
+    delivered = client.get(
+        f"/api/mobile/patients/{patient.id}/photo",
+        headers={"Authorization": f"Bearer {mobile_token}"},
+    )
+
+    assert delivered.status_code == 200, delivered.text
+    assert delivered.headers["content-type"].startswith("image/jpeg")
+    assert delivered.headers["cache-control"] == "private, no-store"
+    assert delivered.content.startswith(b"\xff\xd8\xff")
