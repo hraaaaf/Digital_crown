@@ -106,3 +106,12 @@ Before implementation/promotion:
 4. signed-distance convention defined for DC and direct Facad numeric parity kept separate;
 5. fail-closed tests for missing `MS_Steiner`;
 6. no norm-based classification without a dedicated normative gate.
+
+
+## Historical attribution boundary
+
+This compatibility lot does not source-lock the exact original Steiner publication/version that first introduced the soft-tissue S-line. Therefore the Facad S-line rows are **not** promoted into the canonical historical `STEINER_STATIC_PROTOCOL_PROFILE_V1` by this work.
+
+Allowed claim: Facad's shipped Steiner profile defines these rows and their geometry as documented above, with independent scientific literature supporting the S-line concept.
+
+Forbidden claim until a primary historical source is locked: that `Ls-SL` / `Li-SL` belong to a specific Steiner 1953/1959 canonical layer.
