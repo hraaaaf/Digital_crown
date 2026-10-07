@@ -8,7 +8,7 @@ on:
       - .github/workflows/facad-314-ricketts32-vertical-fh-contract.yml
       - docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json
       - docs/audits/schemas/ortho_lot08_facad_dc_unmapped_backlog_v1.json
-      - backend/tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py
+      - scripts/ci_contract_tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py
   workflow_dispatch:
 
 permissions:
@@ -118,4 +118,4 @@ jobs:
 
       - name: Run vertical FH contract tests
         shell: pwsh
-        run: python -m pytest backend/tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py -q --noconftest
+        run: python -m pytest scripts/ci_contract_tests/test_cephalo_lot08_ricketts32_facad_vertical_fh_cluster_contract.py -q
