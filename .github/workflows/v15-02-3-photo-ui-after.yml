@@ -76,7 +76,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Unit tests
         working-directory: frontend
-        run: npx vitest run src/features/patients/components/PatientAvatar.test.tsx src/features/patients/components/PatientPhotoEditor.test.tsx src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx
+        run: npx vitest run src/features/patients/components/PatientAvatar.test.tsx src/features/patients/components/PatientPhotoEditor.test.tsx src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx
       - name: Build frontend
         working-directory: frontend
         run: npm run build
