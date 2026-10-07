@@ -95,24 +95,22 @@ jobs:
 
       - name: Start frontend
         working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
         run: |
           npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-02-4-frontend.log 2>&1 &
           for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
           cat /tmp/v15-02-4-frontend.log
           exit 1
 
-      - name: Capture responsive regression matrix
+      - name: Capture responsive lifecycle matrix
         working-directory: frontend
         run: |
-          node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-3-photo-ui-before.mjs
+          node scripts/run-with-t2-workstation.mjs scripts/capture-v15-02-3-photo-ui-after.mjs
+          rm -rf ../artifacts/v15-02-4-photo-lifecycle
           mkdir -p ../artifacts/v15-02-4-photo-lifecycle
-          cp -R ../artifacts/v15-02-3-photo-ui-before/. ../artifacts/v15-02-4-photo-lifecycle/
-          for file in ../artifacts/v15-02-4-photo-lifecycle/before-*.png; do
-            [ -e "$file" ] || continue
-            mv "$file" "${file/before-/after-02-4-}"
-          done
-          sed -i 's/before-/after-02-4-/g' ../artifacts/v15-02-4-photo-lifecycle/evidence.json
-          node -e "const fs=require('fs');const p='../artifacts/v15-02-4-photo-lifecycle/evidence.json';const j=JSON.parse(fs.readFileSync(p));j.phase='V1.5-02.4';j.head=process.env.EVALUATED_SHA;j.base=process.env.EVALUATED_BASE;fs.writeFileSync(p,JSON.stringify(j,null,2));"
+          cp -R ../artifacts/v15-02-3-photo-ui-after/. ../artifacts/v15-02-4-photo-lifecycle/
+          node -e "const fs=require('fs');const p='../artifacts/v15-02-4-photo-lifecycle/evidence.json';const j=JSON.parse(fs.readFileSync(p));j.phase='V1.5-02.4';j.head=process.env.EVALUATED_SHA;j.base=process.env.EVALUATED_BASE;j.evidenceSource='real-photo-lifecycle-after';fs.writeFileSync(p,JSON.stringify(j,null,2));"
 
       - uses: actions/upload-artifact@v4
         if: always()
