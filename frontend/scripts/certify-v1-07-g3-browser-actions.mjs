@@ -22,8 +22,8 @@ async function seed(page){
 }
 function prove(viewport,action,detail={}){proofs.push({viewport:viewport.width+'x'+viewport.height,action,status:'PASS',...detail});}
 
-async function listAppointments(){
-  const response=await api.get('/api/appointments/',{headers});
+async function listAppointments(page){
+  const response=await page.context().request.get('http://127.0.0.1:8005/api/appointments/',{headers});
   const body=await response.text();
   if(!response.ok()) throw new Error('appointments list failed '+response.status()+': '+body.slice(0,500));
   let parsed;
@@ -244,7 +244,7 @@ for(const viewport of viewports){
   if(!createAck.ok()) throw new Error('appointment create ACK failed '+createAck.status()+': '+await createAck.text());
   await successDialog.waitFor({state:'hidden',timeout:10000});
 
-  let persisted=(await listAppointments()).find(x=>x.patient_name===uniquePatient);
+  let persisted=(await listAppointments(page)).find(x=>x.patient_name===uniquePatient);
   if(!persisted) throw new Error('created appointment not persisted in backend');
   prove(viewport,'agenda-create-success-persistence',{appointmentId:persisted.id});
 
@@ -280,7 +280,7 @@ for(const viewport of viewports){
   const persistedId=persisted.id;
   let persistedAfterEdit=null;
   for(let attempt=0;attempt<5;attempt+=1){
-    const rows=await listAppointments();
+    const rows=await listAppointments(page);
     persistedAfterEdit=rows.find(x=>x.id===persistedId) || null;
     if(persistedAfterEdit?.motif===updatedMotif) break;
     await page.waitForTimeout(100);
@@ -307,7 +307,7 @@ for(const viewport of viewports){
   await deletedVisibleItem.first().waitFor({state:'detached',timeout:10000}).catch(async()=>{
     if(await deletedVisibleItem.count()) throw new Error('deleted appointment remained visible');
   });
-  const afterDelete=await listAppointments();
+  const afterDelete=await listAppointments(page);
   if(afterDelete.some(x=>x.id===persisted.id)) throw new Error('deleted appointment remained persisted');
   prove(viewport,'agenda-delete-success-persistence',{appointmentId:persisted.id});
 
@@ -411,7 +411,7 @@ for(const viewport of viewports){
     await importDialog.getByRole('button',{name:"Confirmer l'import",exact:true}).click();
     await importDialog.waitFor({state:'detached',timeout:10000});
 
-    const importedList=await listAppointments();
+    const importedList=await listAppointments(page);
     const imported=importedList.find(x=>x.patient_name===importName);
     if(!imported) throw new Error('agenda ICS import not persisted');
     await page.getByText(importName,{exact:true}).filter({visible:true}).first().waitFor({state:'visible',timeout:10000});
@@ -419,7 +419,7 @@ for(const viewport of viewports){
 
     const cleanup=await api.delete('/api/appointments/'+imported.id,{headers});
     if(!cleanup.ok()) throw new Error('agenda ICS cleanup delete failed');
-    const afterCleanup=await listAppointments();
+    const afterCleanup=await listAppointments(page);
     if(afterCleanup.some(x=>x.id===imported.id)) throw new Error('agenda ICS cleanup did not remove appointment');
     prove(viewport,'agenda-import-fixture-cleanup',{appointmentId:imported.id});
   }

@@ -181,7 +181,7 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
   waitingPhotoBuffer = expectedState === 'photo'
     ? await (await api.get(`/api/patients/${patient.id}/photo`, { headers })).body()
     : null;
-  const waitingUrl = `http://127.0.0.1:5173/mobile/g3-cert?tab=waiting-room&patientId=${patient.id}&patientName=${encodeURIComponent(fullName)}&ticket=23`;
+  const waitingUrl = `http://127.0.0.1:5173/mobile/g3-cert?demo=1&tab=waiting-room&patientId=${patient.id}&patientName=${encodeURIComponent(fullName)}&ticket=23`;
   await page.goto(waitingUrl, { waitUntil: 'networkidle', timeout: 90000 });
   await page.locator('[data-mob5i-waiting-room]').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText(fullName, { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });

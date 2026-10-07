@@ -88,6 +88,8 @@ jobs:
           cat /tmp/v15-02-3-backend.log; exit 1
       - name: Start frontend
         working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
         run: |
           npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-02-3-frontend.log 2>&1 &
           for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
