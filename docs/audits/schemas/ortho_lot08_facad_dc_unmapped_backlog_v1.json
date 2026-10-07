@@ -10,10 +10,23 @@
   "profiles": {
     "Steiner": {
       "priority": 1,
-      "unmapped": [
-        "Ii-Pog // NB",
-        "Ls-SL",
-        "Li-SL"
+      "unmapped": [],
+      "resolved_high": [
+        {
+          "facad_label": "Ii-Pog // NB",
+          "decision": "EXISTING_DERIVED_RELATIONSHIP",
+          "dc_relationship_id": "STEINER_L1_NB_VS_POG_NB_V1"
+        },
+        {
+          "facad_label": "Ls-SL",
+          "decision": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner"
+        },
+        {
+          "facad_label": "Li-SL",
+          "decision": "BLOCKED_EXACT_LANDMARK",
+          "required_identity": "MS_Steiner"
+        }
       ]
     },
     "Tweed": {
@@ -78,7 +91,7 @@
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 42
+    "unmapped_items": 39
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -97,5 +110,14 @@
       "norm applicability decisions",
       "runtime implementation"
     ]
+  },
+  "high_progress": {
+    "Steiner": {
+      "decision_resolved": 3,
+      "remaining_unmapped": 0,
+      "runtime_blocked": 2,
+      "existing_relationship_resolved": 1,
+      "status": "SCIENTIFIC_DECISION_COMPLETE__RUNTIME_PARTIAL"
+    }
   }
 }
