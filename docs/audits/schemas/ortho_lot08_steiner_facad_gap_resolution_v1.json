@@ -146,6 +146,13 @@
     "no_facad_norm_runtime_classification": true,
     "no_numeric_parity_claim_without_same_trace_export": true,
     "missing_MS_must_fail_closed": true,
-    "iinb_same_trace_numeric_parity_required": true
+    "iinb_same_trace_numeric_parity_required": true,
+    "no_canonical_steiner_profile_promotion_without_primary_sline_source": true
+  },
+  "historical_attribution": {
+    "exact_primary_steiner_sline_publication_status": "NOT_SOURCE_LOCKED_IN_THIS_COMPATIBILITY_LOT",
+    "canonical_steiner_profile_promotion": false,
+    "allowed_claim": "Facad Steiner profile compatibility definition with independent scientific support",
+    "forbidden_claim": "Exact historical Steiner-version membership/source attribution for S-line"
   }
 }
