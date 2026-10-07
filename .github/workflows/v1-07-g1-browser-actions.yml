@@ -87,4 +87,4 @@ jobs:
 
       - name: Certify public auth onboarding actions
         working-directory: frontend
-        run: node scripts/run-with-t2-workstation.mjs scripts/certify-v1-07-g1-browser-actions.mjs
+        run: node scripts/certify-v1-07-g1-browser-actions.mjs
