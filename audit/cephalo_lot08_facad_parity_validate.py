@@ -20,6 +20,7 @@ _ALLOWED_TARGETS = {
 _ALLOWED_PROFILE_STATUS = {"UNOBSERVED", "PARTIAL", "OBSERVED"}
 _ALLOWED_MANIFEST_STATUS = {
     "AWAITING_DIRECT_FACAD_EXPORTS",
+    "DIRECT_DEFINITION_OBSERVED",
     "DIRECT_EVIDENCE_PARTIAL",
     "DIRECT_PARITY_OBSERVED",
 }
@@ -159,6 +160,62 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             _error(errors, "parity_row_contract.allowed_sign_status mismatch")
         if set(row_contract.get("allowed_numeric_status") or []) != _ALLOWED_NUMERIC:
             _error(errors, "parity_row_contract.allowed_numeric_status mismatch")
+
+    static_definition = manifest.get("static_definition_evidence")
+    if not isinstance(static_definition, dict):
+        _error(errors, "static_definition_evidence must be an object")
+        static_profiles = []
+    else:
+        if static_definition.get("artifact_kind") != "STANDARD_ANALYSIS_DEFINITION_CPH":
+            _error(errors, "static_definition_evidence.artifact_kind mismatch")
+        if static_definition.get("source") != "Official Facad 3.14.1 installer payload":
+            _error(errors, "static_definition_evidence.source mismatch")
+        if static_definition.get("installer_filename") != "Facad-Installer-3.14.1.1111.exe":
+            _error(errors, "static_definition_evidence.installer_filename mismatch")
+        proof = static_definition.get("proof")
+        if not isinstance(proof, dict):
+            _error(errors, "static_definition_evidence.proof must be an object")
+        else:
+            if proof.get("workflow_run_id") != 37595714768:
+                _error(errors, "static definition workflow_run_id mismatch")
+            if proof.get("exact_head") != "497b464b1ffa74ed02cd2644ca508889b0a080c3":
+                _error(errors, "static definition exact_head mismatch")
+            if proof.get("artifact_id") != 11469783515:
+                _error(errors, "static definition artifact_id mismatch")
+            if proof.get("artifact_digest") != "sha256:812b39f6effad24cf7e3cd95f71089207da68a594dce5e15a4ba2d7f014c9bd5":
+                _error(errors, "static definition artifact_digest mismatch")
+        static_profiles = static_definition.get("profiles")
+        if not isinstance(static_profiles, list):
+            _error(errors, "static_definition_evidence.profiles must be a list")
+            static_profiles = []
+        else:
+            expected_static = {
+                "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET": ("Ricketts (32 F).cph", 32),
+                "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET": ("Ricketts (13 F).cph", 13),
+            }
+            seen_static = set()
+            for item in static_profiles:
+                if not isinstance(item, dict):
+                    _error(errors, "static definition profile must be an object")
+                    continue
+                target = item.get("target_id")
+                if target not in expected_static:
+                    _error(errors, f"unknown static definition target: {target}")
+                    continue
+                seen_static.add(target)
+                filename, count = expected_static[target]
+                if item.get("source_filename") != filename:
+                    _error(errors, f"{target} static definition source_filename mismatch")
+                if item.get("observed_factor_count") != count:
+                    _error(errors, f"{target} static definition observed_factor_count mismatch")
+                if item.get("numeric_patient_values_observed") is not False:
+                    _error(errors, f"{target} static definition must not claim patient numeric values")
+                scope = set(item.get("observation_scope") or [])
+                required_scope = {"membership", "order", "labels", "norms", "calc_type", "point_refs", "changeSign_if_present"}
+                if scope != required_scope:
+                    _error(errors, f"{target} static definition observation_scope mismatch")
+            if seen_static != set(expected_static):
+                _error(errors, "static definition evidence must cover both Facad profiles")
 
     profiles = manifest.get("profiles")
     if not isinstance(profiles, list):
@@ -447,7 +504,9 @@ def validate_manifest(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         for profile in profile_by_id.values()
         if profile.get("observation_status") in _ALLOWED_PROFILE_STATUS
     }
-    if not records and not rows and profile_statuses == {"UNOBSERVED"}:
+    if not records and not rows and profile_statuses == {"UNOBSERVED"} and static_profiles:
+        expected_manifest_status = "DIRECT_DEFINITION_OBSERVED"
+    elif not records and not rows and profile_statuses == {"UNOBSERVED"}:
         expected_manifest_status = "AWAITING_DIRECT_FACAD_EXPORTS"
     elif len(profile_by_id) == len(_ALLOWED_TARGETS) and all(
         profile.get("observation_status") == "OBSERVED" for profile in profile_by_id.values()
