@@ -191,17 +191,12 @@
     "Ricketts (32 F)": {
       "priority": 5,
       "unmapped": [
-        "LFH",
         "Ms-PtV",
         "Xi-OL",
         "Xi-PM/OL",
         "Upper lip len",
         "STi-OL",
         "Facial cone angle",
-        "Max depth",
-        "Max hgh",
-        "NL/FH",
-        "CBL/FH",
         "Cranium ant len",
         "PFH",
         "Ramus Xi pos",
@@ -254,13 +249,38 @@
           "facad_label": "ILs/A-Pog",
           "resolution": "CANONICAL_LINE_GEOMETRY_FAMILY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
           "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "LFH",
+          "resolution": "CANONICAL_GEOMETRY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Max depth",
+          "resolution": "CANONICAL_LINE_GEOMETRY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "Max hgh",
+          "resolution": "CANONICAL_GEOMETRY_FAMILY_MATCH__CF_PTV_ANCHOR_IDENTITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "NL/FH",
+          "resolution": "CANONICAL_LINE_GEOMETRY_MATCH__SIGNED_ORIENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+        },
+        {
+          "facad_label": "CBL/FH",
+          "resolution": "CANONICAL_LINE_GEOMETRY_MATCH__ANGLE_PRESENTATION_PARITY_GATED",
+          "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
         }
       ]
     }
   },
   "totals": {
     "profiles": 5,
-    "unmapped_items": 17
+    "unmapped_items": 12
   },
   "medium_closeout": {
     "status": "READY_FOR_HIGH_REVIEW",
@@ -345,17 +365,24 @@
       "documentation": "docs/handovers/2026-09-11-cephalo-r7-wits-downs-scientific-gate.md"
     },
     "Ricketts (32 F)": {
-      "status": "IN_PROGRESS__DENTAL_CLUSTER_SOURCE_LOCKED__RUNTIME_GATED",
+      "status": "IN_PROGRESS__DENTAL_PLUS_VERTICAL_FH_CLUSTERS_SOURCE_LOCKED__RUNTIME_GATED",
       "original_unmapped": 26,
-      "resolved_in_current_cluster": 9,
-      "remaining_unmapped": 17,
+      "resolved_in_current_cluster": 5,
+      "remaining_unmapped": 12,
       "runtime_blockers": [
         "Facad OL is an incisor-midpoint vendor line and must not alias the source-locked Ricketts functional occlusal plane",
         "same-trace signed parity for A-Pog distances",
-        "same-trace angle presentation/sign parity for ILi/A-Pog and ILs/A-Pog",
+        "same-trace angle presentation/sign parity for dental A-Pog angles",
+        "Facad Max hgh CF depends on vendor Pt/PTV anchor identity not yet proven identical to DC PR_Ricketts_PTV",
+        "same-trace angle presentation parity for LFH, Max depth, and CBL/FH",
+        "versioned image-orientation evidence plus same-trace signed parity for NL/FH",
         "Facad norms remain non-authoritative"
       ],
-      "source": "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json"
+      "resolved_total": 14,
+      "sources": [
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_dental_cluster_resolution_v1.json",
+        "docs/audits/schemas/ortho_lot08_ricketts32_facad_vertical_fh_cluster_resolution_v1.json"
+      ]
     }
   }
 }
