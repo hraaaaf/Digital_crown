@@ -56,7 +56,7 @@ export function WaitingRoomView({
                   <PatientAvatar
                     patientId={appointment.patient_id}
                     fullName={appointment.patient_name}
-                    resolveFromDirectory
+                    photoUrl={`/api/patients/${appointment.patient_id}/photo`}
                     className="h-12 w-12 rounded-[16px] border border-primary/10 text-[11px]"
                   />
                 ) : (
