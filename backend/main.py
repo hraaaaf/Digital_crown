@@ -412,7 +412,8 @@ app = FastAPI(
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation Error: {str(exc.errors())}")
+    # Do not log raw Pydantic input/ctx: request fields may contain patient PHI.
+    logger.warning("Request validation rejected (%d field errors)", len(exc.errors()))
     return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors(), custom_encoder={ValueError: str})})
 
 @app.exception_handler(HTTPException)
