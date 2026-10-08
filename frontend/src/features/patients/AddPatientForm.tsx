@@ -374,6 +374,7 @@ export const AddPatientForm = () => {
                   type="text" 
                   id="patient-nom"
                   name="nom"
+                  aria-required={true}
                   aria-invalid={Boolean(errors.nom)}
                   aria-describedby={errors.nom ? "patient-nom-error" : undefined}
                   value={formData.nom} 
@@ -390,6 +391,7 @@ export const AddPatientForm = () => {
                   type="text" 
                   id="patient-prenom"
                   name="prenom"
+                  aria-required={true}
                   aria-invalid={Boolean(errors.prenom)}
                   aria-describedby={errors.prenom ? "patient-prenom-error" : undefined}
                   value={formData.prenom} 
@@ -417,6 +419,7 @@ export const AddPatientForm = () => {
                   type="date" 
                   id="patient-date_naissance"
                   name="date_naissance"
+                  aria-required={true}
                   aria-invalid={Boolean(errors.date_naissance)}
                   aria-describedby={errors.date_naissance ? "patient-date_naissance-error" : undefined}
                   value={formData.date_naissance} 
@@ -431,6 +434,7 @@ export const AddPatientForm = () => {
                 <select 
                   id="patient-sexe"
                   name="sexe"
+                  aria-required={true}
                   aria-invalid={Boolean(errors.sexe)}
                   aria-describedby={errors.sexe ? "patient-sexe-error" : undefined}
                   value={formData.sexe} 
