@@ -6,7 +6,15 @@ bridge endpoint. Test-only ENVIRONMENT=test remains owned by the T2 harness.
 """
 import os
 import runpy
+import sys
 from pathlib import Path
+
+# Executing python scripts/fue_g_cloud_server.py does not automatically place
+# the repository root on sys.path. Match the existing T2 bootstrap semantics
+# before importing backend (whose package __init__ registers ORM extensions).
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 if os.environ.get("T2_CLOUD_LAB") != "1":
     raise SystemExit("Cloud lab requires explicit T2_CLOUD_LAB=1")
