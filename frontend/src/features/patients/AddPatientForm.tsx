@@ -66,16 +66,20 @@ export const AddPatientForm = () => {
   const [showPhone2, setShowPhone2] = useState(false);
   const [showPhone3, setShowPhone3] = useState(false);
 
-  const fetchNextDossierNumber = async () => {
+  const fetchNextDossierNumber = async (replaceExisting = false) => {
     try {
       const response = await api.get('/patients/next-dossier-number');
       setFormData((prev: any) => (
-        prev.numero_dossier
+        !replaceExisting && prev.numero_dossier
           ? prev
           : { ...prev, numero_dossier: response.data.next_number }
       ));
-    } catch (err) {
-      console.error("Erreur lors de la récupération du prochain numéro:", err);
+      if (replaceExisting) setErrors(previous => ({ ...previous, numero_dossier: '' }));
+    } catch (err: any) {
+      console.warn("Numéro de dossier indisponible", { status: err?.response?.status ?? null });
+      if (replaceExisting) {
+        setErrors(previous => ({ ...previous, numero_dossier: "Impossible de proposer un nouveau numéro. Réessayez ou saisissez-en un autre." }));
+      }
     }
   };
 
@@ -339,7 +343,12 @@ export const AddPatientForm = () => {
                 </div>
               </div>
               
-              {errors.numero_dossier && <p id="patient-numero-error" role="alert" className="mt-2 text-sm font-semibold text-red-700">{errors.numero_dossier}</p>}
+              {errors.numero_dossier && (
+                <div id="patient-numero-error" role="alert" className="mt-2 flex flex-wrap items-center gap-3 text-sm font-semibold text-red-700">
+                  <span>{errors.numero_dossier}</span>
+                  <button type="button" onClick={() => fetchNextDossierNumber(true)} className="rounded underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003380]">Proposer un nouveau numéro</button>
+                </div>
+              )}
               {dossierStatus.status === 'taken' && (
                 <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> Ce numéro appartient déjà à : <span className="underline">{dossierStatus.owner}</span>
