@@ -42,7 +42,7 @@ try {
     const snap = async name => {
       const overflow = await page.evaluate(() => Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > innerWidth + 1);
       const file = name + '.png';
-      await page.screenshot({ path: path.join(dir, file), fullPage: true, animations: 'disabled' });
+      await page.screenshot({ path: path.join(dir, file), fullPage: name !== '04-validation', animations: 'disabled' });
       screenshots.push({ name, file, ms: Date.now() - started, interactions, overflow });
       if (overflow) throw new Error(profile.name + ' horizontal overflow: ' + name);
     };
@@ -190,13 +190,47 @@ try {
     try {
       const nom = 'FUEDRACE' + Date.now();
       const identity = { nom, prenom: 'Parallel', date_naissance: '1990-01-01', sexe: 'F' };
-      const [a, b] = await Promise.all([race.post('/api/patients/', { data: identity }), race.post('/api/patients/', { data: identity })]);
+      let a, b;
+      try {
+        [a, b] = await Promise.all([race.post('/api/patients/', { data: identity }), race.post('/api/patients/', { data: identity })]);
+      } catch {
+        throw new Error('Double-submit transport error (inspect sanitized backend logs)');
+      }
       const codes = [a.status(), b.status()].sort((a, b) => a - b);
-      const get = await race.get('/api/patients/?search=' + encodeURIComponent(nom));
+      let get;
+      try { get = await race.get('/api/patients/?search=' + encodeURIComponent(nom)); }
+      catch { throw new Error('Double-submit follow-up GET transport error'); }
       if (get.status() !== 200) throw new Error('Parallel read=' + get.status());
       const exactCount = (await get.json()).filter(x => x.nom === nom).length;
       if (exactCount !== 1 || codes[0] !== 200 || codes[1] !== 409) throw new Error('Double-submit violation: ' + codes.join(',') + ' stored=' + exactCount);
       results.push({ viewport: 'parallel-api', createStatuses: codes, patientCount: exactCount });
+
+      // Two different patients created at once must both succeed, with
+      // distinct generated dossier numbers and exact persisted identities.
+      const tag = 'FUEDDISTINCT' + Date.now();
+      const identities = [
+        { nom: tag + 'A', prenom: 'Alpha', date_naissance: '1990-01-01', sexe: 'F' },
+        { nom: tag + 'B', prenom: 'Beta', date_naissance: '1990-01-01', sexe: 'F' },
+      ];
+      let responses;
+      try {
+        responses = await Promise.all(identities.map(data => race.post('/api/patients/', { data })));
+      } catch {
+        throw new Error('Concurrent distinct-patient transport failure');
+      }
+      const distinctStatuses = responses.map(x => x.status());
+      if (distinctStatuses.some(code => code !== 200)) {
+        throw new Error('Distinct concurrent identities should both create: ' + distinctStatuses.join(','));
+      }
+      const saved = await Promise.all(responses.map(x => x.json()));
+      if (new Set(saved.map(x => x.id)).size !== 2 || new Set(saved.map(x => x.numero_dossier)).size !== 2) {
+        throw new Error('Concurrent distinct patient IDs/dossier numbers are not unique');
+      }
+      const independentReads = await Promise.all(saved.map(x => race.get('/api/patients/' + x.id)));
+      if (independentReads.some(x => x.status() !== 200)) {
+        throw new Error('Concurrent distinct patient retrieval failed');
+      }
+      results.push({ viewport: 'parallel-distinct-api', createStatuses: distinctStatuses, uniqueIds: 2, uniqueDossierNumbers: 2 });
     } finally { await race.dispose(); }
   } finally { await raceAuth.dispose(); }
   passed = true;
