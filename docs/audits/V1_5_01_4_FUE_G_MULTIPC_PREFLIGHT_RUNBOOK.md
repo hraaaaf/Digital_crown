@@ -18,9 +18,12 @@ Installer **à partir de zéro** sur banc isolé autorisé un serveur S et deux 
 | Backup DB+médias synthétiques + **restore isolé démontré** | UNKNOWN | N/A | N/A |
 | Release **INSTALLABLE_CERTIFIED correspondant au produit exact testé** | UNKNOWN | N/A | N/A |
 
-Au PRE, Desktop Commander présentait `DESKTOP-3MAJEEH` **OFFLINE**, aucun S+A+B observé. Aucune adresse/certificat/résultat matériel n'est inventé. **STOP** si un seul gate est inconnu ; « Go » préparation ≠ permission d'installer, redémarrer, couper le LAN, toucher une DB clinique ou activer un service.
+Au PRE, Desktop Commander présentait `DESKTOP-3MAJEEH` **OFFLINE**, aucun S+A+B observé. Aucune adresse/certificat/résultat matériel n'est inventé. **STOP** si un seul gate requis d'installation est inconnu ; les contrôles **pré-installation** peuvent inclure l'inventaire de la CA et du SAN prévus, mais le **handshake TLS effectif** sur A et B doit être testé **après démarrage de S**, avant toute authentification/appairage. « Go » préparation ≠ permission d'installer, redémarrer, couper le LAN, toucher une DB clinique ou activer un service.
 
 **Frontière release** : la branche/PR #803 n'est pas un binaire installable. La politique exige `CODE_CERTIFIED` produit sur le HEAD exact de `master` et assets attestés de **même SHA**, composition finale `INSTALLABLE_CERTIFIED`, hashes/manifest/signature et gate humain. Un ancien bundle V1 ne prouve pas les changements de #803. Interdiction d'utiliser HEAD/branche/master directement, EXE ad hoc, `uvicorn --reload`, contournement HTTPS `curl -k`, exception navigateur ou désactivation de guards. Les éléments de certification ne sont pas un certificat clinique/scientifique.
+
+## Gate de traçabilité produit : PR DRAFT versus installable
+Le protocole est distinct en deux phases : **(1) vérifications code/laboratoire** sur le HEAD exact de la PR (jamais « installation certifiée »), puis **(2) FUE-G matériel** uniquement sur une release `INSTALLABLE_CERTIFIED` correspondant au code réellement évalué. **Impossible de revendiquer que la PR #803 a été éprouvée sur trois PC** en installant une ancienne release de master ne contenant pas ses deltas. Si la certification ne peut être émise avant un merge soumis à autorisation explicite, ce gate reste `BLOCKED_RELEASE_PARITY` ; ne pas effectuer un merge uniquement pour obtenir un score.
 
 ## Étapes et preuves BEFORE
 
@@ -54,6 +57,9 @@ Au PRE, Desktop Commander présentait `DESKTOP-3MAJEEH` **OFFLINE**, aucun S+A+B
 | UX01 | Responsivité, focus, 200 % si pertinent | captures comparables | NOT RUN |
 
 Par cas : timestamp UTC, release ID, code SHA réellement testé, machine/persona, étapes, attendu/observé, durée réelle, artifact sécurisé, anomalies P0/P1/P2, approbateur. Les runs historiques [01.1](https://github.com/hraaaaf/Digital_crown/actions/runs/37852925851), [01.2](https://github.com/hraaaaf/Digital_crown/actions/runs/37852925790) et [01.3](https://github.com/hraaaaf/Digital_crown/actions/runs/37852926051) sont **LAB ONLY**. Le [run rouge 03.6](https://github.com/hraaaaf/Digital_crown/actions/runs/37849251464) reste un gate distinct à classifier REQUIRED/EXPERIMENTAL/HORS SCOPE lors de la revue globale, pas un pass tacite.
+
+## Chronométrie et registre matériel minimal
+Pour chaque poste, enregistrer le même référentiel d'horloge, la version OS/navigateur, le numéro de scénario et la release exécutée. Capturer : **t0** (action/panne), **t1** (premier échec explicite), **t2** (réseau/service rétabli), **t3** (UI utilisable après authentification si requise) ; calculer indisponibilité et temps de récupération **à partir des observations**. Consigner les redémarrages S/A/B indépendamment, si l'identité et les permissions persistent, et une capture BEFORE/OFFLINE/AFTER par viewport applicable. Masquer identifiants, tokens, images et chemins sensibles. Ne pas fabriquer de SLO.
 
 ## Revue adversariale puis confirmation sur le même HEAD
 

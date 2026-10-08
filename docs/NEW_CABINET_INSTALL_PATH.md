@@ -81,7 +81,8 @@ pas une règle bloquante du garde de démarrage
 
 ## 1. Prérequis
 
-### Windows 10/11 Pro ou Mac
+### Plateforme certifiée : Windows
+Le programme `DigitalCrownSetup.exe` et la chaîne PyInstaller/Inno Setup décrits par la politique de release ciblent Windows. Les anciens exemples Mac de ce guide ne démontrent aucune certification d'installeur Mac. Pour FUE-G 01.4, relever les OS réels S/A/B et vérifier la compatibilité de chaque client et de l'artefact installable avant tout GO.
 
 **Machine cible :**
 - Processeur : Intel i5 ou Mac M1+ (minimum)
@@ -100,62 +101,11 @@ pas une règle bloquante du garde de démarrage
 
 ---
 
-## 2. Installation PostgreSQL (recommandé)
+## 2. PostgreSQL — serveur multi-postes sur banc isolé
+Sur S, utiliser une version compatible de PostgreSQL et un provisionnement **spécifique à la release certifiée**, uniquement sur base d'essai non clinique. Les commandes historiques de ce guide ne suffisent pas à autoriser une installation. Vérifier la version, la cible de DB réellement résolue, la sauvegarde, la restauration sur copie, les droits et les migrations nécessaires. Pour le solo en `ENVIRONMENT=cabinet`, SQLCipher reste autorisé ; `ENVIRONMENT=production` exige PostgreSQL.
 
-### Windows
-
-```bash
-# Télécharger PostgreSQL 15+ depuis https://www.postgresql.org/download/windows/
-# Créer un secret administrateur fort et unique via un gestionnaire de secrets, jamais de mot de passe prédéfini
-# Vérifier :
-psql --version
-psql -U postgres -h localhost -c "SELECT version();"
-```
-
-### Mac
-
-```bash
-# Homebrew
-brew install postgresql@15
-brew services start postgresql@15
-psql -U postgres -c "SELECT version();"
-```
-
-### Base de données — solo et multi-PC
-
-`ENVIRONMENT=cabinet` autorise SQLite/SQLCipher chiffré pour un **poste solo**. Le banc S+A+B multi-postes requiert PostgreSQL dédié/isolé ; `ENVIRONMENT=production` exige PostgreSQL. Aucune migration de base cabinet par ce guide.
-
-## 3. Modèle DB standard : utilisateur dédié par cabinet
-
-**Principe :** chaque cabinet a un utilisateur PostgreSQL dédié, jamais le superuser `postgres`.
-
-```bash
-# Connexion PostgreSQL (Windows / Mac / Linux)
-psql -U postgres -h localhost
-
-# Dans psql :
-CREATE DATABASE digitalcrown_cabinet_2024_01;
--- Exemple : renseigner un secret unique hors du guide et jamais stocké dans Git
-CREATE ROLE cabinet_2024_01 WITH LOGIN;
-GRANT ALL PRIVILEGES ON DATABASE digitalcrown_cabinet_2024_01 TO cabinet_2024_01;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO cabinet_2024_01;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO cabinet_2024_01;
-\q
-```
-
-**Résultat :**
-- DB : `digitalcrown_cabinet_2024_01`
-- User : `cabinet_2024_01` (dédié, pas postgres)
-- Mot de passe : à définir de façon sécurisée, hors du guide, avant d'activer le rôle.
-
-**Sécurité (OBLIGATOIRE) :**
-- ❌ Ne JAMAIS utiliser `postgres` superuser dans l'application
-- ❌ Ne JAMAIS hardcoder le mot de passe en clair
-- ❌ Ne JAMAIS logger la `DATABASE_URL` complète (masquer password)
-- ✓ Stocker password dans un fichier `.env` local protégé (chmod 600)
-- ✓ Générer password aléatoire (min. 20 caractères, alphanumériques + spéciaux)
-
----
+## 3. Compte PostgreSQL dédié — sans exemple de secret
+Le banc S+A+B utilise une base distincte et un **rôle applicatif non-superuser**, provisionnés par le parcours autorisé. Le mot de passe doit être généré aléatoirement et conservé dans un coffre sécurisé : **jamais** dans SQL, le dépôt, Notion ou un artefact de test. Vérifier les permissions réelles contre les besoins de la release, ne jamais réutiliser les identifiants DB du cabinet et ne lancer aucune migration non autorisée.
 
 ## 4. Configuration .env
 
@@ -207,44 +157,14 @@ Sur banc isolé, utiliser le parcours d'initialisation **de la release certifié
 
 **Ne pas utiliser `uvicorn --reload`, `uvicorn --host 0.0.0.0` sans TLS, ni `create_release.ps1` sans ses bundles certifiés.** Ordre : `CODE_CERTIFIED` (HEAD exact de master) → assets runtime certifiés pour **ce SHA** → `create_release.ps1 -CertifiedArtifactZip ... -RuntimeAssetsZip ...` → contrôle `INSTALLABLE_CERTIFIED` → GO humain → `run_real_backend.ps1 -ReleaseId ... -ConfirmRealActivation "YES"` sur banc isolé. Rien ici ne rend la PR #803 installable.
 
-Le loopback `http://127.0.0.1:8005/api/health` est autorisé localement ; A/B utilisent uniquement `https://<nom-ou-IP-SAN-reel>:8005/api/health` sans contournement TLS.
+**Schéma obligatoire** : l'URL `http://127.0.0.1:8005/api/health` ne fonctionne comme health check que pour un serveur lancé en **loopback HTTP sans TLS**. Lorsque S sert HTTPS sur le port 8005, **même depuis S**, utiliser `https://<nom-ou-IP-couvert-par-le-SAN>:8005/api/health` avec validation native du certificat. A/B font la même vérification, sans contournement TLS.
 
-## 7. Lancer le frontend
-
-Commandes frontend officielles depuis la racine du repo :
-
-```bash
-npm test
-npm run build
-```
-
-Equivalents directs si vous voulez cibler explicitement le sous-projet :
-
-```bash
-npm --prefix frontend test
-npm --prefix frontend run build
-```
-
-```bash
-cd frontend
-
-# Mode développement (test)
-npm run dev --host 0.0.0.0
-
-# Mode production (packagé avec backend)
-npm run build
-# → distill dans frontend/dist/, servi par backend.main
-```
-
-**Accès :**
-- Dev : http://localhost:5173
-- Prod : http://127.0.0.1:8005
-
----
+## 7. Frontend — uniquement celui de la release installable
+Sur le banc FUE-G 01.4, ne pas lancer `npm run dev`, `npm run build`, Vite exposé en LAN ni copier `frontend/dist` depuis un checkout. Le bundle `INSTALLABLE_CERTIFIED` fournit déjà le frontend servi par S avec le backend sur le **port 8005**. Les commandes de laboratoire ont leur propre environnement isolé, sans valeur de certification d'installation.
 
 ## 8. Premier login et configuration
 
-1. Ouvrir http://127.0.0.1:8005
+1. Ouvrir l'origine exacte du serveur : loopback HTTP seulement sans TLS ; pour le FUE-G multi-PC, **HTTPS :8005** avec certificat approuvé.
 2. Authentifier le propriétaire autorisé avec un compte individuel, jamais un identifiant de démonstration.
 3. Changer le mot de passe (Settings → Profile)
 4. Configurer le cabinet :
@@ -319,9 +239,9 @@ python -m backend.scripts.restore_db backup_YYYYMMDD_HHMMSS.sql.enc --yes
 ## 12. Checklist installateur (PostgreSQL standard)
 
 **Prérequis :**
-- [ ] Python 3.12 installé
+- [ ] OS et dépendances serveur compatibles avec la release certifiée
 - [ ] **PostgreSQL 15+ installé et running** (obligatoire)
-- [ ] Git installé
+- [ ] Artefact `INSTALLABLE_CERTIFIED` et code SHA exact vérifiés, aucune installation depuis le dépôt
 
 **Configuration DB :**
 - [ ] Role PostgreSQL dédié créé (`cabinet_XXXX_01`)
@@ -330,20 +250,20 @@ python -m backend.scripts.restore_db backup_YYYYMMDD_HHMMSS.sql.enc --yes
 - [ ] Permissions GRANT appliquées (roles != postgres)
 
 **Application :**
-- [ ] `.env.local` configuré avec DATABASE_URL du role dédié
-- [ ] `.env.local` contient SECRET_KEY (32+ caractères)
+- [ ] DB synthétique isolée, cible PostgreSQL résolue et droits du rôle vérifiés (secrets jamais exposés)
+- [ ] Secrets uniques et protégés présents sur banc, sans exposition GitHub/Notion/logs
 - [ ] MEDIA_DIR configuré (`%APPDATA%\DigitalCrown\media`)
-- [ ] Backend démarre sans erreur
-- [ ] `/api/health` retourne OK
+- [ ] Serveur S démarre depuis l'artefact certifié, identité release/SHA observée
+- [ ] `/api/health` répond sur le schéma réellement configuré : HTTPS pour LAN
 - [ ] `/api/health/db` retourne OK
-- [ ] Frontend accessible (http://127.0.0.1:8005)
+- [ ] Frontend HTTPS :8005 accessible depuis A et B, avec confiance TLS vérifiée individuellement
 
 **Cabinet :**
-- [ ] Premier superadmin créé (via seed_user)
+- [ ] Propriétaire initialisé par le parcours certifié avec permissions vérifiées ; aucun `seed_user` en cabinet réel
 - [ ] Premier login réussit
 - [ ] Cabinet configuré (logo, adresse, téléphone)
-- [ ] Au moins 1 patient test créé
-- [ ] Au moins 1 document test généré (ordonnance/certificat)
+- [ ] Patient purement synthétique créé sur DB de banc isolé, jamais sur cabinet clinique
+- [ ] Document de fixture synthétique archivé sans donnée patient réelle
 
 **Backup & Restore :**
 - [ ] Backup DB fonctionne (`backup_db.py`)
@@ -353,10 +273,10 @@ python -m backend.scripts.restore_db backup_YYYYMMDD_HHMMSS.sql.enc --yes
 - [ ] Procédure rollback imprimée et accessible
 
 **Multi-postes (si applicable) :**
-- [ ] Machine cabinet : IP fixe configurée
-- [ ] ALLOWED_ORIGINS mis à jour dans .env
-- [ ] Au moins 1 poste secondaire accède au cabinet via LAN
-- [ ] PWA ajoutée à téléphone/autres appareils
+- [ ] IP/DNS LAN de S vérifié, nom/IP correspondant au SAN du certificat et port 8005 testés sur A/B
+- [ ] `ALLOWED_ORIGINS` restreint aux origines HTTPS réellement servies, pas aux IP clientes par défaut
+- [ ] Deux annexes A et B physiquement/logiquement distinctes rejoignent le bon serveur S en HTTPS avec TLS natif validé séparément
+- [ ] Identités et appairages A/B distincts, Station PIN et restrictions vérifiés ; mobile/PWA = test séparé
 
 **Validation finale :**
 - [ ] Aucune donnée test dans DB principale

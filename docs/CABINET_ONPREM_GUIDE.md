@@ -19,7 +19,7 @@ backup/restore, et le comportement licence hors-ligne.
 │  DigitalCrown.exe (PyInstaller) ── uvicorn :8005                        │
 │    ├── Backend FastAPI (API + génération PDF + IA locale ONNX)          │
 │    ├── Frontend buildé servi par le backend (frontend/dist embarqué)    │
-│    └── Ouvre le navigateur sur http://127.0.0.1:8005 au démarrage       │
+│    └── Origine locale selon transport : HTTP loopback sans TLS, HTTPS avec TLS       │
 │                                                                          │
 │  Données (%APPDATA%/DigitalCrown/) :                                     │
 │    ├── clinical_vault.db      SQLite chiffré SQLCipher (mode simple)     │
@@ -50,7 +50,7 @@ Aucune migration, installation ni modification d'une base clinique ne découle d
 
 ### ⚠️ Doctrine runtime réel (2026-07-10, suite incident P0-TREATMENT-JOURNEY-1)
 
-Tant que le cabinet réel tourne depuis un checkout de dépôt (pas encore l'EXE packagé pour ce
+Le démarrage direct d'un checkout sur cabinet réel est **interdit**. Le rappel historique ci-dessous concernait une situation antérieure où le cabinet tournait depuis un checkout (pas encore l'EXE packagé pour ce
 poste) :
 - **Jamais `uvicorn --reload` sur le port 8005.** Un `--reload` recharge le process à chaque
   édition de fichier Python dans le dépôt — y compris des fonctionnalités non terminées/non
@@ -120,29 +120,8 @@ terminal visible) — les logs vont dans `%APPDATA%/DigitalCrown/logs/`.
    `DigitalCrown.spec`) — exclus du packaging EXE, dossier réduit à 3,2 Go.
    Rien n'a été supprimé du dépôt Git, uniquement du binaire distribué.
 
-### Service Windows auto-start (build manuel uniquement)
-
-Pour un déploiement multi-postes/PostgreSQL sans l'installeur un clic,
-Windows ne gère pas les services Python nativement. Les deux mécanismes historiques ci-dessous installent un service/tâche persistante : **NE PAS EXÉCUTER** sans release installable certifiée, sauvegarde/restore vérifiés, isolement et GO humain distinct.
-
-**Option A — NSSM :**
-```powershell
-# https://nssm.cc — wrapper service pour n'importe quel exe
-nssm install DigitalCrown "C:\DigitalCrown\DigitalCrown.exe"
-nssm set DigitalCrown AppDirectory "C:\DigitalCrown"
-nssm set DigitalCrown AppStdout "C:\DigitalCrown\logs\service.log"
-nssm set DigitalCrown AppStderr "C:\DigitalCrown\logs\service_err.log"
-nssm set DigitalCrown Start SERVICE_AUTO_START
-nssm start DigitalCrown
-```
-
-**Option B — Tâche planifiée au démarrage (zéro dépendance, celle utilisée
-par l'installeur un clic ci-dessus, mais au logon utilisateur plutôt qu'au
-démarrage système) :**
-```powershell
-schtasks /create /tn "DigitalCrown" /tr "C:\DigitalCrown\DigitalCrown.exe" ^
-  /sc onstart /ru SYSTEM /rl HIGHEST
-```
+### Service Windows auto-start — opération matérielle interdite sans GO
+Le mécanisme de service/tâche dépend de l'installation certifiée et de la politique de release. Les anciennes commandes génériques `nssm install`, `schtasks /create` et les tâches SYSTEM ne doivent **pas** être copiées pour le FUE-G 01.4 : elles modifient le système, peuvent lancer un mauvais exécutable et rendent la récupération imprévisible. L'opérateur doit d'abord identifier dans la release certifiée le mécanisme réellement supporté, prouver le rollback et obtenir l'accord humain avant toute création, modification, activation ou redémarrage de service.
 
 Logs locaux : `%APPDATA%/DigitalCrown/logs/digitalcrown.log` (rotation
 automatique, 5 Mo × 5 fichiers) — géré par `run.py`, pas besoin de
@@ -202,7 +181,7 @@ d'installation, horloge synchronisée (anti-rollback licence).
    - PostgreSQL : installer PG 15+, `CREATE DATABASE digitalcrown_cabinet;`,
      renseigner `DATABASE_URL`
 4. **Installer le service** (NSSM, section 2) et démarrer
-5. **Vérifier le démarrage** : `curl http://127.0.0.1:8005/api/health` →
+5. **Vérifier le démarrage** : depuis S/A/B, utiliser le protocole réellement écouté : HTTPS avec SAN/CA approuvés si TLS activé (HTTP loopback seulement sans TLS). Contrôler `/api/health` →
    `{"status":"ok","database":"ok",...}` + `/api/health/db` + `/api/health/storage`
 6. **Créer le cabinet réel** via le Setup Wizard de l'UI (PAS `seed_demo` —
    celui-ci est réservé aux démos commerciales)
