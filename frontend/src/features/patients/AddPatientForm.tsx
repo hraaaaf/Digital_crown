@@ -184,7 +184,7 @@ export const AddPatientForm = () => {
       const { data } = await api.post(url, payload);
       navigate(`/patients/${data.id}`);
     } catch (err: any) {
-      console.error("❌ ERREUR API:", err);
+      console.error("Échec création dossier patient (statut HTTP uniquement)", { status: err?.response?.status ?? null });
       
       // Gérer l'erreur 409 (doublon) du backend
       if (err.response?.status === 409) {
@@ -200,7 +200,7 @@ export const AddPatientForm = () => {
         }
       }
       
-      setErrors({ global: "Erreur serveur. Vérifiez la console." });
+      setErrors({ global: "Création non confirmée. Vérifiez dans la liste des patients avant de réessayer pour éviter un doublon." });
       setLoading(false);
     }
   };
@@ -234,7 +234,7 @@ export const AddPatientForm = () => {
 
         <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-10">
           {errors.global && (
-            <div className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
+            <div role="alert" className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
               <Activity className="w-5 h-5" /> {errors.global}
             </div>
           )}
@@ -306,29 +306,35 @@ export const AddPatientForm = () => {
             {/* Champs Nom et Prénom - nécessaires dans les deux cas */}
             <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
               <div>
-                <label className={labelClass}>Nom de famille *</label>
+                <label htmlFor={"patient-nom"} className={labelClass}>Nom de famille *</label>
                 <input 
                   type="text" 
-                  name="nom" 
+                  id="patient-nom"
+                  name="nom"
+                  aria-invalid={Boolean(errors.nom)}
+                  aria-describedby={errors.nom ? "patient-nom-error" : undefined}
                   value={formData.nom} 
                   onChange={handleChange}
                   className={cn(inputClass, errors.nom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="BENMOUSSA"
                 />
-                {errors.nom && <span className="text-red-500 text-xs mt-1 ml-1">{errors.nom}</span>}
+                {errors.nom && <span id="patient-nom-error" className="text-red-500 text-xs mt-1 ml-1">{errors.nom}</span>}
               </div>
 
               <div>
-                <label className={labelClass}>Prénom *</label>
+                <label htmlFor={"patient-prenom"} className={labelClass}>Prénom *</label>
                 <input 
                   type="text" 
-                  name="prenom" 
+                  id="patient-prenom"
+                  name="prenom"
+                  aria-invalid={Boolean(errors.prenom)}
+                  aria-describedby={errors.prenom ? "patient-prenom-error" : undefined}
                   value={formData.prenom} 
                   onChange={handleChange}
                   className={cn(inputClass, errors.prenom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="Yazan"
                 />
-                {errors.prenom && <span className="text-red-500 text-xs mt-1 ml-1">{errors.prenom}</span>}
+                {errors.prenom && <span id="patient-prenom-error" className="text-red-500 text-xs mt-1 ml-1">{errors.prenom}</span>}
               </div>
             </div>
           </div>
@@ -343,21 +349,27 @@ export const AddPatientForm = () => {
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className={labelClass}>Date de naissance *</label>
+                <label htmlFor={"patient-date_naissance"} className={labelClass}>Date de naissance *</label>
                 <input 
                   type="date" 
-                  name="date_naissance" 
+                  id="patient-date_naissance"
+                  name="date_naissance"
+                  aria-invalid={Boolean(errors.date_naissance)}
+                  aria-describedby={errors.date_naissance ? "patient-date_naissance-error" : undefined}
                   value={formData.date_naissance} 
                   onChange={handleChange}
                   className={cn(inputClass, errors.date_naissance && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                 />
-                {errors.date_naissance && <span className="text-red-500 text-xs mt-1 ml-1">{errors.date_naissance}</span>}
+                {errors.date_naissance && <span id="patient-date_naissance-error" className="text-red-500 text-xs mt-1 ml-1">{errors.date_naissance}</span>}
               </div>
 
               <div>
-                <label className={labelClass}>Sexe *</label>
+                <label htmlFor={"patient-sexe"} className={labelClass}>Sexe *</label>
                 <select 
-                  name="sexe" 
+                  id="patient-sexe"
+                  name="sexe"
+                  aria-invalid={Boolean(errors.sexe)}
+                  aria-describedby={errors.sexe ? "patient-sexe-error" : undefined}
                   value={formData.sexe} 
                   onChange={handleChange}
                   className={cn(inputClass, errors.sexe && "border-red-400 focus:border-red-400 focus:ring-red-100")}
@@ -366,7 +378,7 @@ export const AddPatientForm = () => {
                   <option value="F">Féminin</option>
                   <option value="M">Masculin</option>
                 </select>
-                {errors.sexe && <span className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}
+                {errors.sexe && <span id="patient-sexe-error" className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}
               </div>
 
               <div>
