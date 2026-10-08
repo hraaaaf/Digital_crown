@@ -572,19 +572,44 @@ jobs:
             }catch{}
           })
           "LICENSE_INFO_NOTICE_COUNT=$($licenseText.Count)" | Set-Content facad-quick-demo/license-notice.txt
+          $licenseNoticeUndismissed=$false
           if($licenseText.Count -eq 1){
-            # Only acknowledge the exact observed informational notice.
-            $okControls=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            # Resolve the nearest UIA Window ancestor of this specific message.
+            # There are two OK buttons globally (installer + Facad), so never use root-wide OK.
+            $modal=$licenseText[0]
+            $walk=[System.Windows.Automation.TreeWalker]::RawViewWalker
+            for($k=0;$k -lt 24 -and $null -ne $modal;$k++){
+              if($modal.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window){break}
+              $modal=$walk.GetParent($modal)
+            }
+            if($null -eq $modal -or $modal.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
+              throw 'Informational licence window ancestry not found; no OK activated'
+            }
+            "LICENSE_MODAL_NAME=$($modal.Current.Name)" | Add-Content facad-quick-demo/license-notice.txt
+            $okControls=$modal.FindAll([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'OK'))
-            "LICENSE_OK_COUNT=$($okControls.Count)" | Add-Content facad-quick-demo/license-notice.txt
-            if($okControls.Count -eq 1 -and $okControls.Item(0).Current.IsEnabled){
-              try{
-                $okControls.Item(0).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-                'LICENSE_NOTICE_OK_INVOKED=true' | Add-Content facad-quick-demo/license-notice.txt
-                Start-Sleep -Seconds 2
-              }catch{"LICENSE_NOTICE_OK_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/license-notice.txt}
+            "LICENSE_MODAL_OK_COUNT=$($okControls.Count)" | Add-Content facad-quick-demo/license-notice.txt
+            if($okControls.Count -ne 1 -or -not $okControls.Item(0).Current.IsEnabled){
+              throw 'Informational licence modal OK is ambiguous/unavailable'
             }
+            try{
+              $okControls.Item(0).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+              'LICENSE_NOTICE_OK_INVOKED=true' | Add-Content facad-quick-demo/license-notice.txt
+              Start-Sleep -Seconds 2
+            }catch{
+              "LICENSE_NOTICE_OK_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/license-notice.txt
+            }
+            $postNodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            $remaining=0
+            foreach($node in $postNodes){try{
+              if($node.Current.Name -match 'You are running Facad with a time limited user license' -and
+                 $node.Current.Name -match 'license expires in 30 days'){$remaining++}
+            }catch{}}
+            "LICENSE_NOTICE_REMAINING=$remaining" | Add-Content facad-quick-demo/license-notice.txt
+            $licenseNoticeUndismissed=($remaining -gt 0)
+          }elseif($licenseText.Count -gt 1){
+            throw 'Multiple informational licence texts; cannot select one'
           }
           # Observe the exact Facad landing page and try the visible Open file control.
           # Do not interact with Register, activation, or other licence gates.
@@ -624,6 +649,7 @@ jobs:
               $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'open-file-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
             }finally{$g.Dispose();$bmp.Dispose()}
           }catch{"OPEN_FILE_SCREEN_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/open-file-probe.txt}
+          if($licenseNoticeUndismissed){throw 'Facad informational licence notice still present; patient dialog not validated'}
           # Discovery-only: a dialog or licence gate must be reviewed before sending a path.
           'CASE_OPENED=UNVERIFIED' | Add-Content facad-quick-demo/open-file-probe.txt
 
