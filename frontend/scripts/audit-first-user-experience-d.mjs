@@ -109,6 +109,25 @@ try {
       throw e;
     }
   }
+
+  // Independent adversarial permission check: restricted secretary patients=false.
+  const restrictedCtx = await request.newContext({ baseURL: api });
+  try {
+    const auth = await restrictedCtx.post('/api/auth/login', { form: { username: 't2-restricted@cabinet.ma', password } });
+    if (!auth.ok()) throw new Error('Restricted persona login status=' + auth.status());
+    const restrictedToken = (await auth.json()).access_token;
+    const client = await request.newContext({ baseURL: api, extraHTTPHeaders: { Authorization: 'Bearer ' + restrictedToken } });
+    try {
+      const data = { nom: 'FUEDDENIED', prenom: 'Unauthorized', date_naissance: '1990-01-01', sexe: 'F' };
+      const read = await client.get('/api/patients/');
+      const create = await client.post('/api/patients/', { data });
+      const duplicate = await client.post('/api/patients/check-duplicate', { data });
+      if ([read.status(), create.status(), duplicate.status()].some(code => code !== 403)) {
+        throw new Error('patients=false boundary failed: ' + [read.status(), create.status(), duplicate.status()].join(','));
+      }
+      results.push({ viewport: 'restricted-api', listStatus: read.status(), createStatus: create.status(), duplicateStatus: duplicate.status() });
+    } finally { await client.dispose(); }
+  } finally { await restrictedCtx.dispose(); }
   passed = true;
 } finally {
   await browser.close();
