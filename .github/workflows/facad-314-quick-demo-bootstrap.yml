@@ -969,75 +969,17 @@ jobs:
           }
           'TRACING_EDITOR_OPENED=UNVERIFIED_PENDING_SCREENSHOT_REVIEW' | Add-Content $traceProbe
 
-          # Passive menu inventory: open File/Edit/View/Tools/Help one at a time,
-          # capture visible entries and dismiss with Escape, no selection.
-          $menuProbe='facad-quick-demo/clinical-menu-probe.txt'
-          'MENU_PROBE_STARTED=true' | Set-Content $menuProbe
-          $menuErrors=@()
-          foreach($menuName in @('File','Edit','View','Tools','Help')){
-            try{
-              # This UIA Window was uniquely validated while opening Robert.
-              # Its Name changes after opening the patient, so matching a new
-              # title by text is unreliable; reuse the same live element.
-              if($null -eq $facadWindow -or
-                $facadWindow.Current.ProcessId -ne $facadPid){
-                throw 'Previously verified Facad main window unavailable'
-              }
-              $menuItems=$facadWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
-                [System.Windows.Automation.PropertyCondition]::new(
-                  [System.Windows.Automation.AutomationElement]::NameProperty,$menuName))
-              $realMenus=@(for($m=0;$m -lt $menuItems.Count;$m++){
-                $candidate=$menuItems.Item($m)
-                if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem){$candidate}
-              })
-              "MENU_$($menuName)_COUNT=$($realMenus.Count)" | Add-Content $menuProbe
-              if($realMenus.Count -ne 1){throw 'Menu item missing or ambiguous'}
-              $menuRect=$realMenus[0].Current.BoundingRectangle
-              $mainRect=$facadWindow.Current.BoundingRectangle
-              if($menuRect.IsEmpty -or $menuRect.Width -lt 12 -or $menuRect.Width -gt 110 -or
-                $menuRect.Height -lt 10 -or $menuRect.Height -gt 65 -or
-                $menuRect.Left -lt $mainRect.Left -or $menuRect.Right -gt $mainRect.Right -or
-                $menuRect.Top -lt $mainRect.Top -or $menuRect.Bottom -gt $mainRect.Bottom){
-                throw 'Menu bounds mismatch'
-              }
-              $fg=[FacadPatientMouse]::GetForegroundWindow()
-              [uint32]$fgPid=0
-              [void][FacadPatientMouse]::GetWindowThreadProcessId($fg,[ref]$fgPid)
-              if($fgPid -ne $facadPid){throw 'Facad not foreground before menu browse'}
-              if(-not [FacadPatientMouse]::SetCursorPos(
-                [int]($menuRect.Left+$menuRect.Width/2),
-                [int]($menuRect.Top+$menuRect.Height/2))){throw 'Menu cursor placement failed'}
-              Start-Sleep -Milliseconds 85
-              [FacadPatientMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
-              Start-Sleep -Milliseconds 70
-              [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
-              Start-Sleep -Milliseconds 550
-              Save-FacadScreen ("menu-$($menuName.ToLower())-screen.png")
-              $menuNodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
-                [System.Windows.Automation.Condition]::TrueCondition)
-              $menuEvidence=@(for($ni=0;$ni -lt $menuNodes.Count;$ni++){
-                $n=$menuNodes.Item($ni)
-                try{
-                  if($n.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem -and
-                    $n.Current.ProcessId -eq $facadPid){
-                    $n.Current.Name
-                  }
-                }catch{}
-              })
-              $menuEvidence | Sort-Object -Unique | Set-Content ("facad-quick-demo/menu-$($menuName.ToLower())-items.txt")
-              "MENU_$($menuName)_CAPTURED=true" | Add-Content $menuProbe
-            }catch{
-              $menuErrors+= "$($menuName):$($_.Exception.Message)"
-              "MENU_$($menuName)_ERROR=$($_.Exception.Message)" | Add-Content $menuProbe
-            }finally{
-              [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
-              Start-Sleep -Milliseconds 300
-            }
-          }
-          # Do not silently green-light an exploration that never touched the
-          # tracing or any of the required menus. Upload artifacts on failure.
+          # Read-only D0/D2B menu coverage was independently proven:
+          # D0 run #37843736004 = 9/9 menus;
+          # D2B run #37852213309 = 19/19 View entries, 2 submenus.
+          # Do not re-run the brittle legacy five-menu census on each
+          # D1C preset attempt: UIA transient Edit disappearance caused
+          # #37860226577 to fail BEFORE executing the targeted D1C script.
+          # Preserve the original bootstrap and tracing safety gate.
           if($tracingFailure){throw "Facad tracing exploratory gate failed: $tracingFailure"}
-          if($menuErrors.Count -gt 0){throw "Facad menu exploratory gate failed: $($menuErrors -join '; ')"}
+          if($null -eq $facadWindow -or $facadWindow.Current.ProcessId -ne $facadPid){
+            throw 'D1C cannot start: previously verified main Facad window unavailable'
+          }
 
           # D1B completed 65/65 catalog selections in run #37855445127.
           # D1C: load three BUILT-IN preset definitions into the separate
