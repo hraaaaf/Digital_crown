@@ -559,6 +559,43 @@ jobs:
             $g.Dispose();$bmp.Dispose()
           }catch{}
 
+          # Observe the exact Facad landing page and try the visible Open file control.
+          # Do not interact with Register, activation, or other licence gates.
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $openControls=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::NameProperty,'Open file'))
+          "OPEN_FILE_CONTROL_COUNT=$($openControls.Count)" | Set-Content facad-quick-demo/open-file-probe.txt
+          if($openControls.Count -eq 1){
+            $open=$openControls.Item(0)
+            "OPEN_FILE_CONTROL_TYPE=$($open.Current.ControlType.ProgrammaticName)" | Add-Content facad-quick-demo/open-file-probe.txt
+            if($open.Current.IsEnabled -and $open.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button){
+              try{
+                $open.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+                'OPEN_FILE_INVOKED=true' | Add-Content facad-quick-demo/open-file-probe.txt
+                Start-Sleep -Seconds 3
+              }catch{
+                "OPEN_FILE_INVOKE_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/open-file-probe.txt
+              }
+            }
+          }
+          $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $rows=foreach($n in $nodes){try{
+            if($n.Current.Name){"TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name)"}
+          }catch{}}
+          $rows | Sort-Object -Unique | Set-Content facad-quick-demo/open-file-ui-tree.txt
+          try{
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            try{
+              $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+              $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'open-file-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            }finally{$g.Dispose();$bmp.Dispose()}
+          }catch{"OPEN_FILE_SCREEN_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/open-file-probe.txt}
+          # Discovery-only: a dialog or licence gate must be reviewed before sending a path.
+          'CASE_OPENED=UNVERIFIED' | Add-Content facad-quick-demo/open-file-probe.txt
+
           if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
       - name: Upload quick demo evidence
@@ -584,6 +621,9 @@ jobs:
             facad-quick-demo/shortcut-after-keyboard.png
             facad-quick-demo/shortcut-after-keyboard.txt
             facad-quick-demo/shortcut-prompt.txt
+            facad-quick-demo/open-file-probe.txt
+            facad-quick-demo/open-file-ui-tree.txt
+            facad-quick-demo/open-file-screen.png
             facad-quick-demo/facad-ui-tree.txt
             facad-quick-demo/facad-example-process.txt
             facad-quick-demo/facad-example-screen.png
