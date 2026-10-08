@@ -461,7 +461,15 @@ try {
     }
     await ux.screenshot({ path: path.join(uxDir, '03b-number-409-field-recovery.png'), fullPage: false, animations: 'disabled' });
     await ux.unroute(createPattern);
-    await ux.locator('[name="numero_dossier"]').fill('UI' + String(Date.now()).slice(-9));
+    const rejectedNumber = await ux.locator('[name="numero_dossier"]').inputValue();
+    await ux.getByRole('button', { name: 'Proposer un nouveau numéro' }).click();
+    await ux.waitForFunction(previous => {
+      const field = document.querySelector('[name="numero_dossier"]');
+      return field && field.value && field.value !== previous;
+    }, rejectedNumber, { timeout: 10000 });
+    if ((await ux.locator('[name="numero_dossier"]').getAttribute('aria-invalid')) === 'true') {
+      throw new Error('409 recovery did not clear dossier number field error');
+    }
 
     // Genuine double mouse-click through the rendered button with real backend.
     const button = ux.getByRole('button', { name: 'Créer le dossier', exact: true });
