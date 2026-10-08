@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { chromium, request } from 'playwright';
+import { randomInt } from 'node:crypto';
 
 /**
  * V1.5-01.2 scoped FUE-I.
@@ -13,7 +14,7 @@ fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 const report = {
   productHead: process.env.PRODUCT_HEAD || 'UNKNOWN',
-  scope: 'V1.5-01.2 FUE-I: fresh browser, synthetic same-host origin handoff, explicit workstation enrollment',
+  scope: 'V1.5-01.2 FUE-I: fresh browser, origin handoff, authenticated single-use pairing code',
   exclusions: ['physical LAN discovery', 'LAN TLS/certificate trust', 'real cabinet', 'multi-PC reboot/PIN'],
   cases: [],
   success: false,
@@ -23,6 +24,16 @@ const remote = 'http://localhost:8005';
 const email = process.env.T2_USER || 't2-browser@cabinet.ma';
 const password = process.env.T2_PASSWORD;
 if (!password) throw new Error('Missing isolated T2_PASSWORD');
+// Synthetic owner issues pairing codes on the isolated backend. They are never logged.
+const owner = await request.newContext({ baseURL: remote });
+const ownerLogin = await owner.post('/api/auth/login', { form: { username: email, password } });
+if (!ownerLogin.ok()) throw new Error('Isolated owner bootstrap login failed: ' + ownerLogin.status());
+const ownerToken = (await ownerLogin.json()).access_token;
+const pin = String(randomInt(100000, 1000000));
+const ownerHeaders = { Authorization: 'Bearer ' + ownerToken };
+const configurePin = await owner.post('/api/workstation/owner-pin', { data: { accountPassword: password, newPin: pin }, headers: ownerHeaders });
+if (!configurePin.ok()) throw new Error('Cannot configure isolated pairing PIN: ' + configurePin.status());
+
 const profiles = [
   { name: 'mobile390', width: 390, height: 844 },
   { name: 'mobile430', width: 430, height: 932 },
@@ -42,6 +53,12 @@ for (const p of profiles) {
     record.steps.push({ label, url: page.url(), horizontalOverflow: await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1) });
   };
   try {
+    const codeResponse = await owner.post('/api/workstation/pairing-code', {
+      data: { ownerPin: pin },
+      headers: ownerHeaders,
+    });
+    if (!codeResponse.ok()) throw new Error('Cannot issue isolated pairing code: ' + codeResponse.status());
+    const pairingCode = (await codeResponse.json()).code;
     const start = Date.now();
     await page.goto(base + '/hub?select=1', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.locator('[data-hub-experience="control"]').waitFor({ state: 'visible' });
@@ -87,11 +104,11 @@ for (const p of profiles) {
     await page.waitForURL(url => new URL(url).pathname === '/hub', { timeout: 30000 });
     await page.locator('[data-workstation-enrollment]').waitFor({ state: 'visible', timeout: 15000 });
     await snapshot('07-enrollment-required');
-    await page.getByText('Récupération propriétaire sans code').click();
-    await page.getByLabel('Mot de passe du compte propriétaire').fill(password);
-    await page.getByRole('button', { name: 'Réenregistrer le poste' }).click();
-    await page.getByText('Poste réenregistré.', { exact: false }).waitFor({ timeout: 15000 });
-    await snapshot('08-workstation-enrolled');
+    await page.getByPlaceholder('Ex. Accueil 1').fill('Annexe ' + p.name);
+    await page.getByPlaceholder('000000').fill(pairingCode);
+    await page.getByRole('button', { name: 'Appairer cette borne' }).click();
+    await page.getByText('Borne appairée et identifiée.', { exact: false }).waitFor({ timeout: 15000 });
+    await snapshot('08-workstation-paired');
     await page.goto(remote + '/cabinet', { waitUntil: 'domcontentloaded' });
     await page.waitForURL('**/dashboard', { timeout: 30000 });
     await page.getByRole('main').first().waitFor({ state: 'visible', timeout: 18000 });
@@ -119,6 +136,7 @@ for (const p of profiles) {
   }
 }
 await browser.close();
+await owner.dispose();
 report.success = report.cases.every(c => c.result === 'PASS');
 fs.writeFileSync(path.join(outDir, 'fue-v15-01-2-report.json'), JSON.stringify(report, null, 2));
 console.log('FUE_V15_01_2_SUMMARY ' + JSON.stringify({
