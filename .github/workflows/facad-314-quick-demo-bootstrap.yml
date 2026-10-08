@@ -1001,7 +1001,7 @@ jobs:
           # without opening or modifying it through Facad.
           $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
           if(-not (Test-Path $d3Preflight)){throw "D3 preflight missing: $d3Preflight"}
-          & $d3Preflight -OutDir 'facad-quick-demo'
+          & $d3Preflight -OutDir 'facad-quick-demo' -SourcePath $case
 
           # D2: reversible View toggles, toolbar modes and state restoration,
           # grounded in the already opened Robert pretreatment workspace.
@@ -1010,6 +1010,12 @@ jobs:
           & $d2Script -FacadProcessId ([int]$facadPid) `
             -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
             -OutDir 'facad-quick-demo'
+
+          # Independent pixel-region verification against BEFORE/AFTER/RESTORE
+          # captures. Exactly four demonstrated toggles; other options OPEN.
+          $d2Gate=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d2_visual_gate.ps1'
+          if(-not (Test-Path $d2Gate)){throw "D2 visual verifier missing: $d2Gate"}
+          & $d2Gate -OutDir 'facad-quick-demo'
 
           if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
@@ -1039,6 +1045,8 @@ jobs:
             facad-quick-demo/license-notice.txt
             facad-quick-demo/d2-*.png
             facad-quick-demo/d2-*.txt
+            facad-quick-demo/d2-visual-proof.txt
+            facad-quick-demo/d2-visual-proof.csv
             facad-quick-demo/d2-coverage.csv
             facad-quick-demo/d3-sandbox-preflight.txt
             facad-quick-demo/d1-*.png
