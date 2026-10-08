@@ -45,7 +45,8 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(hub).toContain("setServerState('unavailable')");
     expect(hub).toContain("data-hub-server-state={serverState}");
     expect(hub).toContain("serverState === 'unavailable'");
-    expect(hub.indexOf('response.status >= 400 && response.status < 500'))\n      .toBeLessThan(hub.indexOf('if (!response.ok) throw new Error'));
+    expect(hub.indexOf('response.status >= 400 && response.status < 500'))
+      .toBeLessThan(hub.indexOf('if (!response.ok) throw new Error'));
   });
 
   it('uses only canonical theme tokens in V1.5 Hub surfaces', () => {
