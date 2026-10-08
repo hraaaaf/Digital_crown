@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ChevronDown, ChevronUp, Zap, Plus } from 'lucide-react';
 import {
   MOTIFS_DICTIONARY,
@@ -44,6 +44,13 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['DOULEUR', 'URGENCE']));
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotif[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const createDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = createDialogRef.current;
+    if (!dialog) return;
+    if (showCreate && !dialog.open) dialog.showModal();
+    if (!showCreate && dialog.open) dialog.close();
+  }, [showCreate]);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState('CABINET');
   const [newUrgency, setNewUrgency] = useState<MotifItem['urgency']>('normal');
@@ -309,9 +316,14 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
         ))}
       </div>
 
-      {showCreate && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="custom-motif-title">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+      <dialog
+        ref={createDialogRef}
+        onClose={() => setShowCreate(false)}
+        aria-labelledby="custom-motif-title"
+        className="fixed inset-0 m-auto w-[min(92vw,28rem)] max-h-[90dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm"
+      >
+        {showCreate && (
+          <div className="w-full">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-slate-400">Motif du cabinet</p>
@@ -353,8 +365,8 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </dialog>
     </div>
   );
 };
