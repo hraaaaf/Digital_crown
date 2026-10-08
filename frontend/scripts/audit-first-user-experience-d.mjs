@@ -132,6 +132,34 @@ try {
       results.push({ viewport: 'restricted-api', listStatus: read.status(), createStatus: create.status(), duplicateStatus: duplicate.status() });
     } finally { await client.dispose(); }
   } finally { await restrictedCtx.dispose(); }
+
+  // Security/truth negative matrix on real isolated backend, with enrolled workstation.
+  const ownerAuth = await request.newContext({ baseURL: api });
+  try {
+    const login = await ownerAuth.post('/api/auth/login', { form: { username: 't2-browser@cabinet.ma', password } });
+    if (!login.ok()) throw new Error('Negative matrix owner authentication failed');
+    const accessToken = (await login.json()).access_token;
+    const owner = await request.newContext({ baseURL: api, storageState: stationState, extraHTTPHeaders: { Authorization: 'Bearer ' + accessToken } });
+    try {
+      const unique = 'FUEDNEG' + Date.now();
+      const payload = { nom: unique, prenom: 'Conflict', date_naissance: '1990-01-01', sexe: 'F' };
+      const initial = await owner.post('/api/patients/', { data: payload });
+      if (initial.status() !== 200) throw new Error('409 fixture creation=' + initial.status());
+      const original = await initial.json();
+      const conflict = await owner.post('/api/patients/', { data: payload });
+      if (conflict.status() !== 409) throw new Error('Duplicate should return 409, got ' + conflict.status());
+      const check = await owner.post('/api/patients/check-duplicate', { data: payload });
+      if (check.status() !== 200 || (await check.json()).has_duplicate !== true) throw new Error('Duplicate preflight failed');
+      const invalid = await owner.post('/api/patients/', { data: { nom: unique + 'BAD', prenom: 'Invalid', date_naissance: '1990-01-01', sexe: '' } });
+      if (invalid.status() !== 422) throw new Error('Missing explicit sex should return 422, got ' + invalid.status());
+      const after = await owner.get('/api/patients/?search=' + encodeURIComponent(unique));
+      if (after.status() !== 200) throw new Error('Duplicate verification search=' + after.status());
+      const patients = await after.json();
+      const exact = patients.filter(x => x.nom === unique);
+      if (exact.length !== 1 || exact[0].id !== original.id) throw new Error('409 produced extra patients or lost original: count=' + exact.length);
+      results.push({ viewport: 'negative-api', duplicateStatus: conflict.status(), invalidStatus: invalid.status(), preflightStatus: check.status(), patientCountAfter409: exact.length });
+    } finally { await owner.dispose(); }
+  } finally { await ownerAuth.dispose(); }
   passed = true;
 } finally {
   await browser.close();
