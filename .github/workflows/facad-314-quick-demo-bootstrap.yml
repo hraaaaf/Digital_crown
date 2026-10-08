@@ -458,8 +458,76 @@ jobs:
               'Do you want to place a shortcut to the program on the desktop?'))
           "SHORTCUT_MODAL_REMAINING=$($modalRows.Count)" | Add-Content facad-quick-demo/shortcut-prompt.txt
           if($modalRows.Count -gt 0){
-            'SHORTCUT_DISMISSAL_UNVERIFIED=true' | Add-Content facad-quick-demo/shortcut-prompt.txt
-            throw 'Facad first launch modal remains after dismissal; workspace not observed'
+            # Screen and UIA tree BEFORE any fallback: never treat a sent click as success.
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            function Capture-ShortcutState([string]$label){
+              $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+              $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+              $graphics=[System.Drawing.Graphics]::FromImage($bmp)
+              try {
+                $graphics.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+                $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path "$label.png"),[System.Drawing.Imaging.ImageFormat]::Png)
+              } finally {$graphics.Dispose();$bmp.Dispose()}
+              $n=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+              $listing=foreach($node in $n){try{
+                if($node.Current.Name){ "$($node.Current.ControlType.ProgrammaticName) | $($node.Current.Name) | $($node.Current.BoundingRectangle)" }
+              }catch{}}
+              $listing | Sort-Object -Unique | Set-Content "facad-quick-demo/$label.txt"
+            }
+            Capture-ShortcutState 'shortcut-after-mouse'
+            # One bounded keyboard fallback only when the exact same known prompt survives.
+            # SendKeys targets the verified foreground dialog, never an unknown consent window.
+            $stillDialogs=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Facad'))
+            $target=$null
+            for($j=0;$j -lt $stillDialogs.Count;$j++){
+              $candidate=$stillDialogs.Item($j)
+              $q=$candidate.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                  [System.Windows.Automation.AutomationElement]::NameProperty,
+                  'Do you want to place a shortcut to the program on the desktop?'))
+              if($null -ne $q){
+                if($null -ne $target){throw 'Multiple shortcut dialogs: refusing keyboard fallback'}
+                $target=$candidate
+              }
+            }
+            if($null -eq $target){throw 'Shortcut prompt location changed: refusing keyboard fallback'}
+            $no=$target.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'No'))
+            if($null -eq $no -or -not $no.Current.IsEnabled){throw 'Shortcut No action not available for keyboard fallback'}
+            Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadShortcutFocus {
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+          }
+          '@
+            $hwnd=[IntPtr]$target.Current.NativeWindowHandle
+            if($hwnd -eq [IntPtr]::Zero){throw 'Shortcut dialog HWND missing'}
+            [void][FacadShortcutFocus]::SetForegroundWindow($hwnd)
+            Start-Sleep -Milliseconds 350
+            if([FacadShortcutFocus]::GetForegroundWindow() -ne $hwnd){throw 'Shortcut dialog is not foreground after focus attempt'}
+            try {$no.SetFocus()}catch {throw 'Cannot focus exact shortcut No control'}
+            [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+            'SHORTCUT_KEYBOARD_ENTER_SENT=true' | Add-Content facad-quick-demo/shortcut-prompt.txt
+            Start-Sleep -Seconds 3
+            Capture-ShortcutState 'shortcut-after-keyboard'
+            $modalRows=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+              [System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'Do you want to place a shortcut to the program on the desktop?'))
+            "SHORTCUT_MODAL_AFTER_KEYBOARD=$($modalRows.Count)" | Add-Content facad-quick-demo/shortcut-prompt.txt
+            if($modalRows.Count -gt 0){
+              'SHORTCUT_DISMISSAL_UNVERIFIED=true' | Add-Content facad-quick-demo/shortcut-prompt.txt
+              throw 'Facad first launch modal remains after keyboard fallback; workspace not observed'
+            }
           }
           try{$p.Refresh()}catch{}
           "HAS_EXITED=$($p.HasExited)" | Add-Content facad-quick-demo/facad-example-process.txt
@@ -511,6 +579,10 @@ jobs:
             facad-quick-demo/after-eula-next-screen.png
             facad-quick-demo/consent-gate.txt
             facad-quick-demo/settings-found.txt
+            facad-quick-demo/shortcut-after-mouse.png
+            facad-quick-demo/shortcut-after-mouse.txt
+            facad-quick-demo/shortcut-after-keyboard.png
+            facad-quick-demo/shortcut-after-keyboard.txt
             facad-quick-demo/shortcut-prompt.txt
             facad-quick-demo/facad-ui-tree.txt
             facad-quick-demo/facad-example-process.txt
