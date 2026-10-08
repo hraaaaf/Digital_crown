@@ -96,7 +96,7 @@ function EnumerateList([string]$tag){
  $visibleWindows=@(for($i=0;$i -lt $wins.Count;$i++){
   $w=$wins.Item($i)
   try{if($w.Current.ProcessId -eq $FacadProcessId -and -not $w.Current.IsOffscreen -and
-    $w.Current.Name -notlike '*Tracing' -and $w.Current.Name -notlike '*Analysis' -and
+    $w.Current.Name -notlike 'Pretreatment tracing*  Tracing' -and $w.Current.Name -notlike 'Pretreatment tracing*  Analysis' -and
     $w.Current.Name -ne 'Facad'){$w}}catch{}
  })
  Log "DIALOG_$tag_COUNT=$($visibleWindows.Count)"
@@ -115,7 +115,7 @@ function EnumerateList([string]$tag){
   try{
    $sp=$list.GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern)
   }catch{
-   Log "SCROLL_$tag_PATTERN_UNAVAILABLE=$($_.Exception.GetType().Name)"
+   Log "SCROLL_${tag}_PATTERN_UNAVAILABLE=$($_.Exception.GetType().Name)"
    continue
   }
   $seen=New-Object 'Collections.Generic.HashSet[string]'
@@ -127,12 +127,13 @@ function EnumerateList([string]$tag){
        $e.Current.ControlType -eq [Windows.Automation.ControlType]::DataItem){
       if($e.Current.Name){$e.Current.Name}
     }
-   } | Sort-Object -Unique)
+   })
+   $items=@($items | Sort-Object -Unique)
    $sig=$items -join ';'
-   if(-not $seen.Add($sig)){Log "DIALOG_$tag_REPEAT_AT_PAGE=$page";break}
+   if(-not $seen.Add($sig)){Log "DIALOG_${tag}_REPEAT_AT_PAGE=$page";break}
    $items | Set-Content -Encoding utf8 (Join-Path $dir ("d1-$tag-list-page-{0:D2}.txt" -f $page))
    Shot ("d1-$tag-list-page-{0:D2}.png" -f $page)
-   Log "DIALOG_$tag_PAGE_$page=$($items.Count)"
+   Log "DIALOG_${tag}_PAGE_$page=$($items.Count)"
    if(-not $sp.Current.VerticallyScrollable){break}
    if($sp.Current.VerticalScrollPercent -ge 99){break}
    $sp.Scroll([Windows.Automation.ScrollAmount]::NoAmount,[Windows.Automation.ScrollAmount]::LargeIncrement)
@@ -141,6 +142,8 @@ function EnumerateList([string]$tag){
  }
 }
 Log 'SOURCE=OFFICIAL_ROBERT_SAMPLE_ONLY'
+$cephLoadSucceeded=$false
+$editorLoadSucceeded=$false
 CaptureDialog 'initial'
 # D1A: read only exploration of Cephalometry > Load analysis...
 try{
@@ -154,6 +157,7 @@ try{
  Start-Sleep -Seconds 2
  CaptureDialog 'load-analysis'
  EnumerateList 'load-analysis'
+ $cephLoadSucceeded=$true
  Log 'LOAD_ANALYSIS_DIALOG_INSPECTED=true'
 }catch{
  Log "LOAD_ANALYSIS_ERROR=$($_.Exception.Message)"
@@ -180,6 +184,7 @@ try{
  Start-Sleep -Seconds 2
  CaptureDialog 'editor-load-presets'
  EnumerateList 'editor-load-presets'
+ $editorLoadSucceeded=$true
  Log 'EDITOR_PRESET_DIALOG_INSPECTED=true'
 }catch{
  Log "EDITOR_PRESET_ERROR=$($_.Exception.Message)"
@@ -200,3 +205,7 @@ foreach($folder in @('C:\Facad\Analysis','C:\Facad\Analyses','C:\Facad\Ceph','C:
  }catch{Log "INSTALLED_LIST_ERROR=$folder : $($_.Exception.Message)"}
 }
 Log 'D1_DISCOVERY_FINISHED_NO_ANALYSIS_SELECTED'
+
+if(-not $cephLoadSucceeded -or -not $editorLoadSucceeded){
+ throw "D1 catalog discovery gate failed; Cephalometry load inspected=$cephLoadSucceeded, editor preset inspected=$editorLoadSucceeded"
+}
