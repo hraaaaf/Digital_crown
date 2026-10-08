@@ -19,6 +19,9 @@ jobs:
     timeout-minutes: 35
     env:
       ENVIRONMENT: test
+      DATABASE_URL: "sqlite:///./t2-runtime-cert.db"
+      SECRET_KEY: "t2-runtime-certification-secret-key-000001"
+      ALLOWED_ORIGINS: "https://cabinet.local:8005"
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
       TELEMETRY_ENABLED: "false"
@@ -37,19 +40,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Source syntax and topology safety
-        run: |
-          python -m py_compile scripts/fue_g_cloud_server.py scripts/fue_g_cloud_client.py
-          python - <<'PY'
-          import os
-          from backend.core.cabinet_topology import resolve_cabinet_network
-          try:
-              resolve_cabinet_network({"ENVIRONMENT":"cabinet", "CABINET_HOST":"192.168.1.100", "CABINET_PORT":"8005", "DIGITALCROWN_ENABLE_HTTPS":"false"})
-          except RuntimeError:
-              print("LAN without TLS: correctly rejected")
-          else:
-              raise SystemExit("Unsafe cabinet LAN HTTP permitted")
-          PY
+      - name: Source syntax before backend dependency installation
+        run: python -m py_compile scripts/fue_g_cloud_server.py scripts/fue_g_cloud_client.py
 
       - name: Install real synthetic T2 backend
         run: |
@@ -58,6 +50,18 @@ jobs:
           pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           pip install -r /tmp/requirements-fue-g-cloud.txt
           python -m pip check
+
+      - name: Cabinet LAN HTTP must fail closed in real topology module
+        run: |
+          python - <<'PY'
+          from backend.core.cabinet_topology import resolve_cabinet_network
+          try:
+              resolve_cabinet_network({"ENVIRONMENT":"cabinet", "CABINET_HOST":"192.168.1.100", "CABINET_PORT":"8005", "DIGITALCROWN_ENABLE_HTTPS":"false"})
+          except RuntimeError:
+              print("Unsafe LAN HTTP rejected by real cabinet contract")
+          else:
+              raise SystemExit("SECURITY FAILURE: cabinet LAN HTTP accepted")
+          PY
 
       - name: Mint ephemeral private CA and bind on Docker host-only bridge
         shell: bash
