@@ -4,6 +4,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from datetime import datetime, timedelta
 import os
@@ -220,26 +221,63 @@ def create_patient(patient: schemas.PatientCreate, force_create: bool = False, d
     patient_data['prenom'] = patient_data['prenom'].capitalize().strip()
     patient_data['employer_id'] = employer_id
     
-    if not patient_data.get('numero_dossier'):
-        patient_data['numero_dossier'] = generate_next_dossier_number(db, employer_id)
-    
-    db_patient = models.Patient(**patient_data)
-    db.add(db_patient); db.flush()
-    db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=is_ortho_active))
-    
-    # Audit log
-    audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="CREATE",
-        resource_type="Patient",
-        resource_id=str(db_patient.id),
-        details=f"Creation du patient {db_patient.nom} {db_patient.prenom} (Dossier: {db_patient.numero_dossier})"
-    )
-    
-    db.commit(); db.refresh(db_patient)
-    return db_patient
+    explicit_number = bool(patient_data.get('numero_dossier'))
+
+    # A concurrent POST can pass the duplicate preflight and select the same
+    # generated dossier number. The scoped database UNIQUE constraint is the
+    # final arbiter: resolve a same-identity race to 409, or retry a generated
+    # number collision for another identity. Never leak a raw database 500.
+    for attempt in range(3):
+        if not explicit_number:
+            patient_data['numero_dossier'] = generate_next_dossier_number(db, employer_id)
+
+        db_patient = models.Patient(**patient_data)
+        try:
+            db.add(db_patient)
+            db.flush()
+            db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=is_ortho_active))
+
+            audit_service.log(
+                db=db,
+                user_id=current_user.id,
+                employer_id=employer_id,
+                action="CREATE",
+                resource_type="Patient",
+                resource_id=str(db_patient.id),
+                details=f"Creation du patient {db_patient.nom} {db_patient.prenom} (Dossier: {db_patient.numero_dossier})"
+            )
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            reason = str(exc.orig).lower()
+            dossier_conflict = (
+                "uq_patients_numero_dossier_employer" in reason
+                or ("unique" in reason and "patients.numero_dossier" in reason
+                    and "patients.employer_id" in reason)
+            )
+            if not dossier_conflict:
+                raise
+
+            # Query only inside this cabinet after rollback. The winning
+            # request may now have committed the same patient identity.
+            winner = check_duplicate_patient(
+                db, patient.nom, patient.prenom, patient.date_naissance, employer_id
+            )
+            if winner and not force_create:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"message": "Doublon détecté", "existing_patient": {"id": winner.id}},
+                ) from None
+            if explicit_number or attempt == 2:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"message": "Numéro de dossier déjà attribué. Réessayez."},
+                ) from None
+        else:
+            db.refresh(db_patient)
+            return db_patient
+
+    raise AssertionError("Unreachable patient creation retry state")
 
 @router.get("/fantomes")
 def get_fantome_patients(
