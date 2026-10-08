@@ -14,15 +14,66 @@ type ConnectHubItem = { id:string; source:'proactive_alert'|'treasury_hub'|strin
 type ConnectHubPayload = { total:number; requires_attention:number; items:ConnectHubItem[]; delivery_semantics:string; };
 
 export const Header = ({ isCrownBotOpen=false, crownBotUnreadCount=0, onToggleCrownBot }: HeaderProps) => {
-  const [cabinetName,setCabinetName]=useState('Chargement...'); const [praticienName,setPraticienName]=useState('Praticien');
+  const [cabinetName,setCabinetName]=useState('Votre cabinet'); const [praticienName,setPraticienName]=useState('Praticien');
   const [connectHub,setConnectHub]=useState<ConnectHubPayload>({total:0,requires_attention:0,items:[],delivery_semantics:'source_state_only'});
   const [showNotifs,setShowNotifs]=useState(false); const [showLogoutConfirm,setShowLogoutConfirm]=useState(false); const {user}=useAuthStore(); const notifRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{const handleClickOutside=(event:MouseEvent)=>{if(notifRef.current&&!notifRef.current.contains(event.target as Node))setShowNotifs(false)};document.addEventListener('mousedown',handleClickOutside);return()=>document.removeEventListener('mousedown',handleClickOutside)},[]);
   useEffect(()=>{if(!showNotifs)return;const handleEscape=(event:KeyboardEvent)=>{if(event.key==='Escape')setShowNotifs(false)};document.addEventListener('keydown',handleEscape);return()=>document.removeEventListener('keydown',handleEscape)},[showNotifs]);
-  useEffect(()=>{const activeId=localStorage.getItem('active_cabinet_id')||'benmoussa';if(activeId==='benmoussa'){setCabinetName('Centre Dentaire Benmoussa');setPraticienName('Dr. Benmoussa')}
-    const fetchData=async()=>{if(!hasAccess(user,'settings'))return;try{const config=await cabinetApi.getMine();if(!localStorage.getItem('active_cabinet_id')){setCabinetName(config.nom_cabinet||'Mon Cabinet');if(config.header_lines_fr&&config.header_lines_fr.length>0)setPraticienName(config.header_lines_fr[0])}}catch(error){console.error('Erreur header config:',error)}};
-    let intervalId:ReturnType<typeof setInterval>|null=null;const fetchConnectHub=async()=>{try{const res=await api.get('/intelligence/connect-hub');setConnectHub(res.data)}catch(e:any){const status=e?.response?.status;if(status===401||status===402){if(intervalId!==null)clearInterval(intervalId)}}};fetchData();fetchConnectHub();
-    const handleCabinetChange=(e:any)=>{const {cabinet}=e.detail;setCabinetName(cabinet.nom);setPraticienName(cabinet.specialty);fetchConnectHub()};window.addEventListener('cabinet-changed',handleCabinetChange);intervalId=setInterval(fetchConnectHub,60000);return()=>{if(intervalId!==null)clearInterval(intervalId);window.removeEventListener('cabinet-changed',handleCabinetChange)}},[]);
+  useEffect(() => {
+    let active = true;
+    let changedCabinet = false;
+    setCabinetName('Votre cabinet');
+    setPraticienName('Praticien');
+
+    const fetchData = async () => {
+      if (!user) return;
+      try {
+        // Settings are optional for staff: cabinet identity is not.
+        const config = hasAccess(user, 'settings')
+          ? await cabinetApi.getMine()
+          : (await api.get('/admin/cabinet/me')).data;
+        if (!active || changedCabinet) return;
+        setCabinetName(String(config?.nom_cabinet || '').trim() || 'Votre cabinet');
+        if (hasAccess(user, 'settings') && Array.isArray(config?.header_lines_fr)) {
+          setPraticienName(config.header_lines_fr[0] || 'Praticien');
+        }
+      } catch {
+        // Never guess a cabinet identity from a localStorage key.
+        if (active && !changedCabinet) setCabinetName('Votre cabinet');
+      }
+    };
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const fetchConnectHub = async () => {
+      try {
+        const res = await api.get('/intelligence/connect-hub');
+        if (active) setConnectHub(res.data);
+      } catch (error: any) {
+        const status = error?.response?.status;
+        if ((status === 401 || status === 402) && intervalId !== null) clearInterval(intervalId);
+      }
+    };
+    if (user) {
+      void fetchData();
+      void fetchConnectHub();
+      intervalId = setInterval(fetchConnectHub, 60000);
+    }
+    const handleCabinetChange = (event: any) => {
+      if (!active) return;
+      const cabinet = event?.detail?.cabinet;
+      if (!cabinet) return;
+      changedCabinet = true;
+      setCabinetName(cabinet.nom || 'Votre cabinet');
+      setPraticienName(cabinet.specialty || 'Praticien');
+      void fetchConnectHub();
+    };
+    window.addEventListener('cabinet-changed', handleCabinetChange);
+    return () => {
+      active = false;
+      if (intervalId !== null) clearInterval(intervalId);
+      window.removeEventListener('cabinet-changed', handleCabinetChange);
+    };
+  }, [user?.id, user?.employer_id, user?.role]);
   const handleLogout=async()=>{safeStorage.remove('appMode');await authService.logout();}; const attentionCount=connectHub.requires_attention||connectHub.total;
   const formatAttentionMessage=(item:ConnectHubItem)=>{const hasInvalidDate=/\bil y a\s+-\d+\s+jours?\b/i.test(item.message);if(item.patient_id)return `${hasInvalidDate?'Date à vérifier · ':''}Cette alerte nécessite votre attention.`;return hasInvalidDate?`Date à vérifier · ${item.message}`:item.message;};
   return <header className="h-20 bg-transparent flex items-center justify-end gap-2 pl-16 pr-3 sm:pl-20 sm:pr-6 lg:gap-6 lg:px-8 shrink-0 relative z-[1000]">
@@ -39,7 +90,7 @@ export const Header = ({ isCrownBotOpen=false, crownBotUnreadCount=0, onToggleCr
         <div className="max-h-[min(24rem,calc(100vh-10.5rem))] overflow-y-auto custom-scrollbar space-y-1">{connectHub.items.length>0?connectHub.items.map(item=>{const isTreasury=item.source==='treasury_hub';return <Link key={item.id} to={item.destination} onClick={()=>setShowNotifs(false)} className="flex items-start gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all border border-transparent hover:border-primary/10"><div className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${isTreasury?'bg-primary/10 text-primary':'bg-amber-400/10 text-amber-500'}`}>{isTreasury?<Calculator size={17}/>:<AlertTriangle size={17}/>}</div><div className="min-w-0 flex-1"><p className="text-xs font-black text-main leading-tight truncate">{item.patient_id?'Alerte patient':item.title}</p>{item.patient_id&&<p className="text-[11px] text-main/80 font-bold mt-1 truncate">Dossier patient #{item.patient_id}</p>}<p className="text-[11px] text-text-muted font-semibold mt-1 line-clamp-2 leading-relaxed">{formatAttentionMessage(item)}</p></div><ArrowRight size={14} className="shrink-0 mt-2 text-text-muted"/></Link>}):<div className="text-center py-7"><p className="text-xs font-black text-main">Tout est à jour</p><p className="text-[10px] font-bold text-text-muted mt-1">Aucune attention requise pour le moment.</p></div>}</div>
         <div className="mt-3 pt-3 border-t border-border-main flex items-end justify-between gap-3 px-1"><span className="text-[10px] font-semibold leading-relaxed text-text-muted max-w-[15rem]">Ces alertes sont affichées dans l’application ; aucun message externe n’est confirmé.</span>{hasAccess(user, "accounting")&&<Link to="/accounting?tab=treasury" onClick={()=>setShowNotifs(false)} className="shrink-0 text-[9px] font-black text-primary hover:opacity-80">Trésorerie</Link>}</div>
       </div>}</div>
-    </div><div className="hidden lg:block w-px h-6 bg-border-main mx-2"/><div className="hidden lg:flex items-center gap-4"><div className="text-right hidden lg:block"><p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p><p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">{user?.nom_complet||(user?.role==='SECRETAIRE'?'Assistante':'Praticien')}</p></div><div className="w-11 h-11 rounded-elite-sm bg-card-bg border border-border-main flex items-center justify-center text-primary shadow-elite transition-elite hover:scale-105"><UserCircle size={24}/></div></div>
+    </div><div className="hidden lg:block w-px h-6 bg-border-main mx-2"/><div className="hidden lg:flex items-center gap-4"><div className="text-right hidden lg:block"><p data-testid="shared-header-cabinet-name" className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p><p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">{user?.nom_complet||(user?.role==='SECRETAIRE'?'Assistante':'Praticien')}</p></div><div className="w-11 h-11 rounded-elite-sm bg-card-bg border border-border-main flex items-center justify-center text-primary shadow-elite transition-elite hover:scale-105"><UserCircle size={24}/></div></div>
     <button onClick={()=>setShowLogoutConfirm(true)} className="ml-0 lg:ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group" title="Déconnexion"><LogOut size={20} className="group-hover:scale-110 transition-elite"/></button>
     {showLogoutConfirm&&<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-card-bg border border-border-main rounded-3xl p-6 shadow-elite max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center"><div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-4"><LogOut size={32}/></div><h3 className="text-xl font-black text-main mb-2">Déconnexion</h3><p className="text-sm font-bold text-text-muted mb-6">Êtes-vous sûr de vouloir vous déconnecter de votre session ?</p><div className="flex w-full gap-3"><button onClick={()=>setShowLogoutConfirm(false)} className="flex-1 py-3 rounded-xl border border-border-main font-bold text-text-muted hover:text-main hover:bg-main/5 transition-elite">Annuler</button><button onClick={()=>{setShowLogoutConfirm(false);handleLogout()}} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-black shadow-lg shadow-red-500/20 hover:bg-red-600 transition-elite">Confirmer</button></div></div></div></div>}
   </header>;
