@@ -95,7 +95,7 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).toContain("result.failureKind === 'network'");
     expect(controlCenter).toContain("result.failureKind === 'timeout'");
     expect(controlCenter).toContain("result.backendHttpStatus >= 500");
-    expect(controlCenter).toContain("result.databaseHttpStatus");
+    expect(controlCenter).toContain("databaseHttpStatus: dbResponse.status");
     expect(controlCenter).toContain("result.authHttpStatus === 423");
     expect(controlCenter).toContain("data-control-center-diagnosis={diagnosis}");
     expect(controlCenter).toContain("crossOriginLimited: false,\n        failureKind:");
