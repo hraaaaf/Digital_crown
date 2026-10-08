@@ -39,6 +39,15 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(app).toContain('if (isInitialized === false && location.pathname !== \'/setup\')');
   });
 
+  it('never labels an HTTP 423 workstation enrollment as a server outage', () => {
+    expect(hub).toContain("response.status >= 400 && response.status < 500");
+    expect(hub).toContain("setServerState('restricted')");
+    expect(hub).toContain("setServerState('unavailable')");
+    expect(hub).toContain("data-hub-server-state={serverState}");
+    expect(hub).toContain("serverState === 'unavailable'");
+    expect(hub).not.toContain('if (!response.ok) throw new Error(`hub identity ${response.status}`);\n        const config');
+  });
+
   it('uses only canonical theme tokens in V1.5 Hub surfaces', () => {
     const source = hub + workstation + stationShell + workstationAdmin + controlCenter;
     expect(source).not.toMatch(/(?:rounded|text|tracking|shadow|bg|border)-\[[^\]]+\]/);
