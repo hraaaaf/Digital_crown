@@ -279,15 +279,26 @@ try {
           range.selectNodeContents(el);
           return Array.from(range.getClientRects(), r => ({ left: r.left, right: r.right }));
         });
+        const titleTextNode = heading.firstChild;
+        const titleWordFragments = ['Nouveau', 'Patient'].map(word => {
+          if (!titleTextNode || titleTextNode.nodeType !== Node.TEXT_NODE) return { word, count: -1 };
+          const start = titleTextNode.textContent.indexOf(word);
+          if (start < 0) return { word, count: -1 };
+          const range = document.createRange();
+          range.setStart(titleTextNode, start);
+          range.setEnd(titleTextNode, start + word.length);
+          return { word, count: range.getClientRects().length };
+        });
         return {
           found: true,
+          titleWordFragments,
           clipped: textBounds.some(r => r.left < container.left - 1 || r.right > container.right + 1),
           headerScrollWidth: header.scrollWidth,
           headerClientWidth: header.clientWidth,
           documentOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > innerWidth + 1,
         };
       });
-      if (!result.found || result.clipped || result.documentOverflow || result.headerScrollWidth > result.headerClientWidth + 1) {
+      if (!result.found || result.clipped || result.documentOverflow || result.headerScrollWidth > result.headerClientWidth + 1 || result.titleWordFragments.some(w => w.count !== 1)) {
         throw new Error('200% text size clipping at ' + viewport + ': ' + JSON.stringify(result));
       }
       return result;
