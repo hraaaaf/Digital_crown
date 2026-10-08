@@ -659,15 +659,23 @@ jobs:
           $robertActionError=$null
           try{
             if($facadTopLevels.Count -ne 1){throw 'Facad main window missing or ambiguous'}
-            $patientWindow=$facadTopLevels.Item(0)
-            if($patientWindow.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
+            $facadWindow=$facadTopLevels.Item(0)
+            if($facadWindow.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
               throw 'Facad root control is not a Window'
             }
-            $patientPanelLabels=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            # UIA exposes *both* a TitleBar and an embedded Window with this name.
+            # Filter by semantic ControlType rather than rejecting the duplicate label.
+            $panelCandidates=$facadWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'Patients/Work List'))
-            "PATIENT_PANEL_LABEL_COUNT=$($patientPanelLabels.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
-            if($patientPanelLabels.Count -ne 1){throw 'Patient list panel not uniquely visible'}
+            "PATIENT_PANEL_LABEL_COUNT=$($panelCandidates.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            $patientWindows=@(for($pi=0;$pi -lt $panelCandidates.Count;$pi++){
+              $candidate=$panelCandidates.Item($pi)
+              if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window){$candidate}
+            })
+            "PATIENT_PANEL_WINDOW_COUNT=$($patientWindows.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if($patientWindows.Count -ne 1){throw 'Patient work-list Window missing or ambiguous'}
+            $patientWindow=$patientWindows[0]
             $robert=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'Example, Robert'))
@@ -690,7 +698,7 @@ jobs:
             [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
           }
           '@
-            $patientHwnd=[IntPtr]$patientWindow.Current.NativeWindowHandle
+            $patientHwnd=[IntPtr]$facadWindow.Current.NativeWindowHandle
             if($patientHwnd -eq [IntPtr]::Zero){throw 'Facad main window HWND missing'}
             [void][FacadPatientMouse]::SetForegroundWindow($patientHwnd)
             Start-Sleep -Milliseconds 400
@@ -704,14 +712,37 @@ jobs:
             [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
             'ROBERT_ROW_CLICKED=true' | Add-Content facad-quick-demo/robert-open-probe.txt
             Start-Sleep -Seconds 1
+            # If UIA text-cell click did not select the row, try the semantically
+            # equivalent parent DataItem via SelectionItemPattern before giving up.
+            $rowData=$robert.Item(0)
+            $walker=[System.Windows.Automation.TreeWalker]::RawViewWalker
+            for($ri=0;$ri -lt 12 -and $null -ne $rowData;$ri++){
+              if($rowData.Current.ControlType -eq [System.Windows.Automation.ControlType]::DataItem){break}
+              $rowData=$walker.GetParent($rowData)
+            }
+            if($null -ne $rowData -and $rowData.Current.ControlType -eq [System.Windows.Automation.ControlType]::DataItem){
+              try{
+                $selection=$rowData.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+                if(-not $selection.Current.IsSelected){
+                  $selection.Select()
+                  'ROBERT_DATAITEM_SELECTED_UIA=true' | Add-Content facad-quick-demo/robert-open-probe.txt
+                  Start-Sleep -Milliseconds 600
+                }
+              }catch{
+                "ROBERT_UIA_SELECTION_UNAVAILABLE=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/robert-open-probe.txt
+              }
+            }
             $openButtons=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'Open'))
             "PATIENT_OPEN_BUTTON_COUNT=$($openButtons.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
             if($openButtons.Count -ne 1 -or
-              $openButtons.Item(0).Current.ControlType -ne [System.Windows.Automation.ControlType]::Button -or
-              -not $openButtons.Item(0).Current.IsEnabled){
-              throw 'Patient Open button not uniquely enabled after Robert selection'
+              $openButtons.Item(0).Current.ControlType -ne [System.Windows.Automation.ControlType]::Button){
+              throw 'Patient Open button missing or ambiguous'
+            }
+            "PATIENT_OPEN_ENABLED=$($openButtons.Item(0).Current.IsEnabled)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if(-not $openButtons.Item(0).Current.IsEnabled){
+              throw 'Patient Open remains disabled after Robert selection'
             }
             $openBounds=$openButtons.Item(0).Current.BoundingRectangle
             if($openBounds.IsEmpty -or $openBounds.Width -lt 25 -or $openBounds.Width -gt 180 -or
