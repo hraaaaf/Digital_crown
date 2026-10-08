@@ -324,7 +324,8 @@ const run = async (journey, viewport) => {
 
 try {
   for (const journey of Object.keys(fixtures)) {
-    for (const viewport of viewports) await run(journey, viewport);
+    // Independent browser contexts and fixtures; no cross-viewport state sharing.
+    await Promise.all(viewports.map(viewport => run(journey, viewport)));
   }
 } finally {
   await browser.close();
