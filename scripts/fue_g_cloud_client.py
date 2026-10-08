@@ -1,4 +1,4 @@
-"""FUE-G CLOUD-LAB: 2 disposable Docker clients using real HTTPS to T2 API.
+"""FUE-G CLOUD-LAB: 3 disposable Docker clients using real HTTPS to T2 API.
 
 Network roles are distinct Docker namespaces. HTTPS validates the SAN and
 ephemeral CA with Python's default strict certificate verification. This is
@@ -19,7 +19,7 @@ import urllib.request
 
 role = os.getenv("FUE_CLIENT_ROLE")
 phase = os.getenv("FUE_PHASE")
-if role not in {"A", "B"} or phase not in {"setup", "pair", "offline", "recover"}:
+if role not in {"A", "B", "C"} or phase not in {"setup", "pair", "offline", "recover"}:
     raise SystemExit("Invalid role or phase")
 base = "https://cabinet.local:8005"
 ca = os.environ["FUE_CA_FILE"]
@@ -74,9 +74,9 @@ def call(route, *, method="GET", data=None, bearer=None, expect=200, timeout=10)
     except ValueError:
         return {}
 
-def login():
+def login(username="t2-browser@cabinet.ma"):
     response = call("/api/auth/login", method="POST", data={
-        "username": "t2-browser@cabinet.ma", "password": password,
+        "username": username, "password": password,
     })
     token = response.get("access_token")
     if not token:
@@ -136,7 +136,7 @@ elif phase == "pair":
     if not code or len(code) != 6:
         raise AssertionError("No single-use pairing code")
     paired = call("/api/workstation/pair", method="POST", bearer=token,
-                  data={"code": code, "displayName": "Cloud Annex " + role})
+                  data={"code": code, "displayName": ("Cloud Annex Assistante" if role == "C" else "Cloud Annex " + role)})
     wid = paired.get("workstationId")
     if not wid:
         raise AssertionError("No workstationId after pairing")
@@ -158,13 +158,38 @@ elif phase == "pair":
     else:
         raise AssertionError("Pairing code replay unexpectedly succeeded")
     digest = hashlib.sha256(str(wid).encode()).hexdigest()[:16]
-    record("PASS", workstationHash=digest, replayRejected=True)
+    if role == "C":
+        # App models SECRETAIRE, not a separate ASSISTANTE enum.
+        assistant = login("t2-restricted@cabinet.ma")
+        me = call("/api/auth/me", bearer=assistant)
+        if me.get("role") != "SECRETAIRE":
+            raise AssertionError("Unexpected synthetic assistant role")
+        state = call("/api/workstation/bootstrap", bearer=assistant)
+        if state.get("workstationId") != wid:
+            raise AssertionError("Assistant lost the paired C identity")
+        call("/api/patients/", bearer=assistant, expect=403)
+        record("PASS", workstationHash=digest, replayRejected=True,
+               assistantPermissionDenied=True, assistantRole="SECRETAIRE")
+    else:
+        record("PASS", workstationHash=digest, replayRejected=True)
 elif phase == "recover":
     expected = json.loads(identity_path.read_text())["id"]
     bootstrap = call("/api/workstation/bootstrap", bearer=token)
     if bootstrap.get("workstationId") != expected:
         raise AssertionError("Workstation identity changed across server restart")
     digest = hashlib.sha256(str(expected).encode()).hexdigest()[:16]
-    record("PASS", workstationHash=digest, identityPersisted=True)
+    if role == "C":
+        assistant = login("t2-restricted@cabinet.ma")
+        me = call("/api/auth/me", bearer=assistant)
+        if me.get("role") != "SECRETAIRE":
+            raise AssertionError("Assistant role changed after server restart")
+        state = call("/api/workstation/bootstrap", bearer=assistant)
+        if state.get("workstationId") != expected:
+            raise AssertionError("Assistant identity changed after restart")
+        call("/api/patients/", bearer=assistant, expect=403)
+        record("PASS", workstationHash=digest, identityPersisted=True,
+               assistantPermissionDenied=True, assistantRole="SECRETAIRE")
+    else:
+        record("PASS", workstationHash=digest, identityPersisted=True)
 else:
     raise AssertionError("Unexpected cloud lab phase")
