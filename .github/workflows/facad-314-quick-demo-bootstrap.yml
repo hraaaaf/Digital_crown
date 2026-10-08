@@ -13,14 +13,8 @@ permissions:
 
 jobs:
   quick-demo:
-    name: D1C preset ${{ matrix.profile }} (fresh Quick Demo)
     runs-on: windows-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        profile: [Tweed, McNamara]
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
@@ -1059,7 +1053,7 @@ jobs:
             if(-not (Test-Path $d1c)){throw "D1C pilot missing: $d1c"}
             & $d1c -FacadProcessId ([int]$facadPid) `
               -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
-              -OutDir 'facad-quick-demo' -ProfileName '${{ matrix.profile }}'
+              -OutDir 'facad-quick-demo' -ProfileName 'Tweed'
           }catch{
             $explorationFailure=$_.Exception.Message
             "D1C_EDITOR_FAILURE=$explorationFailure" |
@@ -1098,7 +1092,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: facad-314-d1c-${{ matrix.profile }}-${{ github.sha }}
+          name: facad-314-d1c-Tweed-${{ github.sha }}
           path: |
             facad-quick-demo/quick-demo-process.txt
             facad-quick-demo/ui-before-click.txt
