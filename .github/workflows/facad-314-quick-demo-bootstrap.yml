@@ -347,7 +347,7 @@ jobs:
 
       - name: Probe installed Facad on bundled example if bootstrap completed
         shell: pwsh
-        continue-on-error: true
+        continue-on-error: false
         run: |
           $ErrorActionPreference='Continue'
           $state=Get-Content facad-quick-demo/quick-demo-process.txt -Raw
