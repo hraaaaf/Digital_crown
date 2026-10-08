@@ -28,7 +28,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile topology contract and audit
-        run: python -m py_compile backend/core/cabinet_topology.py scripts/audit-v15-01-1-topology-contract.py
+        run: |
+          mkdir -p artifacts/fue-v15-01-1
+          python -m py_compile backend/core/cabinet_topology.py scripts/audit-v15-01-1-topology-contract.py
       # The isolated stdlib audit below executes actual pure topology functions
       # and LAN installer hook. Existing pytest regression is certified in the
       # fully provisioned V1.5-01 First Use Experience workflow; do not collect
