@@ -65,6 +65,15 @@ jobs:
           pip install -r /tmp/requirements-fue-v15-01-2.txt
           python -m pip check
 
+      - name: Workstation enrollment and tenant security regressions
+        run: |
+          python -m pytest \
+            backend/tests/test_workstation_mode_v15.py::test_lost_or_tampered_workstation_identity_is_fail_closed_until_owner_reenrolls \
+            backend/tests/test_workstation_mode_v15.py::test_station_pairing_code_is_single_use_and_name_is_editable_without_identity_rotation \
+            backend/tests/test_workstation_mode_v15.py::test_workstation_cookie_does_not_cross_tenant_authority \
+            backend/tests/test_workstation_mode_v15.py::test_pairing_short_code_is_failure_rate_limited \
+            -q
+
       - name: Install and build frontend for backend SPA serving
         working-directory: frontend
         run: |
