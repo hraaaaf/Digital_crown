@@ -109,6 +109,19 @@ for (const p of profiles) {
     await page.getByRole('button', { name: 'Appairer cette borne' }).click();
     await page.getByText('Borne appairée et identifiée.', { exact: false }).waitFor({ timeout: 15000 });
     await snapshot('08-workstation-paired');
+    await page.goto(remote + '/control-center', { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-control-center-target]').waitFor({ state: 'visible' });
+    if (await page.locator('label[for="cabinet-server-target"]').count() !== 1) {
+      throw new Error('Control Center address input label missing');
+    }
+    if (await page.locator('[data-control-center-target]').getAttribute('aria-describedby') !== 'cabinet-server-help') {
+      throw new Error('Control Center address accessible instructions missing');
+    }
+    await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+    await snapshot('09-control-text200');
+    if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) {
+      throw new Error('Control Center horizontal overflow at 200 percent text');
+    }
     await page.goto(remote + '/cabinet', { waitUntil: 'domcontentloaded' });
     await page.waitForURL('**/dashboard', { timeout: 30000 });
     await page.getByRole('main').first().waitFor({ state: 'visible', timeout: 18000 });
@@ -123,7 +136,7 @@ for (const p of profiles) {
     if (authState !== 200) throw new Error('Login did not establish authenticated API session: ' + authState);
     record.authenticatedApiStatus = authState;
     record.firstAuthenticatedMs = Date.now() - start;
-    await snapshot('09-authenticated-dashboard-after');
+    await snapshot('10-authenticated-dashboard-after');
     if (record.steps.some(s => s.horizontalOverflow)) throw new Error('Horizontal overflow');
     if (record.errors.length) throw new Error('Uncaught page errors: ' + record.errors.length);
     record.result = 'PASS';
