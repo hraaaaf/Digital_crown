@@ -6,6 +6,8 @@ on:
       - 'frontend/scripts/audit-v15-00-2-fue.mjs'
       - '.github/workflows/v15-00-2-fue.yml'
       - 'frontend/src/features/hub/**'
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/test/v15HubRoutingContract.test.ts'
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,6 +30,9 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Syntax check
         run: node --check frontend/scripts/audit-v15-00-2-fue.mjs
+      - name: Hub routing regression
+        working-directory: frontend
+        run: npm test -- --run src/test/v15HubRoutingContract.test.ts
       - name: Start isolated Vite
         working-directory: frontend
         run: |
@@ -51,4 +56,4 @@ jobs:
           name: fue-v15-00-2-hub
           path: frontend/artifacts/fue-v15-00-2/
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
