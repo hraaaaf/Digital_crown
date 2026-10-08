@@ -101,7 +101,7 @@ try {
       await context.route('**/api/workstation/registry', route => route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ workstations: [] }),
+        body: JSON.stringify([]),
       }));
       // Isolated frontend has no backend: explicitly emulate readiness and anonymous auth.
       await context.route('**/health', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'ok'})}));
