@@ -501,6 +501,23 @@ try {
       throw new Error('409 recovery did not clear dossier number field error');
     }
 
+    // A syntactically successful but malformed 200 ACK must never create a
+    // fabricated patient route or a success message.
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"id":"invalid","nom":"wrong","prenom":"wrong"}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const malformed200 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 200, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await malformed200;
+    await ux.getByRole('alert').getByText('Création non confirmée.', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+    if (!ux.url().endsWith('/patients/new')) throw new Error('Malformed 200 navigated to fabricated patient');
+    await ux.screenshot({ path: path.join(uxDir, '03c-malformed-200-rejected.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(createPattern);
+
     // Genuine double mouse-click through the rendered button with real backend.
     const button = ux.getByRole('button', { name: 'Créer le dossier', exact: true });
     await button.scrollIntoViewIfNeeded();
@@ -546,7 +563,7 @@ try {
     await duplicateDialog.waitFor({ state: 'hidden', timeout: 8000 });
     if (!ux.url().endsWith('/patients/new')) throw new Error('Escape from duplicate modal navigated away');
     await ux.screenshot({ path: path.join(uxDir, '06-duplicate-dialog-escaped.png'), fullPage: false, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, sidebarNavLabels, screenshots: ['00a-accessible-motif-dialog.png','01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
+    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, sidebarNavLabels, screenshots: ['00a-accessible-motif-dialog.png','01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','03c-malformed-200-rejected.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
   } finally {
     await uxContext.close();
   }
