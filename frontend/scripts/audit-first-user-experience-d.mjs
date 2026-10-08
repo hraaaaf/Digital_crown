@@ -265,8 +265,39 @@ try {
     if (labelProof.some(x => !x.hasAssociatedLabel)) throw new Error('Required identity label inaccessible: ' + JSON.stringify(labelProof));
     const nameHasAssociatedLabel = labelProof[0].hasAssociatedLabel;
     await ux.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
-    const textZoomOverflow = await ux.evaluate(() => Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > innerWidth + 1);
+    // Unlike the document-wide overflow check, this also catches text hidden by
+    // a local overflow-hidden header (the previous false-negative at 200%).
+    const assertHeaderNotClipped = async viewport => {
+      const result = await ux.evaluate(() => {
+        const heading = [...document.querySelectorAll('h2')].find(el => el.textContent?.trim() === 'Nouveau Patient');
+        const header = heading?.parentElement?.parentElement;
+        const description = heading?.nextElementSibling;
+        if (!header || !description) return { found: false };
+        const container = header.getBoundingClientRect();
+        const textBounds = [heading, description].flatMap(el => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          return Array.from(range.getClientRects(), r => ({ left: r.left, right: r.right }));
+        });
+        return {
+          found: true,
+          clipped: textBounds.some(r => r.left < container.left - 1 || r.right > container.right + 1),
+          headerScrollWidth: header.scrollWidth,
+          headerClientWidth: header.clientWidth,
+          documentOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > innerWidth + 1,
+        };
+      });
+      if (!result.found || result.clipped || result.documentOverflow || result.headerScrollWidth > result.headerClientWidth + 1) {
+        throw new Error('200% text size clipping at ' + viewport + ': ' + JSON.stringify(result));
+      }
+      return result;
+    };
+    const textZoomMobile = await assertHeaderNotClipped('390x844');
     await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: true, animations: 'disabled' });
+    await ux.setViewportSize({ width: 1280, height: 900 });
+    const textZoomDesktop = await assertHeaderNotClipped('1280x900');
+    await ux.screenshot({ path: path.join(uxDir, '01b-css-text-zoom-200pct-desktop.png'), fullPage: true, animations: 'disabled' });
+    await ux.setViewportSize({ width: 390, height: 844 });
     await ux.evaluate(() => { document.documentElement.style.fontSize = ''; });
 
     const identity = 'FUEDUI' + Date.now();
@@ -330,7 +361,7 @@ try {
     await ux.reload({ waitUntil: 'domcontentloaded' });
     await ux.getByText(identity, { exact: false }).first().waitFor({ state: 'visible', timeout: 15000 });
     await ux.screenshot({ path: path.join(uxDir, '04-after-double-click.png'), fullPage: true, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentOverflow: textZoomOverflow, screenshots: ['01-css-text-zoom-200pct.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png'] });
+    results.push({ viewport: 'adversarial-mobile-ui', simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentDesktop: textZoomDesktop, screenshots: ['01-css-text-zoom-200pct.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png'] });
   } finally {
     await uxContext.close();
   }
