@@ -249,3 +249,12 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 15. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
 **Dernière révision canonique : 17 septembre 2026 — verrou V1 consolidé actif.**
+
+## V1.5 — FUE rétroactif par sous-lot (PR #783 = laboratoire)
+
+- Pour chaque sous-lot V1.5 déjà CLOSED, réconcilier les preuves existantes avec le plan Notion « V1.5 — Plan FUE canonique par lot / sous-lot » **avant d'ouvrir V1.5-04**.
+- La PR [#783](https://github.com/hraaaaf/Digital_crown/pull/783) est le **laboratoire FUE réutilisable**, pas un lot produit ni un certificat universel. Lire son prompt `docs/audits/FIRST_USER_EXPERIENCE_PROMPT.md` et adapter persona, première valeur, contexte, viewports, scénarios, métriques, seuils et risques au lot/sous-lot concerné. Les catégories FUE-A…G du laboratoire sont un référentiel de contexte, distinct de cette campagne V1.5.
+- Appliquer la classification propre au plan V1.5 : **FUE-0** = contrat/code/tests seulement, sans inventer de parcours utilisateur ; **FUE-I** = parcours intermédiaire utilisable ; **FUE-G** = gate complet une fois le workflow de bout en bout disponible.
+- Matrice par sous-lot : CLOSED réel + niveau exigible + preuves exact-HEAD préexistantes + statut **PROUVÉ / PARTIEL / À FAIRE**. Réutiliser les preuves pertinentes ; ne pas convertir un CI vert en FUE prouvé.
+- Si FUE-I/G exigible : session/persona vierge pertinent, captures BEFORE/AFTER aux mêmes viewports, premier résultat utile, échecs/récupération, mesures, P0/P1/P2, score sévère, deux revues adversariales et confirmation même HEAD. Les corrections produit restent dans des PR produit distinctes de #783.
+- Commencer dans l'ordre V1.5-00.1 → 03.6, puis décider l'ouverture de 04. Aucun merge/déploiement Vercel implicite.
