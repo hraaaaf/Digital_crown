@@ -75,14 +75,24 @@ jobs:
           printf "subjectAltName=DNS:cabinet.local\nextendedKeyUsage=serverAuth\n" > "$TLS/server.ext"
           openssl x509 -req -in "$TLS/server.csr" -CA "$TLS/ca.crt" -CAkey "$TLS/ca.key" -CAcreateserial -days 1 -sha256 -extfile "$TLS/server.ext" -out "$TLS/server.crt" >/dev/null 2>&1
           chmod 600 "$TLS"/*.key
+          # Strict verification of the ephemeral CA and SAN before server start.
+          openssl verify -CAfile "$TLS/ca.crt" "$TLS/server.crt" >/dev/null
+          openssl x509 -in "$TLS/server.crt" -noout -checkhost cabinet.local | grep -F 'does match certificate' >/dev/null
           BRIDGE=$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}')
           test -n "$BRIDGE"
           echo "CABINET_HOST=$BRIDGE" >> "$GITHUB_ENV"
           echo "DIGITALCROWN_TLS_CERT_FILE=$TLS/server.crt" >> "$GITHUB_ENV"
           echo "DIGITALCROWN_TLS_KEY_FILE=$TLS/server.key" >> "$GITHUB_ENV"
           echo "FUE_TLS_DIR=$TLS" >> "$GITHUB_ENV"
-          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(24))')" >> "$GITHUB_ENV"
-          echo "T2_OWNER_PIN=$(python -c 'import secrets; print(secrets.randbelow(900000)+100000)')" >> "$GITHUB_ENV"
+          # GitHub displays GITHUB_ENV values in later step environment sections.
+          # Mask BEFORE export; all credentials are synthetic and unique per run.
+          ephemeral_password=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')
+          ephemeral_pin=$(python -c 'import secrets; print(secrets.randbelow(900000)+100000)')
+          echo "::add-mask::$ephemeral_password"
+          echo "::add-mask::$ephemeral_pin"
+          printf 'T2_PASSWORD=%s\n' "$ephemeral_password" >> "$GITHUB_ENV"
+          printf 'T2_OWNER_PIN=%s\n' "$ephemeral_pin" >> "$GITHUB_ENV"
+          unset ephemeral_password ephemeral_pin
           docker network create "fue-g-${GITHUB_RUN_ID}" >/dev/null
           mkdir -p "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b"
           echo "Cloud lab: ephemeral CA, private Docker bridge binding and independent clients provisioned"
@@ -100,7 +110,29 @@ jobs:
             fi
             sleep 1
           done
-          echo "Backend TLS readiness failed (logs withheld; may contain diagnostics)"
+          echo "Backend TLS readiness failed; printing sanitized diagnostic classes only"
+          if [ -f "$RUNNER_TEMP/fue-g-cloud-pid" ]; then
+            if kill -0 "$(cat "$RUNNER_TEMP/fue-g-cloud-pid")" 2>/dev/null; then
+              echo "Process state: running but HTTPS endpoint did not pass strict TLS health"
+            else
+              echo "Process state: exited before strict TLS health became ready"
+            fi
+          fi
+          python - <<'PY'
+          import os, re, pathlib
+          log = pathlib.Path(os.environ["RUNNER_TEMP"]) / "fue-g-cloud-backend.log"
+          if not log.exists():
+              print("Diagnostic: no backend log created")
+          else:
+              lines = log.read_text(errors="replace").splitlines()
+              print("Backend log lines:", len(lines))
+              # Output only known error-class lines, not raw traceback/logs.
+              classes = []
+              for line in lines:
+                  for match in re.finditer(r"\\b(?:RuntimeError|ValueError|ImportError|ModuleNotFoundError|OSError|PermissionError|FileNotFoundError|OperationalError|ProgrammingError|InvalidRequestError|Traceback|ERROR|CRITICAL)\\b", line):
+                      classes.append(match.group(0))
+              print("Diagnostic error classes:", ",".join(classes[-16:]) or "none")
+          PY
           exit 1
 
       - name: Pair A and B from independent disposable Docker clients
