@@ -389,8 +389,35 @@ jobs:
               throw 'First launch shortcut modal found but No action unavailable'
             }
             if($no.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button){
-              $invoke=$no.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-              $invoke.Invoke()
+              # Invoke alone returned without error on prior run but dialog persisted.
+              # Verify the exact foreground button, then send one physical click.
+              $r=$no.Current.BoundingRectangle
+              $wr=$dialog.Current.BoundingRectangle
+              if($r.IsEmpty -or $r.Width -lt 35 -or $r.Width -gt 180 -or
+                $r.Height -lt 15 -or $r.Height -gt 75 -or
+                $r.Left -lt $wr.Left -or $r.Right -gt $wr.Right -or
+                $r.Top -lt $wr.Top -or $r.Bottom -gt $wr.Bottom){
+                throw 'Shortcut No button bounds mismatch'
+              }
+              Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadShortcutButtonMouse {
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+          }
+          '@
+              if([FacadShortcutButtonMouse]::GetForegroundWindow() -ne [IntPtr]$dialog.Current.NativeWindowHandle){
+                throw 'Shortcut dialog not foreground: refusing click'
+              }
+              $cx=[int]($r.Left+$r.Width/2)
+              $cy=[int]($r.Top+$r.Height/2)
+              if(-not [FacadShortcutButtonMouse]::SetCursorPos($cx,$cy)){throw 'Shortcut No cursor placement failed'}
+              Start-Sleep -Milliseconds 150
+              [FacadShortcutButtonMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 120
+              [FacadShortcutButtonMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
             } elseif($no.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane){
               $bounds=$no.Current.BoundingRectangle
               $windowBounds=$dialog.Current.BoundingRectangle
