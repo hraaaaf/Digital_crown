@@ -413,6 +413,7 @@ try {
     await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
     await create503;
     await ux.getByRole('alert').getByText('Création non confirmée.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    await ux.getByRole('button', { name: 'Consulter les dossiers' }).waitFor({ state: 'visible', timeout: 12000 });
     if (uiCreatePostCount !== 1 || !ux.url().endsWith('/patients/new')) throw new Error('Create 503 must not claim success or navigate');
     await ux.locator('form [role="alert"]').scrollIntoViewIfNeeded();
     await ux.screenshot({ path: path.join(uxDir, '03-create-503-refused.png'), fullPage: false, animations: 'disabled' });
@@ -439,7 +440,31 @@ try {
     await ux.reload({ waitUntil: 'domcontentloaded' });
     await ux.getByText(identity, { exact: false }).first().waitFor({ state: 'visible', timeout: 15000 });
     await ux.screenshot({ path: path.join(uxDir, '04-after-double-click.png'), fullPage: true, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png'] });
+
+    // Real backend preflight must display an accessible, keyboard-contained dialog
+    // for a duplicate identity. Native dialog handles inert backdrop and Escape.
+    await ux.goto(root + '/patients/new', { waitUntil: 'domcontentloaded' });
+    await ux.locator('input[name="nom"]').waitFor({ state: 'visible' });
+    await ux.locator('input[name="nom"]').fill(identity);
+    await ux.locator('input[name="prenom"]').fill('Failclosed');
+    await ux.locator('input[name="date_naissance"]').fill('1990-01-01');
+    await ux.locator('select[name="sexe"]').selectOption('F');
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    const duplicateDialog = ux.getByRole('dialog', { name: 'Patient similaire trouvé' });
+    await duplicateDialog.waitFor({ state: 'visible', timeout: 15000 });
+    await duplicateDialog.getByRole('button', { name: 'Ouvrir le dossier existant' }).waitFor({ state: 'visible' });
+    const focusIsInDialog = await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true);
+    if (!focusIsInDialog) throw new Error('Duplicate dialog did not place keyboard focus inside modal');
+    await ux.keyboard.press('Tab');
+    if (!(await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true))) {
+      throw new Error('Keyboard focus escaped duplicate dialog');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '05-accessible-duplicate-dialog.png'), fullPage: false, animations: 'disabled' });
+    await ux.keyboard.press('Escape');
+    await duplicateDialog.waitFor({ state: 'hidden', timeout: 8000 });
+    if (!ux.url().endsWith('/patients/new')) throw new Error('Escape from duplicate modal navigated away');
+    await ux.screenshot({ path: path.join(uxDir, '06-duplicate-dialog-escaped.png'), fullPage: false, animations: 'disabled' });
+    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
   } finally {
     await uxContext.close();
   }
