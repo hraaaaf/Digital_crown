@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/v15-00-3-fue.yml'
       - 'frontend/scripts/capture-v15-00-3-workstation.mjs'
+      - 'frontend/scripts/audit-v15-00-3-fue-journeys.mjs'
       - 'frontend/src/features/hub/**'
   workflow_dispatch:
 permissions:
@@ -39,9 +40,17 @@ jobs:
           done
           cat /tmp/v15-00-3-vite.log
           exit 1
+      - name: Check Playwright scripts syntax
+        working-directory: frontend
+        run: |
+          node --check scripts/capture-v15-00-3-workstation.mjs
+          node --check scripts/audit-v15-00-3-fue-journeys.mjs
       - name: Capture workstation states across 3 viewports
         working-directory: frontend
         run: node scripts/capture-v15-00-3-workstation.mjs
+      - name: Verify workstation click-through journeys, recovery, keyboard and persistence
+        working-directory: frontend
+        run: node scripts/audit-v15-00-3-fue-journeys.mjs
       - name: Diagnostics
         if: failure()
         run: cat /tmp/v15-00-3-vite.log || true
@@ -50,6 +59,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fue-v15-00-3-workstation
-          path: frontend/artifacts/v15-00-3-workstation/
+          path: |
+            frontend/artifacts/v15-00-3-workstation/
+            frontend/artifacts/v15-00-3-fue-journeys/
           retention-days: 14
           if-no-files-found: error
