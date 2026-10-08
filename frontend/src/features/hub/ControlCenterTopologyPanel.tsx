@@ -230,7 +230,7 @@ export const ControlCenterTopologyPanel = () => {
       const authError = authResponse.status === 423
         ? await authResponse.json().catch(() => null) as { detail?: string } | null
         : null;
-      const authRefusal = authError?.detail === 'WORKSTATION_STATION_LOCKED' ? 'station'
+      const authRefusal: ProbeResult['authRefusal'] = authError?.detail === 'WORKSTATION_STATION_LOCKED' ? 'station'
         : authError?.detail === 'WORKSTATION_IDENTITY_REQUIRED'
           || authError?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED' ? 'identity'
           : authResponse.status === 423 ? 'other' : null;
