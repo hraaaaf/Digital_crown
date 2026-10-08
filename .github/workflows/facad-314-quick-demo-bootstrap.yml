@@ -996,14 +996,14 @@ jobs:
           if($tracingFailure){throw "Facad tracing exploratory gate failed: $tracingFailure"}
           if($menuErrors.Count -gt 0){throw "Facad menu exploratory gate failed: $($menuErrors -join '; ')"}
 
-          # Continue inside the SAME Windows session: all nine menus, every
-          # button inventory, reversible mode clicks and analysis catalog.
-          $surfaceScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_surface_map.ps1'
-          if(-not (Test-Path $surfaceScript)){throw "Surface mapping script missing: $surfaceScript"}
-          & $surfaceScript -FacadProcessId ([int]$facadPid) `
+          # D0 was proven 9/9 in run #37843736004; skip repeating its
+          # 10-minute menu census. Use this newly bootstrapped official demo
+          # session directly for D1 analysis catalog discovery.
+          $d1Script=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_analysis_catalog.ps1'
+          if(-not (Test-Path $d1Script)){throw "D1 catalog script missing: $d1Script"}
+          & $d1Script -FacadProcessId ([int]$facadPid) `
             -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
             -OutDir 'facad-quick-demo'
-          if($LASTEXITCODE -and $LASTEXITCODE -ne 0){throw "Surface mapping script exit code $LASTEXITCODE"}
 
           if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
@@ -1031,6 +1031,8 @@ jobs:
             facad-quick-demo/shortcut-after-keyboard.txt
             facad-quick-demo/shortcut-prompt.txt
             facad-quick-demo/license-notice.txt
+            facad-quick-demo/d1-*.png
+            facad-quick-demo/d1-*.txt
             facad-quick-demo/surface-status.txt
             facad-quick-demo/surface-coverage.csv
             facad-quick-demo/surface-*.png
