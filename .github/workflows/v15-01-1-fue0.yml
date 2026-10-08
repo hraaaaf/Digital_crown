@@ -1,0 +1,41 @@
+name: V1.5-01.1 Topology FUE-0 Contract
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/v15-01-1-fue0.yml'
+      - 'scripts/audit-v15-01-1-topology-contract.py'
+      - 'backend/core/cabinet_topology.py'
+      - 'backend/routers/mobile_legacy.py'
+      - 'backend/main.py'
+      - 'run.py'
+      - 'docs/audits/V1_5_01_1_FUE_0_TOPOLOGY_RECONCILIATION.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  topology-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile topology contract and audit
+        run: python -m py_compile backend/core/cabinet_topology.py scripts/audit-v15-01-1-topology-contract.py
+      - name: Execute FUE-0 topology invariants
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python scripts/audit-v15-01-1-topology-contract.py
+      - name: Retain exact-head FUE-0 evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-v15-01-1-topology-contract
+          path: artifacts/fue-v15-01-1/
+          if-no-files-found: error
+          retention-days: 14
