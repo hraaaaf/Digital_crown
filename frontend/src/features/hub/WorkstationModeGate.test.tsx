@@ -158,4 +158,32 @@ describe('WorkstationModeGate V1.5-00.3 direct URL security', () => {
     expect(screen.queryByRole('button', { name: 'Autoriser le Hub' })).not.toBeInTheDocument();
   });
 
+  it('fails closed for protected Cabinet routes if workstation authority is offline', async () => {
+    vi.mocked(workstationModeService.getState).mockRejectedValue(new Error('offline'));
+    renderGate('/dashboard', 'protected');
+    await waitFor(() => expect(screen.getByText('HUB')).toBeInTheDocument());
+    expect(screen.queryByText('REQUESTED')).not.toBeInTheDocument();
+  });
+
+  it('dispatches a configured Hub to the server-remembered Cabinet experience', async () => {
+    vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
+      workstationId: 'ws-cabinet',
+      defaultExperience: 'cabinet',
+      stationLocked: false,
+      stationEscapeAuthorized: false,
+    });
+    render(
+      <MemoryRouter initialEntries={['/hub']}>
+        <Routes>
+          <Route path="/hub" element={
+            <WorkstationModeGate target="hub"><div>HUB</div></WorkstationModeGate>
+          } />
+          <Route path="/cabinet" element={<div>REMEMBERED CABINET</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByText('REMEMBERED CABINET');
+    expect(screen.queryByText('HUB')).not.toBeInTheDocument();
+  });
+
 });
