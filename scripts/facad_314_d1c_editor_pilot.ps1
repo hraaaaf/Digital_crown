@@ -3,7 +3,8 @@
 # OFFICIAL ROBERT COPY ONLY. Never click Save, never invoke patient Load analysis.
 param([Parameter(Mandatory=$true)][int]$FacadProcessId,
       [Parameter(Mandatory=$true)][long]$MainWindowHwnd,
-      [Parameter(Mandatory=$true)][string]$OutDir)
+      [Parameter(Mandatory=$true)][string]$OutDir,
+      [Parameter(Mandatory=$true)][ValidateSet('Steiner','Tweed','McNamara')][string]$ProfileName)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -131,7 +132,8 @@ function EditorName($editor){
  if($names.Count -ne 1){return 'UNKNOWN'}
  return [string]$names[0]
 }
-$profiles=@('Steiner','Tweed','McNamara')
+$profiles=@($ProfileName)
+Log "D1C_ONE_PROFILE_PER_FRESH_RUNNER=$ProfileName"
 Shot 'd1c-before-editor.png'
 DumpUi 'd1c-before-editor-ui.txt'
 $loaded=0
@@ -178,6 +180,14 @@ try{
    if($load.Count -ne 1){throw 'D1C catalog Load button ambiguous'}
    Click $load[0]
    Start-Sleep -Milliseconds 700
+   # Facad may prompt to overwrite existing marker properties when a
+   # second preset is loaded into the same editor. Distinct runners avoid
+   # this. If a prompt still appears, do NOT acknowledge or overwrite.
+   $modals=$root.FindAll([Windows.Automation.TreeScope]::Descendants,
+     [Windows.Automation.PropertyCondition]::new(
+       [Windows.Automation.AutomationElement]::NameProperty,
+       'Do you want to overwrite existing marker properties?'))
+   if($modals.Count -gt 0){throw 'D1C overwrite-marker confirmation appeared; refuse mutation'}
    $ed=Editor
    $editorName=EditorName $ed
    Shot "d1c-$safe-measurements.png"
