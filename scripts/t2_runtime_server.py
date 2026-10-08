@@ -229,7 +229,7 @@ with database.SessionLocal() as db:
         db.add(models.CabinetConfig(
             owner_id=user.id,
             nom_cabinet="Cabinet T2 Certification",
-            nom_praticien="Dr T2 Browser",
+            nom_praticien="Dr Cabinet de certification",
             is_initialized=True,
             hide_header=False,
             hide_footer=False,
