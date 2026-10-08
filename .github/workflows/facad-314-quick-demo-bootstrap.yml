@@ -385,11 +385,37 @@ jobs:
             $no=$dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'No'))
-            if($null -eq $no -or $no.Current.ControlType -ne [System.Windows.Automation.ControlType]::Button -or -not $no.Current.IsEnabled){
-              throw 'First launch shortcut modal found but expected No button was not safe to invoke'
+            if($null -eq $no -or -not $no.Current.IsEnabled){
+              throw 'First launch shortcut modal found but No action unavailable'
             }
-            $invoke=$no.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-            $invoke.Invoke()
+            if($no.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button){
+              $invoke=$no.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+              $invoke.Invoke()
+            } elseif($no.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane){
+              $bounds=$no.Current.BoundingRectangle
+              $windowBounds=$dialog.Current.BoundingRectangle
+              if($bounds.IsEmpty -or $bounds.Width -lt 35 -or $bounds.Width -gt 180 -or
+                $bounds.Height -lt 15 -or $bounds.Height -gt 75 -or
+                $bounds.Left -lt $windowBounds.Left -or $bounds.Right -gt $windowBounds.Right -or
+                $bounds.Top -lt $windowBounds.Top -or $bounds.Bottom -gt $windowBounds.Bottom){
+                throw 'Shortcut No pane bounds mismatch'
+              }
+              Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadShortcutMouse {
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
+          }
+          '@
+              $cx=[int]($bounds.Left+$bounds.Width/2)
+              $cy=[int]($bounds.Top+$bounds.Height/2)
+              if(-not [FacadShortcutMouse]::SetCursorPos($cx,$cy)){throw 'Cannot focus shortcut No pane'}
+              Start-Sleep -Milliseconds 200
+              [FacadShortcutMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 100
+              [FacadShortcutMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            } else {throw 'Unexpected shortcut No control type'}
             $shortcutHandled=$true
             'SHORTCUT_PROMPT_NO_INVOKED=true' | Set-Content facad-quick-demo/shortcut-prompt.txt
             break
