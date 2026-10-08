@@ -9,8 +9,9 @@ aucune commande, secrets générés automatiquement par l'installation,
 SQLite/SQLCipher chiffré (`ENVIRONMENT=cabinet`, mode solo officiellement
 supporté). Le schéma est préparé par la procédure d'installation/Alembic
 explicite ; le service ne crée ni tables ni migration au démarrage. Le reste de ce document décrit la
-procédure manuelle, toujours valable pour un cabinet multi-postes
-(PostgreSQL) ou pour comprendre ce que l'installeur fait pour vous.
+procédure manuelle historique, **non exécutable telle quelle** pour le multi-PC.
+
+> **STOP — Release/FUE-G 01.4** : seul `INSTALLABLE_CERTIFIED` (code exact SHA + assets, provenance/hash vérifiés) est installable, après approbation humaine sur banc isolé. Jamais de branche, HEAD, master, EXE ad hoc ni `CODE_CERTIFIED` seul. En cabinet/production, LAN :8005 exige HTTPS/TLS et **chaîne de confiance validée sur chaque annexe**. Suivre `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` et `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
 
 ## Vue d'ensemble
 
@@ -58,10 +59,10 @@ pas une règle bloquante du garde de démarrage
 │  └─ Backend FastAPI (port 8005)
 │
 ├─ PC Secrétaire
-│  └─ Frontend PWA (http://192.168.x.1:8005)
+│  └─ Frontend PWA (https://192.168.x.1:8005)
 │
 └─ PC Salle Attente
-   └─ Frontend PWA (http://192.168.x.1:8005)
+   └─ Frontend PWA (https://192.168.x.1:8005)
 ```
 
 ### Clinique (10+ postes)
@@ -73,7 +74,7 @@ pas une règle bloquante du garde de démarrage
 │  └─ Backup quotidien
 │
 ├─ Poste 1..N
-│  └─ Frontend PWA (http://serveur.local:8005)
+│  └─ Frontend PWA (https://serveur.local:8005)
 ```
 
 ---
@@ -105,7 +106,7 @@ pas une règle bloquante du garde de démarrage
 
 ```bash
 # Télécharger PostgreSQL 15+ depuis https://www.postgresql.org/download/windows/
-# Installer avec password root = 'admin' (peut être changé après)
+# Créer un secret administrateur fort et unique via un gestionnaire de secrets, jamais de mot de passe prédéfini
 # Vérifier :
 psql --version
 psql -U postgres -h localhost -c "SELECT version();"
@@ -120,15 +121,9 @@ brew services start postgresql@15
 psql -U postgres -c "SELECT version();"
 ```
 
-### Mode Solo (cabinet seul)
+### Base de données — solo et multi-PC
 
-Même en mode solo (un seul poste), PostgreSQL est obligatoire :
-- Simplifie le support et les migrations futures
-- Facilite l'ajout de postes supplémentaires sans refonte DB
-- Offre des garanties ACID meilleures que SQLite
-- PostgreSQL peut tourner sur le même PC que l'application
-
----
+`ENVIRONMENT=cabinet` autorise SQLite/SQLCipher chiffré pour un **poste solo**. Le banc S+A+B multi-postes requiert PostgreSQL dédié/isolé ; `ENVIRONMENT=production` exige PostgreSQL. Aucune migration de base cabinet par ce guide.
 
 ## 3. Modèle DB standard : utilisateur dédié par cabinet
 
@@ -176,7 +171,13 @@ DATABASE_URL=postgresql://cabinet_user:secure_password_here@localhost/digitalcro
 SECRET_KEY=generate_32_chars_minimum_randomly_e.g._use_python_secrets
 
 # Frontend
-ALLOWED_ORIGINS=http://127.0.0.1:8005,http://192.168.x.x:8005
+# Exemple fictif : l'IP choisie DOIT être dans le SAN du certificat approuvé
+CABINET_HOST=192.168.1.100
+CABINET_PORT=8005
+DIGITALCROWN_ENABLE_HTTPS=true
+DIGITALCROWN_TLS_CERT_FILE=C:\certs\cabinet-test.crt
+DIGITALCROWN_TLS_KEY_FILE=C:\certs\cabinet-test.key
+ALLOWED_ORIGINS=https://192.168.1.100:8005
 
 # Médias
 MEDIA_DIR=%APPDATA%\DigitalCrown\media
@@ -192,66 +193,20 @@ FIREBASE_ADMIN_SDK_JSON={}
 **Générer SECRET_KEY :**
 
 ```bash
-python -c "import secrets; print(secrets.token_hex(16))"
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ---
 
-## 5. Créer le superadmin cabinet
+## 5. Initialiser le propriétaire — environnement autorisé seulement
 
-```bash
-cd C:\chemin\vers\DigitalCrown
+Sur banc isolé, utiliser le parcours d'initialisation **de la release certifiée**, un propriétaire autorisé et un secret fort unique. **Ne jamais utiliser un identifiant/mot de passe d'exemple, la commande `seed_user` ni des données cabinet réelles** pour 01.4. Vérifier identité/permissions avant tout appairage.
 
-# Créer le premier utilisateur admin
-python -m backend.seed_user --email owner@cabinet.local --password "SecurePass123!" --role ADMIN
-```
+## 6. Lancer uniquement la release certifiée
 
-**Résultat :**
-- Email : `owner@cabinet.local`
-- Password : `SecurePass123!` (à changer après premier login)
-- Rôle : ADMIN (accès complet)
+**Ne pas utiliser `uvicorn --reload`, `uvicorn --host 0.0.0.0` sans TLS, ni `create_release.ps1` sans ses bundles certifiés.** Ordre : `CODE_CERTIFIED` (HEAD exact de master) → assets runtime certifiés pour **ce SHA** → `create_release.ps1 -CertifiedArtifactZip ... -RuntimeAssetsZip ...` → contrôle `INSTALLABLE_CERTIFIED` → GO humain → `run_real_backend.ps1 -ReleaseId ... -ConfirmRealActivation "YES"` sur banc isolé. Rien ici ne rend la PR #803 installable.
 
----
-
-## 6. Lancer le backend
-
-**⚠️ Ne jamais lancer `uvicorn --reload` sur le port réel du cabinet.** Un `--reload` recharge
-le process à chaque édition de fichier Python du dépôt — y compris du code non terminé — sans
-déploiement explicite. Incident réel documenté dans `CLAUDE.md` (P0-TREATMENT-JOURNEY-1, 2026-07-10).
-
-**Procédure recommandée (dépôt de dev, avant packaging EXE) :**
-```powershell
-# 1. Construire une release immuable (copie hors du dépôt, backend/ + frontend/dist)
-cd backend\scripts
-.\create_release.ps1
-
-# 2. Démarrer depuis cette release, jamais depuis le dépôt directement
-.\run_real_backend.ps1 -ReleaseId <release_id_affiche> -ConfirmRealActivation "YES"
-```
-
-`run_real_backend.ps1` refuse tout `--reload`, toute config ressemblant à du rehearsal
-(DATABASE_URL, ENVIRONMENT, MEDIA_ROOT), et exige un manifeste de release valide. Voir
-`docs/CABINET_ONPREM_GUIDE.md` section 2 pour le détail de la doctrine.
-
-**Commande brute équivalente (sans les garde-fous — déconseillée sauf test isolé, jamais sur le
-poste cabinet réel) :**
-```bash
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8005
-```
-
-**Résultat attendu :**
-```
-Uvicorn running on http://0.0.0.0:8005
-Application startup complete
-```
-
-Health check :
-```bash
-curl http://127.0.0.1:8005/api/health
-# Résultat : {"status":"ok","database":"ok",...}
-```
-
----
+Le loopback `http://127.0.0.1:8005/api/health` est autorisé localement ; A/B utilisent uniquement `https://<nom-ou-IP-SAN-reel>:8005/api/health` sans contournement TLS.
 
 ## 7. Lancer le frontend
 
@@ -289,7 +244,7 @@ npm run build
 ## 8. Premier login et configuration
 
 1. Ouvrir http://127.0.0.1:8005
-2. Email : `owner@cabinet.local` / Password : `SecurePass123!`
+2. Authentifier le propriétaire autorisé avec un compte individuel, jamais un identifiant de démonstration.
 3. Changer le mot de passe (Settings → Profile)
 4. Configurer le cabinet :
    - Logo
@@ -299,27 +254,16 @@ npm run build
 
 ---
 
-## 9. Accès depuis d'autres postes du réseau
+## 9. Accès multi-PC : HTTPS obligatoire
 
-**Prerequis :**
-- Tous les postes sur le même LAN
-- Machine cabinet : IP fixe (ex. 192.168.1.100)
+**Gate préalable** : S, A et B isolés et autorisés, DNS/IP stable de S, SAN/CA/validité TLS approuvés **depuis A et B séparément**, release `INSTALLABLE_CERTIFIED` correspondant au code exact sous test, backup DB+médias synthétiques **et restore clone prouvé**, autorisations installation/reboot/coupure explicites.
 
-**Configuration :**
-1. Dans `backend/.env.local` :
-   ```env
-   ALLOWED_ORIGINS=http://192.168.1.100:8005,http://192.168.1.101:8005
-   ```
-2. Relancer backend
-3. Autre poste : http://192.168.1.100:8005
-4. Login avec le même compte
+1. Configurer sur S `CABINET_HOST` LAN, `CABINET_PORT=8005`, `DIGITALCROWN_ENABLE_HTTPS=true`, chemins cert/key TLS locaux protégés et `ALLOWED_ORIGINS` correspondant aux origines HTTPS réellement servies (pas automatiquement aux IP clientes).
+2. Après activation humaine et certifiée sur **banc non clinique**, constater `/api/health`, `/api/health/db`, `/api/health/storage`, `/api/health/topology` ; A et B ouvrent séparément `https://192.168.1.100:8005` **uniquement si** cette IP illustrative correspond au SAN et au réseau réellement observés.
+3. Deux profils vierges, deux appairages single-use et identités distinctes ; valider rôles/droits, refus avant authentification, Hub et Station PIN.
+4. Tester après GO distinct les refus HTTP LAN/cert invalide/mauvaise IP, 503/DB/423/PIN/replay, restart S/A/B et coupure/récupération ; capturer BEFORE/AFTER mêmes viewports et **mesurer** les durées, sans patient réel.
 
-**Mobile PWA :**
-1. Ouvrir http://192.168.1.100:8005 sur téléphone
-2. Menu → "Ajouter à l'écran d'accueil"
-3. Accès offline avec QR-pairing
-
----
+Le mobile via QR/HTTPS ne remplace pas la certification des deux postes PC. Voir `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
 
 ## 10. Rôle exact de Firebase
 
@@ -446,7 +390,7 @@ pip install reportlab pillow weasyprint
 ```bash
 # Vérifier ALLOWED_ORIGINS dans .env.local
 # Inclure l'IP exacte du client
-ALLOWED_ORIGINS=http://192.168.1.100:8005
+ALLOWED_ORIGINS=https://192.168.1.100:8005
 ```
 
 ### "Patients not showing"
