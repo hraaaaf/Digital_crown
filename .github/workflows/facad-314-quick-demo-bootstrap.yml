@@ -696,6 +696,7 @@ jobs:
             [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
             [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
             [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint processId);
           }
           '@
             $patientHwnd=[IntPtr]$facadWindow.Current.NativeWindowHandle
@@ -753,7 +754,27 @@ jobs:
               $openBounds.Top -lt $windowBounds.Top -or $openBounds.Bottom -gt $windowBounds.Bottom){
               throw 'Patient Open button bounds mismatch'
             }
-            if([FacadPatientMouse]::GetForegroundWindow() -ne $patientHwnd){throw 'Facad lost foreground before Open click'}
+            # Clicking the selected Robert row brings its own modal Patients/Work List
+            # HWND to the foreground. Do not require the *main* Facad HWND here.
+            # Verify the foreground window still belongs to the same Facad process,
+            # and the enabled Open button is scoped to the observed patient dialog.
+            $fgHwnd=[FacadPatientMouse]::GetForegroundWindow()
+            [uint32]$fgProcessId=0
+            if($fgHwnd -eq [IntPtr]::Zero){throw 'No foreground window before Open click'}
+            [void][FacadPatientMouse]::GetWindowThreadProcessId($fgHwnd,[ref]$fgProcessId)
+            $facadProcessId=[uint32]$facadWindow.Current.ProcessId
+            $dialogHwnd=[IntPtr]$patientWindow.Current.NativeWindowHandle
+            "OPEN_FG_PROCESS_ID=$fgProcessId" | Add-Content facad-quick-demo/robert-open-probe.txt
+            "OPEN_FACAD_PROCESS_ID=$facadProcessId" | Add-Content facad-quick-demo/robert-open-probe.txt
+            "OPEN_FG_MATCHES_PATIENT_DIALOG=$($fgHwnd -eq $dialogHwnd)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if($facadProcessId -eq 0 -or $fgProcessId -ne $facadProcessId){
+              throw 'Foreground window is not owned by Facad; refusing Open click'
+            }
+            if($dialogHwnd -ne [IntPtr]::Zero -and
+              $fgHwnd -ne $dialogHwnd -and $fgHwnd -ne $patientHwnd){
+              throw 'Foreground is neither Facad main window nor selected patient dialog'
+            }
+            if(-not $openButtons[0].Current.IsEnabled){throw 'Open button disabled before click'}
             $ox=[int]($openBounds.Left + $openBounds.Width/2)
             $oy=[int]($openBounds.Top + $openBounds.Height/2)
             if(-not [FacadPatientMouse]::SetCursorPos($ox,$oy)){throw 'Open button cursor placement failed'}
