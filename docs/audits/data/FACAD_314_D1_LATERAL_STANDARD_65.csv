@@ -1,0 +1,66 @@
+ordinal,analysis_name,facad_modality,catalog_tab,discovery_state,loaded_on_robert,measurement_inventory,clinical_concordance
+1,"ABO",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+2,"Airway (FH)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+3,"Airway (McNamara)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+4,"Airway (Mochida)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+5,"Airway (NL)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+6,"Alexander",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+7,"AM Schwarz",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+8,"Ancell",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+9,"Arnett STCA (female)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+10,"Arnett STCA (male)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+11,"Arnett STCA Midface (female)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+12,"Arnett STCA Midface (male)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+13,"Basel 2013",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+14,"Bergen",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+15,"Bergen short",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+16,"Bern analysis",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+17,"Bern University",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+18,"Bimler",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+19,"Bjork",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+20,"Bjork-DK",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+21,"Bjork-DK-extended",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+22,"Bjork-Tiops",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+23,"Bjork-Tiops (female-11)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+24,"Bjork-Tiops (male-12)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+25,"Burstone (female)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+26,"Burstone (male)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+27,"Downs",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+28,"EAIO",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+29,"Facad Mini",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+30,"Geneve",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+31,"HarmonyBox",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+32,"Harvold",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+33,"Hasund",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+34,"Hasund regression",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+35,"Holdaway Soft",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+36,"Jarabak",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+37,"Jefferson-Sassouni",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+38,"Legan-Burstone Surgical",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+39,"Mahony FFG",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+40,"Mahony FFG + soft",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+41,"McGann",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+42,"McLaughlin",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+43,"McNamara",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+44,"Oslo",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+45,"Oslo Surgical",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+46,"Pancherz-post",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+47,"Pancherz-pre",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+48,"Photo AM Schwarz",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+49,"Quadrilateral DiPaolo",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+50,"Rakosi",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+51,"Ricketts",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+52,"Ricketts (13 F)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+53,"Ricketts (32 F)",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+54,"Ricketts acc G. Samson",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+55,"Ricketts Summary",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+56,"Roth-Jarabak",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+57,"Sato Denture Frame",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+58,"Sato Denture Frame mod Kim",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+59,"Steiner",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+60,"Trygde-analysen",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+61,"Tubingen",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+62,"Tweed",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+63,"Wits appraisal",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+64,"Wylie",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
+65,"Zurich",lateral,Standard,DISCOVERED,NO,NOT_TESTED,NOT_TESTED
