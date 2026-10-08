@@ -306,6 +306,23 @@ try {
       throw new Error('Missing required identity field is not announced as invalid');
     }
     await ux.screenshot({ path: path.join(uxDir, '00-first-use-required-fields.png'), fullPage: false, animations: 'disabled' });
+    // Invalid optional data must expand its own section and receive keyboard focus.
+    await ux.locator('input[name="nom"]').fill('UXEMAILTEST');
+    await ux.locator('input[name="prenom"]').fill('Check');
+    await ux.locator('input[name="date_naissance"]').fill('1990-01-01');
+    await ux.locator('select[name="sexe"]').selectOption('F');
+    await optionalClinical.click();
+    await ux.locator('input[name="email"]').fill('invalid-email');
+    await optionalClinical.click();
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await ux.waitForFunction(() => document.activeElement?.getAttribute('name') === 'email', undefined, { timeout: 6000 });
+    if ((await ux.locator('input[name="email"]').getAttribute('aria-invalid')) !== 'true' ||
+        !(await ux.locator('input[name="email"]').isVisible())) {
+      throw new Error('Invalid optional email did not reopen section and announce the field error');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '00b-optional-email-focus.png'), fullPage: false, animations: 'disabled' });
+    await ux.locator('input[name="email"]').fill('');
+    await optionalClinical.click();
     await ux.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
     // Unlike the document-wide overflow check, this also catches text hidden by
     // a local overflow-hidden header (the previous false-negative at 200%).
