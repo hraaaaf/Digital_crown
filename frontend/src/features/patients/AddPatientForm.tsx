@@ -69,10 +69,17 @@ export const AddPatientForm = () => {
   const fetchNextDossierNumber = async (replaceExisting = false) => {
     try {
       const response = await api.get('/patients/next-dossier-number');
+      const proposed = String(response.data?.next_number ?? '').trim();
+      if (!proposed || (replaceExisting && proposed === formData.numero_dossier)) {
+        if (replaceExisting) {
+          setErrors(previous => ({ ...previous, numero_dossier: "Aucun nouveau numéro disponible. Saisissez un autre numéro ou réessayez." }));
+        }
+        return;
+      }
       setFormData((prev: any) => (
         !replaceExisting && prev.numero_dossier
           ? prev
-          : { ...prev, numero_dossier: response.data.next_number }
+          : { ...prev, numero_dossier: proposed }
       ));
       if (replaceExisting) setErrors(previous => ({ ...previous, numero_dossier: '' }));
     } catch (err: any) {
@@ -218,6 +225,12 @@ export const AddPatientForm = () => {
       // Si isForced est true, on ajoute le paramètre force_create
       const url = isForced ? '/patients/?force_create=true' : '/patients/';
       const { data } = await api.post(url, payload);
+      // Never navigate to a fabricated dossier route on a malformed HTTP 200.
+      const matchesIdentity = String(data?.nom || '').trim().toUpperCase() === formData.nom.trim().toUpperCase()
+        && String(data?.prenom || '').trim().toLowerCase() === formData.prenom.trim().toLowerCase();
+      if (!Number.isInteger(data?.id) || data.id <= 0 || !matchesIdentity) {
+        throw new Error("Patient creation acknowledgment does not match submitted identity");
+      }
       navigate(`/patients/${data.id}`);
     } catch (err: any) {
       console.error("Échec création dossier patient (statut HTTP uniquement)", { status: err?.response?.status ?? null });
