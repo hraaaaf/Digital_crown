@@ -996,12 +996,18 @@ jobs:
           if($tracingFailure){throw "Facad tracing exploratory gate failed: $tracingFailure"}
           if($menuErrors.Count -gt 0){throw "Facad menu exploratory gate failed: $($menuErrors -join '; ')"}
 
-          # D0 was proven 9/9 in run #37843736004; skip repeating its
-          # 10-minute menu census. Use this newly bootstrapped official demo
-          # session directly for D1 analysis catalog discovery.
-          $d1Script=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_analysis_catalog.ps1'
-          if(-not (Test-Path $d1Script)){throw "D1 catalog script missing: $d1Script"}
-          & $d1Script -FacadProcessId ([int]$facadPid) `
+          # D1 discovery verified on run #37845377310: 65 lateral analyses.
+          # D3 preflight only: read/hash/copy the official sample into scratch,
+          # without opening or modifying it through Facad.
+          $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
+          if(-not (Test-Path $d3Preflight)){throw "D3 preflight missing: $d3Preflight"}
+          & $d3Preflight -OutDir 'facad-quick-demo'
+
+          # D2: reversible View toggles, toolbar modes and state restoration,
+          # grounded in the already opened Robert pretreatment workspace.
+          $d2Script=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d2_view_probe.ps1'
+          if(-not (Test-Path $d2Script)){throw "D2 explorer missing: $d2Script"}
+          & $d2Script -FacadProcessId ([int]$facadPid) `
             -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
             -OutDir 'facad-quick-demo'
 
@@ -1031,6 +1037,10 @@ jobs:
             facad-quick-demo/shortcut-after-keyboard.txt
             facad-quick-demo/shortcut-prompt.txt
             facad-quick-demo/license-notice.txt
+            facad-quick-demo/d2-*.png
+            facad-quick-demo/d2-*.txt
+            facad-quick-demo/d2-coverage.csv
+            facad-quick-demo/d3-sandbox-preflight.txt
             facad-quick-demo/d1-*.png
             facad-quick-demo/d1-*.txt
             facad-quick-demo/surface-status.txt
