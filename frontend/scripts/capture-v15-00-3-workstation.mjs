@@ -97,6 +97,9 @@ try {
         body: JSON.stringify(scenario.state ?? { detail: 'WORKSTATION_ENROLLMENT_REQUIRED' }),
       }));
 
+      // Isolated frontend has no backend: explicitly emulate readiness and anonymous auth.
+      await context.route('**/health', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'ok'})}));
+      await context.route('**/auth/me', route => route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({detail:'Unauthenticated'})}));
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
