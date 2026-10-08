@@ -13,7 +13,7 @@ fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 const report = {
   productHead: process.env.PRODUCT_HEAD || 'UNKNOWN',
-  scope: 'V1.5-01.2 FUE-I: synthetic same-host origin handoff',
+  scope: 'V1.5-01.2 FUE-I: fresh browser, synthetic same-host origin handoff, explicit workstation enrollment',
   exclusions: ['physical LAN discovery', 'LAN TLS/certificate trust', 'real cabinet', 'multi-PC reboot/PIN'],
   cases: [],
   success: false,
@@ -33,7 +33,7 @@ const browser = await chromium.launch({ headless: true });
 for (const p of profiles) {
   const record = { profile: p.name, viewport: [p.width, p.height], steps: [], errors: [], failures: [] };
   report.cases.push(record);
-  const context = await browser.newContext({ viewport: { width: p.width, height: p.height } });
+  const context = await browser.newContext({ viewport: { width: p.width, height: p.height }, storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   page.setDefaultTimeout(12000);
   page.on('pageerror', e => record.errors.push(e.message));
@@ -83,8 +83,17 @@ for (const p of profiles) {
     await snapshot('06-protected-route-refused');
     await page.getByPlaceholder('nom@cabinet.com').fill(email);
     await page.getByPlaceholder('••••••••').fill(password);
-    await page.getByRole('button', { name: 'Se connecter' }).click();
-    await page.waitForURL('**/dashboard', { timeout: 25000 });
+    await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
+    await page.waitForURL('**/hub?enroll=1', { timeout: 30000 });
+    await page.locator('[data-workstation-enrollment]').waitFor({ state: 'visible', timeout: 15000 });
+    await snapshot('07-enrollment-required');
+    await page.getByText('Récupération propriétaire sans code').click();
+    await page.getByLabel('Mot de passe du compte propriétaire').fill(password);
+    await page.getByRole('button', { name: 'Réenregistrer le poste' }).click();
+    await page.getByText('Poste réenregistré.', { exact: false }).waitFor({ timeout: 15000 });
+    await snapshot('08-workstation-enrolled');
+    await page.goto(remote + '/cabinet', { waitUntil: 'domcontentloaded' });
+    await page.waitForURL('**/dashboard', { timeout: 30000 });
     await page.getByRole('main').first().waitFor({ state: 'visible', timeout: 18000 });
     const authState = await page.evaluate(async () => {
       const token = localStorage.getItem('token') || '';
@@ -97,7 +106,7 @@ for (const p of profiles) {
     if (authState !== 200) throw new Error('Login did not establish authenticated API session: ' + authState);
     record.authenticatedApiStatus = authState;
     record.firstAuthenticatedMs = Date.now() - start;
-    await snapshot('07-authenticated-dashboard-after');
+    await snapshot('09-authenticated-dashboard-after');
     if (record.steps.some(s => s.horizontalOverflow)) throw new Error('Horizontal overflow');
     if (record.errors.length) throw new Error('Uncaught page errors: ' + record.errors.length);
     record.result = 'PASS';
