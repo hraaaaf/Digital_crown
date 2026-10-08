@@ -228,8 +228,21 @@ export const AddPatientForm = () => {
           setLoading(false);
           return;
         }
+        // An explicit dossier-number collision is a definite 409 rejection,
+        // not an uncertain creation. Guide the user back to the exact field.
+        setErrors({ numero_dossier: "Numéro déjà attribué. Choisissez un autre numéro de dossier." });
+        requestAnimationFrame(() => document.getElementById("patient-numero_dossier")?.focus());
+        return;
       }
-      
+      if (err.response?.status === 422) {
+        setErrors({ global: "Les données envoyées sont invalides. Vérifiez les informations saisies avant de réessayer." });
+        return;
+      }
+      if ([401, 403].includes(err.response?.status)) {
+        setErrors({ global: "Votre session ne permet pas de créer ce dossier. Vérifiez votre accès avant de réessayer." });
+        return;
+      }
+
       setCreateOutcomeUnknown(true);
       setErrors({ global: "Création non confirmée. Vérifiez dans la liste des patients avant de réessayer pour éviter un doublon." });
       setLoading(false);
@@ -304,7 +317,9 @@ export const AddPatientForm = () => {
                 <input 
                   type="text" 
                   id="patient-numero_dossier" 
-                  name="numero_dossier" 
+                  name="numero_dossier"
+                  aria-invalid={Boolean(errors.numero_dossier || dossierStatus.status === 'taken')}
+                  aria-describedby={errors.numero_dossier ? "patient-numero-error" : undefined}
                   value={formData.numero_dossier || ''} 
                   onChange={handleNumeroDossierChange}
                   className={cn(
@@ -322,6 +337,7 @@ export const AddPatientForm = () => {
                 </div>
               </div>
               
+              {errors.numero_dossier && <p id="patient-numero-error" role="alert" className="mt-2 text-sm font-semibold text-red-700">{errors.numero_dossier}</p>}
               {dossierStatus.status === 'taken' && (
                 <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> Ce numéro appartient déjà à : <span className="underline">{dossierStatus.owner}</span>
