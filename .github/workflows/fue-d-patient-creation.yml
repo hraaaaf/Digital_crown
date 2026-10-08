@@ -54,6 +54,13 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-fue-d.txt
           pip install -r /tmp/requirements-fue-d.txt
           python -m pip check
+      - name: Backend patient conflict regression (in-memory test database)
+        run: |
+          python -m pytest -q \
+            backend/tests/test_patients.py::TestCreatePatient::test_create_patient_success \
+            backend/tests/test_patients.py::TestCreatePatient::test_create_patient_missing_required_field \
+            backend/tests/test_patients.py::TestCreatePatient::test_auto_dossier_number_collision_retries \
+            backend/tests/test_patients.py::TestCreatePatient::test_explicit_dossier_number_collision_returns_409
       - name: Install frontend and Chromium
         working-directory: frontend
         run: |
