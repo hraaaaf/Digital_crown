@@ -7,6 +7,7 @@ const root = path.resolve('artifacts/fue-v15-00-2');
 await fs.mkdir(root,{recursive:true});
 const browser = await chromium.launch({headless:true});
 const results=[];
+const baseFailures=[];
 const bootstrap={workstationId:null,defaultExperience:null,stationLocked:false,stationEscapeAuthorized:false,stationEscapeExpiresAt:null,enrollmentRequired:false,authenticated:false,pinConfigured:false,canManage:false,canConfigurePin:false};
 for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:1280,height:900}]){
  const context=await browser.newContext({viewport:{width:vp.width,height:vp.height}});
@@ -15,6 +16,7 @@ for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:128
  const page=await context.newPage(),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  const started=Date.now();
+ try {
  await page.goto('http://127.0.0.1:4195/hub?select=1');
  await page.locator('[data-hub-experience]').first().waitFor({state:'visible'});
  const cards=await page.locator('[data-hub-experience]').count();
@@ -51,7 +53,10 @@ for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:128
  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
  if(overflow||errors.length)throw new Error(JSON.stringify({overflow,errors}));
  results.push({viewport:vp.name,dimensions:[vp.width,vp.height],cards,hubMs,firstValueMs,stationUnpairedRejected:true,cabinetUrl,anonymousCabinetRejected:true,directDashboardRejected:true,offlineMessage:true,overflow,pageErrors:errors});
- await context.close();
+ } catch(error) {
+  baseFailures.push({viewport:vp.name,error:String(error),lastUrl:page.url()});
+  await page.screenshot({path:path.join(root,vp.name+'-FAIL.png'),fullPage:true}).catch(()=>{});
+ } finally { await context.close(); }
 }
 
 const cases = [];
@@ -115,9 +120,10 @@ for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:128
  });
 }
 const mandatoryCases=8;
-const summary={protocol:'PR #783 contextual FUE-I V1.5-00.2',head:process.env.GITHUB_SHA||'unknown',baseScenarios:results,extendedScenarios:cases,expectedExtended:mandatoryCases,passed:cases.filter(x=>x.status==='PASS').length,failed:cases.filter(x=>x.status==='FAIL').length,limitations:['Synthetic bootstrap mocks are not backend PIN verification','No real authenticated Cabinet session','No patient data or real cabinet runtime','Station PIN lifecycle/restart not proven'],complete:false};
-summary.complete=cases.length===mandatoryCases && summary.failed===0 && results.length===2;
+const summary={baseFailures,protocol:'PR #783 contextual FUE-I V1.5-00.2',head:process.env.GITHUB_SHA||'unknown',baseScenarios:results,extendedScenarios:cases,expectedExtended:mandatoryCases,passed:cases.filter(x=>x.status==='PASS').length,failed:cases.filter(x=>x.status==='FAIL').length,limitations:['Synthetic bootstrap mocks are not backend PIN verification','No real authenticated Cabinet session','No patient data or real cabinet runtime','Station PIN lifecycle/restart not proven'],complete:false};
+summary.complete=cases.length===mandatoryCases && summary.failed===0 && results.length===2 && baseFailures.length===0;
 await fs.writeFile(path.join(root,'certification-matrix.json'),JSON.stringify(summary,null,2));
+await fs.writeFile(path.join(root,'report.json'),JSON.stringify({baseFailures,results,cases,complete:summary.complete},null,2));
 if(!summary.complete)throw Error('FUE-I extended matrix incomplete or failed: '+JSON.stringify(cases.filter(x=>x.status==='FAIL')));
 
 await browser.close();
