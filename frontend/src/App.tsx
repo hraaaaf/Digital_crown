@@ -18,6 +18,7 @@ import { LandingPage } from './pages/LandingPage';
 import { DownloadPage } from './pages/DownloadPage';
 import { ActivateTrialPage } from './pages/ActivateTrialPage';
 import { authService } from './services/auth';
+import { workstationModeService } from './services/workstationMode';
 
 // Chargés à la demande
 const PatientList     = lazy(() => import('./features/patients/PatientList').then(m => ({ default: m.PatientList })));
@@ -143,6 +144,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAuthenticated(authStatus);
 
         if (authStatus && location.pathname !== '/login') {
+          // The workstation bootstrap is intentionally available before enrollment.
+          // Resolve this authority before clinic init: the latter MUST return 423
+          // for a fresh annex browser and must not be mistaken for missing setup.
+          const workstationBootstrap = await workstationModeService.getBootstrapState();
+          if (workstationBootstrap.enrollmentRequired) {
+            setIsInitialized(null);
+            setWorkstationEnrollmentRequired(true);
+            return;
+          }
           await useAuthStore.getState().checkAuth();
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
