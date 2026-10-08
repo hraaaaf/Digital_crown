@@ -18,7 +18,7 @@ const profiles = [
   { name: '768x1024', width: 768, height: 1024 },
   { name: '1280x900', width: 1280, height: 900 },
 ];
-const scenarios = ['missing-server', 'service-503', 'database-503', 'wrong-lan'];
+const scenarios = ['missing-server', 'service-503', 'database-503', 'wrong-lan', 'enrollment-423', 'station-423'];
 const healthyTopology = {
   topologyRole: 'server',
   bindHost: '127.0.0.1',
@@ -91,6 +91,8 @@ try {
         });
         await context.route('**/api/clinics/me', route => {
           if (currentMode === 'missing-server') return route.abort('failed');
+          if (currentMode === 'enrollment-423') return respond(route, 423, { detail: 'WORKSTATION_IDENTITY_REQUIRED' });
+          if (currentMode === 'station-423') return respond(route, 423, { detail: 'WORKSTATION_STATION_LOCKED' });
           return respond(route, 401, { detail: 'AUTH_REQUIRED' });
         });
         await page.goto(base + '/control-center', { waitUntil: 'domcontentloaded' });
@@ -118,7 +120,10 @@ try {
           await capture('04-after-correction');
         } else {
           if (assertAfter) {
-            const kind = scenario === 'missing-server' ? 'network' : scenario === 'service-503' ? 'service' : 'database';
+            const kind = scenario === 'missing-server' ? 'network'
+              : scenario === 'service-503' ? 'service'
+                : scenario === 'database-503' ? 'database'
+                  : scenario === 'enrollment-423' ? 'enrollment' : 'station-lock';
             await page.locator('[data-control-center-diagnosis="' + kind + '"]').waitFor();
           } else {
             // Legacy BEFORE has no machine-readable diagnosis state; the route
@@ -132,6 +137,8 @@ try {
             if (scenario === 'missing-server' && message.includes('Ouvrez cette adresse')) throw new Error('Wrong-origin advice on a same-origin network outage');
             if (scenario === 'service-503' && !message.includes('HTTP 503')) throw new Error('HTTP service outage misclassified');
             if (scenario === 'database-503' && !message.includes('PostgreSQL')) throw new Error('DB failure lacks PostgreSQL next step');
+            if (scenario === 'enrollment-423' && !message.includes('appairée')) throw new Error('Identity refusal lacks pairing action');
+            if (scenario === 'station-423' && !message.includes('PIN')) throw new Error('Station lock incorrectly treated as enrollment');
           }
           currentMode = 'healthy';
           await page.locator('[data-control-center-probe]').click();
