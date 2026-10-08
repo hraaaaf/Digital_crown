@@ -264,6 +264,48 @@ try {
     }));
     if (labelProof.some(x => !x.hasAssociatedLabel)) throw new Error('Required identity label inaccessible: ' + JSON.stringify(labelProof));
     const nameHasAssociatedLabel = labelProof[0].hasAssociatedLabel;
+    const optionalNames = ['numero_dossier', 'assurance', 'telephone', 'email', 'adresse', 'antecedents_medicaux'];
+    const optionalLabels = await Promise.all(optionalNames.map(async name => ({
+      name, hasLabel: await ux.locator('[name="' + name + '"]').evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label'))),
+    })));
+    if (optionalLabels.some(x => !x.hasLabel)) throw new Error('Optional patient control lacks accessible name: ' + JSON.stringify(optionalLabels));
+    if (!(await ux.getByText('Renseignez le nom, le prénom, la date de naissance et le sexe.', { exact: false }).isVisible())) {
+      throw new Error('First-use required-field explanation is missing');
+    }
+    const optionalCover = ux.locator('summary').filter({ hasText: 'Couverture médicale et assurance' });
+    const optionalClinical = ux.locator('summary').filter({ hasText: 'Contact, antécédents et suivi orthodontique' });
+    if (!(await optionalCover.isVisible()) || !(await optionalClinical.isVisible())) {
+      throw new Error('Progressive disclosure summaries are not discoverable');
+    }
+    await optionalCover.click();
+    await ux.locator('[name="assurance"]').selectOption('PRIVEE');
+    const privateInsuranceHasLabel = await ux.locator('[name="assurance_privee_nom"]').evaluate(el => Boolean(el.labels?.length));
+    if (!privateInsuranceHasLabel) throw new Error('Private insurance control lacks label');
+    await ux.locator('[name="assurance"]').selectOption('AUCUNE');
+    const complement = ux.getByRole('checkbox', { name: 'Assurance Complémentaire' });
+    await complement.focus();
+    await ux.keyboard.press('Space');
+    if (!(await complement.isChecked())) throw new Error('Complement insurance switch not keyboard-operable');
+    const complementaryLabel = await ux.locator('[name="assurance_complementaire_nom"]').evaluate(el => Boolean(el.labels?.length));
+    if (!complementaryLabel) throw new Error('Complementary insurer control lacks label');
+    await ux.keyboard.press('Space');
+    await optionalCover.click();
+    await optionalClinical.click();
+    const ortho = ux.getByRole('checkbox', { name: /Suivi Orthodontique/ });
+    await ortho.focus();
+    await ux.keyboard.press('Space');
+    if (!(await ortho.isChecked())) throw new Error('Ortho follow-up switch not keyboard-operable');
+    await ux.keyboard.press('Space');
+    await ux.getByRole('button', { name: '+ Ajouter un numéro' }).click();
+    const secondaryPhoneNamed = await ux.locator('[name="telephone_2"]').evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label')));
+    if (!secondaryPhoneNamed) throw new Error('Secondary phone lacks accessible name');
+    await optionalClinical.click();
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await ux.waitForFunction(() => document.activeElement?.getAttribute('name') === 'nom', undefined, { timeout: 6000 });
+    if ((await ux.locator('[name="nom"]').getAttribute('aria-invalid')) !== 'true') {
+      throw new Error('Missing required identity field is not announced as invalid');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '00-first-use-required-fields.png'), fullPage: false, animations: 'disabled' });
     await ux.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
     // Unlike the document-wide overflow check, this also catches text hidden by
     // a local overflow-hidden header (the previous false-negative at 200%).
