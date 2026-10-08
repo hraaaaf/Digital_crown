@@ -525,8 +525,8 @@ export const AddPatientForm = () => {
                     </div>
                   )}
                 </div>
+              </div>
               </details>
-            </div>
           </div>
 
           {/* Informations complémentaires accessibles à la demande. */}
