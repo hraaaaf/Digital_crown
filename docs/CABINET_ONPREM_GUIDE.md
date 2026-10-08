@@ -196,37 +196,26 @@ d'installation, horloge synchronisée (anti-rollback licence).
 
 ---
 
-## 5. Procédure de mise à jour
+## 5. Mise à jour / rollback : parcours certifié soumis à approbation
 
-1. **Backup complet AVANT toute mise à jour** :
-   ```
-   python -m backend.scripts.backup_db
-   python -m backend.scripts.backup_media
-   ```
-2. Arrêter le service : `nssm stop DigitalCrown`
-3. Renommer `C:\DigitalCrown\` → `C:\DigitalCrown_old\` (rollback instantané)
-4. Copier le nouveau build vers `C:\DigitalCrown\`
-5. Exécuter explicitement les migrations versionnées après le backup et le
-   rehearsal sur copie isolée : `alembic upgrade head`. Le service refuse de
-   démarrer sur un schéma cabinet obsolète ; le boot ne fait ni `create_all()`
-   ni migration implicite. Les migrations sont additives et non-destructives.
-6. Redémarrer : `nssm start DigitalCrown`
-7. Vérifier `/api/health` (le champ `version` = hash git du build)
-8. Smoke tests rapides (login + 1 document + 1 patient)
-9. Si KO → rollback : stop service, restaurer `C:\DigitalCrown_old\`,
-   restaurer le backup DB si des migrations ont modifié le schéma, restart
+**Aucune commande d'arrêt, remplacement de fichiers, migration ou restauration n'est autorisée ici.** Utiliser uniquement une release `INSTALLABLE_CERTIFIED` exacte, le parcours d'activation officiel et un GO humain distinct. Un checkout/HEAD/artefact CI seul n'est jamais installable. Ne pas appliquer de migration de DB clinique sans rehearsal sur copie isolée.
 
----
+1. Inventorier le service réel, le code/release SHA actif et le responsable de l'intervention.
+2. Vérifier backup DB **et médias**, intégrité de chaque artefact et **restore éprouvé sur clone isolé** ; établir rollback et approbations avant toute coupure.
+3. Vérifier le certificat `INSTALLABLE_CERTIFIED` de la nouvelle release, hashes, attestation et provenance, correspondance de la source code/assets et contraintes DB/migrations.
+4. Si la mise à jour est explicitement autorisée, procéder avec le mécanisme certifié propre au runtime : arrêter/activer selon le runbook approuvé, tracer l'identité de la release et les étapes, appliquer seulement les migrations testées/autorisées sur les bonnes données.
+5. Comparer BEFORE/AFTER santé service/DB/storage, auth, droits et intégrité de fixtures synthétiques ; consigner incidents et métriques.
+6. En cas d'anomalie, exécuter **le plan de rollback validé** couvrant code, DB ET médias ; un simple renommage de répertoire n'est pas un rollback complet.
+
+Références obligatoires : `docs/CABINET_CERTIFIED_RELEASE_POLICY.md`, `docs/PREPROD_RUNBOOK.md`, `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
 
 ## 6. Backup / restore cabinet
 
 ### Backup quotidien automatique (tâche planifiée)
 
-```powershell
-schtasks /create /tn "DigitalCrown Backup" ^
-  /tr "C:\DigitalCrown\python\python.exe -m backend.scripts.backup_db && C:\DigitalCrown\python\python.exe -m backend.scripts.backup_media" ^
-  /sc daily /st 22:00
-```
+**Interdit de copier une commande générique de création de tâche pour le cabinet.** La fréquence, le compte d'exécution, le chemin d'exécutable, le coffre des clés et la configuration de sauvegarde doivent provenir du **runbook certifié** et être approuvés par l'opérateur avant mutation.
+
+Le succès exige la preuve d'un backup DB **et médias**, des fichiers réellement présents/intègres et **d'une restauration validée sur clone isolé**. Un statut planificateur « succès » ou un backup sur le même disque ne suffit pas. Secrets et données patients jamais publiés.
 
 - `backup_db.py` : dump chiffré Fernet (clé dérivée de `CABINET_MASTER_KEY_HEX`)
   — supporte SQLite ET PostgreSQL, trouve `pg_dump` automatiquement sur
