@@ -99,9 +99,15 @@ function ClickMenu([Windows.Automation.AutomationElement]$el){
  Start-Sleep -Milliseconds 70
  [FacadD2BWin]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
 }
-function Escape{
- [Windows.Forms.SendKeys]::SendWait('{ESC}')
- Start-Sleep -Milliseconds 220
+function ResetPopups{
+ # Nested Win32 menus consume the first Escape while leaving the
+ # View parent popup open; the second closes the parent popup.
+ # This never invokes a command or modifies the tracing.
+ for($ei=0;$ei -lt 2;$ei++){
+  if(-not (OwnsForeground)){throw 'Cannot reset menu while Facad is not foreground'}
+  [Windows.Forms.SendKeys]::SendWait('{ESC}')
+  Start-Sleep -Milliseconds 190
+ }
 }
 function PatternInfo([Windows.Automation.AutomationElement]$el){
  $available=New-Object 'Collections.Generic.List[string]'
@@ -140,12 +146,22 @@ $submenuCount=0
 foreach($name in $targets){
  $safe=($name -replace '[^A-Za-z0-9]','_')
  try{
-  ClickMenu (ViewTop)
-  Start-Sleep -Milliseconds 220
-  $items=RootMenuItems
-  $m=@($items | Where-Object {$_.Current.Name -eq $name})
-  if($m.Count -ne 1){throw "Target menu count=$($m.Count)"}
-  $item=$m[0]
+  $item=$null
+  $items=@()
+  # Win32 nested menu close can briefly invalidate UIA popup entries.
+  # Three bounded retries: dismiss the full hierarchy and reopen View.
+  for($attempt=1;$attempt -le 3;$attempt++){
+   ResetPopups
+   ClickMenu (ViewTop)
+   Start-Sleep -Milliseconds 280
+   $items=RootMenuItems
+   $m=@($items | Where-Object {$_.Current.Name -eq $name})
+   Log "D2B_TARGET_${safe}_ATTEMPT_$attempt=$($m.Count)"
+   if($m.Count -eq 1){$item=$m[0];break}
+   Log "D2B_TARGET_${safe}_VISIBLE_MENU_ITEMS=$(@($items | ForEach-Object {$_.Current.Name}) -join '; ')"
+   Screen "d2b-retry-$safe-$attempt.png"
+  }
+  if($null -eq $item){throw "View entry $name missing/ambiguous after three non-destructive menu resets"}
   $r=Rect $item
   $states=PatternInfo $item
   $snap="d2b-view-$safe.png"
@@ -176,7 +192,7 @@ foreach($name in $targets){
  }catch{
   Log "D2B_$safe=BLOCKED $($_.Exception.Message)"
   Row @([string]$name,'','','','','','','','','BLOCKED',($_.Exception.Message))
- }finally{Escape}
+ }finally{ResetPopups}
 }
 Screen 'd2b-final.png'
 Log "D2B_VIEW_ENUMERATED=$enumerated/$($targets.Count)"
