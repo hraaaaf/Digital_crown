@@ -441,8 +441,9 @@ export const AddPatientForm = () => {
                 {/* Assurance Complémentaire */}
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <label className="flex items-center gap-3 cursor-pointer mb-3">
-                    <div className={cn(
-                      "w-10 h-5 rounded-full transition-all duration-300 relative",
+                    <input type="checkbox" name="assurance_complementaire" checked={formData.assurance_complementaire} onChange={handleChange} className="peer sr-only" />
+                    <div aria-hidden="true" className={cn(
+                      "w-10 h-5 shrink-0 rounded-full transition-all duration-300 relative peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-[#003380]",
                       formData.assurance_complementaire ? "bg-[#003380]" : "bg-slate-300"
                     )}>
                       <div className={cn(
@@ -450,13 +451,6 @@ export const AddPatientForm = () => {
                         formData.assurance_complementaire ? "left-6" : "left-1"
                       )} />
                     </div>
-                    <input 
-                      type="checkbox" 
-                      name="assurance_complementaire"
-                      checked={formData.assurance_complementaire} 
-                      onChange={handleChange}
-                      className="hidden"
-                    />
                     <span className="font-bold text-slate-700 text-sm">Assurance Complémentaire</span>
                   </label>
                   
@@ -588,7 +582,7 @@ export const AddPatientForm = () => {
             </div>
 
             <div>
-              <label className={labelClass}>Motif(s) de première consultation</label>
+              <span className={labelClass}>Motif(s) de première consultation</span>
               <MotifSelector
                 selected={formData.motif_consultation}
                 onChange={(ids) => setFormData((prev: any) => ({ ...prev, motif_consultation: ids }))}
@@ -610,12 +604,10 @@ export const AddPatientForm = () => {
           </div>
 
           <div className="p-6 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-2xl border border-blue-100">
-            <div 
-              className="flex items-center gap-4 cursor-pointer"
-              onClick={() => setIsOrtho(!isOrtho)}
-            >
-              <div className={cn(
-                "w-14 h-8 rounded-full transition-all duration-300 relative",
+            <label className="flex items-center gap-4 cursor-pointer">
+              <input type="checkbox" id="patient-is-ortho" checked={isOrtho} onChange={e => setIsOrtho(e.target.checked)} className="peer sr-only" />
+              <div aria-hidden="true" className={cn(
+                "w-14 h-8 shrink-0 rounded-full transition-all duration-300 relative peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-[#003380]",
                 isOrtho ? "bg-[#003380]" : "bg-slate-300"
               )}>
                 <div className={cn(
@@ -625,9 +617,9 @@ export const AddPatientForm = () => {
               </div>
               <div>
                 <span className="font-bold text-slate-800">Suivi Orthodontique</span>
-                <p className="text-xs text-slate-500">Activer le suivi orthodontique pour ce patient</p>
+                <span className="block text-xs text-slate-500">Activer le suivi orthodontique pour ce patient</span>
               </div>
-            </div>
+            </label>
           </div>
 
           {/* Actions */}
@@ -635,14 +627,14 @@ export const AddPatientForm = () => {
             <button 
               type="button" 
               onClick={() => navigate('/patients')}
-              className="px-8 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-100 transition-all"
+              className="min-h-11 px-5 sm:px-8 py-3 sm:py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-100 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003380]"
             >
               Annuler
             </button>
             <button 
               type="submit" 
               disabled={loading}
-              className="px-8 py-4 bg-[#003380] text-white rounded-2xl font-bold hover:bg-[#002266] transition-all shadow-lg shadow-blue-900/20 flex items-center gap-3 disabled:opacity-50"
+              className="min-h-11 px-5 sm:px-8 py-3 sm:py-4 bg-[#003380] text-white rounded-2xl font-bold hover:bg-[#002266] transition-all shadow-lg shadow-blue-900/20 flex items-center gap-3 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003380]"
             >
               {loading ? (
                 <>
