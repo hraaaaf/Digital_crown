@@ -53,6 +53,73 @@ for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:128
  results.push({viewport:vp.name,dimensions:[vp.width,vp.height],cards,hubMs,firstValueMs,stationUnpairedRejected:true,cabinetUrl,anonymousCabinetRejected:true,directDashboardRejected:true,offlineMessage:true,overflow,pageErrors:errors});
  await context.close();
 }
+
+const cases = [];
+async function scenario(name, viewport, overrides, perform) {
+  const context = await browser.newContext({viewport});
+  const state = {...bootstrap,...overrides};
+  await context.route('**/api/workstation/bootstrap', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(state)}));
+  await context.route('**/api/clinics/me', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({nom_cabinet:'Cabinet FUE synthétique',cabinet_type:'CABINET'})}));
+  const page = await context.newPage();
+  const findings=[];
+  page.on('pageerror',error=>findings.push(error.message));
+  const capture=async label => {
+    await page.screenshot({path:path.join(root, name+'-'+label+'.png'),fullPage:true});
+    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
+    if(overflow)throw Error(name+': horizontal overflow at '+label);
+  };
+  try {
+    await perform(page,capture,state);
+    if(findings.length)throw Error(name+': '+JSON.stringify(findings));
+    cases.push({name,status:'PASS',pageErrors:findings});
+  } catch(error){
+    cases.push({name,status:'FAIL',error:String(error)});
+    await page.screenshot({path:path.join(root,name+'-FAIL.png'),fullPage:true}).catch(()=>{});
+  } finally {await context.close();}
+}
+for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:1280,height:900}]){
+ const viewport={width:vp.width,height:vp.height};
+ await scenario(vp.name+'-station-locked',viewport,{defaultExperience:'station',stationLocked:true,workstationId:'synthetic-1'},async(page,capture)=>{
+   await page.goto('http://127.0.0.1:4195/station');
+   await page.locator('[data-station-admin]').count(); // optional locked shell, proof is URL
+   await capture('01-station');
+   await page.goto('http://127.0.0.1:4195/hub?select=1');
+   await page.waitForURL('**/station',{timeout:15000});
+   await capture('02-hub-blocked');
+   await page.goto('http://127.0.0.1:4195/control-center');
+   await page.waitForURL('**/station',{timeout:15000});
+   await capture('03-control-blocked');
+ });
+ await scenario(vp.name+'-station-escape-authorized',viewport,{defaultExperience:'station',stationLocked:true,stationEscapeAuthorized:true,stationEscapeExpiresAt:Math.floor(Date.now()/1000)+120,workstationId:'synthetic-1'},async(page,capture)=>{
+   await page.goto('http://127.0.0.1:4195/hub?select=1');
+   await page.locator('[data-hub-experience]').first().waitFor({state:'visible'});
+   await capture('01-authorized-hub');
+   await page.locator('[data-hub-experience="control"]').click();
+   await page.waitForURL('**/control-center',{timeout:15000});
+   await page.locator('[data-workstation-experience="control-center"]').waitFor({state:'visible'});
+   await capture('02-authorized-control');
+ });
+ await scenario(vp.name+'-enrollment-required',viewport,{enrollmentRequired:true},async(page,capture)=>{
+   await page.goto('http://127.0.0.1:4195/control-center');
+   await page.waitForURL('**/hub?enroll=1',{timeout:15000});
+   await capture('01-enrollment');
+ });
+ await scenario(vp.name+'-bootstrap-failure',viewport,{},async(page,capture)=>{
+   await page.route('**/api/workstation/bootstrap',route=>route.abort());
+   await page.goto('http://127.0.0.1:4195/hub?select=1');
+   await page.locator('[data-hub-experience]').first().waitFor({state:'visible'});
+   await capture('01-recovery-hub');
+   await page.goto('http://127.0.0.1:4195/dashboard');
+   await page.waitForURL('**/login',{timeout:15000});
+   await capture('02-protected-refusal');
+ });
+}
+const mandatoryCases=8;
+const summary={protocol:'PR #783 contextual FUE-I V1.5-00.2',head:process.env.GITHUB_SHA||'unknown',baseScenarios:results,extendedScenarios:cases,expectedExtended:mandatoryCases,passed:cases.filter(x=>x.status==='PASS').length,failed:cases.filter(x=>x.status==='FAIL').length,limitations:['Synthetic bootstrap mocks are not backend PIN verification','No real authenticated Cabinet session','No patient data or real cabinet runtime','Station PIN lifecycle/restart not proven'],complete:false};
+summary.complete=cases.length===mandatoryCases && summary.failed===0 && results.length===2;
+await fs.writeFile(path.join(root,'certification-matrix.json'),JSON.stringify(summary,null,2));
+if(!summary.complete)throw Error('FUE-I extended matrix incomplete or failed: '+JSON.stringify(cases.filter(x=>x.status==='FAIL')));
+
 await browser.close();
 await fs.writeFile(path.join(root,'report.json'),JSON.stringify({protocol:'PR #783 / FUE-I V1.5-00.2',productHead:process.env.GITHUB_SHA||null,scope:'synthetic unpaired workstation; configured Station and authenticated Cabinet NOT certified',results},null,2));
 console.log(JSON.stringify(results,null,2));
