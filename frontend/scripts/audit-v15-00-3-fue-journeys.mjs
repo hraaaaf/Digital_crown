@@ -93,7 +93,11 @@ const installRoutes = async (context, state, unexpected, requests) => {
   await context.route('**/api/clinics/me', route => json(route, {
     nom_cabinet: 'Centre Dentaire Benmoussa', cabinet_type: 'CLINIQUE',
   }));
-  await context.route('**/api/workstation/bootstrap', route => json(route, state.value));
+  await context.route('**/api/workstation/bootstrap', route => {
+    requests.push({ action: 'bootstrap-read', mode: state.value.defaultExperience,
+      escapeAuthorized: state.value.stationEscapeAuthorized });
+    return json(route, state.value);
+  });
   await context.route('**/api/workstation/state', route => state.value.enrollmentRequired
     ? json(route, { detail: 'WORKSTATION_ENROLLMENT_REQUIRED' }, 423)
     : json(route, state.value));
@@ -111,8 +115,11 @@ const installRoutes = async (context, state, unexpected, requests) => {
     const data = route.request().postDataJSON();
     requests.push({ action: 'escape', pinLength: String(data.ownerPin || '').length });
     if (data.ownerPin !== '2468') return json(route, { detail: 'PIN refusé' }, 403);
-    state.value = { ...state.value, stationEscapeAuthorized: true };
-    return json(route, { expiresAt: Math.floor(Date.now() / 1000) + 600 });
+    state.value = { ...state.value, stationEscapeAuthorized: true,
+      stationEscapeExpiresAt: Math.floor(Date.now() / 1000) + 600 };
+    requests.push({ action: 'escape-authorized', mode: state.value.defaultExperience,
+      escapeAuthorized: state.value.stationEscapeAuthorized });
+    return json(route, { expiresAt: state.value.stationEscapeExpiresAt });
   });
   await context.route('**/api/workstation/pair', route => {
     const data = route.request().postDataJSON();
@@ -134,12 +141,15 @@ const run = async (journey, viewport) => {
   const state = { value: { ...fixtures[journey] } };
   const unexpected = [];
   const requests = [];
-  const issues = { journey, viewport: viewport.label, captures: [], unexpected, requests, errors: [], checks: [] };
+  const issues = { journey, viewport: viewport.label, captures: [], unexpected, requests, errors: [], checks: [], navigations: [] };
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
   let page;
   try {
     await installRoutes(context, state, unexpected, requests);
     page = await context.newPage();
+    page.on('framenavigated', frame => {
+      if (frame === page.mainFrame()) issues.navigations.push(frame.url());
+    });
     page.on('pageerror', e => issues.errors.push('PAGEERROR ' + e.message));
     page.on('requestfailed', r => issues.errors.push('FAILED ' + r.method() + ' ' + r.url() + ' ' + (r.failure()?.errorText || '')));
     page.on('console', m => { if (m.type() === 'error') issues.errors.push('CONSOLE ' + m.text()); });
@@ -304,6 +314,9 @@ const run = async (journey, viewport) => {
   } finally {
     issues.unexpected = [...unexpected];
     issues.requests = [...requests];
+    issues.finalUrl = page?.url() || null;
+    issues.finalServerState = { mode: state.value.defaultExperience, escapeAuthorized: state.value.stationEscapeAuthorized,
+      escapeExpiresAt: state.value.stationEscapeExpiresAt };
     await fs.writeFile(path.join(out, journey + '-' + viewport.label + '.json'), JSON.stringify(issues, null, 2));
     await context.close();
   }
