@@ -192,9 +192,13 @@ async function run(journey, viewport) {
       await page.goto(base + '/hub?select=1', { waitUntil: 'networkidle' });
       await page.locator('[data-hub-offline]').waitFor({ timeout: 15000 });
       await capture(page, audit, '01-offline-hub');
+      expect(audit.checks, 'offline Hub shows no contradictory generic server toast',
+        (await page.getByText('Erreur Serveur (500)', { exact: true }).count()) === 0);
       await page.locator('[data-hub-experience="control"]').click();
       await page.locator('[data-control-center-topology]').waitFor({ timeout: 15000 });
       await capture(page, audit, '02-offline-control-reachable');
+      expect(audit.checks, 'offline Control Center shows no generic server toast',
+        (await page.getByText('Erreur Serveur (500)', { exact: true }).count()) === 0);
       expect(audit.checks, 'offline Control Center remains reachable',
         new URL(page.url()).pathname === '/control-center');
       expect(audit.checks, 'offline status does not claim healthy backend',
