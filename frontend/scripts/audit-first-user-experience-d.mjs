@@ -364,6 +364,9 @@ try {
     };
     await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: true, animations: 'disabled' });
     const textZoomMobile = await assertHeaderNotClipped('390x844');
+    await ux.setViewportSize({ width: 320, height: 640 });
+    await ux.screenshot({ path: path.join(uxDir, '01a-css-text-zoom-200pct-narrow.png'), fullPage: true, animations: 'disabled' });
+    const textZoomNarrow = await assertHeaderNotClipped('320x640');
     await ux.setViewportSize({ width: 1280, height: 900 });
     await ux.locator('.sidebar-shell').hover();
     await ux.locator('.sidebar-shell[data-expanded="true"]').waitFor({ timeout: 5000 });
@@ -481,7 +484,7 @@ try {
     await duplicateDialog.waitFor({ state: 'hidden', timeout: 8000 });
     if (!ux.url().endsWith('/patients/new')) throw new Error('Escape from duplicate modal navigated away');
     await ux.screenshot({ path: path.join(uxDir, '06-duplicate-dialog-escaped.png'), fullPage: false, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
+    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
   } finally {
     await uxContext.close();
   }
