@@ -112,6 +112,16 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).not.toContain('Ouvrez cette adresse pour terminer le diagnostic directement sur ce serveur.');
   });
 
+  it('invalidates an in-flight server probe when the address changes', () => {
+    expect(controlCenter).toContain('const probeGeneration = useRef(0)');
+    expect(controlCenter).toContain('const activeProbe = useRef<AbortController | null>(null)');
+    expect(controlCenter).toContain('const generation = ++probeGeneration.current');
+    expect(controlCenter).toContain('if (generation !== probeGeneration.current) return');
+    expect(controlCenter).toContain('probeGeneration.current += 1');
+    expect(controlCenter).toContain('activeProbe.current?.abort()');
+    expect(controlCenter).toContain('if (generation === probeGeneration.current)');
+  });
+
   it('exposes a clean Cabinet return to Hub', () => {
     expect(header).toContain('to="/hub?select=1"');
     expect(header).toContain("Changer d'espace");
