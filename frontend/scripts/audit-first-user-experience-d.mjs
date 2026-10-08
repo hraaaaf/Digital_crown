@@ -285,7 +285,8 @@ try {
     await preflight503;
     await ux.getByRole('alert').getByText('Vérification anti-doublon indisponible.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
     if (uiCreatePostCount !== 0 || !ux.url().endsWith('/patients/new')) throw new Error('Preflight 503 must not create patient or navigate');
-    await ux.evaluate(() => window.scrollTo(0, 0));
+    await ux.getByText('Service temporairement indisponible (503)', { exact: true }).waitFor({ state: 'visible', timeout: 12000 });
+    await ux.locator('form [role="alert"]').scrollIntoViewIfNeeded();
     await ux.screenshot({ path: path.join(uxDir, '02-preflight-503-refused.png'), fullPage: false, animations: 'disabled' });
     await ux.unroute(preflightPattern);
 
@@ -303,7 +304,7 @@ try {
     await create503;
     await ux.getByRole('alert').getByText('Création non confirmée.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
     if (uiCreatePostCount !== 1 || !ux.url().endsWith('/patients/new')) throw new Error('Create 503 must not claim success or navigate');
-    await ux.evaluate(() => window.scrollTo(0, 0));
+    await ux.locator('form [role="alert"]').scrollIntoViewIfNeeded();
     await ux.screenshot({ path: path.join(uxDir, '03-create-503-refused.png'), fullPage: false, animations: 'disabled' });
     await ux.unroute(createPattern);
 
@@ -325,6 +326,8 @@ try {
     if (doubleClickPosts !== 1) throw new Error('Real UI double-click emitted ' + doubleClickPosts + ' POST requests');
     const persisted = await independent.json();
     if (persisted.id !== created.id || persisted.nom !== identity) throw new Error('Real double-click persistence mismatch');
+    await ux.reload({ waitUntil: 'domcontentloaded' });
+    await ux.getByText(identity, { exact: false }).first().waitFor({ state: 'visible', timeout: 15000 });
     await ux.screenshot({ path: path.join(uxDir, '04-after-double-click.png'), fullPage: true, animations: 'disabled' });
     results.push({ viewport: 'adversarial-mobile-ui', simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentOverflow: textZoomOverflow, screenshots: ['01-css-text-zoom-200pct.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png'] });
   } finally {

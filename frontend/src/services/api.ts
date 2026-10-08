@@ -247,7 +247,8 @@ api.interceptors.response.use(
         window.location.href = '/login?locked=true';
       }
     } else if (status >= 500 && !isPublicStationRoute()) {
-      toast.error('Erreur Serveur (500)', { id: 'server-error' });
+      const serverMessage = status === 503 ? 'Service temporairement indisponible (503)' : `Erreur serveur (${status})`;
+      toast.error(serverMessage, { id: 'server-error' });
     }
 
 
