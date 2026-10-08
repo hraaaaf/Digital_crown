@@ -561,21 +561,29 @@ jobs:
 
           # Acknowledge the observed informational 30-day licence notice; no registration or bypass.
           $root=[System.Windows.Automation.AutomationElement]::RootElement
-          $licenseText=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
-            [System.Windows.Automation.PropertyCondition]::new(
-              [System.Windows.Automation.AutomationElement]::NameProperty,
-              "You are running Facad with a time limited user license.`nThe license expires in 30 days."))
+          # Match the actual UIA text independent of newline normalization.
+          $allNodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $licenseText=@(for($i=0;$i -lt $allNodes.Count;$i++){
+            $node=$allNodes.Item($i)
+            try {
+              $name=$node.Current.Name
+              if($name -match 'You are running Facad with a time limited user license' -and
+                 $name -match 'license expires in 30 days'){ $node }
+            }catch{}
+          })
           "LICENSE_INFO_NOTICE_COUNT=$($licenseText.Count)" | Set-Content facad-quick-demo/license-notice.txt
           if($licenseText.Count -eq 1){
+            # Only acknowledge the exact observed informational notice.
             $okControls=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'OK'))
+            "LICENSE_OK_COUNT=$($okControls.Count)" | Add-Content facad-quick-demo/license-notice.txt
             if($okControls.Count -eq 1 -and $okControls.Item(0).Current.IsEnabled){
               try{
                 $okControls.Item(0).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
                 'LICENSE_NOTICE_OK_INVOKED=true' | Add-Content facad-quick-demo/license-notice.txt
                 Start-Sleep -Seconds 2
-              }catch{"LICENSE_NOTICE_OK_ERROR=$($_.Exception.Message)" | Add-Content facad-quick-demo/license-notice.txt}
+              }catch{"LICENSE_NOTICE_OK_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/license-notice.txt}
             }
           }
           # Observe the exact Facad landing page and try the visible Open file control.
