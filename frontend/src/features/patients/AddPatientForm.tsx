@@ -536,7 +536,8 @@ export const AddPatientForm = () => {
                     <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                     <input 
                       type="tel" 
-                      name="telephone_2" 
+                      name="telephone_2"
+                      aria-label="Téléphone secondaire"
                       value={formData.telephone_2} 
                       onChange={handleChange}
                       className={cn(inputClass, "pl-14 py-3")}
@@ -550,7 +551,8 @@ export const AddPatientForm = () => {
                     <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                     <input 
                       type="tel" 
-                      name="telephone_3" 
+                      name="telephone_3"
+                      aria-label="Autre numéro de téléphone"
                       value={formData.telephone_3} 
                       onChange={handleChange}
                       className={cn(inputClass, "pl-14 py-3")}
