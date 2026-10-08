@@ -650,26 +650,35 @@ jobs:
             }finally{$g.Dispose();$bmp.Dispose()}
           }catch{"OPEN_FILE_SCREEN_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/open-file-probe.txt}
           if($licenseNoticeUndismissed){throw 'Facad informational licence notice still present; patient dialog not validated'}
-          # Patient selection: only the bundled example explicitly visible in the prior screenshot.
-          $patientWindows=$root.FindAll([System.Windows.Automation.TreeScope]::Children,
+          # The patient list is an in-window Facad panel, not a root-level Window.
+          # Scope to the exact top-level Facad window, then to its observed labels/buttons.
+          $facadTopLevels=$root.FindAll([System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new(
-              [System.Windows.Automation.AutomationElement]::NameProperty,'Patients/Work List'))
-          "PATIENT_DIALOG_COUNT=$($patientWindows.Count)" | Set-Content facad-quick-demo/robert-open-probe.txt
+              [System.Windows.Automation.AutomationElement]::NameProperty,'Facad'))
+          "FACAD_TOPLEVEL_COUNT=$($facadTopLevels.Count)" | Set-Content facad-quick-demo/robert-open-probe.txt
           $robertActionError=$null
           try{
-            if($patientWindows.Count -ne 1){throw 'Patient dialog missing or ambiguous'}
-            $patientWindow=$patientWindows.Item(0)
+            if($facadTopLevels.Count -ne 1){throw 'Facad main window missing or ambiguous'}
+            $patientWindow=$facadTopLevels.Item(0)
+            if($patientWindow.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
+              throw 'Facad root control is not a Window'
+            }
+            $patientPanelLabels=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Patients/Work List'))
+            "PATIENT_PANEL_LABEL_COUNT=$($patientPanelLabels.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if($patientPanelLabels.Count -ne 1){throw 'Patient list panel not uniquely visible'}
             $robert=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'Example, Robert'))
             "ROBERT_ROW_COUNT=$($robert.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
             if($robert.Count -ne 1){throw 'Robert example row not uniquely found'}
             $rowBounds=$robert.Item(0).Current.BoundingRectangle
-            $dialogBounds=$patientWindow.Current.BoundingRectangle
+            $windowBounds=$patientWindow.Current.BoundingRectangle
             if($rowBounds.IsEmpty -or $rowBounds.Width -lt 50 -or $rowBounds.Height -lt 10 -or
-              $rowBounds.Left -lt $dialogBounds.Left -or $rowBounds.Right -gt $dialogBounds.Right -or
-              $rowBounds.Top -lt $dialogBounds.Top -or $rowBounds.Bottom -gt $dialogBounds.Bottom){
-              throw 'Robert text bounds are outside patient dialog'
+              $rowBounds.Left -lt $windowBounds.Left -or $rowBounds.Right -gt $windowBounds.Right -or
+              $rowBounds.Top -lt $windowBounds.Top -or $rowBounds.Bottom -gt $windowBounds.Bottom){
+              throw 'Robert text bounds are outside Facad main window'
             }
             Add-Type -TypeDefinition @'
           using System;
@@ -682,10 +691,10 @@ jobs:
           }
           '@
             $patientHwnd=[IntPtr]$patientWindow.Current.NativeWindowHandle
-            if($patientHwnd -eq [IntPtr]::Zero){throw 'Patient dialog HWND missing'}
+            if($patientHwnd -eq [IntPtr]::Zero){throw 'Facad main window HWND missing'}
             [void][FacadPatientMouse]::SetForegroundWindow($patientHwnd)
             Start-Sleep -Milliseconds 400
-            if([FacadPatientMouse]::GetForegroundWindow() -ne $patientHwnd){throw 'Patient dialog cannot be focused safely'}
+            if([FacadPatientMouse]::GetForegroundWindow() -ne $patientHwnd){throw 'Facad main window not foreground'}
             $cx=[int]($rowBounds.Left + $rowBounds.Width/2)
             $cy=[int]($rowBounds.Top + $rowBounds.Height/2)
             if(-not [FacadPatientMouse]::SetCursorPos($cx,$cy)){throw 'Robert row cursor positioning failed'}
@@ -699,16 +708,28 @@ jobs:
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'Open'))
             "PATIENT_OPEN_BUTTON_COUNT=$($openButtons.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
-            if($openButtons.Count -ne 1 -or -not $openButtons.Item(0).Current.IsEnabled){
+            if($openButtons.Count -ne 1 -or
+              $openButtons.Item(0).Current.ControlType -ne [System.Windows.Automation.ControlType]::Button -or
+              -not $openButtons.Item(0).Current.IsEnabled){
               throw 'Patient Open button not uniquely enabled after Robert selection'
             }
-            try{
-              $openButtons.Item(0).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-              'PATIENT_OPEN_INVOKED=true' | Add-Content facad-quick-demo/robert-open-probe.txt
-            }catch{
-              "PATIENT_OPEN_INVOKE_EXCEPTION=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            $openBounds=$openButtons.Item(0).Current.BoundingRectangle
+            if($openBounds.IsEmpty -or $openBounds.Width -lt 25 -or $openBounds.Width -gt 180 -or
+              $openBounds.Height -lt 12 -or $openBounds.Height -gt 80 -or
+              $openBounds.Left -lt $windowBounds.Left -or $openBounds.Right -gt $windowBounds.Right -or
+              $openBounds.Top -lt $windowBounds.Top -or $openBounds.Bottom -gt $windowBounds.Bottom){
+              throw 'Patient Open button bounds mismatch'
             }
-            Start-Sleep -Seconds 6
+            if([FacadPatientMouse]::GetForegroundWindow() -ne $patientHwnd){throw 'Facad lost foreground before Open click'}
+            $ox=[int]($openBounds.Left + $openBounds.Width/2)
+            $oy=[int]($openBounds.Top + $openBounds.Height/2)
+            if(-not [FacadPatientMouse]::SetCursorPos($ox,$oy)){throw 'Open button cursor placement failed'}
+            Start-Sleep -Milliseconds 100
+            [FacadPatientMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+            Start-Sleep -Milliseconds 110
+            [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            'PATIENT_OPEN_CLICKED=true' | Add-Content facad-quick-demo/robert-open-probe.txt
+            Start-Sleep -Seconds 8
           }catch{
             $robertActionError=$_.Exception.Message
             "ROBERT_ACTION_ERROR=$robertActionError" | Add-Content facad-quick-demo/robert-open-probe.txt
@@ -727,14 +748,13 @@ jobs:
               $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'robert-after-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
             }finally{$g.Dispose();$bmp.Dispose()}
           }catch{"ROBERT_SCREEN_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/robert-open-probe.txt}
-          $remainingPatientDialogs=$root.FindAll([System.Windows.Automation.TreeScope]::Children,
+          $remainingPanelLabels=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
             [System.Windows.Automation.PropertyCondition]::new(
               [System.Windows.Automation.AutomationElement]::NameProperty,'Patients/Work List'))
-          "PATIENT_DIALOG_REMAINING=$($remainingPatientDialogs.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
-          'CASE_OPENED=UNVERIFIED' | Add-Content facad-quick-demo/robert-open-probe.txt
+          "PATIENT_PANEL_REMAINING=$($remainingPanelLabels.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+          'CASE_OPENED=UNVERIFIED_PENDING_SCREENSHOT_REVIEW' | Add-Content facad-quick-demo/robert-open-probe.txt
           if($robertActionError){throw "Robert patient selection failed: $robertActionError"}
-          if($remainingPatientDialogs.Count -gt 0){throw 'Patient list remains after attempted Robert open; clinical workspace not verified'}
-
+          if($remainingPanelLabels.Count -gt 0){throw 'Patient list remains after attempted Robert open; clinical workspace not verified'}
 
           if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
