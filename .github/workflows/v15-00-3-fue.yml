@@ -26,9 +26,9 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Validate Hub routing contracts
+      - name: Validate Hub, Workstation Gate, admin and identity contracts
         working-directory: frontend
-        run: npm test -- --run src/test/v15HubRoutingContract.test.ts
+        run: npm test -- --run src/test/v15HubRoutingContract.test.ts src/features/hub/WorkstationModeGate.test.tsx src/features/hub/WorkstationModeAdminPanel.test.tsx src/features/hub/WorkstationIdentityPanel.test.tsx
       - name: Start synthetic isolated frontend
         working-directory: frontend
         run: |
