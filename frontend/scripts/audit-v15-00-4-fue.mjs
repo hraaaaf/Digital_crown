@@ -108,7 +108,7 @@ async function run(journey, viewport) {
     journey, viewport: viewport.label, checks: [], captures: [],
     api: [], unexpected: [], remoteRequests: [], errors: [], outcome: 'PENDING',
   };
-  const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
   let page = null;
   try {
     await install(context, item, audit);
