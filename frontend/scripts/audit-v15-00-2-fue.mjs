@@ -13,7 +13,10 @@ for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:128
  const context=await browser.newContext({viewport:{width:vp.width,height:vp.height}});
  await context.route('**/api/workstation/bootstrap',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(bootstrap)}));
  await context.route('**/api/clinics/me',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({nom_cabinet:'Cabinet FUE synthétique',cabinet_type:'CABINET'})}));
- // The browser harness has no backend. Make /health deterministic so the product\'s\n // 15 x 2s readiness retry does not outlive the authorization assertion.\n await context.route('**/health',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'ok'})}));\n await context.route('**/auth/me',r=>r.fulfill({status:401,contentType:'application/json',body:JSON.stringify({detail:'Unauthenticated'})}));\n const page=await context.newPage(),errors=[];
+ // Isolated Vite harness: deterministic health and anonymous auth.
+ await context.route('**/health',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'ok'})}));
+ await context.route('**/auth/me',r=>r.fulfill({status:401,contentType:'application/json',body:JSON.stringify({detail:'Unauthenticated'})}));
+ const page=await context.newPage(),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  const started=Date.now();
  try {
