@@ -67,6 +67,9 @@ jobs:
           npm ci
           npm install --no-save playwright@1.55.0
           npx playwright install chromium
+      - name: Frontend TypeScript verification
+        working-directory: frontend
+        run: npx tsc --noEmit --project tsconfig.app.json
       - name: Start isolated backend
         run: |
           rm -f t2-runtime-cert.db
