@@ -102,6 +102,7 @@ try {
       await context.route('**/auth/me', route => route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({detail:'Unauthenticated'})}));
       const page = await context.newPage();
       const errors = [];
+      page.on('requestfailed', request => errors.push(`REQUEST_FAILED ${request.method()} ${request.url()} ${request.failure()?.errorText || ''}`));
       page.on('pageerror', error => errors.push(error.message));
       page.on('console', message => {
         if (message.type() === 'error') errors.push(message.text());
