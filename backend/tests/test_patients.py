@@ -29,6 +29,29 @@ class TestCreatePatient:
         resp = client.post("/api/patients/", json=bad, headers=auth_headers)
         assert resp.status_code == 422
 
+    def test_explicit_dossier_number_collision_returns_409(self, client, auth_headers):
+        """A different patient cannot reuse a dossier number in the same cabinet."""
+        first = client.post(
+            "/api/patients/",
+            json={**VALID_PATIENT, "nom": "DossierA", "numero_dossier": "FUED-CONFLICT-01"},
+            headers=auth_headers,
+        )
+        assert first.status_code in (200, 201)
+
+        second = client.post(
+            "/api/patients/",
+            json={**VALID_PATIENT, "nom": "DossierB", "numero_dossier": "FUED-CONFLICT-01"},
+            headers=auth_headers,
+        )
+        assert second.status_code == 409
+        assert "Numéro de dossier" in second.json()["detail"]["message"]
+
+        patients = client.get("/api/patients/", headers=auth_headers)
+        assert patients.status_code == 200
+        matching = [p for p in patients.json() if p["numero_dossier"] == "FUED-CONFLICT-01"]
+        assert len(matching) == 1
+
+
 
 class TestListPatients:
     def test_list_returns_empty_initially(self, client, auth_headers):
