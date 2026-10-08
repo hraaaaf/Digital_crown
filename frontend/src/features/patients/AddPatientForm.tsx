@@ -40,6 +40,16 @@ export const AddPatientForm = () => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateInfo | null>(null);
   const [forceCreate, setForceCreate] = useState(false);
+  const duplicateDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = duplicateDialogRef.current;
+    if (!dialog) return;
+    if (showDuplicateModal && duplicateInfo?.existing_patient) {
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [showDuplicateModal, duplicateInfo]);
 
   const prefillNom = searchParams.get('nom') || '';
   const prefillPrenom = searchParams.get('prenom') || '';
@@ -652,16 +662,21 @@ export const AddPatientForm = () => {
         </form>
       </div>
 
-      {/* Modal de détection de doublon */}
-      {showDuplicateModal && duplicateInfo?.existing_patient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 animate-in fade-in zoom-in duration-200">
+      {/* Native dialog traps keyboard focus, makes the form inert, and closes on Escape. */}
+      <dialog
+        ref={duplicateDialogRef}
+        onClose={() => { setShowDuplicateModal(false); setForceCreate(false); }}
+        aria-labelledby="patient-duplicate-title"
+        className="fixed inset-0 m-auto w-[min(92vw,32rem)] max-h-[90dvh] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 sm:p-8 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+      >
+        {showDuplicateModal && duplicateInfo?.existing_patient && (
+          <div className="w-full">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-amber-100 rounded-2xl">
                 <AlertTriangle className="w-8 h-8 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-800">Patient similaire trouvé</h3>
+                <h3 id="patient-duplicate-title" className="text-xl font-black text-slate-800">Patient similaire trouvé</h3>
                 <p className="text-slate-500 text-sm">Un dossier avec les mêmes informations existe déjà.</p>
               </div>
             </div>
@@ -688,10 +703,19 @@ export const AddPatientForm = () => {
               </button>
 
               <button
-                onClick={() => {
+                disabled={loading}
+                onClick={async () => {
+                  if (submissionBusyRef.current) return;
+                  submissionBusyRef.current = true;
+                  setLoading(true);
                   setForceCreate(true);
                   setShowDuplicateModal(false);
-                  performSubmit(true);
+                  try {
+                    await performSubmit(true);
+                  } finally {
+                    submissionBusyRef.current = false;
+                    setLoading(false);
+                  }
                 }}
                 className="w-full py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
               >
@@ -710,8 +734,8 @@ export const AddPatientForm = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </dialog>
     </div>
   );
 };
