@@ -266,6 +266,11 @@ try {
       return { name, hasAssociatedLabel: await field.evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby'))) };
     }));
     if (labelProof.some(x => !x.hasAssociatedLabel)) throw new Error('Required identity label inaccessible: ' + JSON.stringify(labelProof));
+    const requiredSemantics = await Promise.all(identityFieldNames.map(name =>
+      ux.locator('[name="' + name + '"]').getAttribute('aria-required')));
+    if (requiredSemantics.some(value => value !== 'true')) {
+      throw new Error('Required patient fields are missing semantic required state: ' + JSON.stringify(requiredSemantics));
+    }
     const nameHasAssociatedLabel = labelProof[0].hasAssociatedLabel;
     const optionalNames = ['numero_dossier', 'assurance', 'telephone', 'email', 'adresse', 'antecedents_medicaux'];
     const optionalLabels = await Promise.all(optionalNames.map(async name => ({
@@ -396,6 +401,15 @@ try {
         sidebarReflow.clipped || sidebarReflow.scrollWidth > sidebarReflow.clientWidth + 1) {
       throw new Error('200% sidebar navigation label clipped: ' + JSON.stringify(sidebarReflow));
     }
+    const sidebarNavLabels = await ux.locator('.sidebar-nav-item .sidebar-label').evaluateAll(labels => labels.map(el => {
+      const rect = el.getBoundingClientRect();
+      const parent = el.closest('.sidebar-nav-item')?.getBoundingClientRect();
+      return { text: el.textContent?.trim(), scroll: el.scrollWidth, client: el.clientWidth,
+        clipped: !parent || rect.left < parent.left - 2 || rect.right > parent.right + 2 };
+    }));
+    if (!sidebarNavLabels.length || sidebarNavLabels.some(item => item.scroll > item.client + 1 || item.clipped)) {
+      throw new Error('At least one expanded sidebar label is truncated at 200%: ' + JSON.stringify(sidebarNavLabels));
+    }
     await ux.screenshot({ path: path.join(uxDir, '01b-css-text-zoom-200pct-desktop.png'), fullPage: true, animations: 'disabled' });
     const textZoomDesktop = await assertHeaderNotClipped('1280x900');
     await ux.setViewportSize({ width: 390, height: 844 });
@@ -516,7 +530,7 @@ try {
     await duplicateDialog.waitFor({ state: 'hidden', timeout: 8000 });
     if (!ux.url().endsWith('/patients/new')) throw new Error('Escape from duplicate modal navigated away');
     await ux.screenshot({ path: path.join(uxDir, '06-duplicate-dialog-escaped.png'), fullPage: false, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
+    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, sidebarNavLabels, screenshots: ['01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
   } finally {
     await uxContext.close();
   }
