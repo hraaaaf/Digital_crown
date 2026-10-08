@@ -63,10 +63,15 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Runtime credential
+        shell: bash
         run: |
+          pairing_token="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$pairing_token"
+          echo "::add-mask::$password"
           echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
-          echo "T2_MOBILE_PAIRING_TOKEN=$(python -c 'import secrets; print(secrets.token_urlsafe(24))')" >> "$GITHUB_ENV"
-          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+          echo "T2_MOBILE_PAIRING_TOKEN=$pairing_token" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
 
       - name: Backend dependencies
         run: |
