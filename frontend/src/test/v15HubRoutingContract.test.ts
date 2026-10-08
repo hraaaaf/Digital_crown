@@ -24,6 +24,11 @@ describe('V1.5-00.2 Hub routing contract', () => {
   });
 
   it('keeps a fresh annex workstation locked until explicit enrollment (423 is not clinic setup)', () => {
+    expect(app).toContain('const workstationBootstrap = await workstationModeService.getBootstrapState()');
+    expect(app).toContain('if (workstationBootstrap.enrollmentRequired)');
+    expect(app).toContain('setIsInitialized(null)');
+    expect(app.indexOf('const workstationBootstrap = await workstationModeService.getBootstrapState()'))
+      .toBeLessThan(app.indexOf('const status = await cabinetApi.checkInitStatus()'));
     expect(app).toContain("error.response?.status === 423");
     expect(app).toContain("error.response?.data?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'");
     expect(app).toContain('setWorkstationEnrollmentRequired(true)');
