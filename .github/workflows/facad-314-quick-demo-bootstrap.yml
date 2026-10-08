@@ -173,7 +173,111 @@ jobs:
           }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
 
           if($consentHits){
-            Get-Process FacadNstaller,FacadInstall,Facad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            # Explicit human authorization was provided to accept this specific Facad EULA.
+            # Navigation stops immediately after Next to inspect the next screen.
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $eulaWindows=$root.FindAll(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'End User License Agreement'
+              )
+            )
+            if($eulaWindows.Count -ne 1){throw "Expected exactly one Facad EULA window, found $($eulaWindows.Count)"}
+            $eulaWindow=$eulaWindows.Item(0)
+            if($eulaWindow.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
+              throw 'Facad EULA top-level window type mismatch'
+            }
+
+            Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadWindowGuard {
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
+          }
+          '@
+
+            function Click-VerifiedPane {
+              param(
+                [System.Windows.Automation.AutomationElement]$Window,
+                [string]$Name
+              )
+              $matches=$Window.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                  [System.Windows.Automation.AutomationElement]::NameProperty,$Name
+                )
+              )
+              $targets=@()
+              for($i=0;$i -lt $matches.Count;$i++){
+                $candidate=$matches.Item($i)
+                if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane){
+                  $targets+=,$candidate
+                }
+              }
+              if($targets.Count -ne 1){throw "Expected exactly one Pane '$Name', got $($targets.Count)"}
+              $pane=$targets[0]
+              if(-not $pane.Current.IsEnabled){throw "Pane '$Name' is disabled"}
+              $r=$pane.Current.BoundingRectangle
+              $wr=$Window.Current.BoundingRectangle
+              if($r.IsEmpty -or $r.Width -lt 60 -or $r.Width -gt 500 -or
+                 $r.Height -lt 15 -or $r.Height -gt 100 -or
+                 $r.Left -lt $wr.Left -or $r.Right -gt $wr.Right -or
+                 $r.Top -lt $wr.Top -or $r.Bottom -gt $wr.Bottom){
+                 throw "Pane '$Name' invalid bounds $r / window $wr"
+              }
+              $foreground=[FacadWindowGuard]::GetForegroundWindow()
+              if($foreground -ne [IntPtr]$Window.Current.NativeWindowHandle){
+                throw "Wrong foreground window before '$Name'"
+              }
+              $px=[int]($r.Left+$r.Width/2)
+              $py=[int]($r.Top+$r.Height/2)
+              $point=[System.Windows.Point]::new([double]$px,[double]$py)
+              $hit=[System.Windows.Automation.AutomationElement]::FromPoint($point)
+              $walker=[System.Windows.Automation.TreeWalker]::RawViewWalker
+              $hitMatches=$false
+              for($depth=0;$depth -lt 15 -and $null -ne $hit;$depth++){
+                if($hit.Equals($pane)){$hitMatches=$true;break}
+                $hit=$walker.GetParent($hit)
+              }
+              if(-not $hitMatches){throw "Foreground hit test for '$Name' did not resolve to intended pane"}
+              if(-not [FacadWindowGuard]::SetCursorPos($px,$py)){throw "SetCursorPos failed for '$Name'"}
+              Start-Sleep -Milliseconds 150
+              [FacadWindowGuard]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 100
+              [FacadWindowGuard]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+              "VERIFIED_CLICK=$Name | $px,$py" | Add-Content facad-quick-demo/quick-demo-process.txt
+            }
+
+            Click-VerifiedPane -Window $eulaWindow -Name 'I accept the license'
+            Start-Sleep -Seconds 2
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $eulaWindow=$root.FindFirst(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'End User License Agreement'
+              )
+            )
+            if($null -eq $eulaWindow){throw 'EULA disappeared before Next was verified'}
+            Click-VerifiedPane -Window $eulaWindow -Name 'Next >'
+            'EULA_ACCEPTED_AND_NEXT_CLICK_SENT=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            Start-Sleep -Seconds 5
+            Dump-Ui 'facad-quick-demo/ui-after-eula-next.txt'
+            try{
+              Add-Type -AssemblyName System.Windows.Forms
+              Add-Type -AssemblyName System.Drawing
+              $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+              $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+              $g=[System.Drawing.Graphics]::FromImage($bmp)
+              $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+              $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'after-eula-next-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+              $g.Dispose();$bmp.Dispose()
+            }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
+            Get-Process FacadNstaller,FacadInstall -ErrorAction SilentlyContinue |
+              Stop-Process -Force -ErrorAction SilentlyContinue
+            Write-Host 'EULA_ACCEPTED_NEXT_SCREEN_CAPTURED; installer stopped before any other interaction'
             exit 0
           }
 
@@ -279,6 +383,8 @@ jobs:
             facad-quick-demo/before-click-screen.png
             facad-quick-demo/ui-after-click.txt
             facad-quick-demo/after-click-screen.png
+            facad-quick-demo/ui-after-eula-next.txt
+            facad-quick-demo/after-eula-next-screen.png
             facad-quick-demo/consent-gate.txt
             facad-quick-demo/settings-found.txt
             facad-quick-demo/facad-ui-tree.txt
