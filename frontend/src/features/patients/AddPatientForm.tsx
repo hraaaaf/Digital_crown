@@ -129,6 +129,14 @@ export const AddPatientForm = () => {
   const validate = () => {
     const newErrors = validatePatientIdentity(formData);
     setErrors(newErrors);
+    const firstInvalid = ['nom', 'prenom', 'date_naissance', 'sexe', 'numero_dossier'].find(name => newErrors[name]);
+    if (firstInvalid) {
+      requestAnimationFrame(() => {
+        const input = document.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${firstInvalid}"]`);
+        input?.focus();
+        input?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      });
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -156,8 +164,8 @@ export const AddPatientForm = () => {
       }
       
       return false; // Pas de doublon
-    } catch (err) {
-      console.error("Erreur vérification doublon:", err);
+    } catch (err: any) {
+      console.warn("Vérification anti-doublon indisponible (statut HTTP uniquement)", { status: err?.response?.status ?? null });
       setErrors(previous => ({ ...previous, global: "Vérification anti-doublon indisponible. Réessayez avant de créer le patient." }));
       return null;
     }

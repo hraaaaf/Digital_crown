@@ -74,6 +74,7 @@ try {
       let posts = 0;
       page.on('request', req => { if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/patients/') posts++; });
       await page.getByRole('button', { name: 'Créer le dossier', exact: true }).click(); interactions++;
+      await page.waitForFunction(() => document.activeElement?.getAttribute('name') === 'nom', { timeout: 12000 });
       if (posts !== 0) throw new Error('Invalid form sent create request');
       const required = await page.locator('body').innerText();
       if (!required.includes('Le nom est requis') || !required.includes('Le prénom est requis')) throw new Error('Required-field refusal not understandable');
