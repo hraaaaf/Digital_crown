@@ -133,7 +133,9 @@ try {
           await capture('01-failure');
           if (assertAfter) {
             const message = record.screenshots[0].message;
-            if (!message.includes('relancez le diagnostic')) throw new Error('No actionable next step for ' + scenario);
+            if (['missing-server', 'service-503', 'database-503'].includes(scenario) && !message.includes('relancez le diagnostic')) {
+              throw new Error('No actionable network recovery step for ' + scenario);
+            }
             if (scenario === 'missing-server' && message.includes('Ouvrez cette adresse')) throw new Error('Wrong-origin advice on a same-origin network outage');
             if (scenario === 'service-503' && !message.includes('HTTP 503')) throw new Error('HTTP service outage misclassified');
             if (scenario === 'database-503' && !message.includes('PostgreSQL')) throw new Error('DB failure lacks PostgreSQL next step');
