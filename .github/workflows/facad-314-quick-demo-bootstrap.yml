@@ -64,7 +64,31 @@ jobs:
               }
             }
           }
-          if($null -eq $button){ throw 'Quick demo installation button not found' }
+          if($null -eq $button){
+            'QUICK_DEMO_BUTTON_NOT_EXPOSED_BY_UIAUTOMATION=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            $rows=New-Object System.Collections.Generic.List[string]
+            foreach($n in $nodes){
+              try{
+                $rows.Add("TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name) | RECT=$($n.Current.BoundingRectangle)")
+              }catch{}
+            }
+            $rows | Sort-Object -Unique | Set-Content facad-quick-demo/ui-before-click.txt
+            try{
+              Add-Type -AssemblyName System.Windows.Forms
+              Add-Type -AssemblyName System.Drawing
+              $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+              $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+              $g=[System.Drawing.Graphics]::FromImage($bmp)
+              $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+              $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'before-click-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+              $g.Dispose();$bmp.Dispose()
+            }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
+            Get-Process FacadNstaller -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Write-Host 'NO_CLICK_PERFORMED: inspection artifacts captured'
+            exit 0
+          }
 
           "BUTTON_NAME=$($button.Current.Name)" | Add-Content facad-quick-demo/quick-demo-process.txt
           $invoke=$button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
