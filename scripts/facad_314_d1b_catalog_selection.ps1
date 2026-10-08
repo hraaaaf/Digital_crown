@@ -233,7 +233,14 @@ $remainingWindows=@(for($i=0;$i -lt $remaining.Count;$i++){
     -not $e.Current.IsOffscreen){$e}
 })
 if($remainingWindows.Count -ne 0){throw 'D1B catalog remained open after Cancel'}
-$baselineName=Named $main 'Bergen short' 'Text'
-if($baselineName.Count -lt 1){throw 'D1B Robert active analysis title changed unexpectedly'}
-Log 'D1B_ORIGINAL_BERGEN_SHORT_STILL_DISPLAYED=true'
+# Bergen short appears as a drawn label and is not exposed as a Text UIA
+# control. Verify its screenshot-backed *actual* SNA and ANB rows instead.
+$anwin=Named $main 'Pretreatment tracing (Robert Example / 850101-0010)  Analysis' 'Window'
+if($anwin.Count -ne 1){throw 'D1B Robert analysis workspace missing after Cancel'}
+$sna=Named $anwin[0] '67.7' 'Text'
+$anb=Named $anwin[0] '-10.7' 'Text'
+if($sna.Count -lt 1 -or $anb.Count -lt 1){
+ throw 'D1B original Bergen short example values changed or could not be verified'
+}
+Log 'D1B_ORIGINAL_BERGEN_SHORT_VALUES_STILL_DISPLAYED=true'
 Log 'D1B_STANDARD_LATERAL_65_SELECTIONS_VERIFIED=true'
