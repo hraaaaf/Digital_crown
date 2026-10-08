@@ -148,8 +148,10 @@ try {
           await page.locator('[data-control-center-db]').filter({ hasText: 'Disponible' }).waitFor();
           await capture('02-recovered');
         }
-        if (record.errors.length) throw new Error('Unhandled page errors: ' + record.errors.length);
-        if (record.screenshots.some(step => step.horizontalOverflow)) throw new Error('Horizontal overflow');
+        // BEFORE is observational: preserve defects rather than rejecting the
+        // baseline. Candidate AFTER must pass the UX/safety assertions.
+        if (assertAfter && record.errors.length) throw new Error('Unhandled page errors: ' + record.errors.length);
+        if (assertAfter && record.screenshots.some(step => step.horizontalOverflow)) throw new Error('Horizontal overflow');
         record.result = 'PASS';
       } catch (error) {
         record.result = 'FAIL';
