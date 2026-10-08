@@ -361,7 +361,21 @@ jobs:
           $seven="$env:ProgramFiles\7-Zip\7z.exe"
           New-Item -ItemType Directory -Force -Path facad-quick-demo/release | Out-Null
           & $seven x 'facad-quick-demo/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-quick-demo/release' -y | Out-Null
-          $case=(Resolve-Path 'facad-quick-demo/release/Examples/Robert-2.0.fcd').Path
+          $officialCase=(Resolve-Path 'facad-quick-demo/release/Examples/Robert-2.0.fcd').Path
+          $caseSourceHash=(Get-FileHash -LiteralPath $officialCase -Algorithm SHA256).Hash
+          $sandboxRoot=(Join-Path (Resolve-Path 'facad-quick-demo').Path 'd3-app-copy')
+          if(Test-Path -LiteralPath $sandboxRoot){throw 'D3 disposable app source unexpectedly exists'}
+          # Copy all official example siblings: the tiny .fcd may reference
+          # images relative to Examples, rather than embedding X-ray pixels.
+          Copy-Item -LiteralPath (Split-Path $officialCase -Parent) -Destination $sandboxRoot -Recurse -ErrorAction Stop
+          $case=(Join-Path $sandboxRoot 'Robert-2.0.fcd')
+          if(-not (Test-Path -LiteralPath $case)){throw 'D3 disposable Robert entry point missing'}
+          $copyHash=(Get-FileHash -LiteralPath $case -Algorithm SHA256).Hash
+          if($caseSourceHash -ne $copyHash){throw 'D3 disposable input copy differs from official bundled example'}
+          "OFFICIAL_SOURCE_HASH=$caseSourceHash" | Set-Content facad-quick-demo/d3-app-copy-probe.txt
+          "COPY_INPUT_HASH=$copyHash" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          'START_SOURCE=DISPOSABLE_OFFICIAL_EXAMPLE_COPY' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
 
           $p=Start-Process -FilePath $installed.FullName -ArgumentList ('"'+$case+'"') -WorkingDirectory $installed.DirectoryName -PassThru
           "FACAD_PID=$($p.Id)" | Set-Content facad-quick-demo/facad-example-process.txt
@@ -996,26 +1010,25 @@ jobs:
           if($tracingFailure){throw "Facad tracing exploratory gate failed: $tracingFailure"}
           if($menuErrors.Count -gt 0){throw "Facad menu exploratory gate failed: $($menuErrors -join '; ')"}
 
-          # D1 discovery verified on run #37845377310: 65 lateral analyses.
-          # D3 preflight only: read/hash/copy the official sample into scratch,
-          # without opening or modifying it through Facad.
-          $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
-          if(-not (Test-Path $d3Preflight)){throw "D3 preflight missing: $d3Preflight"}
-          & $d3Preflight -OutDir 'facad-quick-demo' -SourcePath $case
-
-          # D2: reversible View toggles, toolbar modes and state restoration,
-          # grounded in the already opened Robert pretreatment workspace.
-          $d2Script=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d2_view_probe.ps1'
-          if(-not (Test-Path $d2Script)){throw "D2 explorer missing: $d2Script"}
-          & $d2Script -FacadProcessId ([int]$facadPid) `
+          # D2B: structural coverage of the View controls skipped by D2.
+          # No View leaf action is invoked; menu hover may open nested menus.
+          $d2b=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d2b_view_structure.ps1'
+          if(-not (Test-Path $d2b)){throw "D2B mapper missing: $d2b"}
+          & $d2b -FacadProcessId ([int]$facadPid) `
             -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
             -OutDir 'facad-quick-demo'
 
-          # Independent pixel-region verification against BEFORE/AFTER/RESTORE
-          # captures. Exactly four demonstrated toggles; other options OPEN.
-          $d2Gate=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d2_visual_gate.ps1'
-          if(-not (Test-Path $d2Gate)){throw "D2 visual verifier missing: $d2Gate"}
-          & $d2Gate -OutDir 'facad-quick-demo'
+          # D3 copy preflight: hash the ORIGINAL official sample, not the
+          # disposable one loaded in this session.
+          $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
+          & $d3Preflight -OutDir 'facad-quick-demo' -SourcePath $officialCase
+          $officialAfter=(Get-FileHash -LiteralPath $officialCase -Algorithm SHA256).Hash
+          $disposableAfter=(Get-FileHash -LiteralPath $case -Algorithm SHA256).Hash
+          "OFFICIAL_SOURCE_AFTER=$officialAfter" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          "COPY_AFTER=$disposableAfter" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          if($caseSourceHash -ne $officialAfter){throw 'D3 official bundled example changed during disposable read-only session'}
+          'SOURCE_UNCHANGED_AFTER_VIEW_SESSION=true' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          'CLINICAL_EDIT_ALLOWED=false' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
 
           if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
@@ -1043,6 +1056,10 @@ jobs:
             facad-quick-demo/shortcut-after-keyboard.txt
             facad-quick-demo/shortcut-prompt.txt
             facad-quick-demo/license-notice.txt
+            facad-quick-demo/d2b-*.png
+            facad-quick-demo/d2b-*.txt
+            facad-quick-demo/d2b-view-state-ledger.csv
+            facad-quick-demo/d3-app-copy-probe.txt
             facad-quick-demo/d2-*.png
             facad-quick-demo/d2-*.txt
             facad-quick-demo/d2-visual-proof.txt
