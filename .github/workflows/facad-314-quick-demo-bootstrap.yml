@@ -564,15 +564,19 @@ jobs:
           $root=[System.Windows.Automation.AutomationElement]::RootElement
           $openControls=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
             [System.Windows.Automation.PropertyCondition]::new(
-              [System.Windows.Automation.AutomationElement]::NameProperty,'Open file'))
+              [System.Windows.Automation.AutomationElement]::NameProperty,'{FCD_Open_patient}'))
           "OPEN_FILE_CONTROL_COUNT=$($openControls.Count)" | Set-Content facad-quick-demo/open-file-probe.txt
           if($openControls.Count -eq 1){
             $open=$openControls.Item(0)
             "OPEN_FILE_CONTROL_TYPE=$($open.Current.ControlType.ProgrammaticName)" | Add-Content facad-quick-demo/open-file-probe.txt
-            if($open.Current.IsEnabled -and $open.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button){
+            if($open.Current.IsEnabled){
               try{
-                $open.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-                'OPEN_FILE_INVOKED=true' | Add-Content facad-quick-demo/open-file-probe.txt
+                if($open.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$invokePattern)){
+                  $invokePattern.Invoke()
+                }else{
+                  'OPEN_PATIENT_INVOKE_UNSUPPORTED=true' | Add-Content facad-quick-demo/open-file-probe.txt
+                }
+                'OPEN_PATIENT_INVOKE_ATTEMPTED=true' | Add-Content facad-quick-demo/open-file-probe.txt
                 Start-Sleep -Seconds 3
               }catch{
                 "OPEN_FILE_INVOKE_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/open-file-probe.txt
