@@ -348,6 +348,31 @@ try {
     await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: true, animations: 'disabled' });
     const textZoomMobile = await assertHeaderNotClipped('390x844');
     await ux.setViewportSize({ width: 1280, height: 900 });
+    await ux.locator('.sidebar-shell').hover();
+    await ux.locator('.sidebar-shell[data-expanded="true"]').waitFor({ timeout: 5000 });
+    await ux.waitForTimeout(460); // let sidebar width animation settle
+    const sidebarReflow = await ux.locator('.sidebar-nav-item').filter({ hasText: 'Tableau de bord' }).first().evaluate(link => {
+      const label = link.querySelector('.sidebar-label');
+      if (!label) return { found: false };
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      const linkBounds = link.getBoundingClientRect();
+      const fragments = Array.from(range.getClientRects()).map(rect => ({
+        left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+      }));
+      return {
+        found: true,
+        text: label.textContent?.trim(),
+        fragments: fragments.length,
+        clipped: fragments.some(rect => rect.left < linkBounds.left - 2 || rect.right > linkBounds.right + 2),
+        scrollWidth: label.scrollWidth,
+        clientWidth: label.clientWidth,
+      };
+    });
+    if (!sidebarReflow.found || sidebarReflow.text !== 'Tableau de bord' ||
+        sidebarReflow.clipped || sidebarReflow.scrollWidth > sidebarReflow.clientWidth + 1) {
+      throw new Error('200% sidebar navigation label clipped: ' + JSON.stringify(sidebarReflow));
+    }
     await ux.screenshot({ path: path.join(uxDir, '01b-css-text-zoom-200pct-desktop.png'), fullPage: true, animations: 'disabled' });
     const textZoomDesktop = await assertHeaderNotClipped('1280x900');
     await ux.setViewportSize({ width: 390, height: 844 });
@@ -414,7 +439,7 @@ try {
     await ux.reload({ waitUntil: 'domcontentloaded' });
     await ux.getByText(identity, { exact: false }).first().waitFor({ state: 'visible', timeout: 15000 });
     await ux.screenshot({ path: path.join(uxDir, '04-after-double-click.png'), fullPage: true, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentDesktop: textZoomDesktop, screenshots: ['01-css-text-zoom-200pct.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png'] });
+    results.push({ viewport: 'adversarial-mobile-ui', simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png'] });
   } finally {
     await uxContext.close();
   }
