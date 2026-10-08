@@ -23,6 +23,15 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(app).not.toContain("safeStorage.set('appMode', 'station')");
   });
 
+  it('keeps a fresh annex workstation locked until explicit enrollment (423 is not clinic setup)', () => {
+    expect(app).toContain("error.response?.status === 423");
+    expect(app).toContain("error.response?.data?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'");
+    expect(app).toContain('setWorkstationEnrollmentRequired(true)');
+    expect(app).toContain('if (workstationEnrollmentRequired)');
+    expect(app).toContain('return <Navigate to="/hub?enroll=1" replace />');
+    expect(app).toContain('if (isInitialized === false && location.pathname !== \'/setup\')');
+  });
+
   it('uses only canonical theme tokens in V1.5 Hub surfaces', () => {
     const source = hub + workstation + stationShell + workstationAdmin + controlCenter;
     expect(source).not.toMatch(/(?:rounded|text|tracking|shadow|bg|border)-\[[^\]]+\]/);
