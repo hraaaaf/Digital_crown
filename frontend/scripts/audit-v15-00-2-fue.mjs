@@ -32,10 +32,16 @@ for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:128
  await page.screenshot({path:path.join(root,vp.name+'-03-station-refusal.png'),fullPage:true});
  await page.goto('http://127.0.0.1:4195/hub?select=1');
  await page.locator('[data-hub-experience="cabinet"]').click();
- await page.waitForTimeout(600);
+ // Prove the negative authorization outcome, not merely absence of /dashboard.
+ await page.waitForURL('**/login', { timeout: 15000 });
  const cabinetUrl=new URL(page.url()).pathname;
- // Unauthenticated synthetic profile must not see an unrestricted clinical page.
- if(cabinetUrl==='/dashboard')throw new Error('Unauthenticated cabinet access bypass');
+ if(cabinetUrl !== '/login') throw new Error('Expected login after anonymous Cabinet selection, got '+cabinetUrl);
+ await page.getByRole('textbox').first().waitFor({state:'visible',timeout:10000});
+ // Direct URL must enforce the same boundary, preventing a false-green SPA route.
+ await page.goto('http://127.0.0.1:4195/dashboard');
+ await page.waitForURL('**/login', {timeout:15000});
+ if(new URL(page.url()).pathname !== '/login') throw new Error('Direct Dashboard URL bypassed auth');
+ await page.goto('http://127.0.0.1:4195/login');
  await page.screenshot({path:path.join(root,vp.name+'-04-cabinet-auth-boundary.png'),fullPage:true});
  await page.goto('http://127.0.0.1:4195/hub?select=1');
  await page.route('**/api/clinics/me',r=>r.abort());
@@ -44,7 +50,7 @@ for(const vp of [{name:'tablet',width:768,height:1024},{name:'desktop',width:128
  await page.screenshot({path:path.join(root,vp.name+'-05-offline.png'),fullPage:true});
  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
  if(overflow||errors.length)throw new Error(JSON.stringify({overflow,errors}));
- results.push({viewport:vp.name,dimensions:[vp.width,vp.height],cards,hubMs,firstValueMs,stationUnpairedRejected:true,cabinetUrl,offlineMessage:true,overflow,pageErrors:errors});
+ results.push({viewport:vp.name,dimensions:[vp.width,vp.height],cards,hubMs,firstValueMs,stationUnpairedRejected:true,cabinetUrl,anonymousCabinetRejected:true,directDashboardRejected:true,offlineMessage:true,overflow,pageErrors:errors});
  await context.close();
 }
 await browser.close();
