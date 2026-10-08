@@ -242,7 +242,7 @@ export const AddPatientForm = () => {
               <User className="text-white w-8 h-8" />
             </div>
             <div className="min-w-0 flex-[1_1_12rem]">
-              <h2 className="break-words text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">Nouveau Patient</h2>
+              <h2 className="break-words text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">Nouveau Patient</h2>
               <p className="break-words text-blue-200 text-sm font-medium mt-1">Digital Crown — Vérification anti-doublon activée</p>
             </div>
           </div>
