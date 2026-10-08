@@ -1,0 +1,54 @@
+name: V1.5-00.2 FUE-I Hub Lab
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/scripts/audit-v15-00-2-fue.mjs'
+      - '.github/workflows/v15-00-2-fue.yml'
+      - 'frontend/src/features/hub/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fue-hub:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Syntax check
+        run: node --check frontend/scripts/audit-v15-00-2-fue.mjs
+      - name: Start isolated Vite
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4195 >/tmp/fue-hub-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4195/hub >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/fue-hub-vite.log
+          exit 1
+      - name: Run FUE-I Hub
+        working-directory: frontend
+        run: node scripts/audit-v15-00-2-fue.mjs
+      - name: Diagnostic on failure
+        if: failure()
+        run: cat /tmp/fue-hub-vite.log || true
+      - name: Upload FUE-I evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-v15-00-2-hub
+          path: frontend/artifacts/fue-v15-00-2/
+          retention-days: 14
+          if-no-files-found: warn
