@@ -167,7 +167,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         // the operator into the clinic Setup Wizard, and never unlock clinical UI.
         if (axios.isAxiosError(error)
           && error.response?.status === 423
-          && error.response?.data?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED') {
+          && (
+            error.response?.data?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'
+            || error.response?.data?.detail === 'WORKSTATION_IDENTITY_REQUIRED'
+          )) {
           setWorkstationEnrollmentRequired(true);
         } else {
           console.error('Erreur vérification statut:', error);
