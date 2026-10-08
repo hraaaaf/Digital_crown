@@ -18,7 +18,7 @@ const profiles = [
   { name: '768x1024', width: 768, height: 1024 },
   { name: '1280x900', width: 1280, height: 900 },
 ];
-const scenarios = ['missing-server', 'service-503', 'database-503', 'wrong-lan', 'enrollment-423', 'station-423'];
+const scenarios = ['missing-server', 'service-503', 'database-503', 'wrong-lan', 'enrollment-423', 'station-423', 'stale-response'];
 const healthyTopology = {
   topologyRole: 'server',
   bindHost: '127.0.0.1',
@@ -82,6 +82,7 @@ try {
         await context.route('**/api/health/topology', async route => {
           if (currentMode === 'missing-server') return route.abort('failed');
           if (currentMode === 'service-503') return respond(route, 503, { detail: 'SERVICE_UNAVAILABLE' });
+          if (currentMode === 'delayed') await new Promise(resolve => setTimeout(resolve, 900));
           return respond(route, 200, healthyTopology);
         });
         await context.route('**/api/health/db', route => {
@@ -98,7 +99,33 @@ try {
         await page.goto(base + '/control-center', { waitUntil: 'domcontentloaded' });
         const target = page.locator('[data-control-center-target]');
         await target.waitFor({ state: 'visible' });
-        if (scenario === 'wrong-lan') {
+        if (scenario === 'stale-response') {
+          // Real race: editing the target must invalidate a prior same-origin
+          // probe, even when an old response arrives after the new address.
+          await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor();
+          currentMode = 'delayed';
+          const nextProbe = page.waitForRequest(req => req.url().endsWith('/api/health/topology'));
+          await page.locator('[data-control-center-probe]').click();
+          await nextProbe;
+          await target.fill('https://192.168.1.20:8005');
+          await page.waitForTimeout(1200);
+          await capture('01-after-edit-old-response');
+          if (assertAfter && record.screenshots[0].diagnosis !== 'pending') {
+            throw new Error('Stale prior-server diagnosis displayed for new address');
+          }
+          if (assertAfter && record.screenshots[0].backend !== 'Non vérifié') {
+            throw new Error('Old probe incorrectly reports server availability after target change');
+          }
+          await page.locator('[data-control-center-probe]').click();
+          if (assertAfter) await page.locator('[data-control-center-diagnosis="handoff"]').waitFor();
+          await capture('02-no-cross-origin-probe');
+          if (record.externalRequests.length) throw new Error('External probe leaked');
+          currentMode = 'healthy';
+          await target.fill(base);
+          await page.locator('[data-control-center-probe]').click();
+          await page.locator('[data-control-center-backend]').filter({ hasText: 'Joignable' }).waitFor();
+          await capture('03-rechecked-current-origin');
+        } else if (scenario === 'wrong-lan') {
           await target.fill('http://192.168.1.20:8005');
           await page.locator('[data-control-center-probe]').click();
           await page.getByRole('alert').filter({ hasText: 'HTTPS est obligatoire' }).waitFor();
