@@ -810,6 +810,155 @@ jobs:
           if($robertActionError){throw "Robert patient selection failed: $robertActionError"}
           if($remainingPanelLabels.Count -gt 0){throw 'Patient list remains after attempted Robert open; clinical workspace not verified'}
 
+          # Follow-on evidence only: bundled sample case, tracing viewer + menu inventory.
+          # No patient edits, writes, simulations, or exports performed.
+          function Save-FacadScreen([string]$filename){
+            $screen=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bitmap=New-Object System.Drawing.Bitmap $screen.Width,$screen.Height
+            $graphics=[System.Drawing.Graphics]::FromImage($bitmap)
+            try{
+              $graphics.CopyFromScreen($screen.Left,$screen.Top,0,0,$bitmap.Size)
+              $bitmap.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path $filename),
+                [System.Drawing.Imaging.ImageFormat]::Png)
+            }finally{$graphics.Dispose();$bitmap.Dispose()}
+          }
+          $traceProbe='facad-quick-demo/clinical-tracing-probe.txt'
+          'TRACING_PROBE_STARTED=true' | Set-Content $traceProbe
+          try{
+            $allFacadWindows=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Window))
+            $managerWindows=@(for($wi=0;$wi -lt $allFacadWindows.Count;$wi++){
+              $w=$allFacadWindows.Item($wi)
+              if($w.Current.Name -eq 'Robert Example / 850101-0010 - Image/Tracing manager'){$w}
+            })
+            "MANAGER_WINDOW_COUNT=$($managerWindows.Count)" | Add-Content $traceProbe
+            if($managerWindows.Count -ne 1){throw 'Robert tracing manager window missing or ambiguous'}
+            $manager=$managerWindows[0]
+            $managerBounds=$manager.Current.BoundingRectangle
+            $managerNodes=$manager.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $tracingLabels=@(for($ti=0;$ti -lt $managerNodes.Count;$ti++){
+              $node=$managerNodes.Item($ti)
+              if($node.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+                $node.Current.Name -like 'Pretreatment tracing*'){$node}
+            })
+            "PRETREATMENT_LABEL_COUNT=$($tracingLabels.Count)" | Add-Content $traceProbe
+            if($tracingLabels.Count -ne 1){throw 'Pretreatment tracing thumbnail label not unique'}
+            $labelRect=$tracingLabels[0].Current.BoundingRectangle
+            "PRETREATMENT_LABEL_BOUNDS=$labelRect" | Add-Content $traceProbe
+            # The screenshot proves a thumbnail directly above this label.
+            # Double click the label itself; avoid ungrounded screen coordinates.
+            if($labelRect.IsEmpty -or $labelRect.Width -lt 35 -or
+              $labelRect.Left -lt $managerBounds.Left -or $labelRect.Right -gt $managerBounds.Right -or
+              $labelRect.Top -lt $managerBounds.Top -or $labelRect.Bottom -gt $managerBounds.Bottom){
+              throw 'Pretreatment label bounds outside observed manager'
+            }
+            $fg=[FacadPatientMouse]::GetForegroundWindow()
+            [uint32]$pidFore=0
+            [void][FacadPatientMouse]::GetWindowThreadProcessId($fg,[ref]$pidFore)
+            "TRACING_FG_PID=$pidFore" | Add-Content $traceProbe
+            $facadPid=[uint32]$facadWindow.Current.ProcessId
+            "TRACING_FACAD_PID=$facadPid" | Add-Content $traceProbe
+            if($pidFore -ne $facadPid){throw 'Tracing viewer not foreground Facad; refusing double click'}
+            $tx=[int]($labelRect.Left + $labelRect.Width/2)
+            $ty=[int]($labelRect.Top + [Math]::Min($labelRect.Height/2,13))
+            if(-not [FacadPatientMouse]::SetCursorPos($tx,$ty)){throw 'Cannot position tracing selection cursor'}
+            for($di=0;$di -lt 2;$di++){
+              Start-Sleep -Milliseconds 85
+              [FacadPatientMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 65
+              [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            }
+            'PRETREATMENT_LABEL_DOUBLE_CLICKED=true' | Add-Content $traceProbe
+            Start-Sleep -Seconds 5
+          }catch{
+            "TRACING_INTERACTION_ERROR=$($_.Exception.Message)" | Add-Content $traceProbe
+          }
+          try{
+            Save-FacadScreen 'pretreatment-after-screen.png'
+            $tracingUi=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            foreach($node in $tracingUi){
+              try{
+                if($node.Current.Name -and $node.Current.ProcessId -eq $facadPid){
+                  "TYPE=$($node.Current.ControlType.ProgrammaticName) | NAME=$($node.Current.Name)" |
+                    Add-Content facad-quick-demo/pretreatment-after-ui-tree.txt
+                }
+              }catch{}
+            }
+          }catch{
+            "TRACING_CAPTURE_ERROR=$($_.Exception.Message)" | Add-Content $traceProbe
+          }
+          'TRACING_EDITOR_OPENED=UNVERIFIED_PENDING_SCREENSHOT_REVIEW' | Add-Content $traceProbe
+
+          # Passive menu inventory: open File/Edit/View/Tools/Help one at a time,
+          # capture visible entries and dismiss with Escape, no selection.
+          $menuProbe='facad-quick-demo/clinical-menu-probe.txt'
+          'MENU_PROBE_STARTED=true' | Set-Content $menuProbe
+          foreach($menuName in @('File','Edit','View','Tools','Help')){
+            try{
+              $currentWindows=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                  [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                  [System.Windows.Automation.ControlType]::Window))
+              $mainFacad=@(for($mi=0;$mi -lt $currentWindows.Count;$mi++){
+                $w=$currentWindows.Item($mi)
+                if($w.Current.ProcessId -eq $facadPid -and $w.Current.Name -like 'Facad - *'){$w}
+              })
+              if($mainFacad.Count -ne 1){throw 'Facad main window missing or ambiguous for menu'}
+              $menuItems=$mainFacad[0].FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                  [System.Windows.Automation.AutomationElement]::NameProperty,$menuName))
+              $realMenus=@(for($m=0;$m -lt $menuItems.Count;$m++){
+                $candidate=$menuItems.Item($m)
+                if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem){$candidate}
+              })
+              "MENU_$($menuName)_COUNT=$($realMenus.Count)" | Add-Content $menuProbe
+              if($realMenus.Count -ne 1){throw 'Menu item missing or ambiguous'}
+              $menuRect=$realMenus[0].Current.BoundingRectangle
+              $mainRect=$mainFacad[0].Current.BoundingRectangle
+              if($menuRect.IsEmpty -or $menuRect.Width -lt 12 -or $menuRect.Width -gt 110 -or
+                $menuRect.Height -lt 10 -or $menuRect.Height -gt 65 -or
+                $menuRect.Left -lt $mainRect.Left -or $menuRect.Right -gt $mainRect.Right -or
+                $menuRect.Top -lt $mainRect.Top -or $menuRect.Bottom -gt $mainRect.Bottom){
+                throw 'Menu bounds mismatch'
+              }
+              $fg=[FacadPatientMouse]::GetForegroundWindow()
+              [uint32]$fgPid=0
+              [void][FacadPatientMouse]::GetWindowThreadProcessId($fg,[ref]$fgPid)
+              if($fgPid -ne $facadPid){throw 'Facad not foreground before menu browse'}
+              if(-not [FacadPatientMouse]::SetCursorPos(
+                [int]($menuRect.Left+$menuRect.Width/2),
+                [int]($menuRect.Top+$menuRect.Height/2))){throw 'Menu cursor placement failed'}
+              Start-Sleep -Milliseconds 85
+              [FacadPatientMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 70
+              [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 550
+              Save-FacadScreen ("menu-$($menuName.ToLower())-screen.png")
+              $menuNodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.Condition]::TrueCondition)
+              $menuEvidence=@(for($ni=0;$ni -lt $menuNodes.Count;$ni++){
+                $n=$menuNodes.Item($ni)
+                try{
+                  if($n.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem -and
+                    $n.Current.ProcessId -eq $facadPid){
+                    $n.Current.Name
+                  }
+                }catch{}
+              })
+              $menuEvidence | Sort-Object -Unique | Set-Content ("facad-quick-demo/menu-$($menuName.ToLower())-items.txt")
+              "MENU_$($menuName)_CAPTURED=true" | Add-Content $menuProbe
+            }catch{
+              "MENU_$($menuName)_ERROR=$($_.Exception.Message)" | Add-Content $menuProbe
+            }finally{
+              [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+              Start-Sleep -Milliseconds 300
+            }
+          }
+
           if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 
       - name: Upload quick demo evidence
@@ -836,6 +985,12 @@ jobs:
             facad-quick-demo/shortcut-after-keyboard.txt
             facad-quick-demo/shortcut-prompt.txt
             facad-quick-demo/license-notice.txt
+            facad-quick-demo/clinical-tracing-probe.txt
+            facad-quick-demo/pretreatment-after-ui-tree.txt
+            facad-quick-demo/pretreatment-after-screen.png
+            facad-quick-demo/clinical-menu-probe.txt
+            facad-quick-demo/menu-*-items.txt
+            facad-quick-demo/menu-*-screen.png
             facad-quick-demo/robert-open-probe.txt
             facad-quick-demo/robert-after-ui-tree.txt
             facad-quick-demo/robert-after-screen.png
