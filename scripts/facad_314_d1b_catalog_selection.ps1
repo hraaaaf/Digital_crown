@@ -222,5 +222,18 @@ if(-not $cancelled){throw 'D1B catalog Cancel not explicitly observed'}
 if($errors.Count -gt 0 -or $success -ne 65){
  throw "D1B Standard lateral selection incomplete: $success/65; errors=$($errors.Count)"
 }
-if((AnalysisDialog) -ne $null){throw 'D1B catalog still open unexpectedly'}
+$remaining=$root.FindAll([Windows.Automation.TreeScope]::Descendants,
+ [Windows.Automation.PropertyCondition]::new(
+  [Windows.Automation.AutomationElement]::NameProperty,
+  'Load a cephalometric analysis (lateral)'))
+$remainingWindows=@(for($i=0;$i -lt $remaining.Count;$i++){
+ $e=$remaining.Item($i)
+ if($e.Current.ProcessId -eq $FacadProcessId -and
+    $e.Current.ControlType -eq [Windows.Automation.ControlType]::Window -and
+    -not $e.Current.IsOffscreen){$e}
+})
+if($remainingWindows.Count -ne 0){throw 'D1B catalog remained open after Cancel'}
+$baselineName=Named $main 'Bergen short' 'Text'
+if($baselineName.Count -lt 1){throw 'D1B Robert active analysis title changed unexpectedly'}
+Log 'D1B_ORIGINAL_BERGEN_SHORT_STILL_DISPLAYED=true'
 Log 'D1B_STANDARD_LATERAL_65_SELECTIONS_VERIFIED=true'
