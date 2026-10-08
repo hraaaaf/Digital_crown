@@ -78,6 +78,7 @@ try {
       const required = await page.locator('body').innerText();
       if (!required.includes('Le nom est requis') || !required.includes('Le prénom est requis')) throw new Error('Required-field refusal not understandable');
       await page.evaluate(() => window.scrollTo(0, 0));
+      await page.locator('input[name="nom"]').scrollIntoViewIfNeeded();
       await snap('04-validation');
       const idtag = 'FUED-' + profile.name.toUpperCase() + '-' + String(Date.now()).slice(-9);
       const nom = 'FUEDTEST';
@@ -87,6 +88,7 @@ try {
       await page.locator('select[name="sexe"]').selectOption('F'); interactions++;
       await page.locator('input[name="numero_dossier"]').fill(idtag); interactions++;
       await page.evaluate(() => window.scrollTo(0, 0));
+      await page.locator('input[name="nom"]').scrollIntoViewIfNeeded();
       await snap('05-form-filled');
       const createResponse = page.waitForResponse(res => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/patients/', { timeout: 25000 });
       await page.getByRole('button', { name: 'Créer le dossier', exact: true }).click(); interactions++;
@@ -160,6 +162,43 @@ try {
       results.push({ viewport: 'negative-api', duplicateStatus: conflict.status(), invalidStatus: invalid.status(), preflightStatus: check.status(), patientCountAfter409: exact.length });
     } finally { await owner.dispose(); }
   } finally { await ownerAuth.dispose(); }
+
+  // Two independently authenticated dentist accounts; never expose another cabinet's patient.
+  const foreignAuth = await request.newContext({ baseURL: api });
+  try {
+    const login = await foreignAuth.post('/api/auth/login', { form: { username: 't2-setup-390@cabinet.ma', password } });
+    if (!login.ok()) throw new Error('Foreign owner authentication failed: ' + login.status());
+    const token = (await login.json()).access_token;
+    const foreignState = await enrollT2Workstation(foreignAuth, token, password);
+    const foreign = await request.newContext({ baseURL: api, storageState: foreignState, extraHTTPHeaders: { Authorization: 'Bearer ' + token } });
+    try {
+      const targetId = results.find(x => x.viewport === 'mobile')?.patientId;
+      if (!targetId) throw new Error('Missing target patient');
+      const read = await foreign.get('/api/patients/' + targetId);
+      if (![403, 404].includes(read.status())) throw new Error('Foreign cabinet read was not denied: ' + read.status());
+      results.push({ viewport: 'cross-cabinet-api', foreignReadStatus: read.status() });
+    } finally { await foreign.dispose(); }
+  } finally { await foreignAuth.dispose(); }
+
+  // Two requests at the same instant should not create two identical patient dossiers.
+  const raceAuth = await request.newContext({ baseURL: api });
+  try {
+    const login = await raceAuth.post('/api/auth/login', { form: { username: 't2-browser@cabinet.ma', password } });
+    if (!login.ok()) throw new Error('Parallel authentication failed: ' + login.status());
+    const token = (await login.json()).access_token;
+    const race = await request.newContext({ baseURL: api, storageState: stationState, extraHTTPHeaders: { Authorization: 'Bearer ' + token } });
+    try {
+      const nom = 'FUEDRACE' + Date.now();
+      const identity = { nom, prenom: 'Parallel', date_naissance: '1990-01-01', sexe: 'F' };
+      const [a, b] = await Promise.all([race.post('/api/patients/', { data: identity }), race.post('/api/patients/', { data: identity })]);
+      const codes = [a.status(), b.status()].sort((a, b) => a - b);
+      const get = await race.get('/api/patients/?search=' + encodeURIComponent(nom));
+      if (get.status() !== 200) throw new Error('Parallel read=' + get.status());
+      const exactCount = (await get.json()).filter(x => x.nom === nom).length;
+      if (exactCount !== 1 || codes[0] !== 200 || codes[1] !== 409) throw new Error('Double-submit violation: ' + codes.join(',') + ' stored=' + exactCount);
+      results.push({ viewport: 'parallel-api', createStatuses: codes, patientCount: exactCount });
+    } finally { await race.dispose(); }
+  } finally { await raceAuth.dispose(); }
   passed = true;
 } finally {
   await browser.close();
