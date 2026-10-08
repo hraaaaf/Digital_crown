@@ -307,6 +307,22 @@ try {
     await ux.getByRole('button', { name: '+ Ajouter un numéro' }).click();
     const secondaryPhoneNamed = await ux.locator('[name="telephone_2"]').evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label')));
     if (!secondaryPhoneNamed) throw new Error('Secondary phone lacks accessible name');
+    const motifSearch = ux.getByRole('textbox', { name: 'Rechercher un motif de consultation' });
+    await motifSearch.fill('TEST-FUE');
+    await ux.getByRole('button', { name: 'Effacer la recherche de motifs' }).click();
+    if ((await motifSearch.inputValue()) !== '') throw new Error('Motif search clear button failed');
+    await ux.getByRole('button', { name: 'Ajouter un motif', exact: true }).click();
+    const motifDialog = ux.getByRole('dialog', { name: 'Ajouter un motif' });
+    await motifDialog.waitFor({ state: 'visible', timeout: 10000 });
+    const motifFocus = await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true);
+    if (!motifFocus) throw new Error('Custom motif dialog does not manage initial keyboard focus');
+    await ux.keyboard.press('Tab');
+    if (!(await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true))) {
+      throw new Error('Keyboard focus escaped custom motif modal');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '00a-accessible-motif-dialog.png'), fullPage: false, animations: 'disabled' });
+    await ux.keyboard.press('Escape');
+    await motifDialog.waitFor({ state: 'hidden', timeout: 8000 });
     await optionalClinical.click();
     await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
     await ux.waitForFunction(() => document.activeElement?.getAttribute('name') === 'nom', undefined, { timeout: 6000 });
@@ -530,7 +546,7 @@ try {
     await duplicateDialog.waitFor({ state: 'hidden', timeout: 8000 });
     if (!ux.url().endsWith('/patients/new')) throw new Error('Escape from duplicate modal navigated away');
     await ux.screenshot({ path: path.join(uxDir, '06-duplicate-dialog-escaped.png'), fullPage: false, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, sidebarNavLabels, screenshots: ['01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
+    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, sidebarNavLabels, screenshots: ['00a-accessible-motif-dialog.png','01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
   } finally {
     await uxContext.close();
   }
