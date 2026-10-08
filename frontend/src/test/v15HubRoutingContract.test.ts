@@ -31,6 +31,8 @@ describe('V1.5-00.2 Hub routing contract', () => {
       .toBeLessThan(app.indexOf('const status = await cabinetApi.checkInitStatus()'));
     expect(app).toContain("error.response?.status === 423");
     expect(app).toContain("error.response?.data?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'");
+    expect(app).toContain("error.response?.data?.detail === 'WORKSTATION_IDENTITY_REQUIRED'");
+    expect(app).not.toContain("error.response?.data?.detail === 'WORKSTATION_STATION_LOCKED'");
     expect(app).toContain('setWorkstationEnrollmentRequired(true)');
     expect(app).toContain('if (workstationEnrollmentRequired)');
     expect(app).toContain('return <Navigate to="/hub?enroll=1" replace />');
