@@ -183,6 +183,17 @@ for (const persona of personas) {
     if (!clinicVisible) {
       throw new Error(label + ': cabinet identity is not visible in dashboard user context: ' + JSON.stringify(userContextText));
     }
+    // Desktop shared header must not contradict the authenticated cabinet.
+    let sharedHeaderCabinetMatches = null;
+    if (viewport.width >= 1024) {
+      const sharedHeaderName = page.getByTestId('shared-header-cabinet-name');
+      await sharedHeaderName.waitFor({ state: 'visible', timeout: 10000 });
+      const displayedName = (await sharedHeaderName.innerText()).trim();
+      sharedHeaderCabinetMatches = displayedName === state.clinic.body.nom_cabinet;
+      if (!sharedHeaderCabinetMatches) {
+        throw new Error(label + ': shared header cabinet identity mismatch: ' + JSON.stringify(displayedName));
+      }
+    }
 
     await page.goto(baseURL + persona.firstRoute, { waitUntil: 'domcontentloaded', timeout: 30000 });
     interactions += 1;
@@ -190,6 +201,9 @@ for (const persona of personas) {
     await firstValueHeading.waitFor({ state: 'visible', timeout: 15000 });
     const firstAction = page.getByRole(persona.id === 'secondary-dentist' ? 'link' : 'button', { name: persona.firstActionName, exact: true });
     await firstAction.waitFor({ state: 'visible', timeout: 15000 });
+    if (!(await firstAction.isEnabled())) {
+      throw new Error(label + ': first business action is visible but disabled');
+    }
     const firstValueMs = Date.now() - started;
     await checkpoint('first-business-action', 'FIRST VALUE — première action métier observable');
 
@@ -214,7 +228,7 @@ for (const persona of personas) {
         accountingStatus: state.accounting.status,
         expectedAccountingAllowed: false,
       },
-      comprehensionEvidence: { roleVisible, clinicVisible },
+      comprehensionEvidence: { roleVisible, clinicVisible, sharedHeaderCabinetMatches },
       firstRoute: persona.firstRoute,
       firstValueMs,
       interactions,
