@@ -122,7 +122,12 @@ const installRoutes = async (context, state, unexpected, requests) => {
     return json(route, state.value);
   });
   await context.route('**/health', route => json(route, { status: 'ok' }));
-  await context.route('**/auth/me', route => json(route, { detail: 'Unauthenticated' }, 401));
+  // This persona is explicitly authenticated in the synthetic workstation bootstrap.
+  // A contradictory /auth/me 401 causes the real frontend auth interceptor to log out.
+  await context.route('**/api/auth/me', route => json(route, {
+    id: 1, nom_complet: 'Audit FUE synthétique', role: 'owner', email: 'synthetic@example.invalid',
+  }));
+  await context.route('**/api/clinics/init-status', route => json(route, { is_initialized: true }));
 };
 
 const run = async (journey, viewport) => {
@@ -143,6 +148,11 @@ const run = async (journey, viewport) => {
       await page.goto(base + '/station', { waitUntil: 'networkidle' });
       await page.locator('[data-station-screen="home"]').waitFor();
       const before = await inspect(page, '01-before', journey, viewport, issues);
+      if (viewport.width === 390) {
+        await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+        await inspect(page, '01b-text-at-200-percent', journey, viewport, issues);
+        await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+      }
       record(journey + '/' + viewport.label + '/no-clinical-links', before.clinicalLinks.length === 0,
         JSON.stringify(before.clinicalLinks));
 
@@ -206,6 +216,11 @@ const run = async (journey, viewport) => {
       await page.goto(base + '/hub?select=1', { waitUntil: 'networkidle' });
       await page.locator('[data-workstation-admin]').waitFor();
       await inspect(page, '01-before', journey, viewport, issues);
+      if (viewport.width === 390) {
+        await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+        await inspect(page, '01b-text-at-200-percent', journey, viewport, issues);
+        await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+      }
 
       const mode = page.getByRole('button', { name: "Station d'accueil", exact: true });
       await mode.focus();
@@ -244,6 +259,11 @@ const run = async (journey, viewport) => {
       await page.goto(base + '/hub?select=1', { waitUntil: 'networkidle' });
       await page.locator('[data-workstation-enrollment]').waitFor();
       await inspect(page, '01-before', journey, viewport, issues);
+      if (viewport.width === 390) {
+        await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+        await inspect(page, '01b-text-at-200-percent', journey, viewport, issues);
+        await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+      }
       const pair = page.getByRole('button', { name: 'Appairer cette borne' });
       record(journey + '/' + viewport.label + '/pair-disabled-until-code',
         await pair.isDisabled());
