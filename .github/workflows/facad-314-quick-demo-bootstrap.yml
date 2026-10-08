@@ -275,10 +275,35 @@ jobs:
               $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'after-eula-next-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
               $g.Dispose();$bmp.Dispose()
             }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
-            Get-Process FacadNstaller,FacadInstall -ErrorAction SilentlyContinue |
-              Stop-Process -Force -ErrorAction SilentlyContinue
-            Write-Host 'EULA_ACCEPTED_NEXT_SCREEN_CAPTURED; installer stopped before any other interaction'
-            exit 0
+            # The exact post-EULA screen was observed in run 37757103793.
+            # No new contract is visible; Finish is the bounded standard install action.
+            $installWindow=[System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Installation'
+              )
+            )
+            if($null -eq $installWindow){throw 'Expected Installation window after EULA, none found'}
+            $ready=$installWindow.FindAll(
+              [System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Ready to start installing Facad.'
+              )
+            )
+            if($ready.Count -ne 1){throw "Expected one Ready to start installing Facad pane, found $($ready.Count)"}
+            Click-VerifiedPane -Window $installWindow -Name 'Finish'
+            'INSTALL_FINISH_CLICK_SENT=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            Start-Sleep -Seconds 10
+            Dump-Ui 'facad-quick-demo/ui-after-finish.txt'
+            $newGates=Get-Content facad-quick-demo/ui-after-finish.txt | Where-Object {
+              $_ -match '(?i)license agreement|licence agreement|purchase|payment|activation key|enter serial|subscription|new terms'
+            }
+            if($newGates){
+              $newGates | Set-Content facad-quick-demo/new-gate-after-finish.txt
+              'NEW_CONTRACT_GATE_AFTER_FINISH=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+              throw 'STOP: new license/payment/activation gate requires separate authorization'
+            }
+            'NEW_CONTRACT_GATE_AFTER_FINISH=false' | Add-Content facad-quick-demo/quick-demo-process.txt
           }
 
           # No new consent gate detected: allow the authorized quick-demo install to settle.
@@ -325,7 +350,7 @@ jobs:
         run: |
           $ErrorActionPreference='Continue'
           $state=Get-Content facad-quick-demo/quick-demo-process.txt -Raw
-          if($state -match 'CONSENT_GATE_DETECTED=true'){ Write-Host 'Stopped at consent gate'; exit 0 }
+          if($state -match 'NEW_CONTRACT_GATE_AFTER_FINISH=true'){ throw 'New contract gate; no probing' }
           if($state -notmatch 'FACAD_ADMIN_SETTINGS_FOUND=true'){ Write-Host 'Bootstrap incomplete'; exit 0 }
 
           $installed=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -383,6 +408,9 @@ jobs:
             facad-quick-demo/before-click-screen.png
             facad-quick-demo/ui-after-click.txt
             facad-quick-demo/after-click-screen.png
+            facad-quick-demo/ui-after-finish.txt
+            facad-quick-demo/new-gate-after-finish.txt
+            facad-quick-demo/installed-files.txt
             facad-quick-demo/ui-after-eula-next.txt
             facad-quick-demo/after-eula-next-screen.png
             facad-quick-demo/consent-gate.txt
