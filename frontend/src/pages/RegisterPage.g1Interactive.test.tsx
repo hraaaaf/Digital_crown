@@ -40,6 +40,13 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('RegisterPage G1 interactive matrix', () => {
+  it('associates visible identity labels with their inputs', () => {
+    renderRegister();
+    expect(screen.getByLabelText('Nom Complet')).toBeTruthy();
+    expect(screen.getByLabelText('Email Professionnel')).toBeTruthy();
+    expect(screen.getByLabelText('Mot de passe')).toBeTruthy();
+  });
+
   it('keeps submit disabled until both legal consents are accepted', () => {
     renderRegister();
     fillIdentity();

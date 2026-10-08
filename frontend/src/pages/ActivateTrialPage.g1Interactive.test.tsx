@@ -34,6 +34,15 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('ActivateTrialPage G1 interactive matrix', () => {
+  it('exposes programmatic names for all activation identity fields', () => {
+    renderPage();
+    expect(screen.getByLabelText("Code d'activation")).toBeTruthy();
+    expect(screen.getByLabelText('Email professionnel')).toBeTruthy();
+    expect(screen.getByLabelText('Mot de passe')).toBeTruthy();
+    expect(screen.getByLabelText('Nom complet')).toBeTruthy();
+    expect(screen.getByLabelText('Nom du cabinet')).toBeTruthy();
+  });
+
   it('previews a URL activation code and prefills backend truth', async () => {
     renderPage('/activate?code=dc-ab12');
 

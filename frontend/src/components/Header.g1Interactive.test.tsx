@@ -98,6 +98,25 @@ describe('Header G1 interactive matrix', () => {
     await waitFor(() => expect(cabinetApi.getMine).toHaveBeenCalledTimes(1));
   });
 
+  it('keeps global mobile header icon controls named and at least 44px', () => {
+    mockUser = { is_superadmin: true, nom_complet: 'Admin', role: 'DENTISTE', employer_id: null };
+    const { container } = renderHeader();
+
+    const hub = screen.getByRole('link', { name: "Changer d'espace" });
+    const settings = screen.getByRole('link', { name: 'Réglages' });
+    const attention = screen.getByRole('button', { name: "Ouvrir le centre d’attention" });
+    const logout = screen.getByRole('button', { name: 'Déconnexion' });
+    const adminIcon = container.querySelector('a[title="Gestion des Dentistes"][aria-label="Gestion des Dentistes"]');
+
+    for (const control of [hub, settings, attention, logout]) {
+      expect(control.className).toContain('min-h-11');
+      expect(control.className).toContain('min-w-11');
+    }
+    expect(adminIcon?.getAttribute('aria-label')).toBe('Gestion des Dentistes');
+    expect(adminIcon?.className).toContain('min-h-11');
+    expect(adminIcon?.className).toContain('min-w-11');
+  });
+
   it('requires explicit confirmation before logout and Cancel is non-mutating', async () => {
     renderHeader();
     fireEvent.click(screen.getByTitle('Déconnexion'));

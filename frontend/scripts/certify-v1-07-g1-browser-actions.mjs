@@ -1,5 +1,5 @@
 import { chromium, request } from 'playwright';
-
+import { enrollT2Workstation } from './t2-workstation-session.mjs';
 const password=process.env.T2_PASSWORD;
 if(!password) throw new Error('T2_PASSWORD required');
 
@@ -7,6 +7,7 @@ const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 const apiLogin=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
 if(!apiLogin.ok()) throw new Error('G1 API login failed');
 const apiTokens=await apiLogin.json();
+await enrollT2Workstation(api,apiTokens.access_token,password);
 const apiHeaders={Authorization:'Bearer '+apiTokens.access_token};
 
 const browser=await chromium.launch({headless:true});

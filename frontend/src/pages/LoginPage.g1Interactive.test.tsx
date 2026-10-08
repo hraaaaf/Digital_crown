@@ -52,6 +52,12 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('LoginPage G1 interactive matrix', () => {
+  it('associates visible credential labels with their inputs', async () => {
+    renderLogin();
+    expect(await screen.findByLabelText('Email Professionnel')).toBeTruthy();
+    expect(screen.getByLabelText('Mot de passe')).toBeTruthy();
+  });
+
   it('submits credentials, rearms auth state and navigates only after successful login', async () => {
     renderLogin();
 
