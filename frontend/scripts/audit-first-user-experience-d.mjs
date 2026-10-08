@@ -233,6 +233,97 @@ try {
       results.push({ viewport: 'parallel-distinct-api', createStatuses: distinctStatuses, uniqueIds: 2, uniqueDossierNumbers: 2 });
     } finally { await race.dispose(); }
   } finally { await raceAuth.dispose(); }
+
+  // Independent mobile browser negative journey: all POSTs below use synthetic identities.
+  // Deliberate HTTP 503 responses are Playwright interceptions, not backend outages.
+  const uxContext = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'light', storageState: stationState });
+  const ux = await uxContext.newPage();
+  const uxDir = path.join(out, 'adversarial-mobile');
+  fs.mkdirSync(uxDir, { recursive: true });
+  try {
+    await ux.goto(root + '/login', { waitUntil: 'domcontentloaded' });
+    await ux.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+    await ux.reload({ waitUntil: 'domcontentloaded' });
+    await ux.getByPlaceholder('nom@cabinet.com').fill('t2-browser@cabinet.ma');
+    await ux.getByPlaceholder('••••••••').fill(password);
+    await ux.getByRole('button', { name: 'Se connecter', exact: true }).click();
+    await ux.waitForURL(url => !['/login','/setup'].includes(url.pathname), { timeout: 20000 });
+    await ux.goto(root + '/patients/new', { waitUntil: 'domcontentloaded' });
+    await ux.locator('input[name="nom"]').waitFor({ state: 'visible' });
+
+    // Real keyboard Tab travel; this does not assert full screen-reader accessibility.
+    await ux.locator('input[name="nom"]').focus();
+    await ux.keyboard.press('Tab');
+    const nextFocus = await ux.evaluate(() => document.activeElement?.getAttribute('name'));
+    if (nextFocus !== 'prenom') throw new Error('Keyboard tab progression failed, next=' + nextFocus);
+    const nameHasAssociatedLabel = await ux.locator('input[name="nom"]').evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')));
+    await ux.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+    const textZoomOverflow = await ux.evaluate(() => Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > innerWidth + 1);
+    await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: true, animations: 'disabled' });
+    await ux.evaluate(() => { document.documentElement.style.fontSize = ''; });
+
+    const identity = 'FUEDUI' + Date.now();
+    await ux.locator('input[name="nom"]').fill(identity);
+    await ux.locator('input[name="prenom"]').fill('Failclosed');
+    await ux.locator('input[name="date_naissance"]').fill('1990-01-01');
+    await ux.locator('select[name="sexe"]').selectOption('F');
+    await ux.locator('input[name="numero_dossier"]').fill('UI' + String(Date.now()).slice(-9));
+    let uiCreatePostCount = 0;
+    ux.on('request', req => { if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/patients/') uiCreatePostCount++; });
+    const preflightPattern = '**/api/patients/check-duplicate';
+    await ux.route(preflightPattern, async route => {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Synthetic preflight outage"}' });
+    });
+    const preflight503 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/check-duplicate' && res.status() === 503, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await preflight503;
+    await ux.getByText('Vérification anti-doublon indisponible.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    if (uiCreatePostCount !== 0 || !ux.url().endsWith('/patients/new')) throw new Error('Preflight 503 must not create patient or navigate');
+    await ux.evaluate(() => window.scrollTo(0, 0));
+    await ux.screenshot({ path: path.join(uxDir, '02-preflight-503-refused.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(preflightPattern);
+
+    // Simulate a 503 from POST only, after a real successful anti-duplicate preflight.
+    const createPattern = '**/api/patients/';
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Synthetic create outage"}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const create503 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 503, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await create503;
+    await ux.getByText('Erreur serveur. Vérifiez la console.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    if (uiCreatePostCount !== 1 || !ux.url().endsWith('/patients/new')) throw new Error('Create 503 must not claim success or navigate');
+    await ux.evaluate(() => window.scrollTo(0, 0));
+    await ux.screenshot({ path: path.join(uxDir, '03-create-503-refused.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(createPattern);
+
+    // Genuine double mouse-click through the rendered button with real backend.
+    const button = ux.getByRole('button', { name: 'Créer le dossier', exact: true });
+    await button.scrollIntoViewIfNeeded();
+    const bounds = await button.boundingBox();
+    if (!bounds) throw new Error('Double-click target missing');
+    const postsBeforeDoubleClick = uiCreatePostCount;
+    const successfulCreate = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 200, { timeout: 25000 });
+    await ux.mouse.dblclick(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, { delay: 30 });
+    const accepted = await successfulCreate;
+    const created = await accepted.json();
+    await ux.waitForURL(new RegExp('/patients/' + created.id + '(?:\\?|$)'), { timeout: 15000 });
+    const independent = await uxContext.request.get(api + '/api/patients/' + created.id);
+    if (independent.status() !== 200) throw new Error('Double-click patient not persisted: ' + independent.status());
+    await ux.waitForTimeout(250);
+    const doubleClickPosts = uiCreatePostCount - postsBeforeDoubleClick;
+    if (doubleClickPosts !== 1) throw new Error('Real UI double-click emitted ' + doubleClickPosts + ' POST requests');
+    const persisted = await independent.json();
+    if (persisted.id !== created.id || persisted.nom !== identity) throw new Error('Real double-click persistence mismatch');
+    await ux.screenshot({ path: path.join(uxDir, '04-after-double-click.png'), fullPage: true, animations: 'disabled' });
+    results.push({ viewport: 'adversarial-mobile-ui', simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, cssRootFont200PercentOverflow: textZoomOverflow, screenshots: ['01-css-text-zoom-200pct.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png'] });
+  } finally {
+    await uxContext.close();
+  }
   passed = true;
 } finally {
   await browser.close();
