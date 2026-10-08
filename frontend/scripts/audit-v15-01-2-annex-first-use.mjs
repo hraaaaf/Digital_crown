@@ -103,6 +103,13 @@ for (const p of profiles) {
     await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
     await page.waitForURL(url => new URL(url).pathname === '/hub', { timeout: 30000 });
     await page.locator('[data-workstation-enrollment]').waitFor({ state: 'visible', timeout: 15000 });
+    // A 423 from /api/clinics/me is authorization, not server unavailability.
+    // Wait for the actual Hub identity check (not just its initial render) so
+    // the regression cannot accidentally pass before the fetch settles.
+    await page.locator('[data-hub-server-state="restricted"]').waitFor({ state: 'visible', timeout: 15000 });
+    if (await page.locator('[data-hub-offline]').count()) {
+      throw new Error('False offline Hub banner on HTTP 423 workstation enrollment');
+    }
     await snapshot('07-enrollment-required');
     await page.getByPlaceholder('Ex. Accueil 1').fill('Annexe ' + p.name);
     await page.getByPlaceholder('000000').fill(pairingCode);
