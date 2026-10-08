@@ -27,3 +27,10 @@ Status: OPEN / INVENTAIRE
 
 ## Verdict initial
 **PARTIEL** — contrat scénario défini, preuves historiques identifiées; observabilité du parcours réel et preuves exact-HEAD du FUE-I encore à réunir. Pas de produit modifié. Pas de merge ni déploiement.
+
+## Preuves visuelles historiques récupérées — 2026-10-08
+- Run PR #720: `36651154266`, artifact `11069959474`, digest `sha256:4aa6548376596c4981559e128c408a199cb4c07cd0c3438a47f00f32faff46f1`; ZIP ouvert, contient `hub-390x844.png`, `hub-768x1024.png`, `hub-1280x900.png`, `report.json`. Report commit `78850bf4…` (merge-ref, à distinguer du PR head).
+- Run PR #724: `36786234689`, artifact `11129697038`, digest `sha256:fa5e6df65b59fbe562162b83b17cad95ae2c63fb183aba9e6a9f05884c073dae`; mêmes trois viewports et rapport. Report commit `f0aacb5d…` (merge-ref).
+- Deux rapports: `cards=3`, `scrollWidth=width`, `errors=[]` pour 390×844, 768×1024, 1280×900. Capture desktop 1280×900 effectivement inspectée: identité établissement et trois destinations cohérentes, sans données patient visibles; cette inspection n'est **pas** la preuve d'un clic ni de l'arrivée destination.
+- **GAP FUE-I MAJEUR DE PREUVE** : ni artifact ne contient une séquence navigationnelle avec click-through, destination, retour et refus sécurité. Ne pas classer FUE-I validé et ne pas recycler le score ou l'état du FUE-A indépendant.
+- **Next exact** : exécuter sur runtime de test isolé un harness #783 adapté à 00.2 (first launch → sélection des trois destinations → retour/guard/offline), capturer AFTER et métriques, puis deux revues adversariales et confirmation même HEAD. Ne pas produire de faux score sans observation.
