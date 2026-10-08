@@ -129,7 +129,7 @@ jobs:
               # Output only known error-class lines, not raw traceback/logs.
               classes = []
               for line in lines:
-                  for match in re.finditer(r"\\b(?:RuntimeError|ValueError|ImportError|ModuleNotFoundError|OSError|PermissionError|FileNotFoundError|OperationalError|ProgrammingError|InvalidRequestError|Traceback|ERROR|CRITICAL)\\b", line):
+                  for match in re.finditer(r"\b(?:RuntimeError|ValueError|ImportError|ModuleNotFoundError|OSError|PermissionError|FileNotFoundError|OperationalError|ProgrammingError|InvalidRequestError|Traceback|ERROR|CRITICAL)\b", line):
                       classes.append(match.group(0))
               print("Diagnostic error classes:", ",".join(classes[-16:]) or "none")
           PY
