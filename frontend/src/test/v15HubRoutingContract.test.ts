@@ -90,6 +90,22 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).not.toContain("}, [target])");
   });
 
+  it('distinguishes 01.3 network outage, HTTP 503, DB outage and enrollment safely', () => {
+    expect(controlCenter).toContain("diagnosticKind = (result: ProbeResult | null)");
+    expect(controlCenter).toContain("result.failureKind === 'network'");
+    expect(controlCenter).toContain("result.failureKind === 'timeout'");
+    expect(controlCenter).toContain("result.backendHttpStatus >= 500");
+    expect(controlCenter).toContain("result.databaseHttpStatus");
+    expect(controlCenter).toContain("result.authHttpStatus === 423");
+    expect(controlCenter).toContain("data-control-center-diagnosis={diagnosis}");
+    expect(controlCenter).toContain("crossOriginLimited: false,\n        failureKind:");
+    expect(controlCenter).toContain('Aucune réponse du service depuis ce poste');
+    expect(controlCenter).toContain('Le serveur répond, mais le service Digital Crown est indisponible');
+    expect(controlCenter).toContain('Le serveur répond, mais la base de données est indisponible');
+    expect(controlCenter).toContain('Ce poste n’est pas encore autorisé');
+    expect(controlCenter).not.toContain('Ouvrez cette adresse pour terminer le diagnostic directement sur ce serveur.');
+  });
+
   it('exposes a clean Cabinet return to Hub', () => {
     expect(header).toContain('to="/hub?select=1"');
     expect(header).toContain("Changer d'espace");
