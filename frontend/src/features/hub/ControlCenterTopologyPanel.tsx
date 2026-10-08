@@ -37,6 +37,10 @@ type ProbeResult = {
   topology: TopologyPayload | null;
   error: string | null;
   crossOriginLimited: boolean;
+  backendHttpStatus?: number | null;
+  databaseHttpStatus?: number | null;
+  authHttpStatus?: number | null;
+  failureKind?: 'timeout' | 'network';
 };
 
 const isLoopback = (hostname: string) => {
@@ -95,20 +99,49 @@ const normalizeTarget = (raw: string): { baseUrl: string | null; error: string |
   return { baseUrl: `${parsed.protocol}//${parsed.hostname}:8005`, error: null };
 };
 
+const diagnosticKind = (result: ProbeResult | null) => {
+  if (!result) return 'pending';
+  if (result.crossOriginLimited) return 'handoff';
+  if (result.failureKind === 'timeout') return 'timeout';
+  if (result.failureKind === 'network') return 'network';
+  if (result.backendHttpStatus && result.backendHttpStatus >= 500) return 'service';
+  if (!result.backendOk) return 'service';
+  if (!result.databaseOk) return 'database';
+  if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') return 'loopback';
+  if (result.topology?.remediation === 'TLS_REQUIRED_FOR_LAN') return 'tls';
+  if (result.authHttpStatus === 423) return 'enrollment';
+  if (result.authOk !== true) return 'authentication';
+  return 'ready';
+};
+
 const remediationCopy = (result: ProbeResult | null) => {
   if (!result) return 'Lancez un diagnostic pour vérifier le serveur, la base et le transport réseau.';
-  if (result.error) return result.error;
-  if (!result.backendOk) return 'Backend injoignable. Vérifiez que Digital Crown est démarré, l’adresse saisie et le pare-feu du poste serveur.';
-  if (!result.databaseOk) return 'Backend joignable mais base indisponible. Vérifiez PostgreSQL puis relancez le diagnostic.';
-  if (result.authOk === false) return 'Serveur et base disponibles, mais la session de ce poste n’est pas authentifiée. Ouvrez le serveur puis connectez-vous.';
-  if (result.authOk === null && result.backendOk && result.databaseOk) {
-    return 'Serveur joignable sans credential. Ouvrez cette adresse pour vérifier l’authentification et terminer le diagnostic sur cette autorité.';
+  if (result.crossOriginLimited) return result.error || 'Ouvrez explicitement ce serveur avant de vérifier son état. Aucune requête distante n’est envoyée.';
+  if (result.failureKind === 'timeout') {
+    return 'Aucune réponse dans les 6 secondes. Vérifiez l’adresse du serveur, son démarrage et le pare-feu du réseau local, puis relancez le diagnostic sur ce poste.';
+  }
+  if (result.failureKind === 'network') {
+    return 'Aucune réponse du service depuis ce poste. Vérifiez que le serveur Digital Crown est démarré, l’adresse et le réseau local, puis relancez le diagnostic.';
+  }
+  if (result.backendHttpStatus && result.backendHttpStatus >= 500) {
+    return 'Le serveur répond, mais le service Digital Crown est indisponible (HTTP ' + result.backendHttpStatus + '). Vérifiez le service sur le poste serveur, puis relancez le diagnostic.';
+  }
+  if (!result.backendOk) return 'Le service refuse le diagnostic. Vérifiez l’état du serveur avec l’administrateur, puis relancez.';
+  if (!result.databaseOk) {
+    return 'Le serveur répond, mais la base de données est indisponible. Vérifiez PostgreSQL sur le poste serveur, puis relancez le diagnostic.';
   }
   if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') {
     return 'Serveur limité à la machine locale. Pour un poste annexe, configurez explicitement une adresse LAN et HTTPS/TLS sur le serveur.';
   }
   if (result.topology?.remediation === 'TLS_REQUIRED_FOR_LAN') {
     return 'Exposition LAN détectée sans TLS prêt. Configurez le certificat et la clé HTTPS avant toute connexion de poste annexe.';
+  }
+  if (result.authHttpStatus === 423) {
+    return 'Serveur et base disponibles. Ce poste n’est pas encore autorisé : ouvrez le Hub et terminez son appairage avant l’accès clinique.';
+  }
+  if (result.authOk === false) return 'Serveur et base disponibles, mais la session de ce poste n’est pas authentifiée. Connectez-vous sur ce serveur.';
+  if (result.authOk === null) {
+    return 'Serveur joignable sans session confirmée. Vérifiez l’authentification sur cette autorité avant de continuer.';
   }
   if (result.topology?.lanExposed && result.topology?.tlsReady) {
     return 'Serveur LAN prêt : backend, base de données et transport HTTPS répondent correctement.';
@@ -192,6 +225,9 @@ export const ControlCenterTopologyPanel = () => {
         topology,
         error: null,
         crossOriginLimited: false,
+        backendHttpStatus: topologyResponse.status,
+        databaseHttpStatus: dbResponse.status,
+        authHttpStatus: authResponse.status,
       });
     } catch (error) {
       setResult({
@@ -201,10 +237,9 @@ export const ControlCenterTopologyPanel = () => {
         databaseOk: false,
         authOk: null,
         topology: null,
-        error: error instanceof DOMException && error.name === 'AbortError'
-          ? 'Délai dépassé. Vérifiez que le serveur est démarré et joignable sur le réseau local.'
-          : 'Le navigateur ne peut pas vérifier cette cible depuis l’autorité actuelle. Ouvrez cette adresse pour terminer le diagnostic directement sur ce serveur.',
-        crossOriginLimited: true,
+        error: null,
+        crossOriginLimited: false,
+        failureKind: error instanceof DOMException && error.name === 'AbortError' ? 'timeout' : 'network',
       });
     } finally {
       window.clearTimeout(timeout);
@@ -221,6 +256,7 @@ export const ControlCenterTopologyPanel = () => {
   const isCurrentTarget = Boolean(targetBase && targetBase === currentBase);
   const canOpen = Boolean(targetBase && !normalized.error && !isCurrentTarget);
   const networkVerified = Boolean(result?.backendOk && result?.databaseOk);
+  const diagnosis = diagnosticKind(result);
   const currentAuthenticated = Boolean(isCurrentTarget && networkVerified && result?.authOk === true);
   const annexReady = Boolean(
     currentAuthenticated
@@ -306,7 +342,7 @@ export const ControlCenterTopologyPanel = () => {
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <Server className="text-primary" size={20} aria-hidden="true" />
             <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Serveur</p>
-            <p data-control-center-backend className="mt-1 text-lg font-black">{result?.backendOk ? 'Joignable' : busy ? 'Test…' : 'Non vérifié'}</p>
+            <p data-control-center-backend className="mt-1 text-lg font-black">{result?.backendOk ? 'Joignable' : busy ? 'Test…' : diagnosis === 'service' ? 'Service indisponible' : diagnosis === 'network' || diagnosis === 'timeout' ? 'Injoignable' : 'Non vérifié'}</p>
           </article>
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <Database className="text-primary" size={20} aria-hidden="true" />
@@ -350,7 +386,7 @@ export const ControlCenterTopologyPanel = () => {
           </details>
         )}
 
-        <div data-control-center-remediation role="status" aria-live="polite" className="mt-4 rounded-elite-sm border border-primary/20 bg-primary/5 p-4">
+        <div data-control-center-remediation data-control-center-diagnosis={diagnosis} role="status" aria-live="polite" className="mt-4 rounded-elite-sm border border-primary/20 bg-primary/5 p-4">
           <div className="flex items-start gap-3">
             <Globe2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />
             <div>
