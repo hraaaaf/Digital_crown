@@ -29,6 +29,10 @@ jobs:
           python-version: '3.12'
       - name: Compile topology contract and audit
         run: python -m py_compile backend/core/cabinet_topology.py scripts/audit-v15-01-1-topology-contract.py
+      - name: Execute existing canonical topology pytest regressions
+        run: |
+          python -m pip install pytest==8.4.2
+          python -m pytest tests/test_cabinet_topology.py -q
       - name: Execute FUE-0 topology invariants
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
