@@ -417,8 +417,10 @@ export const AddPatientForm = () => {
                 {errors.sexe && <span id="patient-sexe-error" className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}
               </div>
 
-              <div>
-                <label htmlFor="patient-assurance" className={labelClass}>Assurance / Couverture Médicale</label>
+              <details className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-[#003380] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003380]">Couverture médicale et assurance (facultatives à la création)</summary>
+                <div className="mt-5 space-y-4">
+                  <label htmlFor="patient-assurance" className={labelClass}>Assurance / Couverture Médicale</label>
                 <select 
                   id="patient-assurance" 
                   name="assurance" 
@@ -479,10 +481,16 @@ export const AddPatientForm = () => {
                     </div>
                   )}
                 </div>
-              </div>
+              </details>
             </div>
           </div>
 
+          {/* Informations complémentaires accessibles à la demande. */}
+          <details className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-6">
+            <summary className="cursor-pointer text-sm sm:text-base font-semibold text-[#003380] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003380]">
+              Contact, antécédents et suivi orthodontique (à renseigner selon le contexte clinique)
+            </summary>
+            <div className="mt-8 space-y-8">
           {/* Section Contact */}
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -631,6 +639,8 @@ export const AddPatientForm = () => {
               </div>
             </label>
           </div>
+            </div>
+          </details>
 
           {/* Actions */}
           <div className="flex flex-wrap items-center justify-end gap-3 pt-6 border-t border-slate-200">
