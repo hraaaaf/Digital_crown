@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -170,10 +170,17 @@ export const ControlCenterTopologyPanel = () => {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ProbeResult | null>(null);
   const [inputError, setInputError] = useState('');
+  // Ignore results from a previous server address or superseded diagnostic.
+  const probeGeneration = useRef(0);
+  const activeProbe = useRef<AbortController | null>(null);
 
   const normalized = useMemo(() => normalizeTarget(target), [target]);
 
   const runProbe = useCallback(async (rawTarget: string) => {
+    const generation = ++probeGeneration.current;
+    activeProbe.current?.abort();
+    activeProbe.current = null;
+    setBusy(false);
     const parsed = normalizeTarget(rawTarget);
     if (!parsed.baseUrl) {
       setInputError(parsed.error || 'Adresse invalide.');
@@ -201,6 +208,7 @@ export const ControlCenterTopologyPanel = () => {
 
     setBusy(true);
     const controller = new AbortController();
+    activeProbe.current = controller;
     const timeout = window.setTimeout(() => controller.abort(), 6_000);
     const started = performance.now();
 
@@ -234,6 +242,7 @@ export const ControlCenterTopologyPanel = () => {
         : authError?.detail === 'WORKSTATION_IDENTITY_REQUIRED'
           || authError?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED' ? 'identity'
           : authResponse.status === 423 ? 'other' : null;
+      if (generation !== probeGeneration.current) return;
       setResult({
         baseUrl: parsed.baseUrl,
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
@@ -249,6 +258,7 @@ export const ControlCenterTopologyPanel = () => {
         authRefusal,
       });
     } catch (error) {
+      if (generation !== probeGeneration.current) return;
       setResult({
         baseUrl: parsed.baseUrl,
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
@@ -262,12 +272,20 @@ export const ControlCenterTopologyPanel = () => {
       });
     } finally {
       window.clearTimeout(timeout);
-      setBusy(false);
+      if (generation === probeGeneration.current) {
+        activeProbe.current = null;
+        setBusy(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void runProbe(API_BASE);
+    return () => {
+      probeGeneration.current += 1;
+      activeProbe.current?.abort();
+      activeProbe.current = null;
+    };
   }, [runProbe]);
 
   const currentBase = normalizeTarget(API_BASE).baseUrl;
@@ -327,6 +345,10 @@ export const ControlCenterTopologyPanel = () => {
               data-control-center-target
               value={target}
               onChange={(event) => {
+                probeGeneration.current += 1;
+                activeProbe.current?.abort();
+                activeProbe.current = null;
+                setBusy(false);
                 setTarget(event.target.value);
                 setInputError('');
                 setResult(null);
