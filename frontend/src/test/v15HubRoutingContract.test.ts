@@ -102,7 +102,13 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).toContain('Aucune réponse du service depuis ce poste');
     expect(controlCenter).toContain('Le serveur répond, mais le service Digital Crown est indisponible');
     expect(controlCenter).toContain('Le serveur répond, mais la base de données est indisponible');
-    expect(controlCenter).toContain('Ce poste n’est pas encore autorisé');
+    expect(controlCenter).toContain('L’identité de ce poste doit être appairée');
+    expect(controlCenter).toContain('Ce poste est verrouillé en mode Station');
+    expect(controlCenter).toContain("authError?.detail === 'WORKSTATION_STATION_LOCKED'");
+    expect(controlCenter).toContain("authError?.detail === 'WORKSTATION_IDENTITY_REQUIRED'");
+    expect(controlCenter).toContain("authError?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'");
+    expect(controlCenter).toContain("result.authRefusal === 'station'");
+    expect(controlCenter).toContain("result.authRefusal === 'identity'");
     expect(controlCenter).not.toContain('Ouvrez cette adresse pour terminer le diagnostic directement sur ce serveur.');
   });
 
