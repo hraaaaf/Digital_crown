@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Save, User, Phone, Mail, Activity, AlertTriangle, UserCheck, FileDigit, RefreshCw, Search, FolderOpen, CheckCircle2 } from 'lucide-react';
 import { api } from '../../services/api';
@@ -24,6 +24,14 @@ export const AddPatientForm = () => {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const globalErrorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (errors.global) {
+      globalErrorRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+      globalErrorRef.current?.focus({ preventScroll: true });
+    }
+  }, [errors.global]);
+
   const [isOrtho, setIsOrtho] = useState(false);
   
   // Gestion des doublons
@@ -234,7 +242,7 @@ export const AddPatientForm = () => {
 
         <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-10">
           {errors.global && (
-            <div role="alert" className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
+            <div role="alert" tabIndex={-1} ref={globalErrorRef} className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
               <Activity className="w-5 h-5" /> {errors.global}
             </div>
           )}
