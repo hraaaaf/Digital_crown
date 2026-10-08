@@ -115,6 +115,27 @@ try:
           "get_cabinet_base_url" in mobile_section
           and 'os.getenv("PORT"' not in mobile_section
           and "_detect_lan_ip" not in mobile_section)
+    # Execute the actual legacy frontend URL helper without importing the
+    # database-dependent router module. Cabinet mode must not advertise Vite
+    # on an invented plaintext LAN address; development Vite remains supported.
+    legacy_frontend_function = next(
+        node for node in ast.parse(mobile).body
+        if isinstance(node, ast.FunctionDef) and node.name == "get_lan_frontend_url"
+    )
+    frontend_globals = {"_detect_lan_ip": lambda: "192.168.10.20"}
+    exec(compile(ast.Module(body=[legacy_frontend_function], type_ignores=[]),
+                 "mobile_legacy.py", "exec"), frontend_globals)
+    get_frontend = frontend_globals["get_lan_frontend_url"]
+    with patch.object(topology, "resolve_cabinet_network", return_value=default):
+        check("cabinet HTTP does not advertise a phantom LAN frontend",
+              get_frontend() == "http://127.0.0.1:8005")
+    with patch.object(topology, "resolve_cabinet_network", return_value=secure):
+        check("cabinet HTTPS frontend follows canonical TLS origin",
+              get_frontend() == "https://192.168.1.20:8005")
+    dev = topology.resolve_cabinet_network(env(ENVIRONMENT="development"))
+    with patch.object(topology, "resolve_cabinet_network", return_value=dev):
+        check("local development Vite frontend compatibility retained",
+              get_frontend() == "http://192.168.10.20:5173")
     check("topology diagnostic is explicitly exposed",
           '@app.get("/api/health/topology"' in main
           and "resolve_cabinet_network().diagnostics()" in main)
