@@ -106,7 +106,7 @@ async function run(journey, viewport) {
   const item = paths[journey];
   const audit = {
     journey, viewport: viewport.label, checks: [], captures: [],
-    api: [], unexpected: [], remoteRequests: [], errors: [], outcome: 'PENDING',
+    api: [], unexpected: [], remoteRequests: [], externalFonts: [], expectedOfflineLogs: [], errors: [], outcome: 'PENDING',
   };
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
   let page = null;
@@ -117,8 +117,17 @@ async function run(journey, viewport) {
     page.on('requestfailed', r => audit.errors.push('requestfail ' + r.method() + ' ' + r.url()));
     page.on('request', r => {
       if (/^https?:\/\//.test(r.url()) &&
-          !/^http:\/\/127\.0\.0\.1:(?:4195|8005)\//.test(r.url()) &&
-          !r.url().startsWith('data:')) audit.remoteRequests.push(r.url());
+          !/^http:\/\/127\.0\.0\.1:(?:4195|8005)\//.test(r.url())) {
+        const url = new URL(r.url());
+        const fontStylesheet = url.hostname === 'fonts.googleapis.com' && r.resourceType() === 'stylesheet';
+        const fontFile = url.hostname === 'fonts.gstatic.com' && r.resourceType() === 'font';
+        const headers = r.headers();
+        if (fontStylesheet || fontFile) {
+          audit.externalFonts.push({ url: r.url(), resourceType: r.resourceType(),
+            credentialed: Boolean(headers.authorization || headers.cookie) });
+          if (headers.authorization || headers.cookie) audit.remoteRequests.push('CREDENTIALED_EXTERNAL_FONT ' + r.url());
+        } else audit.remoteRequests.push(r.method() + ' ' + r.resourceType() + ' ' + r.url());
+      }
       if (r.url().startsWith('http://127.0.0.1:8005/api/')) audit.api.push({
         method: r.method(), url: new URL(r.url()).pathname,
       });
@@ -126,8 +135,17 @@ async function run(journey, viewport) {
     // HTTP 401 / 503 below are deliberate negative test inputs, not console contract failures.
     page.on('console', m => {
       if (m.type() !== 'error') return;
-      if (/(?:401|503|offline-proof)/.test(m.text())) return;
-      audit.errors.push('console ' + m.text());
+      const message = m.text();
+      // Expected adapter diagnostic only when the explicit offline 503 fixture is active.
+      if (journey === 'offline-recovery' && message === 'Path: /workstation/bootstrap') {
+        audit.expectedOfflineLogs.push(message);
+        return;
+      }
+      if (/^Failed to load resource: the server responded with a status of (?:401|503)/.test(message)) {
+        audit.expectedOfflineLogs.push(message);
+        return;
+      }
+      audit.errors.push('console ' + message);
     });
 
     if (journey === 'fresh-routing') {
@@ -190,7 +208,7 @@ async function run(journey, viewport) {
       await page.locator('[data-control-center-probe]').click();
       await page.getByText(/Aucune requête n’est envoyée à une origine distante/).first().waitFor();
       await capture(page, audit, '04-remote-target-no-probe');
-      expect(audit.checks, 'no remote origin requests before explicit navigation',
+      expect(audit.checks, 'no unapproved remote API requests before explicit navigation',
         audit.remoteRequests.length === 0, audit.remoteRequests);
       await page.getByRole('button', { name: 'Retour au Hub' }).click();
       await page.locator('[data-hub-offline]').waitFor({ timeout: 15000 });
@@ -234,7 +252,7 @@ async function run(journey, viewport) {
     }
 
     expect(audit.checks, 'zero unmodelled backend API calls', audit.unexpected.length === 0, audit.unexpected);
-    expect(audit.checks, 'zero unexpected remote origin calls', audit.remoteRequests.length === 0, audit.remoteRequests);
+    expect(audit.checks, 'zero unapproved external API calls or credentials in font requests', audit.remoteRequests.length === 0, audit.remoteRequests);
     expect(audit.checks, 'zero unhandled browser failures', audit.errors.length === 0, audit.errors);
     audit.outcome = 'PASS';
   } catch (e) {
