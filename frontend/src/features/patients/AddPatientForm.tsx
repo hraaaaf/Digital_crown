@@ -23,6 +23,8 @@ export const AddPatientForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const submissionBusyRef = useRef(false);
+  const [createOutcomeUnknown, setCreateOutcomeUnknown] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const globalErrorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -173,18 +175,20 @@ export const AddPatientForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
-
-    // Si pas encore vérifié, faire la pré-vérification
-    if (!forceCreate && !showDuplicateModal) {
-      setLoading(true);
-      const hasDuplicate = await checkDuplicate();
+    if (submissionBusyRef.current || !validate()) return;
+    submissionBusyRef.current = true;
+    setLoading(true);
+    setCreateOutcomeUnknown(false);
+    try {
+      if (!forceCreate && !showDuplicateModal) {
+        const hasDuplicate = await checkDuplicate();
+        if (hasDuplicate !== false) return;
+      }
+      await performSubmit(forceCreate);
+    } finally {
+      submissionBusyRef.current = false;
       setLoading(false);
-      if (hasDuplicate === null) return;
-      if (hasDuplicate) return; // Arrêter ici, attendre la décision de l'utilisateur
     }
-
-    await performSubmit(forceCreate);
   };
 
   const performSubmit = async (isForced: boolean) => {
@@ -216,13 +220,14 @@ export const AddPatientForm = () => {
         }
       }
       
+      setCreateOutcomeUnknown(true);
       setErrors({ global: "Création non confirmée. Vérifiez dans la liste des patients avant de réessayer pour éviter un doublon." });
       setLoading(false);
     }
   };
 
   const inputClass = "w-full px-5 py-4 bg-white/60 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#003380]/15 focus:border-[#003380] outline-none transition-all duration-300 shadow-sm text-slate-800 font-medium";
-  const labelClass = "text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-2 ml-1";
+  const labelClass = "text-xs sm:text-sm font-bold text-slate-600 tracking-wide block mb-2 ml-1";
 
   // Formatage de la date pour affichage
   const formatDate = (dateStr: string) => {
@@ -248,10 +253,14 @@ export const AddPatientForm = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-10">
+        <form onSubmit={handleSubmit} aria-busy={loading} aria-describedby="patient-required-info" className="p-5 sm:p-10 space-y-8 sm:space-y-10">
+          <p id="patient-required-info" className="text-sm font-medium text-slate-700">Renseignez le nom, le prénom, la date de naissance et le sexe. Les autres informations sont facultatives.</p>
+          <p role="status" aria-live="polite" className="sr-only">{loading ? "Vérification et création du dossier en cours…" : ""}</p>
           {errors.global && (
             <div role="alert" tabIndex={-1} ref={globalErrorRef} className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
-              <Activity className="w-5 h-5" /> {errors.global}
+              <Activity className="w-5 h-5 shrink-0" aria-hidden="true" />
+              <span>{errors.global}</span>
+              {createOutcomeUnknown && <button type="button" onClick={() => navigate("/patients")} className="ml-auto underline underline-offset-4 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800">Consulter les dossiers</button>}
             </div>
           )}
           
@@ -276,7 +285,7 @@ export const AddPatientForm = () => {
 
             {/* Champ Numéro de dossier Unique */}
             <div className="relative">
-              <label className={labelClass}>Numéro de dossier (Code Patient)</label>
+              <label htmlFor="patient-numero_dossier" className={labelClass}>Numéro de dossier (Code Patient)</label>
               <div className="relative">
                 <FileDigit className={cn(
                   "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5",
@@ -284,6 +293,7 @@ export const AddPatientForm = () => {
                 )} />
                 <input 
                   type="text" 
+                  id="patient-numero_dossier" 
                   name="numero_dossier" 
                   value={formData.numero_dossier || ''} 
                   onChange={handleNumeroDossierChange}
@@ -398,8 +408,9 @@ export const AddPatientForm = () => {
               </div>
 
               <div>
-                <label className={labelClass}>Assurance / Couverture Médicale</label>
+                <label htmlFor="patient-assurance" className={labelClass}>Assurance / Couverture Médicale</label>
                 <select 
+                  id="patient-assurance" 
                   name="assurance" 
                   value={formData.assurance} 
                   onChange={handleChange}
@@ -414,9 +425,10 @@ export const AddPatientForm = () => {
                 
                 {formData.assurance === 'PRIVEE' && (
                   <div className="mt-3">
-                    <label className={labelClass}>Nom de l'Assurance Privée</label>
+                    <label htmlFor="patient-assurance_privee_nom" className={labelClass}>Nom de l'Assurance Privée</label>
                     <input 
                       type="text" 
+                      id="patient-assurance_privee_nom" 
                       name="assurance_privee_nom" 
                       value={formData.assurance_privee_nom} 
                       onChange={handleChange}
@@ -450,9 +462,10 @@ export const AddPatientForm = () => {
                   
                   {formData.assurance_complementaire && (
                     <div>
-                      <label className={labelClass}>Nom de l'Assurance Complémentaire</label>
+                      <label htmlFor="patient-assurance_complementaire_nom" className={labelClass}>Nom de l'Assurance Complémentaire</label>
                       <input 
                         type="text" 
+                        id="patient-assurance_complementaire_nom" 
                         name="assurance_complementaire_nom" 
                         value={formData.assurance_complementaire_nom} 
                         onChange={handleChange}
@@ -476,11 +489,12 @@ export const AddPatientForm = () => {
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className={labelClass}>Téléphone Principal</label>
+                <label htmlFor="patient-telephone" className={labelClass}>Téléphone Principal</label>
                 <div className="relative mb-2">
                   <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input 
                     type="tel" 
+                    id="patient-telephone" 
                     name="telephone" 
                     value={formData.telephone} 
                     onChange={handleChange}
@@ -532,25 +546,29 @@ export const AddPatientForm = () => {
               </div>
 
               <div>
-                <label className={labelClass}>Email</label>
+                <label htmlFor="patient-email" className={labelClass}>Email</label>
                 <div className="relative">
                   <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input 
                     type="email" 
+                    id="patient-email" 
                     name="email" 
-                    value={formData.email} 
+                    aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "patient-email-error" : undefined}
+                  value={formData.email} 
                     onChange={handleChange}
                     className={cn(inputClass, "pl-14", errors.email && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                     placeholder="yazan.benmoussa@email.com"
                   />
                 </div>
-                {errors.email && <span className="text-red-500 text-xs mt-1 ml-1">{errors.email}</span>}
+                {errors.email && <span id="patient-email-error" className="text-red-500 text-xs mt-1 ml-1">{errors.email}</span>}
               </div>
 
               <div className="md:col-span-2">
-                <label className={labelClass}>Adresse</label>
+                <label htmlFor="patient-adresse" className={labelClass}>Adresse</label>
                 <input 
                   type="text" 
+                  id="patient-adresse" 
                   name="adresse" 
                   value={formData.adresse} 
                   onChange={handleChange}
@@ -578,8 +596,9 @@ export const AddPatientForm = () => {
             </div>
 
             <div className="mt-6">
-              <label className={labelClass}>Historique médical et allergies</label>
+              <label htmlFor="patient-antecedents_medicaux" className={labelClass}>Historique médical et allergies</label>
               <textarea 
+                id="patient-antecedents_medicaux" 
                 name="antecedents_medicaux" 
                 value={formData.antecedents_medicaux} 
                 onChange={handleChange}
@@ -612,7 +631,7 @@ export const AddPatientForm = () => {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-6 border-t border-slate-200">
             <button 
               type="button" 
               onClick={() => navigate('/patients')}
