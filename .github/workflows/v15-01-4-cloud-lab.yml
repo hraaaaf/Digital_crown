@@ -1,0 +1,214 @@
+name: V1.5-01.4 CLOUD-LAB (experimental, NOT physical FUE-G)
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/v15-01-4-cloud-lab.yml"
+      - "scripts/fue_g_cloud_server.py"
+      - "scripts/fue_g_cloud_client.py"
+      - "scripts/t2_runtime_server.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cloud-lab-fue-g-transport:
+    name: Experimental cloud S+A+B TLS/API/recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      T2_CLOUD_LAB: "1"
+      CABINET_PORT: "8005"
+      DIGITALCROWN_ENABLE_HTTPS: "true"
+      T2_USER: "t2-browser@cabinet.ma"
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Source syntax and topology safety
+        run: |
+          python -m py_compile scripts/fue_g_cloud_server.py scripts/fue_g_cloud_client.py
+          python - <<'PY'
+          import os
+          from backend.core.cabinet_topology import resolve_cabinet_network
+          try:
+              resolve_cabinet_network({"ENVIRONMENT":"cabinet", "CABINET_HOST":"192.168.1.100", "CABINET_PORT":"8005", "DIGITALCROWN_ENABLE_HTTPS":"false"})
+          except RuntimeError:
+              print("LAN without TLS: correctly rejected")
+          else:
+              raise SystemExit("Unsafe cabinet LAN HTTP permitted")
+          PY
+
+      - name: Install real synthetic T2 backend
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/requirements-fue-g-cloud.txt
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r /tmp/requirements-fue-g-cloud.txt
+          python -m pip check
+
+      - name: Mint ephemeral private CA and bind on Docker host-only bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          TLS="$RUNNER_TEMP/fue-g-cloud-tls"
+          mkdir -p "$TLS"
+          chmod 700 "$TLS"
+          openssl req -new -x509 -nodes -newkey rsa:2048 -days 1 -sha256 -subj "/CN=FUE-G Ephemeral CI Root" -keyout "$TLS/ca.key" -out "$TLS/ca.crt" >/dev/null 2>&1
+          openssl req -new -nodes -newkey rsa:2048 -sha256 -subj "/CN=cabinet.local" -keyout "$TLS/server.key" -out "$TLS/server.csr" >/dev/null 2>&1
+          printf "subjectAltName=DNS:cabinet.local\nextendedKeyUsage=serverAuth\n" > "$TLS/server.ext"
+          openssl x509 -req -in "$TLS/server.csr" -CA "$TLS/ca.crt" -CAkey "$TLS/ca.key" -CAcreateserial -days 1 -sha256 -extfile "$TLS/server.ext" -out "$TLS/server.crt" >/dev/null 2>&1
+          chmod 600 "$TLS"/*.key
+          BRIDGE=$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}')
+          test -n "$BRIDGE"
+          echo "CABINET_HOST=$BRIDGE" >> "$GITHUB_ENV"
+          echo "DIGITALCROWN_TLS_CERT_FILE=$TLS/server.crt" >> "$GITHUB_ENV"
+          echo "DIGITALCROWN_TLS_KEY_FILE=$TLS/server.key" >> "$GITHUB_ENV"
+          echo "FUE_TLS_DIR=$TLS" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(24))')" >> "$GITHUB_ENV"
+          echo "T2_OWNER_PIN=$(python -c 'import secrets; print(secrets.randbelow(900000)+100000)')" >> "$GITHUB_ENV"
+          docker network create "fue-g-${GITHUB_RUN_ID}" >/dev/null
+          mkdir -p "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b"
+          echo "Cloud lab: ephemeral CA, private Docker bridge binding and independent clients provisioned"
+
+      - name: Start synthetic real FastAPI backend with native Uvicorn TLS
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/fue_g_cloud_server.py > "$RUNNER_TEMP/fue-g-cloud-backend.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/fue-g-cloud-pid"
+          for i in $(seq 1 90); do
+            if curl --noproxy '*' --silent --fail --cacert "$FUE_TLS_DIR/ca.crt" --resolve "cabinet.local:8005:$CABINET_HOST" "https://cabinet.local:8005/health" >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend TLS readiness failed (logs withheld; may contain diagnostics)"
+          exit 1
+
+      - name: Pair A and B from independent disposable Docker clients
+        shell: bash
+        run: |
+          set -euo pipefail
+          network="fue-g-${GITHUB_RUN_ID}"
+          client() {
+            local role="$1" phase="$2" state="$RUNNER_TEMP/fue-g-cloud-state-${1,,}"
+            docker run --rm --network "$network" --add-host cabinet.local:host-gateway \
+              -v "$PWD/scripts:/scripts:ro" -v "$FUE_TLS_DIR/ca.crt:/ca.crt:ro" -v "$state:/state:rw" \
+              -e FUE_CLIENT_ROLE="$role" -e FUE_PHASE="$phase" \
+              -e FUE_STATE_DIR="/state" -e FUE_CA_FILE="/ca.crt" \
+              -e T2_PASSWORD -e T2_OWNER_PIN -e PRODUCT_HEAD \
+              python:3.12-slim python /scripts/fue_g_cloud_client.py
+          }
+          client A setup
+          client A pair
+          client B pair
+          python - <<'PY'
+          import json, os, pathlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          a=json.loads((root/'fue-g-cloud-state-a/reports/pair.json').read_text())
+          b=json.loads((root/'fue-g-cloud-state-b/reports/pair.json').read_text())
+          assert a['status']==b['status']=='PASS'
+          assert a['workstationHash']!=b['workstationHash'], 'A and B shared workstation identity'
+          print('Distinct identities and replay refusal confirmed for A+B')
+          PY
+
+      - name: Stop real service, observe failure in both Docker clients, restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          kill "$(cat "$RUNNER_TEMP/fue-g-cloud-pid")"
+          for i in $(seq 1 30); do
+            if ! curl --noproxy '*' --silent --fail --cacert "$FUE_TLS_DIR/ca.crt" --resolve "cabinet.local:8005:$CABINET_HOST" https://cabinet.local:8005/health >/dev/null; then break; fi
+            sleep 1
+          done
+          network="fue-g-${GITHUB_RUN_ID}"
+          client() {
+            local role="$1" phase="$2" state="$RUNNER_TEMP/fue-g-cloud-state-${1,,}"
+            docker run --rm --network "$network" --add-host cabinet.local:host-gateway \
+              -v "$PWD/scripts:/scripts:ro" -v "$FUE_TLS_DIR/ca.crt:/ca.crt:ro" -v "$state:/state:rw" \
+              -e FUE_CLIENT_ROLE="$role" -e FUE_PHASE="$phase" -e FUE_STATE_DIR="/state" \
+              -e FUE_CA_FILE="/ca.crt" -e T2_PASSWORD -e T2_OWNER_PIN -e PRODUCT_HEAD \
+              python:3.12-slim python /scripts/fue_g_cloud_client.py
+          }
+          client A offline
+          client B offline
+          python scripts/fue_g_cloud_server.py > "$RUNNER_TEMP/fue-g-cloud-backend-restarted.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/fue-g-cloud-pid"
+          for i in $(seq 1 90); do
+            if curl --noproxy '*' --silent --fail --cacert "$FUE_TLS_DIR/ca.crt" --resolve "cabinet.local:8005:$CABINET_HOST" https://cabinet.local:8005/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --noproxy '*' --silent --fail --cacert "$FUE_TLS_DIR/ca.crt" --resolve "cabinet.local:8005:$CABINET_HOST" https://cabinet.local:8005/health >/dev/null
+          client A recover &
+          a_pid=$!
+          client B recover &
+          b_pid=$!
+          wait "$a_pid"
+          wait "$b_pid"
+
+      - name: Assert and publish a sanitized exact-HEAD lab report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/fue-g-cloud
+          python - <<'PY'
+          import json, os, pathlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          phases={'A':['setup','pair','offline','recover'], 'B':['pair','offline','recover']}
+          items=[]
+          for role, stages in phases.items():
+              for phase in stages:
+                  p=root/('fue-g-cloud-state-'+role.lower())/'reports'/(phase+'.json')
+                  r=json.loads(p.read_text())
+                  assert r['status']=='PASS' and r['productHead']==os.environ['PRODUCT_HEAD'], (role, phase)
+                  assert r['tlsVerified']==(phase!='offline')
+                  items.append(r)
+          a=[i for i in items if i['role']=='A' and i['phase']=='pair'][0]
+          b=[i for i in items if i['role']=='B' and i['phase']=='pair'][0]
+          assert a['workstationHash']!=b['workstationHash']
+          for r in ('A','B'):
+              assert next(i for i in items if i['role']==r and i['phase']=='recover')['workstationHash']==next(i for i in items if i['role']==r and i['phase']=='pair')['workstationHash']
+          report={'head':os.environ['PRODUCT_HEAD'],'scope':'CLOUD-LAB EXPERIMENTAL: real T2 API TLS, Docker A/B, pairing/replay, restart; NOT cabinet/Windows/physical LAN, NOT browser UX, NOT PostgreSQL, NOT INSTALLABLE_CERTIFIED',
+                  'success':True,'actors':['Ubuntu runner S (Docker bridge host)','Docker client A','Docker client B'],
+                  'checks':items}
+          pathlib.Path('artifacts/fue-g-cloud/report.json').write_text(json.dumps(report,indent=2))
+          print('FUE_G_CLOUD_LAB_SUMMARY '+json.dumps({'head':report['head'],'success':True,'cases':len(items),'scope':'CLOUD-LAB only'}))
+          PY
+
+      - name: Upload sanitized lab evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g-cloud-lab-evidence
+          path: artifacts/fue-g-cloud
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Clear disposable resources and TLS keys
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_RUN_ID:-}" ]; then
+            docker network rm "fue-g-${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
+          fi
+          if [ -n "${FUE_TLS_DIR:-}" ]; then
+            rm -rf "$FUE_TLS_DIR"
+          fi
+          rm -rf "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b"
+          if [ -f "$RUNNER_TEMP/fue-g-cloud-pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/fue-g-cloud-pid")" 2>/dev/null || true
+          fi
