@@ -6,6 +6,7 @@ on:
     paths:
       - "frontend/scripts/audit-v15-01-2-annex-first-use.mjs"
       - ".github/workflows/v15-01-2-fue.yml"
+      - "frontend/src/features/hub/HubPage.tsx"
       - "frontend/src/features/hub/ControlCenterTopologyPanel.tsx"
       - "frontend/src/pages/LoginPage.tsx"
       - "frontend/src/App.tsx"
