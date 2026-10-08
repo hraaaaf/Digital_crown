@@ -278,7 +278,7 @@ export const AddPatientForm = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} aria-busy={loading} aria-describedby="patient-required-info" className="p-5 sm:p-10 space-y-8 sm:space-y-10">
+        <form onSubmit={handleSubmit} noValidate aria-busy={loading} aria-describedby="patient-required-info" className="p-5 sm:p-10 space-y-8 sm:space-y-10">
           <p id="patient-required-info" className="text-sm font-medium text-slate-700">Renseignez le nom, le prénom, la date de naissance et le sexe. Les autres informations sont facultatives.</p>
           <p role="status" aria-live="polite" className="sr-only">{loading ? "Vérification et création du dossier en cours…" : ""}</p>
           {errors.global && (
