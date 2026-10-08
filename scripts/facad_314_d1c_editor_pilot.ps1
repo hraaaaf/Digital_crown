@@ -213,7 +213,7 @@ try{
   }catch{
    $issue=$_.Exception.Message
    Log "D1C_PROFILE_$safe=BLOCKED: $issue"
-   $errors+= "$name: $issue"
+   $errors+= "${name}: $issue"
    Row @($name,[string]$selected,$editorName,[string]$measureCount,
      [string]$lineCount,[string]$markerCount,'BLOCKED','',$issue)
    # If editor state is unknown after a failure, do not perform more
