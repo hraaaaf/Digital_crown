@@ -277,7 +277,8 @@ jobs:
             }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
             # The exact post-EULA screen was observed in run 37757103793.
             # No new contract is visible; Finish is the bounded standard install action.
-            $installWindow=[System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            $installRoot=[System.Windows.Automation.AutomationElement]::RootElement
+            $installWindow=$installRoot.FindFirst(
               [System.Windows.Automation.TreeScope]::Children,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'Installation'
