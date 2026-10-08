@@ -84,7 +84,7 @@ for (const p of profiles) {
     await page.getByPlaceholder('nom@cabinet.com').fill(email);
     await page.getByPlaceholder('••••••••').fill(password);
     await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
-    await page.waitForURL('**/hub?enroll=1', { timeout: 30000 });
+    await page.waitForURL(url => new URL(url).pathname === '/hub', { timeout: 30000 });
     await page.locator('[data-workstation-enrollment]').waitFor({ state: 'visible', timeout: 15000 });
     await snapshot('07-enrollment-required');
     await page.getByText('Récupération propriétaire sans code').click();
