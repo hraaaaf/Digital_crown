@@ -27,6 +27,7 @@ export const AddPatientForm = () => {
   const [createOutcomeUnknown, setCreateOutcomeUnknown] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const globalErrorRef = useRef<HTMLDivElement>(null);
+  const clinicalDetailsRef = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     if (errors.global) {
       globalErrorRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
@@ -141,8 +142,9 @@ export const AddPatientForm = () => {
   const validate = () => {
     const newErrors = validatePatientIdentity(formData);
     setErrors(newErrors);
-    const firstInvalid = ['nom', 'prenom', 'date_naissance', 'sexe', 'numero_dossier'].find(name => newErrors[name]);
+    const firstInvalid = ['nom', 'prenom', 'date_naissance', 'sexe', 'numero_dossier', 'email'].find(name => newErrors[name]);
     if (firstInvalid) {
+      if (firstInvalid === "email" && clinicalDetailsRef.current) clinicalDetailsRef.current.open = true;
       requestAnimationFrame(() => {
         const input = document.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${firstInvalid}"]`);
         input?.focus();
@@ -502,7 +504,7 @@ export const AddPatientForm = () => {
           </div>
 
           {/* Informations complémentaires accessibles à la demande. */}
-          <details className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-6">
+          <details ref={clinicalDetailsRef} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-6">
             <summary className="cursor-pointer text-sm sm:text-base font-semibold text-[#003380] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003380]">
               Contact, antécédents et suivi orthodontique (à renseigner selon le contexte clinique)
             </summary>
