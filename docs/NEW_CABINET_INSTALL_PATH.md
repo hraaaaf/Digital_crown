@@ -135,7 +135,8 @@ psql -U postgres -h localhost
 
 # Dans psql :
 CREATE DATABASE digitalcrown_cabinet_2024_01;
-CREATE ROLE cabinet_2024_01 WITH LOGIN PASSWORD 'XyZ9pQ2kL5mN8vB3wE7rT';
+-- Exemple : renseigner un secret unique hors du guide et jamais stocké dans Git
+CREATE ROLE cabinet_2024_01 WITH LOGIN;
 GRANT ALL PRIVILEGES ON DATABASE digitalcrown_cabinet_2024_01 TO cabinet_2024_01;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO cabinet_2024_01;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO cabinet_2024_01;
@@ -145,7 +146,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO cabinet_2024
 **Résultat :**
 - DB : `digitalcrown_cabinet_2024_01`
 - User : `cabinet_2024_01` (dédié, pas postgres)
-- Password : `XyZ9pQ2kL5mN8vB3wE7rT` (généré aléatoire)
+- Mot de passe : à définir de façon sécurisée, hors du guide, avant d'activer le rôle.
 
 **Sécurité (OBLIGATOIRE) :**
 - ❌ Ne JAMAIS utiliser `postgres` superuser dans l'application
