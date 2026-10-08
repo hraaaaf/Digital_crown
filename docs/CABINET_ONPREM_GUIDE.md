@@ -7,6 +7,8 @@ Les données patients, médias, DB et backups restent locaux.
 Ce guide couvre : architecture cible, lancement, installation, mise à jour,
 backup/restore, et le comportement licence hors-ligne.
 
+> **GATE 01.4 (2026-10-08)** : les commandes de service/build ci-dessous sont historiques, **pas une autorisation d'installation**. Seul `INSTALLABLE_CERTIFIED` est installable, après approbation humaine et isolation du banc. Exposition LAN cabinet/production : HTTPS :8005, certificat SAN/chaîne de confiance vérifiée sur A et B, pas de bypass. Références : `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` et `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
+
 ---
 
 ## 1. Architecture cible cabinet
@@ -36,18 +38,13 @@ backup/restore, et le comportement licence hors-ligne.
    Téléphones assistante/dentiste        Firestore licenses/{public_id}
 ```
 
-### ⚠️ Base de données — PostgreSQL obligatoire
+### Base de données — règle actualisée
 
-**PostgreSQL 15+ est la seule base supportée pour toute installation cabinet/client.**
+- Cabinet **solo** : `ENVIRONMENT=cabinet` prend en charge SQLite/SQLCipher chiffré.
+- **Multi-PC FUE-G S+A+B** : PostgreSQL dédié sur banc d'essai isolé, rôle DB non-superuser, fixtures synthétiques.
+- `ENVIRONMENT=production` : PostgreSQL obligatoire ; SQLite refusé.
 
-SQLite est réservé aux tests unitaires et au développement local — jamais pour production.
-
-Chaque installation cabinet requiert :
-- Installation PostgreSQL 15+ sur le poste principal ou un serveur local
-- Une base de données dédiée au cabinet
-- Un utilisateur PostgreSQL dédié (jamais le superuser `postgres`)
-
----
+Aucune migration, installation ni modification d'une base clinique ne découle de ce guide.
 
 ## 2. Mode de lancement
 
@@ -126,7 +123,7 @@ terminal visible) — les logs vont dans `%APPDATA%/DigitalCrown/logs/`.
 ### Service Windows auto-start (build manuel uniquement)
 
 Pour un déploiement multi-postes/PostgreSQL sans l'installeur un clic,
-Windows ne gère pas les services Python nativement — deux options éprouvées :
+Windows ne gère pas les services Python nativement. Les deux mécanismes historiques ci-dessous installent un service/tâche persistante : **NE PAS EXÉCUTER** sans release installable certifiée, sauvegarde/restore vérifiés, isolement et GO humain distinct.
 
 **Option A — NSSM :**
 ```powershell
@@ -196,7 +193,7 @@ rehearsal) — pas de variable `MEDIA_ROOT`/`BACKUP_DIR` dédiée à ce jour.
 ONNX locale), 50 Go disque libre, antivirus avec exclusion du dossier
 d'installation, horloge synchronisée (anti-rollback licence).
 
-1. **Copier le build** `dist/DigitalCrown/` vers `C:\DigitalCrown\`
+1. **Vérifier les preuves** de la release exacte `INSTALLABLE_CERTIFIED` (code SHA, manifest, provenance, assets, hashes et binaire), puis seulement avec GO humain copier la release certifiée sur le banc. Un dossier `dist/DigitalCrown/` générique n'est pas installable.
 2. **Configurer l'environnement** : créer le fichier env cabinet (section 3),
    générer `SECRET_KEY` et `CABINET_MASTER_KEY_HEX`, poser les credentials
    Firebase fournis
@@ -212,7 +209,7 @@ d'installation, horloge synchronisée (anti-rollback licence).
 7. **Activer la licence** : le `public_id` du cabinet créé doit exister dans
    Firestore `licenses/` avec `active=true` (dashboard SuperAdmin)
 8. **Smoke tests post-install** (checklist §5 du PREPROD_RUNBOOK.md) :
-   login, patient test, upload/lecture document, RVG, agenda, ordonnance PDF,
+   login, patient synthétique, upload/lecture document factice, RVG, agenda, ordonnance PDF,
    accès anonyme → 401
 9. **Appairage mobile** : générer le QR depuis Réglages → scanner depuis le
    téléphone (nécessite le bind LAN, cf. §2 limite 1)
