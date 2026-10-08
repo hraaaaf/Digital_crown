@@ -54,6 +54,15 @@ const inspect = async (page, label, journey, viewport, issues, extra = {}) => {
     }).map(node => ({ text: node.getAttribute('aria-label') || (node.textContent || '').trim().slice(0, 40),
       width: Math.round(node.getBoundingClientRect().width),
       height: Math.round(node.getBoundingClientRect().height) }));
+    const offscreenControls = visible.filter(node => {
+      if (!node.matches('button') || node.hasAttribute('disabled')) return false;
+      const rect = node.getBoundingClientRect();
+      return rect.left < -1 || rect.right > root.clientWidth + 1;
+    }).map(node => ({
+      text: node.getAttribute('aria-label') || (node.textContent || '').trim().slice(0, 40),
+      left: Math.round(node.getBoundingClientRect().left),
+      right: Math.round(node.getBoundingClientRect().right),
+    }));
     return {
       url: location.pathname + location.search,
       title: document.querySelector('h1')?.textContent || '',
@@ -66,6 +75,7 @@ const inspect = async (page, label, journey, viewport, issues, extra = {}) => {
       lang: document.querySelector('[data-station-language]')?.getAttribute('data-station-language') || null,
       dir: document.querySelector('[data-station-language]')?.getAttribute('dir') || null,
       smallControls,
+      offscreenControls,
       clinicalLinks: Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href'))
         .filter(href => /\/(patients|agenda|accounting|dashboard|settings)(\/|$)/i.test(href || '')),
     };
@@ -76,6 +86,10 @@ const inspect = async (page, label, journey, viewport, issues, extra = {}) => {
   issues.captures.push(item);
   record(journey + '/' + viewport.label + '/' + label + '/no-overflow', probe.scrollWidth <= probe.width,
     String(probe.scrollWidth) + '>' + String(probe.width));
+  if (label === '01b-text-at-200-percent') {
+    record(journey + '/' + viewport.label + '/200pct-no-clipped-controls',
+      probe.offscreenControls.length === 0, JSON.stringify(probe.offscreenControls));
+  }
   return item;
 };
 
