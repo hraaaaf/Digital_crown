@@ -36,7 +36,7 @@ jobs:
       - name: Execute FUE-0 topology invariants
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python scripts/audit-v15-01-1-topology-contract.py
+        run: PYTHONPATH=. python scripts/audit-v15-01-1-topology-contract.py
       - name: Retain exact-head FUE-0 evidence even on failure
         if: always()
         uses: actions/upload-artifact@v4
