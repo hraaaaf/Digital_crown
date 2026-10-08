@@ -1,0 +1,101 @@
+name: FUE-D Patient Creation Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/scripts/audit-first-user-experience-d.mjs'
+      - '.github/workflows/fue-d-patient-creation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fue-d-patient-creation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: fue-d-runtime-secret-key-long-enough-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: "c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      T2_USER: t2-browser@cabinet.ma
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Syntax verification
+        run: node --check frontend/scripts/audit-first-user-experience-d.mjs
+      - name: Isolated credentials
+        shell: bash
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-fue-d.txt
+          pip install -r /tmp/requirements-fue-d.txt
+          python -m pip check
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install chromium
+      - name: Start isolated backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/fue-d-backend.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:8005/health >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/fue-d-backend.log
+          exit 1
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/fue-d-frontend.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/fue-d-frontend.log
+          exit 1
+      - name: Run FUE-D real creation and independent read
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/audit-first-user-experience-d.mjs
+      - name: Diagnose failure without exposing credentials
+        if: failure()
+        run: |
+          tail -100 /tmp/fue-d-backend.log || true
+          tail -100 /tmp/fue-d-frontend.log || true
+      - name: Upload evidence, even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-d-patient-creation-evidence
+          path: artifacts/t2-browser/fue-d
+          if-no-files-found: warn
+          retention-days: 14
