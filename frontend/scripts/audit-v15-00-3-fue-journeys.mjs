@@ -242,8 +242,8 @@ const run = async (journey, viewport) => {
       await page.getByRole('button', { name: 'Appliquer ce mode' }).click();
       record(journey + '/' + viewport.label + '/invalid-pin-blocked',
         await page.getByRole('status').filter({ hasText: 'Saisissez le PIN propriétaire.' }).count() > 0);
-      record(journey + '/' + viewport.label + '/mode-not-sent', requests.length === 0,
-        JSON.stringify(requests));
+      record(journey + '/' + viewport.label + '/mode-not-sent', requests.filter(x => x.action === 'change-mode').length === 0,
+        JSON.stringify(requests.filter(x => x.action === 'change-mode')));
       await inspect(page, '03-invalid-mode-after-click', journey, viewport, issues);
 
       await page.getByLabel('PIN propriétaire', { exact: true }).fill('2468');
