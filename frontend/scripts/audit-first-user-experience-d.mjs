@@ -251,6 +251,9 @@ try {
     await ux.waitForURL(url => !['/login','/setup'].includes(url.pathname), { timeout: 20000 });
     await ux.goto(root + '/patients/new', { waitUntil: 'domcontentloaded' });
     await ux.locator('input[name="nom"]').waitFor({ state: 'visible' });
+    if ((await ux.locator('form').getAttribute('novalidate')) === null) {
+      throw new Error('Native email validation must not bypass accessible error focus');
+    }
 
     // Real keyboard Tab travel; this does not assert full screen-reader accessibility.
     await ux.locator('input[name="nom"]').focus();
@@ -439,6 +442,27 @@ try {
     await ux.screenshot({ path: path.join(uxDir, '03-create-503-refused.png'), fullPage: false, animations: 'disabled' });
     await ux.unroute(createPattern);
 
+    // Explicit dossier-number collision: a known 409 needs a precise field
+    // error and must never be presented as an uncertain or successful creation.
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 409, contentType: 'application/json', body: '{"detail":{"message":"Numéro de dossier déjà attribué. Réessayez."}}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const create409 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 409, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await create409;
+    await ux.getByText('Numéro déjà attribué.', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+    await ux.waitForFunction(() => document.activeElement?.getAttribute('name') === 'numero_dossier', undefined, { timeout: 5000 });
+    if ((await ux.locator('[name="numero_dossier"]').getAttribute('aria-invalid')) !== 'true') {
+      throw new Error('Dossier-number conflict did not announce invalid input');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '03b-number-409-field-recovery.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(createPattern);
+    await ux.locator('[name="numero_dossier"]').fill('UI' + String(Date.now()).slice(-9));
+
     // Genuine double mouse-click through the rendered button with real backend.
     const button = ux.getByRole('button', { name: 'Créer le dossier', exact: true });
     await button.scrollIntoViewIfNeeded();
@@ -484,7 +508,7 @@ try {
     await duplicateDialog.waitFor({ state: 'hidden', timeout: 8000 });
     if (!ux.url().endsWith('/patients/new')) throw new Error('Escape from duplicate modal navigated away');
     await ux.screenshot({ path: path.join(uxDir, '06-duplicate-dialog-escaped.png'), fullPage: false, animations: 'disabled' });
-    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
+    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, screenshots: ['01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
   } finally {
     await uxContext.close();
   }
