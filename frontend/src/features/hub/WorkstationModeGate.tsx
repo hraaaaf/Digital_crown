@@ -21,6 +21,9 @@ const FALLBACK_REVALIDATION_MS = 5_000;
 
 export const WorkstationModeGate = ({ target, children }: Props) => {
   const location = useLocation();
+  // A previous Station decision must never authorize/deny a different route.
+  const decisionKey = `${target}:${location.pathname}`;
+  const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [state, setState] = useState<WorkstationBootstrapState | null>(null);
   const [resolved, setResolved] = useState(false);
 
@@ -28,6 +31,7 @@ export const WorkstationModeGate = ({ target, children }: Props) => {
     let active = true;
     let expiryTimer: number | undefined;
     setResolved(false);
+    setResolvedKey(null);
 
     const scheduleEscapeExpiry = (next: WorkstationBootstrapState | null) => {
       if (expiryTimer !== undefined) {
@@ -55,7 +59,10 @@ export const WorkstationModeGate = ({ target, children }: Props) => {
         setState(null);
         scheduleEscapeExpiry(null);
       } finally {
-        if (active) setResolved(true);
+        if (active) {
+          setResolvedKey(decisionKey);
+          setResolved(true);
+        }
       }
     };
 
@@ -87,7 +94,9 @@ export const WorkstationModeGate = ({ target, children }: Props) => {
     };
   }, [location.pathname, target]);
 
-  if (!resolved) return null;
+  // React can reuse this component across route changes before effects revalidate.
+  // Fail closed during that window instead of redirecting on stale Station state.
+  if (!resolved || resolvedKey !== decisionKey) return null;
 
   if (!state) {
     // Clinical routes fail closed when workstation authority cannot be read.
