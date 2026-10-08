@@ -143,6 +143,11 @@ for (const profile of profiles) {
   await checkpoint('K-new-patient-menu', 'Menu Ajout rapide ouvert');
   await click(newPatient);
   await page.waitForURL('**/patients/new', { timeout: 10000 });
+  // URL navigation can finish before the lazy-loaded patient form mounts on mobile.
+  // Require actual visible content before taking the BEFORE evidence screenshot.
+  await page.getByRole('heading', { name: 'Nouveau Patient' }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('input[name="nom"]').waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('input[name="prenom"]').waitFor({ state: 'visible', timeout: 15000 });
   await checkpoint('L-patient-form-empty', 'Création premier patient BEFORE');
 
   const dossier = 'FUE-' + (profile.label === 'mobile' ? '390' : '1280');
