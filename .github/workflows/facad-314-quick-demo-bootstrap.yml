@@ -87,7 +87,7 @@ jobs:
             }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
             Get-Process FacadNstaller -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             Write-Host 'NO_CLICK_PERFORMED: inspection artifacts captured'
-            exit 0
+            throw 'QUICK_DEMO_NOT_CLICKED: diagnostic evidence collected; installation gate not passed'
           }
 
           "BUTTON_NAME=$($button.Current.Name)" | Add-Content facad-quick-demo/quick-demo-process.txt
@@ -232,7 +232,19 @@ jobs:
 
       - name: Upload quick demo evidence
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: facad-314-quick-demo-bootstrap-${{ github.sha }}
-          path: facad-quick-demo/
+          path: |
+            facad-quick-demo/quick-demo-process.txt
+            facad-quick-demo/ui-before-click.txt
+            facad-quick-demo/before-click-screen.png
+            facad-quick-demo/ui-after-click.txt
+            facad-quick-demo/after-click-screen.png
+            facad-quick-demo/consent-gate.txt
+            facad-quick-demo/settings-found.txt
+            facad-quick-demo/facad-ui-tree.txt
+            facad-quick-demo/facad-example-process.txt
+            facad-quick-demo/facad-example-screen.png
+            facad-quick-demo/screenshot-error.txt
           if-no-files-found: error
