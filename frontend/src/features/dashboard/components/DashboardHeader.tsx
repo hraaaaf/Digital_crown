@@ -14,6 +14,8 @@ const QUICK_ADD_MENU_ID = 'dashboard-quick-add-menu';
 export const DashboardHeader = ({
   displayName,
   dateLabel,
+  roleLabel,
+  cabinetName,
   canReadPatients,
   canUseAgenda,
   canAdmin,
@@ -25,6 +27,8 @@ export const DashboardHeader = ({
 }: {
   displayName: string;
   dateLabel: string;
+  roleLabel: string | null;
+  cabinetName: string | null;
   canReadPatients: boolean;
   canUseAgenda: boolean;
   canAdmin: boolean;
@@ -78,6 +82,11 @@ export const DashboardHeader = ({
     <motion.header variants={dashboardItemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
       <div>
         <h1 className="text-4xl font-black tracking-tight font-outfit text-primary">Bonjour, {displayName}</h1>
+        {(roleLabel || cabinetName) && (
+          <p className="mt-2 text-sm font-bold text-text-muted" data-testid="dashboard-user-context">
+            {[roleLabel, cabinetName].filter(Boolean).join(' · ')}
+          </p>
+        )}
         <div className="flex items-center gap-3 mt-3 bg-card-bg/60 backdrop-blur-md px-4 py-2 rounded-elite-sm border border-border-main w-fit">
           <Calendar size={16} className="text-primary" aria-hidden="true" />
           <p className="text-text-muted font-bold text-sm">{dateLabel}</p>

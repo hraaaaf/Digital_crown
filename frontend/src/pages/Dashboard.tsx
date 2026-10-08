@@ -28,6 +28,7 @@ import { usePatientSearch } from '../features/dashboard/hooks/usePatientSearch';
 import { useProactiveAlerts } from '../features/dashboard/hooks/useProactiveAlerts';
 import { useTodayAppointments } from '../features/dashboard/hooks/useTodayAppointments';
 import { stationWallDisplayService } from '../services/stationWallDisplay';
+import { api } from '../services/api';
 
 const MANAGEMENT_PANEL_ID = 'dashboard-management-panel';
 const FOCUSABLE_SELECTOR = [
@@ -47,6 +48,7 @@ export const Dashboard: React.FC = () => {
   const [showManagement, setShowManagement] = useState(false);
   const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{ nom: string; prenom: string } | null>(null);
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
+  const [cabinetName, setCabinetName] = useState<string | null>(null);
   const mobileButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDialogRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +56,13 @@ export const Dashboard: React.FC = () => {
   const canUseAgenda = hasAccess(user, 'agenda');
   const canReadAccounting = hasAccess(user, 'accounting');
   const canAdmin = hasAccess(user, 'admin');
+  const roleLabel = user?.role === 'SECRETAIRE'
+    ? 'Secrétaire'
+    : user?.role === 'DENTISTE'
+      ? 'Dentiste'
+      : user?.role === 'ADMIN'
+        ? 'Administrateur'
+        : user?.role || null;
 
   const { stats, statsState, praticienName, refreshStats } = useDashboardStats(user, authLoading);
   const {
@@ -126,6 +135,24 @@ export const Dashboard: React.FC = () => {
   const systemStatus = getCabinetHealthDisplayState(cabinetHealthState);
 
   useEffect(() => {
+    let active = true;
+    if (!user) {
+      setCabinetName(null);
+      return () => { active = false; };
+    }
+    void api.get('/admin/cabinet/me')
+      .then(response => {
+        if (!active) return;
+        setCabinetName(response.data?.nom_cabinet || null);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCabinetName(null);
+      });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!(ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv)) return;
     const timeout = window.setTimeout(() => {
       setGhostSecretariatPatient(null);
@@ -158,7 +185,7 @@ export const Dashboard: React.FC = () => {
   });
   const dateLabel = today.charAt(0).toUpperCase() + today.slice(1);
   const displayName = user?.nom_complet || (user?.role === 'SECRETAIRE' ? 'Assistante' : praticienName);
-  const dashboardLoading = authLoading || (canReadPatients && statsState !== 'ready' && statsState !== 'error');
+  const dashboardLoading = authLoading;
 
   if (dashboardLoading) {
     return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
@@ -174,6 +201,8 @@ export const Dashboard: React.FC = () => {
       <DashboardHeader
         displayName={displayName}
         dateLabel={dateLabel}
+        roleLabel={roleLabel}
+        cabinetName={cabinetName}
         canReadPatients={canReadPatients}
         canUseAgenda={canUseAgenda}
         canAdmin={canAdmin}
@@ -205,7 +234,12 @@ export const Dashboard: React.FC = () => {
           onStatusChange={(appointmentId, status) => { void updateAppointmentStatus(appointmentId, status); }}
           onCallPatient={callPatientOnWall}
         />
-        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges === true} />
+        <RecentActivity
+          visible={canReadPatients}
+          stats={stats}
+          loading={statsState === 'loading' || statsState === 'idle'}
+          showPatientBadges={showPatientBadges === true}
+        />
       </div>
 
       <IntelligenceAlerts

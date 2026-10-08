@@ -83,7 +83,7 @@ with database.SessionLocal() as db:
             email="t2-browser@cabinet.ma",
             hashed_password=get_password_hash(runtime_password),
             role=models.UserRole.DENTISTE,
-            nom_complet="Dr T2 Browser",
+            nom_complet="Dr Cabinet de certification",
             is_active=True,
             is_licensed=True,
             approval_status=models.ApprovalStatus.APPROVED.value,
@@ -133,13 +133,41 @@ with database.SessionLocal() as db:
                     },
                 )
 
+    secondary = db.query(models.User).filter(models.User.email == "t2-secondary@cabinet.ma").first()
+    if not secondary:
+        secondary = models.User(
+            email="t2-secondary@cabinet.ma",
+            hashed_password=get_password_hash(runtime_password),
+            role=models.UserRole.DENTISTE,
+            nom_complet="Dr Praticien de certification",
+            is_active=True,
+            is_licensed=True,
+            approval_status=models.ApprovalStatus.APPROVED.value,
+            employer_id=user.id,
+            permissions={
+                "agenda": True,
+                "patients": True,
+                "prescriptions": True,
+                "accounting": False,
+                "payments": False,
+                "clinical": True,
+                "panoramic": True,
+                "cephalo": True,
+                "settings": False,
+                "admin": False,
+            },
+        )
+        db.add(secondary)
+        db.commit()
+        db.refresh(secondary)
+
     restricted = db.query(models.User).filter(models.User.email == "t2-restricted@cabinet.ma").first()
     if not restricted:
         restricted = models.User(
             email="t2-restricted@cabinet.ma",
             hashed_password=get_password_hash(runtime_password),
             role=models.UserRole.SECRETAIRE,
-            nom_complet="T2 Restricted Secretary",
+            nom_complet="Secrétaire de certification",
             is_active=True,
             is_licensed=True,
             approval_status=models.ApprovalStatus.APPROVED.value,
@@ -201,7 +229,7 @@ with database.SessionLocal() as db:
         db.add(models.CabinetConfig(
             owner_id=user.id,
             nom_cabinet="Cabinet T2 Certification",
-            nom_praticien="Dr T2 Browser",
+            nom_praticien="Dr Cabinet de certification",
             is_initialized=True,
             hide_header=False,
             hide_footer=False,

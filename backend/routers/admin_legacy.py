@@ -203,6 +203,7 @@ def get_cabinet_info(db: Session = Depends(database.get_db), current_user: model
         praticien.header_lines_fr = praticien.cabinet_config.header_lines_fr
         praticien.header_lines_ar = praticien.cabinet_config.header_lines_ar
         praticien.specialty_ids = praticien.cabinet_config.specialty_ids
+        praticien.nom_cabinet = praticien.cabinet_config.nom_cabinet
         
     return praticien
 
@@ -240,6 +241,7 @@ def update_cabinet_info(settings: Dict, db: Session = Depends(database.get_db), 
         praticien.header_lines_fr = config.header_lines_fr
         praticien.header_lines_ar = config.header_lines_ar
         praticien.specialty_ids = config.specialty_ids
+        praticien.nom_cabinet = config.nom_cabinet
         
     return praticien
 
