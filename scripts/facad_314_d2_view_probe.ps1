@@ -116,10 +116,14 @@ function State($item){
 }
 function CloseMenu{[System.Windows.Forms.SendKeys]::SendWait('{ESC}');Start-Sleep -Milliseconds 220}
 # Exclude commands with known side effects or dialog/secondary-pane changes until isolated D2B.
+# Original/Planned positions are selection modes (not necessarily toggles);
+# Predicted photo may load generated content. They are deliberately deferred
+# until a separate D2B with a proven one-way reset to original state.
 $candidates=@('Marker names','Marker guide','Markers','Hard tissue','Profile',
- 'Ceph/Lines','Bindings','Original positions','Planned positions','Tracing image',
- 'Profile photo','Predicted photo','Image #2','Harmony box','Status bar')
+ 'Ceph/Lines','Bindings','Tracing image','Profile photo','Image #2',
+ 'Harmony box','Status bar')
 Log "D2_VIEW_CANDIDATES=$($candidates.Count)"
+Log 'DEFERRED_D2B=Original positions;Planned positions;Predicted photo;Generate predicted photo;Secondary windows'
 Screen 'd2-baseline.png'
 Ui 'd2-baseline-ui.txt'
 $unresolved=@()
@@ -142,6 +146,11 @@ for($i=0;$i -lt $candidates.Count;$i++){
   }
   $start=State $beforeItem
   Screen $before
+  if($start -eq 'UNKNOWN'){
+    CloseMenu
+    Record 'VIEW' $name $enabled $start '' '' 'SKIPPED_NO_STATE_PROOF' $before '' '' 'No reliable toggle state; D2B manual or UIA-specific proof required'
+    continue
+  }
   Click $beforeItem
   Start-Sleep -Milliseconds 310
   Screen $after
