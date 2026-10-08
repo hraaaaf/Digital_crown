@@ -124,8 +124,6 @@ const summary={baseFailures,protocol:'PR #783 contextual FUE-I V1.5-00.2',head:p
 summary.complete=cases.length===mandatoryCases && summary.failed===0 && results.length===2 && baseFailures.length===0;
 await fs.writeFile(path.join(root,'certification-matrix.json'),JSON.stringify(summary,null,2));
 await fs.writeFile(path.join(root,'report.json'),JSON.stringify({baseFailures,results,cases,complete:summary.complete},null,2));
-if(!summary.complete)throw Error('FUE-I extended matrix incomplete or failed: '+JSON.stringify(cases.filter(x=>x.status==='FAIL')));
-
 await browser.close();
-await fs.writeFile(path.join(root,'report.json'),JSON.stringify({protocol:'PR #783 / FUE-I V1.5-00.2',productHead:process.env.GITHUB_SHA||null,scope:'synthetic unpaired workstation; configured Station and authenticated Cabinet NOT certified',results},null,2));
-console.log(JSON.stringify(results,null,2));
+console.log(JSON.stringify({baseFailures,results,cases,complete:summary.complete},null,2));
+if(!summary.complete)throw Error('FUE-I matrix failed: '+JSON.stringify({baseFailures,failures:cases.filter(x=>x.status==='FAIL')}));
