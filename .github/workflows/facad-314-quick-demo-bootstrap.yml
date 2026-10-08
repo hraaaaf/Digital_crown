@@ -732,19 +732,21 @@ jobs:
                 "ROBERT_UIA_SELECTION_UNAVAILABLE=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/robert-open-probe.txt
               }
             }
-            $openButtons=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            $openCandidates=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty,'Open'))
+            "PATIENT_OPEN_NAMED_COUNT=$($openCandidates.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            $openButtons=@(for($oi=0;$oi -lt $openCandidates.Count;$oi++){
+              $candidate=$openCandidates.Item($oi)
+              if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button){$candidate}
+            })
             "PATIENT_OPEN_BUTTON_COUNT=$($openButtons.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
-            if($openButtons.Count -ne 1 -or
-              $openButtons.Item(0).Current.ControlType -ne [System.Windows.Automation.ControlType]::Button){
-              throw 'Patient Open button missing or ambiguous'
-            }
-            "PATIENT_OPEN_ENABLED=$($openButtons.Item(0).Current.IsEnabled)" | Add-Content facad-quick-demo/robert-open-probe.txt
-            if(-not $openButtons.Item(0).Current.IsEnabled){
+            if($openButtons.Count -ne 1){throw 'Patient Open button missing or ambiguous after ControlType filter'}
+            "PATIENT_OPEN_ENABLED=$($openButtons[0].Current.IsEnabled)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if(-not $openButtons[0].Current.IsEnabled){
               throw 'Patient Open remains disabled after Robert selection'
             }
-            $openBounds=$openButtons.Item(0).Current.BoundingRectangle
+            $openBounds=$openButtons[0].Current.BoundingRectangle
             if($openBounds.IsEmpty -or $openBounds.Width -lt 25 -or $openBounds.Width -gt 180 -or
               $openBounds.Height -lt 12 -or $openBounds.Height -gt 80 -or
               $openBounds.Left -lt $windowBounds.Left -or $openBounds.Right -gt $windowBounds.Right -or
