@@ -45,27 +45,42 @@ jobs:
           $p=Start-Process -FilePath $exe -WorkingDirectory $wd -PassThru
           "INSTALLER_PID=$($p.Id)" | Set-Content facad-quick-demo/quick-demo-process.txt
 
-          $deadline=(Get-Date).AddSeconds(120)
+          # The official installer exposes its options as ControlType.Pane, not Button.
+          # This was observed on run 37753115873, artifact 11539320376.
+          $deadline=(Get-Date).AddSeconds(50)
           $button=$null
+          $startWindow=$null
           while((Get-Date) -lt $deadline -and $null -eq $button){
             Start-Sleep -Milliseconds 500
             $root=[System.Windows.Automation.AutomationElement]::RootElement
-            $buttons=$root.FindAll(
-              [System.Windows.Automation.TreeScope]::Descendants,
+            $windows=$root.FindAll(
+              [System.Windows.Automation.TreeScope]::Children,
               [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
-                [System.Windows.Automation.ControlType]::Button
+                [System.Windows.Automation.ControlType]::Window
               )
             )
-            foreach($b in $buttons){
-              if($b.Current.Name -like '*Quick demo installation*'){
-                $button=$b
-                break
+            foreach($w in $windows){
+              if($w.Current.Name -eq 'Start'){
+                $startWindow=$w
+                $panes=$w.FindAll(
+                  [System.Windows.Automation.TreeScope]::Descendants,
+                  [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                    [System.Windows.Automation.ControlType]::Pane
+                  )
+                )
+                foreach($candidate in $panes){
+                  if($candidate.Current.Name -eq 'Quick demo installation'){
+                    $button=$candidate
+                    break
+                  }
+                }
               }
             }
           }
           if($null -eq $button){
-            'QUICK_DEMO_BUTTON_NOT_EXPOSED_BY_UIAUTOMATION=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            'QUICK_DEMO_PANE_NOT_FOUND=true' | Add-Content facad-quick-demo/quick-demo-process.txt
             $root=[System.Windows.Automation.AutomationElement]::RootElement
             $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
             $rows=New-Object System.Collections.Generic.List[string]
@@ -90,10 +105,33 @@ jobs:
             throw 'QUICK_DEMO_NOT_CLICKED: diagnostic evidence collected; installation gate not passed'
           }
 
-          "BUTTON_NAME=$($button.Current.Name)" | Add-Content facad-quick-demo/quick-demo-process.txt
-          $invoke=$button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-          $invoke.Invoke()
-          'QUICK_DEMO_CLICKED=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+          $rect=$button.Current.BoundingRectangle
+          $windowRect=$startWindow.Current.BoundingRectangle
+          if($rect.IsEmpty -or $rect.Width -lt 140 -or $rect.Width -gt 400 -or
+             $rect.Height -lt 30 -or $rect.Height -gt 100 -or
+             $rect.Left -lt $windowRect.Left -or $rect.Right -gt $windowRect.Right -or
+             $rect.Top -lt $windowRect.Top -or $rect.Bottom -gt $windowRect.Bottom){
+            throw "Quick demo Pane bounds invalid: $rect inside window $windowRect"
+          }
+          "TARGET_NAME=$($button.Current.Name)" | Add-Content facad-quick-demo/quick-demo-process.txt
+          "TARGET_TYPE=$($button.Current.ControlType.ProgrammaticName)" | Add-Content facad-quick-demo/quick-demo-process.txt
+          "TARGET_RECT=$rect" | Add-Content facad-quick-demo/quick-demo-process.txt
+          $x=[int]($rect.Left+$rect.Width/2)
+          $y=[int]($rect.Top+$rect.Height/2)
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class ScopedMouse {
+              [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+              [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
+          }
+          '@
+          if(-not [ScopedMouse]::SetCursorPos($x,$y)){ throw "SetCursorPos failed" }
+          Start-Sleep -Milliseconds 200
+          [ScopedMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+          Start-Sleep -Milliseconds 120
+          [ScopedMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+          "QUICK_DEMO_CLICK_SENT_AT=$x,$y" | Add-Content facad-quick-demo/quick-demo-process.txt
 
           Start-Sleep -Seconds 8
 
