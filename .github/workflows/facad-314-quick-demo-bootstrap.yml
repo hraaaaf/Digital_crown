@@ -19,6 +19,35 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
 
+      - name: Parse Facad PowerShell probes before installation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $paths=@(
+            'scripts/facad_314_d1c_editor_pilot.ps1',
+            'scripts/facad_314_d1b_catalog_selection.ps1',
+            'scripts/facad_314_d2_view_probe.ps1',
+            'scripts/facad_314_d2b_view_structure.ps1',
+            'scripts/facad_314_d2c_view_toggle.ps1',
+            'scripts/facad_314_d3_sandbox_preflight.ps1'
+          )
+          foreach($path in $paths){
+            if(-not (Test-Path -LiteralPath $path)){
+              throw "Missing Facad test file: $path"
+            }
+            $tokens=$null
+            $parseErrors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,[ref]$tokens,[ref]$parseErrors)
+            if($parseErrors.Count -gt 0){
+              foreach($err in $parseErrors){
+                Write-Error "$path line $($err.Extent.StartLineNumber): $($err.Message)"
+              }
+              throw "Facad PowerShell syntax gate failed for $path"
+            }
+            Write-Host "PS_PARSE_PASS=$path"
+          }
+
       - name: Extract official Facad installer wrapper
         shell: pwsh
         run: |
