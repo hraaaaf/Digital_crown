@@ -23,6 +23,7 @@ function renderHeader(props: { isCrownBotOpen?: boolean; crownBotUnreadCount?: n
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   mockUser = { is_superadmin: false, nom_complet: 'Dr Test', role: 'DENTISTE', employer_id: null };
   vi.mocked(cabinetApi.getMine).mockResolvedValue({ nom_cabinet: 'Cabinet Test', header_lines_fr: ['Dr Test'] } as never);
   vi.mocked(api.get).mockResolvedValue({
@@ -96,6 +97,43 @@ describe('Header G1 interactive matrix', () => {
     renderHeader();
     expect(screen.getByTitle('Réglages')).toBeTruthy();
     await waitFor(() => expect(cabinetApi.getMine).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows authoritative cabinet identity for a restricted employee without Settings access', async () => {
+    mockUser = {
+      id: 47,
+      role: 'SECRETAIRE',
+      nom_complet: 'T2 Restricted Secretary',
+      employer_id: 1,
+      permissions: { settings: false, accounting: false },
+    };
+    vi.mocked(api.get).mockImplementation(async (url) => {
+      if (url === '/admin/cabinet/me') return { data: { nom_cabinet: 'Cabinet T2 Certification' } } as never;
+      return { data: { total: 0, requires_attention: 0, items: [] } } as never;
+    });
+    renderHeader();
+    expect(await screen.findByText('Cabinet T2 Certification')).toBeTruthy();
+    expect(screen.queryByText('Centre Dentaire Benmoussa')).toBeNull();
+    expect(cabinetApi.getMine).not.toHaveBeenCalled();
+    expect(api.get).toHaveBeenCalledWith('/admin/cabinet/me');
+  });
+
+  it('fails closed to generic clinic label when employee identity cannot be fetched', async () => {
+    mockUser = {
+      id: 48,
+      role: 'DENTISTE',
+      nom_complet: 'T2 Secondary',
+      employer_id: 1,
+      permissions: { settings: false, accounting: false },
+    };
+    vi.mocked(api.get).mockImplementation(async (url) => {
+      if (url === '/admin/cabinet/me') throw new Error('cabinet identity unavailable');
+      return { data: { total: 0, requires_attention: 0, items: [] } } as never;
+    });
+    renderHeader();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/admin/cabinet/me'));
+    expect(screen.getByText('Votre cabinet')).toBeTruthy();
+    expect(screen.queryByText('Centre Dentaire Benmoussa')).toBeNull();
   });
 
   it('requires explicit confirmation before logout and Cancel is non-mutating', async () => {
