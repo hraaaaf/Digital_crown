@@ -193,7 +193,7 @@ export const ControlCenterTopologyPanel = () => {
         databaseOk: false,
         authOk: null,
         topology: null,
-        error: 'Aucune requête n’est envoyée à une origine distante avant votre navigation explicite. Ouvrez ce serveur pour exécuter le diagnostic directement sur son origine.',
+        error: 'Aucune requête n’est envoyée à une origine distante avant votre navigation explicite. Vérifiez l’adresse du cabinet puis ouvrez ce serveur. Si la page ne charge pas, revenez avec Précédent dans le navigateur pour corriger l’adresse ou le réseau.',
         crossOriginLimited: true,
       });
       return;
