@@ -6,14 +6,28 @@ No database, network probe, backend server or certificate material is required.
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
 import os
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
 
-from backend.core import cabinet_topology as topology
+# Load the actual pure contract directly. Importing backend/__init__.py would
+# initialize clinical ORM models (SQLAlchemy), which is intentionally excluded
+# from this isolated FUE-0 gate. Stub only package namespace resolution used
+# by the real legacy frontend helper's import; never stub contract behavior.
+_contract_source = Path("backend/core/cabinet_topology.py")
+_spec = importlib.util.spec_from_file_location("backend.core.cabinet_topology", _contract_source)
+if _spec is None or _spec.loader is None:
+    raise RuntimeError("Cannot load the canonical topology source")
+sys.modules["backend"] = ModuleType("backend")
+sys.modules["backend.core"] = ModuleType("backend.core")
+topology = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = topology
+_spec.loader.exec_module(topology)
 
 
 ARTIFACT = Path("artifacts/fue-v15-01-1/topology-fue0-report.json")
