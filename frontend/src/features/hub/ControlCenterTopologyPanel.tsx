@@ -40,6 +40,7 @@ type ProbeResult = {
   backendHttpStatus?: number | null;
   databaseHttpStatus?: number | null;
   authHttpStatus?: number | null;
+  authRefusal?: 'identity' | 'station' | 'other' | null;
   failureKind?: 'timeout' | 'network';
 };
 
@@ -107,9 +108,11 @@ const diagnosticKind = (result: ProbeResult | null) => {
   if (result.backendHttpStatus && result.backendHttpStatus >= 500) return 'service';
   if (!result.backendOk) return 'service';
   if (!result.databaseOk) return 'database';
+  if (result.authRefusal === 'identity') return 'enrollment';
+  if (result.authRefusal === 'station') return 'station-lock';
+  if (result.authHttpStatus === 423) return 'authorization';
   if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') return 'loopback';
   if (result.topology?.remediation === 'TLS_REQUIRED_FOR_LAN') return 'tls';
-  if (result.authHttpStatus === 423) return 'enrollment';
   if (result.authOk !== true) return 'authentication';
   return 'ready';
 };
@@ -130,14 +133,20 @@ const remediationCopy = (result: ProbeResult | null) => {
   if (!result.databaseOk) {
     return 'Le serveur répond, mais la base de données est indisponible. Vérifiez PostgreSQL sur le poste serveur, puis relancez le diagnostic.';
   }
+  if (result.authRefusal === 'identity') {
+    return 'Serveur et base disponibles. L’identité de ce poste doit être appairée : ouvrez le Hub et utilisez le code fourni par le propriétaire avant l’accès clinique.';
+  }
+  if (result.authRefusal === 'station') {
+    return 'Ce poste est verrouillé en mode Station. Le propriétaire doit autoriser la sortie avec son PIN dans l’interface Station ; aucun accès clinique direct.';
+  }
+  if (result.authHttpStatus === 423) {
+    return 'Le serveur refuse l’accès à ce poste (HTTP 423). Demandez à l’administrateur de vérifier son autorisation avant de continuer.';
+  }
   if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') {
     return 'Serveur limité à la machine locale. Pour un poste annexe, configurez explicitement une adresse LAN et HTTPS/TLS sur le serveur.';
   }
   if (result.topology?.remediation === 'TLS_REQUIRED_FOR_LAN') {
     return 'Exposition LAN détectée sans TLS prêt. Configurez le certificat et la clé HTTPS avant toute connexion de poste annexe.';
-  }
-  if (result.authHttpStatus === 423) {
-    return 'Serveur et base disponibles. Ce poste n’est pas encore autorisé : ouvrez le Hub et terminez son appairage avant l’accès clinique.';
   }
   if (result.authOk === false) return 'Serveur et base disponibles, mais la session de ce poste n’est pas authentifiée. Connectez-vous sur ce serveur.';
   if (result.authOk === null) {
@@ -216,6 +225,15 @@ export const ControlCenterTopologyPanel = () => {
         }),
       ]);
       const topology = await topologyResponse.json().catch(() => null) as TopologyPayload | null;
+      // A 423 is not sufficient evidence to prescribe enrollment: Station PIN
+      // lock and unknown authorization failures must remain distinct.
+      const authError = authResponse.status === 423
+        ? await authResponse.json().catch(() => null) as { detail?: string } | null
+        : null;
+      const authRefusal = authError?.detail === 'WORKSTATION_STATION_LOCKED' ? 'station'
+        : authError?.detail === 'WORKSTATION_IDENTITY_REQUIRED'
+          || authError?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED' ? 'identity'
+          : authResponse.status === 423 ? 'other' : null;
       setResult({
         baseUrl: parsed.baseUrl,
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
@@ -228,6 +246,7 @@ export const ControlCenterTopologyPanel = () => {
         backendHttpStatus: topologyResponse.status,
         databaseHttpStatus: dbResponse.status,
         authHttpStatus: authResponse.status,
+        authRefusal,
       });
     } catch (error) {
       setResult({
@@ -360,7 +379,7 @@ export const ControlCenterTopologyPanel = () => {
             <ShieldCheck className="text-primary" size={20} aria-hidden="true" />
             <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Session</p>
             <p data-control-center-auth className="mt-1 text-lg font-black">
-              {result?.authOk === true ? 'Authentifiée' : result?.authOk === false ? 'Connexion requise' : 'Après ouverture'}
+              {result?.authOk === true ? 'Authentifiée' : result?.authRefusal === 'station' ? 'Station verrouillée' : result?.authRefusal === 'identity' ? 'Appairage requis' : result?.authOk === false ? 'Connexion requise' : 'Après ouverture'}
             </p>
           </article>
         </div>
