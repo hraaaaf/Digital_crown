@@ -824,6 +824,11 @@ jobs:
           }
           $traceProbe='facad-quick-demo/clinical-tracing-probe.txt'
           'TRACING_PROBE_STARTED=true' | Set-Content $traceProbe
+          # This variable is shared by tracing and menus. Initialize before the
+          # first try so a tracing failure cannot falsely invalidate the menus.
+          $facadPid=[uint32]$facadWindow.Current.ProcessId
+          "FACAD_SHARED_PID=$facadPid" | Add-Content $traceProbe
+          if($facadPid -eq 0){throw 'Verified Facad process ID unavailable'}
           $tracingFailure=$null
           try{
             $allFacadWindows=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
@@ -851,11 +856,9 @@ jobs:
               $managerBounds.Height -lt 400){
               throw 'Robert manager geometry unexpectedly small'
             }
-            # The verified 1024x768 screenshot locates this label around 40% across
-            # and 38% down the inner manager window. Two UIA Text names exist;
-            # select by observed on-screen geometry rather than arbitrary first match.
-            $referenceX=$managerBounds.Left + $managerBounds.Width * 0.405
-            $referenceY=$managerBounds.Top + $managerBounds.Height * 0.38
+            # The two text labels overlap almost exactly (503,302 and 507,304
+            # on the verified 1024x768 screenshot). They represent the same
+            # pretreatment thumbnail, not two distinct thumbnails.
             $visibleLabels=@()
             foreach($node in $tracingLabels){
               $rect=$node.Current.BoundingRectangle
@@ -865,31 +868,32 @@ jobs:
                 $rect.Top -lt $managerBounds.Top -or $rect.Bottom -gt $managerBounds.Bottom){
                 continue
               }
-              $midX=($rect.Left+$rect.Right)/2
-              $midY=($rect.Top+$rect.Bottom)/2
-              $distance=[Math]::Sqrt([Math]::Pow($midX-$referenceX,2)+[Math]::Pow($midY-$referenceY,2))
-              $visibleLabels+= [pscustomobject]@{Element=$node;Rect=$rect;Distance=$distance}
+              $visibleLabels+= [pscustomobject]@{Element=$node;Rect=$rect}
             }
             if($visibleLabels.Count -lt 1){throw 'No visible Pretreatment label inside manager'}
-            $best=$visibleLabels | Sort-Object Distance | Select-Object -First 1
-            "PRETREATMENT_NEAREST_DISTANCE=$($best.Distance)" | Add-Content $traceProbe
-            if($best.Distance -gt 100){throw 'Pretreatment label not in screenshot-verified thumbnail area'}
-            $labelRect=$best.Rect
+            $labelRect=$visibleLabels[0].Rect
+            foreach($item in $visibleLabels){
+              $rect=$item.Rect
+              if([Math]::Abs(($rect.Left+$rect.Right)-($labelRect.Left+$labelRect.Right)) -gt 35 -or
+                 [Math]::Abs(($rect.Top+$rect.Bottom)-($labelRect.Top+$labelRect.Bottom)) -gt 30){
+                throw 'Pretreatment labels refer to different thumbnails; refusing click'
+              }
+            }
+            "PRETREATMENT_DEDUPED_LABELS=$($visibleLabels.Count)" | Add-Content $traceProbe
             "PRETREATMENT_SELECTED_LABEL_BOUNDS=$labelRect" | Add-Content $traceProbe
-            # Click inside the preview immediately above the label, not the
-            # corresponding simulation thumbnails to the right.
-            $tx=[int]($labelRect.Left + [Math]::Min($labelRect.Width/2,55))
-            $ty=[int]($labelRect.Top - 45)
-            if($ty -lt $managerBounds.Top+50 -or $tx -lt $managerBounds.Left -or
+            # The actual thumbnail is immediately above its text label in the
+            # inspected image. Interact within its rectangle, not adjacent previews.
+            $tx=[int]($labelRect.Left + $labelRect.Width/2)
+            $ty=[int]($labelRect.Top - 55)
+            if($ty -lt $managerBounds.Top + 30 -or $tx -lt $managerBounds.Left -or
               $tx -gt $managerBounds.Right -or $ty -gt $managerBounds.Bottom){
-              throw 'Pretreatment image target outside the verified manager area'
+              throw 'Pretreatment thumbnail target outside the manager area'
             }
             "PRETREATMENT_THUMBNAIL_CLICK=$tx,$ty" | Add-Content $traceProbe
             $fg=[FacadPatientMouse]::GetForegroundWindow()
             [uint32]$pidFore=0
             [void][FacadPatientMouse]::GetWindowThreadProcessId($fg,[ref]$pidFore)
             "TRACING_FG_PID=$pidFore" | Add-Content $traceProbe
-            $facadPid=[uint32]$facadWindow.Current.ProcessId
             "TRACING_FACAD_PID=$facadPid" | Add-Content $traceProbe
             if($pidFore -ne $facadPid){throw 'Tracing viewer not foreground Facad; refusing double click'}
             if(-not [FacadPatientMouse]::SetCursorPos($tx,$ty)){throw 'Cannot position tracing selection cursor'}
