@@ -422,6 +422,18 @@ jobs:
           }
           if(-not $shortcutHandled){'SHORTCUT_PROMPT_NOT_FOUND=true' | Set-Content facad-quick-demo/shortcut-prompt.txt}
           Start-Sleep -Seconds 10
+          # A previous green run still showed this dialog after logging Invoke.
+          # Record the actual post-click state and fail closed instead of trusting the action log.
+          $verifyRoot=[System.Windows.Automation.AutomationElement]::RootElement
+          $modalRows=$verifyRoot.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::NameProperty,
+              'Do you want to place a shortcut to the program on the desktop?'))
+          "SHORTCUT_MODAL_REMAINING=$($modalRows.Count)" | Add-Content facad-quick-demo/shortcut-prompt.txt
+          if($modalRows.Count -gt 0){
+            'SHORTCUT_DISMISSAL_UNVERIFIED=true' | Add-Content facad-quick-demo/shortcut-prompt.txt
+            throw 'Facad first launch modal remains after dismissal; workspace not observed'
+          }
           try{$p.Refresh()}catch{}
           "HAS_EXITED=$($p.HasExited)" | Add-Content facad-quick-demo/facad-example-process.txt
           if($p.HasExited){"EXIT_CODE=$($p.ExitCode)" | Add-Content facad-quick-demo/facad-example-process.txt}
