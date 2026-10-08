@@ -137,7 +137,10 @@ async function run(journey, viewport) {
       if (m.type() !== 'error') return;
       const message = m.text();
       // Expected adapter diagnostic only when the explicit offline 503 fixture is active.
-      if (journey === 'offline-recovery' && message === 'Path: /workstation/bootstrap') {
+      if (journey === 'offline-recovery' &&
+          (message === 'Path: /workstation/bootstrap' ||
+           message === 'Details: offline-proof')) {
+        // This is the exact deliberate 503 fixture, not an arbitrary failure.
         audit.expectedOfflineLogs.push(message);
         return;
       }
