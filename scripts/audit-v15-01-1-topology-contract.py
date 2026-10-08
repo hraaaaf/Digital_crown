@@ -5,8 +5,10 @@ No database, network probe, backend server or certificate material is required.
 """
 from __future__ import annotations
 
+import ast
 import json
 import os
+from types import SimpleNamespace
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
@@ -121,6 +123,27 @@ try:
     check("Web Push installer cannot replace canonical LAN URL authority",
           "_legacy.get_lan_base_url =" not in push_initialization
           and "_legacy.get_lan_frontend_url =" not in push_initialization)
+    # Execute the actual exported hook body with a stub legacy module. This
+    # catches dynamic monkey-patching without importing DB-dependent push APIs.
+    push_function = next(node for node in ast.parse(push).body
+                         if isinstance(node, ast.FunctionDef)
+                         and node.name == "install_secure_lan_url_overrides")
+    ast_module = ast.Module(body=[push_function], type_ignores=[])
+    base_origin = lambda: "http://127.0.0.1:8005"
+    frontend_origin = lambda: "http://127.0.0.1:5173"
+    legacy_stub = SimpleNamespace(get_lan_base_url=base_origin,
+                                  get_lan_frontend_url=frontend_origin,
+                                  _detect_lan_ip=lambda: "192.168.10.20")
+    installed = []
+    namespace = {"_legacy": legacy_stub,
+                 "_disable_legacy_fcm_registration_route": lambda: installed.append("disabled")}
+    exec(compile(ast_module, "mobile_push.py", "exec"), namespace)
+    namespace["install_secure_lan_url_overrides"]()
+    check("Web Push hook preserves canonical backend and frontend functions",
+          legacy_stub.get_lan_base_url is base_origin
+          and legacy_stub.get_lan_frontend_url is frontend_origin)
+    check("Web Push keeps obsolete FCM registration disabled",
+          installed == ["disabled"])
 
     source = Path("backend/core/cabinet_topology.py").read_text(encoding="utf-8")
     check("passive local route discovery does not rely on public DNS",
