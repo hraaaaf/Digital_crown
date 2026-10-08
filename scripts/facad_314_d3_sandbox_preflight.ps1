@@ -1,13 +1,22 @@
 # D3 PRECONDITION ONLY — prepares a scratch file copy of official example.
 # This is NOT an authorization to edit, open, save or modify the Facad patient.
-param([Parameter(Mandatory=$true)][string]$OutDir)
+param([Parameter(Mandatory=$true)][string]$OutDir,
+      [Parameter(Mandatory=$true)][string]$SourcePath)
 $ErrorActionPreference='Stop'
 $dir=[IO.Path]::GetFullPath($OutDir)
 [void][IO.Directory]::CreateDirectory($dir)
 $log=Join-Path $dir 'd3-sandbox-preflight.txt'
 'D3_PREFLIGHT=STARTED' | Set-Content -Encoding utf8 $log
 function Log([string]$v){Add-Content -Encoding utf8 $log $v}
-$source='C:\Facad\Examples\Robert-2.0.fcd'
+# The bootstrap extracted the signed Facad release and actually launched
+# `facad-quick-demo/release/Examples/Robert-2.0.fcd`. Receive THAT exact
+# absolute path instead of assuming a separate install-folder example.
+$source=[IO.Path]::GetFullPath($SourcePath)
+if([IO.Path]::GetFileName($source) -ne 'Robert-2.0.fcd' -or
+   $source -notlike '*facad-quick-demo*release*Examples*Robert-2.0.fcd'){
+  throw 'D3 source path is not the verified official release sample'
+}
+Log "SAMPLE_SOURCE_RELATIVE=facad-quick-demo/release/Examples/Robert-2.0.fcd"
 if(-not (Test-Path -LiteralPath $source -PathType Leaf)){
  Log "SAMPLE_SOURCE_PRESENT=false"
  Log 'D3_TEST_EXECUTION=BLOCKED_NO_SOURCE'
