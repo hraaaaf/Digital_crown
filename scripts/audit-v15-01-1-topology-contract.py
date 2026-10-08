@@ -116,6 +116,12 @@ try:
     check("topology diagnostic is explicitly exposed",
           '@app.get("/api/health/topology"' in main
           and "resolve_cabinet_network().diagnostics()" in main)
+    push = Path("backend/routers/mobile_push.py").read_text(encoding="utf-8")
+    push_initialization = push.split("def install_secure_lan_url_overrides()", 1)[1].split("@router.get", 1)[0]
+    check("Web Push installer cannot replace canonical LAN URL authority",
+          "_legacy.get_lan_base_url =" not in push_initialization
+          and "_legacy.get_lan_frontend_url =" not in push_initialization)
+
     source = Path("backend/core/cabinet_topology.py").read_text(encoding="utf-8")
     check("passive local route discovery does not rely on public DNS",
           "8.8.8.8" not in source
