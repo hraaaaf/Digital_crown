@@ -303,11 +303,11 @@ try {
       }
       return result;
     };
-    const textZoomMobile = await assertHeaderNotClipped('390x844');
     await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: true, animations: 'disabled' });
+    const textZoomMobile = await assertHeaderNotClipped('390x844');
     await ux.setViewportSize({ width: 1280, height: 900 });
-    const textZoomDesktop = await assertHeaderNotClipped('1280x900');
     await ux.screenshot({ path: path.join(uxDir, '01b-css-text-zoom-200pct-desktop.png'), fullPage: true, animations: 'disabled' });
+    const textZoomDesktop = await assertHeaderNotClipped('1280x900');
     await ux.setViewportSize({ width: 390, height: 844 });
     await ux.evaluate(() => { document.documentElement.style.fontSize = ''; });
 
