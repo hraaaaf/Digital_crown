@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { WorkstationModeGate } from './WorkstationModeGate';
 import { workstationModeService } from '../../services/workstationMode';
 
@@ -124,4 +124,38 @@ describe('WorkstationModeGate V1.5-00.3 direct URL security', () => {
     await waitFor(() => expect(screen.getByText('STATION')).toBeInTheDocument());
     expect(screen.queryByText('REQUESTED')).not.toBeInTheDocument();
   });
+  it('revalidates an authorized owner escape before switching from Station to Hub', async () => {
+    let escapeAuthorized = false;
+    vi.mocked(workstationModeService.getBootstrapState).mockImplementation(async () => ({
+      ...bootstrap,
+      stationEscapeAuthorized: escapeAuthorized,
+      stationEscapeExpiresAt: escapeAuthorized ? Math.floor(Date.now() / 1000) + 600 : null,
+    }));
+
+    const StationExit = () => {
+      const navigate = useNavigate();
+      return <button onClick={() => {
+        escapeAuthorized = true;
+        navigate('/hub?select=1', { replace: true });
+      }}>Autoriser le Hub</button>;
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/station']}>
+        <Routes>
+          <Route path="/station" element={
+            <WorkstationModeGate target="station"><StationExit /></WorkstationModeGate>
+          } />
+          <Route path="/hub" element={
+            <WorkstationModeGate target="hub"><div>HUB APRÈS AUTORISATION</div></WorkstationModeGate>
+          } />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Autoriser le Hub' }));
+    await screen.findByText('HUB APRÈS AUTORISATION');
+    expect(workstationModeService.getBootstrapState).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Autoriser le Hub' })).not.toBeInTheDocument();
+  });
+
 });
