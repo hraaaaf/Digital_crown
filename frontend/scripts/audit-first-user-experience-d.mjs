@@ -53,6 +53,7 @@ try {
       await page.goto(root + '/login', { waitUntil: 'domcontentloaded' });
       await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
       await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.getByPlaceholder('nom@cabinet.com').waitFor({ state: 'visible', timeout: 15000 });
       await snap('01-before-login');
       await page.getByPlaceholder('nom@cabinet.com').fill('t2-browser@cabinet.ma'); interactions++;
       await page.getByPlaceholder('••••••••').fill(password); interactions++;
@@ -68,6 +69,7 @@ try {
       await page.getByRole('link', { name: 'Créer un dossier' }).click(); interactions++;
       await page.waitForURL('**/patients/new');
       await page.locator('input[name="nom"]').waitFor({ state: 'visible' });
+      await page.evaluate(() => window.scrollTo(0, 0));
       await snap('03-form-before');
       let posts = 0;
       page.on('request', req => { if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/patients/') posts++; });
@@ -75,6 +77,7 @@ try {
       if (posts !== 0) throw new Error('Invalid form sent create request');
       const required = await page.locator('body').innerText();
       if (!required.includes('Le nom est requis') || !required.includes('Le prénom est requis')) throw new Error('Required-field refusal not understandable');
+      await page.evaluate(() => window.scrollTo(0, 0));
       await snap('04-validation');
       const idtag = 'FUED-' + profile.name.toUpperCase() + '-' + String(Date.now()).slice(-9);
       const nom = 'FUEDTEST';
@@ -83,6 +86,7 @@ try {
       await page.locator('input[name="date_naissance"]').fill('1990-01-01'); interactions++;
       await page.locator('select[name="sexe"]').selectOption('F'); interactions++;
       await page.locator('input[name="numero_dossier"]').fill(idtag); interactions++;
+      await page.evaluate(() => window.scrollTo(0, 0));
       await snap('05-form-filled');
       const createResponse = page.waitForResponse(res => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/patients/', { timeout: 25000 });
       await page.getByRole('button', { name: 'Créer le dossier', exact: true }).click(); interactions++;
@@ -116,7 +120,7 @@ try {
     const auth = await restrictedCtx.post('/api/auth/login', { form: { username: 't2-restricted@cabinet.ma', password } });
     if (!auth.ok()) throw new Error('Restricted persona login status=' + auth.status());
     const restrictedToken = (await auth.json()).access_token;
-    const client = await request.newContext({ baseURL: api, extraHTTPHeaders: { Authorization: 'Bearer ' + restrictedToken } });
+    const client = await request.newContext({ baseURL: api, storageState: stationState, extraHTTPHeaders: { Authorization: 'Bearer ' + restrictedToken } });
     try {
       const data = { nom: 'FUEDDENIED', prenom: 'Unauthorized', date_naissance: '1990-01-01', sexe: 'F' };
       const read = await client.get('/api/patients/');
