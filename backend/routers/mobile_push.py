@@ -1,6 +1,5 @@
 """M6-D2 — standards-based Web Push bound to the authenticated paired mobile device."""
 from dataclasses import dataclass
-import os
 import re
 from typing import Literal
 from urllib.parse import urlparse
@@ -64,10 +63,6 @@ def _validate_subscription_payload(body: PushSubscriptionRequest) -> None:
         raise HTTPException(status_code=422, detail="Endpoint Web Push invalide.")
     if not _B64URL_RE.fullmatch(body.keys.p256dh) or not _B64URL_RE.fullmatch(body.keys.auth):
         raise HTTPException(status_code=422, detail="Clés Web Push invalides.")
-
-
-def _secure_lan_enabled() -> bool:
-    return os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _disable_legacy_fcm_registration_route() -> None:
