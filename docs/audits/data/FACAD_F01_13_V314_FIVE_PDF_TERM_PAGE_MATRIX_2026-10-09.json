@@ -103,6 +103,10 @@
     "original_atlas_editor_edition_verified": false,
     "numeric_parity_tested": false,
     "c02_empty_hits_meaning": "Only exact queried strings absent, not measure definitions proven absent",
-    "all_hits_are_lexical_only": true
+    "all_hits_are_lexical_only": true,
+    "c01_xi_substring_false_positive_observed": true,
+    "c01_xi_page_hits_are_unverified_marker_identity": true,
+    "c01_reason": "The prior exact-substring scan detected 'Xi' within the word 'Maxillary' on C01 PDF page 1. A whole-token reread is required before claiming this is a constructed Xi landmark.",
+    "c01_strict_token_probe_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37990457485"
   }
 }
