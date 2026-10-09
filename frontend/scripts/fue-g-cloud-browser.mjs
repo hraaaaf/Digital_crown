@@ -56,7 +56,7 @@ try {
     if (!login.ok()) throw new Error(role + ' browser persona authentication failed HTTP ' + login.status());
     const tokens = await login.json();
     if (!tokens.access_token) throw new Error(role + ' access token missing');
-    const ctx = await browser.newContext({ viewport, colorScheme: 'light', ignoreHTTPSErrors: false });
+    const ctx = await browser.newContext({ viewport, colorScheme: 'light', reducedMotion: 'reduce', ignoreHTTPSErrors: false });
     try {
       await ctx.addCookies([workstationCookie(role)]);
       const page = await ctx.newPage();
@@ -80,7 +80,8 @@ try {
       if (!identity.workstationId || sha16(identity.workstationId) !== pair.workstationHash) {
         throw new Error(role + ' browser workstation not the paired Docker identity');
       }
-      await page.screenshot({ path: path.join(evidence, role + '-before-dashboard.png'), fullPage: false });
+      await page.evaluate(() => document.fonts.ready);
+      await page.screenshot({ path: path.join(evidence, role + '-before-dashboard.png'), fullPage: false, animations: 'disabled' });
       let restrictedRouteDenied = false;
       if (role === 'C' || role === 'D') {
         await page.goto(base + '/patients', { waitUntil: 'domcontentloaded', timeout: 90000 });
@@ -94,7 +95,8 @@ try {
       await page.waitForURL('**/agenda', { timeout: 20000 });
       await page.getByRole('heading', { name: 'Agenda', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
       await page.locator('[data-testid="agenda-active-view"]').waitFor({ state: 'visible', timeout: 30000 });
-      await page.screenshot({ path: path.join(evidence, role + '-after-agenda.png'), fullPage: false });
+      await page.evaluate(() => document.fonts.ready);
+      await page.screenshot({ path: path.join(evidence, role + '-after-agenda.png'), fullPage: false, animations: 'disabled' });
       results.push({
         role, persona: roles[role], status: 'PASS', workstationHash: pair.workstationHash,
         tlsBrowserVerified: true, viewport: '1280x900', before: role + '-before-dashboard.png',
