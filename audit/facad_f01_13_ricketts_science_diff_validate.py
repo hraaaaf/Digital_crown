@@ -73,12 +73,10 @@ def validate(diff_path: Path = ROOT / DIFF) -> None:
             raise ValueError(f"Reference ordinal mismatch {j}")
         if row["facad_editor_profile"] != ("Ricketts (32 F)" if is32 else "Ricketts (13 F)"):
             raise ValueError(f"Facad variant has been relabelled: {j}")
-        expected_facad_ord = (
-            EXPECTED_32_UI_ROWS[j] if is32 and j != 28 else
-            None if is32 else EXPECTED_12_UI_ROWS[j - 33] if j < 45 else 15
-        )
-        if j > 28 and is32:
-            expected_facad_ord = EXPECTED_32_UI_ROWS[j-1]
+        if is32:
+            expected_facad_ord = None if j == 28 else EXPECTED_32_UI_ROWS[j if j < 28 else j - 1]
+        else:
+            expected_facad_ord = EXPECTED_12_UI_ROWS[j - 33] if j < 45 else 15
         expected_facad_ord = str(expected_facad_ord) if expected_facad_ord is not None else ""
         if row["facad_ui_row_ordinal"] != expected_facad_ord:
             raise ValueError(f"Missing/extra/unexpected Facad UIA factor at {j}")
