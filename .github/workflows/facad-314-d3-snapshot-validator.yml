@@ -7,6 +7,10 @@ on:
     paths:
       - scripts/facad_314_d3_snapshot_diff_gate.py
       - scripts/test_facad_314_d3_snapshot_diff_gate.py
+      - scripts/facad_314_d3_storage_authority_gap_gate.py
+      - scripts/test_facad_314_d3_storage_authority_gap_gate.py
+      - scripts/facad_314_d3_windows_snapshot.ps1
+      - scripts/facad_314_d3_process_io_observer.ps1
       - .github/workflows/facad-314-d3-snapshot-validator.yml
   workflow_dispatch:
 
@@ -27,6 +31,14 @@ jobs:
         run: python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/test_facad_314_d3_snapshot_diff_gate.py
       - name: Verify synthetic D3 drift and fail-closed evidence
         run: python -m unittest scripts/test_facad_314_d3_snapshot_diff_gate.py -v
+      - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py
+          python -m unittest scripts/test_facad_314_d3_storage_authority_gap_gate.py -v
+          python scripts/facad_314_d3_storage_authority_gap_gate.py --collector scripts/facad_314_d3_windows_snapshot.ps1 --observer scripts/facad_314_d3_process_io_observer.ps1 --comparator scripts/facad_314_d3_snapshot_diff_gate.py
+          echo 'FACAD_APPLICATION_LAUNCHED=false'
+          echo 'PATIENT_IO=false'
+          echo 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
       - name: Enforce claims remain unverified
         run: |
           python - <<'PY'
