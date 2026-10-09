@@ -16,8 +16,18 @@ jobs:
   hub-dispatcher-fue:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+      - name: Verify exact PR HEAD checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          echo "Exact PR HEAD checkout verified"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
