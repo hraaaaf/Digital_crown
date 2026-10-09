@@ -130,7 +130,7 @@ def self_test() -> None:
         ("remove_atlas_29", lambda r: r.pop(28)),
         ("fake_atlas_29_mapping", lambda r: r[28].update(facad_ui_row_ordinal="34")),
         ("promote_geometry", lambda r: r[1].update(finding_scope="SOURCE_LOCKED")),
-        ("hide_angular_linear_clash", lambda r: r[35].update(facac_measurement_type="Angle4p", finding_code="ORDERED_LABEL_CANDIDATE_ONLY")),
+        ("hide_angular_linear_clash", lambda r: r[35].update(facad_measurement_type="Angle4p", finding_code="ORDERED_LABEL_CANDIDATE_ONLY")),
         ("hide_extra_interincisal", lambda r: r[45].update(finding_code="ORDERED_LABEL_CANDIDATE_ONLY")),
         ("wrong_facad_variant", lambda r: r[44].update(facad_editor_profile="Ricketts (32 F)")),
     ]
