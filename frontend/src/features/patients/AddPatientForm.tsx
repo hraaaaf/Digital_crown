@@ -295,13 +295,13 @@ export const AddPatientForm = () => {
         
         {/* Header Premium */}
         <div className="@container bg-[#003380] px-[12px] sm:px-10 py-[24px] sm:py-8 flex justify-between items-center relative overflow-hidden">
-          <div className="flex w-full min-w-0 flex-wrap items-center gap-[10px] sm:gap-5 relative z-10">
+          <div className="flex w-full min-w-0 flex-col items-start gap-[10px] sm:flex-row sm:items-center sm:gap-5 relative z-10">
             <div className="shrink-0 p-[10px] bg-white/10 rounded-2xl border border-white/20 backdrop-blur-md">
               <User className="text-white w-[32px] h-[32px]" />
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="w-full min-w-0 sm:flex-1">
               <h2 className="break-normal text-[clamp(0.875rem,6cqw,1.5rem)] font-black text-white tracking-tight leading-tight">Nouveau Patient</h2>
-              <p className="break-words text-blue-200 text-sm font-medium mt-1">Digital Crown — Vérification anti-doublon activée</p>
+              <p className="[overflow-wrap:anywhere] text-blue-200 text-sm font-medium mt-1">Digital Crown — Vérification anti-doublon activée</p>
             </div>
           </div>
         </div>
