@@ -75,7 +75,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: facad-314-d3-process-io-smoke-\${{ github.sha }}
+          name: facad-314-d3-process-io-smoke-${{ github.sha }}
           if-no-files-found: warn
           retention-days: 7
           path: facad-d3-process-io-smoke.json
