@@ -40,6 +40,30 @@ class D3DiffTests(unittest.TestCase):
         self.assertEqual(x['observed_change_count'], 1)
         self.assertNotIn('image.jpg', json.dumps(x))
 
+    def test_facad_ilexis_settings_metadata_drift_blocks(self):
+        name = 'facad_ilexis_roaming_settings'
+        item = 'hashed-Facad-settings-path'
+        self.before['scopes'][name]['entries'][item] = {'sha256': 'a'*64, 'size': 123}
+        self.after['scopes'][name]['entries'][item] = {'sha256': 'b'*64, 'size': 123}
+        result = gate.compare(self.before, self.after)
+        self.assertEqual(result['verdict'], 'BLOCKED_OBSERVED_STORAGE_DRIFT')
+        self.assertEqual(result['observed_changes'][0]['scope'], name)
+        self.assertNotIn(item, json.dumps(result))
+        self.assertFalse(result['d3_isolation_verified'])
+
+    def test_missing_ilexis_scope_rejected(self):
+        self.after['scopes'].pop('facad_ilexis_roaming_settings')
+        with self.assertRaises(gate.EvidenceError):
+            gate.compare(self.before, self.after)
+
+    def test_ilexis_absent_does_not_certify_isolation(self):
+        for obj in (self.before, self.after):
+            obj['scopes']['facad_ilexis_roaming_settings']['present'] = False
+        result = gate.compare(self.before, self.after)
+        self.assertEqual(result['verdict'], 'INCONCLUSIVE_NO_OBSERVED_STORAGE_DRIFT')
+        self.assertFalse(result['d3_isolation_verified'])
+        self.assertFalse(result['clinical_edit_allowed'])
+
     def test_changed_registry_blocks(self):
         row = {'sha256': 'b'*64, 'size': 0}
         self.before['scopes']['facad_registry_hkcu']['entries']['MRU'] = row
