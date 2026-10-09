@@ -1,0 +1,18 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Ricketts (13 F),measurements,Mandible,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Ricketts (13 F),measurements,Facial axis,Angle4p,Pt,Gn,N,Ba,90±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Ricketts (13 F),measurements,Facial depth,Angle2ln,FL,FH,,,89±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Ricketts (13 F),measurements,ML/FH,Angle2ln,FH,ML,,,26±4.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Ricketts (13 F),measurements,LFH,Angle3p,Xi,ANS,PM,,45±4,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Ricketts (13 F),measurements,PFH,Dist2p,CF,Go,,,63±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Ricketts (13 F),measurements,Mand arc,Angle4p,Xi,PM,DC,Xi,30±4,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Ricketts (13 F),measurements,Maxilla,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Ricketts (13 F),measurements,Convexity,DistLine,FL,A,,,0±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Ricketts (13 F),measurements,Max depth,Angle4p,A,N,P,Or,90±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Ricketts (13 F),measurements,Dental,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Ricketts (13 F),measurements,Ii to A-Pog,Dist3p,Pog,A,Ii,,1±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Ricketts (13 F),measurements,ILi/A-Pog,Angle4p,Pog,A,Iia,Ii,22±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Ricketts (13 F),measurements,Ms-PtV,ProjLine,FH,Pt,Ms-d,,19±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Ricketts (13 F),measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,130±10,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Ricketts (13 F),measurements,Soft tissue,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Ricketts (13 F),measurements,Li-EL,DistLine,EL,Li,,,-2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
