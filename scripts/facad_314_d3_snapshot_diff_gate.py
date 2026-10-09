@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 from pathlib import Path
@@ -77,8 +76,9 @@ def compare(before: object, after: object) -> dict:
             old, new = a['entries'].get(key), b['entries'].get(key)
             if old != new:
                 category = 'ADDED' if old is None else ('DELETED' if new is None else 'MODIFIED')
-                # Only print a non-reversible digest of a relative key, not a user path.
-                changes.append({'scope': name, 'entry_key_sha256': hashlib.sha256(key.encode('utf-8')).hexdigest(), 'change': category})
+                # Never emit even pseudonymous path hashes in the verdict.
+                # Small-dictionary file names can be guessed from unsalted hashes.
+                changes.append({'scope': name, 'change': category})
     return {
         'd3_isolation_verified': False,
         'clinical_edit_allowed': False,
