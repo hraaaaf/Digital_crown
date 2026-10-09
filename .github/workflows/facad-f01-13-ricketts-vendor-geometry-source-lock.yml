@@ -1,0 +1,46 @@
+name: Facad F01.13 official Ricketts geometric lineage source-lock
+
+on:
+  push:
+    branches: [feat/cephalo-facad-direct-parity-runtime-probe]
+    paths:
+      - .github/workflows/facad-f01-13-ricketts-vendor-geometry-source-lock.yml
+      - audit/facad_f01_13_ricketts_vendor_construction_chain_validate.py
+      - docs/audits/data/FACAD_F01_13_V314_WHOLE_TOKEN_SOURCE_SNIPPETS_2026-10-09.json
+      - docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json
+      - docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
+      - docs/audits/data/FACAD_314_D1C_RICKETTS13F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
+      - docs/audits/data/FACAD_314_D1C_RICKETTS32F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  official-vendor-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Source HEAD identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+      - name: Correlate original PDF glossary and vendor CPH geometry, fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile audit/facad_f01_13_ricketts_vendor_construction_chain_validate.py
+          ARGS=(
+            --ptv docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json
+            --final-seven docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
+            --manual docs/audits/data/FACAD_F01_13_V314_WHOLE_TOKEN_SOURCE_SNIPPETS_2026-10-09.json
+            --ricketts13 docs/audits/data/FACAD_314_D1C_RICKETTS13F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
+            --ricketts32 docs/audits/data/FACAD_314_D1C_RICKETTS32F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
+          )
+          python audit/facad_f01_13_ricketts_vendor_construction_chain_validate.py "${ARGS[@]}" --self-test
+          python audit/facad_f01_13_ricketts_vendor_construction_chain_validate.py "${ARGS[@]}"
+          echo "CLINICAL_EDIT_ALLOWED=false"
+          echo "SHARED_APP_STORAGE_ISOLATION=UNVERIFIED"
