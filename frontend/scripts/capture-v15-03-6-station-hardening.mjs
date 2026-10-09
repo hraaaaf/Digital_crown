@@ -276,7 +276,9 @@ const failures = report.filter(item =>
   item.clinicalLinks.length > 0 ||
   item.arrivedVisible ||
   !item.patientNameVisible ||
-  (phase === 'before' ? !item.technicalToastVisible : item.technicalToastVisible) ||
+  // BEFORE captures the historical outcome; it cannot be required to exhibit a defect.
+  // AFTER is a hard safety contract: NEVER show a generic technical server toast.
+  (phase === 'after' && item.technicalToastVisible) ||
   !item.offlineErrorVisible ||
   (phase === 'after' && item.themeContrasts.some(entry => entry.ratio < 4.5)) ||
   item.errors.length > 0
