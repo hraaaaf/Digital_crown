@@ -153,13 +153,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const { status, data, config: cfg } = error.response;
-    if (!_authFailed) {
-      console.group(`API Error [${status}]`);
-      console.error('Path:', cfg?.url);
-      console.error('Details:', data?.detail || data || error.message);
-      if (data?.detail && Array.isArray(data.detail)) console.table(data.detail);
-      console.groupEnd();
+    const { status } = error.response;
+    // Never log response bodies or request paths: validation details can contain
+    // patient data, even in development sessions.
+    if (!_authFailed && import.meta.env.DEV) {
+      console.warn('API request rejected (HTTP status only):', status);
     }
 
     if (status === 423 && typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
@@ -247,7 +245,8 @@ api.interceptors.response.use(
         window.location.href = '/login?locked=true';
       }
     } else if (status >= 500 && !isPublicStationRoute()) {
-      toast.error('Erreur Serveur (500)', { id: 'server-error' });
+      const serverMessage = status === 503 ? 'Service temporairement indisponible (503)' : `Erreur serveur (${status})`;
+      toast.error(serverMessage, { id: 'server-error' });
     }
 
 

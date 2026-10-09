@@ -137,9 +137,10 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             transition: opacity 150ms ease 125ms, transform 260ms cubic-bezier(0.16, 1, 0.3, 1) 90ms;
           }
           .sidebar-label {
-            max-width: 190px;
-            overflow: hidden;
-            white-space: nowrap;
+            min-width: 0;
+            max-width: 100%;
+            white-space: normal;
+            overflow-wrap: anywhere;
             transition: max-width 280ms cubic-bezier(0.16, 1, 0.3, 1) 80ms, opacity 150ms ease 125ms, transform 260ms cubic-bezier(0.16, 1, 0.3, 1) 90ms;
           }
           .sidebar-cabinet-section {
@@ -229,7 +230,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
       <aside
         className={cn(
           "sidebar-shell w-72 lg:w-[68px] h-screen fixed lg:relative z-[10000] shrink-0",
-          desktopExpanded && "lg:w-72",
+          desktopExpanded && "lg:w-[min(18rem,320px)]",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         data-expanded={desktopExpanded ? "true" : "false"}
@@ -422,13 +423,13 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
             />
           )}
           <span 
-            className={cn("relative z-10 transition-elite", isActuallyActive ? "scale-110 text-primary" : "group-hover:scale-110")}
+            className={cn("relative z-10 shrink-0 transition-elite", isActuallyActive ? "scale-110 text-primary" : "group-hover:scale-110")}
             style={isActuallyActive ? { color: 'var(--primary)' } : {}}
           >
             {icon}
           </span>
           <span
-            className={cn("sidebar-label text-sm relative z-10 tracking-tight transition-elite", isActuallyActive ? "font-black" : "font-bold")}
+            className={cn("sidebar-label min-w-0 flex-1 text-sm leading-snug relative z-10 tracking-tight transition-elite", isActuallyActive ? "font-black" : "font-bold")}
             style={isActuallyActive ? { color: 'var(--primary)' } : {}}
           >
             {label}
