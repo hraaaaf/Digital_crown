@@ -296,7 +296,7 @@ try {
   await browser.close();
 }
 const summary = {
-  head: process.env.GITHUB_HEAD_SHA || process.env.GITHUB_SHA || null,
+  head: process.env.PRODUCT_HEAD || null,
   scope: 'synthetic Hub/Dispatcher FUE-I, no real backend PIN/auth/clinical verification',
   runs: reports.length,
   passed: reports.filter(x => x.outcome === 'PASS').length,
@@ -309,4 +309,7 @@ const summary = {
 };
 await fs.writeFile(path.join(out, 'certification-matrix.json'), JSON.stringify(summary, null, 2));
 console.log('V1.5-00.4 FUE matrix', JSON.stringify(summary, null, 2));
+if (!/^[0-9a-f]{40}$/.test(summary.head || '')) {
+  throw new Error('GitHub exact-HEAD provenance is required for this certification');
+}
 if (summary.failed.length) process.exitCode = 1;
