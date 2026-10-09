@@ -1,0 +1,36 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Sato Denture Frame,markers,Or,Orbitale,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Sato Denture Frame,markers,Pt,Pterygo-maxillary fissure,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Sato Denture Frame,markers,PNS,Posterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Sato Denture Frame,markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Sato Denture Frame,markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Sato Denture Frame,markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Sato Denture Frame,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Sato Denture Frame,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Sato Denture Frame,markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Sato Denture Frame,markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Sato Denture Frame,markers,Pog,Pogonion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Sato Denture Frame,markers,Gn,Gnathion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Sato Denture Frame,markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Sato Denture Frame,markers,aGo,anterior Gonion (lower border of mandible),Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Sato Denture Frame,markers,P,Porion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Sato Denture Frame,markers,Msa,Molar superior apex,Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Sato Denture Frame,markers,Ms,"Molar superior, cusp",Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Sato Denture Frame,markers,Ms-m,"Molar superior, most mesial point",Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Sato Denture Frame,markers,Ms-dc,"Molar superior, distal cusp",Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Sato Denture Frame,markers,Ms-mc,"Molar superior, mesial cusp",Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Sato Denture Frame,markers,Mi,"Molar inferior, cusp",Marker,"Molar, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Sato Denture Frame,markers,Mia,Molar inferior apex,Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Sato Denture Frame,markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Sato Denture Frame,markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Sato Denture Frame,markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Sato Denture Frame,markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Sato Denture Frame,markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Sato Denture Frame,markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Sato Denture Frame,markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Sato Denture Frame,markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Sato Denture Frame,markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Sato Denture Frame,markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Sato Denture Frame,markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Sato Denture Frame,markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Sato Denture Frame,markers,T,Throat (neck),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
