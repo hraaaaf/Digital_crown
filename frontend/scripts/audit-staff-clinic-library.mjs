@@ -97,6 +97,32 @@ try {
         item.checks.push('Backend patient RBAC');
       } finally { await api.dispose(); }
       await capture('dashboard-identity');
+      // The corrected Cabinet Actif lives inside a collapsed/closed sidebar by
+      // default. Attached DOM assertions and header-only screenshots do NOT
+      // establish visible UX. Exercise the real disclosure control and capture.
+      const sidebar = page.locator('.sidebar-shell');
+      if (actor.vp.width < 1024) {
+        await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      } else {
+        await sidebar.hover();
+        await page.waitForFunction(() => document.querySelector('.sidebar-shell')?.dataset.expanded === 'true');
+      }
+      await sidebar.waitFor({ state: 'visible' });
+      const cabinetControl = actor.staff
+        ? page.getByTestId('staff-active-cabinet')
+        : page.locator('.sidebar-cabinet-full select');
+      await cabinetControl.waitFor({ state: 'visible', timeout: 15000 });
+      await page.waitForFunction(selector => {
+        const element = document.querySelector(selector);
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const css = getComputedStyle(element);
+        return rect.width >= 80 && rect.height >= 22
+          && Number(css.opacity) > 0.9
+          && rect.left >= 0 && rect.right <= innerWidth;
+      }, actor.staff ? '[data-testid="staff-active-cabinet"]' : '.sidebar-cabinet-full select', { timeout: 15000 });
+      item.checks.push('Active clinic control visually exposed in actual sidebar');
+      await capture('dashboard-cabinet-expanded');
       if (actor.staff) {
         if (await page.getByRole('link', { name: 'Patients', exact: true }).count()) throw Error('Restricted staff sees patient navigation');
         await page.goto(base + '/patients', { waitUntil: 'domcontentloaded' });
