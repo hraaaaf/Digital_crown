@@ -128,7 +128,9 @@ jobs:
         working-directory: frontend
         run: |
           node --check scripts/certify-v15-02-dashboard-search-viewport.mjs
-          node scripts/run-with-t2-workstation.mjs scripts/certify-v15-02-dashboard-search-viewport.mjs
+          # The earlier photo lifecycle capture has consumed the one-use mobile pairing token.
+          # Search geometry needs workstation authentication, not a second mobile pairing.
+          T2_MOBILE_PAIRING_TOKEN= node scripts/run-with-t2-workstation.mjs scripts/certify-v15-02-dashboard-search-viewport.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
