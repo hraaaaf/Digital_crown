@@ -27,9 +27,16 @@ jobs:
         run: |
           $tokens=$null
           $errors=$null
-          [void][Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path 'scripts/facad_314_d3_windows_snapshot.ps1').Path,[ref]$tokens,[ref]$errors)
-          if($errors.Count){foreach($e in $errors){Write-Host "D3_PARSE_FAILURE_LINE=$($e.Extent.StartLineNumber);COL=$($e.Extent.StartColumnNumber);MESSAGE=$($e.Message)"};throw 'D3 snapshot script does not parse'}
+          foreach($path in @('scripts/facad_314_d3_windows_snapshot.ps1','scripts/facad_314_d3_process_io_observer.ps1')){
+            $tokens=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
+            if($errors.Count){
+              foreach($e in $errors){Write-Host "D3_PARSE_FAILURE_PATH=$path;LINE=$($e.Extent.StartLineNumber);COL=$($e.Extent.StartColumnNumber);MESSAGE=$($e.Message)"}
+              throw 'D3 PowerShell collector does not parse'
+            }
+            Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
+          }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
@@ -393,7 +400,25 @@ jobs:
           $p=$null
           try{
             $p=Start-Process -FilePath $installed.FullName -ArgumentList ('"'+$copy+'"') -WorkingDirectory $installed.DirectoryName -PassThru -ErrorAction Stop
-            Start-Sleep -Seconds 15
+            Start-Sleep -Seconds 3
+            if($p.HasExited){throw 'Facad exited before process observation'}
+            $processScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_process_io_observer.ps1'
+            $processOut=Join-Path $env:GITHUB_WORKSPACE 'facad-quick-demo/d3-process-io-startup.json'
+            & $processScript -TargetPid $p.Id -DurationSeconds 6 -OutputPath $processOut
+            $processEvidence=Get-Content -LiteralPath $processOut -Raw | ConvertFrom-Json
+            if($processEvidence.schema -cne 'facad314_d3_process_io_v1' -or
+               $processEvidence.verdict -cne 'INCONCLUSIVE_PROCESS_IO_COUNTERS_ONLY' -or
+               $processEvidence.sample_count -ne 12 -or
+               $processEvidence.d3_isolation_verified -ne $false -or
+               $processEvidence.clinical_edit_allowed -ne $false -or
+               $processEvidence.path_attribution_available -ne $false -or
+               $processEvidence.complete_child_process_coverage -ne $false -or
+               $processEvidence.files_or_command_lines_read -ne $false -or
+               $processEvidence.registry_values_read -ne $false){
+              throw 'D3 process-only evidence contract mismatch'
+            }
+            Write-Host 'D3_PROCESS_IO_OBSERVATION_COMPLETE=true'
+            Start-Sleep -Seconds 6
             if($p.HasExited){throw 'Facad exited before startup observation completed'}
             Write-Host 'D3_PROBE_ACTION=APP_STARTUP_ONLY_NO_UI_CLICKS'
           } finally {
@@ -442,5 +467,6 @@ jobs:
             facad-quick-demo/d3-storage-before.json
             facad-quick-demo/d3-storage-after.json
             facad-quick-demo/d3-storage-verdict.json
+            facad-quick-demo/d3-process-io-startup.json
             facad-quick-demo/quick-demo-process.txt
             facad-quick-demo/settings-found.txt
