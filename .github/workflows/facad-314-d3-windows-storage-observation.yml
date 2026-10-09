@@ -29,7 +29,7 @@ jobs:
           $errors=$null
           [void][Management.Automation.Language.Parser]::ParseFile(
             (Resolve-Path 'scripts/facad_314_d3_windows_snapshot.ps1').Path,[ref]$tokens,[ref]$errors)
-          if($errors.Count){foreach($e in $errors){Write-Error $e.Message};throw 'D3 snapshot script does not parse'}
+          if($errors.Count){foreach($e in $errors){Write-Host "D3_PARSE_FAILURE_LINE=$($e.Extent.StartLineNumber);COL=$($e.Extent.StartColumnNumber);MESSAGE=$($e.Message)"};throw 'D3 snapshot script does not parse'}
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
