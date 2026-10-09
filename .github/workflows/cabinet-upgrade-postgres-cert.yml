@@ -5,6 +5,11 @@ name: Cabinet Upgrade PostgreSQL Certification
 on:
   push:
     branches: [main, master]
+  # Validate changes to this certification workflow before merging them.
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/cabinet-upgrade-postgres-cert.yml'
   workflow_dispatch:
 
 permissions:
@@ -20,7 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18
+        # Same Docker Official PostgreSQL 18 image, served by ECR Public to avoid
+        # Docker Hub auth.docker.io network timeouts during service startup.
+        image: public.ecr.aws/docker/library/postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
