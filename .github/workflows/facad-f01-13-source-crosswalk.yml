@@ -8,6 +8,8 @@ on:
       - .github/workflows/facad-f01-13-source-crosswalk.yml
       - audit/facad_f01_13_source_crosswalk_validate.py
       - docs/audits/data/FACAD_314_F01_13_SOURCE_CROSSWALK_2026-10-09.csv
+      - docs/audits/data/FACAD_314_F01_13_MEASUREMENT_CANDIDATES_2026-10-09.csv
+      - docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json
       - docs/audits/data/FACAD_314_D1C_EDITOR_DEFINITIONS_LEDGER_2026-10-09.csv
       - docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json
       - docs/audits/schemas/cephalo_vnext_lot06_analysis_pack_registry_v1.json
@@ -40,12 +42,17 @@ jobs:
           set -euo pipefail
           python -m py_compile audit/facad_f01_13_source_crosswalk_validate.py
           python audit/facad_f01_13_source_crosswalk_validate.py --self-test
+          echo 'F01_13_NEGATIVE_TESTS_EXPECTED=14'
       - name: Verify no clinical source promotion
         shell: bash
         run: |
           set -euo pipefail
           if grep -Eq '"SOURCE_LOCKED"|"CLINICALLY_VALIDATED"|"PATIENT_PARITY_PASS"' docs/audits/data/FACAD_314_F01_13_SOURCE_CROSSWALK_2026-10-09.csv; then
             echo "::error::Scientific certification forbidden by F01.13" >&2
+            exit 1
+          fi
+          if grep -Eq '"SOURCE_LOCKED"|"CLINICALLY_VALIDATED"|"PATIENT_PARITY_PASS"' docs/audits/data/FACAD_314_F01_13_MEASUREMENT_CANDIDATES_2026-10-09.csv; then
+            echo "::error::Scientific certification forbidden in measurement candidate audit" >&2
             exit 1
           fi
           echo "F01_13_CLASSIFICATION_ONLY=true"
