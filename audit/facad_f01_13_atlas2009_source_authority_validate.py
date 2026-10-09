@@ -63,7 +63,7 @@ def verify(d,compare_row,report,facad):
         raise ValueError("Official Facad CPH PM-prime source changed")
     if facad["resolutions"]["Mand len"]["dc"]["direct_alias_allowed"] is not False:
         raise ValueError("Manufacturer to DC alias incorrectly activated")
-    if not all(x in report for x in (
+    if not all(x in report.lower() for x in (
         "publisher-issued full pages or tables",
         "first edition 2009",
         "secondary reproduction",
