@@ -5,7 +5,7 @@ import { Sidebar } from './Sidebar';
 import { api } from '../services/api';
 
 const switchCabinet = vi.fn();
-let mockUser: any = { is_superadmin: false, permissions: { agenda: true, accounting: true, patients: true, cephalo: true } };
+let mockUser: any = { is_superadmin: false, permissions: { agenda: true, accounting: true, patients: true, cephalo: true, settings: true } };
 
 vi.mock('../features/admin/Settings/hooks/useSettingsStore', () => ({
   useSettingsStore: () => ({
@@ -41,7 +41,7 @@ function renderSidebar(entry = '/dashboard', props: { isOpen?: boolean; onClose?
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockUser = { is_superadmin: false, permissions: { agenda: true, accounting: true, patients: true, cephalo: true } };
+  mockUser = { is_superadmin: false, permissions: { agenda: true, accounting: true, patients: true, cephalo: true, settings: true } };
   vi.mocked(api.get).mockResolvedValue({ data: { total: 3 } } as never);
   localStorage.setItem('clinical_tips_enabled', 'true');
 });
@@ -74,7 +74,25 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(screen.queryByRole('link', { name: 'Comptabilité' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Patients' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Approvisionnement' })).toBeNull();
-    expect(api.get).not.toHaveBeenCalled();
+    // The restricted user's cabinet identity is still fetched by its own
+    // authenticated endpoint, independently of Settings access.
+    expect(api.get).toHaveBeenCalledWith('/admin/cabinet/me');
+  });
+
+  it('renders read-only, tenant-bound clinic identity for restricted staff', async () => {
+    mockUser = {
+      id: 24, employer_id: 7, role: 'SECRETAIRE',
+      permissions: { agenda: true, patients: false, settings: false },
+    };
+    vi.mocked(api.get).mockResolvedValue({ data: { nom_cabinet: 'Cabinet T2 Certification' } } as never);
+    renderSidebar();
+    await waitFor(() =>
+      expect(screen.getByTestId('staff-active-cabinet').textContent).toContain('Cabinet T2 Certification'),
+    );
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Patients' })).toBeNull();
+    expect(switchCabinet).not.toHaveBeenCalled();
+    expect(api.get).toHaveBeenCalledWith('/admin/cabinet/me');
   });
 
   it('shows super-admin destinations only to super-admin identity', () => {
