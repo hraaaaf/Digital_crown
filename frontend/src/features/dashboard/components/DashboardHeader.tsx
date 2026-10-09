@@ -88,7 +88,7 @@ export const DashboardHeader = ({
         {canReadPatients && (
           <div className="static md:relative flex items-center">
             {search.isExpanded ? (
-              <div className="absolute inset-x-0 top-full z-50 mt-2 animate-in fade-in slide-in-from-right-4 md:inset-x-auto md:right-0 md:top-auto md:z-30 md:mt-0">
+              <div className="absolute inset-x-0 top-full z-50 mt-2 animate-in fade-in slide-in-from-right-4 md:inset-x-auto md:right-0 md:z-30">
                 <div className="flex w-full items-center rounded-full border border-border-main bg-white px-2 py-1 shadow-elite dark:bg-slate-800 md:w-72">
                   {search.loading
                     ? <Loader2 size={18} className="text-primary ml-2 animate-spin flex-shrink-0" aria-hidden="true" />
