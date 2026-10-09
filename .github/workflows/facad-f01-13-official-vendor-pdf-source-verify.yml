@@ -7,6 +7,8 @@ on:
     paths:
       - .github/workflows/facad-f01-13-official-vendor-pdf-source-verify.yml
       - audit/facad_f01_13_official_pdf_source_verify.py
+      - docs/audits/data/FACAD_314_OFFICIAL_PDF_SOURCE_MANIFEST_2026-10-09.json
+      - docs/audits/CEPHALO_FACAD_F01_13_OFFICIAL_VENDOR_MANUAL_EXPORT_PROVENANCE_2026-10-09.md
   workflow_dispatch:
 
 permissions:
