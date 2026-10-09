@@ -410,9 +410,21 @@ jobs:
           python scripts/facad_314_d3_snapshot_diff_gate.py --before $before --after $after --output $verdict
           $status=$LASTEXITCODE
           if($status -eq 3){
+            $evidence=Get-Content -LiteralPath $verdict -Raw | ConvertFrom-Json
+            if($evidence.verdict -cne 'INCONCLUSIVE_NO_OBSERVED_STORAGE_DRIFT' -or
+               $evidence.d3_isolation_verified -ne $false -or
+               $evidence.clinical_edit_allowed -ne $false -or
+               $evidence.monitored_scope_count -ne 9 -or
+               $evidence.observed_change_count -ne 0){
+              throw 'D3 inconclusive JSON contract mismatch'
+            }
+            Write-Host 'D3_OBSERVATION_COMPLETE=true'
             Write-Host 'D3_VERDICT=INCONCLUSIVE_NO_OBSERVED_STORAGE_DRIFT'
             Write-Host 'D3_ISOLATION_VERIFIED=false'
             Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+            # Exit 0 means this EXPERIMENTAL OBSERVATION job ran to completion.
+            # D3 REQUIRED clearance remains BLOCKED; gate CLI deliberately returns 3.
+            exit 0
           } elseif($status -eq 1){
             throw 'Observed storage drift; inspect hashed-path verdict; D3 remains BLOCKED'
           } else {
