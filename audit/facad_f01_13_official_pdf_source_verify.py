@@ -13,6 +13,9 @@ import io
 import json
 import re
 import urllib.request
+from pathlib import Path
+
+MANIFEST = Path(__file__).resolve().parents[1] / "docs/audits/data/FACAD_314_OFFICIAL_PDF_SOURCE_MANIFEST_2026-10-09.json"
 
 FILES = {
     "FACAD_314_REFERENCE_MANUAL": {
@@ -81,6 +84,34 @@ def analyze_pdf(name: str, data: bytes, expected: dict) -> dict:
     }
 
 
+def confirm_pinned_manifest(actual: list[dict], manifest: dict) -> None:
+    if manifest.get("schema") != "FACAD_314_OFFICIAL_VENDOR_PDF_SOURCE_MANIFEST_V1":
+        raise ValueError("Manifest schema changed; manual review required")
+    if manifest.get("basis", {}).get("source_result") != "SUCCESS":
+        raise ValueError("Historical source verification not anchored")
+    expected = manifest.get("docs", [])
+    if len(actual) != 3 or len(expected) != 3:
+        raise ValueError("Unexpected count: manufacturer original PDFs")
+    perid = {row["id"]: row for row in expected}
+    if set(perid) != set(FILES):
+        raise ValueError("Unknown/missing official source identity")
+    for row in actual:
+        pinned = perid[row["document"]]
+        for actual_key, manifest_key in (
+            ("source_url", "url"), ("bytes", "bytes"),
+            ("page_count", "pages"), ("pdf_sha256", "sha256"),
+        ):
+            if row[actual_key] != pinned[manifest_key]:
+                raise ValueError(f"{row['document']}: official vendor PDF changed at {actual_key}")
+        for term, pages in pinned["verified_pages_1_based"].items():
+            if row["needle_pages_1_based"].get(term) != pages:
+                raise ValueError(f"{row['document']}: evidence page for {term!r} changed")
+        if "CLINICAL" in pinned["proof_scope"] and not pinned["proof_scope"].endswith("NOT_CLINICAL_FORMULA_PARITY"):
+            raise ValueError("Vendor manifest falsely certifies clinical parity")
+    if manifest.get("scientific_gates", {}).get("facad_numerical_parity") != "NOT_TESTED":
+        raise ValueError("Scientific parity gate was silently promoted")
+
+
 def live() -> None:
     evidence = []
     for name, expected in FILES.items():
@@ -99,6 +130,9 @@ def live() -> None:
         document = analyze_pdf(name, data, expected)
         evidence.append(document)
         print(f"PDF_SOURCE_VERIFIED={name} sha256={document['pdf_sha256']} pages={document['page_count']}")
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    confirm_pinned_manifest(evidence, manifest)
+    print("OFFICIAL_VENDOR_SHA_MANIFEST_REPRODUCED=true")
     print(json.dumps({"schema": "FACAD_VENDOR_PDF_SOURCE_CHECK_V1", "records": evidence},
                      indent=2, ensure_ascii=False))
     print("OFFICIAL_FACAD_314_PDF_SOURCES_VERIFIED=3")
@@ -113,7 +147,10 @@ def self_test() -> None:
     assert match_pages(["No matching text"], "Analysis Properties") == []
     assert len(FILES) == 3
     assert sum(len(x["needles"]) for x in FILES.values()) == 11
-    print("F01_13_PDF_SOURCE_VERIFIER_SELFTEST=5")
+    pin = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    assert set(x["id"] for x in pin["docs"]) == set(FILES)
+    assert pin["scientific_gates"]["ceph08_protocols_verified"] == "OPEN"
+    print("F01_13_PDF_SOURCE_VERIFIER_SELFTEST=7")
 
 
 if __name__ == "__main__":
