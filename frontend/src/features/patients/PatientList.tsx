@@ -293,8 +293,8 @@ export const PatientList = () => {
             </button>
           </div>
         ) : viewMode === 'table' ? (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border-main font-black text-text-muted uppercase tracking-widest text-[10px]">
+          <table className="block w-full text-left text-sm md:table">
+            <thead className="hidden border-b border-border-main font-black text-text-muted uppercase tracking-widest text-[10px] md:table-header-group">
               <tr>
                 <th className="px-10 py-8">Patient</th>
                 <th className="px-6 py-8">Assurance</th>
@@ -302,7 +302,7 @@ export const PatientList = () => {
                 <th className="px-10 py-8 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-main/50">
+            <tbody className="block divide-y divide-border-main/50 md:table-row-group">
               {filtered.map((p, index) => {
                 const rowKey = p.id ?? `patient-${index}`;
 
@@ -315,23 +315,23 @@ export const PatientList = () => {
                     tabIndex={0}
                     role="button"
                     onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && p.id) { e.preventDefault(); navigate(`/patients/${p.id}`); } }}
-                    className="hover:bg-primary/5 transition-all duration-300 cursor-pointer group border-l-4 border-l-transparent hover:border-l-primary hover:scale-[1.002] focus:outline-2 focus:outline-primary focus:outline-offset-2"
+                    className="group block cursor-pointer border-l-4 border-l-transparent transition-all duration-300 hover:border-l-primary hover:bg-primary/5 focus:outline-2 focus:outline-primary focus:outline-offset-2 md:table-row md:hover:scale-[1.002]"
                   >
-                    <td className="px-10 py-6">
-                      <div className="flex items-center gap-5">
+                    <td className="block px-4 pb-2 pt-5 md:table-cell md:px-10 md:py-6">
+                      <div className="flex min-w-0 items-start gap-3 md:items-center md:gap-5">
                         <PatientAvatar
                           patientId={p.id}
                           firstName={p.prenom}
                           lastName={p.nom}
                           photoUrl={p.photo_url}
-                          className="w-14 h-14 rounded-[1.2rem] text-xl border border-primary/20 shadow-sm group-hover:shadow-md transition-all"
+                          className="h-12 w-12 flex-shrink-0 rounded-[1.2rem] border border-primary/20 text-xl shadow-sm transition-all group-hover:shadow-md md:h-14 md:w-14"
                         />
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <div className="font-black text-primary text-lg tracking-tight">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-2 md:items-center md:gap-3">
+                            <div className="min-w-0 break-words font-black text-primary text-lg tracking-tight">
                               {p.nom.toUpperCase()} {p.prenom}
                             </div>
-                            {show_patient_badges && <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={() => fetchPatients(true)} />}
+                            {show_patient_badges && <div data-testid="patient-list-score-badges" data-patient-id={p.id} className="w-full max-w-full min-w-0 md:w-auto"><PatientScoreBadge patientId={p.id!} className="origin-left md:scale-75" onUpdate={() => fetchPatients(true)} /></div>}
                             {p.id && fantomeIds.has(p.id) && (
                               <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
                                 <AlertTriangle size={10} /> Sans RDV futur
@@ -344,13 +344,13 @@ export const PatientList = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="block px-4 py-2 md:table-cell md:px-6 md:py-6">
                       <AssuranceBadge assurance={p.assurance} size="full" />
                     </td>
-                    <td className="px-6 py-6 font-mono text-text-muted font-bold text-center">
+                    <td className="block px-4 py-2 font-mono font-bold text-text-muted md:table-cell md:px-6 md:py-6 md:text-center">
                       {p.telephone || "—"}
                     </td>
-                    <td className="px-10 py-6 text-right">
+                    <td className="block px-4 pb-5 pt-2 text-right md:table-cell md:px-10 md:py-6">
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={(e) => {
