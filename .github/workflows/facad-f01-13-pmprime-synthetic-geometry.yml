@@ -9,6 +9,7 @@ on:
       - docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
       - docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json
       - docs/audits/data/FACAD_314_D1C_RICKETTS13F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
+      - docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
   workflow_dispatch:
 
 permissions:
@@ -38,3 +39,11 @@ jobs:
           echo 'PROPRIETARY_FACAD_EXECUTION=false'
           echo 'FACAD_ANGLE4P_RUNTIME_PRESENTATION_VERIFIED=false'
           echo 'FACAD_NUMERICAL_PARITY_CERTIFIED=false'
+          test -f docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
+          grep -Fq 'SAME_LANDMARK_PARITY_PROTOCOL_DEFINED=true' docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
+          grep -Fq 'SAME_LANDMARK_PARITY_PROTOCOL_EXECUTED=false' docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
+          grep -Fq 'NO_SAME_TRACE_PARITY_UNTIL_D3_VERIFIED=true' docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
+          grep -Fq 'FACAD_EXPORT_COORDINATE_FRAME_MUST_BE_RECORDED=true' docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
+          echo 'SAME_LANDMARK_PARITY_PROTOCOL_EXECUTED=false'
+          echo 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          echo 'FACAD_ANGLE4P_RUNTIME_PRESENTATION_VERIFIED=false'
