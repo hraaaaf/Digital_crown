@@ -7,6 +7,7 @@ on:
       - .github/workflows/facad-f01-13-five-pdf-lexical-replay.yml
       - audit/facad_f01_13_five_pdf_lexical_evidence_validate.py
       - docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
+      - docs/audits/data/FACAD_F01_13_V314_FIVE_PDF_TERM_PAGE_MATRIX_2026-10-09.json
   workflow_dispatch:
 
 permissions:
@@ -58,4 +59,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python audit/facad_f01_13_five_pdf_lexical_evidence_validate.py --manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json --evidence original-five-pdf-metadata/f01-13-five-pdf-terms.json
+          python audit/facad_f01_13_five_pdf_lexical_evidence_validate.py --manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json --evidence original-five-pdf-metadata/f01-13-five-pdf-terms.json --expected-matrix docs/audits/data/FACAD_F01_13_V314_FIVE_PDF_TERM_PAGE_MATRIX_2026-10-09.json
