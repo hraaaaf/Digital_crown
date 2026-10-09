@@ -1,0 +1,55 @@
+name: Facad D1C trial matrix dry-run (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-matrix-dryrun.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - profile: 'Bergen short'
+            slug: BergenShort
+          - profile: 'Bergen'
+            slug: Bergen
+          - profile: 'Arnett STCA (female)'
+            slug: ArnettSTCAFemale
+          - profile: 'Arnett STCA (male)'
+            slug: ArnettSTCAMale
+          - profile: 'Bjork'
+            slug: Bjork
+          - profile: 'Wits appraisal'
+            slug: WitsAppraisal
+          - profile: 'Airway (McNamara)'
+            slug: AirwayMcNamara
+          - profile: 'ABO'
+            slug: ABO
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm exact catalog name without installing Facad
+        env:
+          FACAD_PROFILE: ${{ matrix.profile }}
+          FACAD_SLUG: ${{ matrix.slug }}
+        run: |
+          python - <<'PY'
+          import csv, os
+          with open('docs/audits/data/FACAD_314_D1_LATERAL_STANDARD_65.csv',newline='',encoding='utf-8-sig') as f:
+              rows=list(csv.DictReader(f))
+          name=os.environ['FACAD_PROFILE']
+          exact=[r for r in rows if r.get('analysis_name')==name and r.get('catalog_tab')=='Standard' and r.get('facad_modality')=='lateral']
+          assert len(rows)==65 and len(exact)==1, (name,len(rows),len(exact))
+          print('FACAD_D1C_MATRIX_CATALOG_EXACT_PASS=true')
+          print('PROFILE=',name,'SLUG=',os.environ['FACAD_SLUG'])
+          PY
