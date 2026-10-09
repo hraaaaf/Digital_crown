@@ -45,7 +45,7 @@ class VendorTopologyFailClosedTests(unittest.TestCase):
         self.assertIn("PROCESS_AND_CHILD_WRITE_PATH_ATTRIBUTION",self.result["missing_category_ids"])
 
     def test_registry_key_only_does_not_prove_value_change(self):
-        self.assertIn("REGISTRY_VALUE_CHANGE_DETECTABILITY",self.result["missing_category_ids"])
+        self.assertIn("REGISTRY_WRITE_EVENT_ATTRIBUTION",self.result["missing_category_ids"])
 
     def test_added_root_without_comparator_scope_is_still_missing(self):
         altered=COLLECTOR+"\nfacad_patient_data_root=TreeScope $testRoot $false\n"
@@ -69,7 +69,7 @@ class VendorTopologyFailClosedTests(unittest.TestCase):
             cmp+="\n"+com
         c+="\nFACAD_ADMIN_SETTINGS_METADATA_OBSERVED=true\nFacad.Administrator.settings"
         c+="\nFACAD_LICENSE_ROOT_PROTECTED_METADATA_ONLY=true\nLICENSE_CONTENT_READ=false"
-        c+="\nFACAD_CONFIGURED_UNC_ROOTS_RESOLVED=true\nFACAD_REGISTRY_VALUES_CHANGE_DETECTED=true"
+        c+="\nFACAD_CONFIGURED_UNC_ROOTS_RESOLVED=true\nFACAD_REGISTRY_WRITE_EVENTS_ATTRIBUTED=true"
         o=OBSERVER+"\npath_attribution_available=$true\ncomplete_child_process_coverage=$true"
         result=gate.inspect(c,o,cmp)
         self.assertEqual(result["documented_coverage_category_count"],9)
