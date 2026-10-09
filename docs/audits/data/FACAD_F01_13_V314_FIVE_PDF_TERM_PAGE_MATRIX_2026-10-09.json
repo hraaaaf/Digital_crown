@@ -1,0 +1,108 @@
+{
+  "schema": "FACAD_F01_13_V314_FIVE_PDF_TERM_PAGE_MATRIX_V1",
+  "source_run_id": 37985774260,
+  "replay_run_id": 37989387540,
+  "evidence_head": "2c0156a09c153d5b44383a74c2762ce2e6dea3ea",
+  "source_artifact_id": 11643840122,
+  "sources": [
+    {
+      "name": "Ricketts (32 F).pdf",
+      "pages": 8,
+      "sha256": "8ddf3979d59777a2b125146d4714fedd4466b38b17a1e77a18273ae8c1ae9987",
+      "hits": {
+        "3": [
+          "PM'"
+        ],
+        "4": [
+          "PM'",
+          "Mand len",
+          "Cranium ant len",
+          "PFH"
+        ],
+        "7": [
+          "Cranium ant len"
+        ],
+        "8": [
+          "PM'",
+          "Mand len",
+          "PFH"
+        ]
+      }
+    },
+    {
+      "name": "Ricketts (13 F).pdf",
+      "pages": 5,
+      "sha256": "3f016b7976c87c0930548c6dbada1888357e34e16fc47efeeae2f1a822eedc5f",
+      "hits": {
+        "3": [
+          "PFH",
+          "InterIncisal"
+        ],
+        "4": [
+          "PFH"
+        ],
+        "5": [
+          "InterIncisal"
+        ]
+      }
+    },
+    {
+      "name": "C01_Lateral Cephalometry Library - Lines and Contructed markers.pdf",
+      "pages": 12,
+      "sha256": "a977f219b6c9b95543551fe7a6e48587ac597b065e0200ab844e20ed322ba119",
+      "hits": {
+        "1": [
+          "Xi",
+          "PtV",
+          "CC"
+        ],
+        "2": [
+          "Xi",
+          "PtV",
+          "CF",
+          "CC"
+        ],
+        "3": [
+          "PtV"
+        ],
+        "9": [
+          "PtV"
+        ],
+        "10": [
+          "CC"
+        ],
+        "11": [
+          "Xi",
+          "PtV",
+          "CF"
+        ]
+      }
+    },
+    {
+      "name": "C02_Lateral Cephalometry Library - Measurements.pdf",
+      "pages": 34,
+      "sha256": "4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548",
+      "hits": {}
+    },
+    {
+      "name": "Overview of Landmarks.pdf",
+      "pages": 2,
+      "sha256": "2493bc1218395fd1ff35bc57a0e9c5acdda77228d4cf8565719d374ca7caf7cd",
+      "hits": {
+        "1": [
+          "PM",
+          "Xi",
+          "Pt",
+          "Pog"
+        ]
+      }
+    }
+  ],
+  "boundary": {
+    "manual_formula_equivalence": false,
+    "original_atlas_editor_edition_verified": false,
+    "numeric_parity_tested": false,
+    "c02_empty_hits_meaning": "Only exact queried strings absent, not measure definitions proven absent",
+    "all_hits_are_lexical_only": true
+  }
+}
