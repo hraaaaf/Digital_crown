@@ -27,12 +27,13 @@ const patients = await patientsResponse.json();
 const patient = patients.find(row => row.numero_dossier === 'T2-0001') || patients[0];
 if (!patient) throw new Error('02.3 AFTER requires a patient fixture');
 
+// Distinct high-contrast synthetic portraits (no patient photos): ensure visual proof is legible at avatar size.
 const sampleA = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAASUlEQVR42u3PQQ0AIBDAsAP/nuGNAvZoFSzZOjNnyNi7dwfgUQIeJeBRAh4l4FECHiXgUQIeJeBRAh4l4FECHiXgUQIeJeBRAh4l4FHCB30Bf4Q3zAAAAABJRU5ErkJggg==',
+  'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAABsElEQVR42u3a0U0DQQyE4YtFB3RCBYhukKgAiSdaQKKbiF54pgcqSHS3a3vWvn9fI8XjT3OrRMnl9/1p49w+BgFAAAEEEEAAAQQQB6CB87BCiMe371sv/X29arNdVN/F7qAshSUAGqARMqUCTdJImKyijvu76YEi9skxCn/EEtYIfdysuk70FD4o6oDS7tHQWdZAJ3Si9dCJm8sdlA6kqk/QdBqUC6StT0QGGgQQQGWAVriA3JPQIIAAAggggAACCKD5I/8dPSIJDQIIoEpAK1xDvhloUDqQtkTu02mQAkhVooi5ViirZKKVS5w8iztICpRTotApGf9y/bw+x735x8tPaPgooFCUTCx/IAlNHJMnkJwmgskHaCkaXyZrrOOSzRrruCS03jrzOa29zmRaO4POTGY7ic5wcjuPzlh+vs27AlWvz8AWNMgPqEd9ju5Cg5yAOtXn0EY0CCCA9ED9LqD9e9EggAACCCCAAAIIoDsn+h8UqrNnLxoEEEBLAPW7hnZuRIP8gDqVaP8uNMgVqEeJDm1Bg7yBqpfoaH5LmFFXZ/wRq2g0ltmS59XS2bbtH1pkla0CIqybAAAAAElFTkSuQmCC',
   'base64',
 );
 const sampleB = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEAhmtCEwIngcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfcNLAgY4ynDdAAAAAElFTkSuQmCC',
+  'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAABqklEQVR42u3a21HDQAyFYUfZEkIVNJCmeKIOHugqDVBFamCSCtZjr3VZyf++EqKjb453YJLL7et34fSPQAAQQAABBBBAAAHEAWjgtBlCPL//ej/6+Pk8KdAKSu9lIVhtWpreLzoztRQ0gUySS8fo3eKBLPbxMWoZaTwfN8mr4zOFPxTjgNzuUdNZUkDHdKLU0LGbyx3kDhRVH6PpNMgXKLY+FhloEEAApQGa4QJST0KDAAIIIIAAAggggI6f8M/RLZLQIIAAygQ0wzWkm4EGuQPFlkh9Og2KAIoqkcVcSZQ1ZKKkS+w8izsoFMinRKZTmkP6y/3f7v1fj6tpfisgU5TeIAuslpemN1qXqdWgsWNqlWgsmKSkjmI2KayjklBq6xzPKeV1DqaVM+gcySwn0RlOLufRGcvPf/OqQNnrM7AFDdIDqlGfvbvQICWgSvXZtRENAgigeKB6F9D2vWgQQAABBBBAAAEE0Mqx/gZF1NmyFw0CCKApgOpdQxs3okF6QJVKtH0XGqQKVKNEu7agQdpA2Uu0N784zMirM/6IZTQayyzO83LpLMvyBq1wmGfbuBplAAAAAElFTkSuQmCC',
   'base64',
 );
 
@@ -175,6 +176,20 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
     { id: String(patient.id), expected: expectedState },
     { timeout: 30000 },
   );
+  // Do not certify a photo hidden by the PatientSummaryHoverCard: moving
+  // the pointer away ends its delayed hover, then ensure the actual avatar
+  // is inside the viewport and is the topmost hit-tested visual target.
+  await listAvatar.scrollIntoViewIfNeeded();
+  await page.mouse.move(2, 2);
+  await page.getByText('Repères du dossier', { exact: true }).waitFor({ state: 'hidden', timeout: 10000 });
+  await page.waitForFunction(id => {
+    const avatar = document.querySelector(`[role="button"] [data-patient-avatar][data-patient-id="${id}"]`);
+    if (!(avatar instanceof HTMLElement)) return false;
+    const rect = avatar.getBoundingClientRect();
+    if (rect.width < 20 || rect.height < 20 || rect.top < 0 || rect.bottom > innerHeight) return false;
+    const foreground = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return foreground === avatar || avatar.contains(foreground);
+  }, String(patient.id), { timeout: 10000 });
   shots.push(await snap(page, `${phase}-patient-list-${viewportLabel}.png`));
 
   await page.goto('http://127.0.0.1:5173/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
@@ -218,7 +233,23 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
     { id: String(patient.id), expected: expectedState },
     { timeout: 30000 },
   );
-  shots.push(await snap(page, `${phase}-agenda-${viewportLabel}.png`));
+  // A DOM-only state assertion is not a visual certificate: month cells can
+  // sit below the fold on phones. Scroll the actual appointment into view,
+  // then require the avatar centre to be unobscured inside the viewport.
+  await agendaAvatar.scrollIntoViewIfNeeded();
+  await page.mouse.move(2, 2);
+  await page.waitForFunction(id => {
+    const avatar = document.querySelector(
+      `[data-testid="agenda-month-view"] [data-m4d-month-appointment] [data-patient-avatar][data-patient-id="${id}"]`,
+    );
+    if (!(avatar instanceof HTMLElement)) return false;
+    const rect = avatar.getBoundingClientRect();
+    if (rect.width < 12 || rect.height < 12 || rect.left < 0 || rect.top < 0 ||
+        rect.right > innerWidth || rect.bottom > innerHeight) return false;
+    const foreground = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return foreground === avatar || avatar.contains(foreground);
+  }, String(patient.id), { timeout: 10000 });
+  shots.push(await snap(page, `${phase}-agenda-${viewportLabel}.png`, { viewportOnly: true }));
 
   await page.goto(`http://127.0.0.1:5173/patients/${patient.id}`, { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('heading', { name: fullName }).waitFor({ state: 'visible', timeout: 30000 });
@@ -235,14 +266,14 @@ async function assertSurfaces(page, expectedState, viewportLabel, phase) {
   return shots;
 }
 
-async function snap(page, filename) {
+async function snap(page, filename, { viewportOnly = false } = {}) {
   const m = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
   }));
   if (m.horizontalOverflow) throw new Error(`${filename}: horizontal overflow ${m.scrollWidth}>${m.innerWidth}`);
-  await page.screenshot({ path: path.join(outDir, filename), fullPage: true });
+  await page.screenshot({ path: path.join(outDir, filename), fullPage: !viewportOnly });
   return { filename, ...m };
 }
 
