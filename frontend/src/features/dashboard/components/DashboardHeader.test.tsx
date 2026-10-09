@@ -140,6 +140,10 @@ describe('DashboardHeader — accessibilité clavier D6', () => {
     expect(panel.classList.contains('inset-x-0')).toBe(true);
     expect(panel.classList.contains('top-full')).toBe(true);
     expect(panel.classList.contains('md:right-0')).toBe(true);
+    // Desktop must also open below the toolbar, never on top of the welcome title.
+    expect(panel.classList.contains('md:top-auto')).toBe(false);
+    expect(panel.classList.contains('md:mt-0')).toBe(false);
+    expect(panel.classList.contains('top-full')).toBe(true);
     expect(input.parentElement?.classList.contains('w-full')).toBe(true);
     expect(input.parentElement?.classList.contains('md:w-72')).toBe(true);
     expect(results.classList.contains('inset-x-0')).toBe(true);
