@@ -10,7 +10,7 @@ Date of verification: 2026-10-09. Branch: `feat/cephalo-facad-direct-parity-runt
 - `D1C_EDITOR_SAVE_BUTTON_NOT_INVOKED=true`, `D1C_PATIENT_ANALYSIS_LOAD_NOT_INVOKED=true`, one exact preset per fresh runner.
 - Official Robert `.fcd` source SHA256 = copy input = source after = copy after = `67A81AD8D2C2489FFE84A1DFBBB897761AE855ECE4EBF948C12AF232562EC089`.
 - `SHARED_APP_STORAGE_ISOLATION=UNVERIFIED`, `CLINICAL_EDIT_ALLOWED=false`; no claim that all app writes were monitored.
-- Raw original GitHub ZIP backed up to [dedicated Drive evidence folder](https://drive.google.com/drive/folders/17df8HYGAD-Jn4oRnXldCVt4LzvRhJFhJ), no patient/installer files added manually. Local extracted CSV archive contains 24 UTF-8 per-tab files and a machine-readable manifest; Drive originals are the independently accessible long-term source. Individual CSV GitHub publication is separate unfinished hardening, not a blocker for the validated editorial observation.
+- Raw original GitHub ZIP backed up to [dedicated Drive evidence folder](https://drive.google.com/drive/folders/17df8HYGAD-Jn4oRnXldCVt4LzvRhJFhJ), no patient/installer files added manually. The **24 individually named UTF-8 CSVs + machine-readable manifest** are durably backed up as [25-file CSV bundle on Drive](https://drive.google.com/file/d/1gXnJJ-vktGoM-5UBnxrt-wMWIpUEfXvh/view) (ZIP SHA256 `ba4ce956289e16e9741d556fb6fc616d9936e554b06a9d6e4225ef0657de7f46`; 25 members = 24 CSV + manifest); the original 8 ZIPs are also preserved in the same Drive folder. Publishing the 24 CSVs as **individual GitHub files** remains optional repository-native hardening, NOT a blocker for archival/accessibility or the validated editorial observations.
 
 ## Per-profile immutable artifact and observed editor definitions
 
