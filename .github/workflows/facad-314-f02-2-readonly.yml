@@ -6,6 +6,8 @@ on:
       - feat/cephalo-facad-direct-parity-runtime-probe
     paths:
       - .github/workflows/facad-314-f02-2-readonly.yml
+      - scripts/facad_314_f02_2_readonly_view_probe.ps1
+      - scripts/facad_314_f02_3_passive_anatomy_menu.ps1
   workflow_dispatch:
 
 permissions:
