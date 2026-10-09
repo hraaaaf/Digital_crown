@@ -1,0 +1,81 @@
+name: Facad D3 process I/O synthetic smoke (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-d3-process-io-smoke.yml
+      - scripts/facad_314_d3_process_io_observer.ps1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  process-counters-synthetic:
+    name: EXPERIMENTAL counter probe - no Facad, no D3 clearance
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse counter probe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/facad_314_d3_process_io_observer.ps1').Path,[ref]$tokens,[ref]$errors)
+          if($errors.Count){
+            foreach($e in $errors){Write-Host "D3_PROCESS_PARSE_FAILURE_LINE=$($e.Extent.StartLineNumber) MESSAGE=$($e.Message)"}
+            throw 'PowerShell syntax failure'
+          }
+          Write-Host 'D3_PROCESS_IO_PARSING_PASS=true'
+      - name: Execute a disposable fake writer and validate safe evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $writer=Join-Path $env:RUNNER_TEMP 'facad-d3-fake-io-writer.ps1'
+          @'
+          $ErrorActionPreference='Stop'
+          $file=Join-Path $env:RUNNER_TEMP 'facad-d3-synthetic-nonpatient.bin'
+          for($i=0;$i -lt 45;$i++){
+            $bytes=[byte[]]::new(8192)
+            [IO.File]::WriteAllBytes($file,$bytes)
+            Start-Sleep -Milliseconds 300
+          }
+          '@ | Set-Content -LiteralPath $writer -Encoding utf8
+          $probe='scripts/facad_314_d3_process_io_observer.ps1'
+          $dest=Join-Path $env:GITHUB_WORKSPACE 'facad-d3-process-io-smoke.json'
+          $p=Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @('-NoProfile','-NonInteractive','-File',('"' + $writer + '"')) -PassThru
+          try{
+            Start-Sleep -Milliseconds 900
+            if($p.HasExited){throw 'Synthetic writer exited too early'}
+            & $probe -TargetPid $p.Id -DurationSeconds 6 -OutputPath $dest
+            $obj=Get-Content -LiteralPath $dest -Raw | ConvertFrom-Json
+            if($obj.schema -cne 'facad314_d3_process_io_v1' -or
+               $obj.verdict -cne 'INCONCLUSIVE_PROCESS_IO_COUNTERS_ONLY' -or
+               $obj.sample_count -ne 12 -or
+               $obj.target_observed_every_poll -ne $true -or
+               $obj.d3_isolation_verified -ne $false -or
+               $obj.clinical_edit_allowed -ne $false -or
+               $obj.path_attribution_available -ne $false -or
+               $obj.complete_child_process_coverage -ne $false -or
+               $obj.files_or_command_lines_read -ne $false -or
+               $obj.registry_values_read -ne $false -or
+               $obj.write_transfer_bytes_delta -le 0){
+              throw 'D3 process counter smoke contract failed'
+            }
+            Write-Host 'D3_PROCESS_IO_SYNTHETIC_SMOKE_PASS=true'
+            Write-Host 'D3_ISOLATION_VERIFIED=false'
+          } finally {
+            if(-not $p.HasExited){Stop-Process -Id $p.Id -Force}
+          }
+      - name: Upload synthetic-only counter evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-314-d3-process-io-smoke-\${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: facad-d3-process-io-smoke.json
