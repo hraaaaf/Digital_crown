@@ -1,0 +1,38 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Bern analysis,markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bern analysis,markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bern analysis,markers,PNS,Posterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bern analysis,markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bern analysis,markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bern analysis,markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bern analysis,markers,Isl,Incisor superior labial outline,Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bern analysis,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bern analysis,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bern analysis,markers,Iil,Incisor inferior labial outline,Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bern analysis,markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bern analysis,markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Bern analysis,markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Bern analysis,markers,Gn,Gnathion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Bern analysis,markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Bern analysis,markers,aGo,anterior Gonion (lower border of mandible),Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Bern analysis,markers,pGo,posterior Gonion (posterior point on ramus),Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Bern analysis,markers,Ar,Articulare,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Bern analysis,markers,Co,"Condyle, posterior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Bern analysis,markers,OLp,"Occlusal Line, posterior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Bern analysis,markers,GL,Soft tissue Glabella,Profile marker,,<fixed>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Bern analysis,markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Bern analysis,markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Bern analysis,markers,MS,Steiner's S-point (columnella tangent point),Profile marker,,<flexible>,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Bern analysis,markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Bern analysis,markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Bern analysis,markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Bern analysis,markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Bern analysis,markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Bern analysis,markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Bern analysis,markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Bern analysis,markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Bern analysis,markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Bern analysis,markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Bern analysis,markers,T,Throat (neck),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Bern analysis,markers,THp,"True Horizontal, posterior point",Marker,,,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+37,Bern analysis,markers,THa,"True Horizontal, anterior point",Marker,,,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY

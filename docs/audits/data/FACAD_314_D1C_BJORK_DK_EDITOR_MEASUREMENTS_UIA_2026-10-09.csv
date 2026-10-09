@@ -1,0 +1,18 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Bjork-DK,measurements,ANPog,Angle3p,N,A,Pog,,2±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bjork-DK,measurements,ANB,Angle3p,N,A,B,,3±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bjork-DK,measurements,SNA,Angle3p,N,A,S,,82±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bjork-DK,measurements,SNPog,Angle3p,N,Pog,S,,80±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bjork-DK,measurements,Pr-N-A,Angle3p,N,Pr,A,,2±1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bjork-DK,measurements,CL/ML,Angle4p,aGo,Me,Id,Pog,70±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bjork-DK,measurements,ILs/NL,Angle4p,Is,Isa,PNS,ANS,110±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bjork-DK,measurements,ILi/ML,Angle4p,aGo,Me,Ii,Iia,94±7,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bjork-DK,measurements,ML/NL,Angle2ln,NL,ML,,,25±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bjork-DK,measurements,NL/NSL,Angle2ln,NSL,NL,,,8±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bjork-DK,measurements,ML/NSL,Angle2ln,NSL,ML,,,33±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bjork-DK,measurements,OLmx/NL,Angle2ln,NL,OLmx,,,10±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Bjork-DK,measurements,ML/OLmd,Angle2ln,OLmd,ML,,,20±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Bjork-DK,measurements,Saddle angle,Angle3p,S,N,Ar,,124±5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Bjork-DK,measurements,NSBa,Angle3p,S,N,Ba,,131±4.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Bjork-DK,measurements,Beta angle,Angle4p,aGo,Me,Ar,beta,19±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Bjork-DK,measurements,Gonial angle,Angle4p,Ar,pGo,Me,aGo,126±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

@@ -1,0 +1,32 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Hasund,markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Hasund,markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Hasund,markers,PNS,Posterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Hasund,markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Hasund,markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Hasund,markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Hasund,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Hasund,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Hasund,markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Hasund,markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Hasund,markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Hasund,markers,Gn,Gnathion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Hasund,markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Hasund,markers,aGo,anterior Gonion (lower border of mandible),Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Hasund,markers,pGo,posterior Gonion (posterior point on ramus),Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Hasund,markers,Ar,Articulare,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Hasund,markers,Ba,Basion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Hasund,markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Hasund,markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Hasund,markers,MS,Steiner's S-point (columnella tangent point),Profile marker,,<flexible>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Hasund,markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Hasund,markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Hasund,markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Hasund,markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Hasund,markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Hasund,markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Hasund,markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Hasund,markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Hasund,markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Hasund,markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Hasund,markers,T,Throat (neck),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY

@@ -1,0 +1,55 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Hasund regression,measurements,ANB,Angle3p,N,A,B,,2-3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Hasund regression,measurements,Pog-NB,DistLine,NB,Pog,,,4±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Hasund regression,measurements,UFH,Dist2p,N,Sp',,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Hasund regression,measurements,LFH,Dist2p,Sp',Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Hasund regression,measurements,U:L Facial Hgh,Div,UFH,LFH,,,79±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Hasund regression,measurements,ILs/NA,Angle4p,Is,Isa,A,N,22±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Hasund regression,measurements,ILi/NB,Angle4p,B,N,Iia,Ii,25±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Hasund regression,measurements,k051,CephConstant,0.51,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Hasund regression,measurements,k030,CephConstant,0.3,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Hasund regression,measurements,k0084,CephConstant,0.084,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Hasund regression,measurements,k086,CephConstant,0.86,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Hasund regression,measurements,k023,CephConstant,0.23,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Hasund regression,measurements,k0083,CephConstant,0.083,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Hasund regression,measurements,k151,CephConstant,1.51,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Hasund regression,measurements,k080,CephConstant,0.8,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Hasund regression,measurements,k219,CephConstant,2.19,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Hasund regression,measurements,k061,CephConstant,0.61,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Hasund regression,measurements,k104,CephConstant,10.4,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Hasund regression,measurements,k128,CephConstant,12.8,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Hasund regression,measurements,k224,CephConstant,22.4,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Hasund regression,measurements,k271,CephConstant,27.1,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Hasund regression,measurements,k180,CephConstant,180.0,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Hasund regression,measurements,k159,CephConstant,1.59,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Hasund regression,measurements,k1293,CephConstant,129.3,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Hasund regression,measurements,k13,CephConstant,1.3,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Hasund regression,measurements,k105,CephConstant,10.5,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Hasund regression,measurements,ANBx051,Mul,ANB,k051,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Hasund regression,measurements,ANBx086,Mul,ANB,k086,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Hasund regression,measurements,ANBx151,Mul,ANB,k151,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Hasund regression,measurements,ANBx219,Mul,ANB,k219,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Hasund regression,measurements,Pog-NBx030,Mul,Pog-NB,k030,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Hasund regression,measurements,Pog-NBx023,Mul,Pog-NB,k023,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Hasund regression,measurements,Pog-NBx080,Mul,Pog-NB,k080,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Hasund regression,measurements,Pog-NBx061,Mul,Pog-NB,k061,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Hasund regression,measurements,Pog-NBx159,Mul,Pog-NB,k159,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Hasund regression,measurements,Pog-NBx13,Mul,Pog-NB,k13,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+37,Hasund regression,measurements,FHx0084,Mul,U:L Facial Hgh,k0084,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+38,Hasund regression,measurements,FHx0083,Mul,U:L Facial Hgh,k0083,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+39,Hasund regression,measurements,I-NB pr 1,Sub,ANBx051,Pog-NBx030,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+40,Hasund regression,measurements,I-NB pr 2,Sub,k104,FHx0084,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+41,Hasund regression,measurements,I-NB prog-reg,Add,I-NB pr 1,I-NB pr 2,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+42,Hasund regression,measurements,I/NB pr 1,Sub,ANBx151,Pog-NBx080,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+43,Hasund regression,measurements,I/NB prog-reg,Add,I/NB pr 1,k224,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+44,Hasund regression,measurements,I-NA pr 1,Add,ANBx086,Pog-NBx023,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+45,Hasund regression,measurements,I-NA pr 2,Sub,k128,FHx0083,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+46,Hasund regression,measurements,I-NA prog-reg,Sub,I-NA pr 2,I-NA pr 1,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+47,Hasund regression,measurements,I/NA pr 1,Add,ANBx219,Pog-NBx061,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+48,Hasund regression,measurements,I/NA prog-reg,Sub,k271,I/NA pr 1,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+49,Hasund regression,measurements,II p 1,Add,ANB,ILs/NA,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+50,Hasund regression,measurements,II p 2,Add,II p 1,ILi/NB,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+51,Hasund regression,measurements,InterInc calculated,Sub,k180,II p 2,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+52,Hasund regression,measurements,InterInc prog-reg,Add,Pog-NBx159,k1293,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+53,Hasund regression,measurements,Hv 1,Sub,ANB,Pog-NBx13,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+54,Hasund regression,measurements,Holdaway prog-reg,Add,Hv 1,k105,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

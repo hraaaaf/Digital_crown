@@ -1,0 +1,30 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Alexander,markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Alexander,markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Alexander,markers,Or,Orbitale,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Alexander,markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Alexander,markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Alexander,markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Alexander,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Alexander,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Alexander,markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Alexander,markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Alexander,markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Alexander,markers,Gn,Gnathion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Alexander,markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Alexander,markers,aGo,anterior Gonion (lower border of mandible),Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Alexander,markers,P,Porion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Alexander,markers,OLp,"Occlusal Line, posterior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Alexander,markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Alexander,markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Alexander,markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Alexander,markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Alexander,markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Alexander,markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Alexander,markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Alexander,markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Alexander,markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Alexander,markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Alexander,markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Alexander,markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Alexander,markers,T,Throat (neck),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY

@@ -1,0 +1,37 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Basel 2013,measurements,Sagittal jaw relation,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Basel 2013,measurements,Sagittal skeletal basal,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Basel 2013,measurements,SNA,Angle3p,N,A,S,,82±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Basel 2013,measurements,SNB,Angle3p,N,B,S,,80±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Basel 2013,measurements,ANB,Angle3p,N,A,B,,2±2,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Basel 2013,measurements,ind ANB,Sub,sum-fr,c35.16,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Basel 2013,measurements,Wits,ProjLine,OL,B,A,,0±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Basel 2013,measurements,Sagittal dento-alveolar,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Basel 2013,measurements,Pr-N-A,Angle3p,N,Pr,A,,2±1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Basel 2013,measurements,CL/ML,Angle4p,aGo,Me,Id,Pog,70±8,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Basel 2013,measurements,Sagittal dental,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Basel 2013,measurements,ILs/NL,Angle4p,Is,Isa,PNS,ANS,110±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Basel 2013,measurements,ILi/ML,Angle4p,aGo,Me,Ii,Iia,92±5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Basel 2013,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,131±9,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Basel 2013,measurements,Vertical jaw relation,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Basel 2013,measurements,Vertical skeletal basal,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Basel 2013,measurements,NL/NSL,Angle2ln,NSL,NL,,,8.5±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Basel 2013,measurements,ML/NSL,Angle2ln,NSL,ML,,,32±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Basel 2013,measurements,ML/NL,Angle2ln,NL,ML,,,23.5±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Basel 2013,measurements,Vertical dento-alveolar,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Basel 2013,measurements,OL/NL,Angle2ln,NL,OL,,,10±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Basel 2013,measurements,OL/ML,Angle2ln,OL,ML,,,20±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Basel 2013,measurements,Cranial/mandibular morphology,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Basel 2013,measurements,Y-axis/NSL,Angle3p,S,N,Gn,,66±4,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Basel 2013,measurements,NSBa,Angle3p,S,N,Ba,,130±6,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Basel 2013,measurements,P:A Facial Hgh,Ratio,S,Go',N,Me,64,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Basel 2013,measurements,Gonial angle,Angle4p,Ar,pGo,Me,aGo,126±10,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Basel 2013,measurements,Soft tissue,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Basel 2013,measurements,Facial convexity,Angle4p,GL,SN,SN,PGs,12±4,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Basel 2013,measurements,Nasolabial,Angle3p,SN,MS,Ls,,102±8,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Basel 2013,measurements,Ls-EL,DistLine,EL,Ls,,,-4±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Basel 2013,measurements,Li-EL,DistLine,EL,Li,,,-2±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Basel 2013,measurements,SNA-fr04,Mul,"0,4",SNA,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Basel 2013,measurements,ML-NSL-fr02,Mul,"0,2",ML/NSL,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Basel 2013,measurements,sum-fr,Add,SNA-fr04,ML-NSL-fr02,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Basel 2013,measurements,c35.16,CephConstant,"35,16",,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

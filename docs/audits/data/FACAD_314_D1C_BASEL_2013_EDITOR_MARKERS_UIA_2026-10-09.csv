@@ -1,0 +1,36 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Basel 2013,markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Basel 2013,markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Basel 2013,markers,PNS,Posterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Basel 2013,markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Basel 2013,markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Basel 2013,markers,Pr,Prosthion,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Basel 2013,markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Basel 2013,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Basel 2013,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Basel 2013,markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Basel 2013,markers,Id,Infradentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Basel 2013,markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Basel 2013,markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Basel 2013,markers,Gn,Gnathion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Basel 2013,markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Basel 2013,markers,aGo,anterior Gonion (lower border of mandible),Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Basel 2013,markers,pGo,posterior Gonion (posterior point on ramus),Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Basel 2013,markers,Ar,Articulare,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Basel 2013,markers,Ba,Basion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Basel 2013,markers,OLp,"Occlusal Line, posterior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Basel 2013,markers,GL,Soft tissue Glabella,Profile marker,,<fixed>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Basel 2013,markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Basel 2013,markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Basel 2013,markers,MS,Steiner's S-point (columnella tangent point),Profile marker,,<flexible>,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Basel 2013,markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Basel 2013,markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Basel 2013,markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Basel 2013,markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Basel 2013,markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Basel 2013,markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Basel 2013,markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Basel 2013,markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Basel 2013,markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Basel 2013,markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Basel 2013,markers,T,Throat (neck),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY

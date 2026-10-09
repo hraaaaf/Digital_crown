@@ -1,0 +1,9 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Airway (FH),lines,SBa line,Line,S,Ba,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Airway (FH),lines,SBa line ,Normal,SBa line,PNS,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Airway (FH),lines,BaPNS line,Line,Ba,PNS,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Airway (FH),lines,FH,Line,P,Or,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Airway (FH),lines,PNS-P-mid,Mid-point,PNS,SPltip,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Airway (FH),lines,SPmid // FH,Parallel,FH,PNS-P-mid,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Airway (FH),lines,SPltip // FH,Parallel,FH,SPltip,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Airway (FH),lines,CV2 // FH,Parallel,FH,CV2-ai,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

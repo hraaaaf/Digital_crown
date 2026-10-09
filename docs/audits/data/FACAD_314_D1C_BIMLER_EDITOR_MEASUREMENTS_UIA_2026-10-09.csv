@@ -1,0 +1,31 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Bimler,measurements,Profile angle,Angle4p,N,A,A,B,5±5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bimler,measurements,F1 Upp profile angle,Angle2ln,NA,AV,,,0,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bimler,measurements,F2 Low profile angle,Angle2ln,AV,AB,,,0-15,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bimler,measurements,F3 FMPA (ML/FH),Angle2ln,FH,ML,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bimler,measurements,F4 NL/FH,Angle2ln,FH,NL,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bimler,measurements,Lower base angle (MaxMand),Angle2ln,NL,ML,,,15-30,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bimler,measurements,Aleveolar hgh,DistLine,NL,Ms-ma,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bimler,measurements,F5 Clivus incl,Angle2ln,ClivusTg,FH,,,50-80,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bimler,measurements,Upper base angle (ClivoMax),Angle2ln,ClivusTg,NL,,,60-70,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bimler,measurements,F6 Stress axis,Angle4p,Or,P,Ge,Cm,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bimler,measurements,F7 FH/NSL,Angle2ln,NSL,FH,,,7±7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bimler,measurements,N-S,Dist2p,N,S,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Bimler,measurements,F8 Mand flexion,Angle2ln,RL,CV,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Bimler,measurements,F9 Sphenoidal incl,Angle4p,P,Or,Sph-d,Sph-m,7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Bimler,measurements,F10 Nasal incl,Angle2ln,NasalTg,AV,,,30,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Bimler,measurements,MH Suborb face hgh,ProjLine,TV,Me,Or,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Bimler,measurements,Tot face hgh,ProjLine,TV,Me,N,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Bimler,measurements,AT Max len,ProjLine,FH,Pt,A,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Bimler,measurements,T-TM Temporal pos,ProjLine,FH,Cp,Pt,,28-32,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Bimler,measurements,AB Overjet,ProjLine,FH,B,A,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Bimler,measurements,B-TM Mand len,ProjLine,FH,Cp,B,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Bimler,measurements,Mand diag,Dist2p,Gn,Co,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Bimler,measurements,HT Facial depth,ProjLine,FH,Cp,A,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Bimler,measurements,Upper IA,Angle4p,Is,Isa,P,Or,110-120,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Bimler,measurements,Lower IA,Angle4p,Or,P,Iia,Ii,110-120,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Bimler,measurements,Inter IA,Angle4p,Iia,Ii,Isa,Is,120-140,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Bimler,measurements,IMPA (ILi/ML),Angle4p,aGo,Me,Ii,Iia,,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Bimler,measurements,Gonial angle,Angle2ln,RL,ML,,,105-120,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Bimler,measurements,Dist_Cm_Cp,Dist2p,Cm,Cp,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Bimler,measurements,Dist_AonFH_Me,Dist2p,AonFH,Me,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

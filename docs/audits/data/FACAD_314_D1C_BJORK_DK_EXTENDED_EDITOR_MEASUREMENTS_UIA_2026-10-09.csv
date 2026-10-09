@@ -1,0 +1,25 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Bjork-DK-extended,measurements,ANPog,Angle3p,N,A,Pog,,2±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bjork-DK-extended,measurements,ANB,Angle3p,N,A,B,,3±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bjork-DK-extended,measurements,SNA,Angle3p,N,A,S,,82±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bjork-DK-extended,measurements,SNPog,Angle3p,N,Pog,S,,80±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bjork-DK-extended,measurements,Pr-N-A,Angle3p,N,Pr,A,,2±1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bjork-DK-extended,measurements,CL/ML,Angle4p,aGo,Me,Id,Pog,70±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bjork-DK-extended,measurements,ILs/NL,Angle4p,Is,Isa,PNS,ANS,110±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bjork-DK-extended,measurements,ILi/ML,Angle4p,aGo,Me,Ii,Iia,94±7,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bjork-DK-extended,measurements,ML/NL,Angle2ln,NL,ML,,,25±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bjork-DK-extended,measurements,NL/NSL,Angle2ln,NSL,NL,,,8±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bjork-DK-extended,measurements,ML/NSL,Angle2ln,NSL,ML,,,33±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bjork-DK-extended,measurements,OLmx/NL,Angle2ln,NL,OLmx,,,10±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Bjork-DK-extended,measurements,ML/OLmd,Angle2ln,OLmd,ML,,,20±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Bjork-DK-extended,measurements,Saddle angle,Angle3p,S,N,Ar,,124±5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Bjork-DK-extended,measurements,NSBa,Angle3p,S,N,Ba,,131±4.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Bjork-DK-extended,measurements,Beta angle,Angle4p,aGo,Me,Ar,beta,19±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Bjork-DK-extended,measurements,Gonial angle,Angle4p,Ar,pGo,Me,aGo,126±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Bjork-DK-extended,measurements,Ii to A-Pog,Dist3p,Pog,A,Ii,,1±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Bjork-DK-extended,measurements,Is-STs,Dist2p,Is,STs,,,2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Bjork-DK-extended,measurements,Ls-EL,DistLine,EL,Ls,,,-4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Bjork-DK-extended,measurements,Li-EL,DistLine,EL,Li,,,-2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Bjork-DK-extended,measurements,UFH:AFH,Ratio,N,ANS,N,Me,45,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Bjork-DK-extended,measurements,Nasolabial,Angle3p,SN,MS,Ls,,106±8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Bjork-DK-extended,measurements,Facial convexity,Angle4p,GL,SN,SN,PGs,12±4,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

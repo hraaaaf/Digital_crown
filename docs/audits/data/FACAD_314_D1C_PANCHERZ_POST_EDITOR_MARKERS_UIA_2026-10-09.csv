@@ -1,0 +1,12 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Pancherz-post,markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Pancherz-post,markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Pancherz-post,markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Pancherz-post,markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Pancherz-post,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Pancherz-post,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Pancherz-post,markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Pancherz-post,markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Pancherz-post,markers,Ar,Articulare,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Pancherz-post,markers,Ms-m,"Molar superior, most mesial point",Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Pancherz-post,markers,Mi-m,"Molar inferior, most mesial point",Marker,"Molar, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY

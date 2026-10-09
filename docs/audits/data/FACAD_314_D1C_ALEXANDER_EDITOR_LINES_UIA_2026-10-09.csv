@@ -1,0 +1,11 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Alexander,lines,NSL,Line,S,N,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Alexander,lines,FH,Line,P,Or,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Alexander,lines,OL,Line,OLp,OLa,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Alexander,lines,OLa,Mid-point,Is,Ii,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Alexander,lines,ML,Line,aGo,Me,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Alexander,lines,FL,Line,Pog,N,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Alexander,lines,NB,Line,B,N,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Alexander,lines,ILi,Line,Iia,Ii,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Alexander,lines,HL,Line,PGs,Ls,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Alexander,lines,Gn',Inter2ln,ML,FL,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

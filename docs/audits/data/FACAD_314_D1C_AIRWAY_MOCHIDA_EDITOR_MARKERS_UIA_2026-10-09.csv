@@ -1,0 +1,16 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Airway (Mochida),markers,P,Porion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Airway (Mochida),markers,Or,Orbitale,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Airway (Mochida),markers,PNS,Posterior Nasal Spine,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Airway (Mochida),markers,SPltip,Lower tip of soft palate,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Airway (Mochida),markers,CV2-ai,"Vertebra 2, anteroinferior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Airway (Mochida),markers,EPtip,Tip of epiglottis,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Airway (Mochida),markers,PPW-PNS,Posterior pharynx wall at PNS,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Airway (Mochida),markers,PPW-SPmid,Posterior pharynx wall at soft palate midpoint,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Airway (Mochida),markers,SPmid,Soft palate midpoint on dorsum,Marker,Soft Palate,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Airway (Mochida),markers,PPW-SPltip,Posterior pharynx wall at soft palate lower tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Airway (Mochida),markers,APW-SPltip,Anterior pharynx wall at soft palate lower tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Airway (Mochida),markers,PPW-CV2,Posterior pharynx wall at vertebra 2 inferior,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Airway (Mochida),markers,APW-CV2,Anterior pharynx wall at vertebra 2 inferior,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Airway (Mochida),markers,PPW-EPtip,Posterior pharynx wall at epiglottis tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Airway (Mochida),markers,APW-EPtip,Anterior pharynx wall at epiglottis tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY

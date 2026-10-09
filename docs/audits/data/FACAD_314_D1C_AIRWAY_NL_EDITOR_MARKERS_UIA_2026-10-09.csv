@@ -1,0 +1,23 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Airway (NL),markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Airway (NL),markers,Ba,Basion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Airway (NL),markers,PNS,Posterior Nasal Spine,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Airway (NL),markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Airway (NL),markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Airway (NL),markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Airway (NL),markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Airway (NL),markers,Go,Gonion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Airway (NL),markers,OLp,"Occlusal Line, posterior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Airway (NL),markers,SPltip,Lower tip of soft palate,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Airway (NL),markers,EPbase,Epiglottis base,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Airway (NL),markers,AD2,Adenoid upper point,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Airway (NL),markers,AD1,Adenoid lower point,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Airway (NL),markers,PPW-PNS,Posterior pharynx wall at PNS,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Airway (NL),markers,PPW-SPmid,Posterior pharynx wall at soft palate midpoint,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Airway (NL),markers,SPmid,Soft palate midpoint on dorsum,Marker,Soft Palate,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Airway (NL),markers,PPW-SPltip,Posterior pharynx wall at soft palate lower tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Airway (NL),markers,APW-SPltip,Anterior pharynx wall at soft palate lower tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Airway (NL),markers,PPW-OL,Posterior pharynx wall on Occlusal line,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Airway (NL),markers,SP-OL,Soft palate dorsum on Occlusal line,Marker,Soft Palate,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Airway (NL),markers,PPW-Go,Posterior pharynx wall at Gonion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Airway (NL),markers,PPW-EPbase,Posterior pharynx wall at epiglottis base,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY

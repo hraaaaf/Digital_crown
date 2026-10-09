@@ -1,0 +1,40 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Bern analysis,measurements,SNA,Angle3p,N,A,S,,82±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bern analysis,measurements,SNB,Angle3p,N,B,S,,79±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bern analysis,measurements,ANB,Angle3p,N,A,B,,3±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bern analysis,measurements,Wits,ProjLine,OL,B,A,,1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bern analysis,measurements,N-S,Dist2p,N,S,,,70±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bern analysis,measurements,Max ln,Dist2p,Co,A,,,94±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bern analysis,measurements,Mand ln,Dist2p,Co,Gn,,,123±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bern analysis,measurements,Diff max-mand ln,Sub,Mand ln,Max ln,,,29±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bern analysis,measurements,LFH,Dist2p,ANS,Me,,,70±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bern analysis,measurements,UFH,Dist2p,N,ANS,,,52±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bern analysis,measurements,LFH %,Ratio,ANS,Me,N,Me,57±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bern analysis,measurements,P:A Facial Hgh,Ratio,S,Go',N,Me,69±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Bern analysis,measurements,NL/NSL,Angle2ln,NSL,NL,,,7±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Bern analysis,measurements,ML/NSL,Angle2ln,NSL,ML,,,27.5±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Bern analysis,measurements,ML/NL,Angle2ln,NL,ML,,,20.5±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Bern analysis,measurements,Gonial angle,Angle3p,Go',Ar,Me,,122±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Bern analysis,measurements,Y-axis/NSL,Angle3p,S,N,Gn,,66±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Bern analysis,measurements,Saddle angle,Angle3p,S,N,Ar,,124±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Bern analysis,measurements,ILs/NL,Angle4p,Is,Isa,PNS,ANS,106.5±6.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Bern analysis,measurements,ILi/ML,Angle4p,aGo,Me,Ii,Iia,98±7.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Bern analysis,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,135±10,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Bern analysis,measurements,Ii to A-Pog,Dist3p,Pog,A,Ii,,1±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Bern analysis,measurements,Pog-NB,DistLine,NB,Pog,,,3±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Bern analysis,measurements,ILs/NA,Angle4p,Is,Isa,A,N,25±7,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Bern analysis,measurements,ILi/NB,Angle4p,B,N,Iia,Ii,22±9,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Bern analysis,measurements,Is-NA,DistLine,NA,Is,,,5±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Bern analysis,measurements,Ii-NB,DistLine,NB,Ii,,,3.5±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Bern analysis,measurements,Is-ANSp,ProjLine,THL,Isl,ANS,,0,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Bern analysis,measurements,Ii-Pogp,ProjLine,THL,Iil,Pog,,0,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Bern analysis,measurements,Soft tissue,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Bern analysis,measurements,Facial Convexity,Angle4p,GL,SN,SN,PGs,13.5±6,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Bern analysis,measurements,Nasolabial,Angle3p,SN,MS,Ls,,108±12,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Bern analysis,measurements,Ls-SNPGs,DistLine,SNPGs,Ls,,,2.5±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Bern analysis,measurements,Li-SNPGs,DistLine,SNPGs,Li,,,1±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Bern analysis,measurements,Ls-EL,DistLine,EL,Ls,,,-5±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Bern analysis,measurements,Li-EL,DistLine,EL,Li,,,-3.5±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+37,Bern analysis,measurements,Upper lip hgh,DistLine,NL,STs,,,27±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+38,Bern analysis,measurements,Lower lip hgh,DistLine,ML,STi,,,44.5±3.5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+39,Bern analysis,measurements,Is-STs,ProjLine,NP,Is,STs,,2.5±1.5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

@@ -1,0 +1,42 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Oslo Surgical,measurements,Skeletal,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Oslo Surgical,measurements,NSBa,Angle3p,S,N,Ba,,130±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Oslo Surgical,measurements,SNA,Angle3p,N,A,S,,82±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Oslo Surgical,measurements,SNB,Angle3p,N,B,S,,79±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Oslo Surgical,measurements,ANB,Angle3p,N,A,B,,2-3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Oslo Surgical,measurements,FH/NSL,Angle2ln,NSL,FH,,,5-7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Oslo Surgical,measurements,NL/NSL,Angle2ln,NSL,NL,,,7±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Oslo Surgical,measurements,ML/NSL,Angle2ln,NSL,ML,,,33±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Oslo Surgical,measurements,FA/NBa,Angle4p,Pt,Gn,N,Ba,90±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Oslo Surgical,measurements,A to N-Pog,Dist3p,Pog,N,A,,2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Oslo Surgical,measurements,UFH,Proj90Line,FH,ANS,N,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Oslo Surgical,measurements,LFH,Proj90Line,FH,Me,ANS,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Oslo Surgical,measurements,U:L Facial Hgh,Div,UFH,LFH,,,80,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Oslo Surgical,measurements,A-N ,ProjLine,FH,N,A,,0-1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Oslo Surgical,measurements,Pog-N ,ProjLine,FH,N,Pog,,-4-0,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Oslo Surgical,measurements,Co-A,Dist2p,Co,A,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Oslo Surgical,measurements,Co-Gn,Dist2p,Co,Gn,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Oslo Surgical,measurements,Max-Mand diff,Sub,Co-Gn,Co-A,,,25-27,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Oslo Surgical,measurements,Dental,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Oslo Surgical,measurements,Ii to A-Pog,Dist3p,Pog,A,Ii,,1±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Oslo Surgical,measurements,Is to A-Pog,Dist3p,Pog,A,Is,,1±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Oslo Surgical,measurements,ILi/A-Pog,Angle4p,Pog,A,Iia,Ii,22±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Oslo Surgical,measurements,ILs/A-Pog,Angle4p,Isa,Is,A,Pog,26±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Oslo Surgical,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,131±6,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Oslo Surgical,measurements,ILi/ML,Angle4p,aGo,Me,Ii,Iia,94±4.5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Oslo Surgical,measurements,ILs/FH,Angle4p,Is,Isa,P,Or,107,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Oslo Surgical,measurements,ILs/NSL,Angle4p,Is,Isa,S,N,105±6,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Oslo Surgical,measurements,Soft tissue,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Oslo Surgical,measurements,Li-EL,DistLine,EL,Li,,,0,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Oslo Surgical,measurements,Ls-EL,DistLine,EL,Ls,,,-2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Oslo Surgical,measurements,Li-SL,DistLine,SL,Li,,,0,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Oslo Surgical,measurements,Ls-SL,DistLine,SL,Ls,,,0,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Oslo Surgical,measurements,GL-SN,Proj90Line,FH,SN,GL,,60-66,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Oslo Surgical,measurements,SN-MEs,Proj90Line,FH,MEs,SN,,60-66,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Oslo Surgical,measurements,SN-Li,Proj90Line,FH,Li,SN,,30-33,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Oslo Surgical,measurements,Li-MEs,Proj90Line,FH,MEs,Li,,30-33,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+37,Oslo Surgical,measurements,SN-STs,Proj90Line,FH,STs,SN,,22±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+38,Oslo Surgical,measurements,STi-MEs,Proj90Line,FH,MEs,STi,,44±4,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+39,Oslo Surgical,measurements,STs-STi,Proj90Line,FH,STi,STs,,0-3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+40,Oslo Surgical,measurements,Nasolabial,Angle3p,SN,MS,Ls,,102±8,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+41,Oslo Surgical,measurements,GL-SN-PGs,Angle4p,GL,SN,SN,PGs,12±4,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

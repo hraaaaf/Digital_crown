@@ -1,0 +1,16 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Airway (FH),markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Airway (FH),markers,P,Porion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Airway (FH),markers,Or,Orbitale,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Airway (FH),markers,Ba,Basion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Airway (FH),markers,PNS,Posterior Nasal Spine,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Airway (FH),markers,SPltip,Lower tip of soft palate,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Airway (FH),markers,CV2-ai,"Vertebra 2, anteroinferior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Airway (FH),markers,AD2,Adenoid upper point,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Airway (FH),markers,AD1,Adenoid lower point,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Airway (FH),markers,PPW-SPmid,Posterior pharynx wall at soft palate midpoint,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Airway (FH),markers,SPmid,Soft palate midpoint on dorsum,Marker,Soft Palate,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Airway (FH),markers,PPW-SPltip,Posterior pharynx wall at soft palate lower tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Airway (FH),markers,APW-SPltip,Anterior pharynx wall at soft palate lower tip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Airway (FH),markers,PPW-CV2,Posterior pharynx wall at vertebra 2 inferior,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Airway (FH),markers,APW-CV2,Anterior pharynx wall at vertebra 2 inferior,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY

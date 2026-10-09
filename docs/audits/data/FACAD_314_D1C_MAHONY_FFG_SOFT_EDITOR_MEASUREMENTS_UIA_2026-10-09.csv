@@ -1,0 +1,57 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Mahony FFG + soft,measurements,SNA,Angle3p,N,A,S,,82±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Mahony FFG + soft,measurements,SNB,Angle3p,N,B,S,,80±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Mahony FFG + soft,measurements,ANB,Angle3p,N,A,B,,2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Mahony FFG + soft,measurements,Wits,ProjLine,OL,B,A,,0±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Mahony FFG + soft,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,131±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Mahony FFG + soft,measurements,T to APO,Dist3p,Pog,A,Ii,,0±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Mahony FFG + soft,measurements,Upper Face,Dist2p,N,ANS,,,46±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Mahony FFG + soft,measurements,Lower Face,Dist2p,ANS,B,,,50±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Mahony FFG + soft,measurements,Gonial angle,Angle2ln,RL,ML,,,130±7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Mahony FFG + soft,measurements,Upper Lip,DistLine,EL,Ls,,,0±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Mahony FFG + soft,measurements,E-plane Mn Lip,DistLine,EL,Li,,,0±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Mahony FFG + soft,measurements,Upp inc / Max,Angle4p,Is,Isa,PNS,ANS,112.5±7.5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Mahony FFG + soft,measurements,Low inc / Mand,Angle4p,aGo,Me,Ii,Iia,90±3,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Mahony FFG + soft,measurements,A to vertical,DistLine,NP,A,,,0-1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Mahony FFG + soft,measurements,Mand/Max plane,Angle2ln,NL,ML,,,28±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Mahony FFG + soft,measurements,FMA,Angle2ln,FH,ML,,,25±9,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Mahony FFG + soft,measurements,Mew indicator,Dist2p,PRN,Is,,,36.75±1.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Mahony FFG + soft,measurements,BNV-Ls,DistLine,BNV,Ls,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Mahony FFG + soft,measurements,BNV-Mental crease,DistLine,BNV,SLi,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Mahony FFG + soft,measurements,SN to Mx plane,Angle2ln,NSL,NL,,,7±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Mahony FFG + soft,measurements,SN to Mand plane,Angle2ln,NSL,ML,,,33±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Mahony FFG + soft,measurements,Max ln,ProjLine,FH,PNS,A,,46±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Mahony FFG + soft,measurements,Mand ln,Dist2p,Go,Pog,,,76±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Mahony FFG + soft,measurements,Back Face hgh,Dist2p,S,Go,,,77±6,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Mahony FFG + soft,measurements,Front Face hgh,Dist2p,N,Me,,,126±7,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Mahony FFG + soft,measurements,N-S,Dist2p,N,S,,,69±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Mahony FFG + soft,measurements,Y-axis/FH,Angle4p,Or,P,Gn,S,59.4±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Mahony FFG + soft,measurements,NSBa,Angle3p,S,N,Ba,,130±5,Lines,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Mahony FFG + soft,measurements,Co-Gn / SN,Angle4p,N,S,Gn,Co,50±5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Mahony FFG + soft,measurements,UAFH/LAFH ratio,Ratio,N,ANS,ANS,Me,80,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Mahony FFG + soft,measurements,Jefferson,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Mahony FFG + soft,measurements,ANS to AArc,Sub,O-ANS,AArc radius,,,0±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Mahony FFG + soft,measurements,Is to AArc,Sub,O-Is,AArc radius,,,0±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Mahony FFG + soft,measurements,Pog to AArc,Sub,O-Pog,AArc radius,,,0±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Mahony FFG + soft,measurements,LFH diff,Sub,LFH,VArc radius,,,0-10,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Mahony FFG + soft,measurements,Bimler,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+37,Mahony FFG + soft,measurements,Mand diag,Dist2p,Gn,Co,,,115±6,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+38,Mahony FFG + soft,measurements,F1 Upp profile angle,Angle2ln,NA,AV,,,0,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+39,Mahony FFG + soft,measurements,T-TM Temporal pos,ProjLine,FH,Cp,Pt,,30±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+40,Mahony FFG + soft,measurements,AArc radius,Dist2p,O,N,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+41,Mahony FFG + soft,measurements,O-ANS,Dist2p,O,ANS,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+42,Mahony FFG + soft,measurements,O-Is,Dist2p,O,Is,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+43,Mahony FFG + soft,measurements,O-Pog,Dist2p,O,Pog,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+44,Mahony FFG + soft,measurements,VArc radius,Dist2p,ANS,SOr,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+45,Mahony FFG + soft,measurements,LFH,Dist2p,ANS,Me,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+46,Mahony FFG + soft,measurements,Extras,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+47,Mahony FFG + soft,measurements,Low cervicofacial,Angle4p,T,MEs,SN,PGs,100±7,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+48,Mahony FFG + soft,measurements,Nasofrontal,Angle3p,Ns,GL,PRN,,120-135,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+49,Mahony FFG + soft,measurements,GL-SN / SN-MEs,Div,GL-SN,SN-MEs,,,100±5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+50,Mahony FFG + soft,measurements,SN-STs / GL-SN,Div,SN-STs,GL-SN,,,33,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+51,Mahony FFG + soft,measurements,SN-STs / STi-MEs,Div,SN-STs,STi-MEs,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+52,Mahony FFG + soft,measurements,GL-SN,ProjLine,NP,SN,GL,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+53,Mahony FFG + soft,measurements,SN-MEs,ProjLine,NP,MEs,SN,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+54,Mahony FFG + soft,measurements,SN-STs,ProjLine,NP,STs,SN,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+55,Mahony FFG + soft,measurements,STi-MEs,ProjLine,NP,MEs,STi,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+56,Mahony FFG + soft,measurements,VArc radius_and_10,Add,VArc radius,10,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

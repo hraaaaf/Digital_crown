@@ -1,0 +1,16 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Pancherz-post,measurements,OL-p angle (pre),CephConstant,90,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Pancherz-post,measurements,Overjet,Sub,Max inc,Mand inc,,,3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Pancherz-post,measurements,Molar relation,Sub,Max molar,Mand molar,,,-1.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Pancherz-post,measurements,Max base,DistLine,OL-p,ANS,,,82.3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Pancherz-post,measurements,Mand base,DistLine,OL-p,Pog,,,82.8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Pancherz-post,measurements,Condyle,DistLine,OL-p,Ar,,,10.6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Pancherz-post,measurements,Mand length,Add,Mand base,Condyle,,,93.4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Pancherz-post,measurements,Max inc,DistLine,OL-p,Is,,,84.3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Pancherz-post,measurements,Mand inc,DistLine,OL-p,Ii,,,80.8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Pancherz-post,measurements,Max molar,DistLine,OL-p,Ms-m,,,55.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Pancherz-post,measurements,Mand molar,DistLine,OL-p,Mi-m,,,57.0,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Pancherz-post,measurements,Max inc-base,Sub,Max inc,Max base,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Pancherz-post,measurements,Mand inc-base,Sub,Mand inc,Mand base,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Pancherz-post,measurements,Max mol-base,Sub,Max molar,Max base,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Pancherz-post,measurements,Mand mol-base,Sub,Mand molar,Mand base,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
