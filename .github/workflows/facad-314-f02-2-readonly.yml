@@ -26,6 +26,7 @@ jobs:
           $paths=@(
             'scripts/facad_314_d1c_editor_pilot.ps1',
             'scripts/facad_314_f02_2_readonly_view_probe.ps1',
+            'scripts/facad_314_f02_3_passive_anatomy_menu.ps1',
             'scripts/facad_314_d1b_catalog_selection.ps1',
             'scripts/facad_314_d2_view_probe.ps1',
             'scripts/facad_314_d2b_view_structure.ps1',
@@ -985,12 +986,17 @@ jobs:
           # FAC-02 F02.2: only open/close View root, never invoke leaf controls.
           # No Save, no patient Load, no toggles, no shared settings mutation.
           $f022=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f02_2_readonly_view_probe.ps1'
+          $f023=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f02_3_passive_anatomy_menu.ps1'
           $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
           $observationFailure=$null
           $preflightFailure=$null
           try {
             if(-not (Test-Path -LiteralPath $f022)){throw 'F02.2 bounded probe missing'}
             & $f022 -FacadProcessId ([int]$facadPid) `
+              -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
+              -OutDir 'facad-quick-demo'
+            if(-not (Test-Path -LiteralPath $f023)){throw 'F02.3 passive menu probe missing'}
+            & $f023 -FacadProcessId ([int]$facadPid) `
               -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
               -OutDir 'facad-quick-demo'
           }catch{
@@ -1023,7 +1029,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: facad-314-f02-2-readonly-${{ github.sha }}
+          name: facad-314-f02-2-f02-3-readonly-${{ github.sha }}
           path: |
             facad-quick-demo/quick-demo-process.txt
             facad-quick-demo/ui-before-click.txt
@@ -1046,6 +1052,9 @@ jobs:
             facad-quick-demo/f02-2-*.png
             facad-quick-demo/f02-2-*.txt
             facad-quick-demo/f02-2-targets.csv
+            facad-quick-demo/f02-3-*.png
+            facad-quick-demo/f02-3-*.txt
+            facad-quick-demo/f02-3-menu-observations.csv
             facad-quick-demo/d1c-*.png
             facad-quick-demo/d1c-*.txt
             facad-quick-demo/d1c-editor-pilot.csv
