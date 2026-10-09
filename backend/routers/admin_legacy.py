@@ -199,6 +199,9 @@ def get_cabinet_info(db: Session = Depends(database.get_db), current_user: model
     praticien.telephone = praticien.telephone_fixe
     praticien.inpe = (praticien.identifiants_legaux or {}).get("INPE", "")
     
+    # The existing authenticated tenant authority resolves the employer's own
+    # cabinet. Never fall back to a hardcoded or browser-selected cabinet name.
+    praticien.nom_cabinet = praticien.cabinet_config.nom_cabinet if praticien.cabinet_config else None
     if praticien.cabinet_config:
         praticien.header_lines_fr = praticien.cabinet_config.header_lines_fr
         praticien.header_lines_ar = praticien.cabinet_config.header_lines_ar
