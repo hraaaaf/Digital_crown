@@ -106,6 +106,7 @@ jobs:
           import fs from 'node:fs';
           import path from 'node:path';
           import { chromium, request } from 'playwright';
+          import { enrollT2Workstation } from './scripts/t2-workstation-session.mjs';
 
           const out = path.resolve('../artifacts/patient-indicators-after');
           const viewports = [
@@ -124,6 +125,9 @@ jobs:
           const login = await api.post('/api/auth/login',{form:{username:user,password}});
           if (!login.ok()) fail(`login ${login.status()}: ${await login.text()}`);
           const tok = await login.json();
+          // This disposable workstation is genuinely enrolled with the backend.
+          // Its server-issued HTTP-only identity must survive fresh Chromium contexts.
+          const workstationStorage = await enrollT2Workstation(api, tok.access_token, password);
           const headers = {Authorization:`Bearer ${tok.access_token}`};
           const ps = await api.get('/api/patients',{headers});
           if (!ps.ok()) fail(`patients ${ps.status()}: ${await ps.text()}`);
@@ -161,7 +165,7 @@ jobs:
           const evidence = [];
 
           for (const viewport of viewports) {
-            const ctx = await browser.newContext({viewport,colorScheme:'light'});
+            const ctx = await browser.newContext({viewport,colorScheme:'light',storageState:workstationStorage});
             const page = await ctx.newPage();
             // Use an independent login per fresh browser context; retaining the
             // previous refresh session is not a cross-viewport requirement.
