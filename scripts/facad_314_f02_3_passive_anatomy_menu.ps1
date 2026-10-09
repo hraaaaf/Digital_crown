@@ -52,7 +52,7 @@ function OwnsForeground {
  return $observed -eq [uint32]$FacadProcessId
 }
 function OpenRoot([string]$name){
- if(-not (OwnsForeground)){throw "F02.3 $name: foreground not Facad"}
+ if(-not (OwnsForeground)){throw "F02.3 ${name}: foreground not Facad"}
  $bars=$main.FindAll([Windows.Automation.TreeScope]::Descendants,
   [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,[Windows.Automation.ControlType]::MenuBar))
  $found=@(for($i=0;$i -lt $bars.Count;$i++){
