@@ -290,23 +290,23 @@ export const AddPatientForm = () => {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-4xl mx-auto px-3 sm:px-6 lg:px-10 py-6 lg:py-10">
-      <div className="w-full min-w-0 bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white/80 overflow-hidden">
+    <div className="w-full min-w-0 max-w-4xl mx-auto px-[12px] sm:px-6 lg:px-10 py-[24px] lg:py-10">
+      <div className="w-full min-w-0 bg-white/70 backdrop-blur-xl rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white/80 overflow-hidden">
         
         {/* Header Premium */}
-        <div className="@container bg-[#003380] px-3 sm:px-10 py-6 sm:py-8 flex justify-between items-center relative overflow-hidden">
-          <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:gap-5 relative z-10">
-            <div className="shrink-0 p-4 bg-white/10 rounded-2xl border border-white/20 backdrop-blur-md">
-              <User className="text-white w-8 h-8" />
+        <div className="@container bg-[#003380] px-[12px] sm:px-10 py-[24px] sm:py-8 flex justify-between items-center relative overflow-hidden">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-[10px] sm:gap-5 relative z-10">
+            <div className="shrink-0 p-[10px] bg-white/10 rounded-2xl border border-white/20 backdrop-blur-md">
+              <User className="text-white w-[32px] h-[32px]" />
             </div>
-            <div className="min-w-0 flex-[1_1_12rem]">
+            <div className="min-w-0 flex-1">
               <h2 className="break-normal text-[clamp(0.875rem,6cqw,1.5rem)] font-black text-white tracking-tight leading-tight">Nouveau Patient</h2>
               <p className="break-words text-blue-200 text-sm font-medium mt-1">Digital Crown — Vérification anti-doublon activée</p>
             </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate aria-busy={loading} aria-describedby="patient-required-info" className="p-5 sm:p-10 space-y-8 sm:space-y-10">
+        <form onSubmit={handleSubmit} noValidate aria-busy={loading} aria-describedby="patient-required-info" className="p-[20px] sm:p-10 space-y-8 sm:space-y-10">
           <p id="patient-required-info" className="text-sm font-medium text-slate-700">Renseignez le nom, le prénom, la date de naissance et le sexe. Les autres informations sont facultatives.</p>
           <p role="status" aria-live="polite" className="sr-only">{loading ? "Vérification et création du dossier en cours…" : ""}</p>
           {errors.global && (
