@@ -48,6 +48,26 @@ Direct manufacturer page-text observations:
 
 All PDF fragments are bounded and research-only; clinical gate and external publisher-Atlas gate **remain OPEN**.
 
+## Corrected manufacturer C01 glossary + original CPH construction chain (source evidence, not numeric parity)
+
+The earlier scientific PDF page-term matrix recorded **C01 'Xi' page 1** as a case-insensitive substring, later exposed as **'xi' inside 'Maxillary'**. Its raw observation remains archived with an explicit non-authoritative flag. A **whole-token** search against the original manufacturer document was executed on GitHub-hosted Windows, [run #37990457485](https://github.com/hraaaaf/Digital_crown/actions/runs/37990457485), exact HEAD `f30393f553044c97b932ac0cd90c25c5b280b634`, **SUCCESS**, [source metadata artifact #11644409092](https://github.com/hraaaaf/Digital_crown/actions/runs/37990457485/artifacts/11644409092). The original PDF SHA-256 matched the earlier source inventory. Corrected C01 source page 2 explicitly has **`Xi` and `CF` as separately named constructed intersection markers**. Original PDF p.1 `PtV` appears as Pterygoid Vertical (a perpendicular line); Ricketts 32F/13F each calls `PFH` a **distance** and 13F calls `InterIncisal` an **angle**. These are **short, manufacturer-authored PDF-text findings**, not complete equations or numerical runtime comparisons.
+
+[Replayed immutable PDF short-context verifier](https://github.com/hraaaaf/Digital_crown/actions/runs/37993535235) **SUCCESS**, source run #37990457485 pinned. It authenticated **9 short contexts from 3 official PDFs**, and passed **10 self-tests (1 positive + 9 adversarial negatives)**, including rejection of a false `Xi` at p.1. Its canonical [short-source evidence matrix](data/FACAD_F01_13_V314_WHOLE_TOKEN_SOURCE_SNIPPETS_2026-10-09.json) deliberately avoids embedding full proprietary PDFs.
+
+The previously source-locked original `Ricketts (32 F).cph` analysis gives the **full construction dependency chain**, which is different evidence from the short manual explanations:
+
+| Vendor constructed object | Official Facad CPH operator / dependencies | Source and remaining gate |
+|---|---|---|
+| `FH` | `Line(P, Or)` | vendor Porion + Orbitale; landmark identities still need DC correspondence |
+| `PtV` | `Normal(FH, Pt)` | pterygoid vertical perpendicular to vendor FH through **vendor Pt**; must NOT alias `PR_Ricketts_PTV` without evidence |
+| `CF` | `Inter2ln(FH, PtV)` | line intersection; `CF` inherits the vendor Pt and FH identity restrictions |
+| `Xi` | `Intersect(R23, R14, R13, R24)` | center of vendor ramal rectangle with FH/PtV line directions; `R1–R4` identities remain source-specific |
+| `PM'` | `Intersect(Xi, PM, A, Pog)` | derived intersection of vendor Xi–PM and A–Pog, **not** direct manual `Pm_Ricketts` |
+
+CPH evidence: `docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json` (blob `c714d74956305bd6a3c55f954296544ca272239b`) plus `docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json` (blob `411d5ba09dd596b2a2fbc3218ddf127c9fce3782`). `PFH` in both Facad editor profiles remains `Dist2p(CF,Go)` with literal norm `63±3.5` (source editor rows), and 13F `InterIncisal` is `Angle4p(Iia,Ii,Isa,Is)`, norm `130±10`. These vendor facts are **not** endorsement of universally appropriate norms or a proof of Atlantis/Atlas 2009 authorial parity.
+
+**Evidence-level conclusion:** `Xi` glossary identity **SOURCE CONFIRMED at p.2**, `CF` glossary identity **SOURCE CONFIRMED at p.2**, vendor CPH expression families **SOURCE-LOCKED**. Mapping to manual Digital Crown landmarks, signs, clinical norms, Atlas 2009 full/summary composition and Facad↔DC same-trace numerical equality remain **OPEN**. No patient analysis has been run or exported.
+
 ## Finite next scientific checks
 
 The official installed PDF **Ricketts 32F pages 3,4,8** contains text matches for `PM'`, while 13F **pages 1,3,4** contain `Ricketts (13 F)` text. These are page-term matches only. Compare exact *formula diagrams and notation* under permitted viewing, then reconcile with C01 (12-page library of lines/constructions), C02 (34-page measurement library) and Overview of Landmarks (2 pages). Independent clinical/orthodontic review remains required before approving geometry; exact same-image numerical tests remain blocked by D3 isolation.
