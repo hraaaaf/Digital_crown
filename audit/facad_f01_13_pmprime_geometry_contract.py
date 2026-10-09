@@ -185,6 +185,23 @@ def source_negative_tests(f,ptv,summary_rows):
             raise AssertionError("Forged manufacturer contract accepted: "+name)
         print("NEGATIVE_TEST_PASS="+name)
         count+=1
+
+    # A UIA transcription is evidence, not a substitute for source execution.
+    for name,field,value in (
+        ("FORGE_INTERINCISAL_OPERATOR","Type","Dist2p"),
+        ("FORGE_INTERINCISAL_ARG_ORDER","Arg 1","UnknownLandmark"),
+        ("FORGE_INTERINCISAL_NORM","Norm","0±0"),
+        ("PROMOTE_UIA_TO_VENDOR_RUNTIME","evidence_level","RUNTIME_PARITY_CERTIFIED"),
+    ):
+        altered=copy.deepcopy(summary_rows)
+        matches=[x for x in altered if x.get("analysis")=="Ricketts (13 F)" and x.get("Ceph name")=="InterIncisal"]
+        if len(matches)!=1:
+            raise AssertionError("13F synthetic negative fixture not uniquely grounded")
+        matches[0][field]=value
+        if not rejects(verify_vendor_angle_source,f,altered):
+            raise AssertionError("Forged 13F Angle4p UIA row incorrectly accepted: "+name)
+        print("NEGATIVE_TEST_PASS="+name)
+        count+=1
     print("SYNTHETIC_SOURCE_NEGATIVE_CASES="+str(count))
     return count
 
