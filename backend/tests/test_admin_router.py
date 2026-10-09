@@ -180,9 +180,24 @@ class TestCabinetProfile:
         r = client.get("/api/admin/cabinet/me")
         assert r.status_code == 401
 
-    def test_get_cabinet_returns_200(self, client, auth_headers):
+    def test_get_cabinet_returns_200(self, client, auth_headers, db, dentiste):
+        from backend import models
+        # Real seeded tenant config: the response must expose the employer's
+        # clinic name, not a practitioner's name or a browser-specific alias.
+        clinic = db.query(models.CabinetConfig).filter(
+            models.CabinetConfig.owner_id == dentiste.id
+        ).first()
+        if clinic is None:
+            clinic = models.CabinetConfig(
+                owner_id=dentiste.id, nom_cabinet="Cabinet Scope Test"
+            )
+            db.add(clinic)
+        else:
+            clinic.nom_cabinet = "Cabinet Scope Test"
+        db.commit()
         r = client.get("/api/admin/cabinet/me", headers=auth_headers)
         assert r.status_code == 200
+        assert r.json().get("nom_cabinet") == "Cabinet Scope Test"
 
     def test_update_cabinet_requires_auth(self, client):
         r = client.put("/api/admin/cabinet/me", json={"nom": "Test Cabinet"})
