@@ -99,7 +99,7 @@ def main() -> int:
         before = json.loads(args.before.read_text(encoding='utf-8'))
         after = json.loads(args.after.read_text(encoding='utf-8'))
         result = compare(before, after)
-        status = 1 if result['observed_change_count'] else 0
+        status = 1 if result['observed_change_count'] else 3  # INCONCLUSIVE is NOT a green D3 gate
     except (OSError, json.JSONDecodeError, EvidenceError) as exc:
         result = {
             'd3_isolation_verified': False, 'clinical_edit_allowed': False,
