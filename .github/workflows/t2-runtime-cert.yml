@@ -184,8 +184,8 @@ jobs:
           python -m pip check
       - name: Certify workstation enrollment isolation and fail-closed re-enrollment
         run: python -m pytest backend/tests/test_workstation_mode_v15.py -k "first_launch_creates_user_independent_workstation_state or lost_or_tampered_workstation_identity_is_fail_closed_until_owner_reenrolls" -q
-      - name: Test cabinet identity response contract
-        run: python -m pytest backend/tests/test_admin_router.py -k "get_cabinet_exposes_cabinet_name or update_cabinet_preserves_cabinet_name_in_response" -q
+      - name: Test real cabinet identity read and write authentication guards
+        run: python -m pytest backend/tests/test_admin_router.py -k "test_get_cabinet_requires_auth or test_get_cabinet_returns_200 or test_update_cabinet_requires_auth" -q
       - name: Install frontend and Chromium
         working-directory: frontend
         run: |
