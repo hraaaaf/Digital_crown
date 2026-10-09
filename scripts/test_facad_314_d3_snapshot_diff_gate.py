@@ -64,6 +64,22 @@ class D3DiffTests(unittest.TestCase):
         self.assertFalse(result['d3_isolation_verified'])
         self.assertFalse(result['clinical_edit_allowed'])
 
+    def test_verdict_does_not_expose_hashed_file_identity(self):
+        # A predictable filename is recoverable by guessing against an unsalted hash.
+        path_key = 'patient-looking-file-name'
+        self.after['scopes']['facad_ilexis_roaming_settings']['entries'][path_key] = {
+            'sha256': 'e'*64, 'size': 3
+        }
+        result = gate.compare(self.before, self.after)
+        self.assertEqual(result['observed_change_count'], 1)
+        self.assertEqual(
+            result['observed_changes'][0],
+            {'scope': 'facad_ilexis_roaming_settings', 'change': 'ADDED'}
+        )
+        self.assertNotIn(path_key, json.dumps(result))
+        self.assertNotIn('entry_key_sha256', json.dumps(result))
+        self.assertIs(result['d3_isolation_verified'], False)
+
     def test_changed_registry_blocks(self):
         row = {'sha256': 'b'*64, 'size': 0}
         self.before['scopes']['facad_registry_hkcu']['entries']['MRU'] = row
