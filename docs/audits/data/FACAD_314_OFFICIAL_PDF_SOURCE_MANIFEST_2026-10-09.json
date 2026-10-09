@@ -1,0 +1,84 @@
+{
+  "schema": "FACAD_314_OFFICIAL_VENDOR_PDF_SOURCE_MANIFEST_V1",
+  "researched_at": "2026-10-09",
+  "basis": {
+    "repository": "hraaaaf/Digital_crown",
+    "branch": "feat/cephalo-facad-direct-parity-runtime-probe",
+    "verified_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37978611128",
+    "exact_head": "d811155acc82ce3150b8fb30275949f090f68da7",
+    "read_mode": "Official public vendor PDFs downloaded in memory on GitHub Actions Ubuntu; pypdf text extraction and SHA256; no PDF rebundling",
+    "source_result": "SUCCESS",
+    "pdf_visual_screenshots": "NOT_VERIFIED__SEARCH_BROWSER_SCREENSHOT_FAILED",
+    "patient_export": "NOT_EXECUTED"
+  },
+  "docs": [
+    {
+      "id": "FACAD_314_REFERENCE_MANUAL",
+      "url": "https://www.facad.com/dox/dox314/FacadRefMan.pdf",
+      "bytes": 5230584,
+      "pages": 150,
+      "sha256": "bb678ab66aca94953505f9e243edaac6e5112297a3e615340b4db9e213a87ad7",
+      "verified_pages_1_based": {
+        "Cephalometry>Export>Analysis Values": [
+          107,
+          111
+        ],
+        "Cephalometry>Export>Analysis Properties": [
+          111
+        ],
+        "Cephalometry>Export>Object Values": [
+          111
+        ],
+        "Cephalometry>Export>Object Properties": [
+          111
+        ],
+        "Distance (Dist2p)": [
+          92
+        ],
+        "Angle between lines (4pt)": [
+          92
+        ]
+      },
+      "proof_scope": "VENDOR_PDF_BYTES_AND_TEXT_SEMANTICS_ONLY__NOT_CLINICAL_FORMULA_PARITY"
+    },
+    {
+      "id": "FACAD_314_TRACING_GUIDE",
+      "url": "https://www.facad.com/dox/dox314/FacadTracingUsersGuide_ENG.pdf",
+      "bytes": 1448758,
+      "pages": 42,
+      "sha256": "cbbf28c983cc959e59ad864e8e601f20e43b8283f496c5437759536838e6aa78",
+      "verified_pages_1_based": {
+        "Help > Manuals > Cephalometry": [
+          5
+        ]
+      },
+      "proof_scope": "LOCATION_OF_STANDARD_ANALYSIS_AND_CEPHALOMETRY_LIBRARY_MANUALS__CONTENTS_NOT_YET_RETRIEVED"
+    },
+    {
+      "id": "FACAD_312_RELEASE_NOTES",
+      "url": "https://www.facad.com/wp/wp-content/uploads/2020/12/FacadReleaseNotes_3.12.pdf",
+      "bytes": 267975,
+      "pages": 6,
+      "sha256": "8c4c676ce4182c08e32e4747f4f02df242d4c0ee1e6a2a80ad6c4059a2ea8359",
+      "verified_pages_1_based": {
+        "Ricketts (32 F)": [
+          2
+        ],
+        "Ricketts (13 F)": [
+          2
+        ],
+        "Atlas Cefalometr": [
+          2
+        ]
+      },
+      "proof_scope": "OFFICIAL_VENDOR_ATTRIBUTION_TO_ATLAS_2009__NOT_COMPOSITION_EQUIVALENCE"
+    }
+  ],
+  "scientific_gates": {
+    "facad_atlas_composition_equivalence": "UNVERIFIED",
+    "facad_export_runtime": "NOT_EXECUTED",
+    "facad_numerical_parity": "NOT_TESTED",
+    "D3_shared_app_storage_isolation": "UNVERIFIED",
+    "ceph08_protocols_verified": "OPEN"
+  }
+}
