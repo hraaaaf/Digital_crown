@@ -163,12 +163,17 @@ jobs:
           for (const viewport of viewports) {
             const ctx = await browser.newContext({viewport,colorScheme:'light'});
             const page = await ctx.newPage();
+            // Use an independent login per fresh browser context; retaining the
+            // previous refresh session is not a cross-viewport requirement.
+            const freshLogin=await api.post('/api/auth/login',{form:{username:user,password}});
+            if(!freshLogin.ok()) fail(`fresh viewport login ${viewport.width}: ${freshLogin.status()}`);
+            const freshToken=await freshLogin.json();
             await page.addInitScript(({a,r})=>{
               localStorage.setItem('token',a);
               localStorage.setItem('refresh_token',r||'');
               localStorage.setItem('appMode','prod');
               localStorage.setItem('patient_list_view_mode','table');
-            },{a:tok.access_token,r:tok.refresh_token});
+            },{a:freshToken.access_token,r:freshToken.refresh_token});
 
             const errors=[]; const http5xx=[];
             page.on('pageerror',e=>errors.push(String(e)));
@@ -176,7 +181,17 @@ jobs:
 
             await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
             const rows=page.locator('tbody tr[role="button"]');
-            await rows.first().waitFor({state:'visible',timeout:30000});
+            try {
+              await rows.first().waitFor({state:'visible',timeout:30000});
+            } catch(error) {
+              console.error('PATIENT_INDICATORS_ROUTE_DIAGNOSTIC',JSON.stringify({
+                viewport:viewport.width,url:page.url(),
+                body:(await page.locator('body').innerText().catch(()=>'')).slice(0,320),
+                pageErrors:errors,http5xx,
+              }));
+              await page.screenshot({path:path.join(out,`failed-list-${viewport.width}x${viewport.height}.png`),fullPage:false}).catch(()=>{});
+              throw error;
+            }
             await page.waitForTimeout(1500);
             const dossier=String(patient.numero_dossier||'');
             let row=rows.first();
