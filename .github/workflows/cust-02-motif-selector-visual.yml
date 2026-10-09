@@ -119,14 +119,22 @@ jobs:
             const errors = [];
             page.on('pageerror', e => errors.push(String(e)));
             page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-            await page.route('**/api/motifs**', route => route.fulfill({
+            page.on('requestfailed', request => {
+              errors.push('Failed resource path: ' + new URL(request.url()).pathname + '; cause: ' + (request.failure()?.errorText || 'unknown'));
+            });
+            await page.route('**/*', route => {
+              const request = route.request();
+              const url = new URL(request.url());
+              if (request.method() !== 'GET' || !/\\/motifs\\/?$/.test(url.pathname)) return route.continue();
+              return route.fulfill({
               status: 200,
               contentType: 'application/json',
               body: JSON.stringify([
                 { id:'cm_active', label:'Contrôle gouttière ancienne', category_id:'ORTHODONTIE', urgency:'planifié', is_active:true, source:'cabinet' },
                 { id:'cm_inactive', label:'Ancien contrôle cabinet', category_id:'CABINET', urgency:'normal', is_active:false, source:'cabinet' },
               ]),
-            }));
+              });
+            });
             await page.goto(`http://127.0.0.1:${port}/cust02-motifs.html`, { waitUntil: 'networkidle' });
             await page.getByText('Motif(s) de première consultation', { exact: true }).waitFor();
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
