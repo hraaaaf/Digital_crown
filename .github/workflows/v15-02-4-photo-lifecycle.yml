@@ -10,6 +10,9 @@ on:
       - "frontend/scripts/run-with-t2-workstation.mjs"
       - "scripts/t2_runtime_server.py"
       - "backend/routers/mobile.py"
+      # Dashboard search is a photo-propagation surface; certify its mobile positioning too.
+      - "frontend/src/features/dashboard/components/DashboardHeader.tsx"
+      - "frontend/src/features/dashboard/components/DashboardHeader.test.tsx"
       - "frontend/src/features/patients/components/PatientAvatar.tsx"
       - "frontend/src/features/patients/components/PatientAvatar.test.tsx"
       - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
@@ -87,7 +90,7 @@ jobs:
 
       - name: Frontend photo lifecycle tests
         working-directory: frontend
-        run: npx vitest run src/features/patients/components/PatientAvatar.test.tsx src/features/patients/components/PatientPhotoEditor.test.tsx --maxWorkers=1 --fileParallelism=false
+        run: npx vitest run src/features/dashboard/components/DashboardHeader.test.tsx src/features/patients/components/PatientAvatar.test.tsx src/features/patients/components/PatientPhotoEditor.test.tsx --maxWorkers=1 --fileParallelism=false
 
       - name: Frontend build
         working-directory: frontend
