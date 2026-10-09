@@ -52,7 +52,7 @@ ordinal,analysis_name,editor_definition_state,github_run_id,measurements_extract
 "51","Ricketts","EDITOR_DEFINITION_LOADED_NOT_SAVED","37865416188","RAW_UIA_15_ROWS_15_DEFINITIONS_20_LINES_37_MARKERS","NOT_TESTED","NOT_TESTED","Job SUCCESS; 3 screenshots and UIA; Save/Load not invoked; Robert original/copy SHA256 unchanged"
 "52","Ricketts (13 F)","EDITOR_DEFINITION_LOADED_NOT_SAVED","37864557101","RAW_UIA_17_ROWS_13_FACTORS_17_LINES_36_MARKERS","NOT_TESTED","NOT_TESTED","Run success; unsaved editor, 4 heading rows excluded; original and copy checksums unchanged"
 "53","Ricketts (32 F)","EDITOR_DEFINITION_LOADED_NOT_SAVED","37863549712","RAW_UIA_38_GRID_ROWS_32_FACTORS_22_LINES_41_MARKERS","NOT_TESTED","NOT_TESTED","Run passed; 6 headings excluded from 38 rows; screenshot/UIA and unchanged Robert hashes"
-"54","Ricketts acc G. Samson","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
+"54","Ricketts acc G. Samson","EDITOR_DEFINITION_LOADED_NOT_SAVED","37866339218","RAW_UIA_27_GRID_ROWS_22_FACTORS_26_LINES_41_MARKERS","NOT_TESTED","NOT_TESTED","Job success; 5 headings excluded; original and copy Robert SHA256 unchanged; editor Save and patient Load not invoked"
 "55","Ricketts Summary","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
 "56","Roth-Jarabak","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
 "57","Sato Denture Frame","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
