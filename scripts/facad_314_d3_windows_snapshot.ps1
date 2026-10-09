@@ -113,6 +113,9 @@ $scopes=@{
   disposable_examples_tree=TreeScope $copy $true
   facad_install_tree=TreeScope $install $false
   facad_appdata_roaming=TreeScope (Join-Path $env:APPDATA 'Facad') $false
+  # Vendor 3.13 settings §15.1 live under Roaming/Ilexis, not necessarily Roaming/Facad.
+  # Metadata ONLY; do not read Facad.settings, configuration or license bytes.
+  facad_ilexis_roaming_settings=TreeScope (Join-Path $env:APPDATA 'Ilexis') $false
   facad_appdata_local=TreeScope (Join-Path $env:LOCALAPPDATA 'Facad') $false
   facad_programdata=TreeScope (Join-Path $env:ProgramData 'Facad') $false
   facad_documents=TreeScope (Join-Path $homeDocs 'Facad') $false
@@ -130,6 +133,9 @@ Write-Host "D3_SCOPE_CAPTURE_FAILURE_COUNT=$($errors.Count)"
 foreach($failedScope in $errors){Write-Host "D3_SCOPE_INCOMPLETE=$failedScope"}
 Write-Host 'D3_REGISTRY_VALUES_SAMPLED=false'
 Write-Host 'D3_INSTALL_FILE_CONTENT_SAMPLED=false'
+Write-Host 'D3_CONFIGURED_PATIENT_DATA_ROOT_RESOLVED=false'
+Write-Host 'D3_PATIENT_DATA_NODE_PATH_ATTRIBUTED=false'
+Write-Host 'D3_PROCESS_FILE_PATH_ATTRIBUTION=false'
 Write-Host 'D3_APP_STORAGE_ISOLATION=UNVERIFIED'
 Write-Host 'CLINICAL_EDIT_ALLOWED=false'
 if($errors.Count){throw 'One or more monitoring scopes incomplete; no isolation claim allowed'}
