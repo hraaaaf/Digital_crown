@@ -271,6 +271,20 @@ try {
     if (requiredSemantics.some(value => value !== 'true')) {
       throw new Error('Required patient fields are missing semantic required state: ' + JSON.stringify(requiredSemantics));
     }
+    // Section landmarks are real headings and meet normal-text WCAG contrast
+    // against the light patient-form surface (not just decorative separators).
+    const sectionHeadings = await ux.locator('form h3').evaluateAll(elements => elements.map(el => {
+      const rgb = getComputedStyle(el).color.match(/[\\d.]+/g)?.slice(0, 3).map(Number) || [];
+      const channel = n => {
+        const s = n / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      const luminance = rgb.length === 3 ? 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]) : 1;
+      return { name: el.textContent?.trim(), contrastOnWhite: 1.05 / (luminance + 0.05) };
+    }));
+    if (sectionHeadings.length !== 4 || sectionHeadings.some(h => h.contrastOnWhite < 4.5)) {
+      throw new Error('Patient section headings lack semantic/contrast proof: ' + JSON.stringify(sectionHeadings));
+    }
     const nameHasAssociatedLabel = labelProof[0].hasAssociatedLabel;
     const optionalNames = ['numero_dossier', 'assurance', 'telephone', 'email', 'adresse', 'antecedents_medicaux'];
     const optionalLabels = await Promise.all(optionalNames.map(async name => ({
