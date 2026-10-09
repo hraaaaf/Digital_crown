@@ -235,10 +235,11 @@ def update_cabinet_info(settings: Dict, db: Session = Depends(database.get_db), 
             
     db.commit(); db.refresh(praticien)
     
-    # Re-inject for response
+    # Keep GET/PUT response provenance identical and tenant-scoped.
     praticien.nom = praticien.nom_complet
     praticien.adresse = praticien.adresse_complete
     praticien.telephone = praticien.telephone_fixe
+    praticien.nom_cabinet = config.nom_cabinet if config else None
     if config:
         praticien.header_lines_fr = config.header_lines_fr
         praticien.header_lines_ar = config.header_lines_ar
