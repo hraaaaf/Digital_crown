@@ -107,3 +107,25 @@ Le job :
 
 ---
 **Dernier statut du run McNamara intégré dans ce fichier : en cours au premier contrôle de 2026-10-09 00:02 UTC. Ce statut doit être RAFRAÎCHI en reprenant.**
+
+
+## 7. ADDENDUM DE REPRISE — contrôles après le handover initial (2026-10-09)
+
+**Ne pas confondre avec le §0, qui décrit le checkpoint initial historique.** Les preuves ci-dessous sont postérieures au commit de handover `c0b39a8b...`. Le résultat du run McNamara est donc **désormais connu**.
+
+- **McNamara :** [run #37862652488](https://github.com/hraaaaf/Digital_crown/actions/runs/37862652488) **SUCCESS** sur `159946de89f31a3de7b099d1ef063d40701b398b` ; [artefact #11587710606](https://github.com/hraaaaf/Digital_crown/actions/runs/37862652488/artifacts/11587710606) contrôlé (3 captures UIA/screen, `EDITOR_DEFINITION_LOADED_NOT_SAVED`, aucun Save / chargement patient, original/copie Robert SHA256 invariants). Extraction fiable de l'éditeur : **12 lignes de mesures, 4 lignes/constructions, 29 marqueurs** (6 hors-écran UIA). Ne pas confondre ces nombres avec les 67/20/123 contrôles de texte brut UIA ni avec une parité clinique.
+- **Pilote Steiner / Tweed / McNamara :** clos **uniquement en observation de définitions dans un éditeur non sauvegardé**. Steiner observé au sein d'un run global rouge ; pas de PASS CI complet pour Steiner.
+- **Ricketts (32 F) :** [run #37863549712](https://github.com/hraaaaf/Digital_crown/actions/runs/37863549712) **SUCCESS** sur `9bc6efd80a089e0bd4913585b12e5ea9e09aa7ec` ; [artefact #11586908104](https://github.com/hraaaaf/Digital_crown/actions/runs/37863549712/artifacts/11586908104) inspecté. `EDITOR_DEFINITION_LOADED_NOT_SAVED` ; 3 captures cohérentes Measurements/Lines/Markers ; **38 lignes dans table Measurements dont six en-têtes et 32 définitions de facteur**, **22 lignes/constructions**, **41 marqueurs** dans le dump UIA ; aucun Save ni Load patient. Robert original et copie restent identiques avant/après, SHA256 `67A81AD8D2C2489FFE84A1DFBBB897761AE855ECE4EBF948C12AF232562EC089`. **Ceci NE prouve PAS 32 calculs cliniques ni export de valeurs patient.**
+- **Poursuite immédiate :** [run Ricketts (13 F) #37864557101](https://github.com/hraaaaf/Digital_crown/actions/runs/37864557101), SHA testé `1c6a8b7bf680546d87e982e368bbee755f559a39`, lancé et **non encore certifié à l'écriture**. Première action de la suite : contrôler jobs, télécharger artefact, vérifier les trois captures, CSV, exact analysisName et empreintes original/copie. Ne pas le déclarer validé sur un statut vert seul.
+
+**Scripts et données réutilisables :**
+- `scripts/facad_314_d1c_editor_pilot.ps1` : allowlist EXACTE des 65 entrées `Standard/lateral` depuis `docs/audits/data/FACAD_314_D1_LATERAL_STANDARD_65.csv`, un seul nom par runner frais.
+- `scripts/facad_314_d1c_extract_editor_uia.py` : extraction fail-closed des trois grilles UIA, nom d'éditeur strict, colonnes explicites, **ne calcule aucune valeur clinique**.
+- `docs/audits/data/FACAD_314_D1C_EDITOR_DEFINITIONS_LEDGER_2026-10-09.csv` : suivi individuel des 65 noms. À ce checkpoint, **4 profils éditeur observés**, les **61 autres** restent à extraire, dont Ricketts13F en cours.
+- `docs/audits/data/FACAD_314_D1C_MCNAMARA_EDITOR_{MEASUREMENTS,LINES,MARKERS}_UIA_2026-10-09.csv` et `docs/audits/data/FACAD_314_D1C_RICKETTS32F_EDITOR_{MEASUREMENTS,LINES,MARKERS}_UIA_2026-10-09.csv` : transcription brute de l'éditeur, 6 CSV distincts.
+- [Dossier de clôture limité D1C](FACAD_314_D1C_PILOT_CLOSURE_2026-10-09.md) et extraction des [12 facteurs McNamara](data/FACAD_314_D1C_MCNAMARA_12_EDITOR_MEASUREMENT_DEFINITIONS_2026-10-09.csv).
+- Le workflow bootstrap 13F remplace les deux sorties `exit 0` **fail-open** (Facad settings absent / Facad.exe absent) par des exceptions : cette correction ne doit être dite testée qu'après inspection du run sur le SHA `1c6a8b7...`.
+
+**Safety / statut :** `SHARED_APP_STORAGE_ISOLATION=UNVERIFIED`, `CLINICAL_EDIT_ALLOWED=false`. Pas d'édition clinique, pas de Save, pas de parité numérique, pas de données patient réel, pas de norme vendor substituée à l'autorité scientifique. Pas de merge ni de déploiement. Revue interne A (intégrité des preuves) / B (risques clinique et stockage), mais pas de revue externe indépendante. **CONVERGED global = NON.**
+
+**Ordre de suite :** décider sur Ricketts13F → inspecter artefact exact → consigner le verdict dans ledger/Notion → continuer définition par définition, runner frais tant que l'isolation applicative D3 n'est pas prouvée → D2/D3/D4/D5 et vraie parité selon contrat strict. Respecter une seule note PRE et une seule POST Notion, modifiables sans multiplier les micro-notes.
