@@ -72,7 +72,9 @@ for (const item of cases) {
     await page.getByPlaceholder('Dr. Jean Dupont').fill('Dr FUE ' + item.label);
     for (let step = 2; step <= 7; step++) {
       await page.getByRole('button', { name: /Continuer/i }).click();
-      await page.getByText('Étape ' + step + ' / 7', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+      // The progress label is visually hidden on some responsive layouts.
+      // Assert the real rendered wizard content and its active step instead.
+      await page.locator('[data-flow-step="' + step + '"]').waitFor({ state: 'visible', timeout: 15000 });
     }
     evidence.checks.push('Required fields validated and seven wizard steps traversed');
     await capture('03-setup-step7');
