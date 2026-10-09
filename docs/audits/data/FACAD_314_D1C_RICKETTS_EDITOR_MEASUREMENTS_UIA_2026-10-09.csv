@@ -1,0 +1,16 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Ricketts,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,130±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Ricketts,measurements,Convexity,DistLine,FL,A,,,0±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Ricketts,measurements,LFH,Angle3p,Xi,ANS,PM,,45±4,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Ricketts,measurements,Ms-PtV,ProjLine,FH,Pt,Ms-d,,21,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Ricketts,measurements,Ii to A-Pog,Dist3p,Pog,A,Ii,,1±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Ricketts,measurements,ILi/A-Pog,Angle4p,Pog,A,Iia,Ii,22±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Ricketts,measurements,Facial depth,Angle2ln,FL,FH,,,89±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Ricketts,measurements,Facial axis,Angle4p,Pt,Gn,N,Ba,90±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Ricketts,measurements,Max depth,Angle4p,A,N,P,Or,90±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Ricketts,measurements,ML/FH,Angle2ln,FH,ML,,,24±4.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Ricketts,measurements,Mand arc,Angle4p,Xi,PM,DC,Xi,26±4,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Ricketts,measurements,Li-EL,DistLine,EL,Li,,,-2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Ricketts,measurements,Xi-OL,DistLine,OL,Xi,,,1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Ricketts,measurements,Xi-PM/OL,Angle4p,OLa,OLp,PM,Xi,22.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Ricketts,measurements,Ramus Xi pos,Angle3p,CF,Xi,P,,76±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
