@@ -100,7 +100,7 @@ def verify(d,compare_row,report,facad):
     )
     if not all(token in report for token in phase7d_tokens):
         raise ValueError("Phase 7D source/scope safeguard missing")
-    if compare_row.get("_factor29_verbatim_caption")!="Posterior facial height (reproduced caption; angular 60 degrees)":
+    if compare_row.get("_factor29_verbatim_caption")!="Altura facial posterior [caption in third-party facsimile; 60 degrees angular]":
         raise ValueError("Atlas factor 29 facsimile caption silently rewritten")
     note=compare_row.get("_factor29_provenance_note","").lower()
     if not all(s in note for s in ("third-party chapter facsimile","independent scientific interpretation","not publisher authentication")):
