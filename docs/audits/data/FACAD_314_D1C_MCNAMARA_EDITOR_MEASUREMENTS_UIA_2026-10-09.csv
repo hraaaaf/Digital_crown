@@ -1,0 +1,13 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,McNamara,measurements,Nasolabial,Angle3p,SN,MS,Ls,,102±8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,McNamara,measurements,Ls Cant,Angle2ln,Ls-N,NP,,,14±8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,McNamara,measurements,A-NP,ProjLine,FH,N,A,,0-1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,McNamara,measurements,Co-Gn,Dist2p,Co,Gn,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,McNamara,measurements,Co-A,Dist2p,Co,A,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,McNamara,measurements,Max-Mand diff,Sub,Co-Gn,Co-A,,,20-33,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,McNamara,measurements,LAFH,Dist2p,ANS,Me,,,60-73,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,McNamara,measurements,ML/FH,Angle2ln,FH,ML,,,22±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,McNamara,measurements,Facial axis,Angle4p,Pt,Gn,N,Ba,90±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,McNamara,measurements,Pog-NP,ProjLine,FH,N,Pog,,-8-2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,McNamara,measurements,Is-A,ProjLine,FH,A,Is,,4-6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,McNamara,measurements,Ii to A-Pog,Dist3p,Pog,A,Ii,,1-3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
