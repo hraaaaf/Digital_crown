@@ -91,7 +91,7 @@ class D3DiffTests(unittest.TestCase):
                 r=subprocess.run([sys.executable,str(HERE/'facad_314_d3_snapshot_diff_gate.py'),'--before',str(d/'before.json'),'--after',str(d/'after.json'),'--output',str(d/'out.json')],capture_output=True,text=True)
                 return r.returncode, json.loads((d/'out.json').read_text())
             n,out=invoke(self.before,self.after)
-            self.assertEqual(n,0)
+            self.assertEqual(n,3)  # even no drift cannot green-light D3
             self.assertFalse(out['d3_isolation_verified'])
             self.after['scopes']['facad_appdata_roaming']['entries']['change']={'sha256':'b'*64,'size':2}
             self.assertEqual(invoke(self.before,self.after)[0],1)
