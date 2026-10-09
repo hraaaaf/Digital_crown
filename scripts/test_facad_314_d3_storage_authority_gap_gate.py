@@ -24,12 +24,24 @@ class VendorTopologyFailClosedTests(unittest.TestCase):
 
     def test_exact_required_categories_and_no_unexpected_green(self):
         self.assertEqual(self.result["required_category_count"],9)
-        self.assertEqual(set(self.result["missing_category_ids"]),set(gate.REQUIRED_CATEGORIES))
-        self.assertEqual(self.result["documented_coverage_category_count"],0)
+        self.assertEqual(set(self.result["missing_category_ids"]),set(gate.REQUIRED_CATEGORIES)-{"FACAD_ROAMING_ILEXIS_SETTINGS"})
+        self.assertEqual(self.result["documented_coverage_category_count"],1)
 
     def test_vendor_roaming_ilexis_not_alias_roaming_facad(self):
         self.assertIn("facad_appdata_roaming=TreeScope (Join-Path $env:APPDATA 'Facad') $false",COLLECTOR)
-        self.assertIn("FACAD_ROAMING_ILEXIS_SETTINGS",self.result["missing_category_ids"])
+        self.assertIn("facad_ilexis_roaming_settings=TreeScope (Join-Path $env:APPDATA 'Ilexis') $false",COLLECTOR)
+        self.assertNotIn("FACAD_ROAMING_ILEXIS_SETTINGS",self.result["missing_category_ids"])
+        self.assertTrue("TreeScope (Join-Path $env:APPDATA 'Ilexis') $false" in COLLECTOR)
+
+    def test_ilexis_collector_and_comparator_pair_required(self):
+        broken=COLLECTOR.replace(
+            "facad_ilexis_roaming_settings=TreeScope (Join-Path $env:APPDATA 'Ilexis') $false",
+            "facad_ilexis_roaming_settings=TreeScope (Join-Path $env:APPDATA 'Facad') $false")
+        self.assertIn("FACAD_ROAMING_ILEXIS_SETTINGS",gate.inspect(broken,OBSERVER,COMPARATOR)["missing_category_ids"])
+        broken_comparator=COMPARATOR.replace(
+            "'facad_ilexis_roaming_settings': 'filetree'",
+            "'facad_ilexis_roaming_settings': 'registry'")
+        self.assertIn("FACAD_ROAMING_ILEXIS_SETTINGS",gate.inspect(COLLECTOR,OBSERVER,broken_comparator)["missing_category_ids"])
 
     def test_patient_data_root_and_node_not_equivalent_to_fcd_clone(self):
         self.assertTrue(self.result["patient_data_root_may_be_network_shared"])
@@ -62,7 +74,7 @@ class VendorTopologyFailClosedTests(unittest.TestCase):
           "FACAD_PATIENT_DATA_ROOT_CONFIGURED":("facad_patient_data_root=TreeScope x","'facad_patient_data_root': 'filetree'"),
           "FACAD_PATIENT_DATA_NODE_CONFIGURED":("facad_patient_data_node=TreeScope x","'facad_patient_data_node': 'filetree'"),
           "FACAD_WORK_LIST_AND_IMPORT_TARGET":("facad_work_list=TreeScope x","'facad_work_list': 'filetree'"),
-          "FACAD_ROAMING_ILEXIS_SETTINGS":("facad_appdata_roaming_ilexis=TreeScope (Join-Path $env:APPDATA 'Ilexis') $false","'facad_appdata_roaming_ilexis': 'filetree'"),
+          "FACAD_ROAMING_ILEXIS_SETTINGS":("facad_ilexis_roaming_settings=TreeScope (Join-Path $env:APPDATA 'Ilexis') $false","'facad_ilexis_roaming_settings': 'filetree'"),
         }
         for col,com in fields.values():
             c+="\n"+col
