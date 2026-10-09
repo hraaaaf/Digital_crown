@@ -381,11 +381,11 @@ jobs:
           $ErrorActionPreference='Continue'
           $state=Get-Content facad-quick-demo/quick-demo-process.txt -Raw
           if($state -match 'NEW_CONTRACT_GATE_AFTER_FINISH=true'){ throw 'New contract gate; no probing' }
-          if($state -notmatch 'FACAD_ADMIN_SETTINGS_FOUND=true'){ Write-Host 'Bootstrap incomplete'; exit 0 }
+          if($state -notmatch 'FACAD_ADMIN_SETTINGS_FOUND=true'){ throw 'Bootstrap incomplete: Facad.Admin.settings absent; D1C did not execute' }
 
           $installed=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           $bundled=(Resolve-Path 'facad-quick-demo/outer/FacadRelease-3.14.1.1111.zip' -ErrorAction SilentlyContinue)
-          if(-not $installed){ Write-Host 'No installed Facad.exe'; exit 0 }
+          if(-not $installed){ throw 'No installed Facad.exe; D1C did not execute' }
 
           $seven="$env:ProgramFiles\7-Zip\7z.exe"
           New-Item -ItemType Directory -Force -Path facad-quick-demo/release | Out-Null
@@ -983,7 +983,7 @@ jobs:
 
           # D1B completed 65/65 catalog selections in run #37855445127.
           # D1C: load one BUILT-IN preset definition into the separate
-          # nonpatient editor ONLY (Ricketts 32 F). Do not click
+          # nonpatient editor ONLY (Ricketts 13 F). Do not click
           # editor Save, patient Cephalometry > Load or any clinical action.
           # Keep unsaved editor open until runner terminates this ephemeral
           # Facad process after source/copy hash checks.
@@ -995,7 +995,7 @@ jobs:
             if(-not (Test-Path $d1c)){throw "D1C pilot missing: $d1c"}
             & $d1c -FacadProcessId ([int]$facadPid) `
               -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
-              -OutDir 'facad-quick-demo' -ProfileName 'Ricketts (32 F)'
+              -OutDir 'facad-quick-demo' -ProfileName 'Ricketts (13 F)'
           }catch{
             $explorationFailure=$_.Exception.Message
             "D1C_EDITOR_FAILURE=$explorationFailure" |
@@ -1034,7 +1034,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: facad-314-d1c-Ricketts32F-${{ github.sha }}
+          name: facad-314-d1c-Ricketts13F-${{ github.sha }}
           path: |
             facad-quick-demo/quick-demo-process.txt
             facad-quick-demo/ui-before-click.txt
