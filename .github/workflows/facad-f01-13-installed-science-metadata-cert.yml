@@ -1,0 +1,59 @@
+name: Facad F01.13 145 installed PDF source manifest
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-f01-13-installed-science-metadata-cert.yml
+      - audit/facad_f01_13_installed_science_manifest_validate.py
+      - docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  source-provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+      - name: Verify source HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+      - name: Download ONLY source metadata from successful Windows CI
+        uses: actions/download-artifact@v4
+        with:
+          name: facad-f01-13-installed-manual-index-e91a25e230258e3a2653df226df73937a5dd4a70
+          run-id: 37981554220
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-vendor-metadata
+      - name: Assert only expected JSON metadata and audited source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f original-vendor-metadata/installed-manuals-index.json
+          test -f original-vendor-metadata/installed-manual-status.txt
+          if find original-vendor-metadata -type f \( -iname '*.pdf' -o -iname '*.fcd' -o -iname '*.cph' -o -iname '*.exe' \) | grep -q .; then
+            echo "Private documents or clinical files unexpectedly downloaded" >&2
+            exit 1
+          fi
+          grep -q '^NO_PATIENT_READ_OR_EXPORT=true$' original-vendor-metadata/installed-manual-status.txt
+          grep -q '^FACAD_PROCESS_ABSENT_BEFORE_DOCUMENT_INVENTORY=true$' original-vendor-metadata/installed-manual-status.txt
+          grep -q '^INSTALLED_DOC_SCAN_COMPLETED=true$' original-vendor-metadata/installed-manual-status.txt
+      - name: Python offline negatives and 145/75/12 scientific-source proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile audit/facad_f01_13_installed_science_manifest_validate.py
+          python audit/facad_f01_13_installed_science_manifest_validate.py \
+            --manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json --self-test
+          python audit/facad_f01_13_installed_science_manifest_validate.py \
+            --inventory original-vendor-metadata/installed-manuals-index.json \
+            --manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
