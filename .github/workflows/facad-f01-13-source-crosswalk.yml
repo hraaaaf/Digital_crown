@@ -9,6 +9,7 @@ on:
       - audit/facad_f01_13_source_crosswalk_validate.py
       - audit/facad_f01_13_ricketts_science_diff_validate.py
       - docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_PRIMARY_SOURCE_RECONCILIATION_2026-10-09.md
+      - docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
       - docs/audits/data/FACAD_314_F01_13_RICKETTS_ATLAS_FACAD_COMPOSITION_DIFF_2026-10-09.csv
       - docs/audits/data/FACAD_314_D1C_RICKETTS32F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
       - docs/audits/data/FACAD_314_D1C_RICKETTS13F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
@@ -67,3 +68,15 @@ jobs:
             exit 1
           fi
           echo "F01_13_CLASSIFICATION_ONLY=true"
+      - name: Source-origin and clinical fail-closed geometry note
+        shell: bash
+        run: |
+          set -euo pipefail
+          f=docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
+          test -f "$f"
+          grep -Fq 'PM' "$f"
+          grep -Fq 'Dist2p(CF,Go)' "$f"
+          grep -Fq 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED' "$f"
+          grep -Fq 'FACAD_NUMERICAL_PARITY_CERTIFIED=false' "$f"
+          grep -Fq 'publisher-authenticated original still missing' "$f"
+          echo 'F01_13_SOURCE_GEOMETRY_TRIAGE_FAIL_CLOSED=true'
