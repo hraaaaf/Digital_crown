@@ -118,8 +118,14 @@ def validate_measurement_details(
         for field, target in checks.items():
             if row.get(field) != target:
                 raise ValueError(f"Candidate {idx} {profile}/{label}: {field} mismatch")
-        if not row["source_mapping_caveat"]:
-            raise ValueError(f"Candidate {idx}: evidence caveat omitted")
+        caveats = {
+            "CANONICAL_LABEL_MATCH": "Exact label alone does not certify geometry/composition",
+            "CANDIDATE_GEOMETRY_REVIEW": "Manual construction/geometry review required",
+            "EXISTING_DERIVED_RELATIONSHIP": "Derived relationship candidate, source input ordering requires independent validation",
+            "BLOCKED_EXACT_LANDMARK": "Blocked exact landmark; forbidden aliases cannot be substituted",
+        }
+        if row["source_mapping_caveat"] != caveats[status]:
+            raise ValueError(f"Candidate {idx}: evidence caveat missing/modified")
         if row.get(None) is not None:
             raise ValueError("Unexpected extra fields in candidate row")
         counts[status] += 1
@@ -257,7 +263,7 @@ def self_test() -> None:
     negatives = [
         ("geometry_promotion", 0, "geometry_equivalence", "CERTIFIED"),
         ("fake_LOT06_id", 0, "candidate_dc_measurement_id", "M_FAKE_ID"),
-        ("wrong_32F_profile", 29, "facad_profile", "Ricketts (13 F)"),
+        ("wrong_32F_profile", 30, "facad_profile", "Ricketts (13 F)"),
         ("forbidden_alias_erasure", 12, "forbidden_aliases", ""),
         ("status_promotion", 0, "source_mapping_status", "SOURCE_LOCKED"),
     ]
