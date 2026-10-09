@@ -28,6 +28,14 @@
 
 The independent publications corroborate measurement *family/dimension*, not proprietary vendor formula execution. The indexed Atlas 2009 angular summary item and the linear vendor PFH stay **non-equivalent**; licensed original Atlas verification remains OPEN.
 
+## Mathematical witness — constructed vendor endpoint is not a safe direct alias
+
+A **purely synthetic** 2D configuration (not a patient tracing) shows why `PM'` cannot be blindly replaced with `PM` or authorial `Pm_Ricketts`. The original vendor CPH geometry defines `PM' = Intersect(Xi,PM,A,Pog)`.
+
+Take `Xi=(0,0)`, `PM=(10,0)`, `A=(5,-5)`, and `Pog=(5,5)`. Their line intersection is `PM'=(5,0)`. Thus `distance(Xi,PM)=10` while `distance(Xi,PM')=5`. One valid coordinate configuration suffices to **disprove unconditional geometric interchangeability**. In a special arrangement where `PM` lies on `A–Pog`, the two points may coincide, but that is not a general identity.
+
+Source assertion and degeneracy handling are exercised by `audit/facad_f01_13_pmprime_geometry_contract.py` under the experimental GitHub Actions guard `.github/workflows/facad-f01-13-pmprime-synthetic-geometry.yml`. This establishes only a mathematical non-alias counterexample; it **does not measure any patient or prove actual vendor runtime numeric parity**.
+
 ## Finite next scientific checks
 
 The official installed PDF **Ricketts 32F pages 3,4,8** contains text matches for `PM'`, while 13F **pages 1,3,4** contain `Ricketts (13 F)` text. These are page-term matches only. Compare exact *formula diagrams and notation* under permitted viewing, then reconcile with C01 (12-page library of lines/constructions), C02 (34-page measurement library) and Overview of Landmarks (2 pages). Independent clinical/orthodontic review remains required before approving geometry; exact same-image numerical tests remain blocked by D3 isolation.
