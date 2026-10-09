@@ -25,6 +25,7 @@ jobs:
           $ErrorActionPreference='Stop'
           $paths=@(
             'scripts/facad_314_d1c_editor_pilot.ps1',
+            'scripts/facad_314_f02_2_readonly_view_probe.ps1',
             'scripts/facad_314_d1b_catalog_selection.ps1',
             'scripts/facad_314_d2_view_probe.ps1',
             'scripts/facad_314_d2b_view_structure.ps1',
