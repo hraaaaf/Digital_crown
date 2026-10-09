@@ -170,10 +170,16 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
       setShowCreate(false);
     } catch (error: any) {
       const status = error?.response?.status;
+      // Never render raw FastAPI validation details: they may be structured arrays
+      // (React would crash) or include submitted sensitive data.
       setCreateError(
         status === 403
           ? 'La création de motifs est réservée aux utilisateurs autorisés à modifier les réglages du cabinet.'
-          : error?.response?.data?.detail || 'Impossible de créer ce motif.',
+          : status === 422
+            ? 'Motif invalide. Vérifiez les informations avant de réessayer.'
+            : status === 409
+              ? 'Ce motif existe déjà. Modifiez son nom avant de réessayer.'
+              : 'Impossible de créer ce motif. Réessayez.',
       );
     } finally {
       setSaving(false);
