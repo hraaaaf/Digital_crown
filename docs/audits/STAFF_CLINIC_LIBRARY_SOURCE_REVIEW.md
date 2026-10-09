@@ -1,0 +1,21 @@
+# PRE / Source review — Staff clinic selector and clinical reference (independent PR #809)
+
+**Purpose:** evidence-based access-policy review before changing runtime. No assertion of a data breach without request/response proof. Exact baseline parent `master@c3b094d8e5e8ba52ca40e7521927c0c5d60326a9`; initial DRAFT branch `audit/staff-clinic-library-rbac`.
+
+## Source-backed observations
+1. The **master** implementation in `frontend/src/components/Header.tsx` has already removed the hardcoded personal clinic fallback. It gets the tenant's cabinet name from `cabinetApi.getMine()` for settings users and `api.get('/admin/cabinet/me')` for staff without settings permission. It uses a generic `Votre cabinet` placeholder on failure. **Do not redevelop an already-present fix.**
+2. `frontend/src/components/Sidebar.tsx` shows a `Cabinet Actif` select populated from `useSettingsStore().cabinets`, with selected id `activeCabinetId`. The component has no fallback rendering when the cabinets list is empty. `useSettingsStore.fetchProfile` builds the list from `/clinics/me` and localStorage `active_cabinet_id`, which can diverge from the authenticated tenant context; exact staff behavior requires a real browser + backend test. A blank selector **is observed** in C/D snapshots on PR #803 but the old PR HEAD differs from master. Never assume the old screenshot reproduces on master.
+3. `frontend/src/components/Sidebar.tsx` shows `/bibliotheque` unconditionally, and `frontend/src/App.tsx` routes `/bibliotheque` and `/bibliotheque/:code` without a specific `PermissionRoute` under general authenticated routes.
+4. `EliteLibrary.tsx` loads `CLINICAL_PROTOCOLS` from `frontend/src/data/clinical-protocols`, with favorites/recent keys `dc_favs`/`dc_recents` in browser localStorage; `ClinicalRefContent.tsx` and `ClinicalSoinMode.tsx` receive static protocol objects rather than personal patient records. `EliteScienceHub.tsx` reads imported `scienceArticles`. None of these four source components directly imports `api` or sends a backend request, but this is **NOT an audit of all nested imports, nor an access policy statement**.
+5. A secretary with `clinical:false` can see the reference-library navigation today; it is not yet established whether `clinical` permission was intended to control clinical **reference material** versus patient care actions. Restricting it without the owner/product policy could regress intended workflows for Assistante and Accueil. **Product policy OPEN**.
+
+## Test oracle, not a simulated green
+The branch adds disposable T2 staff fixture D only behind `T2_STAFF_AUDIT=1`, a real 4-context login/playwright audit, and dedicated exact-HEAD GitHub workflow. Checks: authentic tenant API, actual UI header + active-cabinet select, owner/staff patient status, staff denial of patients/settings deep links, library contents and no triggered patient endpoints, screenshots at desktop 1280×900 and mobile 390×844. Findings can remain RED until true behavior is correct. Library visibility is recorded, **not taken as proof of a policy PASS**.
+
+## Required decisions before runtime changes
+- First inspect the initial run from PR #809 for the *actual* failure and same-page screenshots. Do not preemptively modify Sidebar based on an older branch alone.
+- If staff selector is blank but API identity is valid, show an **authoritative read-only cabinet name**, disable unauthorized clinic switching, handle account changes without stale state, and test backend refusal.
+- If the library is classified as restricted clinical content, enforce the policy at both nav and deep-link, and assess any APIs; otherwise document it as shared static reference only and verify no patient data. The classification is an explicit policy decision.
+- After any fix, run new exact-HEAD browser UI and take screenshot on **same route + viewport**, compare to BEFORE, two adversarial internal perspectives, no merge/deploy without approval.
+
+References: [PR #803 certified CLOUD-LAB](https://github.com/hraaaaf/Digital_crown/actions/runs/37865730938), [initial PR #809](https://github.com/hraaaaf/Digital_crown/pull/809), [canonical Notion](https://app.notion.com/p/3f377c6633628187a51ee94a983d7267).
