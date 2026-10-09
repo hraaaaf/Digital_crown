@@ -1,0 +1,61 @@
+name: Facad F01.13 corrected Xi whole-token source replay
+
+on:
+  push:
+    branches: [feat/cephalo-facad-direct-parity-runtime-probe]
+    paths:
+      - .github/workflows/facad-f01-13-whole-token-pdf-source-replay.yml
+      - audit/facad_f01_13_whole_token_pdf_snippet_validate.py
+      - docs/audits/data/FACAD_F01_13_V314_WHOLE_TOKEN_SOURCE_SNIPPETS_2026-10-09.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  publisher-source-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove exact HEAD, source pins and negative scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+          python -m py_compile audit/facad_f01_13_whole_token_pdf_snippet_validate.py
+          python audit/facad_f01_13_whole_token_pdf_snippet_validate.py --self-test --lock docs/audits/data/FACAD_F01_13_V314_WHOLE_TOKEN_SOURCE_SNIPPETS_2026-10-09.json --vendor-manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
+      - name: Reuse only source metadata from original Facad Windows CI
+        uses: actions/download-artifact@v4
+        with:
+          name: facad-f01-13-ricketts-context-f30393f553044c97b932ac0cd90c25c5b280b634
+          run-id: 37990457485
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-facad-metadata
+      - name: Verify metadata safety (no original PDFs or patient files)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          docs=[p for p in Path('original-facad-metadata').rglob('*') if p.is_file()]
+          names={p.name for p in docs}
+          print('SOURCE_METADATA_FILES='+','.join(sorted(names)))
+          if not {'f01-13-ricketts-brief-source-context.json','installed-manual-status.txt'}.issubset(names):
+              raise SystemExit('Source artifact missing')
+          if any(p.suffix.lower() in {'.pdf','.cph','.fcd','.exe'} for p in docs):
+              raise SystemExit('Unexpected licensed, executable or patient file')
+          f=next(p for p in docs if p.name=='installed-manual-status.txt')
+          status={x.strip() for x in f.read_text(encoding='utf-8-sig').splitlines()}
+          must={'NO_PATIENT_READ_OR_EXPORT=true','FACAD_PROCESS_ABSENT_BEFORE_DOCUMENT_INVENTORY=true','SOURCE_LIMITED_CONTEXT_DONE=true'}
+          if not must.issubset(status):
+              raise SystemExit('Missing original Windows security flags')
+          print('SOURCE_ARTIFACT_PROVENANCE_SAFETY_FLAGS_PASS=3')
+          PY
+      - name: Cross-check corrected exact Xi, CF, PFH and InterIncisal evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python audit/facad_f01_13_whole_token_pdf_snippet_validate.py --evidence original-facad-metadata/f01-13-ricketts-brief-source-context.json --lock docs/audits/data/FACAD_F01_13_V314_WHOLE_TOKEN_SOURCE_SNIPPETS_2026-10-09.json --vendor-manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
