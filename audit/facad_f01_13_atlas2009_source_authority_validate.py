@@ -89,6 +89,22 @@ def verify(d,compare_row,report,facad):
     )
     if not all(token in report for token in phase7_required):
         raise ValueError("Phase 7 source-authentication or dimensional guards missing")
+    phase7d_tokens=(
+        "## 8. Phase 7D",
+        "FORM_32_PLUS_UNNUMBERED_60DEG",
+        "FACAD_VENDOR_32F_HFT_NOT_OBSERVED",
+        "HFT_ANGLE_NA_BA_XI_PM_SCIENCE_CORROBORATED",
+        "NO_HFT_PFH_DIMENSIONAL_ALIAS",
+        "ATLAS_2009_FACTOR29_VERBATIM_POSTERIOR_CAPTION",
+        "PUBLISHER_ORIGINAL_STILL_UNKNOWN",
+    )
+    if not all(token in report for token in phase7d_tokens):
+        raise ValueError("Phase 7D source/scope safeguard missing")
+    if compare_row.get("_factor29_verbatim_caption")!="Posterior facial height (reproduced caption; angular 60 degrees)":
+        raise ValueError("Atlas factor 29 facsimile caption silently rewritten")
+    note=compare_row.get("_factor29_provenance_note","").lower()
+    if not all(s in note for s in ("third-party chapter facsimile","independent scientific interpretation","not publisher authentication")):
+        raise ValueError("Atlas 29 actual label versus interpretive rename provenance lost")
     return len(tiers)
 
 def get_row(path):
@@ -96,7 +112,14 @@ def get_row(path):
         r=list(csv.DictReader(f))
     matches=[x for x in r if x.get("reference_version")=="ATLAS_2009_COMPLETE_33" and x.get("reference_factor_ordinal")=="33"]
     if len(matches)!=1:raise ValueError("Unable to identify Atlas full factor 33 row")
-    return matches[0]
+    factor29=[x for x in r if x.get("reference_version")=="ATLAS_2009_COMPLETE_33" and x.get("reference_factor_ordinal")=="29"]
+    if len(factor29)!=1:raise ValueError("Atlas full factor 29 caption row missing or duplicated")
+    if factor29[0].get("finding_code")!="REFERENCE_FACTOR_NOT_OBSERVED":
+        raise ValueError("Atlas 29 non-matching vendor status improperly changed")
+    out=matches[0].copy()
+    out["_factor29_verbatim_caption"]=factor29[0]["reference_factor_label"]
+    out["_factor29_provenance_note"]=factor29[0]["research_provenance_note"]
+    return out
 
 def selftest(d,row,report,facad):
     assert verify(d,row,report,facad)==8
@@ -112,6 +135,9 @@ def selftest(d,row,report,facad):
         ("PROMOTE_PATIENT_PARITY",lambda x,r,t,f:x["gates"].update(facad_numerical_parity_certified=True)),
         ("REPLACE_PFH_ANGLE_CONFLICT",lambda x,r,t,f:x["separate_mismatches_unchanged"][2].update(id="SUMMARY_PFH_EQUIVALENT")),
         ("ERASE_PHASE7_DIMENSIONAL_NON_ALIAS",lambda x,r,t,f:t.replace("DIMENSIONAL NON-ALIAS","EQUIVALENCE CERTIFIED")),
+        ("ERASE_PHASE7D_UNNUMBERED_ANGLE",lambda x,r,t,f:t.replace("FORM_32_PLUS_UNNUMBERED_60DEG","ALL_32_PROTOCOLS_MISSING_ANGLE")),
+        ("ERASE_PHASE7D_PUBLISHER_UNCERTAINTY",lambda x,r,t,f:t.replace("PUBLISHER_ORIGINAL_STILL_UNKNOWN","PUBLISHER_ORIGINAL_VERIFIED")),
+        ("FORGE_ATLAS29_VERBATIM_CAPTION",lambda x,r,t,f:r.update(_factor29_verbatim_caption="Total facial height, publisher-authenticated")),
     ]
     for name,mutator in cases:
         dd,rr,tt,ff=map(copy.deepcopy,(d,row,report,facad))
@@ -120,7 +146,7 @@ def selftest(d,row,report,facad):
         try: verify(dd,rr,tt,ff)
         except ValueError: print("NEGATIVE_TEST_PASS="+name)
         else: raise AssertionError("False clinical or source promotion accepted: "+name)
-    print("ATLAS_SOURCE_AUTHORITY_SELFTEST_PASS=12")
+    print("ATLAS_SOURCE_AUTHORITY_SELFTEST_PASS=15")
 
 def main():
     ap=argparse.ArgumentParser()
