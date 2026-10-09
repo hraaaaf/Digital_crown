@@ -33,7 +33,23 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const { activeCabinetId, cabinets, switchCabinet } = useSettingsStore();
   const { user } = useAuthStore();
+  const [staffClinicName, setStaffClinicName] = useState<string | null>(null);
   const location = useLocation();
+  // Restricted staff may consult their employer's cabinet identity, but they
+  // cannot switch the active tenant. Never read a stale browser cabinet key.
+  useEffect(() => {
+    let active = true;
+    setStaffClinicName(null);
+    if (user && !userHasAccess(user, 'settings')) {
+      void api.get('/admin/cabinet/me')
+        .then(response => {
+          const name = String(response.data?.nom_cabinet || '').trim();
+          if (active) setStaffClinicName(name || null);
+        })
+        .catch(() => { if (active) setStaffClinicName(null); });
+    }
+    return () => { active = false; };
+  }, [user?.id, user?.employer_id, user?.role]);
   const [desktopPinned, setDesktopPinned] = useState(() => localStorage.getItem('sidebar_desktop_pinned') === 'true');
   const [desktopHovered, setDesktopHovered] = useState(false);
   const desktopExpanded = desktopPinned || desktopHovered;
@@ -302,6 +318,15 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           <div className="sidebar-cabinet-full">
           <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-1">Cabinet Actif</div>
           <div className="relative group">
+            {user && !userHasAccess(user, 'settings') ? (
+              <div
+                data-testid="staff-active-cabinet"
+                role="status"
+                className="w-full rounded-elite border border-border-main bg-card-bg/60 px-3 py-2.5 text-xs font-black tracking-tight text-text-main"
+              >
+                {staffClinicName || 'Cabinet indisponible'}
+              </div>
+            ) : (
             <select
               value={activeCabinetId}
               onChange={(e) => switchCabinet(e.target.value)}
@@ -320,6 +345,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
                 </option>
               ))}
             </select>
+            )}
           </div>
           </div>
         </div>

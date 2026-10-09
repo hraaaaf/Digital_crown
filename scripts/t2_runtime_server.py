@@ -167,7 +167,7 @@ with database.SessionLocal() as db:
         db.commit()
         db.refresh(restricted)
 
-    if os.environ.get("T2_CLOUD_LAB") == "1":
+    if os.environ.get("T2_CLOUD_LAB") == "1" or os.environ.get("T2_STAFF_AUDIT") == "1":
         # Test-only independent Accueil account. Never provision in a cabinet.
         reception_email = "t2-reception@cabinet.ma"
         if not db.query(models.User).filter(models.User.email == reception_email).first():
@@ -175,7 +175,7 @@ with database.SessionLocal() as db:
                 email=reception_email,
                 hashed_password=get_password_hash(runtime_password),
                 role=models.UserRole.SECRETAIRE,
-                nom_complet="T2 Cloud Reception",
+                nom_complet=("T2 Cloud Reception" if os.environ.get("T2_CLOUD_LAB") == "1" else "T2 Reception Staff"),
                 is_active=True,
                 is_licensed=True,
                 approval_status=models.ApprovalStatus.APPROVED.value,
