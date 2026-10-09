@@ -416,10 +416,12 @@ try {
       }
       return result;
     };
-    await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: true, animations: 'disabled' });
+    await ux.getByRole('heading', { name: 'Nouveau Patient' }).scrollIntoViewIfNeeded();
+    await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: false, animations: 'disabled' });
     const textZoomMobile = await assertHeaderNotClipped('390x844');
     await ux.setViewportSize({ width: 320, height: 640 });
-    await ux.screenshot({ path: path.join(uxDir, '01a-css-text-zoom-200pct-narrow.png'), fullPage: true, animations: 'disabled' });
+    await ux.getByRole('heading', { name: 'Nouveau Patient' }).scrollIntoViewIfNeeded();
+    await ux.screenshot({ path: path.join(uxDir, '01a-css-text-zoom-200pct-narrow.png'), fullPage: false, animations: 'disabled' });
     const textZoomNarrow = await assertHeaderNotClipped('320x640');
     await ux.setViewportSize({ width: 1280, height: 900 });
     await ux.locator('.sidebar-shell').hover();
