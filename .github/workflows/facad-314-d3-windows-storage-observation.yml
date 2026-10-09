@@ -446,7 +446,7 @@ jobs:
             if($evidence.verdict -cne 'INCONCLUSIVE_NO_OBSERVED_STORAGE_DRIFT' -or
                $evidence.d3_isolation_verified -ne $false -or
                $evidence.clinical_edit_allowed -ne $false -or
-               $evidence.monitored_scope_count -ne 9 -or
+               $evidence.monitored_scope_count -ne 10 -or
                $evidence.observed_change_count -ne 0){
               throw 'D3 inconclusive JSON contract mismatch'
             }
