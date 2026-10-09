@@ -13,29 +13,6 @@ permissions:
 
 jobs:
   quick-demo:
-    # Trial-week evidence harvest. One independent Windows runner / one editor preset.
-    # No patient Load, editor Save, license bypass, or mutable state reused between profiles.
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        include:
-          - profile: 'Bergen short'
-            slug: BergenShort
-          - profile: 'Bergen'
-            slug: Bergen
-          - profile: 'Arnett STCA (female)'
-            slug: ArnettSTCAFemale
-          - profile: 'Arnett STCA (male)'
-            slug: ArnettSTCAMale
-          - profile: 'Bjork'
-            slug: Bjork
-          - profile: 'Wits appraisal'
-            slug: WitsAppraisal
-          - profile: 'Airway (McNamara)'
-            slug: AirwayMcNamara
-          - profile: 'ABO'
-            slug: ABO
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -1006,7 +983,7 @@ jobs:
 
           # D1B completed 65/65 catalog selections in run #37855445127.
           # D1C: load one BUILT-IN preset definition into the separate
-          # nonpatient editor ONLY (Trygde-analysen). Do not click
+          # nonpatient editor ONLY (Bergen short). Do not click
           # editor Save, patient Cephalometry > Load or any clinical action.
           # Keep unsaved editor open until runner terminates this ephemeral
           # Facad process after source/copy hash checks.
@@ -1018,7 +995,7 @@ jobs:
             if(-not (Test-Path $d1c)){throw "D1C pilot missing: $d1c"}
             & $d1c -FacadProcessId ([int]$facadPid) `
               -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
-              -OutDir 'facad-quick-demo' -ProfileName '${{ matrix.profile }}'
+              -OutDir 'facad-quick-demo' -ProfileName 'Bergen short'
           }catch{
             $explorationFailure=$_.Exception.Message
             "D1C_EDITOR_FAILURE=$explorationFailure" |
@@ -1057,7 +1034,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: facad-314-d1c-${{ matrix.slug }}-${{ github.sha }}
+          name: facad-314-d1c-BergenShort-${{ github.sha }}
           path: |
             facad-quick-demo/quick-demo-process.txt
             facad-quick-demo/ui-before-click.txt
