@@ -20,6 +20,14 @@
 | **Atlas factor #29 total facial height** | Atlas complete reconstructed 33 factors, index #29 approximately `60°±3°`, canonical Ricketts angular `Ba–N / Pm–Xi`. Vendor 32F captured 32 rows with no separate matching total-facial-height angular item | The **separate editor factor row is not observed**; internal vendor ability or formula absence is not proven | Claim all Facad 32F factors match Atlas complete 33 or call vendor a clinical error |
 | **Source-locked `CF` family** | Vendor 32F `CF = intersection(FH,PtV)`; `PtV` anchored to vendor Pt. Digital Crown source-lock requires specific `PR_Ricketts_PTV`/Gonion definition | Same *geometric family*, **landmark identity gate OPEN** even though both display `Go–CF` | Direct alias/clinical norm parity by equal label |
 
+## Independent literature: dimensional checks only
+
+- Cruz-Hervert et al., *Dent J.* 2026;14(4):194, [DOI 10.3390/dj14040194](https://doi.org/10.3390/dj14040194), [PubMed 42041647](https://pubmed.ncbi.nlm.nih.gov/42041647/): independent dataset of **604 adult cephalometric records** reports posterior facial height **Go–CF in millimeters** as a **linear** variable, with differences by birth cohort. Supports a dimension check; does NOT validate Facad's norm **63±3.5** or any Moroccan clinical norms.
+- [Independent cephalometric study](https://pmc.ncbi.nlm.nih.gov/articles/PMC3520347/) defines corpus length as a **Xi–PM distance**. This cannot establish Facad's derived endpoint `PM'` equals the manual point `PM`.
+- [Original Ilexis Facad Tracing 3.14 guide](https://www.facad.com/dox/dox314/FacadTracingUsersGuide_ENG.pdf) lists vendor `PM` as Protuberance Menti and warns against basing a clinical decision only on software analysis values.
+
+The independent publications corroborate measurement *family/dimension*, not proprietary vendor formula execution. The indexed Atlas 2009 angular summary item and the linear vendor PFH stay **non-equivalent**; licensed original Atlas verification remains OPEN.
+
 ## Finite next scientific checks
 
 The official installed PDF **Ricketts 32F pages 3,4,8** contains text matches for `PM'`, while 13F **pages 1,3,4** contain `Ricketts (13 F)` text. These are page-term matches only. Compare exact *formula diagrams and notation* under permitted viewing, then reconcile with C01 (12-page library of lines/constructions), C02 (34-page measurement library) and Overview of Landmarks (2 pages). Independent clinical/orthodontic review remains required before approving geometry; exact same-image numerical tests remain blocked by D3 isolation.
