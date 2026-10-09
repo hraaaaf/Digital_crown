@@ -1,0 +1,34 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Burstone (male),markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Burstone (male),markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Burstone (male),markers,Pt,Pterygo-maxillary fissure,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Burstone (male),markers,PNS,Posterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Burstone (male),markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Burstone (male),markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Burstone (male),markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Burstone (male),markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Burstone (male),markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Burstone (male),markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Burstone (male),markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Burstone (male),markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Burstone (male),markers,Gn,Gnathion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Burstone (male),markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Burstone (male),markers,aGo,anterior Gonion (lower border of mandible),Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Burstone (male),markers,pGo,posterior Gonion (posterior point on ramus),Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Burstone (male),markers,Ar,Articulare,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Burstone (male),markers,Ms,"Molar superior, cusp",Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Burstone (male),markers,Mi,"Molar inferior, cusp",Marker,"Molar, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Burstone (male),markers,OLp,"Occlusal Line, posterior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Burstone (male),markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Burstone (male),markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Burstone (male),markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Burstone (male),markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Burstone (male),markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Burstone (male),markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Burstone (male),markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Burstone (male),markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Burstone (male),markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Burstone (male),markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Burstone (male),markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Burstone (male),markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Burstone (male),markers,T,Throat (neck),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY

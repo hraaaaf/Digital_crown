@@ -1,0 +1,33 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Jarabak,measurements,Saddle angle,Angle3p,S,N,Ar,,123±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Jarabak,measurements,Articular angle,Angle3p,Ar,S,Go,,143±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Jarabak,measurements,Gonial angle,Angle3p,Go,Ar,Me,,130±7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Jarabak,measurements,Sum angle,Add,Saddle+Articular,Gonial angle,,,396±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Jarabak,measurements,S-N,Dist2p,N,S,,,71±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Jarabak,measurements,S-Ar,Dist2p,S,Ar,,,32±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Jarabak,measurements,Gonial upper angle,Angle3p,Go,Ar,N,,52-55,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Jarabak,measurements,Gonial lower angle,Angle3p,Go,N,Me,,70-75,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Jarabak,measurements,Ramus ln,Dist2p,Ar,Go,,,44±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Jarabak,measurements,Mand ln,Dist2p,Go,Me,,,71±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Jarabak,measurements,Mand ln:S-N,Div,Mand ln,S-N,,,100,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Jarabak,measurements,SNA,Angle3p,N,A,S,,80-89,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Jarabak,measurements,SNB,Angle3p,N,B,S,,78,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Jarabak,measurements,ANB,Angle3p,N,A,B,,0,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Jarabak,measurements,ML/NSL,Angle2ln,NSL,ML,,,36,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Jarabak,measurements,Facial depth,Dist2p,N,Go,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Jarabak,measurements,Facial ln on Y-axis,Dist2p,S,Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Jarabak,measurements,Y-axis/NSL,Angle3p,S,N,Gn,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Jarabak,measurements,PFH,Dist2p,S,Go,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Jarabak,measurements,AFH,Dist2p,N,Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Jarabak,measurements,P:A Facial Hgh,Div,PFH,AFH,,,62-65,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Jarabak,measurements,SNPog,Angle3p,N,Pog,S,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Jarabak,measurements,Convexity angle,Angle3p,A,Pog,N,,175,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Jarabak,measurements,OL/ML,Angle2ln,OL,ML,,,14,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Jarabak,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,135,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Jarabak,measurements,ILs/NSL,Angle4p,Is,Isa,S,N,102±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Jarabak,measurements,ILi/ML,Angle4p,aGo,Me,Ii,Iia,90±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Jarabak,measurements,Is to N-Pog,Dist3p,Pog,N,Is,,5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Jarabak,measurements,Ii to N-Pog,Dist3p,Pog,N,Ii,,-2-2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Jarabak,measurements,Ls-EL,DistLine,EL,Ls,,,-2.5±1.5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Jarabak,measurements,Li-EL,DistLine,EL,Li,,,0-2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Jarabak,measurements,Saddle+Articular,Add,Saddle angle,Articular angle,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

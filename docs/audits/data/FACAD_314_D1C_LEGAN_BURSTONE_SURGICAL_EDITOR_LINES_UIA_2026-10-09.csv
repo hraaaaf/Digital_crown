@@ -1,0 +1,7 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Legan-Burstone Surgical,lines,cHP,RotateLine,NSL,N,-7.0,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Legan-Burstone Surgical,lines,NSL,Line,S,N,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Legan-Burstone Surgical,lines,SNPGs,Line,PGs,SN,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Legan-Burstone Surgical,lines,Li-PGs,Line,PGs,Li,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Legan-Burstone Surgical,lines,T',Intersect,SN,PGs,T,MEs,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Legan-Burstone Surgical,lines,CL,Line,T,MEs,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

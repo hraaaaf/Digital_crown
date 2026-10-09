@@ -1,0 +1,8 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Arnett STCA Midface (male),markers,or',Soft tissue orbital rim,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Arnett STCA Midface (male),markers,cb,Soft tissue cheekbone,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Arnett STCA Midface (male),markers,subp,Soft tissue subpupil,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Arnett STCA Midface (male),markers,nb,Nasal base,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Arnett STCA Midface (male),markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Arnett STCA Midface (male),markers,SLs,Sulcus Labial superior,Profile marker,,A,0.75,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Arnett STCA Midface (male),markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY

@@ -1,0 +1,13 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Holdaway Soft,measurements,Facial angle,Angle2ln,NPGs,FH,,,90-92,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Holdaway Soft,measurements,Ls curvature,ProjLine,FH,SLs,Ls,,1.5-4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Holdaway Soft,measurements,A to N-Pog,Dist3p,Pog,N,A,,0±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Holdaway Soft,measurements,HL angle,Angle2ln,NPGs,HL,,,7-15,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Holdaway Soft,measurements,PRN-HL,DistLine,HL,PRN,,,max 12,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Holdaway Soft,measurements,SLs-HL,DistLine,HL,SLs,,,-5±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Holdaway Soft,measurements,A-SN,ProjLine,cHP,A,SN,,15,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Holdaway Soft,measurements,Ls strain,ProjLine,cHP,Isl,Ls,,15,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Holdaway Soft,measurements,Strain factor,Sub,A-SN,Ls strain,,,0±1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Holdaway Soft,measurements,Li-HL,DistLine,HL,Li,,,-1-2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Holdaway Soft,measurements,SLi-HL,DistLine,HL,SLi,,,-5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Holdaway Soft,measurements,Chin thickness,Dist2p,Pog,PGs,,,10-12,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

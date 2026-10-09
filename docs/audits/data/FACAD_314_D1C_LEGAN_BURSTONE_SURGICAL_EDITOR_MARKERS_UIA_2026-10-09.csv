@@ -1,0 +1,26 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Legan-Burstone Surgical,markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Legan-Burstone Surgical,markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Legan-Burstone Surgical,markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Legan-Burstone Surgical,markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Legan-Burstone Surgical,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Legan-Burstone Surgical,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Legan-Burstone Surgical,markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Legan-Burstone Surgical,markers,Pog,Pogonion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Legan-Burstone Surgical,markers,Gn,Gnathion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Legan-Burstone Surgical,markers,Me,Menton,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Legan-Burstone Surgical,markers,GL,Soft tissue Glabella,Profile marker,,<fixed>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Legan-Burstone Surgical,markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Legan-Burstone Surgical,markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Legan-Burstone Surgical,markers,MS,Steiner's S-point (columnella tangent point),Profile marker,,<flexible>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Legan-Burstone Surgical,markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Legan-Burstone Surgical,markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Legan-Burstone Surgical,markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Legan-Burstone Surgical,markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Legan-Burstone Surgical,markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Legan-Burstone Surgical,markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Legan-Burstone Surgical,markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Legan-Burstone Surgical,markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Legan-Burstone Surgical,markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Legan-Burstone Surgical,markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Legan-Burstone Surgical,markers,T,Throat (neck),Profile marker,,<fixed>,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY

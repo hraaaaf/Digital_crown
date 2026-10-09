@@ -1,0 +1,24 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Burstone (male),measurements,Post Cranial base,ProjLine,cHP,Ar,Pt,,37.1±2.8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Burstone (male),measurements,Ant Cranial base,ProjLine,cHP,Pt,N,,52.8±4.1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Burstone (male),measurements,Convexity,Angle4p,N,A,A,Pog,3.9±6.4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Burstone (male),measurements,Max pos,ProjLine,cHP,N,A,,0±3.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Burstone (male),measurements,Mand pos,ProjLine,cHP,N,B,,-5.3±6.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Burstone (male),measurements,Chin pos,ProjLine,cHP,N,Pog,,-4.3±8.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Burstone (male),measurements,Ant UFH,DistLine,cHP,ANS,,,54.7±3.2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Burstone (male),measurements,Ant LFH,Proj90Line,cHP,Me,ANS,,68.6±3.8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Burstone (male),measurements,Post UFH,DistLine,cHP,PNS,,,53.9±1.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Burstone (male),measurements,ML/HP,Angle2ln,cHP,ML,,,23±5.9,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Burstone (male),measurements,Is-NL,DistLine,NL,Is,,,30.5±2.1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Burstone (male),measurements,Ii-ML,Dist3p,Me,aGo,Ii,,45±2.1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Burstone (male),measurements,Ms-NL,DistLine,NL,Ms,,,26.2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Burstone (male),measurements,Mi-ML,Dist3p,Me,aGo,Mi,,35.8±2.6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Burstone (male),measurements,Max ln,ProjLine,cHP,PNS,ANS,,57.7±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Burstone (male),measurements,Ramus ln,Dist2p,Ar,Go,,,52±4.2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Burstone (male),measurements,Mand ln,Dist2p,Go,Pog,,,83.7±4.6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Burstone (male),measurements,B-Pog,ProjLine,ML,B,Pog,,8.9±1.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Burstone (male),measurements,Gonial angle,Angle3p,Go,Ar,Me,,122±6.9,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Burstone (male),measurements,OL/HP,Angle2ln,cHP,OL,,,6.2±5.1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Burstone (male),measurements,Wits,ProjLine,OL,B,A,,-1.1±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Burstone (male),measurements,ILs/NL,Angle4p,Is,Isa,PNS,ANS,111±4.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Burstone (male),measurements,ILi/ML,Angle4p,aGo,Me,Ii,Iia,95.9±5.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

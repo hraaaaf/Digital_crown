@@ -1,0 +1,9 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Burstone (male),lines,cHP,RotateLine,NSL,N,-7.0,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Burstone (male),lines,NSL,Line,S,N,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Burstone (male),lines,ML,Line,aGo,Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Burstone (male),lines,NL,Line,PNS,ANS,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Burstone (male),lines,OL,Line,OLp,OLa,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Burstone (male),lines,OLa,Mid-point,Is,Ii,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Burstone (male),lines,Go,Inter2ln,RL,ML,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Burstone (male),lines,RL,Line,Ar,pGo,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

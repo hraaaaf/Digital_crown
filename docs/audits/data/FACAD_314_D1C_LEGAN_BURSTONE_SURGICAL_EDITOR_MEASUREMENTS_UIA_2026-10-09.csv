@@ -1,0 +1,18 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Legan-Burstone Surgical,measurements,Facial convexity,Angle4p,GL,SN,SN,PGs,12±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Legan-Burstone Surgical,measurements,Max prognathism,ProjLine,cHP,GL,SN,,6±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Legan-Burstone Surgical,measurements,Mand prognathism,ProjLine,cHP,GL,PGs,,0±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Legan-Burstone Surgical,measurements,Vert hgh ratio,Div,GL-SN,SN-MEs,,,100,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Legan-Burstone Surgical,measurements,Low face-neck angle,Angle4p,T,MEs,SN,PGs,100±7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Legan-Burstone Surgical,measurements,Low vert hgh-dpth,Ratio,SN,T',T,T',120,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Legan-Burstone Surgical,measurements,Nasolabial,Angle3p,SN,MS,Ls,,102±8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Legan-Burstone Surgical,measurements,Ls-SNPGs,DistLine,SNPGs,Ls,,,3±1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Legan-Burstone Surgical,measurements,Li-SNPGs,DistLine,SNPGs,Li,,,2±1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Legan-Burstone Surgical,measurements,Mentolabial sulcus,DistLine,Li-PGs,SLi,,,-4±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Legan-Burstone Surgical,measurements,Vert lip-chin ratio,Div,SN-STs,STi-MEs,,,50,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Legan-Burstone Surgical,measurements,Incisor exposure,Proj90Line,cHP,Is,STs,,2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Legan-Burstone Surgical,measurements,Interlabial gap,Dist2p,STs,STi,,,2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Legan-Burstone Surgical,measurements,GL-SN,Proj90Line,cHP,SN,GL,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Legan-Burstone Surgical,measurements,SN-MEs,Proj90Line,cHP,MEs,SN,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Legan-Burstone Surgical,measurements,SN-STs,Proj90Line,cHP,STs,SN,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Legan-Burstone Surgical,measurements,STi-MEs,Proj90Line,cHP,MEs,STi,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
