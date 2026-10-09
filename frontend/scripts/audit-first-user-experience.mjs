@@ -27,7 +27,10 @@ for (const item of cases) {
     const login = await api.post('/api/auth/login', { form: { username: item.user, password } });
     if (!login.ok()) throw Error('Synthetic uninitialized owner rejected HTTP ' + login.status());
     const tokens = await login.json();
-    const stationState = await enrollT2Workstation(api, tokens.access_token, password);
+    const enrolled = await enrollT2Workstation(api, tokens.access_token, password);
+    // Station enrollment is not user login: never preload owner auth cookies/JWT.
+    const stationState = { cookies: enrolled.cookies.filter(c => c.name === 'dc_workstation'), origins: [] };
+    if (stationState.cookies.length !== 1) throw Error('Expected exactly one bound workstation cookie');
     const init = await api.get('/api/clinics/init-status', { headers: { Authorization: 'Bearer ' + tokens.access_token } });
     if (!init.ok() || (await init.json()).is_initialized !== false) {
       throw Error('Fresh owner did not start as uninitialized clinic');
