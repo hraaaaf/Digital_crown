@@ -230,7 +230,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
       <aside
         className={cn(
           "sidebar-shell w-72 lg:w-[68px] h-screen fixed lg:relative z-[10000] shrink-0",
-          desktopExpanded && "lg:w-72",
+          desktopExpanded && "lg:w-[min(18rem,320px)]",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         data-expanded={desktopExpanded ? "true" : "false"}
