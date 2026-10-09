@@ -6,6 +6,8 @@ from typing import Optional, Dict, Union, List
 class PraticienProfileOut(BaseModel):
     nom_complet: str
     nom: Optional[str] = None
+    # Authenticated, tenant-scoped clinic branding (never infer from localStorage).
+    nom_cabinet: Optional[str] = None
     specialites: Optional[str] = None
     adresse_complete: Optional[str] = None
     adresse: Optional[str] = None
