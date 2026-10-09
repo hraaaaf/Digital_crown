@@ -85,6 +85,10 @@ describe('PatientList G2 search, sort and keyboard matrix', () => {
     expect(table.classList.contains('block')).toBe(true);
     expect(table.classList.contains('md:table')).toBe(true);
     expect(head?.classList.contains('md:table-header-group')).toBe(true);
+    expect(head?.classList.contains('sr-only')).toBe(true);
+    expect(head?.classList.contains('md:not-sr-only')).toBe(true);
+    expect(row.textContent).toContain('Contact');
+    expect(row.textContent).toContain('Assurance');
     expect(body?.classList.contains('md:table-row-group')).toBe(true);
     expect(row.classList.contains('block')).toBe(true);
     expect(row.classList.contains('md:table-row')).toBe(true);
