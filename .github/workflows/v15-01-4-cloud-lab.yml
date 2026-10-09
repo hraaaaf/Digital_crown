@@ -7,6 +7,7 @@ on:
       - "scripts/fue_g_cloud_server.py"
       - "scripts/fue_g_cloud_client.py"
       - "scripts/t2_runtime_server.py"
+      - "frontend/scripts/fue-g-cloud-browser.mjs"
   workflow_dispatch:
 
 permissions:
@@ -14,7 +15,7 @@ permissions:
 
 jobs:
   cloud-lab-fue-g-transport:
-    name: Experimental cloud S+A+B+C TLS/API/recovery
+    name: Experimental cloud S+A+B+C+D TLS/API/recovery
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -94,7 +95,7 @@ jobs:
           printf 'T2_OWNER_PIN=%s\n' "$ephemeral_pin" >> "$GITHUB_ENV"
           unset ephemeral_password ephemeral_pin
           docker network create "fue-g-${GITHUB_RUN_ID}" >/dev/null
-          mkdir -p "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b" "$RUNNER_TEMP/fue-g-cloud-state-c"
+          mkdir -p "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b" "$RUNNER_TEMP/fue-g-cloud-state-c" "$RUNNER_TEMP/fue-g-cloud-state-d"
           echo "Cloud lab: ephemeral CA, private Docker bridge binding and independent clients provisioned"
 
       - name: Start synthetic real FastAPI backend with native Uvicorn TLS
@@ -135,7 +136,7 @@ jobs:
           PY
           exit 1
 
-      - name: Pair A, B and C (Assistante) from isolated Docker clients
+      - name: Pair A/B/C Assistante/D Accueil from isolated Docker clients
         shell: bash
         run: |
           set -euo pipefail
@@ -153,17 +154,19 @@ jobs:
           client A pair
           client B pair
           client C pair
+          client D pair
           python - <<'PY'
           import json, os, pathlib
           root=pathlib.Path(os.environ['RUNNER_TEMP'])
-          rows={role:json.loads((root/f'fue-g-cloud-state-{role.lower()}/reports/pair.json').read_text()) for role in ('A','B','C')}
+          rows={role:json.loads((root/f'fue-g-cloud-state-{role.lower()}/reports/pair.json').read_text()) for role in ('A','B','C','D')}
           assert all(row['status']=='PASS' and row['replayRejected'] is True for row in rows.values())
-          assert len({row['workstationHash'] for row in rows.values()})==3, 'Shared workstation identity'
+          assert len({row['workstationHash'] for row in rows.values()})==4, 'Shared workstation identity'
           assert rows['C']['assistantPermissionDenied'] is True, 'Assistant over-privileged'
-          print('A/B/C distinct identities, replay blocked and assistant access restricted')
+          assert rows['D']['assistantPermissionDenied'] is True, 'Reception over-privileged'
+          print('A/B/C/D distinct identities, replay blocked and staff permissions restricted')
           PY
 
-      - name: Stop service, test outage on A/B/C, restart
+      - name: Stop service, test outage on A/B/C/D, restart
         shell: bash
         run: |
           set -euo pipefail
@@ -184,6 +187,7 @@ jobs:
           client A offline
           client B offline
           client C offline
+          client D offline
           python scripts/fue_g_cloud_server.py > "$RUNNER_TEMP/fue-g-cloud-backend-restarted.log" 2>&1 &
           echo "$!" > "$RUNNER_TEMP/fue-g-cloud-pid"
           for i in $(seq 1 90); do
@@ -197,9 +201,12 @@ jobs:
           b_pid=$!
           client C recover &
           c_pid=$!
+          client D recover &
+          d_pid=$!
           wait "$a_pid"
           wait "$b_pid"
           wait "$c_pid"
+          wait "$d_pid"
 
       - name: Assert and publish a sanitized exact-HEAD lab report
         shell: bash
@@ -209,7 +216,7 @@ jobs:
           python - <<'PY'
           import json, os, pathlib
           root=pathlib.Path(os.environ['RUNNER_TEMP'])
-          phases={'A':['setup','pair','offline','recover'], 'B':['pair','offline','recover'], 'C':['pair','offline','recover']}
+          phases={'A':['setup','pair','offline','recover'], 'B':['pair','offline','recover'], 'C':['pair','offline','recover'], 'D':['pair','offline','recover']}
           items=[]
           for role, stages in phases.items():
               for phase in stages:
@@ -219,14 +226,16 @@ jobs:
                   assert r['tlsVerified']==(phase!='offline')
                   items.append(r)
           paired={role:next(i for i in items if i['role']==role and i['phase']=='pair') for role in phases}
-          assert len({v['workstationHash'] for v in paired.values()})==3
+          assert len({v['workstationHash'] for v in paired.values()})==4
           assert all(v['replayRejected'] is True for v in paired.values())
           assert paired['C']['assistantPermissionDenied'] is True
+          assert paired['D']['assistantPermissionDenied'] is True
           for r in phases:
               assert next(i for i in items if i['role']==r and i['phase']=='recover')['workstationHash']==paired[r]['workstationHash']
           assert next(i for i in items if i['role']=='C' and i['phase']=='recover')['assistantPermissionDenied'] is True
-          report={'head':os.environ['PRODUCT_HEAD'],'scope':'CLOUD-LAB EXPERIMENTAL: real T2 API TLS, Docker A/B/C, C Assistante uses restricted SECRETAIRE fixture, pairing/replay, restart; NOT cabinet/Windows/physical LAN, NOT browser UX, NOT PostgreSQL, NOT INSTALLABLE_CERTIFIED',
-                  'success':True,'actors':['Ubuntu runner S (Docker bridge host)','Docker client A','Docker client B','Docker client C (Assistante with restricted SECRETAIRE fixture)'],
+          assert next(i for i in items if i['role']=='D' and i['phase']=='recover')['assistantPermissionDenied'] is True
+          report={'head':os.environ['PRODUCT_HEAD'],'scope':'CLOUD-LAB EXPERIMENTAL: real T2 API TLS, Docker A/B/C/D, C Assistante and D Accueil use separate restricted SECRETAIRE fixtures, pairing/replay, restart; NOT cabinet/Windows/physical LAN, NOT browser UX, NOT PostgreSQL, NOT INSTALLABLE_CERTIFIED',
+                  'success':True,'actors':['Ubuntu runner S (Docker bridge host)','Docker client A','Docker client B','Docker client C (Assistante, restricted SECRETAIRE)', 'Docker client D (Accueil, distinct restricted SECRETAIRE)'],
                   'checks':items}
           pathlib.Path('artifacts/fue-g-cloud/report.json').write_text(json.dumps(report,indent=2))
           print('FUE_G_CLOUD_LAB_SUMMARY '+json.dumps({'head':report['head'],'success':True,'cases':len(items),'scope':'CLOUD-LAB only'}))
@@ -251,7 +260,7 @@ jobs:
           if [ -n "${FUE_TLS_DIR:-}" ]; then
             rm -rf "$FUE_TLS_DIR"
           fi
-          rm -rf "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b" "$RUNNER_TEMP/fue-g-cloud-state-c"
+          rm -rf "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b" "$RUNNER_TEMP/fue-g-cloud-state-c" "$RUNNER_TEMP/fue-g-cloud-state-d"
           if [ -f "$RUNNER_TEMP/fue-g-cloud-pid" ]; then
             kill "$(cat "$RUNNER_TEMP/fue-g-cloud-pid")" 2>/dev/null || true
           fi
