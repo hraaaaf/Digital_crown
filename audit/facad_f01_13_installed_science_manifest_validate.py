@@ -61,6 +61,12 @@ def verify(meta: dict, pinned: dict) -> list[dict]:
     output = []
     for item in priority:
         original = byname[item["relative_pdf_path"]]
+        if original.get("page_count") != item.get("pages_pdf_1_based"):
+            raise ValueError(f"Pdf pages changed: {item['relative_pdf_path']}")
+        if original.get("pdf_extract_status") != item.get("pdf_text_extract_status"):
+            raise ValueError(f"Extract status changed: {item['relative_pdf_path']}")
+        if original.get("keyword_page_locations_1based", {}) != item.get("keyword_page_locations_1based", {}):
+            raise ValueError(f"PDF search page locations changed: {item['relative_pdf_path']}")
         output.append({
             "relative_pdf_path": item["relative_pdf_path"],
             "sha256": item["sha256"],
@@ -94,6 +100,13 @@ def self_test(pinned: dict) -> None:
         "export_invoked": False,
         "patient_file_read": False,
     }
+    for row in index["pdfs"]:
+        pin = next((p for p in pinned["priority_sources"]
+                    if p["relative_pdf_path"] == row["relative_pdf_path"]), None)
+        if pin is not None:
+            row["page_count"] = pin["pages_pdf_1_based"]
+            row["pdf_extract_status"] = pin["pdf_text_extract_status"]
+            row["keyword_page_locations_1based"] = pin["keyword_page_locations_1based"]
     assert len(verify(index, pinned)) == 12
     for name, mutator in [
         ("SHA_MISMATCH", lambda x, p: x["pdfs"][0].update(sha256="0" * 64)),
@@ -101,6 +114,7 @@ def self_test(pinned: dict) -> None:
         ("FAKE_CLINICAL_EQUIVALENCE", lambda x, p: p["limits"].update(clinical_parity_verified=True)),
         ("MISSING_PDF", lambda x, p: x["pdfs"].pop()),
         ("MADE_UP_ATLAS_AUTH", lambda x, p: p["limits"].update(atlas_2009_editor_authenticated=True)),
+        ("MISSING_PINNED_PAGES", lambda x, p: p["priority_sources"][0].update(pages_pdf_1_based=999)),
     ]:
         test_index, test_pinned = copy.deepcopy(index), copy.deepcopy(pinned)
         mutator(test_index, test_pinned)
@@ -110,7 +124,7 @@ def self_test(pinned: dict) -> None:
             print(f"NEGATIVE_TEST_PASS={name}")
         else:
             raise AssertionError(f"False-evidence scenario accepted: {name}")
-    print("SCIENTIFIC_MANIFEST_SELFTEST_PASS=6")
+    print("SCIENTIFIC_MANIFEST_SELFTEST_PASS=7")
 
 
 def main() -> None:
