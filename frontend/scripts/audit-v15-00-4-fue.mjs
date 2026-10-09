@@ -106,7 +106,7 @@ async function run(journey, viewport) {
   const item = paths[journey];
   const audit = {
     journey, viewport: viewport.label, checks: [], captures: [],
-    api: [], unexpected: [], remoteRequests: [], externalFonts: [], expectedOfflineLogs: [], errors: [], outcome: 'PENDING',
+    api: [], unexpected: [], remoteRequests: [], externalFonts: [], expectedOfflineLogs: [], expectedNavigationAborts: [], errors: [], outcome: 'PENDING',
   };
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
   let page = null;
@@ -114,7 +114,19 @@ async function run(journey, viewport) {
     await install(context, item, audit);
     page = await context.newPage();
     page.on('pageerror', e => audit.errors.push(e.message));
-    page.on('requestfailed', r => audit.errors.push('requestfail ' + r.method() + ' ' + r.url()));
+    page.on('requestfailed', r => {
+      const reason = r.failure()?.errorText || 'UNKNOWN';
+      // A navigation can legitimately cancel read-only topology probes. Do
+      // not hide DNS/connectivity/TLS failures or aborted non-probe operations.
+      const expectedNavigationAbort = reason === 'net::ERR_ABORTED'
+        && r.method() === 'GET'
+        && /^http:\/\/127\.0\.0\.1:8005\/api\/(?:health\/(?:topology|db)|clinics\/me)(?:\?|$)/.test(r.url());
+      if (expectedNavigationAbort) {
+        audit.expectedNavigationAborts.push({ method: 'GET', route: new URL(r.url()).pathname, reason });
+      } else {
+        audit.errors.push('requestfail ' + r.method() + ' ' + r.url() + ' ' + reason);
+      }
+    });
     page.on('request', r => {
       if (/^https?:\/\//.test(r.url()) &&
           !/^http:\/\/127\.0\.0\.1:(?:4195|8005)\//.test(r.url())) {
