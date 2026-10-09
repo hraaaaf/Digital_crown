@@ -30,7 +30,11 @@ try {
       const ownerLogin = await auth.post('/api/auth/login', { form: { username: 't2-browser@cabinet.ma', password } });
       if (!ownerLogin.ok()) throw Error('Synthetic owner could not enroll workstation: ' + ownerLogin.status());
       const token = (await ownerLogin.json()).access_token;
-      const station = await enrollT2Workstation(auth, token, password);
+      const enrolled = await enrollT2Workstation(auth, token, password);
+      // Only the workstation attestation may cross browser identities.
+      // The owner access/refresh login cookies must never authenticate staff.
+      const station = { cookies: enrolled.cookies.filter(c => c.name === 'dc_workstation'), origins: [] };
+      if (station.cookies.length !== 1) throw Error('Workstation identity cookie missing');
       context = await browser.newContext({ viewport: actor.vp, reducedMotion: 'reduce', storageState: station });
       const page = await context.newPage();
       const capture = async name => {
