@@ -13,6 +13,7 @@ on:
       # Dashboard search is a photo-propagation surface; certify its mobile positioning too.
       - "frontend/src/features/dashboard/components/DashboardHeader.tsx"
       - "frontend/src/features/dashboard/components/DashboardHeader.test.tsx"
+      - "frontend/scripts/certify-v15-02-dashboard-search-viewport.mjs"
       - "frontend/src/features/patients/components/PatientAvatar.tsx"
       - "frontend/src/features/patients/components/PatientAvatar.test.tsx"
       - "frontend/src/features/patients/components/PatientPhotoEditor.tsx"
@@ -122,6 +123,12 @@ jobs:
           mkdir -p ../artifacts/v15-02-4-photo-lifecycle
           cp -R ../artifacts/v15-02-3-photo-ui-after/. ../artifacts/v15-02-4-photo-lifecycle/
           node -e "const fs=require('fs');const p='../artifacts/v15-02-4-photo-lifecycle/evidence.json';const j=JSON.parse(fs.readFileSync(p));j.phase='V1.5-02.4';j.head=process.env.EVALUATED_SHA;j.base=process.env.EVALUATED_BASE;j.evidenceSource='real-photo-lifecycle-after';fs.writeFileSync(p,JSON.stringify(j,null,2));"
+
+      - name: Real Chromium viewport geometry — dashboard patient search
+        working-directory: frontend
+        run: |
+          node --check scripts/certify-v15-02-dashboard-search-viewport.mjs
+          node scripts/run-with-t2-workstation.mjs scripts/certify-v15-02-dashboard-search-viewport.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
