@@ -1,4 +1,4 @@
-name: Facad F02.2 read-only View evidence
+name: Facad F02.2 F02.3 F04.1 read-only menu evidence
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - .github/workflows/facad-314-f02-2-readonly.yml
       - scripts/facad_314_f02_2_readonly_view_probe.ps1
       - scripts/facad_314_f02_3_passive_anatomy_menu.ps1
+      - scripts/facad_314_f04_1_passive_export_menus.ps1
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,7 @@ jobs:
             'scripts/facad_314_d1c_editor_pilot.ps1',
             'scripts/facad_314_f02_2_readonly_view_probe.ps1',
             'scripts/facad_314_f02_3_passive_anatomy_menu.ps1',
+            'scripts/facad_314_f04_1_passive_export_menus.ps1',
             'scripts/facad_314_d1b_catalog_selection.ps1',
             'scripts/facad_314_d2_view_probe.ps1',
             'scripts/facad_314_d2b_view_structure.ps1',
@@ -989,6 +991,7 @@ jobs:
           # No Save, no patient Load, no toggles, no shared settings mutation.
           $f022=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f02_2_readonly_view_probe.ps1'
           $f023=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f02_3_passive_anatomy_menu.ps1'
+          $f041=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f04_1_passive_export_menus.ps1'
           $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
           $observationFailure=$null
           $preflightFailure=$null
@@ -1001,9 +1004,13 @@ jobs:
             & $f023 -FacadProcessId ([int]$facadPid) `
               -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
               -OutDir 'facad-quick-demo'
+            if(-not (Test-Path -LiteralPath $f041)){throw 'F04.1 passive menu probe missing'}
+            & $f041 -FacadProcessId ([int]$facadPid) `
+              -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
+              -OutDir 'facad-quick-demo'
           }catch{
             $observationFailure=$_.Exception.Message
-            "F02_2_FAILURE=$observationFailure" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            "FACAD_READONLY_MENU_FAILURE=$observationFailure" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
           }finally{
             try {
               & $d3Preflight -OutDir 'facad-quick-demo' -SourcePath $officialCase
@@ -1031,7 +1038,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: facad-314-f02-2-f02-3-readonly-${{ github.sha }}
+          name: facad-314-f02-2-f02-3-f04-1-readonly-${{ github.sha }}
           path: |
             facad-quick-demo/quick-demo-process.txt
             facad-quick-demo/ui-before-click.txt
@@ -1057,6 +1064,9 @@ jobs:
             facad-quick-demo/f02-3-*.png
             facad-quick-demo/f02-3-*.txt
             facad-quick-demo/f02-3-menu-observations.csv
+            facad-quick-demo/f04-1-*.png
+            facad-quick-demo/f04-1-*.txt
+            facad-quick-demo/f04-1-menu-observations.csv
             facad-quick-demo/d1c-*.png
             facad-quick-demo/d1c-*.txt
             facad-quick-demo/d1c-editor-pilot.csv
