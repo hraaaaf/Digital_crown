@@ -687,6 +687,7 @@ export const AddPatientForm = () => {
           </div>
             </div>
           </details>
+          </div>
 
           {/* Actions */}
           <div className="flex flex-wrap items-center justify-end gap-3 pt-6 border-t border-slate-200">
