@@ -1,3 +1,4 @@
+# Controlled rerun: D1C exact catalog 'Tubingen' == editor 'Tübingen' only by explicit allowlist.
 name: Facad D1C archive Tubingen
 
 on:

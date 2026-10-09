@@ -225,7 +225,12 @@ try{
    if($measureTab.Count -ne 1){throw 'D1C Measurements tab not found'}
    Click $measureTab[0]
    Start-Sleep -Milliseconds 200
-   $verdict=if($editorName -eq $name){'EDITOR_DEFINITION_LOADED_NOT_SAVED'}
+   # Observed with the official Quick Demo in run 37957532659:
+   # catalog label 'Tubingen' and the unsaved editor's exact label 'Tübingen'.
+   # This is the ONLY permitted catalog/editor display-name difference.
+   $verifiedLabelAlias=($name -ceq 'Tubingen' -and $editorName -ceq 'Tübingen')
+   if($verifiedLabelAlias){Log 'D1C_VERIFIED_EDITOR_LABEL_ALIAS=Tubingen|Tübingen'}
+   $verdict=if(($editorName -eq $name) -or $verifiedLabelAlias){'EDITOR_DEFINITION_LOADED_NOT_SAVED'}
      else{'DEFINITION_OBSERVED_NAME_UNVERIFIED'}
    Row @($name,[string]$selected,$editorName,[string]$measureCount,
     [string]$lineCount,[string]$markerCount,$verdict,"d1c-$safe-measurements.png",'No Save called')
