@@ -161,6 +161,29 @@ with database.SessionLocal() as db:
         db.commit()
         db.refresh(restricted)
 
+    if os.environ.get("T2_STAFF_AUDIT") == "1":
+        # Second synthetic restricted staff identity. Isolated T2 SQLite only.
+        reception_email = "t2-reception@cabinet.ma"
+        if not db.query(models.User).filter(models.User.email == reception_email).first():
+            db.add(models.User(
+                email=reception_email,
+                hashed_password=get_password_hash(runtime_password),
+                role=models.UserRole.SECRETAIRE,
+                nom_complet="T2 Reception Staff",
+                employer_id=user.id,
+                is_active=True,
+                is_licensed=True,
+                approval_status=models.ApprovalStatus.APPROVED.value,
+                permissions={
+                    "agenda": True, "patients": False,
+                    "prescriptions": False, "accounting": False,
+                    "payments": False, "clinical": False,
+                    "panoramic": False, "cephalo": False,
+                    "settings": False, "admin": False,
+                },
+            ))
+            db.flush()
+
     for setup_email, setup_name in (
         ("t2-setup-390@cabinet.ma", "Dr T2 Setup Mobile"),
         ("t2-setup-1280@cabinet.ma", "Dr T2 Setup Desktop"),
