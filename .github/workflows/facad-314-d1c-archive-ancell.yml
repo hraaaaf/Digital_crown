@@ -1,0 +1,1098 @@
+name: Facad D1C archive Ancell
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-d1c-archive-ancell.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quick-demo:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Parse Facad PowerShell probes before installation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $paths=@(
+            'scripts/facad_314_d1c_editor_pilot.ps1',
+            'scripts/facad_314_d1b_catalog_selection.ps1',
+            'scripts/facad_314_d2_view_probe.ps1',
+            'scripts/facad_314_d2b_view_structure.ps1',
+            'scripts/facad_314_d2c_view_toggle.ps1',
+            'scripts/facad_314_d3_sandbox_preflight.ps1'
+          )
+          foreach($path in $paths){
+            if(-not (Test-Path -LiteralPath $path)){
+              throw "Missing Facad test file: $path"
+            }
+            $tokens=$null
+            $parseErrors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,[ref]$tokens,[ref]$parseErrors)
+            if($parseErrors.Count -gt 0){
+              foreach($err in $parseErrors){
+                Write-Error "$path line $($err.Extent.StartLineNumber): $($err.Message)"
+              }
+              throw "Facad PowerShell syntax gate failed for $path"
+            }
+            Write-Host "PS_PARSE_PASS=$path"
+          }
+
+      - name: Extract official Facad installer wrapper
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path facad-quick-demo | Out-Null
+          $installer='facad-quick-demo/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-quick-demo/outer | Out-Null
+          & $seven x $installer '-ofacad-quick-demo/outer' -y | Out-Null
+          Get-FileHash 'facad-quick-demo/outer/FacadNstaller.exe' -Algorithm SHA256 |
+            Format-List | Set-Content facad-quick-demo/installer-wrapper-meta.txt
+
+      - name: Select Quick demo installation only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+
+          $exe=(Resolve-Path 'facad-quick-demo/outer/FacadNstaller.exe').Path
+          $wd=Split-Path $exe
+          $before=Get-Date
+          $p=Start-Process -FilePath $exe -WorkingDirectory $wd -PassThru
+          "INSTALLER_PID=$($p.Id)" | Set-Content facad-quick-demo/quick-demo-process.txt
+
+          # The official installer exposes its options as ControlType.Pane, not Button.
+          # This was observed on run 37753115873, artifact 11539320376.
+          $deadline=(Get-Date).AddSeconds(120)
+          $button=$null
+          $startWindow=$null
+          while((Get-Date) -lt $deadline -and $null -eq $button){
+            Start-Sleep -Milliseconds 500
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $windows=$root.FindAll(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Window
+              )
+            )
+            foreach($w in $windows){
+              if($w.Current.Name -eq 'Start'){
+                $startWindow=$w
+                $panes=$w.FindAll(
+                  [System.Windows.Automation.TreeScope]::Descendants,
+                  [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                    [System.Windows.Automation.ControlType]::Pane
+                  )
+                )
+                foreach($candidate in $panes){
+                  if($candidate.Current.Name -eq 'Quick demo installation'){
+                    $button=$candidate
+                    break
+                  }
+                }
+              }
+            }
+          }
+          if($null -eq $button){
+            'QUICK_DEMO_PANE_NOT_FOUND=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            $rows=New-Object System.Collections.Generic.List[string]
+            foreach($n in $nodes){
+              try{
+                $rows.Add("TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name) | RECT=$($n.Current.BoundingRectangle)")
+              }catch{}
+            }
+            $rows | Sort-Object -Unique | Set-Content facad-quick-demo/ui-before-click.txt
+            try{
+              Add-Type -AssemblyName System.Windows.Forms
+              Add-Type -AssemblyName System.Drawing
+              $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+              $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+              $g=[System.Drawing.Graphics]::FromImage($bmp)
+              $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+              $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'before-click-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+              $g.Dispose();$bmp.Dispose()
+            }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
+            Get-Process FacadNstaller -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Write-Host 'NO_CLICK_PERFORMED: inspection artifacts captured'
+            throw 'QUICK_DEMO_NOT_CLICKED: diagnostic evidence collected; installation gate not passed'
+          }
+
+          $rect=$button.Current.BoundingRectangle
+          $windowRect=$startWindow.Current.BoundingRectangle
+          if($rect.IsEmpty -or $rect.Width -lt 140 -or $rect.Width -gt 400 -or
+             $rect.Height -lt 30 -or $rect.Height -gt 100 -or
+             $rect.Left -lt $windowRect.Left -or $rect.Right -gt $windowRect.Right -or
+             $rect.Top -lt $windowRect.Top -or $rect.Bottom -gt $windowRect.Bottom){
+            throw "Quick demo Pane bounds invalid: $rect inside window $windowRect"
+          }
+          "TARGET_NAME=$($button.Current.Name)" | Add-Content facad-quick-demo/quick-demo-process.txt
+          "TARGET_TYPE=$($button.Current.ControlType.ProgrammaticName)" | Add-Content facad-quick-demo/quick-demo-process.txt
+          "TARGET_RECT=$rect" | Add-Content facad-quick-demo/quick-demo-process.txt
+          $x=[int]($rect.Left+$rect.Width/2)
+          $y=[int]($rect.Top+$rect.Height/2)
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class ScopedMouse {
+              [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+              [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
+          }
+          '@
+          if(-not [ScopedMouse]::SetCursorPos($x,$y)){ throw "SetCursorPos failed" }
+          Start-Sleep -Milliseconds 200
+          [ScopedMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+          Start-Sleep -Milliseconds 120
+          [ScopedMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+          "QUICK_DEMO_CLICK_SENT_AT=$x,$y" | Add-Content facad-quick-demo/quick-demo-process.txt
+
+          Start-Sleep -Seconds 8
+
+          function Dump-Ui {
+            param([string]$Path)
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            $rows=New-Object System.Collections.Generic.List[string]
+            foreach($n in $nodes){
+              try{
+                if(-not [string]::IsNullOrWhiteSpace($n.Current.Name)){
+                  $rows.Add("TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name) | ENABLED=$($n.Current.IsEnabled)")
+                }
+              }catch{}
+            }
+            $rows | Sort-Object -Unique | Set-Content $Path
+          }
+
+          Dump-Ui 'facad-quick-demo/ui-after-click.txt'
+
+          $consentRegex='(?i)eula|license agreement|licence agreement|terms and conditions|terms of use|i agree|accept|agreement'
+          $consentHits=Get-Content facad-quick-demo/ui-after-click.txt | Where-Object { $_ -match $consentRegex }
+          if($consentHits){
+            'CONSENT_GATE_DETECTED=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            $consentHits | Set-Content facad-quick-demo/consent-gate.txt
+          } else {
+            'CONSENT_GATE_DETECTED=false' | Add-Content facad-quick-demo/quick-demo-process.txt
+          }
+
+          try{
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'after-click-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose();$bmp.Dispose()
+          }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
+
+          if($consentHits){
+            # Explicit human authorization was provided to accept this specific Facad EULA.
+            # Navigation stops immediately after Next to inspect the next screen.
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $eulaWindows=$root.FindAll(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'End User License Agreement'
+              )
+            )
+            if($eulaWindows.Count -ne 1){throw "Expected exactly one Facad EULA window, found $($eulaWindows.Count)"}
+            $eulaWindow=$eulaWindows.Item(0)
+            if($eulaWindow.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
+              throw 'Facad EULA top-level window type mismatch'
+            }
+
+            Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadWindowGuard {
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
+          }
+          '@
+
+            function Click-VerifiedPane {
+              param(
+                [System.Windows.Automation.AutomationElement]$Window,
+                [string]$Name
+              )
+              $matches=$Window.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                  [System.Windows.Automation.AutomationElement]::NameProperty,$Name
+                )
+              )
+              $targets=@()
+              for($i=0;$i -lt $matches.Count;$i++){
+                $candidate=$matches.Item($i)
+                if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane){
+                  $targets+=,$candidate
+                }
+              }
+              if($targets.Count -ne 1){throw "Expected exactly one Pane '$Name', got $($targets.Count)"}
+              $pane=$targets[0]
+              if(-not $pane.Current.IsEnabled){throw "Pane '$Name' is disabled"}
+              $r=$pane.Current.BoundingRectangle
+              $wr=$Window.Current.BoundingRectangle
+              if($r.IsEmpty -or $r.Width -lt 60 -or $r.Width -gt 500 -or
+                 $r.Height -lt 15 -or $r.Height -gt 100 -or
+                 $r.Left -lt $wr.Left -or $r.Right -gt $wr.Right -or
+                 $r.Top -lt $wr.Top -or $r.Bottom -gt $wr.Bottom){
+                 throw "Pane '$Name' invalid bounds $r / window $wr"
+              }
+              $foreground=[FacadWindowGuard]::GetForegroundWindow()
+              if($foreground -ne [IntPtr]$Window.Current.NativeWindowHandle){
+                throw "Wrong foreground window before '$Name'"
+              }
+              $px=[int]($r.Left+$r.Width/2)
+              $py=[int]($r.Top+$r.Height/2)
+              $point=[System.Windows.Point]::new([double]$px,[double]$py)
+              $hit=[System.Windows.Automation.AutomationElement]::FromPoint($point)
+              $walker=[System.Windows.Automation.TreeWalker]::RawViewWalker
+              $hitMatches=$false
+              for($depth=0;$depth -lt 15 -and $null -ne $hit;$depth++){
+                if($hit.Equals($pane)){$hitMatches=$true;break}
+                $hit=$walker.GetParent($hit)
+              }
+              if(-not $hitMatches){throw "Foreground hit test for '$Name' did not resolve to intended pane"}
+              if(-not [FacadWindowGuard]::SetCursorPos($px,$py)){throw "SetCursorPos failed for '$Name'"}
+              Start-Sleep -Milliseconds 150
+              [FacadWindowGuard]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 100
+              [FacadWindowGuard]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+              "VERIFIED_CLICK=$Name | $px,$py" | Add-Content facad-quick-demo/quick-demo-process.txt
+            }
+
+            Click-VerifiedPane -Window $eulaWindow -Name 'I accept the license'
+            Start-Sleep -Seconds 2
+            $root=[System.Windows.Automation.AutomationElement]::RootElement
+            $eulaWindow=$root.FindFirst(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'End User License Agreement'
+              )
+            )
+            if($null -eq $eulaWindow){throw 'EULA disappeared before Next was verified'}
+            Click-VerifiedPane -Window $eulaWindow -Name 'Next >'
+            'EULA_ACCEPTED_AND_NEXT_CLICK_SENT=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            Start-Sleep -Seconds 5
+            Dump-Ui 'facad-quick-demo/ui-after-eula-next.txt'
+            try{
+              Add-Type -AssemblyName System.Windows.Forms
+              Add-Type -AssemblyName System.Drawing
+              $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+              $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+              $g=[System.Drawing.Graphics]::FromImage($bmp)
+              $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+              $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'after-eula-next-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+              $g.Dispose();$bmp.Dispose()
+            }catch{$_ | Out-String | Set-Content facad-quick-demo/screenshot-error.txt}
+            # The exact post-EULA screen was observed in run 37757103793.
+            # No new contract is visible; Finish is the bounded standard install action.
+            $installRoot=[System.Windows.Automation.AutomationElement]::RootElement
+            $installWindow=$installRoot.FindFirst(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Installation'
+              )
+            )
+            if($null -eq $installWindow){throw 'Expected Installation window after EULA, none found'}
+            $ready=$installWindow.FindAll(
+              [System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Ready to start installing Facad.'
+              )
+            )
+            if($ready.Count -ne 1){throw "Expected one Ready to start installing Facad pane, found $($ready.Count)"}
+            Click-VerifiedPane -Window $installWindow -Name 'Finish'
+            'INSTALL_FINISH_CLICK_SENT=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            Start-Sleep -Seconds 10
+            Dump-Ui 'facad-quick-demo/ui-after-finish.txt'
+            $newGates=Get-Content facad-quick-demo/ui-after-finish.txt | Where-Object {
+              $_ -match '(?i)license agreement|licence agreement|purchase|payment|activation key|enter serial|subscription|new terms'
+            }
+            if($newGates){
+              $newGates | Set-Content facad-quick-demo/new-gate-after-finish.txt
+              'NEW_CONTRACT_GATE_AFTER_FINISH=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+              throw 'STOP: new license/payment/activation gate requires separate authorization'
+            }
+            'NEW_CONTRACT_GATE_AFTER_FINISH=false' | Add-Content facad-quick-demo/quick-demo-process.txt
+          }
+
+          # No new consent gate detected: allow the authorized quick-demo install to settle.
+          $installDeadline=(Get-Date).AddMinutes(8)
+          while((Get-Date) -lt $installDeadline){
+            Start-Sleep -Seconds 5
+            $settings=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.Admin.settings' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if($settings){ break }
+            $installerProcesses=Get-Process FacadNstaller,FacadInstall -ErrorAction SilentlyContinue
+            if(-not $installerProcesses){ Start-Sleep -Seconds 5 }
+          }
+
+          $settingsHits=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.Admin.settings' -File -Recurse -ErrorAction SilentlyContinue
+          $settingsHits | Select-Object FullName,Length,LastWriteTime |
+            Format-Table -AutoSize | Out-File facad-quick-demo/settings-found.txt -Width 500
+
+          $facadExe=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if($facadExe){
+            "INSTALLED_FACAD_EXE=$($facadExe.FullName)" | Add-Content facad-quick-demo/quick-demo-process.txt
+          } else {
+            'INSTALLED_FACAD_EXE=NOT_FOUND' | Add-Content facad-quick-demo/quick-demo-process.txt
+          }
+
+          if($settingsHits){
+            'FACAD_ADMIN_SETTINGS_FOUND=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+          } else {
+            'FACAD_ADMIN_SETTINGS_FOUND=false' | Add-Content facad-quick-demo/quick-demo-process.txt
+          }
+
+          Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $before -and $_.FullName -match 'Facad|Ilexis' } |
+            Select-Object FullName,Length,LastWriteTime |
+            Sort-Object FullName |
+            Format-Table -AutoSize |
+            Out-File facad-quick-demo/installed-files.txt -Width 500
+
+          Get-Content facad-quick-demo/quick-demo-process.txt
+          if(Test-Path facad-quick-demo/settings-found.txt){Get-Content facad-quick-demo/settings-found.txt}
+          if(Test-Path facad-quick-demo/consent-gate.txt){Get-Content facad-quick-demo/consent-gate.txt}
+
+      - name: Probe installed Facad on bundled example if bootstrap completed
+        shell: pwsh
+        continue-on-error: false
+        run: |
+          $ErrorActionPreference='Continue'
+          $state=Get-Content facad-quick-demo/quick-demo-process.txt -Raw
+          if($state -match 'NEW_CONTRACT_GATE_AFTER_FINISH=true'){ throw 'New contract gate; no probing' }
+          if($state -notmatch 'FACAD_ADMIN_SETTINGS_FOUND=true'){ throw 'Bootstrap incomplete: Facad.Admin.settings absent; D1C did not execute' }
+
+          $installed=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          $bundled=(Resolve-Path 'facad-quick-demo/outer/FacadRelease-3.14.1.1111.zip' -ErrorAction SilentlyContinue)
+          if(-not $installed){ throw 'No installed Facad.exe; D1C did not execute' }
+
+          $seven="$env:ProgramFiles\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path facad-quick-demo/release | Out-Null
+          & $seven x 'facad-quick-demo/outer/FacadRelease-3.14.1.1111.zip' '-ofacad-quick-demo/release' -y | Out-Null
+          $officialCase=(Resolve-Path 'facad-quick-demo/release/Examples/Robert-2.0.fcd').Path
+          $caseSourceHash=(Get-FileHash -LiteralPath $officialCase -Algorithm SHA256).Hash
+          $sandboxRoot=(Join-Path (Resolve-Path 'facad-quick-demo').Path 'd3-app-copy')
+          if(Test-Path -LiteralPath $sandboxRoot){throw 'D3 disposable app source unexpectedly exists'}
+          # Copy all official example siblings: the tiny .fcd may reference
+          # images relative to Examples, rather than embedding X-ray pixels.
+          Copy-Item -LiteralPath (Split-Path $officialCase -Parent) -Destination $sandboxRoot -Recurse -ErrorAction Stop
+          $case=(Join-Path $sandboxRoot 'Robert-2.0.fcd')
+          if(-not (Test-Path -LiteralPath $case)){throw 'D3 disposable Robert entry point missing'}
+          $copyHash=(Get-FileHash -LiteralPath $case -Algorithm SHA256).Hash
+          if($caseSourceHash -ne $copyHash){throw 'D3 disposable input copy differs from official bundled example'}
+          "OFFICIAL_SOURCE_HASH=$caseSourceHash" | Set-Content facad-quick-demo/d3-app-copy-probe.txt
+          "COPY_INPUT_HASH=$copyHash" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          'START_SOURCE=DISPOSABLE_OFFICIAL_EXAMPLE_COPY' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+
+          $p=Start-Process -FilePath $installed.FullName -ArgumentList ('"'+$case+'"') -WorkingDirectory $installed.DirectoryName -PassThru
+          "FACAD_PID=$($p.Id)" | Set-Content facad-quick-demo/facad-example-process.txt
+          Start-Sleep -Seconds 12
+          # Run 37758748739 screenshot proved a first-launch shortcut prompt blocks the workspace.
+          # Choosing No only declines a desktop shortcut; it is not a license/activation action.
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $dialogs=$root.FindAll([System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::NameProperty,'Facad'))
+          $shortcutHandled=$false
+          for($i=0;$i -lt $dialogs.Count;$i++){
+            $dialog=$dialogs.Item($i)
+            $prompt=$dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'Do you want to place a shortcut to the program on the desktop?'))
+            if($null -eq $prompt){continue}
+            $no=$dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'No'))
+            if($null -eq $no -or -not $no.Current.IsEnabled){
+              throw 'First launch shortcut modal found but No action unavailable'
+            }
+            if($no.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button){
+              # Invoke alone returned without error on prior run but dialog persisted.
+              # Verify the exact foreground button, then send one physical click.
+              $r=$no.Current.BoundingRectangle
+              $wr=$dialog.Current.BoundingRectangle
+              if($r.IsEmpty -or $r.Width -lt 35 -or $r.Width -gt 180 -or
+                $r.Height -lt 15 -or $r.Height -gt 75 -or
+                $r.Left -lt $wr.Left -or $r.Right -gt $wr.Right -or
+                $r.Top -lt $wr.Top -or $r.Bottom -gt $wr.Bottom){
+                throw 'Shortcut No button bounds mismatch'
+              }
+              Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadShortcutButtonMouse {
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+          }
+          '@
+              if([FacadShortcutButtonMouse]::GetForegroundWindow() -ne [IntPtr]$dialog.Current.NativeWindowHandle){
+                throw 'Shortcut dialog not foreground: refusing click'
+              }
+              $cx=[int]($r.Left+$r.Width/2)
+              $cy=[int]($r.Top+$r.Height/2)
+              if(-not [FacadShortcutButtonMouse]::SetCursorPos($cx,$cy)){throw 'Shortcut No cursor placement failed'}
+              Start-Sleep -Milliseconds 150
+              [FacadShortcutButtonMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 120
+              [FacadShortcutButtonMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            } elseif($no.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane){
+              $bounds=$no.Current.BoundingRectangle
+              $windowBounds=$dialog.Current.BoundingRectangle
+              if($bounds.IsEmpty -or $bounds.Width -lt 35 -or $bounds.Width -gt 180 -or
+                $bounds.Height -lt 15 -or $bounds.Height -gt 75 -or
+                $bounds.Left -lt $windowBounds.Left -or $bounds.Right -gt $windowBounds.Right -or
+                $bounds.Top -lt $windowBounds.Top -or $bounds.Bottom -gt $windowBounds.Bottom){
+                throw 'Shortcut No pane bounds mismatch'
+              }
+              Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadShortcutMouse {
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
+          }
+          '@
+              $cx=[int]($bounds.Left+$bounds.Width/2)
+              $cy=[int]($bounds.Top+$bounds.Height/2)
+              if(-not [FacadShortcutMouse]::SetCursorPos($cx,$cy)){throw 'Cannot focus shortcut No pane'}
+              Start-Sleep -Milliseconds 200
+              [FacadShortcutMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 100
+              [FacadShortcutMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            } else {throw 'Unexpected shortcut No control type'}
+            $shortcutHandled=$true
+            'SHORTCUT_PROMPT_NO_INVOKED=true' | Set-Content facad-quick-demo/shortcut-prompt.txt
+            break
+          }
+          if(-not $shortcutHandled){'SHORTCUT_PROMPT_NOT_FOUND=true' | Set-Content facad-quick-demo/shortcut-prompt.txt}
+          Start-Sleep -Seconds 10
+          # A previous green run still showed this dialog after logging Invoke.
+          # Record the actual post-click state and fail closed instead of trusting the action log.
+          $verifyRoot=[System.Windows.Automation.AutomationElement]::RootElement
+          $modalRows=$verifyRoot.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::NameProperty,
+              'Do you want to place a shortcut to the program on the desktop?'))
+          "SHORTCUT_MODAL_REMAINING=$($modalRows.Count)" | Add-Content facad-quick-demo/shortcut-prompt.txt
+          if($modalRows.Count -gt 0){
+            # Screen and UIA tree BEFORE any fallback: never treat a sent click as success.
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            function Capture-ShortcutState([string]$label){
+              $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+              $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+              $graphics=[System.Drawing.Graphics]::FromImage($bmp)
+              try {
+                $graphics.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+                $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path "$label.png"),[System.Drawing.Imaging.ImageFormat]::Png)
+              } finally {$graphics.Dispose();$bmp.Dispose()}
+              $n=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+              $listing=foreach($node in $n){try{
+                if($node.Current.Name){ "$($node.Current.ControlType.ProgrammaticName) | $($node.Current.Name) | $($node.Current.BoundingRectangle)" }
+              }catch{}}
+              $listing | Sort-Object -Unique | Set-Content "facad-quick-demo/$label.txt"
+            }
+            Capture-ShortcutState 'shortcut-after-mouse'
+            # One bounded keyboard fallback only when the exact same known prompt survives.
+            # SendKeys targets the verified foreground dialog, never an unknown consent window.
+            $stillDialogs=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Facad'))
+            $target=$null
+            for($j=0;$j -lt $stillDialogs.Count;$j++){
+              $candidate=$stillDialogs.Item($j)
+              $q=$candidate.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                  [System.Windows.Automation.AutomationElement]::NameProperty,
+                  'Do you want to place a shortcut to the program on the desktop?'))
+              if($null -ne $q){
+                if($null -ne $target){throw 'Multiple shortcut dialogs: refusing keyboard fallback'}
+                $target=$candidate
+              }
+            }
+            if($null -eq $target){throw 'Shortcut prompt location changed: refusing keyboard fallback'}
+            $no=$target.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'No'))
+            if($null -eq $no -or -not $no.Current.IsEnabled){throw 'Shortcut No action not available for keyboard fallback'}
+            Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadShortcutFocus {
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+          }
+          '@
+            $hwnd=[IntPtr]$target.Current.NativeWindowHandle
+            if($hwnd -eq [IntPtr]::Zero){throw 'Shortcut dialog HWND missing'}
+            [void][FacadShortcutFocus]::SetForegroundWindow($hwnd)
+            Start-Sleep -Milliseconds 350
+            if([FacadShortcutFocus]::GetForegroundWindow() -ne $hwnd){throw 'Shortcut dialog is not foreground after focus attempt'}
+            try {$no.SetFocus()}catch {throw 'Cannot focus exact shortcut No control'}
+            [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+            'SHORTCUT_KEYBOARD_ENTER_SENT=true' | Add-Content facad-quick-demo/shortcut-prompt.txt
+            Start-Sleep -Seconds 3
+            Capture-ShortcutState 'shortcut-after-keyboard'
+            $modalRows=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+              [System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'Do you want to place a shortcut to the program on the desktop?'))
+            "SHORTCUT_MODAL_AFTER_KEYBOARD=$($modalRows.Count)" | Add-Content facad-quick-demo/shortcut-prompt.txt
+            if($modalRows.Count -gt 0){
+              'SHORTCUT_DISMISSAL_UNVERIFIED=true' | Add-Content facad-quick-demo/shortcut-prompt.txt
+              throw 'Facad first launch modal remains after keyboard fallback; workspace not observed'
+            }
+          }
+          try{$p.Refresh()}catch{}
+          "HAS_EXITED=$($p.HasExited)" | Add-Content facad-quick-demo/facad-example-process.txt
+          if($p.HasExited){"EXIT_CODE=$($p.ExitCode)" | Add-Content facad-quick-demo/facad-example-process.txt}
+
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $rows=New-Object System.Collections.Generic.List[string]
+          foreach($n in $nodes){
+            try{
+              if(-not [string]::IsNullOrWhiteSpace($n.Current.Name)){
+                $rows.Add("TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name)")
+              }
+            }catch{}
+          }
+          $rows | Sort-Object -Unique | Set-Content facad-quick-demo/facad-ui-tree.txt
+          Get-Content facad-quick-demo/facad-ui-tree.txt | Select-Object -First 800
+
+          try{
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'facad-example-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose();$bmp.Dispose()
+          }catch{}
+
+          # Acknowledge the observed informational 30-day licence notice; no registration or bypass.
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          # Match the actual UIA text independent of newline normalization.
+          $allNodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $licenseText=@(for($i=0;$i -lt $allNodes.Count;$i++){
+            $node=$allNodes.Item($i)
+            try {
+              $name=$node.Current.Name
+              if($name -match 'You are running Facad with a time limited user license' -and
+                 $name -match 'license expires in 30 days'){ $node }
+            }catch{}
+          })
+          "LICENSE_INFO_NOTICE_COUNT=$($licenseText.Count)" | Set-Content facad-quick-demo/license-notice.txt
+          $licenseNoticeUndismissed=$false
+          if($licenseText.Count -eq 1){
+            # Resolve the nearest UIA Window ancestor of this specific message.
+            # There are two OK buttons globally (installer + Facad), so never use root-wide OK.
+            $modal=$licenseText[0]
+            $walk=[System.Windows.Automation.TreeWalker]::RawViewWalker
+            for($k=0;$k -lt 24 -and $null -ne $modal;$k++){
+              if($modal.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window){break}
+              $modal=$walk.GetParent($modal)
+            }
+            if($null -eq $modal -or $modal.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
+              throw 'Informational licence window ancestry not found; no OK activated'
+            }
+            "LICENSE_MODAL_NAME=$($modal.Current.Name)" | Add-Content facad-quick-demo/license-notice.txt
+            $okControls=$modal.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'OK'))
+            "LICENSE_MODAL_OK_COUNT=$($okControls.Count)" | Add-Content facad-quick-demo/license-notice.txt
+            if($okControls.Count -ne 1 -or -not $okControls.Item(0).Current.IsEnabled){
+              throw 'Informational licence modal OK is ambiguous/unavailable'
+            }
+            try{
+              $okControls.Item(0).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+              'LICENSE_NOTICE_OK_INVOKED=true' | Add-Content facad-quick-demo/license-notice.txt
+              Start-Sleep -Seconds 2
+            }catch{
+              "LICENSE_NOTICE_OK_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/license-notice.txt
+            }
+            $postNodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            $remaining=0
+            foreach($node in $postNodes){try{
+              if($node.Current.Name -match 'You are running Facad with a time limited user license' -and
+                 $node.Current.Name -match 'license expires in 30 days'){$remaining++}
+            }catch{}}
+            "LICENSE_NOTICE_REMAINING=$remaining" | Add-Content facad-quick-demo/license-notice.txt
+            $licenseNoticeUndismissed=($remaining -gt 0)
+          }elseif($licenseText.Count -gt 1){
+            throw 'Multiple informational licence texts; cannot select one'
+          }
+          # Observe the exact Facad landing page and try the visible Open file control.
+          # Do not interact with Register, activation, or other licence gates.
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $openControls=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::NameProperty,'{FCD_Open_patient}'))
+          "OPEN_FILE_CONTROL_COUNT=$($openControls.Count)" | Set-Content facad-quick-demo/open-file-probe.txt
+          if($openControls.Count -eq 1){
+            $open=$openControls.Item(0)
+            "OPEN_FILE_CONTROL_TYPE=$($open.Current.ControlType.ProgrammaticName)" | Add-Content facad-quick-demo/open-file-probe.txt
+            if($open.Current.IsEnabled){
+              try{
+                if($open.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$invokePattern)){
+                  $invokePattern.Invoke()
+                }else{
+                  'OPEN_PATIENT_INVOKE_UNSUPPORTED=true' | Add-Content facad-quick-demo/open-file-probe.txt
+                }
+                'OPEN_PATIENT_INVOKE_ATTEMPTED=true' | Add-Content facad-quick-demo/open-file-probe.txt
+                Start-Sleep -Seconds 3
+              }catch{
+                "OPEN_FILE_INVOKE_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/open-file-probe.txt
+              }
+            }
+          }
+          $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $rows=foreach($n in $nodes){try{
+            if($n.Current.Name){"TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name)"}
+          }catch{}}
+          $rows | Sort-Object -Unique | Set-Content facad-quick-demo/open-file-ui-tree.txt
+          try{
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            try{
+              $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+              $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'open-file-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            }finally{$g.Dispose();$bmp.Dispose()}
+          }catch{"OPEN_FILE_SCREEN_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/open-file-probe.txt}
+          if($licenseNoticeUndismissed){throw 'Facad informational licence notice still present; patient dialog not validated'}
+          # The patient list is an in-window Facad panel, not a root-level Window.
+          # Scope to the exact top-level Facad window, then to its observed labels/buttons.
+          $facadTopLevels=$root.FindAll([System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::NameProperty,'Facad'))
+          "FACAD_TOPLEVEL_COUNT=$($facadTopLevels.Count)" | Set-Content facad-quick-demo/robert-open-probe.txt
+          $robertActionError=$null
+          try{
+            if($facadTopLevels.Count -ne 1){throw 'Facad main window missing or ambiguous'}
+            $facadWindow=$facadTopLevels.Item(0)
+            if($facadWindow.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window){
+              throw 'Facad root control is not a Window'
+            }
+            # UIA exposes *both* a TitleBar and an embedded Window with this name.
+            # Filter by semantic ControlType rather than rejecting the duplicate label.
+            $panelCandidates=$facadWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Patients/Work List'))
+            "PATIENT_PANEL_LABEL_COUNT=$($panelCandidates.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            $patientWindows=@(for($pi=0;$pi -lt $panelCandidates.Count;$pi++){
+              $candidate=$panelCandidates.Item($pi)
+              if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window){$candidate}
+            })
+            "PATIENT_PANEL_WINDOW_COUNT=$($patientWindows.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if($patientWindows.Count -ne 1){throw 'Patient work-list Window missing or ambiguous'}
+            $patientWindow=$patientWindows[0]
+            $robert=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Example, Robert'))
+            "ROBERT_ROW_COUNT=$($robert.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if($robert.Count -ne 1){throw 'Robert example row not uniquely found'}
+            $rowBounds=$robert.Item(0).Current.BoundingRectangle
+            $windowBounds=$patientWindow.Current.BoundingRectangle
+            if($rowBounds.IsEmpty -or $rowBounds.Width -lt 50 -or $rowBounds.Height -lt 10 -or
+              $rowBounds.Left -lt $windowBounds.Left -or $rowBounds.Right -gt $windowBounds.Right -or
+              $rowBounds.Top -lt $windowBounds.Top -or $rowBounds.Bottom -gt $windowBounds.Bottom){
+              throw 'Robert text bounds are outside Facad main window'
+            }
+            Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class FacadPatientMouse {
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
+            [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint processId);
+          }
+          '@
+            $patientHwnd=[IntPtr]$facadWindow.Current.NativeWindowHandle
+            if($patientHwnd -eq [IntPtr]::Zero){throw 'Facad main window HWND missing'}
+            [void][FacadPatientMouse]::SetForegroundWindow($patientHwnd)
+            Start-Sleep -Milliseconds 400
+            if([FacadPatientMouse]::GetForegroundWindow() -ne $patientHwnd){throw 'Facad main window not foreground'}
+            $cx=[int]($rowBounds.Left + $rowBounds.Width/2)
+            $cy=[int]($rowBounds.Top + $rowBounds.Height/2)
+            if(-not [FacadPatientMouse]::SetCursorPos($cx,$cy)){throw 'Robert row cursor positioning failed'}
+            Start-Sleep -Milliseconds 100
+            [FacadPatientMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+            Start-Sleep -Milliseconds 110
+            [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            'ROBERT_ROW_CLICKED=true' | Add-Content facad-quick-demo/robert-open-probe.txt
+            Start-Sleep -Seconds 1
+            # If UIA text-cell click did not select the row, try the semantically
+            # equivalent parent DataItem via SelectionItemPattern before giving up.
+            $rowData=$robert.Item(0)
+            $walker=[System.Windows.Automation.TreeWalker]::RawViewWalker
+            for($ri=0;$ri -lt 12 -and $null -ne $rowData;$ri++){
+              if($rowData.Current.ControlType -eq [System.Windows.Automation.ControlType]::DataItem){break}
+              $rowData=$walker.GetParent($rowData)
+            }
+            if($null -ne $rowData -and $rowData.Current.ControlType -eq [System.Windows.Automation.ControlType]::DataItem){
+              try{
+                $selection=$rowData.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+                if(-not $selection.Current.IsSelected){
+                  $selection.Select()
+                  'ROBERT_DATAITEM_SELECTED_UIA=true' | Add-Content facad-quick-demo/robert-open-probe.txt
+                  Start-Sleep -Milliseconds 600
+                }
+              }catch{
+                "ROBERT_UIA_SELECTION_UNAVAILABLE=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/robert-open-probe.txt
+              }
+            }
+            $openCandidates=$patientWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty,'Open'))
+            "PATIENT_OPEN_NAMED_COUNT=$($openCandidates.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            $openButtons=@(for($oi=0;$oi -lt $openCandidates.Count;$oi++){
+              $candidate=$openCandidates.Item($oi)
+              if($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button){$candidate}
+            })
+            "PATIENT_OPEN_BUTTON_COUNT=$($openButtons.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if($openButtons.Count -ne 1){throw 'Patient Open button missing or ambiguous after ControlType filter'}
+            "PATIENT_OPEN_ENABLED=$($openButtons[0].Current.IsEnabled)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if(-not $openButtons[0].Current.IsEnabled){
+              throw 'Patient Open remains disabled after Robert selection'
+            }
+            $openBounds=$openButtons[0].Current.BoundingRectangle
+            if($openBounds.IsEmpty -or $openBounds.Width -lt 25 -or $openBounds.Width -gt 180 -or
+              $openBounds.Height -lt 12 -or $openBounds.Height -gt 80 -or
+              $openBounds.Left -lt $windowBounds.Left -or $openBounds.Right -gt $windowBounds.Right -or
+              $openBounds.Top -lt $windowBounds.Top -or $openBounds.Bottom -gt $windowBounds.Bottom){
+              throw 'Patient Open button bounds mismatch'
+            }
+            # Clicking the selected Robert row brings its own modal Patients/Work List
+            # HWND to the foreground. Do not require the *main* Facad HWND here.
+            # Verify the foreground window still belongs to the same Facad process,
+            # and the enabled Open button is scoped to the observed patient dialog.
+            $fgHwnd=[FacadPatientMouse]::GetForegroundWindow()
+            [uint32]$fgProcessId=0
+            if($fgHwnd -eq [IntPtr]::Zero){throw 'No foreground window before Open click'}
+            [void][FacadPatientMouse]::GetWindowThreadProcessId($fgHwnd,[ref]$fgProcessId)
+            $facadProcessId=[uint32]$facadWindow.Current.ProcessId
+            $dialogHwnd=[IntPtr]$patientWindow.Current.NativeWindowHandle
+            "OPEN_FG_PROCESS_ID=$fgProcessId" | Add-Content facad-quick-demo/robert-open-probe.txt
+            "OPEN_FACAD_PROCESS_ID=$facadProcessId" | Add-Content facad-quick-demo/robert-open-probe.txt
+            "OPEN_FG_MATCHES_PATIENT_DIALOG=$($fgHwnd -eq $dialogHwnd)" | Add-Content facad-quick-demo/robert-open-probe.txt
+            if($facadProcessId -eq 0 -or $fgProcessId -ne $facadProcessId){
+              throw 'Foreground window is not owned by Facad; refusing Open click'
+            }
+            if($dialogHwnd -ne [IntPtr]::Zero -and
+              $fgHwnd -ne $dialogHwnd -and $fgHwnd -ne $patientHwnd){
+              throw 'Foreground is neither Facad main window nor selected patient dialog'
+            }
+            if(-not $openButtons[0].Current.IsEnabled){throw 'Open button disabled before click'}
+            $ox=[int]($openBounds.Left + $openBounds.Width/2)
+            $oy=[int]($openBounds.Top + $openBounds.Height/2)
+            if(-not [FacadPatientMouse]::SetCursorPos($ox,$oy)){throw 'Open button cursor placement failed'}
+            Start-Sleep -Milliseconds 100
+            [FacadPatientMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+            Start-Sleep -Milliseconds 110
+            [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            'PATIENT_OPEN_CLICKED=true' | Add-Content facad-quick-demo/robert-open-probe.txt
+            Start-Sleep -Seconds 8
+          }catch{
+            $robertActionError=$_.Exception.Message
+            "ROBERT_ACTION_ERROR=$robertActionError" | Add-Content facad-quick-demo/robert-open-probe.txt
+          }
+          $afterNodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $afterRows=foreach($n in $afterNodes){try{
+            if($n.Current.Name){"TYPE=$($n.Current.ControlType.ProgrammaticName) | NAME=$($n.Current.Name)"}
+          }catch{}}
+          $afterRows | Sort-Object -Unique | Set-Content facad-quick-demo/robert-after-ui-tree.txt
+          try{
+            $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp=New-Object System.Drawing.Bitmap $bounds.Width,$bounds.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            try{
+              $g.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bmp.Size)
+              $bmp.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path 'robert-after-screen.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+            }finally{$g.Dispose();$bmp.Dispose()}
+          }catch{"ROBERT_SCREEN_ERROR=$($_.Exception.GetType().Name)" | Add-Content facad-quick-demo/robert-open-probe.txt}
+          $remainingPanelLabels=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::NameProperty,'Patients/Work List'))
+          "PATIENT_PANEL_REMAINING=$($remainingPanelLabels.Count)" | Add-Content facad-quick-demo/robert-open-probe.txt
+          'CASE_OPENED=UNVERIFIED_PENDING_SCREENSHOT_REVIEW' | Add-Content facad-quick-demo/robert-open-probe.txt
+          if($robertActionError){throw "Robert patient selection failed: $robertActionError"}
+          if($remainingPanelLabels.Count -gt 0){throw 'Patient list remains after attempted Robert open; clinical workspace not verified'}
+
+          # Follow-on evidence only: bundled sample case, tracing viewer + menu inventory.
+          # No patient edits, writes, simulations, or exports performed.
+          function Save-FacadScreen([string]$filename){
+            $screen=[System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bitmap=New-Object System.Drawing.Bitmap $screen.Width,$screen.Height
+            $graphics=[System.Drawing.Graphics]::FromImage($bitmap)
+            try{
+              $graphics.CopyFromScreen($screen.Left,$screen.Top,0,0,$bitmap.Size)
+              $bitmap.Save((Join-Path (Resolve-Path 'facad-quick-demo').Path $filename),
+                [System.Drawing.Imaging.ImageFormat]::Png)
+            }finally{$graphics.Dispose();$bitmap.Dispose()}
+          }
+          $traceProbe='facad-quick-demo/clinical-tracing-probe.txt'
+          'TRACING_PROBE_STARTED=true' | Set-Content $traceProbe
+          # This variable is shared by tracing and menus. Initialize before the
+          # first try so a tracing failure cannot falsely invalidate the menus.
+          $facadPid=[uint32]$facadWindow.Current.ProcessId
+          "FACAD_SHARED_PID=$facadPid" | Add-Content $traceProbe
+          if($facadPid -eq 0){throw 'Verified Facad process ID unavailable'}
+          $tracingFailure=$null
+          try{
+            $allFacadWindows=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Window))
+            $managerWindows=@(for($wi=0;$wi -lt $allFacadWindows.Count;$wi++){
+              $w=$allFacadWindows.Item($wi)
+              if($w.Current.Name -eq 'Robert Example / 850101-0010 - Image/Tracing manager'){$w}
+            })
+            "MANAGER_WINDOW_COUNT=$($managerWindows.Count)" | Add-Content $traceProbe
+            if($managerWindows.Count -ne 1){throw 'Robert tracing manager window missing or ambiguous'}
+            $manager=$managerWindows[0]
+            $managerBounds=$manager.Current.BoundingRectangle
+            $managerNodes=$manager.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $tracingLabels=@(for($ti=0;$ti -lt $managerNodes.Count;$ti++){
+              $node=$managerNodes.Item($ti)
+              if($node.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+                $node.Current.Name -like 'Pretreatment tracing*'){$node}
+            })
+            "PRETREATMENT_LABEL_COUNT=$($tracingLabels.Count)" | Add-Content $traceProbe
+            if($tracingLabels.Count -lt 1){throw 'Pretreatment tracing thumbnail label missing'}
+            if($managerBounds.IsEmpty -or $managerBounds.Width -lt 600 -or
+              $managerBounds.Height -lt 400){
+              throw 'Robert manager geometry unexpectedly small'
+            }
+            # The two text labels overlap almost exactly (503,302 and 507,304
+            # on the verified 1024x768 screenshot). They represent the same
+            # pretreatment thumbnail, not two distinct thumbnails.
+            $visibleLabels=@()
+            foreach($node in $tracingLabels){
+              $rect=$node.Current.BoundingRectangle
+              "PRETREATMENT_CANDIDATE_BOUNDS=$rect" | Add-Content $traceProbe
+              if($rect.IsEmpty -or $rect.Width -lt 25 -or $rect.Height -lt 8 -or
+                $rect.Left -lt $managerBounds.Left -or $rect.Right -gt $managerBounds.Right -or
+                $rect.Top -lt $managerBounds.Top -or $rect.Bottom -gt $managerBounds.Bottom){
+                continue
+              }
+              $visibleLabels+= [pscustomobject]@{Element=$node;Rect=$rect}
+            }
+            if($visibleLabels.Count -lt 1){throw 'No visible Pretreatment label inside manager'}
+            $labelRect=$visibleLabels[0].Rect
+            foreach($item in $visibleLabels){
+              $rect=$item.Rect
+              if([Math]::Abs(($rect.Left+$rect.Right)-($labelRect.Left+$labelRect.Right)) -gt 35 -or
+                 [Math]::Abs(($rect.Top+$rect.Bottom)-($labelRect.Top+$labelRect.Bottom)) -gt 30){
+                throw 'Pretreatment labels refer to different thumbnails; refusing click'
+              }
+            }
+            "PRETREATMENT_DEDUPED_LABELS=$($visibleLabels.Count)" | Add-Content $traceProbe
+            "PRETREATMENT_SELECTED_LABEL_BOUNDS=$labelRect" | Add-Content $traceProbe
+            # The actual thumbnail is immediately above its text label in the
+            # inspected image. Interact within its rectangle, not adjacent previews.
+            $tx=[int]($labelRect.Left + $labelRect.Width/2)
+            $ty=[int]($labelRect.Top - 55)
+            if($ty -lt $managerBounds.Top + 30 -or $tx -lt $managerBounds.Left -or
+              $tx -gt $managerBounds.Right -or $ty -gt $managerBounds.Bottom){
+              throw 'Pretreatment thumbnail target outside the manager area'
+            }
+            "PRETREATMENT_THUMBNAIL_CLICK=$tx,$ty" | Add-Content $traceProbe
+            $fg=[FacadPatientMouse]::GetForegroundWindow()
+            [uint32]$pidFore=0
+            [void][FacadPatientMouse]::GetWindowThreadProcessId($fg,[ref]$pidFore)
+            "TRACING_FG_PID=$pidFore" | Add-Content $traceProbe
+            "TRACING_FACAD_PID=$facadPid" | Add-Content $traceProbe
+            if($pidFore -ne $facadPid){throw 'Tracing viewer not foreground Facad; refusing double click'}
+            if(-not [FacadPatientMouse]::SetCursorPos($tx,$ty)){throw 'Cannot position tracing selection cursor'}
+            for($di=0;$di -lt 2;$di++){
+              Start-Sleep -Milliseconds 85
+              [FacadPatientMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 65
+              [FacadPatientMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)
+            }
+            'PRETREATMENT_LABEL_DOUBLE_CLICKED=true' | Add-Content $traceProbe
+            Start-Sleep -Seconds 5
+          }catch{
+            $tracingFailure=$_.Exception.Message
+            "TRACING_INTERACTION_ERROR=$tracingFailure" | Add-Content $traceProbe
+          }
+          try{
+            Save-FacadScreen 'pretreatment-after-screen.png'
+            $tracingUi=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            foreach($node in $tracingUi){
+              try{
+                if($node.Current.Name -and $node.Current.ProcessId -eq $facadPid){
+                  "TYPE=$($node.Current.ControlType.ProgrammaticName) | NAME=$($node.Current.Name)" |
+                    Add-Content facad-quick-demo/pretreatment-after-ui-tree.txt
+                }
+              }catch{}
+            }
+          }catch{
+            "TRACING_CAPTURE_ERROR=$($_.Exception.Message)" | Add-Content $traceProbe
+          }
+          'TRACING_EDITOR_OPENED=UNVERIFIED_PENDING_SCREENSHOT_REVIEW' | Add-Content $traceProbe
+
+          # Read-only D0/D2B menu coverage was independently proven:
+          # D0 run #37843736004 = 9/9 menus;
+          # D2B run #37852213309 = 19/19 View entries, 2 submenus.
+          # Do not re-run the brittle legacy five-menu census on each
+          # D1C preset attempt: UIA transient Edit disappearance caused
+          # #37860226577 to fail BEFORE executing the targeted D1C script.
+          # Preserve the original bootstrap and tracing safety gate.
+          if($tracingFailure){throw "Facad tracing exploratory gate failed: $tracingFailure"}
+          if($null -eq $facadWindow -or $facadWindow.Current.ProcessId -ne $facadPid){
+            throw 'D1C cannot start: previously verified main Facad window unavailable'
+          }
+
+          # D1B completed 65/65 catalog selections in run #37855445127.
+          # D1C: load one BUILT-IN preset definition into the separate
+          # nonpatient editor ONLY (Bergen). Do not click
+          # editor Save, patient Cephalometry > Load or any clinical action.
+          # Keep unsaved editor open until runner terminates this ephemeral
+          # Facad process after source/copy hash checks.
+          $d1c=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d1c_editor_pilot.ps1'
+          $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
+          $explorationFailure=$null
+          $d3PrepFailure=$null
+          try{
+            if(-not (Test-Path $d1c)){throw "D1C pilot missing: $d1c"}
+            & $d1c -FacadProcessId ([int]$facadPid) `
+              -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
+              -OutDir 'facad-quick-demo' -ProfileName 'Ancell'
+          }catch{
+            $explorationFailure=$_.Exception.Message
+            "D1C_EDITOR_FAILURE=$explorationFailure" |
+              Add-Content facad-quick-demo/d3-app-copy-probe.txt
+          }finally{
+            try{
+              if(-not (Test-Path $d3Preflight)){throw "D3 preflight missing: $d3Preflight"}
+              & $d3Preflight -OutDir 'facad-quick-demo' -SourcePath $officialCase
+            }catch{
+              $d3PrepFailure=$_.Exception.Message
+              "D3_PREFLIGHT_FAILURE=$d3PrepFailure" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            }
+            $officialAfter=(Get-FileHash -LiteralPath $officialCase -Algorithm SHA256).Hash
+            $disposableAfter=(Get-FileHash -LiteralPath $case -Algorithm SHA256).Hash
+            "OFFICIAL_SOURCE_AFTER=$officialAfter" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            "COPY_AFTER=$disposableAfter" | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            "SOURCE_UNCHANGED_AFTER_D1C=$($caseSourceHash -eq $officialAfter)" |
+              Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            "COPY_UNCHANGED_AFTER_D1C=$($copyHash -eq $disposableAfter)" |
+              Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            'CLINICAL_EDIT_ALLOWED=false' | Add-Content facad-quick-demo/d3-app-copy-probe.txt
+            if($caseSourceHash -ne $officialAfter){
+              throw 'D1C changed the original Robert sample file'
+            }
+            if($copyHash -ne $disposableAfter){
+              throw 'D1C changed the disposable Robert patient file'
+            }
+          }
+          if($d3PrepFailure){throw "D3 SHA preflight failed: $d3PrepFailure"}
+          if($explorationFailure){throw "D1C editor pilot failed: $explorationFailure"}
+
+          if(-not $p.HasExited){ Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+
+      - name: Upload quick demo evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: facad-314-d1c-Ancell-${{ github.sha }}
+          path: |
+            facad-quick-demo/quick-demo-process.txt
+            facad-quick-demo/ui-before-click.txt
+            facad-quick-demo/before-click-screen.png
+            facad-quick-demo/ui-after-click.txt
+            facad-quick-demo/after-click-screen.png
+            facad-quick-demo/ui-after-finish.txt
+            facad-quick-demo/new-gate-after-finish.txt
+            facad-quick-demo/installed-files.txt
+            facad-quick-demo/ui-after-eula-next.txt
+            facad-quick-demo/after-eula-next-screen.png
+            facad-quick-demo/consent-gate.txt
+            facad-quick-demo/settings-found.txt
+            facad-quick-demo/shortcut-after-mouse.png
+            facad-quick-demo/shortcut-after-mouse.txt
+            facad-quick-demo/shortcut-after-keyboard.png
+            facad-quick-demo/shortcut-after-keyboard.txt
+            facad-quick-demo/shortcut-prompt.txt
+            facad-quick-demo/license-notice.txt
+            facad-quick-demo/d1c-*.png
+            facad-quick-demo/d1c-*.txt
+            facad-quick-demo/d1c-editor-pilot.csv
+            facad-quick-demo/d1b-*.png
+            facad-quick-demo/d1b-*.txt
+            facad-quick-demo/d1b-analysis-selection.csv
+            facad-quick-demo/d2c-*.png
+            facad-quick-demo/d2c-*.txt
+            facad-quick-demo/d2c-coverage.csv
+            facad-quick-demo/d2b-*.png
+            facad-quick-demo/d2b-*.txt
+            facad-quick-demo/d2b-view-state-ledger.csv
+            facad-quick-demo/d3-app-copy-probe.txt
+            facad-quick-demo/d2-*.png
+            facad-quick-demo/d2-*.txt
+            facad-quick-demo/d2-visual-proof.txt
+            facad-quick-demo/d2-visual-proof.csv
+            facad-quick-demo/d2-coverage.csv
+            facad-quick-demo/d3-sandbox-preflight.txt
+            facad-quick-demo/d1-*.png
+            facad-quick-demo/d1-*.txt
+            facad-quick-demo/surface-status.txt
+            facad-quick-demo/surface-coverage.csv
+            facad-quick-demo/surface-*.png
+            facad-quick-demo/surface-*.txt
+            facad-quick-demo/clinical-tracing-probe.txt
+            facad-quick-demo/pretreatment-after-ui-tree.txt
+            facad-quick-demo/pretreatment-after-screen.png
+            facad-quick-demo/clinical-menu-probe.txt
+            facad-quick-demo/menu-*-items.txt
+            facad-quick-demo/menu-*-screen.png
+            facad-quick-demo/robert-open-probe.txt
+            facad-quick-demo/robert-after-ui-tree.txt
+            facad-quick-demo/robert-after-screen.png
+            facad-quick-demo/open-file-probe.txt
+            facad-quick-demo/open-file-ui-tree.txt
+            facad-quick-demo/open-file-screen.png
+            facad-quick-demo/facad-ui-tree.txt
+            facad-quick-demo/facad-example-process.txt
+            facad-quick-demo/facad-example-screen.png
+            facad-quick-demo/screenshot-error.txt
+          if-no-files-found: error
