@@ -30,6 +30,24 @@ These are original installed-source file fingerprints; **they do not assert edit
 | `C02_Lateral Cephalometry Library - Measurements.pdf` | `4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548` |
 | `Overview of Landmarks.pdf` | `2493bc1218395fd1ff35bc57a0e9c5acdda77228d4cf8565719d374ca7caf7cd` |
 
+## Precise page references from successfully replayed artifact (text search only)
+
+An independent Ubuntu Actions run [#37982824693](https://github.com/hraaaaf/Digital_crown/actions/runs/37982824693) replayed **metadata only** from Windows artifact #11642105521: 145 records, 75/75 matching path+SHA256, 12 priority PDFs, three source safety flags and six fail-closed cases (five negative mutations plus baseline); no source PDF read or redistributed by the replay job. This checks *text term occurrence*, not geometry or original Atlas equivalence.
+
+| Installed PDF | 1-based PDF pages | Text keyword page positions |
+|---|---:|---|
+| `Ricketts (32 F).pdf` | 8 | 'Ricketts (32 F)' 1, 4, 5; `PM'` 3, 4, 8 |
+| `Ricketts (13 F).pdf` | 5 | 'Ricketts (13 F)' 1, 3, 4 |
+| `Ricketts Summary.pdf` | 4 | 'Ricketts Summary' 1, 2, 3 |
+| `Ricketts acc G. Samson.pdf` | 7 | No target keyword matches; NOT a text-extraction failure |
+| `Ricketts.pdf` | 5 | 'Ricketts (13 F)' 3 |
+| `McNamara.pdf` / `Steiner.pdf` / `Tweed.pdf` / `Downs.pdf` | 3 / 3 / 3 / 3 | Full manual source located; selected keywords absent |
+| `C01_Lateral Cephalometry Library - Lines and Contructed markers.pdf` | 12 | To compare constructed geometry |
+| `C02_Lateral Cephalometry Library - Measurements.pdf` | 34 | To compare measurement definitions |
+| `Overview of Landmarks.pdf` | 2 | To confirm anatomical and constructed point identity |
+
+These page counts, SHA256 and exact keyword matches are now pinned in the JSON manifest; the source verifier fails closed if any changes. **“Pages identified” refers to PDF text matching on an official locally installed copy, not peer-reviewed/scientific certification of the contents.**
+
 The registry also includes Ricketts general, Ricketts Frontal, frontal and cast-model cephalometry library PDFs, overview, and other analysis profiles. The names above were **observed and SHA-pinned**; page-by-page formula reconciliation remains a separate gate.
 
 ## Scientific follow-on, specific and falsifiable
