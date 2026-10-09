@@ -14,6 +14,7 @@ SCOPES = {
     'disposable_examples_tree': 'filetree',
     'facad_install_tree': 'filetree',
     'facad_appdata_roaming': 'filetree',
+    'facad_ilexis_roaming_settings': 'filetree',
     'facad_appdata_local': 'filetree',
     'facad_programdata': 'filetree',
     'facad_documents': 'filetree',
