@@ -361,24 +361,55 @@ jobs:
           if(Test-Path facad-quick-demo/settings-found.txt){Get-Content facad-quick-demo/settings-found.txt}
           if(Test-Path facad-quick-demo/consent-gate.txt){Get-Content facad-quick-demo/consent-gate.txt}
 
+      - name: Stop installer-autostarted Facad strictly on disposable runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          # The official Quick demo installer may auto-start Facad.exe.
+          # No GUI, patient, clipboard or analysis commands are ever sent.
+          $expected='C:\Facad\Program\Facad\Facad.exe'
+          if(-not (Test-Path -LiteralPath $expected)){throw 'Unexpected install location; refuse clinical-process interaction'}
+          $status='facad-quick-demo/installed-manual-status.txt'
+          'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED' | Set-Content -Encoding utf8 $status
+          'F01_13_CLINICAL_APP_INTERACTION=false' | Add-Content -Encoding utf8 $status
+          'NO_PATIENT_READ_OR_EXPORT=true' | Add-Content -Encoding utf8 $status
+          $running=@(Get-Process -Name Facad -ErrorAction SilentlyContinue)
+          if($running.Count -gt 0){
+            'CLINICAL_APP_AUTO_STARTED_BY_INSTALLER=true' | Add-Content -Encoding utf8 $status
+            foreach($proc in $running){
+              $actual=$null
+              try{$actual=$proc.Path}catch{}
+              if(-not $actual -or -not [string]::Equals($actual,$expected,[StringComparison]::OrdinalIgnoreCase)){
+                throw "Unknown Facad process path; aborting, no documents inspected"
+              }
+              # Only kill the auto-started process on this disposable CI VM.
+              # Never run this workflow on an authorized clinic computer.
+              Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+            }
+          }else{
+            'CLINICAL_APP_AUTO_STARTED_BY_INSTALLER=false' | Add-Content -Encoding utf8 $status
+          }
+          Start-Sleep -Seconds 2
+          if(Get-Process -Name Facad -ErrorAction SilentlyContinue){throw 'Facad is still running; refuse document inventory'}
+          'FACAD_PROCESS_ABSENT_BEFORE_DOCUMENT_INVENTORY=true' | Add-Content -Encoding utf8 $status
       - name: Enumerate INSTALLED Facad reference PDFs only
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $pids=Get-Process Facad -ErrorAction SilentlyContinue
-          if($pids){throw 'Clinical application running; no document read'}
-          $exe=Get-ChildItem 'C:\Program Files','C:\Program Files (x86)','C:\Facad' -Filter 'Facad.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-          if(-not $exe){throw 'Official demo install not found'}
-          $dir=Split-Path $exe.FullName -Parent
-          "INSTALLED_DOC_SCAN_ROOT=$dir" | Set-Content facad-quick-demo/installed-manual-status.txt
-          "SHARED_APP_STORAGE_ISOLATION=UNVERIFIED" | Add-Content facad-quick-demo/installed-manual-status.txt
-          "CLINICAL_APP_LAUNCHED=false" | Add-Content facad-quick-demo/installed-manual-status.txt
-          "NO_PATIENT_READ_OR_EXPORT=true" | Add-Content facad-quick-demo/installed-manual-status.txt
+          if(Get-Process -Name Facad -ErrorAction SilentlyContinue){throw 'Clinical process running; fail closed'}
+          $installedExe='C:\Facad\Program\Facad\Facad.exe'
+          if(-not (Test-Path -LiteralPath $installedExe)){throw 'Installed official Facad.exe not found'}
+          # Program folder is only one of several possible manual locations.
+          # Scan complete fresh demo-install tree, never home/profile/patient data.
+          $root='C:\Facad'
+          $record='facad-quick-demo/installed-manual-status.txt'
+          "INSTALLED_DOC_SCAN_ROOT=$root" | Add-Content -Encoding utf8 $record
           python -m pip install --disable-pip-version-check pypdf==5.9.0
           if($LASTEXITCODE -ne 0){throw 'pypdf install failed'}
-          python audit/facad_f01_13_static_manual_inventory.py --root $dir --out facad-quick-demo/installed-manuals-index.json
+          python audit/facad_f01_13_static_manual_inventory.py --root $root --out facad-quick-demo/installed-manuals-index.json
           if($LASTEXITCODE -ne 0){throw 'installed PDF inventory failed'}
-          if(Get-Process Facad -ErrorAction SilentlyContinue){throw 'Clinical application started unexpectedly'}
+          if(Get-Process -Name Facad -ErrorAction SilentlyContinue){throw 'Unexpected Facad process after scan'}
+          'INSTALLED_DOC_SCAN_COMPLETED=true' | Add-Content -Encoding utf8 $record
       - name: Upload metadata and install status ONLY (no PDFs or binaries)
         uses: actions/upload-artifact@v4
         if: always()
