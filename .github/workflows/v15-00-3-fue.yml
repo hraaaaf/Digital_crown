@@ -1,0 +1,66 @@
+name: V1.5-00.3 Workstation Scoped FUE
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/v15-00-3-fue.yml'
+      - 'frontend/scripts/capture-v15-00-3-workstation.mjs'
+      - 'frontend/scripts/audit-v15-00-3-fue-journeys.mjs'
+      - 'frontend/src/features/hub/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  workstation-fue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install harness
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Validate Hub, Workstation Gate, admin and identity contracts
+        working-directory: frontend
+        run: npm test -- --run src/test/v15HubRoutingContract.test.ts src/features/hub/WorkstationModeGate.test.tsx src/features/hub/WorkstationModeAdminPanel.test.tsx src/features/hub/WorkstationIdentityPanel.test.tsx src/features/hub/WorkstationExperiencePage.test.tsx src/features/hub/StationKioskShell.test.tsx
+      - name: Start synthetic isolated frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4195 > /tmp/v15-00-3-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4195/hub >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v15-00-3-vite.log
+          exit 1
+      - name: Check Playwright scripts syntax
+        working-directory: frontend
+        run: |
+          node --check scripts/capture-v15-00-3-workstation.mjs
+          node --check scripts/audit-v15-00-3-fue-journeys.mjs
+      - name: Capture workstation states across 3 viewports
+        working-directory: frontend
+        run: node scripts/capture-v15-00-3-workstation.mjs
+      - name: Verify workstation click-through journeys, recovery, keyboard and persistence
+        working-directory: frontend
+        run: node scripts/audit-v15-00-3-fue-journeys.mjs
+      - name: Diagnostics
+        if: failure()
+        run: cat /tmp/v15-00-3-vite.log || true
+      - name: Upload all evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-v15-00-3-workstation
+          path: |
+            frontend/artifacts/v15-00-3-workstation/
+            frontend/artifacts/v15-00-3-fue-journeys/
+          retention-days: 14
+          if-no-files-found: error

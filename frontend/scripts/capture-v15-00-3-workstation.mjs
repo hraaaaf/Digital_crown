@@ -81,6 +81,18 @@ try {
   for (const scenario of scenarios) {
     for (const vp of viewports) {
       const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+      const unexpectedBackendRequests = [];
+      // Fail closed for any unmodelled API call instead of chasing one HTTP 8005 error at a time.
+      // Playwright uses the last registered matching route first; contracts below override this.
+      await context.route('http://127.0.0.1:8005/api/**', route => {
+        const request = route.request();
+        unexpectedBackendRequests.push(`${request.method()} ${request.url()}`);
+        return route.fulfill({
+          status: 501,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'UNMODELLED_FUE_LAB_REQUEST' }),
+        });
+      });
       await context.route('**/api/clinics/me', route => route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -97,8 +109,25 @@ try {
         body: JSON.stringify(scenario.state ?? { detail: 'WORKSTATION_ENROLLMENT_REQUIRED' }),
       }));
 
+      // Synthetic registry fixture is scoped to the workstation-admin screen only.
+      await context.route('**/api/workstation/registry', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      }));
+      // Backend and TypeScript service both define this GET as { fallbackMode }.
+      // Source: backend/routers/station_patient_session.py and stationPatientSession.ts.
+      await context.route('**/api/workstation/patient-session/config', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ fallbackMode: 'disabled' }),
+      }));
+      // Isolated frontend has no backend: explicitly emulate readiness and anonymous auth.
+      await context.route('**/health', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'ok'})}));
+      await context.route('**/auth/me', route => route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({detail:'Unauthenticated'})}));
       const page = await context.newPage();
       const errors = [];
+      page.on('requestfailed', request => errors.push(`REQUEST_FAILED ${request.method()} ${request.url()} ${request.failure()?.errorText || ''}`));
       page.on('pageerror', error => errors.push(error.message));
       page.on('console', message => {
         if (message.type() === 'error') errors.push(message.text());
@@ -131,6 +160,7 @@ try {
         viewport: vp.label,
         ...meta,
         errors,
+        unexpectedBackendRequests,
       });
       await context.close();
     }
@@ -147,7 +177,8 @@ await fs.writeFile(
 const failures = report.filter(item =>
   !item.expectedVisible ||
   item.scrollWidth > item.width ||
-  item.errors.length > 0
+  item.errors.length > 0 ||
+  item.unexpectedBackendRequests.length > 0
 );
 console.log(JSON.stringify(report, null, 2));
 if (failures.length > 0) {

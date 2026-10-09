@@ -9,8 +9,9 @@ aucune commande, secrets générés automatiquement par l'installation,
 SQLite/SQLCipher chiffré (`ENVIRONMENT=cabinet`, mode solo officiellement
 supporté). Le schéma est préparé par la procédure d'installation/Alembic
 explicite ; le service ne crée ni tables ni migration au démarrage. Le reste de ce document décrit la
-procédure manuelle, toujours valable pour un cabinet multi-postes
-(PostgreSQL) ou pour comprendre ce que l'installeur fait pour vous.
+procédure manuelle historique, **non exécutable telle quelle** pour le multi-PC.
+
+> **STOP — Release/FUE-G 01.4** : seul `INSTALLABLE_CERTIFIED` (code exact SHA + assets, provenance/hash vérifiés) est installable, après approbation humaine sur banc isolé. Jamais de branche, HEAD, master, EXE ad hoc ni `CODE_CERTIFIED` seul. En cabinet/production, LAN :8005 exige HTTPS/TLS et **chaîne de confiance validée sur chaque annexe**. Suivre `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` et `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
 
 ## Vue d'ensemble
 
@@ -58,10 +59,10 @@ pas une règle bloquante du garde de démarrage
 │  └─ Backend FastAPI (port 8005)
 │
 ├─ PC Secrétaire
-│  └─ Frontend PWA (http://192.168.x.1:8005)
+│  └─ Frontend PWA (https://192.168.x.1:8005)
 │
 └─ PC Salle Attente
-   └─ Frontend PWA (http://192.168.x.1:8005)
+   └─ Frontend PWA (https://192.168.x.1:8005)
 ```
 
 ### Clinique (10+ postes)
@@ -73,14 +74,15 @@ pas une règle bloquante du garde de démarrage
 │  └─ Backup quotidien
 │
 ├─ Poste 1..N
-│  └─ Frontend PWA (http://serveur.local:8005)
+│  └─ Frontend PWA (https://serveur.local:8005)
 ```
 
 ---
 
 ## 1. Prérequis
 
-### Windows 10/11 Pro ou Mac
+### Plateforme certifiée : Windows
+Le programme `DigitalCrownSetup.exe` et la chaîne PyInstaller/Inno Setup décrits par la politique de release ciblent Windows. Les anciens exemples Mac de ce guide ne démontrent aucune certification d'installeur Mac. Pour FUE-G 01.4, relever les OS réels S/A/B et vérifier la compatibilité de chaque client et de l'artefact installable avant tout GO.
 
 **Machine cible :**
 - Processeur : Intel i5 ou Mac M1+ (minimum)
@@ -99,67 +101,11 @@ pas une règle bloquante du garde de démarrage
 
 ---
 
-## 2. Installation PostgreSQL (recommandé)
+## 2. PostgreSQL — serveur multi-postes sur banc isolé
+Sur S, utiliser une version compatible de PostgreSQL et un provisionnement **spécifique à la release certifiée**, uniquement sur base d'essai non clinique. Les commandes historiques de ce guide ne suffisent pas à autoriser une installation. Vérifier la version, la cible de DB réellement résolue, la sauvegarde, la restauration sur copie, les droits et les migrations nécessaires. Pour le solo en `ENVIRONMENT=cabinet`, SQLCipher reste autorisé ; `ENVIRONMENT=production` exige PostgreSQL.
 
-### Windows
-
-```bash
-# Télécharger PostgreSQL 15+ depuis https://www.postgresql.org/download/windows/
-# Installer avec password root = 'admin' (peut être changé après)
-# Vérifier :
-psql --version
-psql -U postgres -h localhost -c "SELECT version();"
-```
-
-### Mac
-
-```bash
-# Homebrew
-brew install postgresql@15
-brew services start postgresql@15
-psql -U postgres -c "SELECT version();"
-```
-
-### Mode Solo (cabinet seul)
-
-Même en mode solo (un seul poste), PostgreSQL est obligatoire :
-- Simplifie le support et les migrations futures
-- Facilite l'ajout de postes supplémentaires sans refonte DB
-- Offre des garanties ACID meilleures que SQLite
-- PostgreSQL peut tourner sur le même PC que l'application
-
----
-
-## 3. Modèle DB standard : utilisateur dédié par cabinet
-
-**Principe :** chaque cabinet a un utilisateur PostgreSQL dédié, jamais le superuser `postgres`.
-
-```bash
-# Connexion PostgreSQL (Windows / Mac / Linux)
-psql -U postgres -h localhost
-
-# Dans psql :
-CREATE DATABASE digitalcrown_cabinet_2024_01;
-CREATE ROLE cabinet_2024_01 WITH LOGIN PASSWORD 'XyZ9pQ2kL5mN8vB3wE7rT';
-GRANT ALL PRIVILEGES ON DATABASE digitalcrown_cabinet_2024_01 TO cabinet_2024_01;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO cabinet_2024_01;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO cabinet_2024_01;
-\q
-```
-
-**Résultat :**
-- DB : `digitalcrown_cabinet_2024_01`
-- User : `cabinet_2024_01` (dédié, pas postgres)
-- Password : `XyZ9pQ2kL5mN8vB3wE7rT` (généré aléatoire)
-
-**Sécurité (OBLIGATOIRE) :**
-- ❌ Ne JAMAIS utiliser `postgres` superuser dans l'application
-- ❌ Ne JAMAIS hardcoder le mot de passe en clair
-- ❌ Ne JAMAIS logger la `DATABASE_URL` complète (masquer password)
-- ✓ Stocker password dans un fichier `.env` local protégé (chmod 600)
-- ✓ Générer password aléatoire (min. 20 caractères, alphanumériques + spéciaux)
-
----
+## 3. Compte PostgreSQL dédié — sans exemple de secret
+Le banc S+A+B utilise une base distincte et un **rôle applicatif non-superuser**, provisionnés par le parcours autorisé. Le mot de passe doit être généré aléatoirement et conservé dans un coffre sécurisé : **jamais** dans SQL, le dépôt, Notion ou un artefact de test. Vérifier les permissions réelles contre les besoins de la release, ne jamais réutiliser les identifiants DB du cabinet et ne lancer aucune migration non autorisée.
 
 ## 4. Configuration .env
 
@@ -176,7 +122,13 @@ DATABASE_URL=postgresql://cabinet_user:secure_password_here@localhost/digitalcro
 SECRET_KEY=generate_32_chars_minimum_randomly_e.g._use_python_secrets
 
 # Frontend
-ALLOWED_ORIGINS=http://127.0.0.1:8005,http://192.168.x.x:8005
+# Exemple fictif : l'IP choisie DOIT être dans le SAN du certificat approuvé
+CABINET_HOST=192.168.1.100
+CABINET_PORT=8005
+DIGITALCROWN_ENABLE_HTTPS=true
+DIGITALCROWN_TLS_CERT_FILE=C:\certs\cabinet-test.crt
+DIGITALCROWN_TLS_KEY_FILE=C:\certs\cabinet-test.key
+ALLOWED_ORIGINS=https://192.168.1.100:8005
 
 # Médias
 MEDIA_DIR=%APPDATA%\DigitalCrown\media
@@ -192,104 +144,28 @@ FIREBASE_ADMIN_SDK_JSON={}
 **Générer SECRET_KEY :**
 
 ```bash
-python -c "import secrets; print(secrets.token_hex(16))"
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ---
 
-## 5. Créer le superadmin cabinet
+## 5. Initialiser le propriétaire — environnement autorisé seulement
 
-```bash
-cd C:\chemin\vers\DigitalCrown
+Sur banc isolé, utiliser le parcours d'initialisation **de la release certifiée**, un propriétaire autorisé et un secret fort unique. **Ne jamais utiliser un identifiant/mot de passe d'exemple, la commande `seed_user` ni des données cabinet réelles** pour 01.4. Vérifier identité/permissions avant tout appairage.
 
-# Créer le premier utilisateur admin
-python -m backend.seed_user --email owner@cabinet.local --password "SecurePass123!" --role ADMIN
-```
+## 6. Lancer uniquement la release certifiée
 
-**Résultat :**
-- Email : `owner@cabinet.local`
-- Password : `SecurePass123!` (à changer après premier login)
-- Rôle : ADMIN (accès complet)
+**Ne pas utiliser `uvicorn --reload`, `uvicorn --host 0.0.0.0` sans TLS, ni `create_release.ps1` sans ses bundles certifiés.** Ordre : `CODE_CERTIFIED` (HEAD exact de master) → assets runtime certifiés pour **ce SHA** → `create_release.ps1 -CertifiedArtifactZip ... -RuntimeAssetsZip ...` → contrôle `INSTALLABLE_CERTIFIED` → GO humain → `run_real_backend.ps1 -ReleaseId ... -ConfirmRealActivation "YES"` sur banc isolé. Rien ici ne rend la PR #803 installable.
 
----
+**Schéma obligatoire** : l'URL `http://127.0.0.1:8005/api/health` ne fonctionne comme health check que pour un serveur lancé en **loopback HTTP sans TLS**. Lorsque S sert HTTPS sur le port 8005, **même depuis S**, utiliser `https://<nom-ou-IP-couvert-par-le-SAN>:8005/api/health` avec validation native du certificat. A/B font la même vérification, sans contournement TLS.
 
-## 6. Lancer le backend
-
-**⚠️ Ne jamais lancer `uvicorn --reload` sur le port réel du cabinet.** Un `--reload` recharge
-le process à chaque édition de fichier Python du dépôt — y compris du code non terminé — sans
-déploiement explicite. Incident réel documenté dans `CLAUDE.md` (P0-TREATMENT-JOURNEY-1, 2026-07-10).
-
-**Procédure recommandée (dépôt de dev, avant packaging EXE) :**
-```powershell
-# 1. Construire une release immuable (copie hors du dépôt, backend/ + frontend/dist)
-cd backend\scripts
-.\create_release.ps1
-
-# 2. Démarrer depuis cette release, jamais depuis le dépôt directement
-.\run_real_backend.ps1 -ReleaseId <release_id_affiche> -ConfirmRealActivation "YES"
-```
-
-`run_real_backend.ps1` refuse tout `--reload`, toute config ressemblant à du rehearsal
-(DATABASE_URL, ENVIRONMENT, MEDIA_ROOT), et exige un manifeste de release valide. Voir
-`docs/CABINET_ONPREM_GUIDE.md` section 2 pour le détail de la doctrine.
-
-**Commande brute équivalente (sans les garde-fous — déconseillée sauf test isolé, jamais sur le
-poste cabinet réel) :**
-```bash
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8005
-```
-
-**Résultat attendu :**
-```
-Uvicorn running on http://0.0.0.0:8005
-Application startup complete
-```
-
-Health check :
-```bash
-curl http://127.0.0.1:8005/api/health
-# Résultat : {"status":"ok","database":"ok",...}
-```
-
----
-
-## 7. Lancer le frontend
-
-Commandes frontend officielles depuis la racine du repo :
-
-```bash
-npm test
-npm run build
-```
-
-Equivalents directs si vous voulez cibler explicitement le sous-projet :
-
-```bash
-npm --prefix frontend test
-npm --prefix frontend run build
-```
-
-```bash
-cd frontend
-
-# Mode développement (test)
-npm run dev --host 0.0.0.0
-
-# Mode production (packagé avec backend)
-npm run build
-# → distill dans frontend/dist/, servi par backend.main
-```
-
-**Accès :**
-- Dev : http://localhost:5173
-- Prod : http://127.0.0.1:8005
-
----
+## 7. Frontend — uniquement celui de la release installable
+Sur le banc FUE-G 01.4, ne pas lancer `npm run dev`, `npm run build`, Vite exposé en LAN ni copier `frontend/dist` depuis un checkout. Le bundle `INSTALLABLE_CERTIFIED` fournit déjà le frontend servi par S avec le backend sur le **port 8005**. Les commandes de laboratoire ont leur propre environnement isolé, sans valeur de certification d'installation.
 
 ## 8. Premier login et configuration
 
-1. Ouvrir http://127.0.0.1:8005
-2. Email : `owner@cabinet.local` / Password : `SecurePass123!`
+1. Ouvrir l'origine exacte du serveur : loopback HTTP seulement sans TLS ; pour le FUE-G multi-PC, **HTTPS :8005** avec certificat approuvé.
+2. Authentifier le propriétaire autorisé avec un compte individuel, jamais un identifiant de démonstration.
 3. Changer le mot de passe (Settings → Profile)
 4. Configurer le cabinet :
    - Logo
@@ -299,27 +175,16 @@ npm run build
 
 ---
 
-## 9. Accès depuis d'autres postes du réseau
+## 9. Accès multi-PC : HTTPS obligatoire
 
-**Prerequis :**
-- Tous les postes sur le même LAN
-- Machine cabinet : IP fixe (ex. 192.168.1.100)
+**Gate préalable** : S, A et B isolés et autorisés, DNS/IP stable de S, SAN/CA/validité TLS approuvés **depuis A et B séparément**, release `INSTALLABLE_CERTIFIED` correspondant au code exact sous test, backup DB+médias synthétiques **et restore clone prouvé**, autorisations installation/reboot/coupure explicites.
 
-**Configuration :**
-1. Dans `backend/.env.local` :
-   ```env
-   ALLOWED_ORIGINS=http://192.168.1.100:8005,http://192.168.1.101:8005
-   ```
-2. Relancer backend
-3. Autre poste : http://192.168.1.100:8005
-4. Login avec le même compte
+1. Configurer sur S `CABINET_HOST` LAN, `CABINET_PORT=8005`, `DIGITALCROWN_ENABLE_HTTPS=true`, chemins cert/key TLS locaux protégés et `ALLOWED_ORIGINS` correspondant aux origines HTTPS réellement servies (pas automatiquement aux IP clientes).
+2. Après activation humaine et certifiée sur **banc non clinique**, constater `/api/health`, `/api/health/db`, `/api/health/storage`, `/api/health/topology` ; A et B ouvrent séparément `https://192.168.1.100:8005` **uniquement si** cette IP illustrative correspond au SAN et au réseau réellement observés.
+3. Deux profils vierges, deux appairages single-use et identités distinctes ; valider rôles/droits, refus avant authentification, Hub et Station PIN.
+4. Tester après GO distinct les refus HTTP LAN/cert invalide/mauvaise IP, 503/DB/423/PIN/replay, restart S/A/B et coupure/récupération ; capturer BEFORE/AFTER mêmes viewports et **mesurer** les durées, sans patient réel.
 
-**Mobile PWA :**
-1. Ouvrir http://192.168.1.100:8005 sur téléphone
-2. Menu → "Ajouter à l'écran d'accueil"
-3. Accès offline avec QR-pairing
-
----
+Le mobile via QR/HTTPS ne remplace pas la certification des deux postes PC. Voir `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
 
 ## 10. Rôle exact de Firebase
 
@@ -374,9 +239,9 @@ python -m backend.scripts.restore_db backup_YYYYMMDD_HHMMSS.sql.enc --yes
 ## 12. Checklist installateur (PostgreSQL standard)
 
 **Prérequis :**
-- [ ] Python 3.12 installé
+- [ ] OS et dépendances serveur compatibles avec la release certifiée
 - [ ] **PostgreSQL 15+ installé et running** (obligatoire)
-- [ ] Git installé
+- [ ] Artefact `INSTALLABLE_CERTIFIED` et code SHA exact vérifiés, aucune installation depuis le dépôt
 
 **Configuration DB :**
 - [ ] Role PostgreSQL dédié créé (`cabinet_XXXX_01`)
@@ -385,20 +250,20 @@ python -m backend.scripts.restore_db backup_YYYYMMDD_HHMMSS.sql.enc --yes
 - [ ] Permissions GRANT appliquées (roles != postgres)
 
 **Application :**
-- [ ] `.env.local` configuré avec DATABASE_URL du role dédié
-- [ ] `.env.local` contient SECRET_KEY (32+ caractères)
+- [ ] DB synthétique isolée, cible PostgreSQL résolue et droits du rôle vérifiés (secrets jamais exposés)
+- [ ] Secrets uniques et protégés présents sur banc, sans exposition GitHub/Notion/logs
 - [ ] MEDIA_DIR configuré (`%APPDATA%\DigitalCrown\media`)
-- [ ] Backend démarre sans erreur
-- [ ] `/api/health` retourne OK
+- [ ] Serveur S démarre depuis l'artefact certifié, identité release/SHA observée
+- [ ] `/api/health` répond sur le schéma réellement configuré : HTTPS pour LAN
 - [ ] `/api/health/db` retourne OK
-- [ ] Frontend accessible (http://127.0.0.1:8005)
+- [ ] Frontend HTTPS :8005 accessible depuis A et B, avec confiance TLS vérifiée individuellement
 
 **Cabinet :**
-- [ ] Premier superadmin créé (via seed_user)
+- [ ] Propriétaire initialisé par le parcours certifié avec permissions vérifiées ; aucun `seed_user` en cabinet réel
 - [ ] Premier login réussit
 - [ ] Cabinet configuré (logo, adresse, téléphone)
-- [ ] Au moins 1 patient test créé
-- [ ] Au moins 1 document test généré (ordonnance/certificat)
+- [ ] Patient purement synthétique créé sur DB de banc isolé, jamais sur cabinet clinique
+- [ ] Document de fixture synthétique archivé sans donnée patient réelle
 
 **Backup & Restore :**
 - [ ] Backup DB fonctionne (`backup_db.py`)
@@ -408,10 +273,10 @@ python -m backend.scripts.restore_db backup_YYYYMMDD_HHMMSS.sql.enc --yes
 - [ ] Procédure rollback imprimée et accessible
 
 **Multi-postes (si applicable) :**
-- [ ] Machine cabinet : IP fixe configurée
-- [ ] ALLOWED_ORIGINS mis à jour dans .env
-- [ ] Au moins 1 poste secondaire accède au cabinet via LAN
-- [ ] PWA ajoutée à téléphone/autres appareils
+- [ ] IP/DNS LAN de S vérifié, nom/IP correspondant au SAN du certificat et port 8005 testés sur A/B
+- [ ] `ALLOWED_ORIGINS` restreint aux origines HTTPS réellement servies, pas aux IP clientes par défaut
+- [ ] Deux annexes A et B physiquement/logiquement distinctes rejoignent le bon serveur S en HTTPS avec TLS natif validé séparément
+- [ ] Identités et appairages A/B distincts, Station PIN et restrictions vérifiés ; mobile/PWA = test séparé
 
 **Validation finale :**
 - [ ] Aucune donnée test dans DB principale
@@ -446,7 +311,7 @@ pip install reportlab pillow weasyprint
 ```bash
 # Vérifier ALLOWED_ORIGINS dans .env.local
 # Inclure l'IP exacte du client
-ALLOWED_ORIGINS=http://192.168.1.100:8005
+ALLOWED_ORIGINS=https://192.168.1.100:8005
 ```
 
 ### "Patients not showing"

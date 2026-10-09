@@ -148,7 +148,17 @@ def get_lan_base_url() -> str:
 
 
 def get_lan_frontend_url() -> str:
-    """URL LAN du frontend (Vite :5173) — auto-détectée."""
+    """Frontend origin: cabinet/HTTPS follows the canonical server URL.
+
+    An unprotected cabinet first boot listens on loopback only. Never advertise
+    an inferred plaintext LAN origin to OAuth or mobile clients. The historical
+    Vite :5173 LAN helper remains available only for non-HTTPS development.
+    """
+    from backend.core.cabinet_topology import resolve_cabinet_network
+
+    network = resolve_cabinet_network()
+    if network.environment in {"cabinet", "production"} or network.https_enabled:
+        return network.base_url
     return f"http://{_detect_lan_ip()}:5173"
 
 

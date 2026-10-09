@@ -249,3 +249,30 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 15. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
 
 **Dernière révision canonique : 17 septembre 2026 — verrou V1 consolidé actif.**
+
+## V1.5 — FUE rétroactif par sous-lot (PR #783 = laboratoire)
+
+- Pour chaque sous-lot V1.5 déjà CLOSED, réconcilier les preuves existantes avec le plan Notion « V1.5 — Plan FUE canonique par lot / sous-lot » **avant d'ouvrir V1.5-04**.
+- La PR [#783](https://github.com/hraaaaf/Digital_crown/pull/783) est le **laboratoire FUE réutilisable**, pas un lot produit ni un certificat universel. Lire son prompt `docs/audits/FIRST_USER_EXPERIENCE_PROMPT.md` et adapter persona, première valeur, contexte, viewports, scénarios, métriques, seuils et risques au lot/sous-lot concerné. Les catégories FUE-A…G du laboratoire sont un référentiel de contexte, distinct de cette campagne V1.5.
+- Appliquer la classification propre au plan V1.5 : **FUE-0** = contrat/code/tests seulement, sans inventer de parcours utilisateur ; **FUE-I** = parcours intermédiaire utilisable ; **FUE-G** = gate complet une fois le workflow de bout en bout disponible.
+- Matrice par sous-lot : CLOSED réel + niveau exigible + preuves exact-HEAD préexistantes + statut **PROUVÉ / PARTIEL / À FAIRE**. Réutiliser les preuves pertinentes ; ne pas convertir un CI vert en FUE prouvé.
+- Si FUE-I/G exigible : session/persona vierge pertinent, captures BEFORE/AFTER aux mêmes viewports, premier résultat utile, échecs/récupération, mesures, P0/P1/P2, score sévère, deux revues adversariales et confirmation même HEAD. Les corrections produit restent dans des PR produit distinctes de #783.
+- Commencer dans l'ordre V1.5-00.1 → 03.6, puis décider l'ouverture de 04. Aucun merge/déploiement Vercel implicite.
+
+### Définition opérationnelle FUE — utilisateur réel, couverture complète, preuve avant verdict
+
+**FUE = First User Experience : une exploration observable de bout en bout par une personne représentative découvrant pour la première fois l'ensemble du périmètre effectivement livré du sous-lot.** Le laboratoire de PR #783 fournit les moyens d'observer et de mesurer; il ne détermine jamais arbitrairement un PASS.
+
+- Définir d'abord le contrat concret du sous-lot (écrans, liens, boutons, états, permissions, cas limites, risques, intégrations, chemins heureux et négatifs, reprise), la persona, l'état initial et le First Value attendu. Adapter le scénario au sous-lot; distinguer strictement FUE-0, FUE-I et FUE-G, et consigner N/A avec justification. Ne pas exiger un parcours inexistant dans FUE-0.
+- **Parcourir la totalité des éléments applicables**, comme un nouvel utilisateur, en explorant les sorties possibles et pas seulement un chemin heureux. Observer clarté des libellés, compréhension, cohérence, guidage, charge cognitive, feedback, visibilité des permissions, navigation, accessibilité, robustesse et sécurité; ne pas confondre les assertions techniques avec l'expérience.
+- Capturer chaque étape importante (BEFORE/action/AFTER, écran complet pertinent, screenshot d'échec, état de départ, destination, erreur, temps et viewport). Joindre à l'artefact Actions la matrice nominative de couverture: PASS, FAIL ou NON TESTÉ, preuve exacte et HEAD. Une preuve manquante sur un invariant critique empêche une revendication de certification exhaustive.
+- Un **rouge** est un défaut démontré et matériel : parcours impossible, situation incompréhensible, incohérence significative, information trompeuse, barrière de sécurité défaillante, impasse de navigation, violation d'un contrat critique, ou gate requis réellement échoué. Une longueur d'onboarding justifiée, une préférence esthétique ou un détail cosmétique ne rendent pas le lot rouge à eux seuls. Classer sévérité P0/P1/P2 et expliquer l'impact.
+- Distinguer rouge **produit**, rouge **harness/environnement** et **preuve insuffisante**; investiguer avant correction. Les problèmes mineurs/non bloquants sont consignés sans immobiliser toute la progression. Ne jamais transformer un timeout en diagnostic produit sans preuve, ni un CI vert en FUE concluant.
+- Les contrôles doivent être **fail-closed sur la preuve** : pas de verdict PASS si l'assertion valide seulement « pas arrivé sur une mauvaise URL » sans état positif observé; pas de suite silencieuse sur exceptions. Continuer les scénarios indépendants pour recueillir le maximum de preuves, puis produire le verdict agrégé et toutes les captures, même si un parcours échoue.
+- Après corrections, exécuter seulement les validations impactées puis deux perspectives adversariales (vérité UX et sécurité/contrat) sur le même HEAD, avec confirmation. La clôture exige zéro BLOCKER/MAJOR, score retenu conforme au protocole, couverture et preuves explicites. Le workflow se bloque sur **du rouge réel** ou une preuve critique impossible à obtenir, pas sur une suggestion mineure.
+
+### Gates par sous-lot puis intégration de fin de lot 1
+
+- **Gate sous-lot maintenant** : valider uniquement le périmètre applicable et déjà réalisable du sous-lot, avec captures, matrice, tests UX/techniques et absence de rouge significatif sur ce scope. Publier explicitement les exclusions qui dépendent d'autres sous-lots; elles ne sont pas des échecs de ce gate à moins qu'un invariant déjà exigible soit violé.
+- **Gate transversal différé à la fin du lot V1.5-01 (« lot 1 »)** : tester le parcours inter-sous-lots complet avec véritable authentification backend, poste enrôlé/Station appairée, vérification serveur du PIN, reprise et navigation autorisée. Cette campagne n'autorise pas à dire que ces propriétés ont été testées plus tôt.
+- Tenir deux statuts indépendants : `SOUS-LOT VALIDÉ (scope)` et `GATE INTÉGRÉ EN ATTENTE`. N'affirmer `FUE-G / fin de lot CONVERGED` qu'après exécution et preuves du gate transversal, jamais par héritage des sous-lots verts.

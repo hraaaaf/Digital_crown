@@ -18,6 +18,7 @@ import { LandingPage } from './pages/LandingPage';
 import { DownloadPage } from './pages/DownloadPage';
 import { ActivateTrialPage } from './pages/ActivateTrialPage';
 import { authService } from './services/auth';
+import { workstationModeService } from './services/workstationMode';
 
 // Chargés à la demande
 const PatientList     = lazy(() => import('./features/patients/PatientList').then(m => ({ default: m.PatientList })));
@@ -113,10 +114,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [workstationEnrollmentRequired, setWorkstationEnrollmentRequired] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     const checkAuthAndInit = async () => {
+      setWorkstationEnrollmentRequired(false);
       // 1. Attendre que la base de données / le backend soit complètement chargé
       const waitForBackend = async () => {
         const MAX_ATTEMPTS = 15; // 15 × 2s = 30s max
@@ -141,6 +144,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAuthenticated(authStatus);
 
         if (authStatus && location.pathname !== '/login') {
+          // The workstation bootstrap is intentionally available before enrollment.
+          // Resolve this authority before clinic init: the latter MUST return 423
+          // for a fresh annex browser and must not be mistaken for missing setup.
+          const workstationBootstrap = await workstationModeService.getBootstrapState();
+          if (workstationBootstrap.enrollmentRequired) {
+            setIsInitialized(null);
+            setWorkstationEnrollmentRequired(true);
+            return;
+          }
           await useAuthStore.getState().checkAuth();
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
@@ -150,8 +162,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Erreur vérification statut:', error);
-        setIsInitialized(false);
+        // A valid new annex account may be refused until its browser is paired.
+        // A 423 enrollment refusal is not "cabinet not initialized": never route
+        // the operator into the clinic Setup Wizard, and never unlock clinical UI.
+        if (axios.isAxiosError(error)
+          && error.response?.status === 423
+          && (
+            error.response?.data?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'
+            || error.response?.data?.detail === 'WORKSTATION_IDENTITY_REQUIRED'
+          )) {
+          setWorkstationEnrollmentRequired(true);
+        } else {
+          console.error('Erreur vérification statut:', error);
+          setIsInitialized(false);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -168,6 +192,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!isAuthenticated) {
     if (['/login', '/register', '/terms', '/privacy'].includes(location.pathname)) return <>{children}</>;
     return <Navigate to="/login" replace />;
+  }
+
+  // Enrollment is server-enforced; send the newly authenticated workstation to
+  // its pairing surface instead of accidentally offering clinic creation.
+  if (workstationEnrollmentRequired) {
+    return <Navigate to="/hub?enroll=1" replace />;
   }
 
   // Force le choix du mode s'il n'existe pas (Mode PROD par défaut désormais)

@@ -127,7 +127,7 @@ export const StationKioskShell = ({
       <div aria-hidden="true" className="pointer-events-none absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
-        <header className="flex items-center justify-between gap-3">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
             aria-label="Digital Crown"
@@ -137,7 +137,7 @@ export const StationKioskShell = ({
             <TabletSmartphone size={24} aria-hidden="true" />
           </button>
 
-          <div role="group" aria-label="Langue / Language / اللغة" className="flex items-center gap-1.5 rounded-elite-sm border border-border-main bg-card-bg p-1 shadow-elite">
+          <div role="group" aria-label="Langue / Language / اللغة" className="flex min-w-0 max-w-full flex-wrap items-center justify-center gap-1.5 rounded-elite-sm border border-border-main bg-card-bg p-1 shadow-elite">
             <Languages size={17} className="mx-1 text-text-muted" aria-hidden="true" />
             {(['fr', 'ar', 'en'] as StationLanguage[]).map((locale) => (
               <button

@@ -7,6 +7,9 @@ on:
       - "frontend/src/features/hub/**"
       - "frontend/src/services/apiBase.ts"
       - "backend/core/cabinet_topology.py"
+      - "backend/routers/mobile_legacy.py"
+      - "backend/routers/mobile_push.py"
+      - "backend/tests/test_mobile_m6d2_push.py"
       - "backend/main.py"
       - "frontend/scripts/audit-v15-01-first-use.mjs"
       - ".github/workflows/v15-01-fue.yml"
@@ -61,7 +64,7 @@ jobs:
           python -m pip check
 
       - name: Topology contract regression
-        run: python -m pytest tests/test_cabinet_topology.py backend/tests/test_v1_5_01_topology_contract.py -q
+        run: python -m pytest tests/test_cabinet_topology.py backend/tests/test_v1_5_01_topology_contract.py backend/tests/test_mobile_m6d2_push.py::test_mobile_push_does_not_override_canonical_network_authority -q
 
       - name: Install frontend and Chromium
         working-directory: frontend

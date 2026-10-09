@@ -23,6 +23,32 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(app).not.toContain("safeStorage.set('appMode', 'station')");
   });
 
+  it('keeps a fresh annex workstation locked until explicit enrollment (423 is not clinic setup)', () => {
+    expect(app).toContain('const workstationBootstrap = await workstationModeService.getBootstrapState()');
+    expect(app).toContain('if (workstationBootstrap.enrollmentRequired)');
+    expect(app).toContain('setIsInitialized(null)');
+    expect(app.indexOf('const workstationBootstrap = await workstationModeService.getBootstrapState()'))
+      .toBeLessThan(app.indexOf('const status = await cabinetApi.checkInitStatus()'));
+    expect(app).toContain("error.response?.status === 423");
+    expect(app).toContain("error.response?.data?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'");
+    expect(app).toContain("error.response?.data?.detail === 'WORKSTATION_IDENTITY_REQUIRED'");
+    expect(app).not.toContain("error.response?.data?.detail === 'WORKSTATION_STATION_LOCKED'");
+    expect(app).toContain('setWorkstationEnrollmentRequired(true)');
+    expect(app).toContain('if (workstationEnrollmentRequired)');
+    expect(app).toContain('return <Navigate to="/hub?enroll=1" replace />');
+    expect(app).toContain('if (isInitialized === false && location.pathname !== \'/setup\')');
+  });
+
+  it('never labels an HTTP 423 workstation enrollment as a server outage', () => {
+    expect(hub).toContain("response.status >= 400 && response.status < 500");
+    expect(hub).toContain("setServerState('restricted')");
+    expect(hub).toContain("setServerState('unavailable')");
+    expect(hub).toContain("data-hub-server-state={serverState}");
+    expect(hub).toContain("serverState === 'unavailable'");
+    expect(hub.indexOf('response.status >= 400 && response.status < 500'))
+      .toBeLessThan(hub.indexOf('if (!response.ok) throw new Error'));
+  });
+
   it('uses only canonical theme tokens in V1.5 Hub surfaces', () => {
     const source = hub + workstation + stationShell + workstationAdmin + controlCenter;
     expect(source).not.toMatch(/(?:rounded|text|tracking|shadow|bg|border)-\[[^\]]+\]/);
@@ -62,6 +88,38 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).not.toContain('sessionStorage.setItem');
     expect(controlCenter).toContain("void runProbe(API_BASE)");
     expect(controlCenter).not.toContain("}, [target])");
+  });
+
+  it('distinguishes 01.3 network outage, HTTP 503, DB outage and enrollment safely', () => {
+    expect(controlCenter).toContain("diagnosticKind = (result: ProbeResult | null)");
+    expect(controlCenter).toContain("result.failureKind === 'network'");
+    expect(controlCenter).toContain("result.failureKind === 'timeout'");
+    expect(controlCenter).toContain("result.backendHttpStatus >= 500");
+    expect(controlCenter).toContain("databaseHttpStatus: dbResponse.status");
+    expect(controlCenter).toContain("result.authHttpStatus === 423");
+    expect(controlCenter).toContain("data-control-center-diagnosis={diagnosis}");
+    expect(controlCenter).toContain("crossOriginLimited: false,\n        failureKind:");
+    expect(controlCenter).toContain('Aucune réponse du service depuis ce poste');
+    expect(controlCenter).toContain('Le serveur répond, mais le service Digital Crown est indisponible');
+    expect(controlCenter).toContain('Le serveur répond, mais la base de données est indisponible');
+    expect(controlCenter).toContain('L’identité de ce poste doit être appairée');
+    expect(controlCenter).toContain('Ce poste est verrouillé en mode Station');
+    expect(controlCenter).toContain("authError?.detail === 'WORKSTATION_STATION_LOCKED'");
+    expect(controlCenter).toContain("authError?.detail === 'WORKSTATION_IDENTITY_REQUIRED'");
+    expect(controlCenter).toContain("authError?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED'");
+    expect(controlCenter).toContain("result.authRefusal === 'station'");
+    expect(controlCenter).toContain("result.authRefusal === 'identity'");
+    expect(controlCenter).not.toContain('Ouvrez cette adresse pour terminer le diagnostic directement sur ce serveur.');
+  });
+
+  it('invalidates an in-flight server probe when the address changes', () => {
+    expect(controlCenter).toContain('const probeGeneration = useRef(0)');
+    expect(controlCenter).toContain('const activeProbe = useRef<AbortController | null>(null)');
+    expect(controlCenter).toContain('const generation = ++probeGeneration.current');
+    expect(controlCenter).toContain('if (generation !== probeGeneration.current) return');
+    expect(controlCenter).toContain('probeGeneration.current += 1');
+    expect(controlCenter).toContain('activeProbe.current?.abort()');
+    expect(controlCenter).toContain('if (generation === probeGeneration.current)');
   });
 
   it('exposes a clean Cabinet return to Hub', () => {

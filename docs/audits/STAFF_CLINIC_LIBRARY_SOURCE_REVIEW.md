@@ -1,3 +1,14 @@
+## APPROVED POLICY — 2026-10-09 — Digital Crown product owner
+
+The owner authorized the proposed access rule in the conversation after reviewing the real GitHub artifact screenshots (visual approval separately recorded on PR #803 and #809):
+
+- **Clinical Library static reference protocols and static science articles** are readable by any *authenticated* practitioner, assistant, or reception user. This is read-only reference access and does not imply `clinical: true` permission.
+- **Patient identifiers, records, patient-specific treatments, clinical mutations and patient-linked backend APIs remain subject to their existing authorization and tenant checks**. The library must not accidentally fetch or expose these in restricted sessions.
+- Restricted secretary/assistant/reception staff must not be able to switch tenants or access patients/settings through navigation, deep links, or backend.
+- Future dynamic/patient-linked library features are **out of this approval** and need a separate policy and server-side authorization review.
+- This decision supersedes the “Product policy OPEN” statement from the original source review; the previous investigation text is retained below for traceability. No runtime permission widening is authorized by this document.
+
+---
 # PRE / Source review — Staff clinic selector and clinical reference (independent PR #809)
 
 **Purpose:** evidence-based access-policy review before changing runtime. No assertion of a data breach without request/response proof. Exact baseline parent `master@c3b094d8e5e8ba52ca40e7521927c0c5d60326a9`; initial DRAFT branch `audit/staff-clinic-library-rbac`.

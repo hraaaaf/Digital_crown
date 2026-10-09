@@ -1,0 +1,71 @@
+name: V1.5-00.4 Hub Dispatcher Scoped FUE
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/v15-00-4-fue.yml'
+      - 'frontend/scripts/audit-v15-00-4-fue.mjs'
+      - 'frontend/src/features/hub/**'
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/services/workstationMode.ts'
+      - 'frontend/src/test/v15HubRoutingContract.test.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hub-dispatcher-fue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+      - name: Verify exact PR HEAD checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          echo "Exact PR HEAD checkout verified"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install browser harness
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Validate Hub, dispatcher, Station and administrator contracts
+        working-directory: frontend
+        run: npm test -- --run src/features/hub/HubPage.test.tsx src/test/v15HubRoutingContract.test.ts src/features/hub/WorkstationModeGate.test.tsx src/features/hub/WorkstationModeAdminPanel.test.tsx src/features/hub/WorkstationExperiencePage.test.tsx src/features/hub/StationKioskShell.test.tsx
+      - name: Verify audit syntax
+        working-directory: frontend
+        run: node --check scripts/audit-v15-00-4-fue.mjs
+      - name: Start Vite frontend-only laboratory
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4195 > /tmp/v15-00-4-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4195/hub >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v15-00-4-vite.log
+          exit 1
+      - name: Execute 00.4 first-use dispatcher and offline recovery flows
+        working-directory: frontend
+        run: node scripts/audit-v15-00-4-fue.mjs
+      - name: Diagnose frontend if failed
+        if: failure()
+        run: cat /tmp/v15-00-4-vite.log || true
+      - name: Upload evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-v15-00-4-hub-dispatcher
+          path: frontend/artifacts/v15-00-4-fue/
+          retention-days: 14
+          if-no-files-found: error
