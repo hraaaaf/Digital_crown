@@ -321,6 +321,22 @@ try {
       throw new Error('Keyboard focus escaped custom motif modal');
     }
     await ux.screenshot({ path: path.join(uxDir, '00a-accessible-motif-dialog.png'), fullPage: false, animations: 'disabled' });
+    // FastAPI 422 detail arrays must render as truthful text, not crash React.
+    const motifCreatePattern = '**/api/motifs/';
+    await ux.route(motifCreatePattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 422, contentType: 'application/json', body: '{"detail":[{"loc":["body","label"],"msg":"Synthetic invalid motif","input":"synthetic"}]}' });
+      } else {
+        await route.continue();
+      }
+    });
+    await motifDialog.getByRole('textbox', { name: 'Nom du motif *' }).fill('FUE-D synthetic motif');
+    const motif422 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/motifs/' && res.request().method() === 'POST' && res.status() === 422, { timeout: 12000 });
+    await motifDialog.getByRole('button', { name: 'Enregistrer' }).click();
+    await motif422;
+    await motifDialog.getByRole('alert').getByText('Motif invalide.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    await ux.screenshot({ path: path.join(uxDir, '00b-motif-422-safe-recovery.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(motifCreatePattern);
     await ux.keyboard.press('Escape');
     await motifDialog.waitFor({ state: 'hidden', timeout: 8000 });
     await optionalClinical.click();
