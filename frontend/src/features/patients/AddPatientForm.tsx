@@ -332,7 +332,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Numéro de Dossier</span>
+              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest">Numéro de Dossier</h3>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
@@ -374,17 +374,17 @@ export const AddPatientForm = () => {
                 </div>
               )}
               {dossierStatus.status === 'taken' && (
-                <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                <p role="status" className="text-red-700 text-xs font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> Ce numéro appartient déjà à : <span className="underline">{dossierStatus.owner}</span>
                 </p>
               )}
               {dossierStatus.status === 'available' && (
-                <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                <p role="status" className="text-emerald-700 text-xs font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <UserCheck size={12} /> Numéro disponible
                 </p>
               )}
               {dossierStatus.status === 'error' && (
-                <p className="text-amber-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                <p role="status" className="text-amber-800 text-xs font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> Disponibilité non vérifiée
                 </p>
               )}
@@ -406,7 +406,7 @@ export const AddPatientForm = () => {
                   className={cn(inputClass, errors.nom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="BENMOUSSA"
                 />
-                {errors.nom && <span id="patient-nom-error" className="text-red-500 text-xs mt-1 ml-1">{errors.nom}</span>}
+                {errors.nom && <span id="patient-nom-error" className="text-red-700 text-xs mt-1 ml-1">{errors.nom}</span>}
               </div>
 
               <div>
@@ -423,7 +423,7 @@ export const AddPatientForm = () => {
                   className={cn(inputClass, errors.prenom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="Yazan"
                 />
-                {errors.prenom && <span id="patient-prenom-error" className="text-red-500 text-xs mt-1 ml-1">{errors.prenom}</span>}
+                {errors.prenom && <span id="patient-prenom-error" className="text-red-700 text-xs mt-1 ml-1">{errors.prenom}</span>}
               </div>
             </div>
           </div>
@@ -432,7 +432,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Identité Civile</span>
+              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest">Identité Civile</h3>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
@@ -450,7 +450,7 @@ export const AddPatientForm = () => {
                   onChange={handleChange}
                   className={cn(inputClass, errors.date_naissance && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                 />
-                {errors.date_naissance && <span id="patient-date_naissance-error" className="text-red-500 text-xs mt-1 ml-1">{errors.date_naissance}</span>}
+                {errors.date_naissance && <span id="patient-date_naissance-error" className="text-red-700 text-xs mt-1 ml-1">{errors.date_naissance}</span>}
               </div>
 
               <div>
@@ -469,7 +469,7 @@ export const AddPatientForm = () => {
                   <option value="F">Féminin</option>
                   <option value="M">Masculin</option>
                 </select>
-                {errors.sexe && <span id="patient-sexe-error" className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}
+                {errors.sexe && <span id="patient-sexe-error" className="text-red-700 text-xs mt-1 ml-1">{errors.sexe}</span>}
               </div>
 
               <details className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
@@ -550,7 +550,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Contact</span>
+              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest">Contact</h3>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
@@ -630,7 +630,7 @@ export const AddPatientForm = () => {
                     placeholder="yazan.benmoussa@email.com"
                   />
                 </div>
-                {errors.email && <span id="patient-email-error" className="text-red-500 text-xs mt-1 ml-1">{errors.email}</span>}
+                {errors.email && <span id="patient-email-error" className="text-red-700 text-xs mt-1 ml-1">{errors.email}</span>}
               </div>
 
               <div className="md:col-span-2">
@@ -652,7 +652,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Antécédents Médicaux</span>
+              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest">Antécédents Médicaux</h3>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
