@@ -244,4 +244,4 @@ try{
 if($errors.Count -gt 0 -or $loaded -ne $profiles.Count){
  throw "D1C pilot incomplete $loaded/$($profiles.Count); errors=$($errors.Count)"
 }
-Log 'D1C_3_DEFINITION_PRESETS_EXPOSED=true'
+Log "D1C_ONE_PRESET_DEFINITION_EXPOSED=$ProfileName"
