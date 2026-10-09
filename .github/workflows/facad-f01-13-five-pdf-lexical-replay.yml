@@ -1,0 +1,61 @@
+name: Facad F01.13 five original science PDFs metadata replay
+
+on:
+  push:
+    branches: [feat/cephalo-facad-direct-parity-runtime-probe]
+    paths:
+      - .github/workflows/facad-f01-13-five-pdf-lexical-replay.yml
+      - audit/facad_f01_13_five_pdf_lexical_evidence_validate.py
+      - docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  five-pdf-metadata-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert exact source SHA and offline negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+          python -m py_compile audit/facad_f01_13_five_pdf_lexical_evidence_validate.py
+          python audit/facad_f01_13_five_pdf_lexical_evidence_validate.py --self-test --manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
+      - name: Download only metadata from official Windows read-only run
+        uses: actions/download-artifact@v4
+        with:
+          name: facad-f01-13-five-scientific-pdf-terms-2c0156a09c153d5b44383a74c2762ce2e6dea3ea
+          run-id: 37985774260
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-five-pdf-metadata
+      - name: Audit original artifact payload (metadata only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          folder=Path("original-five-pdf-metadata")
+          docs=list(p for p in folder.rglob("*") if p.is_file())
+          print("ORIGINAL_META_FILES="+",".join(sorted(p.name for p in docs)))
+          if not {"f01-13-five-pdf-terms.json","installed-manual-status.txt"}.issubset({p.name for p in docs}):
+              raise SystemExit("Missing exact source artifacts")
+          if any(p.suffix.lower() in (".pdf",".fcd",".cph",".exe") for p in docs):
+              raise SystemExit("Proprietary source or patient file included")
+          status=next(p for p in docs if p.name=="installed-manual-status.txt")
+          flags={s.strip() for s in status.read_text(encoding="utf-8-sig").splitlines()}
+          expected={"NO_PATIENT_READ_OR_EXPORT=true","FACAD_PROCESS_ABSENT_BEFORE_DOCUMENT_INVENTORY=true","PDF_TERM_SCAN_DONE=true"}
+          if not expected.issubset(flags):
+              raise SystemExit("Missing verified source safety gates")
+          print("ARTIFACT_SAFETY_FLAGS_VERIFIED=3")
+          PY
+      - name: Reproduce five PDF SHA/pages and lexical source page signals
+        shell: bash
+        run: |
+          set -euo pipefail
+          python audit/facad_f01_13_five_pdf_lexical_evidence_validate.py --manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json --evidence original-five-pdf-metadata/f01-13-five-pdf-terms.json
