@@ -36,6 +36,18 @@ Take `Xi=(0,0)`, `PM=(10,0)`, `A=(5,-5)`, and `Pog=(5,5)`. Their line intersecti
 
 Source assertion and degeneracy handling are exercised by `audit/facad_f01_13_pmprime_geometry_contract.py` under the experimental GitHub Actions guard `.github/workflows/facad-f01-13-pmprime-synthetic-geometry.yml`. This establishes only a mathematical non-alias counterexample; it **does not measure any patient or prove actual vendor runtime numeric parity**.
 
+## Official manufacturer PDF wording — bounded direct source inspection
+
+[Original official installation and PDF short-source evidence, GitHub Actions #37989589832](https://github.com/hraaaaf/Digital_crown/actions/runs/37989589832) is **SUCCESS** on exact source HEAD `9213e02406e807a3381ccb62b8cf2bfdf148104c`; [metadata-only artifact #11644323061](https://github.com/hraaaaf/Digital_crown/actions/runs/37989589832/artifacts/11644323061). The experiment examined three SHA-pinned vendor PDFs and limited vendor text snippets to 20 words per PDF, without distributing copyrighted originals.
+
+Direct manufacturer page-text observations:
+- `Ricketts (32 F).pdf`, PDF p.4: **PFH is described as a distance involving CF**, corroborating the source CPH `Dist2p(CF,Go)` definition; same PDF p.4 has `Mand len` and `Cranium ant len` labels. PDF p.3 contains the `PM'` name, but the limited extract alone does **not** prove its geometric construction (which comes from separately source-locked official CPH).
+- `Ricketts (13 F).pdf`, PDF p.3: **PFH is described as a distance**, and **InterIncisal as an angle between lines**; corroborates editor `Dist2p` / `Angle4p` types without any same-trace numeric demonstration.
+- `C01_Lateral Cephalometry Library - Lines and Contructed markers.pdf`, PDF p.1: **PtV is a Pterygoid Vertical defined with a perpendicular**; the exact reference line still requires per-analysis geometry / vendor CPH confirmation.
+- **Adversarial lexical capture defect discovered:** the naive case-insensitive substring scan can match `Xi` **inside the unrelated word “Maxillary”** (C01, PDF p.1). Therefore C01 `Xi` hits in the earlier artifact are only *lexical candidates*, not certified Xi landmark definitions. The whole-token extraction validator `audit/facad_f01_13_vendor_measurement_snippet_probe.py` was corrected with explicit `Xi`/Maxillary negative tests, and a new original-source [run #37990457485](https://github.com/hraaaaf/Digital_crown/actions/runs/37990457485) is required to confirm corrected references. Do NOT silently upgrade the older page hit.
+
+All PDF fragments are bounded and research-only; clinical gate and external publisher-Atlas gate **remain OPEN**.
+
 ## Finite next scientific checks
 
 The official installed PDF **Ricketts 32F pages 3,4,8** contains text matches for `PM'`, while 13F **pages 1,3,4** contain `Ricketts (13 F)` text. These are page-term matches only. Compare exact *formula diagrams and notation* under permitted viewing, then reconcile with C01 (12-page library of lines/constructions), C02 (34-page measurement library) and Overview of Landmarks (2 pages). Independent clinical/orthodontic review remains required before approving geometry; exact same-image numerical tests remain blocked by D3 isolation.
