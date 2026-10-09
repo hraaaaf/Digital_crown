@@ -68,7 +68,11 @@ jobs:
 
           # The official installer exposes its options as ControlType.Pane, not Button.
           # This was observed on run 37753115873, artifact 11539320376.
-          $deadline=(Get-Date).AddSeconds(50)
+          # The official installer UI is sometimes slow to appear on GitHub Windows.
+          # Wait longer for the SAME previously validated exact "Start" + "Quick demo installation" pane.
+          # No alternate window or button is accepted, and no consent/activation control is clicked.
+          $deadline=(Get-Date).AddSeconds(120)
+          'QUICK_DEMO_EXPECTED_PANE_TIMEOUT_SECONDS=120' | Add-Content facad-quick-demo/quick-demo-process.txt
           $button=$null
           $startWindow=$null
           while((Get-Date) -lt $deadline -and $null -eq $button){
@@ -102,6 +106,9 @@ jobs:
           }
           if($null -eq $button){
             'QUICK_DEMO_PANE_NOT_FOUND=true' | Add-Content facad-quick-demo/quick-demo-process.txt
+            # Metadata-only diagnostics. Do not log names/titles/registry values or installer license text.
+            "QUICK_DEMO_START_WINDOW_SEEN=$($null -ne $startWindow)" | Add-Content facad-quick-demo/quick-demo-process.txt
+            "QUICK_DEMO_INSTALLER_EXITED=$($p.HasExited)" | Add-Content facad-quick-demo/quick-demo-process.txt
             $root=[System.Windows.Automation.AutomationElement]::RootElement
             $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
             $rows=New-Object System.Collections.Generic.List[string]
