@@ -294,7 +294,7 @@ export const PatientList = () => {
           </div>
         ) : viewMode === 'table' ? (
           <table className="block w-full text-left text-sm md:table">
-            <thead className="hidden border-b border-border-main font-black text-text-muted uppercase tracking-widest text-[10px] md:table-header-group">
+            <thead className="sr-only border-b border-border-main font-black text-text-muted uppercase tracking-widest text-[10px] md:not-sr-only md:table-header-group">
               <tr>
                 <th className="px-10 py-8">Patient</th>
                 <th className="px-6 py-8">Assurance</th>
@@ -345,9 +345,11 @@ export const PatientList = () => {
                       </div>
                     </td>
                     <td className="block px-4 py-2 md:table-cell md:px-6 md:py-6">
+                      <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-text-muted md:hidden">Assurance</span>
                       <AssuranceBadge assurance={p.assurance} size="full" />
                     </td>
                     <td className="block px-4 py-2 font-mono font-bold text-text-muted md:table-cell md:px-6 md:py-6 md:text-center">
+                      <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-text-muted md:hidden">Contact</span>
                       {p.telephone || "—"}
                     </td>
                     <td className="block px-4 pb-5 pt-2 text-right md:table-cell md:px-10 md:py-6">
