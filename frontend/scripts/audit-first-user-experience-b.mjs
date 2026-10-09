@@ -23,7 +23,10 @@ try {
   if (!ownerLogin.ok()) throw Error('Synthetic owner login failed HTTP ' + ownerLogin.status());
   const ownerToken = (await ownerLogin.json()).access_token;
   // A legitimate existing cabinet first enrolls/owns the machine. No bypassing workstation gate.
-  const stationState = await enrollT2Workstation(api, ownerToken, password);
+  const enrolled = await enrollT2Workstation(api, ownerToken, password);
+  // The secretary must log in as herself; do not inherit owner JWT cookies.
+  const stationState = { cookies: enrolled.cookies.filter(c => c.name === 'dc_workstation'), origins: [] };
+  if (stationState.cookies.length !== 1) throw Error('No exclusive workstation cookie');
   for (const viewport of [{ label: 'mobile-390', width: 390, height: 844 },
                            { label: 'desktop-1280', width: 1280, height: 900 }]) {
     const evidence = { role: 'new restricted staff in existing clinic', viewport: viewport.label, checks: [], screenshots: [], status: 'FAIL' };
