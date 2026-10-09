@@ -27,7 +27,7 @@ REQUIRED_CATEGORIES = (
     "FACAD_LICENSE_ROOT_PROTECTED",
     "FACAD_SHARED_OR_UNC_ROOTS",
     "PROCESS_AND_CHILD_WRITE_PATH_ATTRIBUTION",
-    "REGISTRY_VALUE_CHANGE_DETECTABILITY",
+    "REGISTRY_WRITE_EVENT_ATTRIBUTION",  # metadata-only event, never values
 )
 
 def inspect(collector: str, observer: str, comparator: str) -> dict:
@@ -69,8 +69,8 @@ def inspect(collector: str, observer: str, comparator: str) -> dict:
             "path_attribution_available=$true" in observer
             and "complete_child_process_coverage=$true" in observer
         ),
-        "REGISTRY_VALUE_CHANGE_DETECTABILITY": (
-            "FACAD_REGISTRY_VALUES_CHANGE_DETECTED=true" in collector
+        "REGISTRY_WRITE_EVENT_ATTRIBUTION": (
+            "FACAD_REGISTRY_WRITE_EVENTS_ATTRIBUTED=true" in collector
         ),
     }
     missing = [key for key in REQUIRED_CATEGORIES if not facts[key]]
