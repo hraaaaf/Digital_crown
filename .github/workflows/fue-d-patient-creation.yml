@@ -70,6 +70,9 @@ jobs:
       - name: Frontend TypeScript verification
         working-directory: frontend
         run: npx tsc --noEmit --project tsconfig.app.json
+      - name: Frontend production build
+        working-directory: frontend
+        run: npm run build
       - name: Start isolated backend
         run: |
           rm -f t2-runtime-cert.db
