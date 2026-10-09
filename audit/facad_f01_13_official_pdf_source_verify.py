@@ -43,7 +43,7 @@ FILES = {
 
 def canonical(txt: str) -> str:
     # Ignore PDF line breaks and the optional space around menu breadcrumb delimiters.
-    return re.sub(r"\s+", " ", txt).replace(" > ", ">").replace(" >"," >").casefold()
+    return re.sub(r"\s+", " ", txt).strip().replace(" > ", ">").casefold()
 
 
 def match_pages(pages: list[str], needle: str) -> list[int]:
