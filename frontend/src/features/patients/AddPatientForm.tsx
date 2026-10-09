@@ -12,10 +12,10 @@ interface DuplicateInfo {
   has_duplicate: boolean;
   existing_patient?: {
     id: number;
-    nom: string;
-    prenom: string;
-    date_naissance: string;
-    created_at: string;
+    nom?: string;
+    prenom?: string;
+    date_naissance?: string;
+    created_at?: string | null;
   };
 }
 
@@ -115,7 +115,7 @@ export const AddPatientForm = () => {
           setDossierStatus({ status: 'available' });
         }
       } catch (err) {
-        console.error('Erreur vérification numéro de dossier:', err);
+        console.warn('Vérification numéro de dossier indisponible (statut HTTP uniquement)', { status: (err as any)?.response?.status ?? null });
         setDossierStatus({ status: 'error' });
       }
     }, 500);
@@ -180,15 +180,21 @@ export const AddPatientForm = () => {
         antecedents_medicaux: formData.antecedents_medicaux || null
       });
       
-      const data: DuplicateInfo = response.data;
-      
-      if (data.has_duplicate && data.existing_patient) {
+      const data: DuplicateInfo | null = response.data;
+      // A malformed or contradictory HTTP 200 is not proof of no duplicate.
+      if (data?.has_duplicate === false && data.existing_patient == null) return false;
+      const existing = data?.existing_patient;
+      if (data?.has_duplicate === true && existing &&
+          Number.isInteger(existing.id) && existing.id > 0 &&
+          typeof existing.nom === 'string' && !!existing.nom.trim() &&
+          typeof existing.prenom === 'string' && !!existing.prenom.trim() &&
+          typeof existing.date_naissance === 'string' && !!existing.date_naissance.trim()) {
         setDuplicateInfo(data);
         setShowDuplicateModal(true);
-        return true; // Doublon trouvé
+        return true;
       }
-      
-      return false; // Pas de doublon
+      setErrors(previous => ({ ...previous, global: 'Réponse anti-doublon invalide. Réessayez avant de créer le dossier.' }));
+      return null;
     } catch (err: any) {
       console.warn("Vérification anti-doublon indisponible (statut HTTP uniquement)", { status: err?.response?.status ?? null });
       setErrors(previous => ({ ...previous, global: "Vérification anti-doublon indisponible. Réessayez avant de créer le patient." }));
@@ -237,8 +243,13 @@ export const AddPatientForm = () => {
       
       // Gérer l'erreur 409 (doublon) du backend
       if (err.response?.status === 409) {
-        const detail = err.response.data.detail;
+        const detail = err.response?.data?.detail;
         if (detail?.existing_patient) {
+          const duplicateId = detail.existing_patient.id;
+          if (!Number.isInteger(duplicateId) || duplicateId <= 0) {
+            setErrors({ global: 'Conflit de création non résolu. Vérifiez la liste des patients avant de réessayer.' });
+            return;
+          }
           setDuplicateInfo({
             has_duplicate: true,
             existing_patient: detail.existing_patient
@@ -272,7 +283,7 @@ export const AddPatientForm = () => {
   const labelClass = "text-xs sm:text-sm font-bold text-slate-600 tracking-wide block mb-2 ml-1";
 
   // Formatage de la date pour affichage
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     return date.toLocaleDateString('fr-FR');
@@ -744,9 +755,16 @@ export const AddPatientForm = () => {
                 <span className="font-bold text-slate-800">Dossier existant :</span>
               </div>
               <div className="space-y-2 text-sm">
-                <p><span className="text-slate-500">Nom :</span> <span className="font-bold">{duplicateInfo.existing_patient.nom} {duplicateInfo.existing_patient.prenom}</span></p>
-                <p><span className="text-slate-500">Né(e) le :</span> <span className="font-bold">{formatDate(duplicateInfo.existing_patient.date_naissance)}</span></p>
-                <p><span className="text-slate-500">Créé le :</span> <span className="text-slate-600">{formatDate(duplicateInfo.existing_patient.created_at)}</span></p>
+                <p><span className="text-slate-500">Dossier :</span> <span className="font-bold">#{duplicateInfo.existing_patient.id}</span></p>
+                {duplicateInfo.existing_patient.nom && duplicateInfo.existing_patient.prenom && (
+                  <p><span className="text-slate-500">Nom :</span> <span className="font-bold">{duplicateInfo.existing_patient.nom} {duplicateInfo.existing_patient.prenom}</span></p>
+                )}
+                {duplicateInfo.existing_patient.date_naissance && (
+                  <p><span className="text-slate-500">Né(e) le :</span> <span className="font-bold">{formatDate(duplicateInfo.existing_patient.date_naissance)}</span></p>
+                )}
+                {duplicateInfo.existing_patient.created_at && (
+                  <p><span className="text-slate-500">Créé le :</span> <span className="text-slate-600">{formatDate(duplicateInfo.existing_patient.created_at)}</span></p>
+                )}
               </div>
             </div>
 
