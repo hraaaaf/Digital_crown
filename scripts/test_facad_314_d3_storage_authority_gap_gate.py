@@ -45,7 +45,7 @@ class VendorTopologyFailClosedTests(unittest.TestCase):
         self.assertIn("PROCESS_AND_CHILD_WRITE_PATH_ATTRIBUTION",self.result["missing_category_ids"])
 
     def test_registry_key_only_does_not_prove_value_change(self):
-        self.assertIn("FACAD_REGISTRY_VALUES_CHANGE_DETECTED",self.result["missing_category_ids"])
+        self.assertIn("REGISTRY_VALUE_CHANGE_DETECTABILITY",self.result["missing_category_ids"])
 
     def test_added_root_without_comparator_scope_is_still_missing(self):
         altered=COLLECTOR+"\nfacad_patient_data_root=TreeScope $testRoot $false\n"
