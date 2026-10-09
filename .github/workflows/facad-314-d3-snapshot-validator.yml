@@ -1,0 +1,39 @@
+name: Facad 3.14 D3 snapshot validator (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - scripts/facad_314_d3_snapshot_diff_gate.py
+      - scripts/test_facad_314_d3_snapshot_diff_gate.py
+      - .github/workflows/facad-314-d3-snapshot-validator.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-d3-guard-tests:
+    name: offline D3 guard (NO isolation certification)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate syntax
+        run: python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/test_facad_314_d3_snapshot_diff_gate.py
+      - name: Verify synthetic D3 drift and fail-closed evidence
+        run: python -m unittest scripts/test_facad_314_d3_snapshot_diff_gate.py -v
+      - name: Enforce claims remain unverified
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          code = Path('scripts/facad_314_d3_snapshot_diff_gate.py').read_text(encoding='utf8')
+          assert "'d3_isolation_verified': False" in code
+          assert "'clinical_edit_allowed': False" in code
+          assert 'else 3  # INCONCLUSIVE is NOT a green D3 gate' in code
+          print('D3 ISOLATION STILL UNVERIFIED: static gate tests only')
+          PY
