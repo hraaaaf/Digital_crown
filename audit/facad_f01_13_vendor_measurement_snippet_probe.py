@@ -16,6 +16,11 @@ MAX_WORDS_PER_DOCUMENT = 20
 MAX_SNIPPETS_PER_DOCUMENT = 5
 MAX_SNIPPET_CHARS = 50
 
+def term_match(text, term):
+    # Marker Xi must NOT match the interior of the word 'Maxillary'.
+    return re.search(r"(?<![a-zA-Z0-9])" + re.escape(term) +
+                     r"(?![a-zA-Z0-9])", text, flags=re.IGNORECASE)
+
 def extract(root,manifest):
     from pypdf import PdfReader
     out=[]
@@ -35,10 +40,11 @@ def extract(root,manifest):
             for line in (page.extract_text() or "").splitlines():
                 if len(snippets)>=MAX_SNIPPETS_PER_DOCUMENT or budget<=0: break
                 for term in terms:
-                    pos=line.casefold().find(term.casefold())
-                    if pos<0 or term in observed_terms: continue
+                    if term in observed_terms or not term_match(line,term): continue
                     normalized=" ".join(line.split())
-                    at=normalized.casefold().find(term.casefold())
+                    result=term_match(normalized,term)
+                    if result is None: continue
+                    at=result.start()
                     fragment=normalized[max(0,at-8):at+MAX_SNIPPET_CHARS-8][:MAX_SNIPPET_CHARS]
                     words=fragment.split()
                     fragment=" ".join(words[:budget])
@@ -59,7 +65,11 @@ def extract(root,manifest):
 def selftest():
     assert MAX_WORDS_PER_DOCUMENT<=20 and MAX_SNIPPETS_PER_DOCUMENT<=5
     assert len(SOURCES)==3
-    print("VENDOR_BRIEF_CONTEXT_OFFLINE_SELFTEST=2")
+    assert term_match("Xi", "Xi") is not None
+    assert term_match("OLmx Maxillary occlusal line", "Xi") is None
+    assert term_match("PtV Pterygoid Vertical", "PtV") is not None
+    assert term_match("Mand len", "Mand len") is not None
+    print("VENDOR_BRIEF_CONTEXT_OFFLINE_SELFTEST=6")
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
