@@ -40,9 +40,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Source syntax before backend dependency installation
-        run: python -m py_compile scripts/fue_g_cloud_server.py scripts/fue_g_cloud_client.py
+        run: |
+          python -m py_compile scripts/fue_g_cloud_server.py scripts/fue_g_cloud_client.py scripts/t2_runtime_server.py
+          node --check frontend/scripts/fue-g-cloud-browser.mjs
 
       - name: Install real synthetic T2 backend
         run: |
@@ -234,12 +241,64 @@ jobs:
               assert next(i for i in items if i['role']==r and i['phase']=='recover')['workstationHash']==paired[r]['workstationHash']
           assert next(i for i in items if i['role']=='C' and i['phase']=='recover')['assistantPermissionDenied'] is True
           assert next(i for i in items if i['role']=='D' and i['phase']=='recover')['assistantPermissionDenied'] is True
-          report={'head':os.environ['PRODUCT_HEAD'],'scope':'CLOUD-LAB EXPERIMENTAL: real T2 API TLS, Docker A/B/C/D, C Assistante and D Accueil use separate restricted SECRETAIRE fixtures, pairing/replay, restart; NOT cabinet/Windows/physical LAN, NOT browser UX, NOT PostgreSQL, NOT INSTALLABLE_CERTIFIED',
+          report={'head':os.environ['PRODUCT_HEAD'],'scope':'CLOUD-LAB EXPERIMENTAL: real T2 API TLS, Docker A/B/C/D, C Assistante and D Accueil use separate restricted SECRETAIRE fixtures, pairing/replay, restart; NOT cabinet/Windows/physical LAN, browser UI covered separately, NOT PostgreSQL, NOT INSTALLABLE_CERTIFIED',
                   'success':True,'actors':['Ubuntu runner S (Docker bridge host)','Docker client A','Docker client B','Docker client C (Assistante, restricted SECRETAIRE)', 'Docker client D (Accueil, distinct restricted SECRETAIRE)'],
                   'checks':items}
           pathlib.Path('artifacts/fue-g-cloud/report.json').write_text(json.dumps(report,indent=2))
           print('FUE_G_CLOUD_LAB_SUMMARY '+json.dumps({'head':report['head'],'success':True,'cases':len(items),'scope':'CLOUD-LAB only'}))
           PY
+
+      - name: Install existing frontend and Playwright Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Trust ephemeral private root in Chromium and launch HTTPS Vite UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo cp "$FUE_TLS_DIR/ca.crt" /usr/local/share/ca-certificates/fue-g-cloud.crt
+          sudo update-ca-certificates >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libnss3-tools >/dev/null
+          mkdir -p "$HOME/.pki/nssdb"
+          if [ ! -f "$HOME/.pki/nssdb/cert9.db" ]; then
+            certutil -d "sql:$HOME/.pki/nssdb" -N --empty-password
+          fi
+          certutil -d "sql:$HOME/.pki/nssdb" -A -n "FUE-G Cloud Ephemeral CI Root" -t "C,," -i "$FUE_TLS_DIR/ca.crt"
+          mkdir -p certs
+          cp "$FUE_TLS_DIR/server.crt" certs/cert.pem
+          cp "$FUE_TLS_DIR/server.key" certs/key.pem
+          chmod 600 certs/key.pem
+          cd frontend
+          VITE_ENABLE_HTTPS=true VITE_API_URL="https://cabinet.local:8005" \
+            __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=cabinet.local \
+            npm run dev -- --host "$CABINET_HOST" --port 5173 > "$RUNNER_TEMP/fue-g-cloud-vite.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/fue-g-cloud-vite-pid"
+          for i in $(seq 1 90); do
+            if curl --noproxy '*' --silent --fail --cacert "$FUE_TLS_DIR/ca.crt" \
+              --resolve "cabinet.local:5173:$CABINET_HOST" https://cabinet.local:5173/dashboard >/dev/null; then
+              echo "Vite UI strict HTTPS readiness PASS"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Vite UI strict HTTPS readiness failed (raw logs withheld)"
+          exit 1
+
+      - name: Verify real 4-station Chromium sessions and capture BEFORE/AFTER
+        working-directory: frontend
+        shell: bash
+        env:
+          NODE_EXTRA_CA_CERTS: ${{ env.FUE_TLS_DIR }}/ca.crt
+        run: |
+          set -euo pipefail
+          export FUE_STATE_ROOT="$RUNNER_TEMP"
+          # Local hostname resolution only on this disposable CI runner.
+          echo "$CABINET_HOST cabinet.local" | sudo tee -a /etc/hosts >/dev/null
+          node scripts/fue-g-cloud-browser.mjs
 
       - name: Upload sanitized lab evidence
         if: always()
@@ -257,8 +316,17 @@ jobs:
           if [ -n "${GITHUB_RUN_ID:-}" ]; then
             docker network rm "fue-g-${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
           fi
+          # Delete local disposable TLS keys and transient browser trust.
+          rm -f certs/cert.pem certs/key.pem
+          if command -v certutil >/dev/null; then
+            certutil -d "sql:$HOME/.pki/nssdb" -D -n "FUE-G Cloud Ephemeral CI Root" >/dev/null 2>&1 || true
+          fi
+          sudo rm -f /usr/local/share/ca-certificates/fue-g-cloud.crt
           if [ -n "${FUE_TLS_DIR:-}" ]; then
             rm -rf "$FUE_TLS_DIR"
+          fi
+          if [ -f "$RUNNER_TEMP/fue-g-cloud-vite-pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/fue-g-cloud-vite-pid")" 2>/dev/null || true
           fi
           rm -rf "$RUNNER_TEMP/fue-g-cloud-state-a" "$RUNNER_TEMP/fue-g-cloud-state-b" "$RUNNER_TEMP/fue-g-cloud-state-c" "$RUNNER_TEMP/fue-g-cloud-state-d"
           if [ -f "$RUNNER_TEMP/fue-g-cloud-pid" ]; then
