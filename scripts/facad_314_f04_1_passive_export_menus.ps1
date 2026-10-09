@@ -1,4 +1,4 @@
-# FAC-02 F04.1: passively inspect File/Edit/Cephalometry/Tools roots only; never invoke a leaf, export or save.
+# FAC-04 F04.1: passively inspect File/Edit/Cephalometry/Tools roots only; never invoke a leaf, export or save.
 param([Parameter(Mandatory=$true)][int]$FacadProcessId,
       [Parameter(Mandatory=$true)][long]$MainWindowHwnd,
       [Parameter(Mandatory=$true)][string]$OutDir)
