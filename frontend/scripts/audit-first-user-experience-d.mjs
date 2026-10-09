@@ -274,7 +274,7 @@ try {
     // Section landmarks are real headings and meet normal-text WCAG contrast
     // against the light patient-form surface (not just decorative separators).
     const sectionHeadings = await ux.locator('form h3').evaluateAll(elements => elements.map(el => {
-      const rgb = getComputedStyle(el).color.match(/[\\d.]+/g)?.slice(0, 3).map(Number) || [];
+      const rgb = getComputedStyle(el).color.match(/[0-9.]+/g)?.slice(0, 3).map(Number) || [];
       const channel = n => {
         const s = n / 255;
         return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
