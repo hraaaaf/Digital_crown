@@ -1,0 +1,381 @@
+{
+  "schema": "FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_V1",
+  "provenance": {
+    "run_id": 37981554220,
+    "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37981554220",
+    "run_exact_head": "e91a25e230258e3a2653df226df73937a5dd4a70",
+    "metadata_artifact_id": 11642105521,
+    "metadata_artifact_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37981554220/artifacts/11642105521",
+    "installer_wrapper_sha256": "a60d13ea2c32d49c192bcf07f40ba07d8c0410e6577fe28ce4b0181bb4018b86",
+    "installed_root": "C:/Facad",
+    "observed_via": "OFFICIAL_QUICK_DEMO_WINDOWS_INSTALL__READ_ONLY_PDF_METADATA",
+    "no_patient_read_or_export": true
+  },
+  "inventory": {
+    "total_pdf_files": 145,
+    "path_science_match_count": 75,
+    "listed_science_match_count": 75,
+    "priority_document_count": 12
+  },
+  "priority_sources": [
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts (13 F).pdf",
+      "sha256": "3f016b7976c87c0930548c6dbada1888357e34e16fc47efeeae2f1a822eedc5f"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts (32 F).pdf",
+      "sha256": "8ddf3979d59777a2b125146d4714fedd4466b38b17a1e77a18273ae8c1ae9987"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts acc G. Samson.pdf",
+      "sha256": "049ddde56b62ceaa81a6c8fdbb1c1542170175ccaeaf9a147ae5c8c222fc9b4f"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts Summary.pdf",
+      "sha256": "4b95b9b2514b98f3b876f784b17b4a54844df68d96c388a23afb8ba4f402af44"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts.pdf",
+      "sha256": "bb61a53ca666cef6f7bd888c20773525bc34791703fc7a77eb878a636497d73d"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/McNamara.pdf",
+      "sha256": "87475767a5676d98fef236160e7b68643f1041ebfc6e5656f0c4cd93b27eacb5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Steiner.pdf",
+      "sha256": "2a73001b6e5c0d872e89faabe1d686f24e67f950cea755cebd3f70b2cb47fdb5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Tweed.pdf",
+      "sha256": "c8c60ff86bf7833ac2629baf692e99b0be964833d31adfdff2f3f7e124ab1a65"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Downs.pdf",
+      "sha256": "8a28f70d3b667a636c17765ddabb215e0707b7aa286747989c22e84c0986c2db"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cephalometry Library/C01_Lateral Cephalometry Library - Lines and Contructed markers.pdf",
+      "sha256": "a977f219b6c9b95543551fe7a6e48587ac597b065e0200ab844e20ed322ba119"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cephalometry Library/C02_Lateral Cephalometry Library - Measurements.pdf",
+      "sha256": "4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/Overview of Landmarks.pdf",
+      "sha256": "2493bc1218395fd1ff35bc57a0e9c5acdda77228d4cf8565719d374ca7caf7cd"
+    }
+  ],
+  "all_75_filename_matches": [
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/ABO.pdf",
+      "sha256": "4afb31fb2d944fd9cd249bfec25d17866187865d864db42ea8c2d39b9b40034e"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Airway (FH).pdf",
+      "sha256": "c70ec29d1190023db84fdb331f2c4b2bf0c49985d03baa82d256610f80d9c62d"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Airway (McNamara).pdf",
+      "sha256": "59064640ee11968f0617669328ecd950c706f355ab9131b46173f534352faaa6"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Airway (Mochida).pdf",
+      "sha256": "8c4832dfeea086f1962aaee9d10735b4030cd9265f6312994fd44758329cdd54"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Airway (NL).pdf",
+      "sha256": "b98869cb5ceac781ce7582fd97c222f1f5a273cc0acaad67a72c23ecea91aa3a"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Alexander.pdf",
+      "sha256": "609281989bf880a465909e0f0e9a192aae7fababe493268a9a1287464a2d45c6"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/AM Schwarz.pdf",
+      "sha256": "9d7ea7e0ba1db01d4189eac6eec80c9594e589b005283a58f6eab587b6411341"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ancell.pdf",
+      "sha256": "06ac57288eaf4cca877e357a5e278660182f33364cb505ac59e6575953eac4a8"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Arnett STCA Midface.pdf",
+      "sha256": "f0005aab8f176a7c9b3327f6fd03f7d228b856c8dae6ceba25b8954b48c639ff"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Arnett STCA.pdf",
+      "sha256": "f72215533c302a8e968f69a8c7808544395d3c1a4e69f14ea5927dfbd6e9814f"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Basel 2013.pdf",
+      "sha256": "b07cb253913c4d6bf10dc0d7c10cf441800996ebcab3a35fd8cb006df7d0d438"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bergen Short.pdf",
+      "sha256": "5648b6ea4ce7e0ada16a212842b2ad0453df835f220d466bdb2bcf28841143a6"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bergen.pdf",
+      "sha256": "4c574a42069d227a356a931e6e138c7b71d5a2094d666c522c12279edfd4bfad"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bern analysis.pdf",
+      "sha256": "408d6a581d17b0483772dfc77180befbb93c3f4798696dd13c8b5e52af76ccfb"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bern University.pdf",
+      "sha256": "14c9383a5d9fc45f141a5f74181501dd33b066b76e12978a32fee79ba322d8b5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bimler.pdf",
+      "sha256": "cacf882be90c5efef49474705f921c73afebaf1de5376ab7aa4b01f8708fdb12"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bjork-DK-extended.pdf",
+      "sha256": "c7c81b1cf6a114f57452b661e090f0d92ec222d95cb1d935b1cc55ce039321d8"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bjork-DK.pdf",
+      "sha256": "f77684de6eb751dbd6da208577a386eb6664da83d823c6163171643120a42de4"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bjork-Tiops.pdf",
+      "sha256": "7cba89da6bf8637e1304c69f8cb63c7ce1f653fc105e474c67eec513df1293ef"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Bjork.pdf",
+      "sha256": "41c6b019e379132ae0eeee98e45ee9d4ddb5dd6656bb0baa265bbd9e3ddd27c9"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Burstone.pdf",
+      "sha256": "015aaa964434b8b133a81ad0b07f5c1da56064d61fca0bdce21ed543ec202824"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Downs.pdf",
+      "sha256": "8a28f70d3b667a636c17765ddabb215e0707b7aa286747989c22e84c0986c2db"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/EAIO.pdf",
+      "sha256": "88b301b08f4f814e9fd196dca23e99b338490449a80cc114a3d053a8251b8a12"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Facad Mini.pdf",
+      "sha256": "d8ac1b7efa4c7f9822ad6188df664a4e9888515cfda07d84ecb38aa6714bdb76"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Geneve.pdf",
+      "sha256": "5a575b461106bf84e2f8ba4f8db5efda72e15c3103fdab21825920eed3245233"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/HarmonyBox.pdf",
+      "sha256": "5f59dbe994494e7d59aefff4e625e2f734022b1125a03b51e27a1675f83805f7"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Harvold.pdf",
+      "sha256": "74480a6768e30b27af9785925da8eb91951067e9c457afc8a52f86f65a866853"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Hasund regression.pdf",
+      "sha256": "378de34254c7bed042eea1a52c47ccdc4cdd853b0044656b277de05ecce79501"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Hasund.pdf",
+      "sha256": "1256560d16374aeadf9b2ce21aa9acc2027769d58e87bfb573c5a8a58046396d"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Holdaway Soft Tissue.pdf",
+      "sha256": "38219f794c8d04c25eb23d4571dabb72559ea7561617c8ee2751319f8ac73ad0"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Jarabak.pdf",
+      "sha256": "a0c0e21a52382041324cc924d02fe530b92a9aeb8c5669da517bcc8add9871fb"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Jefferson modified Sassouni.pdf",
+      "sha256": "f6c96e87264c066e15ad5390d27b2ebc32388eb87624b6012f35ac11737876a3"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Legan-Burstone Surgical.pdf",
+      "sha256": "2f65f0f7b65ac551168f6679e27c7593619d6a73e3e9ccc6aa49064ebd8667a5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Mahony FFG + soft.pdf",
+      "sha256": "70551fb7ea631e74f0fec0d59ee3cef7fd0290ce7fe70007ac4363ea8cc46be5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Mahony FFG.pdf",
+      "sha256": "92b6b2ac69963a4758cc2344db7d215314300549f8a8799ab3fb8533ab61d39e"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/McGann.pdf",
+      "sha256": "a1bb9aba30df21db6fa5c44b25be541deb8b950d11d5e37a7936375eb77354fe"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/McLaughlin.pdf",
+      "sha256": "ed68f28bb89fee3019dce20bec529484856a17d012d14e7d966ec193fee1aca0"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/McNamara.pdf",
+      "sha256": "87475767a5676d98fef236160e7b68643f1041ebfc6e5656f0c4cd93b27eacb5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Oslo.pdf",
+      "sha256": "0c90efc54c86f9678a81311d36e82644eede1b8c1b3921cfec4c9a260cf500a6"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/OsloSurgical.pdf",
+      "sha256": "ad0a9a3779d9921420f4fa5f66c9d434109cf3082c551f8fea96ecd96b1f5dff"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Pancherz.pdf",
+      "sha256": "6bceb76272dde286560cb66d1783d9a73278a209ef5e1ed2655d50599e85e0ee"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Photo AM Schwarz.pdf",
+      "sha256": "4fca77be658f4a9ad96a2fc7320d44abc5832107a84f175071829fe61fe785eb"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Quadrilateral DiPaolo.pdf",
+      "sha256": "0e9b823ce52c0442bfd13f209708cf1101ae2baad6c8e742c3449f576ab1aef5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Rakosi.pdf",
+      "sha256": "7c0b5dcffbe579b0d73576f1eec97b6276e6475d8b58fcc9cd4e947d34ed648e"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts (13 F).pdf",
+      "sha256": "3f016b7976c87c0930548c6dbada1888357e34e16fc47efeeae2f1a822eedc5f"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts (32 F).pdf",
+      "sha256": "8ddf3979d59777a2b125146d4714fedd4466b38b17a1e77a18273ae8c1ae9987"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts acc G. Samson.pdf",
+      "sha256": "049ddde56b62ceaa81a6c8fdbb1c1542170175ccaeaf9a147ae5c8c222fc9b4f"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts Summary.pdf",
+      "sha256": "4b95b9b2514b98f3b876f784b17b4a54844df68d96c388a23afb8ba4f402af44"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Ricketts.pdf",
+      "sha256": "bb61a53ca666cef6f7bd888c20773525bc34791703fc7a77eb878a636497d73d"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Roth-Jarabak.pdf",
+      "sha256": "9fbdb655889e3b86ab87abee769f671a10d753e164fb1706ab350f7285d57dcf"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Sato Denture Frame mod Kim.pdf",
+      "sha256": "1080290fa4a22fd4537460a964a56fe8b7bef17807713a48bc0d9308405b4b9a"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Sato Denture Frame.pdf",
+      "sha256": "dea8a9c1a25a8d40aa8c7382e740deff4b5b6931e6dc7cb79dbec299746a0bf7"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Steiner.pdf",
+      "sha256": "2a73001b6e5c0d872e89faabe1d686f24e67f950cea755cebd3f70b2cb47fdb5"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Trygde-analysen.pdf",
+      "sha256": "c8fbb9483abce103ff2466712a3b672ad532538d4db7a1eba086382fc647835b"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Tubingen.pdf",
+      "sha256": "e976079d6aaf1274bcdd01674a91368bae967b5d7b4b97229e6fe4775f4b64fb"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Tweed.pdf",
+      "sha256": "c8c60ff86bf7833ac2629baf692e99b0be964833d31adfdff2f3f7e124ab1a65"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Wits appraisal.pdf",
+      "sha256": "91e5ae4bf859a85c394f9f96ae9e8f661216ee979252ea69f24248c6829a232d"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Wylie.pdf",
+      "sha256": "51da31badf8e5333f9b18729c7598682488e871a885876004787e393a41c14be"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/A_Lateral analyses/Zurich.pdf",
+      "sha256": "b97231234cca7999a8cbb9b31c240d6310d2ac8d3eb81e4a4df766ef62272b87"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/B_Frontal analyses/Oslo Frontal.pdf",
+      "sha256": "a455b450c0731705e07d702c652da6328d06bb35185b11716eec333ccbcd87ed"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/B_Frontal analyses/Ricketts Frontal.pdf",
+      "sha256": "a1def7effceaf0ef401cb42e582e035b9447db815a6d350c4b270030cba0891d"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cast model analyses/Arch form.pdf",
+      "sha256": "66881c5d904c763db56bdb9d6ab99063a89f2a137a20a427d062120511ccd69e"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cast model analyses/Bolton.pdf",
+      "sha256": "643e80ad80c260dd4156bed1a7255ad03e15c50a177f7d5f05c1bafd309889d6"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cast model analyses/Moorrees.pdf",
+      "sha256": "66eafaf163f0359b1463bf71936ef954ca31a72c9c7b212316ed2a39c73963a1"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cast model analyses/Schwarz-Korkhaus.pdf",
+      "sha256": "59cec7c70b92f033752ae8cca94737bb3acb6fc700033d60638b1985c61c2f14"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cephalometry Library/C01_Lateral Cephalometry Library - Lines and Contructed markers.pdf",
+      "sha256": "a977f219b6c9b95543551fe7a6e48587ac597b065e0200ab844e20ed322ba119"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cephalometry Library/C02_Lateral Cephalometry Library - Measurements.pdf",
+      "sha256": "4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cephalometry Library/C03_Frontal Cephalometry Library.pdf",
+      "sha256": "385be4cf52eb4b3cacfaae5cb2234b35194214d518cacf3faf07b7715cb164ff"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/C_Cephalometry Library/C04_Cast Model Cephalometry Library.pdf",
+      "sha256": "41bb29c919f18c4e5afeb32a1cecf05e27de7415323dd59bc1d8b437e03333d0"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/Cephalometry Overview.pdf",
+      "sha256": "470851e9b86d1ed028272d47578b332d059b2a1d674564a3d60a3df0d31010d8"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Cephalometry/Overview of Landmarks.pdf",
+      "sha256": "2493bc1218395fd1ff35bc57a0e9c5acdda77228d4cf8565719d374ca7caf7cd"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Facad Collector Manual 3.0.pdf",
+      "sha256": "414791a1c4fa1174699d5d26ffdae72d95e4b9b9b3a66ee80e46c409f6b7a675"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Facad Patient Archiver Manual.pdf",
+      "sha256": "bb1a080023ac3a13801cede1346fd9980a983f74b3d71b8c87d98d46f5de9170"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Facad Reference Manual.pdf",
+      "sha256": "bb678ab66aca94953505f9e243edaac6e5112297a3e615340b4db9e213a87ad7"
+    },
+    {
+      "relative_pdf_path": "Program/Doc/Facad Tracing Reference Manual.pdf",
+      "sha256": "c34b5f42dd5e8f0276fff5e406d78e25304c7a776e1018603b1a454afad7fb9b"
+    }
+  ],
+  "limits": {
+    "installed_documents_retrieved_as_file_bytes": false,
+    "document_content_full_formula_review": false,
+    "pdf_page_locator_verified_for_scholarly_claims": false,
+    "atlas_2009_editor_authenticated": false,
+    "clinical_parity_verified": false,
+    "normative_population_match_verified": false,
+    "original_copyrighted_pdfs_distributed": false
+  }
+}
