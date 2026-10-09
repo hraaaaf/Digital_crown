@@ -2,7 +2,7 @@
 
 **Status:** 16/16 Windows GitHub runs SUCCESS; all 16 ZIP artifacts downloaded and checked for official Robert original/disposable copy unchanged SHA256 (`67A81AD8D2C2489FFE84A1DFBBB897761AE855ECE4EBF948C12AF232562EC089`), exact catalog/editor profile, strict one active grid per tab, 3 PNG, no editor Save or patient Load. **Observed inventory 44/65, 21 still pending.**
 
-48 UIA-only CSV files and original ZIPs saved to the project's persistent Library at `/Digital Crown/Cephalo Facad/Facad Trial Waves 3-4/`, including `facad_d1c_wave34_verified_csv.zip` and its `MANIFEST.json`. **CSV bundle is not yet uploaded as individual GitHub CSVs**; GitHub has this index and the row-level ledger only. Library original ZIPs and manifest are the durable evidence sources.
+48 UIA-only CSV files and original ZIPs saved to the project's persistent Library at `/Digital Crown/Cephalo Facad/Facad Trial Waves 3-4/`, including `facad_d1c_wave34_verified_csv.zip` and its `MANIFEST.json`. **All 48 UIA CSVs are now individually archived in this GitHub directory**, [commit `818b580`](https://github.com/hraaaaf/Digital_crown/commit/818b580ec21868be71f7a326fd4049342fb1056e), while the original ZIPs and bundled manifest remain separately preserved in the project's Library. GitHub commit confirms 48 `.csv` files, with the Hasund Lines source blob independently cross-checked. Library original ZIPs and manifest are the durable evidence sources.
 
 **WARNING:** Editor grid transcription is not clinically validated formula/norm/patient result. D3 storage isolation **UNVERIFIED**, `CLINICAL_EDIT_ALLOWED=false`, `CONVERGED=NON`. No merge/deployment.
 
