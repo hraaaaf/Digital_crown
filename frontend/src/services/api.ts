@@ -138,8 +138,15 @@ api.interceptors.response.use(
     if (axios.isCancel(error)) return Promise.reject(error);
 
     const original = error.config;
+    // Hub/Control Center already expose explicit offline recovery. Suppress duplicate
+    // generic toasts ONLY for their own workstation authority probes, not clinical APIs.
+    const recoveryWorkstationProbe = (
+      original?.url === '/workstation/bootstrap' || original?.url === '/workstation/state'
+    ) && typeof window !== 'undefined' &&
+      (window.location.pathname === '/hub' || window.location.pathname === '/control-center');
 
     if (!error.response) {
+      if (recoveryWorkstationProbe) return Promise.reject(error);
       if (!_authFailed) {
         const method = original?.method?.toLowerCase() || 'get';
         if (isPublicStationRoute()) return Promise.reject(error);
@@ -246,7 +253,7 @@ api.interceptors.response.use(
         (window as any)._isRedirecting402 = true;
         window.location.href = '/login?locked=true';
       }
-    } else if (status >= 500 && !isPublicStationRoute()) {
+    } else if (status >= 500 && !isPublicStationRoute() && !(status === 503 && recoveryWorkstationProbe)) {
       toast.error('Erreur Serveur (500)', { id: 'server-error' });
     }
 

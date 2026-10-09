@@ -15,7 +15,7 @@ const experienceCards = [
 export const HubPage = () => {
   const navigate = useNavigate();
   const [identity, setIdentity] = useState<HubIdentity>({ name: 'Votre \u00e9tablissement', type: '\u00c9tablissement dentaire', badge: '\u00c9TABLISSEMENT' });
-  const [serverAvailable, setServerAvailable] = useState(true);
+  const [serverState, setServerState] = useState<'checking' | 'ready' | 'restricted' | 'unavailable'>('checking');
 
   useEffect(() => {
     let active = true;
@@ -26,6 +26,12 @@ export const HubPage = () => {
           credentials: 'include',
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
+        // Authentication and workstation enrollment refusals prove that the server
+        // is reachable. Never present an HTTP 4xx as a network outage.
+        if (response.status >= 400 && response.status < 500) {
+          if (active) setServerState('restricted');
+          return;
+        }
         if (!response.ok) throw new Error(`hub identity ${response.status}`);
         const config = await response.json();
         if (!active) return;
@@ -34,16 +40,16 @@ export const HubPage = () => {
           type: config.cabinet_type === 'CLINIQUE' ? 'Clinique' : 'Cabinet dentaire',
           badge: config.cabinet_type === 'CLINIQUE' ? 'CLINIQUE' : 'CABINET',
         });
-        setServerAvailable(true);
+        setServerState('ready');
       } catch {
-        if (active) setServerAvailable(false);
+        if (active) setServerState('unavailable');
       }
     };
     void loadIdentity();
     return () => { active = false; };
   }, []);
 
-  return <main data-v15-hub className="relative min-h-screen overflow-hidden bg-main-bg text-main px-5 py-8 sm:py-10 lg:py-12">
+  return <main data-v15-hub data-hub-server-state={serverState} className="relative min-h-screen overflow-hidden bg-main-bg text-main px-5 py-8 sm:py-10 lg:py-12">
     <div aria-hidden="true" className="pointer-events-none absolute -left-40 -top-48 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
     <div aria-hidden="true" className="pointer-events-none absolute -right-44 top-32 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
     <section className="relative z-10 mx-auto w-full max-w-6xl">
@@ -53,7 +59,7 @@ export const HubPage = () => {
         </div>
         <h1 className="mt-5 font-outfit text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight">{identity.name}</h1>
         <p className="mt-3 text-sm font-bold text-text-muted">{identity.type} · Choisissez l’espace de ce poste</p>
-        {!serverAvailable && <div data-hub-offline className="mx-auto mt-5 flex max-w-xl items-center justify-center gap-2 rounded-elite-sm border border-primary/20 bg-primary/5 px-4 py-3 text-xs font-bold text-primary">
+        {serverState === 'unavailable' && <div data-hub-offline className="mx-auto mt-5 flex max-w-xl items-center justify-center gap-2 rounded-elite-sm border border-primary/20 bg-primary/5 px-4 py-3 text-xs font-bold text-primary">
           <WifiOff size={16}/> Serveur indisponible — le Hub et le Centre de contrôle restent accessibles. Les espaces cliniques restent verrouillés jusqu’au rétablissement.
         </div>}
       </div>

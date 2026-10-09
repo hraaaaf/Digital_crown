@@ -7,6 +7,8 @@ Les données patients, médias, DB et backups restent locaux.
 Ce guide couvre : architecture cible, lancement, installation, mise à jour,
 backup/restore, et le comportement licence hors-ligne.
 
+> **GATE 01.4 (2026-10-08)** : les commandes de service/build ci-dessous sont historiques, **pas une autorisation d'installation**. Seul `INSTALLABLE_CERTIFIED` est installable, après approbation humaine et isolation du banc. Exposition LAN cabinet/production : HTTPS :8005, certificat SAN/chaîne de confiance vérifiée sur A et B, pas de bypass. Références : `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` et `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
+
 ---
 
 ## 1. Architecture cible cabinet
@@ -17,7 +19,7 @@ backup/restore, et le comportement licence hors-ligne.
 │  DigitalCrown.exe (PyInstaller) ── uvicorn :8005                        │
 │    ├── Backend FastAPI (API + génération PDF + IA locale ONNX)          │
 │    ├── Frontend buildé servi par le backend (frontend/dist embarqué)    │
-│    └── Ouvre le navigateur sur http://127.0.0.1:8005 au démarrage       │
+│    └── Origine locale selon transport : HTTP loopback sans TLS, HTTPS avec TLS       │
 │                                                                          │
 │  Données (%APPDATA%/DigitalCrown/) :                                     │
 │    ├── clinical_vault.db      SQLite chiffré SQLCipher (mode simple)     │
@@ -36,24 +38,19 @@ backup/restore, et le comportement licence hors-ligne.
    Téléphones assistante/dentiste        Firestore licenses/{public_id}
 ```
 
-### ⚠️ Base de données — PostgreSQL obligatoire
+### Base de données — règle actualisée
 
-**PostgreSQL 15+ est la seule base supportée pour toute installation cabinet/client.**
+- Cabinet **solo** : `ENVIRONMENT=cabinet` prend en charge SQLite/SQLCipher chiffré.
+- **Multi-PC FUE-G S+A+B** : PostgreSQL dédié sur banc d'essai isolé, rôle DB non-superuser, fixtures synthétiques.
+- `ENVIRONMENT=production` : PostgreSQL obligatoire ; SQLite refusé.
 
-SQLite est réservé aux tests unitaires et au développement local — jamais pour production.
-
-Chaque installation cabinet requiert :
-- Installation PostgreSQL 15+ sur le poste principal ou un serveur local
-- Une base de données dédiée au cabinet
-- Un utilisateur PostgreSQL dédié (jamais le superuser `postgres`)
-
----
+Aucune migration, installation ni modification d'une base clinique ne découle de ce guide.
 
 ## 2. Mode de lancement
 
 ### ⚠️ Doctrine runtime réel (2026-07-10, suite incident P0-TREATMENT-JOURNEY-1)
 
-Tant que le cabinet réel tourne depuis un checkout de dépôt (pas encore l'EXE packagé pour ce
+Le démarrage direct d'un checkout sur cabinet réel est **interdit**. Le rappel historique ci-dessous concernait une situation antérieure où le cabinet tournait depuis un checkout (pas encore l'EXE packagé pour ce
 poste) :
 - **Jamais `uvicorn --reload` sur le port 8005.** Un `--reload` recharge le process à chaque
   édition de fichier Python dans le dépôt — y compris des fonctionnalités non terminées/non
@@ -123,29 +120,8 @@ terminal visible) — les logs vont dans `%APPDATA%/DigitalCrown/logs/`.
    `DigitalCrown.spec`) — exclus du packaging EXE, dossier réduit à 3,2 Go.
    Rien n'a été supprimé du dépôt Git, uniquement du binaire distribué.
 
-### Service Windows auto-start (build manuel uniquement)
-
-Pour un déploiement multi-postes/PostgreSQL sans l'installeur un clic,
-Windows ne gère pas les services Python nativement — deux options éprouvées :
-
-**Option A — NSSM :**
-```powershell
-# https://nssm.cc — wrapper service pour n'importe quel exe
-nssm install DigitalCrown "C:\DigitalCrown\DigitalCrown.exe"
-nssm set DigitalCrown AppDirectory "C:\DigitalCrown"
-nssm set DigitalCrown AppStdout "C:\DigitalCrown\logs\service.log"
-nssm set DigitalCrown AppStderr "C:\DigitalCrown\logs\service_err.log"
-nssm set DigitalCrown Start SERVICE_AUTO_START
-nssm start DigitalCrown
-```
-
-**Option B — Tâche planifiée au démarrage (zéro dépendance, celle utilisée
-par l'installeur un clic ci-dessus, mais au logon utilisateur plutôt qu'au
-démarrage système) :**
-```powershell
-schtasks /create /tn "DigitalCrown" /tr "C:\DigitalCrown\DigitalCrown.exe" ^
-  /sc onstart /ru SYSTEM /rl HIGHEST
-```
+### Service Windows auto-start — opération matérielle interdite sans GO
+Le mécanisme de service/tâche dépend de l'installation certifiée et de la politique de release. Les anciennes commandes génériques `nssm install`, `schtasks /create` et les tâches SYSTEM ne doivent **pas** être copiées pour le FUE-G 01.4 : elles modifient le système, peuvent lancer un mauvais exécutable et rendent la récupération imprévisible. L'opérateur doit d'abord identifier dans la release certifiée le mécanisme réellement supporté, prouver le rollback et obtenir l'accord humain avant toute création, modification, activation ou redémarrage de service.
 
 Logs locaux : `%APPDATA%/DigitalCrown/logs/digitalcrown.log` (rotation
 automatique, 5 Mo × 5 fichiers) — géré par `run.py`, pas besoin de
@@ -196,7 +172,7 @@ rehearsal) — pas de variable `MEDIA_ROOT`/`BACKUP_DIR` dédiée à ce jour.
 ONNX locale), 50 Go disque libre, antivirus avec exclusion du dossier
 d'installation, horloge synchronisée (anti-rollback licence).
 
-1. **Copier le build** `dist/DigitalCrown/` vers `C:\DigitalCrown\`
+1. **Vérifier les preuves** de la release exacte `INSTALLABLE_CERTIFIED` (code SHA, manifest, provenance, assets, hashes et binaire), puis seulement avec GO humain copier la release certifiée sur le banc. Un dossier `dist/DigitalCrown/` générique n'est pas installable.
 2. **Configurer l'environnement** : créer le fichier env cabinet (section 3),
    générer `SECRET_KEY` et `CABINET_MASTER_KEY_HEX`, poser les credentials
    Firebase fournis
@@ -205,14 +181,14 @@ d'installation, horloge synchronisée (anti-rollback licence).
    - PostgreSQL : installer PG 15+, `CREATE DATABASE digitalcrown_cabinet;`,
      renseigner `DATABASE_URL`
 4. **Installer le service** (NSSM, section 2) et démarrer
-5. **Vérifier le démarrage** : `curl http://127.0.0.1:8005/api/health` →
+5. **Vérifier le démarrage** : depuis S/A/B, utiliser le protocole réellement écouté : HTTPS avec SAN/CA approuvés si TLS activé (HTTP loopback seulement sans TLS). Contrôler `/api/health` →
    `{"status":"ok","database":"ok",...}` + `/api/health/db` + `/api/health/storage`
 6. **Créer le cabinet réel** via le Setup Wizard de l'UI (PAS `seed_demo` —
    celui-ci est réservé aux démos commerciales)
 7. **Activer la licence** : le `public_id` du cabinet créé doit exister dans
    Firestore `licenses/` avec `active=true` (dashboard SuperAdmin)
 8. **Smoke tests post-install** (checklist §5 du PREPROD_RUNBOOK.md) :
-   login, patient test, upload/lecture document, RVG, agenda, ordonnance PDF,
+   login, patient synthétique, upload/lecture document factice, RVG, agenda, ordonnance PDF,
    accès anonyme → 401
 9. **Appairage mobile** : générer le QR depuis Réglages → scanner depuis le
    téléphone (nécessite le bind LAN, cf. §2 limite 1)
@@ -220,37 +196,26 @@ d'installation, horloge synchronisée (anti-rollback licence).
 
 ---
 
-## 5. Procédure de mise à jour
+## 5. Mise à jour / rollback : parcours certifié soumis à approbation
 
-1. **Backup complet AVANT toute mise à jour** :
-   ```
-   python -m backend.scripts.backup_db
-   python -m backend.scripts.backup_media
-   ```
-2. Arrêter le service : `nssm stop DigitalCrown`
-3. Renommer `C:\DigitalCrown\` → `C:\DigitalCrown_old\` (rollback instantané)
-4. Copier le nouveau build vers `C:\DigitalCrown\`
-5. Exécuter explicitement les migrations versionnées après le backup et le
-   rehearsal sur copie isolée : `alembic upgrade head`. Le service refuse de
-   démarrer sur un schéma cabinet obsolète ; le boot ne fait ni `create_all()`
-   ni migration implicite. Les migrations sont additives et non-destructives.
-6. Redémarrer : `nssm start DigitalCrown`
-7. Vérifier `/api/health` (le champ `version` = hash git du build)
-8. Smoke tests rapides (login + 1 document + 1 patient)
-9. Si KO → rollback : stop service, restaurer `C:\DigitalCrown_old\`,
-   restaurer le backup DB si des migrations ont modifié le schéma, restart
+**Aucune commande d'arrêt, remplacement de fichiers, migration ou restauration n'est autorisée ici.** Utiliser uniquement une release `INSTALLABLE_CERTIFIED` exacte, le parcours d'activation officiel et un GO humain distinct. Un checkout/HEAD/artefact CI seul n'est jamais installable. Ne pas appliquer de migration de DB clinique sans rehearsal sur copie isolée.
 
----
+1. Inventorier le service réel, le code/release SHA actif et le responsable de l'intervention.
+2. Vérifier backup DB **et médias**, intégrité de chaque artefact et **restore éprouvé sur clone isolé** ; établir rollback et approbations avant toute coupure.
+3. Vérifier le certificat `INSTALLABLE_CERTIFIED` de la nouvelle release, hashes, attestation et provenance, correspondance de la source code/assets et contraintes DB/migrations.
+4. Si la mise à jour est explicitement autorisée, procéder avec le mécanisme certifié propre au runtime : arrêter/activer selon le runbook approuvé, tracer l'identité de la release et les étapes, appliquer seulement les migrations testées/autorisées sur les bonnes données.
+5. Comparer BEFORE/AFTER santé service/DB/storage, auth, droits et intégrité de fixtures synthétiques ; consigner incidents et métriques.
+6. En cas d'anomalie, exécuter **le plan de rollback validé** couvrant code, DB ET médias ; un simple renommage de répertoire n'est pas un rollback complet.
+
+Références obligatoires : `docs/CABINET_CERTIFIED_RELEASE_POLICY.md`, `docs/PREPROD_RUNBOOK.md`, `docs/audits/V1_5_01_4_FUE_G_MULTIPC_PREFLIGHT_RUNBOOK.md`.
 
 ## 6. Backup / restore cabinet
 
 ### Backup quotidien automatique (tâche planifiée)
 
-```powershell
-schtasks /create /tn "DigitalCrown Backup" ^
-  /tr "C:\DigitalCrown\python\python.exe -m backend.scripts.backup_db && C:\DigitalCrown\python\python.exe -m backend.scripts.backup_media" ^
-  /sc daily /st 22:00
-```
+**Interdit de copier une commande générique de création de tâche pour le cabinet.** La fréquence, le compte d'exécution, le chemin d'exécutable, le coffre des clés et la configuration de sauvegarde doivent provenir du **runbook certifié** et être approuvés par l'opérateur avant mutation.
+
+Le succès exige la preuve d'un backup DB **et médias**, des fichiers réellement présents/intègres et **d'une restauration validée sur clone isolé**. Un statut planificateur « succès » ou un backup sur le même disque ne suffit pas. Secrets et données patients jamais publiés.
 
 - `backup_db.py` : dump chiffré Fernet (clé dérivée de `CABINET_MASTER_KEY_HEX`)
   — supporte SQLite ET PostgreSQL, trouve `pg_dump` automatiquement sur

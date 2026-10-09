@@ -18,7 +18,13 @@ os.environ["DATABASE_URL"] = "sqlite:///./t2-runtime-cert.db"
 os.environ["TELEMETRY_ENABLED"] = "false"
 os.environ["CLOUD_AI_ENABLED"] = "false"
 os.environ["DEBUG"] = "false"
-os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
+# Isolated S+A+B+C+D cloud UI uses same-site HTTPS origins; other T2
+# certifications retain their original strict local-dev CORS contract.
+os.environ["ALLOWED_ORIGINS"] = (
+    "http://127.0.0.1:5173,http://localhost:5173,https://cabinet.local:5173"
+    if os.environ.get("T2_CLOUD_LAB") == "1" else
+    "http://127.0.0.1:5173,http://localhost:5173"
+)
 if os.environ.get("T2_SUPERADMIN_EMAIL") and not os.environ.get("SUPERADMIN_EMAIL"):
     os.environ["SUPERADMIN_EMAIL"] = os.environ["T2_SUPERADMIN_EMAIL"]
 
@@ -160,6 +166,34 @@ with database.SessionLocal() as db:
         db.add(restricted)
         db.commit()
         db.refresh(restricted)
+
+    if os.environ.get("T2_CLOUD_LAB") == "1":
+        # Test-only independent Accueil account. Never provision in a cabinet.
+        reception_email = "t2-reception@cabinet.ma"
+        if not db.query(models.User).filter(models.User.email == reception_email).first():
+            db.add(models.User(
+                email=reception_email,
+                hashed_password=get_password_hash(runtime_password),
+                role=models.UserRole.SECRETAIRE,
+                nom_complet="T2 Cloud Reception",
+                is_active=True,
+                is_licensed=True,
+                approval_status=models.ApprovalStatus.APPROVED.value,
+                employer_id=user.id,
+                permissions={
+                    "agenda": True,
+                    "patients": False,
+                    "prescriptions": False,
+                    "accounting": False,
+                    "payments": False,
+                    "clinical": False,
+                    "panoramic": False,
+                    "cephalo": False,
+                    "settings": False,
+                    "admin": False,
+                },
+            ))
+            db.flush()
 
     for setup_email, setup_name in (
         ("t2-setup-390@cabinet.ma", "Dr T2 Setup Mobile"),

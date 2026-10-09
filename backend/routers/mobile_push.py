@@ -1,6 +1,5 @@
 """M6-D2 — standards-based Web Push bound to the authenticated paired mobile device."""
 from dataclasses import dataclass
-import os
 import re
 from typing import Literal
 from urllib.parse import urlparse
@@ -66,10 +65,6 @@ def _validate_subscription_payload(body: PushSubscriptionRequest) -> None:
         raise HTTPException(status_code=422, detail="Clés Web Push invalides.")
 
 
-def _secure_lan_enabled() -> bool:
-    return os.getenv("DIGITALCROWN_ENABLE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
-
-
 def _disable_legacy_fcm_registration_route() -> None:
     """Remove the obsolete FCM token registration facade before the mobile router is mounted.
 
@@ -88,19 +83,14 @@ def _disable_legacy_fcm_registration_route() -> None:
 
 
 def install_secure_lan_url_overrides() -> None:
-    """Keep QR/API discovery aligned with the HTTPS runtime selected by the launcher."""
+    """Legacy M6-D2 hook: disable obsolete FCM, preserve canonical LAN URL authority.
+
+    This runs before M6-I passkey installs its stable HTTPS WebAuthn origin.
+    Never overwrite mobile_legacy.get_lan_base_url here: the V1.5-01 resolver
+    refuses cabinet LAN without TLS and owns the canonical CABINET_PORT=8005.
+    A dynamic PORT/IP override would bypass that fail-closed contract.
+    """
     _disable_legacy_fcm_registration_route()
-
-    def lan_backend_url() -> str:
-        scheme = "https" if _secure_lan_enabled() else "http"
-        return f"{scheme}://{_legacy._detect_lan_ip()}:{os.getenv('PORT', '8005')}"
-
-    def lan_frontend_url() -> str:
-        scheme = "https" if _secure_lan_enabled() else "http"
-        return f"{scheme}://{_legacy._detect_lan_ip()}:5173"
-
-    _legacy.get_lan_base_url = lan_backend_url
-    _legacy.get_lan_frontend_url = lan_frontend_url
 
 
 @router.get("/push/config", summary="Clé publique Web Push de cette installation")

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -37,6 +37,11 @@ type ProbeResult = {
   topology: TopologyPayload | null;
   error: string | null;
   crossOriginLimited: boolean;
+  backendHttpStatus?: number | null;
+  databaseHttpStatus?: number | null;
+  authHttpStatus?: number | null;
+  authRefusal?: 'identity' | 'station' | 'other' | null;
+  failureKind?: 'timeout' | 'network';
 };
 
 const isLoopback = (hostname: string) => {
@@ -95,20 +100,57 @@ const normalizeTarget = (raw: string): { baseUrl: string | null; error: string |
   return { baseUrl: `${parsed.protocol}//${parsed.hostname}:8005`, error: null };
 };
 
+const diagnosticKind = (result: ProbeResult | null) => {
+  if (!result) return 'pending';
+  if (result.crossOriginLimited) return 'handoff';
+  if (result.failureKind === 'timeout') return 'timeout';
+  if (result.failureKind === 'network') return 'network';
+  if (result.backendHttpStatus && result.backendHttpStatus >= 500) return 'service';
+  if (!result.backendOk) return 'service';
+  if (!result.databaseOk) return 'database';
+  if (result.authRefusal === 'identity') return 'enrollment';
+  if (result.authRefusal === 'station') return 'station-lock';
+  if (result.authHttpStatus === 423) return 'authorization';
+  if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') return 'loopback';
+  if (result.topology?.remediation === 'TLS_REQUIRED_FOR_LAN') return 'tls';
+  if (result.authOk !== true) return 'authentication';
+  return 'ready';
+};
+
 const remediationCopy = (result: ProbeResult | null) => {
   if (!result) return 'Lancez un diagnostic pour vérifier le serveur, la base et le transport réseau.';
-  if (result.error) return result.error;
-  if (!result.backendOk) return 'Backend injoignable. Vérifiez que Digital Crown est démarré, l’adresse saisie et le pare-feu du poste serveur.';
-  if (!result.databaseOk) return 'Backend joignable mais base indisponible. Vérifiez PostgreSQL puis relancez le diagnostic.';
-  if (result.authOk === false) return 'Serveur et base disponibles, mais la session de ce poste n’est pas authentifiée. Ouvrez le serveur puis connectez-vous.';
-  if (result.authOk === null && result.backendOk && result.databaseOk) {
-    return 'Serveur joignable sans credential. Ouvrez cette adresse pour vérifier l’authentification et terminer le diagnostic sur cette autorité.';
+  if (result.crossOriginLimited) return result.error || 'Ouvrez explicitement ce serveur avant de vérifier son état. Aucune requête distante n’est envoyée.';
+  if (result.failureKind === 'timeout') {
+    return 'Aucune réponse dans les 6 secondes. Vérifiez l’adresse du serveur, son démarrage et le pare-feu du réseau local, puis relancez le diagnostic sur ce poste.';
+  }
+  if (result.failureKind === 'network') {
+    return 'Aucune réponse du service depuis ce poste. Vérifiez que le serveur Digital Crown est démarré, l’adresse et le réseau local, puis relancez le diagnostic.';
+  }
+  if (result.backendHttpStatus && result.backendHttpStatus >= 500) {
+    return 'Le serveur répond, mais le service Digital Crown est indisponible (HTTP ' + result.backendHttpStatus + '). Vérifiez le service sur le poste serveur, puis relancez le diagnostic.';
+  }
+  if (!result.backendOk) return 'Le service refuse le diagnostic. Vérifiez l’état du serveur avec l’administrateur, puis relancez.';
+  if (!result.databaseOk) {
+    return 'Le serveur répond, mais la base de données est indisponible. Vérifiez PostgreSQL sur le poste serveur, puis relancez le diagnostic.';
+  }
+  if (result.authRefusal === 'identity') {
+    return 'Serveur et base disponibles. L’identité de ce poste doit être appairée : ouvrez le Hub et utilisez le code fourni par le propriétaire avant l’accès clinique.';
+  }
+  if (result.authRefusal === 'station') {
+    return 'Ce poste est verrouillé en mode Station. Le propriétaire doit autoriser la sortie avec son PIN dans l’interface Station ; aucun accès clinique direct.';
+  }
+  if (result.authHttpStatus === 423) {
+    return 'Le serveur refuse l’accès à ce poste (HTTP 423). Demandez à l’administrateur de vérifier son autorisation avant de continuer.';
   }
   if (result.topology?.remediation === 'LAN_DISABLED_LOOPBACK_ONLY') {
     return 'Serveur limité à la machine locale. Pour un poste annexe, configurez explicitement une adresse LAN et HTTPS/TLS sur le serveur.';
   }
   if (result.topology?.remediation === 'TLS_REQUIRED_FOR_LAN') {
     return 'Exposition LAN détectée sans TLS prêt. Configurez le certificat et la clé HTTPS avant toute connexion de poste annexe.';
+  }
+  if (result.authOk === false) return 'Serveur et base disponibles, mais la session de ce poste n’est pas authentifiée. Connectez-vous sur ce serveur.';
+  if (result.authOk === null) {
+    return 'Serveur joignable sans session confirmée. Vérifiez l’authentification sur cette autorité avant de continuer.';
   }
   if (result.topology?.lanExposed && result.topology?.tlsReady) {
     return 'Serveur LAN prêt : backend, base de données et transport HTTPS répondent correctement.';
@@ -128,10 +170,17 @@ export const ControlCenterTopologyPanel = () => {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ProbeResult | null>(null);
   const [inputError, setInputError] = useState('');
+  // Ignore results from a previous server address or superseded diagnostic.
+  const probeGeneration = useRef(0);
+  const activeProbe = useRef<AbortController | null>(null);
 
   const normalized = useMemo(() => normalizeTarget(target), [target]);
 
   const runProbe = useCallback(async (rawTarget: string) => {
+    const generation = ++probeGeneration.current;
+    activeProbe.current?.abort();
+    activeProbe.current = null;
+    setBusy(false);
     const parsed = normalizeTarget(rawTarget);
     if (!parsed.baseUrl) {
       setInputError(parsed.error || 'Adresse invalide.');
@@ -151,7 +200,7 @@ export const ControlCenterTopologyPanel = () => {
         databaseOk: false,
         authOk: null,
         topology: null,
-        error: 'Aucune requête n’est envoyée à une origine distante avant votre navigation explicite. Ouvrez ce serveur pour exécuter le diagnostic directement sur son origine.',
+        error: 'Aucune requête n’est envoyée à une origine distante avant votre navigation explicite. Vérifiez l’adresse du cabinet puis ouvrez ce serveur. Si la page ne charge pas, revenez avec Précédent dans le navigateur pour corriger l’adresse ou le réseau.',
         crossOriginLimited: true,
       });
       return;
@@ -159,6 +208,7 @@ export const ControlCenterTopologyPanel = () => {
 
     setBusy(true);
     const controller = new AbortController();
+    activeProbe.current = controller;
     const timeout = window.setTimeout(() => controller.abort(), 6_000);
     const started = performance.now();
 
@@ -183,6 +233,16 @@ export const ControlCenterTopologyPanel = () => {
         }),
       ]);
       const topology = await topologyResponse.json().catch(() => null) as TopologyPayload | null;
+      // A 423 is not sufficient evidence to prescribe enrollment: Station PIN
+      // lock and unknown authorization failures must remain distinct.
+      const authError = authResponse.status === 423
+        ? await authResponse.json().catch(() => null) as { detail?: string } | null
+        : null;
+      const authRefusal: ProbeResult['authRefusal'] = authError?.detail === 'WORKSTATION_STATION_LOCKED' ? 'station'
+        : authError?.detail === 'WORKSTATION_IDENTITY_REQUIRED'
+          || authError?.detail === 'WORKSTATION_ENROLLMENT_REQUIRED' ? 'identity'
+          : authResponse.status === 423 ? 'other' : null;
+      if (generation !== probeGeneration.current) return;
       setResult({
         baseUrl: parsed.baseUrl,
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
@@ -192,8 +252,13 @@ export const ControlCenterTopologyPanel = () => {
         topology,
         error: null,
         crossOriginLimited: false,
+        backendHttpStatus: topologyResponse.status,
+        databaseHttpStatus: dbResponse.status,
+        authHttpStatus: authResponse.status,
+        authRefusal,
       });
     } catch (error) {
+      if (generation !== probeGeneration.current) return;
       setResult({
         baseUrl: parsed.baseUrl,
         latencyMs: Math.max(1, Math.round(performance.now() - started)),
@@ -201,19 +266,26 @@ export const ControlCenterTopologyPanel = () => {
         databaseOk: false,
         authOk: null,
         topology: null,
-        error: error instanceof DOMException && error.name === 'AbortError'
-          ? 'Délai dépassé. Vérifiez que le serveur est démarré et joignable sur le réseau local.'
-          : 'Le navigateur ne peut pas vérifier cette cible depuis l’autorité actuelle. Ouvrez cette adresse pour terminer le diagnostic directement sur ce serveur.',
-        crossOriginLimited: true,
+        error: null,
+        crossOriginLimited: false,
+        failureKind: error instanceof DOMException && error.name === 'AbortError' ? 'timeout' : 'network',
       });
     } finally {
       window.clearTimeout(timeout);
-      setBusy(false);
+      if (generation === probeGeneration.current) {
+        activeProbe.current = null;
+        setBusy(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void runProbe(API_BASE);
+    return () => {
+      probeGeneration.current += 1;
+      activeProbe.current?.abort();
+      activeProbe.current = null;
+    };
   }, [runProbe]);
 
   const currentBase = normalizeTarget(API_BASE).baseUrl;
@@ -221,6 +293,7 @@ export const ControlCenterTopologyPanel = () => {
   const isCurrentTarget = Boolean(targetBase && targetBase === currentBase);
   const canOpen = Boolean(targetBase && !normalized.error && !isCurrentTarget);
   const networkVerified = Boolean(result?.backendOk && result?.databaseOk);
+  const diagnosis = diagnosticKind(result);
   const currentAuthenticated = Boolean(isCurrentTarget && networkVerified && result?.authOk === true);
   const annexReady = Boolean(
     currentAuthenticated
@@ -272,6 +345,10 @@ export const ControlCenterTopologyPanel = () => {
               data-control-center-target
               value={target}
               onChange={(event) => {
+                probeGeneration.current += 1;
+                activeProbe.current?.abort();
+                activeProbe.current = null;
+                setBusy(false);
                 setTarget(event.target.value);
                 setInputError('');
                 setResult(null);
@@ -306,7 +383,7 @@ export const ControlCenterTopologyPanel = () => {
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <Server className="text-primary" size={20} aria-hidden="true" />
             <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Serveur</p>
-            <p data-control-center-backend className="mt-1 text-lg font-black">{result?.backendOk ? 'Joignable' : busy ? 'Test…' : 'Non vérifié'}</p>
+            <p data-control-center-backend className="mt-1 text-lg font-black">{result?.backendOk ? 'Joignable' : busy ? 'Test…' : diagnosis === 'service' ? 'Service indisponible' : diagnosis === 'network' || diagnosis === 'timeout' ? 'Injoignable' : 'Non vérifié'}</p>
           </article>
           <article className="rounded-elite-sm border border-border-main bg-main-bg p-3.5">
             <Database className="text-primary" size={20} aria-hidden="true" />
@@ -324,7 +401,7 @@ export const ControlCenterTopologyPanel = () => {
             <ShieldCheck className="text-primary" size={20} aria-hidden="true" />
             <p className="mt-2 text-xs font-black uppercase tracking-wide text-text-muted">Session</p>
             <p data-control-center-auth className="mt-1 text-lg font-black">
-              {result?.authOk === true ? 'Authentifiée' : result?.authOk === false ? 'Connexion requise' : 'Après ouverture'}
+              {result?.authOk === true ? 'Authentifiée' : result?.authRefusal === 'station' ? 'Station verrouillée' : result?.authRefusal === 'identity' ? 'Appairage requis' : result?.authOk === false ? 'Connexion requise' : 'Après ouverture'}
             </p>
           </article>
         </div>
@@ -350,7 +427,7 @@ export const ControlCenterTopologyPanel = () => {
           </details>
         )}
 
-        <div data-control-center-remediation role="status" aria-live="polite" className="mt-4 rounded-elite-sm border border-primary/20 bg-primary/5 p-4">
+        <div data-control-center-remediation data-control-center-diagnosis={diagnosis} role="status" aria-live="polite" className="mt-4 rounded-elite-sm border border-primary/20 bg-primary/5 p-4">
           <div className="flex items-start gap-3">
             <Globe2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />
             <div>

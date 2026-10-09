@@ -129,15 +129,28 @@ def test_push_endpoint_rejects_private_network_ssrf(monkeypatch):
     assert mobile_push_service._is_public_push_endpoint("http://push.example.test/sub") is False
 
 
-def test_lan_url_override_tracks_secure_launcher(monkeypatch):
-    monkeypatch.setattr(mobile_push._legacy, "_detect_lan_ip", lambda: "192.168.10.20")
-    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "true")
-    mobile_push.install_secure_lan_url_overrides()
-    assert mobile_push._legacy.get_lan_base_url() == "https://192.168.10.20:8005"
-    assert mobile_push._legacy.get_lan_frontend_url() == "https://192.168.10.20:5173"
+def test_mobile_push_does_not_override_canonical_network_authority(monkeypatch):
+    """M6-D2 cannot reintroduce a LAN HTTP QR or dynamic PORT after V1.5-01."""
+    from backend.core.cabinet_topology import get_cabinet_base_url
 
-    monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", "false")
-    assert mobile_push._legacy.get_lan_base_url() == "http://192.168.10.20:8005"
+    backend_origin = lambda: get_cabinet_base_url({
+        "ENVIRONMENT": "cabinet",
+        "CABINET_HOST": "127.0.0.1",
+        "CABINET_PORT": "8005",
+        "DIGITALCROWN_ENABLE_HTTPS": "false",
+        "PORT": "9999",
+    })
+    frontend_origin = lambda: "http://127.0.0.1:5173"
+    monkeypatch.setattr(mobile_push._legacy, "get_lan_base_url", backend_origin)
+    monkeypatch.setattr(mobile_push._legacy, "get_lan_frontend_url", frontend_origin)
+    monkeypatch.setattr(mobile_push._legacy, "_detect_lan_ip", lambda: "192.168.10.20")
+
+    for https_enabled in ("false", "true"):
+        monkeypatch.setenv("DIGITALCROWN_ENABLE_HTTPS", https_enabled)
+        mobile_push.install_secure_lan_url_overrides()
+        assert mobile_push._legacy.get_lan_base_url is backend_origin
+        assert mobile_push._legacy.get_lan_frontend_url is frontend_origin
+        assert mobile_push._legacy.get_lan_base_url() == "http://127.0.0.1:8005"
 
 
 def test_subscription_model_and_service_are_device_revocation_bound():
