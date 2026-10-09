@@ -1,0 +1,28 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Bergen,measurements,Sagittal relations,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bergen,measurements,SNA,Angle3p,N,A,S,,82±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bergen,measurements,SNB,Angle3p,N,B,S,,80±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bergen,measurements,ANB,Angle3p,N,A,B,,2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bergen,measurements,SNPog,Angle3p,N,Pog,S,,81±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bergen,measurements,NSBa,Angle3p,S,N,Ba,,130±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bergen,measurements,Jaw inclination,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bergen,measurements,ML/NSL,Angle2ln,NSL,ML,,,32±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bergen,measurements,NL/NSL,Angle2ln,NSL,NL,,,8.5±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bergen,measurements,ML/NL,Angle2ln,NL,ML,,,23.5±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bergen,measurements,Gonial angle,Angle3p,Go,Ar,Me,,126±10,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bergen,measurements,Facial height,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Bergen,measurements,UFH,Dist2p,N,Sp',,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Bergen,measurements,LFH,Dist2p,Sp',Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Bergen,measurements,U:L Facial Hgh,Div,UFH,LFH,,,79±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Bergen,measurements,Teeth position,Heading,,,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Bergen,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,130±10,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Bergen,measurements,ILs/NA,Angle4p,Is,Isa,A,N,22±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Bergen,measurements,Is-NA,DistLine,NA,Is,,,4±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Bergen,measurements,ILi/NB,Angle4p,B,N,Iia,Ii,25±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Bergen,measurements,Ii-NB,DistLine,NB,Ii,,,4±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Bergen,measurements,Pog-NB,DistLine,NB,Pog,,,4±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Bergen,measurements,N angle,Angle4p,Me,Go,Pog,B,58,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Bergen,measurements,Soft tissue relation,Heading,,,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Bergen,measurements,Ls-EL,DistLine,EL,Ls,,,-2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Bergen,measurements,Li-EL,DistLine,EL,Li,,,-2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Bergen,measurements,H angle,Angle2ln,NB,HL,,,8±3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

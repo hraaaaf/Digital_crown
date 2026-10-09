@@ -1,0 +1,31 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Arnett STCA (female),markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Arnett STCA (female),markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Arnett STCA (female),markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Arnett STCA (female),markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Arnett STCA (female),markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Arnett STCA (female),markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Arnett STCA (female),markers,Ms-mc,"Molar superior, mesial cusp",Marker,"Molar, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Arnett STCA (female),markers,Mi-mc,"Molar inferior, mesial cusp",Marker,"Molar, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Arnett STCA (female),markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Arnett STCA (female),markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Arnett STCA (female),markers,Gn,Gnathion,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Arnett STCA (female),markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Arnett STCA (female),markers,GL,Soft tissue Glabella,Profile marker,,<fixed>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Arnett STCA (female),markers,Ns,Soft tissue Nasion,Profile marker,,<fixed>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Arnett STCA (female),markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Arnett STCA (female),markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Arnett STCA (female),markers,MS,Steiner's S-point (columnella tangent point),Profile marker,,<flexible>,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Arnett STCA (female),markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Arnett STCA (female),markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Arnett STCA (female),markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Arnett STCA (female),markers,Ls-inf,"Upper Lip (labrale superior), inferior point",Profile marker,,Is,0.80,0.80,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Arnett STCA (female),markers,Ls-inside,Inside of Upper Lip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Arnett STCA (female),markers,Li-inside,Inside of Lower Lip,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Arnett STCA (female),markers,Li-sup,"Lower Lip (labrale inferior), superior point",Profile marker,,Ii,0.40,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Arnett STCA (female),markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Arnett STCA (female),markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Arnett STCA (female),markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Arnett STCA (female),markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Arnett STCA (female),markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Arnett STCA (female),markers,T,Throat (neck),Profile marker,,<fixed>,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY

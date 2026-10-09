@@ -1,0 +1,28 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Bjork,measurements,Saddle angle,Angle3p,S,N,Ar,,123±5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bjork,measurements,Articular angle,Angle3p,Ar,S,Go,,143±6,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bjork,measurements,Gonial angle,Angle3p,Go,Ar,Me,,130±7,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bjork,measurements,Sum of 3 angles,Add,Saddle+Articular,Gonial angle,,,396,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bjork,measurements,N-S,Dist2p,N,S,,,71±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bjork,measurements,S-Ar,Dist2p,S,Ar,,,32±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bjork,measurements,Gonial upper angle,Angle3p,Go,Ar,N,,53.5±1.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bjork,measurements,Gonial lower angle,Angle3p,Go,N,Me,,72.5±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bjork,measurements,Ramus height,Dist2p,Ar,Go,,,44±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bjork,measurements,Body length,Dist2p,Go,Me,,,71±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bjork,measurements,Go-Me:S-N,Div,Body length,N-S,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bjork,measurements,SNA,Angle3p,N,A,S,,80,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Bjork,measurements,SNB,Angle3p,N,B,S,,78,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Bjork,measurements,ANB,Angle3p,N,A,B,,2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Bjork,measurements,ML/NSL,Angle2ln,NSL,ML,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Bjork,measurements,Y-axis/NSL,Angle3p,S,N,Gn,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Bjork,measurements,AFH,Dist2p,N,Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Bjork,measurements,PFH,Dist2p,S,Go,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Bjork,measurements,P:A Facial Hgh,Div,PFH,AFH,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Bjork,measurements,SNPog,Angle3p,N,Pog,S,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Bjork,measurements,OL/ML,Angle2ln,OL,ML,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Bjork,measurements,ILi/ML,Angle4p,Go,Me,Ii,Iia,90±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Bjork,measurements,ILs/NSL,Angle4p,Is,Isa,S,N,102±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Bjork,measurements,Is-FP,Dist3p,Pog,N,Is,,5±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Bjork,measurements,Ii-FP,Dist3p,Pog,N,Ii,,2±2,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Bjork,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Bjork,measurements,Saddle+Articular,Add,Saddle angle,Articular angle,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

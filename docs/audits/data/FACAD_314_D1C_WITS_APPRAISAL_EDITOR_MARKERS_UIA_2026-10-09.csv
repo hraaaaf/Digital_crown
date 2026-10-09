@@ -1,0 +1,6 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Wits appraisal,markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Wits appraisal,markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Wits appraisal,markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Wits appraisal,markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Wits appraisal,markers,OLp,"Occlusal Line, posterior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY

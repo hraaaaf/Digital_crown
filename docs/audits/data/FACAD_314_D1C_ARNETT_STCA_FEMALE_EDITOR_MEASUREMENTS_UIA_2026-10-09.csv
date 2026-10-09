@@ -1,0 +1,39 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Arnett STCA (female),measurements,Is-TVL,DistLine,TVL,Is,,,-9.2±2.2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Arnett STCA (female),measurements,ILs/OLmx,Angle3p,Is,Ms-mc,Isa,,56.8±2.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Arnett STCA (female),measurements,Ii-TVL,DistLine,TVL,Ii,,,-12.4±2.2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Arnett STCA (female),measurements,ILi/OLmd,Angle3p,Ii,Iia,Mi-mc,,64.3±3.2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Arnett STCA (female),measurements,Overjet,Proj90Line,TVL,Is,Ii,,3.2±0.4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Arnett STCA (female),measurements,Overbite,ProjLine,TVL,Is,Ii,,3.2±0.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Arnett STCA (female),measurements,Incisor exposure,ProjLine,TVL,Is,Ls-inf,,4.7±1.6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Arnett STCA (female),measurements,Upper lip thickness,Dist2p,Ls-inside,Ls,,,12.6±1.8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Arnett STCA (female),measurements,Lower lip thickness,Dist2p,Li-inside,Li,,,13.6±1.4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Arnett STCA (female),measurements,Chin thickness,Dist2p,Pog,PGs,,,11.8±1.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Arnett STCA (female),measurements,Me thickness,Dist2p,Me,MEs,,,7.4±1.6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Arnett STCA (female),measurements,Upper lip len,ProjLine,TVL,Ls-inf,SN,,21±1.9,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Arnett STCA (female),measurements,Interlabial gap,ProjLine,TVL,Li-sup,Ls-inf,,3.3±1.3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Arnett STCA (female),measurements,Lower lip len,ProjLine,TVL,MEs,Li-sup,,46.9±2.3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Arnett STCA (female),measurements,Lower 1/3 Hgh,ProjLine,TVL,MEs,SN,,71.1±3.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Arnett STCA (female),measurements,Facial Hgh,ProjLine,TVL,MEs,Ns,,124.6±4.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Arnett STCA (female),measurements,Max ant hgh,ProjLine,TVL,Is,SN,,25.7±2.1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Arnett STCA (female),measurements,Mand ant hgh,ProjLine,TVL,MEs,Ii,,48.6±2.4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Arnett STCA (female),measurements,Max post hgh,Angle2ln,TVL,OLmx,,,95.6±1.8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Arnett STCA (female),measurements,GL-TVL,DistLine,TVL,GL,,,-8.5±2.4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Arnett STCA (female),measurements,Nasal proj,DistLine,TVL,PRN,,,16±1.4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Arnett STCA (female),measurements,SLs-TVL (A'-TVL),DistLine,TVL,SLs,,,-0.1±1,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Arnett STCA (female),measurements,Ls-TVL,DistLine,TVL,Ls,,,3.7±1.2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Arnett STCA (female),measurements,Upper lip angle,Angle2ln,Ls-SN,TVL,,,12.1±5.1,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Arnett STCA (female),measurements,Nasolabial,Angle3p,SN,MS,Ls,,103.5±6.8,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Arnett STCA (female),measurements,Li-TVL,DistLine,TVL,Li,,,1.9±1.4,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Arnett STCA (female),measurements,SLi-TVL (B'-TVL),DistLine,TVL,SLi,,,-5.3±1.5,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Arnett STCA (female),measurements,PGs-TVL,DistLine,TVL,PGs,,,-2.6±1.9,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Arnett STCA (female),measurements,Throat len,Proj90Line,TVL,PGs,T,,58.2±5.9,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Arnett STCA (female),measurements,Facial angle,Angle4p,PGs,SN,GL,SN,169.3±3.4,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Arnett STCA (female),measurements,Forehead to Max,Proj90Line,TVL,SLs,GL,,8.4±2.7,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Arnett STCA (female),measurements,Forehead to Mand,Proj90Line,TVL,PGs,GL,,5.9±2.3,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Arnett STCA (female),measurements,Nasal base to Chin,Proj90Line,TVL,SN,PGs,,3.2±1.9,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Arnett STCA (female),measurements,Max-Mand base,Proj90Line,TVL,SLs,SLi,,5.2±1.6,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Arnett STCA (female),measurements,Lip to Lip,Proj90Line,TVL,Ls,Li,,1.8±1,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Arnett STCA (female),measurements,Ii to Chin,Proj90Line,TVL,PGs,Ii,,9.8±2.6,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+37,Arnett STCA (female),measurements,Li to Chin,Proj90Line,TVL,Li,PGs,,4.5±2.1,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+38,Arnett STCA (female),measurements,Chin contour,Proj90Line,TVL,PGs,SLi,,2.7±1.1,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY

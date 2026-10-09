@@ -1,0 +1,11 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Airway (McNamara),markers,S,Sella turcica,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Airway (McNamara),markers,Ba,Basion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Airway (McNamara),markers,PNS,Posterior Nasal Spine,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Airway (McNamara),markers,H,Hormion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Airway (McNamara),markers,AD2,Adenoid upper point,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Airway (McNamara),markers,AD1,Adenoid lower point,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Airway (McNamara),markers,SPs,Upper soft palate dorsum,Marker,Soft Palate,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Airway (McNamara),markers,PPW-s,"Posterior pharynx wall, superior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Airway (McNamara),markers,APW-mand,Anterior pharynx wall at mandible,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Airway (McNamara),markers,PPW-i,"Posterior pharynx wall, inferior point",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY

@@ -1,0 +1,13 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Bergen short,measurements,SNA,Angle3p,N,A,S,,82±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Bergen short,measurements,SNB,Angle3p,N,B,S,,80±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Bergen short,measurements,ANB,Angle3p,N,A,B,,2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Bergen short,measurements,SNPog,Angle3p,N,Pog,S,,81±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Bergen short,measurements,NSBa,Angle3p,S,N,Ba,,130±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Bergen short,measurements,ML/NSL,Angle2ln,NSL,ML,,,32±4,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Bergen short,measurements,NL/NSL,Angle2ln,NSL,NL,,,8.5±3,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Bergen short,measurements,ML/NL,Angle2ln,NL,ML,,,23.5±5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Bergen short,measurements,InterIncisal,Angle4p,Iia,Ii,Isa,Is,130±10,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Bergen short,measurements,ILs/NSL,Angle4p,Is,Isa,S,N,102±6,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Bergen short,measurements,ILi/ML,Angle4p,Go,Me,Ii,Iia,94±4.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Bergen short,measurements,Pog-NB,DistLine,NB,Pog,,,4±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY

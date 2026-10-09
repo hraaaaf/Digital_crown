@@ -1,0 +1,12 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,ABO,measurements,SNA,Angle3p,N,A,S,,82±3.5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,ABO,measurements,SNB,Angle3p,N,B,S,,80.9±3.4,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,ABO,measurements,ANB,Angle3p,N,A,B,,1.6±1.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,ABO,measurements,ML/NSL,Angle2ln,NSL,ML,,,32.9±5.2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,ABO,measurements,ML/FH,Angle2ln,FH,ML,,,25.1±4.5,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,ABO,measurements,Is-NA,DistLine,NA,Is,,,4.3±2.7,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,ABO,measurements,ILs/NSL,Angle4p,Is,Isa,S,N,103.4±5.5,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,ABO,measurements,Ii-NB,DistLine,NB,Ii,,,4±1.8,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,ABO,measurements,ILi/ML,Angle4p,Go,Me,Ii,Iia,95±7,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,ABO,measurements,Ls-EL,DistLine,EL,Ls,,,-2±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,ABO,measurements,Li-EL,DistLine,EL,Li,,,-2.8±2,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
