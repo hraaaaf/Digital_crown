@@ -1,0 +1,42 @@
+row_ordinal,analysis,tab,Name,Long name,Type,Parent,Bound to,Sag,Ver,Place,uia_offscreen,evidence_level
+1,Ricketts (32 F),markers,B,Downs' B-point; Supramentale,Marker,Mandible,,,,pred,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Ricketts (32 F),markers,P,Porion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Ricketts (32 F),markers,Pt,Pterygo-maxillary fissure; Foramen rotundum,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Ricketts (32 F),markers,Or,Orbitale,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Ricketts (32 F),markers,N,Nasion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Ricketts (32 F),markers,PNS,Posterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Ricketts (32 F),markers,ANS,Anterior Nasal Spine,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Ricketts (32 F),markers,A,Downs' A-point; Subspinale,Marker,Maxilla,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Ricketts (32 F),markers,Isa,Incisor superior apex (upper incisor root),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Ricketts (32 F),markers,Is,Incisor superior (upper incisor tip),Marker,"Inc, upp",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Ricketts (32 F),markers,Ii,Incisor inferior (lower incisor tip),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Ricketts (32 F),markers,Iia,Incisor inferior apex (lower incisor root),Marker,"Inc, low",,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Ricketts (32 F),markers,PM,Protuberance Menti; Suprapogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Ricketts (32 F),markers,Pog,Pogonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Ricketts (32 F),markers,Gn,Gnathion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Ricketts (32 F),markers,Me,Menton,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Ricketts (32 F),markers,Go,Gonion,Marker,Mandible,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Ricketts (32 F),markers,Ba,Basion,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Ricketts (32 F),markers,DC,Centre of condyle,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Ricketts (32 F),markers,R3,Most inferior/centre point on sigmoid notch,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Ricketts (32 F),markers,R4,"Point on lower border of mandible, below R3",Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Ricketts (32 F),markers,R2,Point on posterior border of ramus,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Ricketts (32 F),markers,R1,Deepest point on anterior border of ramus,Marker,,,,,always,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Ricketts (32 F),markers,Ms-d,"Molar superior, most distal point",Marker,"Molar, upp",,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Ricketts (32 F),markers,Mi-d,"Molar inferior, most distal point",Marker,"Molar, low",,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Ricketts (32 F),markers,OLp,"Occlusal Line, posterior point",Marker,,,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+27,Ricketts (32 F),markers,CNs,Canine superior (upper canine tip),Marker,"Can, upp",,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+28,Ricketts (32 F),markers,CNi,Canine inferior (lower canine tip),Marker,"Can, low",,,,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+29,Ricketts (32 F),markers,ONs,Soft tissue Os Nasale (nasal bone),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+30,Ricketts (32 F),markers,PRN,Pronasale (tip of the nose),Profile marker,,ANS,0.50,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+31,Ricketts (32 F),markers,SN,Subnasale; Retronasale,Profile marker,,A,0.80,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+32,Ricketts (32 F),markers,SLs,Sulcus Labial superior; Soft tissue A point,Profile marker,,A,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+33,Ricketts (32 F),markers,Ls,Labrale superior (upper lip),Profile marker,,Is,0.75,0.20,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+34,Ricketts (32 F),markers,STs,Stomion superior,Profile marker,,Is,0.80,0.80,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+35,Ricketts (32 F),markers,STi,Stomion inferior,Profile marker,,Ii,0.40,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+36,Ricketts (32 F),markers,Li,Labrale inferior (lower lip),Profile marker,,Ii,0.80,0.20,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+37,Ricketts (32 F),markers,SLi,Sulcus Labial inferior; Soft tissue B point,Profile marker,,B,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+38,Ricketts (32 F),markers,PGs,Soft tissue Pogonion,Profile marker,,Pog,1.00,1.00,always,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+39,Ricketts (32 F),markers,GNs,Soft tissue Gnathion,Profile marker,,Gn,1.00,1.00,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+40,Ricketts (32 F),markers,MEs,Soft tissue Menton,Profile marker,,Me,1.00,0.86,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+41,Ricketts (32 F),markers,T,Throat (neck),Profile marker,,<fixed>,,,pred,True,EDITOR_UIA_TRANSCRIPTION_ONLY
