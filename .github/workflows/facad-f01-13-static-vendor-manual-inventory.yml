@@ -1,0 +1,77 @@
+name: Facad F01.13 official static manual inventory
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-f01-13-static-vendor-manual-inventory.yml
+      - audit/facad_f01_13_static_manual_inventory.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scientific-source-inventory:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact research HEAD
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate source provenance script offline
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA){throw 'HEAD mismatch'}
+          Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
+          python -m py_compile audit/facad_f01_13_static_manual_inventory.py
+          if($LASTEXITCODE -ne 0){throw 'py_compile failed'}
+          python audit/facad_f01_13_static_manual_inventory.py --self-test
+          if($LASTEXITCODE -ne 0){throw 'self-test failed'}
+      - name: Extract only official installer archives (never launch Facad)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $base='facad-f01-13-static-evidence'
+          [void](New-Item -ItemType Directory -Force -Path $base)
+          $file=Join-Path $base 'Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $file
+          $sha=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+          "OFFICIAL_INSTALLER_WRAPPER_SHA256=$sha" | Set-Content (Join-Path $base 'static-status.txt')
+          $seven=Join-Path $env:ProgramFiles '7-Zip\7z.exe'
+          if(-not (Test-Path -LiteralPath $seven)){throw '7zip missing'}
+          & $seven x $file ('-o'+(Join-Path $base 'outer')) -y | Out-Null
+          if($LASTEXITCODE -ne 0){throw 'Official installer wrapper 7zip extraction failed'}
+          $release=Join-Path $base 'outer/FacadRelease-3.14.1.1111.zip'
+          if(-not (Test-Path -LiteralPath $release)){throw 'Official release archive not present'}
+          $releaseSHA=(Get-FileHash -LiteralPath $release -Algorithm SHA256).Hash
+          "OFFICIAL_RELEASE_ZIP_SHA256=$releaseSHA" | Add-Content (Join-Path $base 'static-status.txt')
+          & $seven x $release ('-o'+(Join-Path $base 'release')) -y | Out-Null
+          if($LASTEXITCODE -ne 0){throw 'Official Facad release zip extraction failed'}
+          # Do not open .fcd, Facad.exe, patient files, config, medical data,
+          # editor, clipboard, analysis results, or licensed binary measurement definitions.
+          'STATIC_ONLY_NO_FACAD_EXECUTION=true' | Add-Content (Join-Path $base 'static-status.txt')
+          'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED' | Add-Content (Join-Path $base 'static-status.txt')
+      - name: Hash and enumerate only vendor documentation PDFs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install --disable-pip-version-check pypdf==5.9.0
+          if($LASTEXITCODE -ne 0){throw 'pypdf install failure'}
+          python audit/facad_f01_13_static_manual_inventory.py --root facad-f01-13-static-evidence/release --out facad-f01-13-static-evidence/vendor-pdf-inventory.json
+          if($LASTEXITCODE -ne 0){throw 'PDF inventory failure'}
+      - name: Upload METADATA only - exclude proprietary docs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: facad-f01-13-vendor-static-doc-index-${{ github.sha }}
+          retention-days: 21
+          path: |
+            facad-f01-13-static-evidence/vendor-pdf-inventory.json
+            facad-f01-13-static-evidence/static-status.txt
+          if-no-files-found: warn
