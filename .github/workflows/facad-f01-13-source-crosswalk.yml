@@ -1,0 +1,51 @@
+name: Facad F01.13 source provenance fail-closed
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-f01-13-source-crosswalk.yml
+      - audit/facad_f01_13_source_crosswalk_validate.py
+      - docs/audits/data/FACAD_314_F01_13_SOURCE_CROSSWALK_2026-10-09.csv
+      - docs/audits/data/FACAD_314_D1C_EDITOR_DEFINITIONS_LEDGER_2026-10-09.csv
+      - docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json
+      - docs/audits/schemas/cephalo_vnext_lot06_analysis_pack_registry_v1.json
+      - docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f01-13:
+    name: 65 profile crosswalk and fail-closed negative tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch candidate
+        uses: actions/checkout@v4
+      - name: Confirm branch SHA
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax and 65 profile provenance validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile audit/facad_f01_13_source_crosswalk_validate.py
+          python audit/facad_f01_13_source_crosswalk_validate.py --self-test
+      - name: Verify no clinical source promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq '"SOURCE_LOCKED"|"CLINICALLY_VALIDATED"|"PATIENT_PARITY_PASS"' docs/audits/data/FACAD_314_F01_13_SOURCE_CROSSWALK_2026-10-09.csv; then
+            echo "::error::Scientific certification forbidden by F01.13" >&2
+            exit 1
+          fi
+          echo "F01_13_CLASSIFICATION_ONLY=true"
