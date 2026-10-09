@@ -125,7 +125,7 @@ jobs:
             await page.route('**/*', route => {
               const request = route.request();
               const url = new URL(request.url());
-              if (request.method() !== 'GET' || !/\\/motifs\\/?$/.test(url.pathname)) return route.continue();
+              if (request.method() !== 'GET' || url.pathname.split('/').filter(Boolean).at(-1) !== 'motifs') return route.continue();
               return route.fulfill({
               status: 200,
               contentType: 'application/json',
