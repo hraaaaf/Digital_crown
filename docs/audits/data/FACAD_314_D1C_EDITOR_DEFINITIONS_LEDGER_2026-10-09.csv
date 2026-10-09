@@ -51,7 +51,7 @@ ordinal,analysis_name,editor_definition_state,github_run_id,measurements_extract
 "50","Rakosi","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
 "51","Ricketts","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
 "52","Ricketts (13 F)","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
-"53","Ricketts (32 F)","TARGETED_RUN_QUEUED","37863549712","NOT_TESTED","NOT_TESTED","NOT_TESTED","Fresh runner targeted; no execution result yet"
+"53","Ricketts (32 F)","EDITOR_DEFINITION_LOADED_NOT_SAVED","37863549712","RAW_UIA_38_GRID_ROWS_32_FACTORS_22_LINES_41_MARKERS","NOT_TESTED","NOT_TESTED","Run passed; 6 headings excluded from 38 rows; screenshot/UIA and unchanged Robert hashes"
 "54","Ricketts acc G. Samson","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
 "55","Ricketts Summary","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
 "56","Roth-Jarabak","DISCOVERED_ONLY","","NOT_TESTED","NOT_TESTED","NOT_TESTED","Catalog selection previously verified; editor not yet tested"
