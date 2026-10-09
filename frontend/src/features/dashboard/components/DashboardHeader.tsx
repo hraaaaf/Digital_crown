@@ -75,7 +75,7 @@ export const DashboardHeader = ({
   }, [isAddMenuOpen]);
 
   return (
-    <motion.header variants={dashboardItemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <motion.header variants={dashboardItemVariants} className="relative flex flex-col md:flex-row md:items-end justify-between gap-6">
       <div>
         <h1 className="text-4xl font-black tracking-tight font-outfit text-primary">Bonjour, {displayName}</h1>
         <div className="flex items-center gap-3 mt-3 bg-card-bg/60 backdrop-blur-md px-4 py-2 rounded-elite-sm border border-border-main w-fit">
@@ -86,10 +86,10 @@ export const DashboardHeader = ({
 
       <div className="flex items-center gap-4">
         {canReadPatients && (
-          <div className="relative flex items-center">
+          <div className="static md:relative flex items-center">
             {search.isExpanded ? (
-              <div className="absolute right-0 z-30 animate-in fade-in slide-in-from-right-4">
-                <div className="flex items-center bg-white dark:bg-slate-800 border border-border-main rounded-full px-2 py-1 shadow-elite w-72">
+              <div className="absolute inset-x-0 top-full z-50 mt-2 animate-in fade-in slide-in-from-right-4 md:inset-x-auto md:right-0 md:top-auto md:z-30 md:mt-0">
+                <div className="flex w-full items-center rounded-full border border-border-main bg-white px-2 py-1 shadow-elite dark:bg-slate-800 md:w-72">
                   {search.loading
                     ? <Loader2 size={18} className="text-primary ml-2 animate-spin flex-shrink-0" aria-hidden="true" />
                     : <Search size={18} className="text-text-muted ml-2 flex-shrink-0" aria-hidden="true" />}
@@ -125,7 +125,7 @@ export const DashboardHeader = ({
                   <div
                     id={SEARCH_RESULTS_ID}
                     role="list"
-                    className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-2xl overflow-hidden"
+                    className="absolute inset-x-0 top-full mt-2 overflow-hidden rounded-2xl border border-border-main bg-white shadow-2xl dark:bg-slate-800 md:inset-x-auto md:right-0 md:w-72"
                   >
                     {search.results.map(patient => (
                       <button
@@ -157,7 +157,7 @@ export const DashboardHeader = ({
                   <div
                     id={SEARCH_RESULTS_ID}
                     role="status"
-                    className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-xl px-4 py-3 text-sm text-text-muted font-medium text-center"
+                    className="absolute inset-x-0 top-full mt-2 rounded-2xl border border-border-main bg-white px-4 py-3 text-center text-sm font-medium text-text-muted shadow-xl dark:bg-slate-800 md:inset-x-auto md:right-0 md:w-72"
                   >
                     Aucun patient trouvé
                   </div>
