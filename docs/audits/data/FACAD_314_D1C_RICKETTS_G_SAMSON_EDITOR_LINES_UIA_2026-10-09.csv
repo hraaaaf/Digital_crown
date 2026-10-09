@@ -1,0 +1,27 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Ricketts acc G. Samson,lines,FH,Line,P,Or,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Ricketts acc G. Samson,lines,PtV,Normal,FH,Pt,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Ricketts acc G. Samson,lines,CBL,Line,N,Ba,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Ricketts acc G. Samson,lines,NL,Line,PNS,ANS,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Ricketts acc G. Samson,lines,FOP,Line,Ms-mc,PMs,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Ricketts acc G. Samson,lines,ML,Line,aGo,Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Ricketts acc G. Samson,lines,RL,Line,Ar,pGo,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Ricketts acc G. Samson,lines,Go',Inter2ln,RL,ML,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Ricketts acc G. Samson,lines,ILs,Line,Is,Isa,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Ricketts acc G. Samson,lines,ILi,Line,Iia,Ii,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+11,Ricketts acc G. Samson,lines,Face axis,Line,Gn,Pt,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+12,Ricketts acc G. Samson,lines,FL,Line,Pog,N,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+13,Ricketts acc G. Samson,lines,EL,Line,PGs,PRN,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+14,Ricketts acc G. Samson,lines,Xi,Intersect,R23,R14,R13,R24,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+15,Ricketts acc G. Samson,lines,Corpus axis,Line,PM,Xi,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+16,Ricketts acc G. Samson,lines,CC,Intersect,N,Ba,Pt,Gn,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+17,Ricketts acc G. Samson,lines,CF,Inter2ln,FH,PtV,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+18,Ricketts acc G. Samson,lines,R1-line,Parallel,PtV,R1,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+19,Ricketts acc G. Samson,lines,R2-line,Parallel,PtV,R2,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+20,Ricketts acc G. Samson,lines,R3-line,Parallel,FH,R3,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+21,Ricketts acc G. Samson,lines,R3-normal,Normal,FH,R3,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+22,Ricketts acc G. Samson,lines,R4-line,Parallel,FH,R4,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+23,Ricketts acc G. Samson,lines,R13,Inter2ln,R1-line,R3-line,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+24,Ricketts acc G. Samson,lines,R14,Inter2ln,R1-line,R4-line,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+25,Ricketts acc G. Samson,lines,R23,Inter2ln,R2-line,R3-line,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
+26,Ricketts acc G. Samson,lines,R24,Inter2ln,R2-line,R4-line,,,,,,True,EDITOR_UIA_TRANSCRIPTION_ONLY
