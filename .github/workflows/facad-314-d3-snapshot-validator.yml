@@ -13,6 +13,7 @@ on:
       - scripts/facad_314_d3_windows_snapshot.ps1
       - scripts/facad_314_d3_process_io_observer.ps1
       - .github/workflows/facad-314-d3-snapshot-validator.yml
+      - .github/workflows/facad-314-d3-windows-storage-observation.yml
   workflow_dispatch:
 
 permissions:
@@ -36,6 +37,8 @@ jobs:
           echo "EXACT_HEAD=$GITHUB_SHA"
           grep -Fq '## 6. Phase D3B' docs/audits/FACAD_314_D3_STORAGE_ISOLATION_STATIC_REVIEW_2026-10-09.md
           grep -Fq 'REGISTRY_WRITE_EVENT_ATTRIBUTION' docs/audits/FACAD_314_D3_STORAGE_ISOLATION_STATIC_REVIEW_2026-10-09.md
+          grep -Fq '$evidence.monitored_scope_count -ne 10' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          if grep -Fq '$evidence.monitored_scope_count -ne 9' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
           echo "D3_REGISTRY_VALUES_READ=false"
       - name: Validate syntax
         run: python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/test_facad_314_d3_snapshot_diff_gate.py
