@@ -8,6 +8,7 @@ on:
       - .github/workflows/facad-f01-13-installed-science-metadata-cert.yml
       - audit/facad_f01_13_installed_science_manifest_validate.py
       - docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json
+      - docs/audits/CEPHALO_FACAD_F01_13_INSTALLED_MANUALS_SOURCE_ACQUISITION_2026-10-09.md
   workflow_dispatch:
 
 permissions:
@@ -38,15 +39,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f original-vendor-metadata/installed-manuals-index.json
-          test -f original-vendor-metadata/installed-manual-status.txt
-          if find original-vendor-metadata -type f \( -iname '*.pdf' -o -iname '*.fcd' -o -iname '*.cph' -o -iname '*.exe' \) | grep -q .; then
-            echo "Private documents or clinical files unexpectedly downloaded" >&2
-            exit 1
-          fi
-          grep -q '^NO_PATIENT_READ_OR_EXPORT=true$' original-vendor-metadata/installed-manual-status.txt
-          grep -q '^FACAD_PROCESS_ABSENT_BEFORE_DOCUMENT_INVENTORY=true$' original-vendor-metadata/installed-manual-status.txt
-          grep -q '^INSTALLED_DOC_SCAN_COMPLETED=true$' original-vendor-metadata/installed-manual-status.txt
+          python - <<'PY'
+          from pathlib import Path
+          root = Path("original-vendor-metadata")
+          files = sorted(x for x in root.rglob("*") if x.is_file())
+          print("ARTIFACT_METADATA_FILENAMES=" + ",".join(x.name for x in files))
+          required_files = {"installed-manuals-index.json", "installed-manual-status.txt"}
+          if not required_files.issubset({x.name for x in files}):
+              raise SystemExit("Installed vendor inventory/status artifact missing")
+          if any(x.suffix.lower() in {".pdf", ".fcd", ".cph", ".exe"} for x in files):
+              raise SystemExit("Unexpected proprietary/clinical binary content in metadata artifact")
+          statusfiles = [x for x in files if x.name == "installed-manual-status.txt"]
+          if len(statusfiles) != 1:
+              raise SystemExit("Ambiguous installed document status")
+          # Official Windows PowerShell artifact may be UTF-8 BOM + CRLF.
+          status = {line.strip() for line in statusfiles[0].read_text(encoding="utf-8-sig").splitlines()}
+          needed = {"NO_PATIENT_READ_OR_EXPORT=true",
+                    "FACAD_PROCESS_ABSENT_BEFORE_DOCUMENT_INVENTORY=true",
+                    "INSTALLED_DOC_SCAN_COMPLETED=true"}
+          if not needed.issubset(status):
+              raise SystemExit("Windows installed-document safety flags incomplete: " +
+                               ",".join(sorted(needed - status)))
+          print("INSTALLED_VENDOR_ARTIFACT_SAFETY_FLAGS_PASS=3")
+          PY
       - name: Python offline negatives and 145/75/12 scientific-source proof
         shell: bash
         run: |
