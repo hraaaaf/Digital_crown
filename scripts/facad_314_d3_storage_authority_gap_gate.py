@@ -51,8 +51,8 @@ def inspect(collector: str, observer: str, comparator: str) -> dict:
             and "'facad_work_list': 'filetree'" in comparator
         ),
         "FACAD_ROAMING_ILEXIS_SETTINGS": (
-            "facad_appdata_roaming_ilexis=TreeScope (Join-Path $env:APPDATA 'Ilexis') $false" in collector
-            and "'facad_appdata_roaming_ilexis': 'filetree'" in comparator
+            "facad_ilexis_roaming_settings=TreeScope (Join-Path $env:APPDATA 'Ilexis') $false" in collector
+            and "'facad_ilexis_roaming_settings': 'filetree'" in comparator
         ),
         "FACAD_ADMINISTRATOR_SETTINGS_AT_EXE": (
             "FACAD_ADMIN_SETTINGS_METADATA_OBSERVED=true" in collector
