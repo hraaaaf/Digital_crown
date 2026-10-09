@@ -88,12 +88,46 @@ async function verifyNegativeApis() {
     { email: 't2-restricted@cabinet.ma', role: 'no-patients-permission', allowed: [403] },
     { email: 't2-setup-390@cabinet.ma', role: 'different-tenant', allowed: [403, 404] },
   ]) {
-    const scoped = await request.newContext({ baseURL: backend });
+    // The T2 backend enforces a cabinet-scoped workstation identity BEFORE RBAC.
+    // A 423 without an enrolled workstation is NOT proof that the patient's
+    // permission/tenant scope denied an authenticated request.
+    // Staff use the owner's legitimate workstation; the independent dentist
+    // must enroll their OWN tenant workstation (never reuse the owner's cookie).
+    const sameTenant = actor.role === 'no-patients-permission';
+    const scoped = await request.newContext({
+      baseURL: backend,
+      storageState: sameTenant ? initialStorage : { cookies: [], origins: [] },
+    });
     try {
       const response = await scoped.post('/api/auth/login', { form: { username: actor.email, password } });
       if (!response.ok()) throw new Error(actor.role + ' login failure: ' + response.status());
       const token = (await response.json()).access_token;
       const headers = { Authorization: 'Bearer ' + token };
+      if (!sameTenant) {
+        const independent = await enrollT2Workstation(scoped, token, password);
+        if (independent.cookies.filter(cookie => cookie.name === 'dc_workstation').length !== 1) {
+          throw new Error('Independent tenant did not get its own workstation identity');
+        }
+      }
+      const workstation = await scoped.get('/api/workstation/state', { headers });
+      if (workstation.status() !== 200) {
+        throw new Error(actor.role + ' workstation not authorized: ' + workstation.status());
+      }
+      // Independently prove this actor has reached the backend authorization
+      // layer; do not accept workstation-level refusal as a patient RBAC result.
+      const patientList = await scoped.get('/api/patients/', { headers });
+      if (sameTenant && patientList.status() !== 403) {
+        throw new Error('Staff lacks patients permission, expected 403: ' + patientList.status());
+      }
+      if (!sameTenant) {
+        if (patientList.status() !== 200) {
+          throw new Error('Independent dentist patient list unavailable: ' + patientList.status());
+        }
+        const visiblePatients = await patientList.json();
+        if (visiblePatients.some(row => Number(row.id) === Number(patientId))) {
+          throw new Error('Independent tenant can enumerate the owner patient');
+        }
+      }
       const tests = [
         ['GET', () => scoped.get(photoPath, { headers })],
         ['POST', () => scoped.post(photoPath, { headers, multipart: {
