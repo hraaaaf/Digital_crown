@@ -1,0 +1,48 @@
+name: Facad F01.13 vendor PDF source bytes (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-f01-13-official-vendor-pdf-source-verify.yml
+      - audit/facad_f01_13_official_pdf_source_verify.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  facad-vendor-pdf:
+    name: Vendor PDFs by source URL, SHA256 and page-text confirmation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact research branch HEAD
+        uses: actions/checkout@v4
+      - name: Assert HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PDF reader (only public vendor documents)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pypdf==5.9.0
+      - name: Offline strict verifier self-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile audit/facad_f01_13_official_pdf_source_verify.py
+          python audit/facad_f01_13_official_pdf_source_verify.py --self-test
+      - name: Public original vendor PDF bytes and page passages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python audit/facad_f01_13_official_pdf_source_verify.py
