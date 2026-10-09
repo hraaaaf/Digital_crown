@@ -25,9 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        # Same Docker Official PostgreSQL 18 image, served by ECR Public to avoid
-        # Docker Hub auth.docker.io network timeouts during service startup.
-        image: public.ecr.aws/docker/library/postgres:18
+        # Pin the ECR Public PostgreSQL 18 image to the digest actually pulled
+        # by successful PR run #37995248190; avoid tag drift and Docker Hub auth.
+        image: public.ecr.aws/docker/library/postgres@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
