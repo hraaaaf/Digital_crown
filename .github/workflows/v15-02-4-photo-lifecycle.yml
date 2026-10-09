@@ -24,6 +24,7 @@ on:
       - "frontend/src/features/mobile/Dashboard/views/WaitingRoomView.g3Interactive.test.tsx"
       - "frontend/src/features/mobile/Dashboard/MobileG3BrowserCertHarness.tsx"
       - "frontend/scripts/capture-v15-02-3-photo-ui-after.mjs"
+      - "frontend/scripts/certify-v15-02-photo-fresh-login.mjs"
       - "backend/tests/test_patient_profile_photo_v15.py"
       - ".github/workflows/v15-02-4-photo-lifecycle.yml"
   workflow_dispatch:
@@ -133,6 +134,12 @@ jobs:
           # The earlier photo lifecycle capture has consumed the one-use mobile pairing token.
           # Search geometry needs workstation authentication, not a second mobile pairing.
           T2_MOBILE_PAIRING_TOKEN= node scripts/run-with-t2-workstation.mjs scripts/certify-v15-02-dashboard-search-viewport.mjs
+
+      - name: FUE fresh browser login + patient photo rights and visible mobile badges
+        working-directory: frontend
+        run: |
+          node --check scripts/certify-v15-02-photo-fresh-login.mjs
+          node scripts/certify-v15-02-photo-fresh-login.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
