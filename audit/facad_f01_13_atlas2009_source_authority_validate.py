@@ -49,6 +49,14 @@ def verify(d,compare_row,report,facad):
         raise ValueError("Wrong publisher-unaligned diagram locator")
     if len(d.get("separate_mismatches_unchanged",[]))!=4:
         raise ValueError("Residual discrepancies silently omitted")
+    expected_mismatches={
+        "RICKETTS_33_VS_FACAD_32",
+        "ATLAS_SUMMARY_12_VS_FACAD_13",
+        "SUMMARY_60_DEG_VS_FACAD_PFH_63_DISTANCE",
+        "AGE_AND_NORMS",
+    }
+    if {x.get("id") for x in d["separate_mismatches_unchanged"]}!=expected_mismatches:
+        raise ValueError("Residual scientific conflict labels changed or replaced")
     if any(row.get("status")!="OPEN" for row in d["separate_mismatches_unchanged"]):
         raise ValueError("Residual formula discrepancy improperly closed")
     if any(value is not False for value in d.get("gates",{}).values()):
@@ -70,6 +78,17 @@ def verify(d,compare_row,report,facad):
         "do not silently rewrite",
     )):
         raise ValueError("Source report downgraded safeguards or provenance")
+    phase7_required=(
+        "## 5. Phase 7",
+        "DIMENSIONAL NON-ALIAS",
+        "ATLAS_ORIGINAL_FIG13_28=UNKNOWN",
+        "ATLAS_ORIGINAL_TABLE13_1=UNKNOWN",
+        "ATLAS_ORIGINAL_TABLE13_2=UNKNOWN",
+        "FOUR_DISCREPANCIES=OPEN",
+        "FACAD_NUMERICAL_PARITY_CERTIFIED=false",
+    )
+    if not all(token in report for token in phase7_required):
+        raise ValueError("Phase 7 source-authentication or dimensional guards missing")
     return len(tiers)
 
 def get_row(path):
@@ -91,14 +110,17 @@ def selftest(d,row,report,facad):
         ("CLOSE_33_VS_32",lambda x,r,t,f:x["separate_mismatches_unchanged"][0].update(status="RESOLVED")),
         ("FORGED_CSV_CLASSIFICATION",lambda x,r,t,f:r.update(finding_code="SOURCE_LOCKED")),
         ("PROMOTE_PATIENT_PARITY",lambda x,r,t,f:x["gates"].update(facad_numerical_parity_certified=True)),
+        ("REPLACE_PFH_ANGLE_CONFLICT",lambda x,r,t,f:x["separate_mismatches_unchanged"][2].update(id="SUMMARY_PFH_EQUIVALENT")),
+        ("ERASE_PHASE7_DIMENSIONAL_NON_ALIAS",lambda x,r,t,f:t.replace("DIMENSIONAL NON-ALIAS","EQUIVALENCE CERTIFIED")),
     ]
     for name,mutator in cases:
         dd,rr,tt,ff=map(copy.deepcopy,(d,row,report,facad))
-        mutator(dd,rr,tt,ff)
+        modified=mutator(dd,rr,tt,ff)
+        if isinstance(modified,str):tt=modified
         try: verify(dd,rr,tt,ff)
         except ValueError: print("NEGATIVE_TEST_PASS="+name)
         else: raise AssertionError("False clinical or source promotion accepted: "+name)
-    print("ATLAS_SOURCE_AUTHORITY_SELFTEST_PASS=10")
+    print("ATLAS_SOURCE_AUTHORITY_SELFTEST_PASS=12")
 
 def main():
     ap=argparse.ArgumentParser()
