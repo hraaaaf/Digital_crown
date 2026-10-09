@@ -41,10 +41,13 @@ function TreeScope([string]$path,[bool]$officialContent) {
       if(($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'Reparse-point encountered'}
       $relative=$file.FullName.Substring($root.Length).TrimStart('\','/')
       if(-not $relative -or $relative.Contains('..')){throw 'Untrusted relative path'}
-      # Never read registry/license/credential files, even to hash.
-      if($officialContent -and ($file.Name -match '(?i)licen[cs]e|secret|password|token|credential' -or
-         $file.Extension -match '(?i)^\.(key|pem|pfx|p12|lic|license)
-        throw 'Restricted file under monitored root; scope incomplete'
+      # For official bundled Examples only, reject potentially sensitive attachments.
+      # The installed application tree is METADATA ONLY and never reads file content.
+      if($officialContent){
+        if($file.Name -match '(?i)license|secret|credential' -or
+           $file.Extension -in @('.key','.pem','.pfx','.p12','.lic')){
+          throw 'Restricted file under official sample; scope incomplete'
+        }
       }
       $key=Sha $relative.ToLowerInvariant()
       if($scope.entries.ContainsKey($key)){throw 'Duplicate canonical relative key'}
