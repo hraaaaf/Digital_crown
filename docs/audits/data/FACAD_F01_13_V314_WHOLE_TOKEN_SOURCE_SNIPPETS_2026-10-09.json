@@ -1,0 +1,86 @@
+{
+  "schema": "FACAD_F01_13_CORRECTED_WHOLE_TOKEN_PDF_SNIPPET_LOCK_V1",
+  "origin": {
+    "run_id": 37990457485,
+    "head": "f30393f553044c97b932ac0cd90c25c5b280b634",
+    "artifact_id": 11644409092,
+    "original_docs": "Facad Quick Demo 3.14.1.1111",
+    "mode": "limited short snippets only; no complete proprietary PDFs or patient files"
+  },
+  "targets": [
+    {
+      "name": "Ricketts (32 F).pdf",
+      "sha": "8ddf3979d59777a2b125146d4714fedd4466b38b17a1e77a18273ae8c1ae9987",
+      "pages": 8,
+      "terms": [
+        {
+          "term": "PM'",
+          "page": 3,
+          "context": "PM'"
+        },
+        {
+          "term": "PFH",
+          "page": 4,
+          "context": "PFH The distance between the markers CF an"
+        },
+        {
+          "term": "Cranium ant len",
+          "page": 4,
+          "context": "Cranium ant len The distance between the m"
+        },
+        {
+          "term": "Mand len",
+          "page": 4,
+          "context": "Mand len The"
+        }
+      ]
+    },
+    {
+      "name": "Ricketts (13 F).pdf",
+      "sha": "3f016b7976c87c0930548c6dbada1888357e34e16fc47efeeae2f1a822eedc5f",
+      "pages": 5,
+      "terms": [
+        {
+          "term": "PFH",
+          "page": 3,
+          "context": "PFH The distance between the markers CF an"
+        },
+        {
+          "term": "InterIncisal",
+          "page": 3,
+          "context": "InterIncisal The angle between the line Ii"
+        }
+      ]
+    },
+    {
+      "name": "C01_Lateral Cephalometry Library - Lines and Contructed markers.pdf",
+      "sha": "a977f219b6c9b95543551fe7a6e48587ac597b065e0200ab844e20ed322ba119",
+      "pages": 12,
+      "terms": [
+        {
+          "term": "PtV",
+          "page": 1,
+          "context": "PtV Pterygoid Vertical A line perpendicula"
+        },
+        {
+          "term": "CF",
+          "page": 2,
+          "context": "CF A constructed marker at the intersectio"
+        },
+        {
+          "term": "Xi",
+          "page": 2,
+          "context": "Xi A constructed marker at the intersectio"
+        }
+      ]
+    }
+  ],
+  "boundary": {
+    "xi_word_at_page_1": false,
+    "xi_verified_entry_page_2": true,
+    "manufacturer_cf_xi_full_line_intersections_not_yet_verified": true,
+    "atlas_2009_original_tables_verified": false,
+    "facad_dc_numeric_parity_verified": false,
+    "clinical_edit_allowed": false
+  }
+}
