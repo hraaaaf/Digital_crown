@@ -1,0 +1,34 @@
+name: Facad F01.13 PM prime non-alias synthetic geometry
+
+on:
+  push:
+    branches: [feat/cephalo-facad-direct-parity-runtime-probe]
+    paths:
+      - .github/workflows/facad-f01-13-pmprime-synthetic-geometry.yml
+      - audit/facad_f01_13_pmprime_geometry_contract.py
+      - docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-locked-synthetic-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exact source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+      - name: Fail-closed source-locked geometry counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile audit/facad_f01_13_pmprime_geometry_contract.py
+          python audit/facad_f01_13_pmprime_geometry_contract.py --vendor-source docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
+          echo 'SYNTHETIC_COORDINATES_ONLY=true'
+          echo 'PATIENT_IO=false'
