@@ -4,8 +4,22 @@
 param([Parameter(Mandatory=$true)][int]$FacadProcessId,
       [Parameter(Mandatory=$true)][long]$MainWindowHwnd,
       [Parameter(Mandatory=$true)][string]$OutDir,
-      [Parameter(Mandatory=$true)][ValidateSet('Steiner','Tweed','McNamara')][string]$ProfileName)
+      [Parameter(Mandatory=$true)][string]$ProfileName)
 $ErrorActionPreference='Stop'
+# Fail-closed allowlist: exact names from D1's already certified 65-item Standard catalog.
+# Never substitute an approximate name or accept a profile absent from the reference CSV.
+$catalogPath=Join-Path $PSScriptRoot '..\docs\audits\data\FACAD_314_D1_LATERAL_STANDARD_65.csv'
+if(-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)){
+ throw 'D1C exact-name reference catalog missing'
+}
+$referenceRows=@(Import-Csv -LiteralPath $catalogPath)
+if($referenceRows.Count -ne 65){throw "D1C catalog must contain 65 definitions, found $($referenceRows.Count)"}
+$matched=@($referenceRows | Where-Object {
+ $_.analysis_name -ceq $ProfileName -and $_.catalog_tab -ceq 'Standard' -and
+ $_.facad_modality -ceq 'lateral'
+})
+if($matched.Count -ne 1){throw "D1C profile not uniquely present in canonical Standard catalog"}
+
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Windows.Forms
