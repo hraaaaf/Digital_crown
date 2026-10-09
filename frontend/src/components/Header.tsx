@@ -14,15 +14,66 @@ type ConnectHubItem = { id:string; source:'proactive_alert'|'treasury_hub'|strin
 type ConnectHubPayload = { total:number; requires_attention:number; items:ConnectHubItem[]; delivery_semantics:string; };
 
 export const Header = ({ isCrownBotOpen=false, crownBotUnreadCount=0, onToggleCrownBot }: HeaderProps) => {
-  const [cabinetName,setCabinetName]=useState('Chargement...'); const [praticienName,setPraticienName]=useState('Praticien');
+  const [cabinetName,setCabinetName]=useState('Votre cabinet'); const [praticienName,setPraticienName]=useState('Praticien');
   const [connectHub,setConnectHub]=useState<ConnectHubPayload>({total:0,requires_attention:0,items:[],delivery_semantics:'source_state_only'});
   const [showNotifs,setShowNotifs]=useState(false); const [showLogoutConfirm,setShowLogoutConfirm]=useState(false); const {user}=useAuthStore(); const notifRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{const handleClickOutside=(event:MouseEvent)=>{if(notifRef.current&&!notifRef.current.contains(event.target as Node))setShowNotifs(false)};document.addEventListener('mousedown',handleClickOutside);return()=>document.removeEventListener('mousedown',handleClickOutside)},[]);
   useEffect(()=>{if(!showNotifs)return;const handleEscape=(event:KeyboardEvent)=>{if(event.key==='Escape')setShowNotifs(false)};document.addEventListener('keydown',handleEscape);return()=>document.removeEventListener('keydown',handleEscape)},[showNotifs]);
-  useEffect(()=>{const activeId=localStorage.getItem('active_cabinet_id')||'benmoussa';if(activeId==='benmoussa'){setCabinetName('Centre Dentaire Benmoussa');setPraticienName('Dr. Benmoussa')}
-    const fetchData=async()=>{if(!hasAccess(user,'settings'))return;try{const config=await cabinetApi.getMine();if(!localStorage.getItem('active_cabinet_id')){setCabinetName(config.nom_cabinet||'Mon Cabinet');if(config.header_lines_fr&&config.header_lines_fr.length>0)setPraticienName(config.header_lines_fr[0])}}catch(error){console.error('Erreur header config:',error)}};
-    let intervalId:ReturnType<typeof setInterval>|null=null;const fetchConnectHub=async()=>{try{const res=await api.get('/intelligence/connect-hub');setConnectHub(res.data)}catch(e:any){const status=e?.response?.status;if(status===401||status===402){if(intervalId!==null)clearInterval(intervalId)}}};fetchData();fetchConnectHub();
-    const handleCabinetChange=(e:any)=>{const {cabinet}=e.detail;setCabinetName(cabinet.nom);setPraticienName(cabinet.specialty);fetchConnectHub()};window.addEventListener('cabinet-changed',handleCabinetChange);intervalId=setInterval(fetchConnectHub,60000);return()=>{if(intervalId!==null)clearInterval(intervalId);window.removeEventListener('cabinet-changed',handleCabinetChange)}},[]);
+  useEffect(() => {
+    let active = true;
+    let changedCabinet = false;
+    setCabinetName('Votre cabinet');
+    setPraticienName('Praticien');
+
+    const fetchData = async () => {
+      if (!user) return;
+      try {
+        // Settings are optional for staff: cabinet identity is not.
+        const config = hasAccess(user, 'settings')
+          ? await cabinetApi.getMine()
+          : (await api.get('/admin/cabinet/me')).data;
+        if (!active || changedCabinet) return;
+        setCabinetName(String(config?.nom_cabinet || '').trim() || 'Votre cabinet');
+        if (hasAccess(user, 'settings') && Array.isArray(config?.header_lines_fr)) {
+          setPraticienName(config.header_lines_fr[0] || 'Praticien');
+        }
+      } catch {
+        // Never guess a cabinet identity from a localStorage key.
+        if (active && !changedCabinet) setCabinetName('Votre cabinet');
+      }
+    };
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const fetchConnectHub = async () => {
+      try {
+        const res = await api.get('/intelligence/connect-hub');
+        if (active) setConnectHub(res.data);
+      } catch (error: any) {
+        const status = error?.response?.status;
+        if ((status === 401 || status === 402) && intervalId !== null) clearInterval(intervalId);
+      }
+    };
+    if (user) {
+      void fetchData();
+      void fetchConnectHub();
+      intervalId = setInterval(fetchConnectHub, 60000);
+    }
+    const handleCabinetChange = (event: any) => {
+      if (!active) return;
+      const cabinet = event?.detail?.cabinet;
+      if (!cabinet) return;
+      changedCabinet = true;
+      setCabinetName(cabinet.nom || 'Votre cabinet');
+      setPraticienName(cabinet.specialty || 'Praticien');
+      void fetchConnectHub();
+    };
+    window.addEventListener('cabinet-changed', handleCabinetChange);
+    return () => {
+      active = false;
+      if (intervalId !== null) clearInterval(intervalId);
+      window.removeEventListener('cabinet-changed', handleCabinetChange);
+    };
+  }, [user?.id, user?.employer_id, user?.role]);
   const handleLogout=async()=>{safeStorage.remove('appMode');await authService.logout();}; const attentionCount=connectHub.requires_attention||connectHub.total;
   const formatAttentionMessage=(item:ConnectHubItem)=>{const hasInvalidDate=/\bil y a\s+-\d+\s+jours?\b/i.test(item.message);if(item.patient_id)return `${hasInvalidDate?'Date à vérifier · ':''}Cette alerte nécessite votre attention.`;return hasInvalidDate?`Date à vérifier · ${item.message}`:item.message;};
   return <header className="h-20 bg-transparent flex items-center justify-end gap-2 pl-16 pr-3 sm:pl-20 sm:pr-6 lg:gap-6 lg:px-8 shrink-0 relative z-[1000]">
