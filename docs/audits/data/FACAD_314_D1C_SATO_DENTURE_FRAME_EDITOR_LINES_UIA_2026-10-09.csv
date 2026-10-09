@@ -1,0 +1,11 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Sato Denture Frame,lines,FH,Line,P,Or,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Sato Denture Frame,lines,ML,Line,aGo,Me,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Sato Denture Frame,lines,PP,Line,PNS,ANS,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Sato Denture Frame,lines,OL,Line,OLp,Is,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Sato Denture Frame,lines,AB,Line,A,B,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Sato Denture Frame,lines,OLp,Mid-point,Ms-dc,Ms-mc,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Sato Denture Frame,lines,ILs,Line,Isa,Is,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+8,Sato Denture Frame,lines,ILi,Line,Ii,Iia,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+9,Sato Denture Frame,lines,MLs,Line,Msa,Ms,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+10,Sato Denture Frame,lines,MLi,Line,Mi,Mia,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
