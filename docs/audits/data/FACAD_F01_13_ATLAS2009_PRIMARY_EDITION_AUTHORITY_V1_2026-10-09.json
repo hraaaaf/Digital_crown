@@ -1,0 +1,209 @@
+{
+  "schema": "FACAD_F01_13_ATLAS2009_SOURCE_AUTHORITY_MATRIX_V1",
+  "scope": "bibliographic_authenticity_and_research_geometry_only",
+  "book": {
+    "title": "Atlas de cefalometría y análisis facial",
+    "authors": [
+      "Jesús Fernández Sánchez",
+      "Omar Gabriel Da Silva Filho"
+    ],
+    "year": 2009,
+    "publisher": "Ripano",
+    "place": "Madrid",
+    "isbn13": "9788493675677",
+    "format": "printed_book",
+    "edition": "first",
+    "catalog_pages": 296,
+    "book_identity_state": "CORROBORATED_BY_INSTITUTIONAL_CATALOGS",
+    "chapter13": "Análisis de Ricketts",
+    "chapter13_4": "La simplificación de los 12 factores",
+    "chapter13_count_full_33": "SECONDARY_FACSIMILE_ONLY",
+    "chapter13_count_summary_12": "BOOK_TOC_AND_SECONDARY_FACSIMILE",
+    "publisher_authenticated_chapter_bytes_available": false,
+    "publisher_authenticated_table_13_1_available": false,
+    "publisher_authenticated_table_13_2_available": false
+  },
+  "sources": [
+    {
+      "id": "B1",
+      "tier": "INSTITUTIONAL_CATALOG_BIBLIOGRAPHY_ONLY",
+      "url": "https://search.worldcat.org/title/655853982",
+      "supports": [
+        "book_identity",
+        "authors",
+        "publisher",
+        "year"
+      ],
+      "does_not_support": [
+        "full_tabular_contents",
+        "formula_exactness"
+      ]
+    },
+    {
+      "id": "B2",
+      "tier": "INSTITUTIONAL_CATALOG_BIBLIOGRAPHY_ONLY",
+      "url": "https://biblioteca.uemc.es/cgi-bin/koha/opac-ISBDdetail.pl?biblionumber=165483",
+      "supports": [
+        "isbn13",
+        "year",
+        "publisher",
+        "pages_296",
+        "printed_edition"
+      ],
+      "does_not_support": [
+        "table_13_1_33_factor_authenticity"
+      ]
+    },
+    {
+      "id": "B3",
+      "tier": "INSTITUTIONAL_CATALOG_BIBLIOGRAPHY_ONLY",
+      "url": "https://biblioteca.unap.edu.pe/opac_css/index.php?lvl=notice_display&id=101246",
+      "supports": [
+        "first_edition",
+        "year",
+        "isbn13",
+        "chapter_ricketts"
+      ],
+      "does_not_support": [
+        "full_measurements",
+        "actual_facad_parity"
+      ]
+    },
+    {
+      "id": "B4",
+      "tier": "PUBLISHER_ATTRIBUTED_INDEX_GOOGLE_BOOKS_METADATA_ONLY",
+      "url": "https://books.google.com/books/about/Atlas_de_cefalometr%C3%ADa_y_an%C3%A1lisis_facia.html?id=6_fWYgEACAAJ",
+      "supports": [
+        "authors",
+        "isbn13",
+        "publisher",
+        "year",
+        "pages_296"
+      ],
+      "does_not_support": [
+        "copyrighted_chapter_table_authenticity"
+      ]
+    },
+    {
+      "id": "B5",
+      "tier": "RETAILER_CONTENTS_AND_BIBLIOGRAPHY_NOT_PUBLISHER_SOURCE",
+      "url": "https://libreriamedica.com/odontologia-general/1350-896-atlas-de-cefalometria-y-analisis-facial",
+      "supports": [
+        "chapter13_4_toc_12_factor_simplification",
+        "publication_first_edition"
+      ],
+      "does_not_support": [
+        "table_rows_and_symbols"
+      ]
+    },
+    {
+      "id": "R1",
+      "tier": "THIRD_PARTY_UNLICENSED_STATUS_UNKNOWN_CHAPTER_FACSIMILE_TEXT",
+      "url": "https://es.slideshare.net/slideshow/analisis-dericketts/239250329",
+      "supports": [
+        "secondary_transcription_p235_figure13_28_extended_Xi_Pm_axis_to_A_Pog",
+        "secondary_transcription_p236_12_factor_summary",
+        "secondary_transcription_full_33_list",
+        "secondary_transcription_angular_60deg"
+      ],
+      "does_not_support": [
+        "original_publisher_authority",
+        "norms_population_transfer",
+        "formula_parity"
+      ]
+    },
+    {
+      "id": "R2",
+      "tier": "INDEPENDENT_ACADEMIC_SECONDARY_RETELLING_WITH_SHARED_UPSTREAM_SOURCE",
+      "url": "https://tesiunamdocumentos.dgb.unam.mx/ptd2017/agosto/0762938/0762938.pdf",
+      "university": "UNAM",
+      "year": 2017,
+      "printed_page": 118,
+      "pdf_page_zero_index": 118,
+      "screenshot_result": "WEB_PDF_SCREENSHOT_CACHE_MISS__TEXT_EXTRACTION_ONLY",
+      "supports": [
+        "text_only_secondary_retelling_of_Xi_Pm_axis_extended_to_A_Pog"
+      ],
+      "does_not_support": [
+        "publisher_table_authenticity",
+        "independent_geometric_derivation"
+      ]
+    },
+    {
+      "id": "F1",
+      "tier": "DIRECT_ORIGINAL_MANUFACTURER_REPRODUCIBLE_CPH_DEFINITION",
+      "evidence": "docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json",
+      "source_git_blob": "411d5ba09dd596b2a2fbc3218ddf127c9fce3782",
+      "supports": [
+        "PM_prime_intersection_of_Xi_PM_and_A_Pog",
+        "Mand_len_Dist2p_Xi_PM_prime"
+      ],
+      "does_not_support": [
+        "publisher_equivalence",
+        "anatomical_identity_with_DC_Pm",
+        "same_trace_patient_parity"
+      ]
+    }
+  ],
+  "mandibular_body_length_hypothesis": {
+    "atlas_secondary_text_printed_page": 235,
+    "atlas_figure": "13.28",
+    "paraphrase": "Axis from Xi through anatomical Pm is extended until it meets line A-Pog; resulting segment represents body length.",
+    "facad_operator": "Intersect",
+    "facad_PM_prime_refs": [
+      "Xi",
+      "PM",
+      "A",
+      "Pog"
+    ],
+    "facad_Mand_len_operator": "Dist2p",
+    "facad_Mand_len_refs": [
+      "Xi",
+      "PM'"
+    ],
+    "source_family_alignment": "GEOMETRY_CONSISTENT_WITH_SECONDARY_ATLAS_FACSIMILE__NOT_AUTHORITATIVE_EQUIVALENCE",
+    "facad_PM_prime_equals_anatomical_PM_in_general": false,
+    "digital_crown_nearest": "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+    "digital_crown_direct_alias_allowed": false,
+    "requires": [
+      "publisher_authenticated_figure_13_28_and_text",
+      "same_landmark_source_and_point_identity",
+      "versioned_direction_sign_or_linear_extension_contract",
+      "identical_age_reference_and_norm_mapping",
+      "same_trace_numerical_comparison_only_after_D3_verified"
+    ]
+  },
+  "separate_mismatches_unchanged": [
+    {
+      "id": "RICKETTS_33_VS_FACAD_32",
+      "status": "OPEN",
+      "reason": "full Atlas 33 as indexed, vendor editor 32; candidate angular total facial height not observed as separate vendor row"
+    },
+    {
+      "id": "ATLAS_SUMMARY_12_VS_FACAD_13",
+      "status": "OPEN",
+      "reason": "publisher contents confirms 12-factor section; vendor has 13 including InterIncisal"
+    },
+    {
+      "id": "SUMMARY_60_DEG_VS_FACAD_PFH_63_DISTANCE",
+      "status": "OPEN",
+      "reason": "indexed Atlas 60 degrees angular slot, vendor PFH linear CF-Go; publisher table and ambiguous heading unverified"
+    },
+    {
+      "id": "AGE_AND_NORMS",
+      "status": "OPEN",
+      "reason": "indexed Atlas has age-varying reference values, vendor literals may reflect different ages/populations; no assumed interchangeability"
+    }
+  ],
+  "gates": {
+    "publisher_original_chapter_authenticated": false,
+    "atlas_table13_1_approved": false,
+    "atlas_table13_2_approved": false,
+    "facad_to_atlas_formula_certified": false,
+    "facad_to_dc_clinical_alias_allowed": false,
+    "shared_app_storage_isolation_verified": false,
+    "facad_numerical_parity_certified": false,
+    "f01_13_global_closed": false
+  },
+  "copyright_scope": "source URLs, interpretations, bibliographic fields and short paraphrases only; no original copyrighted book PDF or page image redistributed"
+}
