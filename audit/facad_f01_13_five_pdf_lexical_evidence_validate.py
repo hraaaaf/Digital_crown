@@ -93,6 +93,7 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--evidence",type=Path)
     ap.add_argument("--manifest",type=Path,required=True)
+    ap.add_argument("--expected-matrix",type=Path)
     ap.add_argument("--self-test",action="store_true")
     args=ap.parse_args()
     m=json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -103,6 +104,24 @@ def main():
         raise ValueError("--evidence required")
     e=json.loads(args.evidence.read_text(encoding="utf-8-sig"))
     rows=verify(e,m)
+    if args.expected_matrix is None:
+        raise ValueError("Pinned source text page evidence not supplied")
+    expected=json.loads(args.expected_matrix.read_text(encoding="utf-8"))
+    if expected.get("schema")!="FACAD_F01_13_V314_FIVE_PDF_TERM_PAGE_MATRIX_V1":
+        raise ValueError("Unrecognized locked source matrix")
+    byname={row["source"]:row for row in rows}
+    pinned=expected.get("sources",[])
+    if len(pinned)!=5 or set(x["name"] for x in pinned)!=set(byname):
+        raise ValueError("Missing exact source reference")
+    for item in pinned:
+        original=byname[item["name"]]
+        if item["sha256"]!=original["sha256"] or item["pages"]!=original["pages"]:
+            raise ValueError("Locked science PDF identity or page changed")
+        if item["hits"]!=original["keyword_pages"]:
+            raise ValueError("Locked source term/page matrix drift")
+    if expected["boundary"]["numeric_parity_tested"] is not False:
+        raise ValueError("Clinical parity cannot be promoted from token matches")
+    print("FIVE_SCIENTIFIC_PDF_TERM_PAGE_MATRIX_LOCK_PASS=5")
     for row in rows:
         print("SOURCE_PDF_SHA_VERIFIED="+row["source"]+"|"+row["sha256"])
         for page,terms in sorted(row["keyword_pages"].items(),key=lambda x:int(x[0])):
