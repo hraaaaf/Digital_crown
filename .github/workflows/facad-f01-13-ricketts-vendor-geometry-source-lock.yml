@@ -11,6 +11,7 @@ on:
       - docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
       - docs/audits/data/FACAD_314_D1C_RICKETTS13F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
       - docs/audits/data/FACAD_314_D1C_RICKETTS32F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv
+      - docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
   workflow_dispatch:
 
 permissions:
@@ -44,3 +45,5 @@ jobs:
           python audit/facad_f01_13_ricketts_vendor_construction_chain_validate.py "${ARGS[@]}"
           echo "CLINICAL_EDIT_ALLOWED=false"
           echo "SHARED_APP_STORAGE_ISOLATION=UNVERIFIED"
+          grep -Fq 'Corrected manufacturer C01 glossary' docs/audits/CEPHALO_FACAD_F01_13_RICKETTS_GEOMETRY_DISCREPANCY_TRIAGE_2026-10-09.md
+          echo "SOURCE_REPORT_IN_SYNC_WITH_VENDOR_GEOMETRY=true"
