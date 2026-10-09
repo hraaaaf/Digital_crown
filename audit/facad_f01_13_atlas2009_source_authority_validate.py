@@ -53,9 +53,9 @@ def verify(d,compare_row,report,facad):
         raise ValueError("Residual formula discrepancy improperly closed")
     if any(value is not False for value in d.get("gates",{}).values()):
         raise ValueError("Publication/parity/clinical gate falsely promoted")
-    if "secondary chapter facsimile" not in compare_row["notes"].lower() and "Secondary chapter facsimile" not in compare_row["notes"]:
+    if "secondary chapter facsimile" not in compare_row["research_provenance_note"].lower():
         raise ValueError("Atlas vs Facad corpus-length comparison not updated")
-    if compare_row["research_classification"]!="LANDMARK_ENDPOINT_REVIEW":
+    if compare_row["finding_code"]!="LANDMARK_ENDPOINT_REVIEW":
         raise ValueError("Unverified Atlas->vendor mapping incorrectly classified")
     if "NOT_AUTHORITATIVE_EQUIVALENCE" not in mand["source_family_alignment"]:
         raise ValueError("Source candidate represented as confirmed")
@@ -75,7 +75,7 @@ def verify(d,compare_row,report,facad):
 def get_row(path):
     with path.open("r",encoding="utf-8",newline="") as f:
         r=list(csv.DictReader(f))
-    matches=[x for x in r if x.get("source_profile")=="ATLAS_2009_COMPLETE_33" and x.get("atlas_factor_ordinal")=="33"]
+    matches=[x for x in r if x.get("reference_version")=="ATLAS_2009_COMPLETE_33" and x.get("reference_factor_ordinal")=="33"]
     if len(matches)!=1:raise ValueError("Unable to identify Atlas full factor 33 row")
     return matches[0]
 
@@ -89,7 +89,7 @@ def selftest(d,row,report,facad):
         ("FORGED_DC_PM_ALIAS",lambda x,r,t,f:x["mandibular_body_length_hypothesis"].update(digital_crown_direct_alias_allowed=True)),
         ("SHRUNK_FACAD_INTERSECTION",lambda x,r,t,f:x["mandibular_body_length_hypothesis"].update(facad_PM_prime_refs=["Xi","PM"])),
         ("CLOSE_33_VS_32",lambda x,r,t,f:x["separate_mismatches_unchanged"][0].update(status="RESOLVED")),
-        ("FORGED_CSV_CLASSIFICATION",lambda x,r,t,f:r.update(research_classification="SOURCE_LOCKED")),
+        ("FORGED_CSV_CLASSIFICATION",lambda x,r,t,f:r.update(finding_code="SOURCE_LOCKED")),
         ("PROMOTE_PATIENT_PARITY",lambda x,r,t,f:x["gates"].update(facad_numerical_parity_certified=True)),
     ]
     for name,mutator in cases:
