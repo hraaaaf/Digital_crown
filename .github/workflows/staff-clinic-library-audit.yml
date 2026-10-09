@@ -64,12 +64,17 @@ jobs:
           pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           pip install -r /tmp/requirements-staff-audit.txt
           python -m pip check
+      - name: Verify tenant-scoped cabinet GET/PUT authentication contract
+        run: python -m pytest backend/tests/test_admin_router.py -k "test_get_cabinet_requires_auth or test_get_cabinet_returns_200 or test_update_cabinet_requires_auth" -q
       - name: Install existing frontend and real Chromium
         working-directory: frontend
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
+      - name: Verify staff sidebar and header identity unit contracts
+        working-directory: frontend
+        run: npm test -- --run src/components/Sidebar.g1Interactive.test.tsx src/components/Header.g1Interactive.test.tsx
       - name: Start synthetic backend
         shell: bash
         run: |
