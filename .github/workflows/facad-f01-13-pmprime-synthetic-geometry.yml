@@ -7,6 +7,7 @@ on:
       - .github/workflows/facad-f01-13-pmprime-synthetic-geometry.yml
       - audit/facad_f01_13_pmprime_geometry_contract.py
       - docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
+      - docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile audit/facad_f01_13_pmprime_geometry_contract.py
-          python audit/facad_f01_13_pmprime_geometry_contract.py --vendor-source docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
+          python audit/facad_f01_13_pmprime_geometry_contract.py --vendor-source docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json --vendor-ptv-source docs/audits/schemas/ortho_lot08_ricketts32_facad_ptv_cranial_cluster_resolution_v1.json --self-test
           echo 'SYNTHETIC_COORDINATES_ONLY=true'
           echo 'PATIENT_IO=false'
+          echo 'CLINICAL_EDIT_ALLOWED=false'
+          echo 'PROPRIETARY_FACAD_EXECUTION=false'
