@@ -106,6 +106,7 @@ jobs:
           import fs from 'node:fs';
           import path from 'node:path';
           import { chromium, request } from 'playwright';
+          import { enrollT2Workstation } from './scripts/t2-workstation-session.mjs';
 
           const out = path.resolve('../artifacts/patient-indicators-after');
           const viewports = [
@@ -124,6 +125,9 @@ jobs:
           const login = await api.post('/api/auth/login',{form:{username:user,password}});
           if (!login.ok()) fail(`login ${login.status()}: ${await login.text()}`);
           const tok = await login.json();
+          // This disposable workstation is genuinely enrolled with the backend.
+          // Its server-issued HTTP-only identity must survive fresh Chromium contexts.
+          const workstationStorage = await enrollT2Workstation(api, tok.access_token, password);
           const headers = {Authorization:`Bearer ${tok.access_token}`};
           const ps = await api.get('/api/patients',{headers});
           if (!ps.ok()) fail(`patients ${ps.status()}: ${await ps.text()}`);
@@ -161,14 +165,19 @@ jobs:
           const evidence = [];
 
           for (const viewport of viewports) {
-            const ctx = await browser.newContext({viewport,colorScheme:'light'});
+            const ctx = await browser.newContext({viewport,colorScheme:'light',storageState:workstationStorage});
             const page = await ctx.newPage();
+            // Use an independent login per fresh browser context; retaining the
+            // previous refresh session is not a cross-viewport requirement.
+            const freshLogin=await api.post('/api/auth/login',{form:{username:user,password}});
+            if(!freshLogin.ok()) fail(`fresh viewport login ${viewport.width}: ${freshLogin.status()}`);
+            const freshToken=await freshLogin.json();
             await page.addInitScript(({a,r})=>{
               localStorage.setItem('token',a);
               localStorage.setItem('refresh_token',r||'');
               localStorage.setItem('appMode','prod');
               localStorage.setItem('patient_list_view_mode','table');
-            },{a:tok.access_token,r:tok.refresh_token});
+            },{a:freshToken.access_token,r:freshToken.refresh_token});
 
             const errors=[]; const http5xx=[];
             page.on('pageerror',e=>errors.push(String(e)));
@@ -176,7 +185,17 @@ jobs:
 
             await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
             const rows=page.locator('tbody tr[role="button"]');
-            await rows.first().waitFor({state:'visible',timeout:30000});
+            try {
+              await rows.first().waitFor({state:'visible',timeout:30000});
+            } catch(error) {
+              console.error('PATIENT_INDICATORS_ROUTE_DIAGNOSTIC',JSON.stringify({
+                viewport:viewport.width,url:page.url(),
+                body:(await page.locator('body').innerText().catch(()=>'')).slice(0,320),
+                pageErrors:errors,http5xx,
+              }));
+              await page.screenshot({path:path.join(out,`failed-list-${viewport.width}x${viewport.height}.png`),fullPage:false}).catch(()=>{});
+              throw error;
+            }
             await page.waitForTimeout(1500);
             const dossier=String(patient.numero_dossier||'');
             let row=rows.first();

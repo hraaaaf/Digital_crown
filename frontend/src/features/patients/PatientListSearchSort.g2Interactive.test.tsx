@@ -73,6 +73,31 @@ describe('PatientList G2 search, sort and keyboard matrix', () => {
     expect(rows[1].textContent).toContain('ALAMI Nour');
   });
 
+  it('keeps a single semantic patient row while stacking cells for narrow viewports', () => {
+    renderList();
+
+    const table = screen.getByRole('table');
+    const head = table.querySelector('thead');
+    const body = table.querySelector('tbody');
+    const row = screen.getByText('ALAMI Nour').closest('tr')!;
+    const identity = screen.getByText('ALAMI Nour');
+
+    expect(table.classList.contains('block')).toBe(true);
+    expect(table.classList.contains('md:table')).toBe(true);
+    expect(head?.classList.contains('md:table-header-group')).toBe(true);
+    expect(head?.classList.contains('sr-only')).toBe(true);
+    expect(head?.classList.contains('md:not-sr-only')).toBe(true);
+    expect(row.textContent).toContain('Contact');
+    expect(row.textContent).toContain('Assurance');
+    expect(body?.classList.contains('md:table-row-group')).toBe(true);
+    expect(row.classList.contains('block')).toBe(true);
+    expect(row.classList.contains('md:table-row')).toBe(true);
+    expect(row.querySelectorAll('td')).toHaveLength(4);
+    expect(row.querySelector('td')?.classList.contains('md:table-cell')).toBe(true);
+    expect(identity.classList.contains('break-words')).toBe(true);
+    expect(screen.getAllByText('ALAMI Nour')).toHaveLength(1);
+  });
+
   it('opens a patient dossier from the keyboard-accessible row', async () => {
     renderList();
     const row = screen.getByText('ALAMI Nour').closest('tr')!;

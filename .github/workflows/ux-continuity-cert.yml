@@ -80,6 +80,7 @@ jobs:
           import fs from 'node:fs';
           import path from 'node:path';
           import { chromium, request } from 'playwright';
+          import { enrollT2Workstation } from './scripts/t2-workstation-session.mjs';
           const user=process.env.T2_USER;
           const pass=process.env.T2_PASSWORD;
           if(!user||!pass) throw new Error('isolated credentials unavailable');
@@ -88,15 +89,37 @@ jobs:
           const login=await api.post('/api/auth/login',{form:{username:user,password:pass}});
           if(!login.ok()) throw new Error(`login ${login.status()}`);
           const tok=await login.json();
+          // Perform the actual server-authorized enrollment once for this disposable
+          // browser workstation, then retain its HTTP-only identity across viewports.
+          // New JWT logins alone do not confer workstation enrollment.
+          const workstationStorage=await enrollT2Workstation(api,tok.access_token,pass);
           const browser=await chromium.launch({headless:true});
           const evidence={head_sha:process.env.GITHUB_SHA||null,patientDelete:[],setupWizard:[]};
-          const init=async(page)=>page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');localStorage.setItem('patient_list_view_mode','grid');},{a:tok.access_token,r:tok.refresh_token});
+          // Each fresh browser context must receive its own isolated auth session.
+          // Reusing the initial login across independently created contexts made
+          // later iterations land off the authenticated Patients route.
+          const init=async(page)=>{
+            const fresh=await api.post('/api/auth/login',{form:{username:user,password:pass}});
+            if(!fresh.ok()) throw new Error(`fresh isolated login ${fresh.status()}`);
+            const session=await fresh.json();
+            await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');localStorage.setItem('patient_list_view_mode','grid');},{a:session.access_token,r:session.refresh_token});
+          };
           for(const viewport of [{width:390,height:844,label:'390x844'},{width:430,height:932,label:'430x932'},{width:768,height:1024,label:'768x1024'},{width:1366,height:700,label:'1366x700'},{width:1440,height:900,label:'1440x900'}]){
             for(const position of ['top','middle','bottom']){
-              const ctx=await browser.newContext({viewport,colorScheme:'light'});const page=await ctx.newPage();await init(page);
+              const ctx=await browser.newContext({viewport,colorScheme:'light',storageState:workstationStorage});const page=await ctx.newPage();await init(page);
               const errors=[];page.on('pageerror',e=>errors.push(String(e)));
               await page.goto('http://127.0.0.1:5173/patients',{waitUntil:'networkidle',timeout:90000});
-              await page.getByRole('heading',{name:'Dossiers Patients',exact:true}).waitFor({state:'visible'});
+              try {
+                await page.getByRole('heading',{name:'Dossiers Patients',exact:true}).waitFor({state:'visible',timeout:30000});
+              } catch(error) {
+                console.error('UX_AFTER_PATIENTS_ROUTE_DIAGNOSTIC',JSON.stringify({
+                  viewport:viewport.label,position,url:page.url(),
+                  body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,320),
+                  pageErrors:errors,
+                }));
+                await page.screenshot({path:path.join(out,`failed-patients-${viewport.label}-${position}.png`),fullPage:false}).catch(()=>{});
+                throw error;
+              }
               const buttons=page.locator('button[aria-label^="Supprimer"]');const count=await buttons.count();
               const target=position==='top'?buttons.first():position==='bottom'?buttons.last():buttons.nth(Math.floor(count/2));
               await target.scrollIntoViewIfNeeded();const scrollBefore=await page.evaluate(()=>window.scrollY);await target.click();
@@ -111,7 +134,7 @@ jobs:
             }
           }
           for(const viewport of [{width:390,height:844,label:'390x844'},{width:1366,height:700,label:'1366x700'}]){
-            const ctx=await browser.newContext({viewport,colorScheme:'light'});const page=await ctx.newPage();await init(page);
+            const ctx=await browser.newContext({viewport,colorScheme:'light',storageState:workstationStorage});const page=await ctx.newPage();await init(page);
             await page.route('**/api/clinics/init-status',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({is_initialized:false})}));
             await page.goto('http://127.0.0.1:5173/setup',{waitUntil:'networkidle',timeout:90000});
             await page.getByRole('heading',{name:'Profil Cabinet',exact:true}).waitFor({state:'visible'});
