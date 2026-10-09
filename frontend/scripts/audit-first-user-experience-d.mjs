@@ -440,6 +440,17 @@ try {
     let uiCreatePostCount = 0;
     ux.on('request', req => { if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/patients/') uiCreatePostCount++; });
     const preflightPattern = '**/api/patients/check-duplicate';
+    // A malformed HTTP 200 from anti-duplicate preflight must fail closed.
+    await ux.route(preflightPattern, async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    });
+    const malformedPreflight = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/check-duplicate' && res.status() === 200, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await malformedPreflight;
+    await ux.getByRole('alert').getByText('Réponse anti-doublon invalide.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    if (uiCreatePostCount !== 0 || !ux.url().endsWith('/patients/new')) throw new Error('Malformed 200 preflight failed open to patient creation');
+    await ux.screenshot({ path: path.join(uxDir, '01z-malformed-preflight-refused.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(preflightPattern);
     await ux.route(preflightPattern, async route => {
       await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Synthetic preflight outage"}' });
     });
@@ -470,6 +481,27 @@ try {
     if (uiCreatePostCount !== 1 || !ux.url().endsWith('/patients/new')) throw new Error('Create 503 must not claim success or navigate');
     await ux.locator('form [role="alert"]').scrollIntoViewIfNeeded();
     await ux.screenshot({ path: path.join(uxDir, '03-create-503-refused.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(createPattern);
+
+    // A concurrency 409 may provide an ID only. Show a truthful usable dialog.
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 409, contentType: 'application/json', body: '{"detail":{"existing_patient":{"id":123456789}}}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const createPartial409 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 409, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await createPartial409;
+    const partial409Dialog = ux.getByRole('dialog', { name: 'Patient similaire trouvé' });
+    await partial409Dialog.waitFor({ state: 'visible', timeout: 10000 });
+    if (!(await partial409Dialog.getByText('#123456789').isVisible())) throw new Error('Partial 409 lost the existing patient ID');
+    const partialDialogText = await partial409Dialog.innerText();
+    if (partialDialogText.includes('undefined') || partialDialogText.includes('Invalid Date')) throw new Error('Partial 409 displayed fabricated identity details');
+    await ux.screenshot({ path: path.join(uxDir, '03a-partial-409-truthful-dialog.png'), fullPage: false, animations: 'disabled' });
+    await partial409Dialog.getByRole('button', { name: 'Modifier les informations' }).click();
+    await partial409Dialog.waitFor({ state: 'hidden', timeout: 10000 });
     await ux.unroute(createPattern);
 
     // Explicit dossier-number collision: a known 409 needs a precise field
