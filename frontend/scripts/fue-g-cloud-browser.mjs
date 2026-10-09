@@ -92,7 +92,8 @@ try {
       }
       await page.goto(base + '/agenda', { waitUntil: 'domcontentloaded', timeout: 90000 });
       await page.waitForURL('**/agenda', { timeout: 20000 });
-      await page.locator('body').waitFor({ state: 'visible', timeout: 10000 });
+      await page.getByRole('heading', { name: 'Agenda', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+      await page.locator('[data-testid="agenda-active-view"]').waitFor({ state: 'visible', timeout: 30000 });
       await page.screenshot({ path: path.join(evidence, role + '-after-agenda.png'), fullPage: false });
       results.push({
         role, persona: roles[role], status: 'PASS', workstationHash: pair.workstationHash,
