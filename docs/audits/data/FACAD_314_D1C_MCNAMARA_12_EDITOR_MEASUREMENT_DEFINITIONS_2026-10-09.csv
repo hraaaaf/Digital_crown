@@ -1,0 +1,13 @@
+ordinal,source_editor_analysis,measure_name,vendor_type_literal,arg_1_literal,arg_2_literal,arg_3_literal,arg_4_literal,vendor_norm_literal,units,clinical_status,run_id
+"1","McNamara","Nasolabial","Angle3p","SN","MS","Ls","","102±8","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"2","McNamara","Ls Cant","Angle2ln","Ls-N","NP","","","14±8","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"3","McNamara","A-NP","ProjLine","FH","N","A","","0-1","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"4","McNamara","Co-Gn","Dist2p","Co","Gn","","","","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"5","McNamara","Co-A","Dist2p","Co","A","","","","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"6","McNamara","Max-Mand diff","Sub","Co-Gn","Co-A","","","20-33","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"7","McNamara","LAFH","Dist2p","ANS","Me","","","60-73","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"8","McNamara","ML/FH","Angle2ln","FH","ML","","","22±4","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"9","McNamara","Facial axis","Angle4p","Pt","Gn","N","Ba","90±3.5","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"10","McNamara","Pog-NP","ProjLine","FH","N","Pog","","-8-2","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"11","McNamara","Is-A","ProjLine","FH","A","Is","","4-6","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
+"12","McNamara","Ii to A-Pog","Dist3p","Pog","A","Ii","","1-3","NOT_SHOWN_IN_CAPTURE","DEFINITION_ONLY_UNVERIFIED","37862652488"
