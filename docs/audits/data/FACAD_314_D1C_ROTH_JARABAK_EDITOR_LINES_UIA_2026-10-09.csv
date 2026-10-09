@@ -1,0 +1,8 @@
+row_ordinal,analysis,tab,Ceph name,Type,Arg 1,Arg 2,Arg 3,Arg 4,Norm,Draw,Interpretation,uia_offscreen,evidence_level
+1,Roth-Jarabak,lines,OL,Line,OLp,OLa,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+2,Roth-Jarabak,lines,OLa,Mid-point,Is,Ii,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+3,Roth-Jarabak,lines,ML,Line,aGo,Me,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+4,Roth-Jarabak,lines,EL,Line,PGs,PRN,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+5,Roth-Jarabak,lines,RL,Line,Ar,pGo,,,,,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+6,Roth-Jarabak,lines,Go,Inter2ln,RL,ML,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
+7,Roth-Jarabak,lines,NSL,Line,S,N,,,,Lines,,False,EDITOR_UIA_TRANSCRIPTION_ONLY
