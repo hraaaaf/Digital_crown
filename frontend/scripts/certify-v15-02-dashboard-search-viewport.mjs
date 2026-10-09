@@ -51,15 +51,21 @@ try {
           return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
         };
         const boxes = { input: rect(input), results: rect(results), avatar: rect(avatar) };
+        const title = document.querySelector('h1');
+        if (!title) return { pass: false, error: 'missing dashboard greeting' };
+        const heading = rect(title);
+        const intersects = (a, b) => a.left < b.right - 2 && a.right > b.left + 2
+          && a.top < b.bottom - 2 && a.bottom > b.top + 2;
+        const titleOverlap = intersects(boxes.input, heading) || intersects(boxes.results, heading);
         const visible = r => r.width >= 20 && r.height >= 20 && r.left >= -1 && r.top >= -1
           && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1;
         const a = boxes.avatar;
         const hit = document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2);
         const unoccluded = hit === avatar || avatar.contains(hit);
         return {
-          pass: Object.values(boxes).every(visible) && unoccluded,
+          pass: Object.values(boxes).every(visible) && unoccluded && !titleOverlap,
           viewport: { width: innerWidth, height: innerHeight },
-          boxes, unoccluded,
+          boxes, unoccluded, heading, titleOverlap,
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 2,
         };
       }, String(patient.id));
@@ -71,7 +77,47 @@ try {
         path: path.join(root, 'dashboard-search-' + viewport.width + 'x' + viewport.height + '.png'),
         fullPage: false,
       });
-      evidence.push({ viewport, geometry, pageErrors });
+      // The same real patient must expose fully readable badges in the table
+      // view, including the narrow 390px layout (not just page-level scrollWidth).
+      await page.evaluate(() => localStorage.setItem('patient_list_view_mode', 'table'));
+      await page.goto('http://127.0.0.1:5173/patients', { waitUntil: 'networkidle', timeout: 90000 });
+      const scoreBadges = page.locator('[data-testid="patient-list-score-badges"][data-patient-id="' + patient.id + '"]');
+      await scoreBadges.waitFor({ state: 'visible', timeout: 30000 });
+      await scoreBadges.getByRole('button', { name: 'Tag cabinet manuel' })
+        .waitFor({ state: 'visible', timeout: 30000 });
+      await scoreBadges.scrollIntoViewIfNeeded();
+
+      const badgeGeometry = await scoreBadges.evaluate(element => {
+        const row = element.closest('tr');
+        const badgeRoot = element.querySelector(':scope > div');
+        const labels = Array.from(badgeRoot?.children || [])
+          .filter(item => item.matches('span, button'));
+        if (!row || labels.length < 3) return { pass: false, error: 'missing patient badge labels' };
+        const rect = element => {
+          const r = element.getBoundingClientRect();
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+        };
+        const rowBox = rect(row);
+        const boxes = labels.map(rect);
+        const container = rect(element);
+        const fitHorizontal = b => b.width >= 30 && b.left >= Math.max(0, rowBox.left) - 1
+          && b.right <= Math.min(window.innerWidth, rowBox.right) + 1;
+        const notClipped = labels.every((label, index) => fitHorizontal(boxes[index])
+          && label.scrollWidth <= label.clientWidth + 1);
+        return {
+          pass: notClipped && container.right <= Math.min(window.innerWidth, rowBox.right) + 1,
+          row: rowBox, container, labels: boxes, badgeCount: labels.length, notClipped,
+          horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 2,
+        };
+      });
+      if (!badgeGeometry.pass || badgeGeometry.horizontalOverflow || pageErrors.length) {
+        throw new Error('Patient badges must not be clipped: ' + JSON.stringify({ badgeGeometry, pageErrors }));
+      }
+      await page.screenshot({
+        path: path.join(root, 'patient-list-badges-' + viewport.width + 'x' + viewport.height + '.png'),
+        fullPage: false,
+      });
+      evidence.push({ viewport, geometry, badgeGeometry, pageErrors });
     } finally {
       await context.close();
     }
