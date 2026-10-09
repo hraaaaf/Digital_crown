@@ -13,6 +13,29 @@ permissions:
 
 jobs:
   quick-demo:
+    # Trial-week evidence harvest. One independent Windows runner / one editor preset.
+    # No patient Load, editor Save, license bypass, or mutable state reused between profiles.
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - profile: 'Bergen short'
+            slug: BergenShort
+          - profile: 'Bergen'
+            slug: Bergen
+          - profile: 'Arnett STCA (female)'
+            slug: ArnettSTCAFemale
+          - profile: 'Arnett STCA (male)'
+            slug: ArnettSTCAMale
+          - profile: 'Bjork'
+            slug: Bjork
+          - profile: 'Wits appraisal'
+            slug: WitsAppraisal
+          - profile: 'Airway (McNamara)'
+            slug: AirwayMcNamara
+          - profile: 'ABO'
+            slug: ABO
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -76,7 +99,7 @@ jobs:
 
           # The official installer exposes its options as ControlType.Pane, not Button.
           # This was observed on run 37753115873, artifact 11539320376.
-          $deadline=(Get-Date).AddSeconds(50)
+          $deadline=(Get-Date).AddSeconds(120)
           $button=$null
           $startWindow=$null
           while((Get-Date) -lt $deadline -and $null -eq $button){
@@ -995,7 +1018,7 @@ jobs:
             if(-not (Test-Path $d1c)){throw "D1C pilot missing: $d1c"}
             & $d1c -FacadProcessId ([int]$facadPid) `
               -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
-              -OutDir 'facad-quick-demo' -ProfileName 'Trygde-analysen'
+              -OutDir 'facad-quick-demo' -ProfileName '${{ matrix.profile }}'
           }catch{
             $explorationFailure=$_.Exception.Message
             "D1C_EDITOR_FAILURE=$explorationFailure" |
@@ -1034,7 +1057,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: facad-314-d1c-TrygdeAnalysen-${{ github.sha }}
+          name: facad-314-d1c-${{ matrix.slug }}-${{ github.sha }}
           path: |
             facad-quick-demo/quick-demo-process.txt
             facad-quick-demo/ui-before-click.txt
