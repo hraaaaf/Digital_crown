@@ -1,0 +1,40 @@
+name: Facad F01.13 Atlas 2009 bibliographic versus facsimile source authority
+
+on:
+  push:
+    branches: [feat/cephalo-facad-direct-parity-runtime-probe]
+    paths:
+      - .github/workflows/facad-f01-13-atlas2009-authority-source-lock.yml
+      - audit/facad_f01_13_atlas2009_source_authority_validate.py
+      - docs/audits/data/FACAD_F01_13_ATLAS2009_PRIMARY_EDITION_AUTHORITY_V1_2026-10-09.json
+      - docs/audits/CEPHALO_FACAD_F01_13_ATLAS2009_EDITION_AND_MANDIBULAR_LENGTH_AUTHORITY_2026-10-09.md
+      - docs/audits/data/FACAD_314_F01_13_RICKETTS_ATLAS_FACAD_COMPOSITION_DIFF_2026-10-09.csv
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exact candidate and source-authority negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+          python -m py_compile audit/facad_f01_13_atlas2009_source_authority_validate.py
+          ARGS=(
+            --authority docs/audits/data/FACAD_F01_13_ATLAS2009_PRIMARY_EDITION_AUTHORITY_V1_2026-10-09.json
+            --crosswalk docs/audits/data/FACAD_314_F01_13_RICKETTS_ATLAS_FACAD_COMPOSITION_DIFF_2026-10-09.csv
+            --vendor docs/audits/schemas/ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json
+            --report docs/audits/CEPHALO_FACAD_F01_13_ATLAS2009_EDITION_AND_MANDIBULAR_LENGTH_AUTHORITY_2026-10-09.md
+          )
+          python audit/facad_f01_13_atlas2009_source_authority_validate.py "${ARGS[@]}" --self-test
+          python audit/facad_f01_13_atlas2009_source_authority_validate.py "${ARGS[@]}"
+          echo "NO_PATIENT_IO=true"
+          echo "NO_PUBLISHER_BOOK_PAGES_REHOSTED=true"
+          echo "CLINICAL_EDIT_ALLOWED=false"
