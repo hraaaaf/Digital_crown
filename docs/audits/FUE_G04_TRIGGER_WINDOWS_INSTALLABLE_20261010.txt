@@ -18,3 +18,10 @@ Reason: Windows verifier could not import SQLAlchemy because pinned dependencies
 Fix commit: 9747878cb791eafba6d5307f10838f23425d396e
 New safeguard: dependency files verified against signed CODE manifest and installed before verifier.
 Production release/master SHA/attestation unchanged. Ephemeral Windows GitHub runner only; no physical execution or patient data.
+
+CI_ONLY_RUN_RETRY=3
+Previous run: https://github.com/hraaaaf/Digital_crown/actions/runs/38094252763
+Reason: authenticated verifier imported module and wrote unmanifested __pycache__ bytecode into CODE payload, correctly rejected by fail-closed release composer.
+Fix commit: d83bacf5a67bef70ab7b3e33bd21a055ce878424
+Controls: PYTHONDONTWRITEBYTECODE=1, full signed-manifest exact-file-set verification, signed-only ZIP packaging, refuse all extras.
+No relaxation of safety/provenance checks. No master, CODE artifact, physical cabinet, or patient data modifications.
