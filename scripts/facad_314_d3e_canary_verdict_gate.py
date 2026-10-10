@@ -11,6 +11,8 @@ REQUIRED = {
     "schema", "source", "audit_event_id", "scoped_sacl_configuration_proven",
     "audit_policy_enabled_during_observation", "matching_4663_write_event_count",
     "expected_process_pid_matched", "event_path_scope_matched",
+    "queried_4663_event_count", "scoped_4663_event_count",
+    "scoped_write_mask_event_count", "scoped_expected_pid_event_count",
     "unexpected_pid_count", "event_completeness_verified",
     "clinical_data_accessed", "facad_application_launched",
     "process_file_write_attribution_proven_for_facad",
@@ -45,9 +47,18 @@ def validate(r):
                 'expected_process_pid_matched', 'event_path_scope_matched'):
         if type(r[key]) is not bool:
             raise InvalidCanary('BAD_BOOL')
-    for key in ('matching_4663_write_event_count', 'unexpected_pid_count'):
+    for key in ('matching_4663_write_event_count', 'unexpected_pid_count',
+                'queried_4663_event_count', 'scoped_4663_event_count',
+                'scoped_write_mask_event_count', 'scoped_expected_pid_event_count'):
         if type(r[key]) is not int or r[key] < 0 or r[key] > 500:
             raise InvalidCanary('BAD_COUNTER')
+    if not (r['queried_4663_event_count'] >= r['scoped_4663_event_count'] >=
+            r['scoped_write_mask_event_count'] >= r['matching_4663_write_event_count']):
+        raise InvalidCanary('COUNTS_INCONSISTENT')
+    if r['scoped_4663_event_count'] < r['scoped_expected_pid_event_count']:
+        raise InvalidCanary('PID_COUNTS_INCONSISTENT')
+    if r['matching_4663_write_event_count'] > r['scoped_expected_pid_event_count']:
+        raise InvalidCanary('MATCHED_COUNTS_INCONSISTENT')
     if r['verdict'] not in ALLOWED:
         raise InvalidCanary('UNKNOWN_VERDICT')
     evidence = (r['scoped_sacl_configuration_proven'] and
