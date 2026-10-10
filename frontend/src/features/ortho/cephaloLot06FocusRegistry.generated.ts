@@ -642,6 +642,60 @@ export const CEPHALO_LOT06_FOCUS_REGISTRY = {
     ],
     "availabilityGate": "EXPLICIT_STEINER_D_AND_GN_ANATOMIC_REQUIRED",
     "requiresCalibration": false
+  },
+  "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1": {
+    "measurementId": "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
+    "unit": "°",
+    "requiredLandmarks": [
+      "Po_anatomic",
+      "Or",
+      "N",
+      "A"
+    ],
+    "requiredConstructions": [
+      "FH_PO_OR_V1"
+    ],
+    "sourceContracts": [
+      "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+      "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+    ],
+    "availabilityGate": "ALL_REQUIRED_LANDMARKS_EXACT",
+    "requiresCalibration": false
+  },
+  "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1": {
+    "measurementId": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+    "unit": "°",
+    "requiredLandmarks": [
+      "L1_incisal",
+      "L1_apex",
+      "A",
+      "Pog_hard"
+    ],
+    "requiredConstructions": [],
+    "sourceContracts": [
+      "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+      "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+    ],
+    "availabilityGate": "ALL_REQUIRED_LANDMARKS_EXACT",
+    "requiresCalibration": false
+  },
+  "M_L1_EDGE_APOG_MM_V1": {
+    "measurementId": "M_L1_EDGE_APOG_MM_V1",
+    "unit": "mm",
+    "requiredLandmarks": [
+      "L1_incisal",
+      "A",
+      "Pog_hard",
+      "Po_anatomic",
+      "Or"
+    ],
+    "requiredConstructions": [],
+    "sourceContracts": [
+      "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+      "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md"
+    ],
+    "availabilityGate": "VERIFIED_CALIBRATION_AND_EXACT_INCISAL_EDGE",
+    "requiresCalibration": true
   }
 } as const satisfies Record<string, CephaloCanonicalFocusDependency>;
 
