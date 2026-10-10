@@ -110,6 +110,18 @@ def main() -> int:
         status = 2
     args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     print(result['verdict'])
+    if status == 1:
+        # Log aggregate scope/category counts, never names or path-derived hashes.
+        # The scope names are limited by the fixed SCOPES schema validator.
+        for scope in sorted({change['scope'] for change in result['observed_changes']}):
+            counts = {kind: sum(change['scope'] == scope and change['change'] == kind
+                                for change in result['observed_changes'])
+                      for kind in ('ADDED', 'MODIFIED', 'DELETED', 'ROOT_APPEARED_OR_DISAPPEARED')}
+            print('D3_OBSERVED_DRIFT_SCOPE=' + scope
+                  + ';ADDED=' + str(counts['ADDED'])
+                  + ';MODIFIED=' + str(counts['MODIFIED'])
+                  + ';DELETED=' + str(counts['DELETED'])
+                  + ';ROOT_CHANGED=' + str(counts['ROOT_APPEARED_OR_DISAPPEARED']))
     return status
 
 
