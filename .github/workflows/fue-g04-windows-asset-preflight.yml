@@ -66,7 +66,22 @@ jobs:
           import json
           import os
           from pathlib import Path
-          from backend.services.srpose38_contract import SRPOSE38_MODEL_NAME, SRPOSE38_MODEL_SHA256, SRPOSE38_MODEL_SIZE_BYTES
+          # Read immutable pins with stdlib AST. Importing backend would execute
+          # backend/__init__.py and require the complete clinical runtime stack.
+          import ast
+          contract_tree = ast.parse(Path('backend/services/srpose38_contract.py').read_text(encoding='utf-8'))
+          pins = {}
+          for node in contract_tree.body:
+              if isinstance(node, ast.Assign):
+                  for target in node.targets:
+                      if isinstance(target, ast.Name) and target.id in {
+                          'SRPOSE38_MODEL_NAME', 'SRPOSE38_MODEL_SHA256', 'SRPOSE38_MODEL_SIZE_BYTES'
+                      }:
+                          pins[target.id] = ast.literal_eval(node.value)
+          assert set(pins) == {'SRPOSE38_MODEL_NAME', 'SRPOSE38_MODEL_SHA256', 'SRPOSE38_MODEL_SIZE_BYTES'}
+          SRPOSE38_MODEL_NAME = pins['SRPOSE38_MODEL_NAME']
+          SRPOSE38_MODEL_SHA256 = pins['SRPOSE38_MODEL_SHA256']
+          SRPOSE38_MODEL_SIZE_BYTES = pins['SRPOSE38_MODEL_SIZE_BYTES']
           registry = json.loads(Path('backend/scientific_assets.json').read_text(encoding='utf-8'))
           found = [row for row in registry['assets'] if row['id'] == 'cephalo_sota']
           assert len(found) == 1
@@ -111,14 +126,28 @@ jobs:
             Write-Host "WINDOWS_POWERSHELL_SYNTAX_PASS=$script"
           }
           @'
-          import runpy
-          from backend.release_certification import ReleaseCertificationError
-          try:
-              runpy.run_path('DigitalCrown.spec')
-          except ReleaseCertificationError:
-              print('UNCERTIFIED_WINDOWS_PYINSTALLER_BUILD_REJECTED=YES')
-          else:
-              raise SystemExit('FAIL OPEN: uncertified source tree passed the installer spec')
+          # STATIC check only; runtime fail-closed enforcement is covered by
+          # canonical certification tests with full backend dependencies.
+          import ast
+          from pathlib import Path
+          tree = ast.parse(Path('DigitalCrown.spec').read_text(encoding='utf-8'))
+          from_release = [
+              node for node in tree.body
+              if isinstance(node, ast.ImportFrom)
+              and node.module == 'backend.release_certification'
+              and any(alias.name == 'verify_installable_release_directory' for alias in node.names)
+          ]
+          calls = [
+              (node.lineno, node.func.id)
+              for node in ast.walk(tree)
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+          ]
+          guards = [line for line, name in calls if name == 'verify_installable_release_directory']
+          builders = [line for line, name in calls if name == 'Analysis']
+          assert len(from_release) == len(guards) == len(builders) == 1
+          assert guards[0] < builders[0]
+          print('PYINSTALLER_CERTIFICATION_GUARD_PRESENT_BEFORE_BUILD=YES')
+          print('PYINSTALLER_RUNTIME_CERTIFICATION_NOT_PERFORMED')
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw "Uncertified PyInstaller source must be rejected" }
 
