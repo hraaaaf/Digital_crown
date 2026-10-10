@@ -13,6 +13,10 @@ $result=[ordered]@{
   scoped_sacl_configuration_proven=$false
   audit_policy_enabled_during_observation=$false
   matching_4663_write_event_count=0
+  queried_4663_event_count=0
+  scoped_4663_event_count=0
+  scoped_write_mask_event_count=0
+  scoped_expected_pid_event_count=0
   expected_process_pid_matched=$false
   event_path_scope_matched=$false
   unexpected_pid_count=0
@@ -67,20 +71,33 @@ try {
   Start-Sleep -Seconds 2
   # Never serialize EventRecord.ToXml(), its ObjectName/ProcessName or any SID.
   $records=Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 500 -ErrorAction Stop
+  $result.queried_4663_event_count=@($records).Count
   $matched=0
+  $scoped=0
+  $scopedWrites=0
+  $scopedExpectedPid=0
   $unexpected=[System.Collections.Generic.HashSet[int]]::new()
   foreach($event in $records){
     [xml]$xml=$event.ToXml()
     $fields=@{}
     foreach($field in $xml.Event.EventData.Data){$fields[[string]$field.Name]=[string]$field.'#text'}
     if($fields['ObjectType'] -cne 'File' -or -not $fields['ObjectName']){continue}
-    if(-not $fields['ObjectName'].StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)){continue}
-    $accessMask=[Convert]::ToInt64(($fields['AccessMask'] -replace '^0x',''),16)
-    if(($accessMask -band 0x10106) -eq 0){continue}
+    $inside=($fields['ObjectName'].Equals($root,[StringComparison]::OrdinalIgnoreCase) -or
+             $fields['ObjectName'].StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase))
+    if(-not $inside){continue}
+    $scoped++
     if(-not $fields['ProcessId']){continue}
     $pidNumber=[Convert]::ToInt32(($fields['ProcessId'] -replace '^0x',''),16)
+    if($pidNumber -eq $PID){$scopedExpectedPid++}
+    if(-not $fields['AccessMask']){continue}
+    $accessMask=[Convert]::ToInt64(($fields['AccessMask'] -replace '^0x',''),16)
+    if(($accessMask -band 0x10106) -eq 0){continue}
+    $scopedWrites++
     if($pidNumber -eq $PID){$matched++}else{[void]$unexpected.Add($pidNumber)}
   }
+  $result.scoped_4663_event_count=$scoped
+  $result.scoped_write_mask_event_count=$scopedWrites
+  $result.scoped_expected_pid_event_count=$scopedExpectedPid
   $result.matching_4663_write_event_count=$matched
   $result.expected_process_pid_matched=($matched -gt 0)
   $result.event_path_scope_matched=($matched -gt 0)
@@ -106,6 +123,10 @@ try {
   if($parent -and -not (Test-Path -LiteralPath $parent)){New-Item -ItemType Directory -Path $parent -Force | Out-Null}
   $result | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $OutputPath -Encoding utf8
   Write-Host ('D3E_CANARY_VERDICT='+$result.verdict)
+  Write-Host ('D3E_4663_EVENTS_QUERIED='+$result.queried_4663_event_count)
+  Write-Host ('D3E_SCOPED_4663_EVENTS='+$result.scoped_4663_event_count)
+  Write-Host ('D3E_SCOPED_WRITE_EVENTS='+$result.scoped_write_mask_event_count)
+  Write-Host ('D3E_SCOPED_EXPECTED_PID_EVENTS='+$result.scoped_expected_pid_event_count)
   Write-Host ('D3E_CANARY_MATCHED_WRITE_EVENT_COUNT='+$result.matching_4663_write_event_count)
   Write-Host 'D3E_FACAD_WRITE_ATTRIBUTION=false'
   Write-Host 'D3E_CLINICAL_EDIT_ALLOWED=false'
