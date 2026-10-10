@@ -19,6 +19,7 @@ on:
       - "frontend/scripts/audit-v15-fue-g00-integrated-t2.mjs"
       - "frontend/scripts/t2-workstation-session.mjs"
       - ".github/workflows/v15-fue-g00-integrated-t2.yml"
+      - "docs/audits/V1_5_FUE_G00_INTEGRATED_FIRST_USER_LAB.md"
   workflow_dispatch:
 
 permissions:

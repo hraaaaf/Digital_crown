@@ -1,52 +1,68 @@
-# FUE-G 00 — Hub / Dispatcher integrated first-user proof (isolated T2)
+# FUE-G 00 — Certification Hub / Cabinet / Centre de contrôle / Station (LAB T2 isolé)
 
-Date: 2026-10-10
-Status: **FUE-G00 intégré 34/34 et nouvel enrôlement UI 40/40 PASS sur 36b1a726 (CI + 36 PNG inspectés). ÉPREUVE DU PREMIER POSTE DU TENANT VIDE : EN COURS. GATE GLOBAL PARTIEL.**
-Canonical requirement: authorized user on first-use workstation, desktop 1280 × 900 and tablet 768 × 1024, choose Hub → experience → Hub without dead ends.
-Canonical sources: [FUE plan](https://app.notion.com/p/3f177c66336281c49a48d1361307f458), [roadmap](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb), retrospective [18-sublot matrix](./V1_5_FUE_00_TO_03_RETROSPECTIVE_MATRIX.md).
+Date : **2026-10-10**  
+Statut de référence : **LAB logiciel CONVERGED / PASS — 9,0/10** sur le commit exact `36ff7da479ae1a1996e6bb4bbd02f428032f5a02`.  
+**FUE-G 00 canonique global : PARTIEL / OUVERT** — premier démarrage, installation et redémarrage sur PC physique vierge et usage réel non prouvés.  
+**Attention à la validité du HEAD :** cette mise à jour documentaire modifie elle-même le commit. Le résultat ci-dessous appartient exclusivement au SHA de référence tant que la CI sur le nouveau HEAD documentaire n'est pas terminée et vérifiée. Aucun merge ni Vercel implicitement autorisé.
 
-## Important independence
+Sources canoniques : [plan FUE](https://app.notion.com/p/3f177c66336281c49a48d1361307f458), [roadmap / POST](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb), [matrice rétrospective des 18 sous-lots](./V1_5_FUE_00_TO_03_RETROSPECTIVE_MATRIX.md).  
+Compte-rendu des deux perspectives de revue **internes** (non reviewers externes) : [PR #821 — certification exacte](https://github.com/hraaaaf/Digital_crown/pull/821#issuecomment-6096130969).
 
-GitHub #820 postmerge [run #38014691497](https://github.com/hraaaaf/Digital_crown/actions/runs/38014691497) was verified COMPLETED/SUCCESS on `master@4edd5975cb9c247d50d2581e3f5f72f6354ce941`. It was never a mandatory prerequisite to **start** isolated FUE-G00 on a separate exact-master branch: it is merge closeout only. New FUE-G00 tests run on their own candidate HEAD, with no merge/release/deployment.
+## Résultat observable et preuves exactes
 
-## Proof contract and intended observations
+| Contrôle | Preuve sur le commit `36ff7da4…` | Verdict |
+| --- | --- | --- |
+| FUE-G 00 — trois parcours Chromium | [GitHub Actions #38040827000](https://github.com/hraaaaf/Digital_crown/actions/runs/38040827000) | **COMPLETED / SUCCESS** |
+| CI Scope Gate | [GitHub Actions #38040826992](https://github.com/hraaaaf/Digital_crown/actions/runs/38040826992) | **COMPLETED / SUCCESS** |
+| Contrats backend de topologie | Logs du run FUE-G 00 | **35/35 PASS** |
+| Contrats frontend Hub | Logs du run FUE-G 00 | **8/8 PASS** |
+| Précondition premier poste | Requête en lecture seule, SQLite/SQLCipher T2 chiffrée | **0 poste au départ** |
+| Preuve BEFORE / ACTION / AFTER | [Artefact GitHub #11666330618](https://github.com/hraaaaf/Digital_crown/actions/runs/38040827000/artifacts/11666330618) | **42 PNG + 3 rapports JSON** |
+| Total de scénarios instrumentés | 16 + 34 + 40 | **90/90 vérifications vraies** |
+| M6-I — biométrie / passkey | [Run #38040827044](https://github.com/hraaaaf/Digital_crown/actions/runs/38040827044) | **SKIPPED — EXPERIMENTAL / HORS SCOPE** |
 
-- **Real, isolated APIs**: the T2 server uses disposable SQLite with local 127.0.0.1 networking and generated credential. Legitimate owner API login and enrollment create **a real workstation identity** prior to launching the browser; only its `dc_workstation` cookie is transferred, never auth tokens.
-- **Fresh user session** in Chromium with zero user-auth localStorage and exactly three Hub choices; Cabinet direct URL anonymous denied and card selection goes to true UI login.
-- **Authenticated Cabinet** reached by real login form, dashboard visible.
-- **Control Center** selected by actual Hub card; return to Hub via its **real on-screen button**, not direct URL shortcut.
-- **Owner PIN** configured or rotated through the real Hub UI and a server HTTP 200; mode Station selected/applied through UI and real backend (never injected state).
-- **Station lock**: direct URL Hub and Control routes denied by the authoritative workstation mode, including after reload.
-- **Owner escape** via production keyboard shortcut, invalid PIN rejected by server HTTP 403 without leaving Station, valid PIN accepted HTTP 200 and UI returns Hub.
-- **Proof**: both tablet 768×1024 + desktop 1280×900; 17 explicit checks per viewport, 10 before/action/after PNG each = **34 checks and 20 PNG expected**, plus `report.json` exact candidate SHA; no pageerror, HTTP 5xx, horizontal overflow. Screenshots must be opened/reviewed; synthetic success alone is not UX certification.
-- **REQUIRED**: new FUE-G00 workflow on exact SHA + Scope Gate, frontend/backend contractual tests, two *internal* adversarial reviews (A UX/a11y, B security/fake-green), same-HEAD confirmation. Experimental M6-I biometric does not silently block LAB when skipped.
+Archive ZIP : SHA-256 `79156abaff2f0c917c255a0c44650b6e9c88e519dd5ed81fbe0c0a851445296d`. Les **45 fichiers** ont été comptés ; les **42 PNG** ont été décodés et contrôlés aux largeurs attendues (768 ou 1280 px), regroupés en **5 planches visuelles effectivement examinées** ; les **3 JSON** portent le même `head=36ff7da479ae1a1996e6bb4bbd02f428032f5a02`, `success=true`, `isolated=true`, `failures=[]`. Pas de `pageerror`, HTTP 5xx ni débordement horizontal signalé par les scripts.
 
-## Known limits / gating
+## Les trois parcours réellement couverts
 
-- The browser is **first-login but not a physically unprovisioned workstation**: workstation enrollment is deliberately performed with the real API before the browser starts; this does not certify physical first-use enrollment.
-- No real physical 3-PC TLS LAN, real hardware reboot, camera, NFC or production patient/tenant data. No claim to human user testing.
-- FUE-G00 complete **only** if every relevant full-path condition is actually covered; until then classify **PARTIEL** even if this integrated LAB segment passes.
-- Existing FUE-I 00.2 LAB targeted proof from [PR #820](https://github.com/hraaaaf/Digital_crown/pull/820) is 9.1/10 and is independent; 00.4 synthetic Hub proof from [#37797275871](https://github.com/hraaaaf/Digital_crown/actions/runs/37797275871) covered 12/12 paths but not true PIN/owner escape.
-- No changes to product runtime, backend auth, PIN, patient flow; no Vercel/installer/real device. PR remains DRAFT until explicit owner merge approval.
+### A — Tout premier poste d'un cabinet logiciel vierge (16/16, 6 PNG)
 
-## PRE — vraie UI d'enrôlement d'un navigateur vierge, sans cookie injecté (2026-10-10)
+Script : [`frontend/scripts/audit-v15-fue-g00-first-ever-t2.mjs`](../../frontend/scripts/audit-v15-fue-g00-first-ever-t2.mjs), **tablette 768 × 1024 seulement**. Le workflow nettoie la base T2 puis exige **zéro ligne** `WorkstationMode` avant le test. Navigateur neuf sans cookies, sans JWT ou `storageState` injectés. Hub avec ses trois choix → clic **Cabinet** → authentification propriétaire par vrai formulaire UI. Selon le routage réel de première connexion, l'écran de destination entièrement rendu peut être le Hub ou le Dashboard ; le harness enregistre ce résultat, n'accepte aucune simple URL transitoire et revient au Hub explicite pour vérifier la propriété du poste.
 
-L'ancienne preuve [run #38034317309](https://github.com/hraaaaf/Digital_crown/actions/runs/38034317309) sur `d181f9692cd6be4f19fd5d13f0c0e3efd0749e3a` est GREEN, 34/34 assertions et 20 captures + revues internes A 9.0/B 9.1. Elle **n'atteste pas la nouvelle révision**.
+Le **produit** crée automatiquement la première identité via son vrai `GET /workstation/state`, et non via un `POST /workstation/enroll` lancé par le test. Les lectures serveur `GET /workstation/bootstrap` et `GET /workstation/registry` exigent **exactement un poste**, identifiant cohérent avec le cookie `dc_workstation` émis par le serveur. Clic UI Cabinet → Dashboard clinique → Centre de contrôle → retour au Hub par son bouton affiché. Les contrôles négatifs d'injection et de stabilité sont conservés.
 
-Nouveau script `frontend/scripts/audit-v15-fue-g00-fresh-enrollment-t2.mjs`, exécuté **après** le script intégré créant des postes légitimes chez le tenant T2 jetable. Deux navigateurs neufs **sans storageState/cookie/identité poste injecté** : Hub 3 cartes → clic Cabinet exige login → vrai login propriétaire → `/hub?enroll=1`, refus `/workstation/state`=423 et Dashboard refusé → mauvais password propriétaire via vraie UI `/workstation/enroll`=403 sans cookie → bon password via même UI `/workstation/enroll`=200, cookie `dc_workstation` créé **alors seulement** → Dashboard accessible et Centre de contrôle → bouton visible retour Hub. Attendu = **20 assertions par profil × 2 = 40 et 8 captures × 2 = 16**, plus les 34 checks/20 captures du script initial, **total 74 checks et 36 PNG, 2 report.json**. Aucune validation avant CI exacte et inspection réelle.
+### B — Parcours Hub, Cabinet, PIN, Station et sortie (34/34, 20 PNG)
 
-Limite structurelle : le navigateur neuf arrive dans un tenant contenant déjà des postes ; **premier poste d'un cabinet ne contenant aucun poste** utilise `GET /workstation/state` pour auto-création, non couvert. Aucun essai machine physique vierge, reboot, TLS LAN, patient ou utilisateur humain ; FUE-G00 global PARTIEL.
+Script : [`frontend/scripts/audit-v15-fue-g00-integrated-t2.mjs`](../../frontend/scripts/audit-v15-fue-g00-integrated-t2.mjs), **tablette 768 × 1024 et desktop 1280 × 900**, 17 assertions et 10 captures par profil. Pour ce scénario seulement, le banc T2 prépare en amont une **identité de poste légitime par API serveur** et transmet uniquement le cookie `dc_workstation`, sans injecter d'authentification utilisateur dans le navigateur.
 
-## POST vérifiée : Enrôlement d'un nouveau navigateur propriétaire (SHA 36b1a726, 2026-10-10)
+Hub anonyme à trois destinations → Cabinet exige login réel → Dashboard authentifié → Control via Hub et retour par son bouton. Configuration du PIN propriétaire au serveur (HTTP 200), mode Station par UI et serveur (200). URLs directes Hub et Control interdites tant que Station verrouillée, verrou conservé après rechargement ; mauvais PIN refusé par serveur (**403**, reste en Station), bon PIN accepté (**200**, retour Hub via UI réelle).
 
-[Run #38036303489](https://github.com/hraaaaf/Digital_crown/actions/runs/38036303489) SUCCESS + [Scope #38036303598](https://github.com/hraaaaf/Digital_crown/actions/runs/38036303598) SUCCESS sur SHA exact `36b1a7263175b4a0001fea65748a4d54f5f2234b`, l'artefact [#11664057923](https://github.com/hraaaaf/Digital_crown/actions/runs/38036303489/artifacts/11664057923), SHA256 ZIP `aae7753fdc8a21f78d6b4953c501a57c6eb6cadbd5a12fd859ce289c658b2f1c`, contient 36 PNG validés et deux rapports JSON. **34 assertions intégrées + 40 assertions vrai navigateur neuf = 74/74, zéro échec**. Les 36 images ont été ouvertes en planches tablette/desktop, login lisible, refus 423/403 et autorisation 200, écran Station, return control UI. Le nouveau navigateur repart sans cookies ni token et le poste est enregistré via formulaire UI propriétaire, **mais le tenant dispose déjà de postes**. Les deux scripts existants restent intacts.
+### C — Nouveau navigateur dans un cabinet possédant déjà des postes (40/40, 16 PNG)
 
-## PRE nouveau : tout premier poste d'un tenant sans identité workstation (2026-10-10)
+Script : [`frontend/scripts/audit-v15-fue-g00-fresh-enrollment-t2.mjs`](../../frontend/scripts/audit-v15-fue-g00-fresh-enrollment-t2.mjs), **tablette et desktop**, 20 assertions et 8 captures par profil. Chaque navigateur est neuf, **aucun cookie de poste ni token utilisateur injecté**. Hub → Cabinet → vrai login propriétaire → écran d'enrôlement au lieu d'un accès clinique. Le serveur refuse l'identité inconnue (**423**), et le mauvais mot de passe propriétaire est refusé (**403**) sans attribuer de cookie de poste.
 
-La base T2 doit avoir **zéro ligne workstation** à l'entrée du test : vérifié par requête SQL SELECT en CI avant tout navigateur, sur SQLite jetable. Le scénario `frontend/scripts/audit-v15-fue-g00-first-ever-t2.mjs` s'exécute **AVANT** l'intégration et le navigateur neuf. Il utilise un seul viewport 768×1024 pour préserver la précondition non reproductible dans le même tenant sans reset : aucune identité ni token en contexte neuf ; Hub 3 cartes → vraie connexion propriétaire → le **produit** réalise le premier auto-enrôlement lors de `GET /workstation/state` → cookie `dc_workstation` et Dashboard, sans aucun `POST /workstation/enroll` côté test/browser. Lecture serveur via `GET /workstation/bootstrap` et `/workstation/registry` doit montrer **exactement un poste** et un ID cohérent ; visite Centre de contrôle et retour UI. **16 assertions et 6 captures attendues** sur ce seul premier poste. Puis retester les 74 assertions / 36 captures antérieures pour la non-régression sur le nouveau SHA. Total attendu **90/90, 42 PNG et 3 rapports** si tout réussit.
+Le formulaire UI propriétaire permet ensuite l'enrôlement légitime (**HTTP 200**), qui produit **seulement alors** le cookie `dc_workstation`. Le Dashboard clinique et le Centre de contrôle deviennent accessibles et le retour Hub s'effectue par le bouton réel. L'assertion visuelle est renforcée : attendre `[data-tour="quick-action-new-patient"]` **visible** et le titre **« Nouveau Patient »** effectivement affiché avant de photographier le Dashboard. La capture desktop finale a été ouverte en pleine résolution ; « Nouveau Patient », « Dossiers Patients » et « Agenda Clinique » sont réellement rendus, contrairement à un ancien faux positif de transition.
 
-Ceci prouve une création logique en environnement T2, **pas** une installation matérielle PC/LAN/driver/reboot. Le gate FUE-G00 canonique restera PARTIEL tant que le geste opérateur/installation sur PC physique n'est pas documenté.
+## Revues adversariales (même HEAD, perspectives internes)
 
-## Next
+**A — UX, capture et navigation : 9,1/10 — CLEAN sur ce périmètre LAB.** Les cinq planches BEFORE/ACTION/AFTER et la capture Dashboard desktop finale ont été inspectées ; chemin premier poste, refus d'accès, vrai enrôlement, panneau propriétaire, contrôle, Station/reload et sortie PIN lisibles. Pas de CTAs principaux coupés ni d'écran final blanc observés aux résolutions couvertes. **Dette P2** : panneau Hub propriétaire long et dense sur tablette ; zoom texte 200 %, largeur mobile 390 px, clavier seul et observation humaine **non certifiés**.
 
-Execute [FUE-G00 workflow](../../.github/workflows/v15-fue-g00-integrated-t2.yml), inspect genuine PNG and JSON on exact SHA. If RED, classify harness or product finding and correct on a NEW SHA without weakening denial tests. Do not assign a score, external review or `CONVERGED` before proofs and adversarial confirmation.
+**B — Sécurité, isolation, autorité et preuves : 9,0/10 — CLEAN sur ce périmètre LAB.** La base T2 est jetable et isolée ; cookie de poste opaque délivré par le serveur ; premier poste issu de l'application et identité contrôlée par lectures `bootstrap/registry` ; refus backend 423/403 et autorisations 200 ; verrou Station, mauvais PIN et rechargement réellement vérifiés. Secrets temporaires masqués dans les logs, aucun credential authentifiant dans les rapports inspectés. Les changements de la PR ne touchent **aucun runtime produit, routeur auth, backend de production ni migration DB** : uniquement trois scripts LAB, workflow et présent audit.
+
+**Convergence LAB :** deux perspectives internes sur le même SHA, **aucun BLOCKER/MAJOR démontré dans les trois parcours ciblés**, CI REQUIRED verte, 90 vérifications et preuves visuelles inspectées. Score sévère retenu **min(9,1 ; 9,0) = 9,0/10**. Ne jamais qualifier ces revues de **revues externes indépendantes**.
+
+## Limites, gates et décision
+
+- **FUE-G 00 logiciel T2 = CONVERGED / PASS sur `36ff7da4…`** ; le nouveau commit du rapport documentaire reste conditionné à son **propre run exact-HEAD**.
+- **FUE-G 00 canonique terrain = PARTIEL / OUVERT** : vraie installation sur PC matériel vierge, premier démarrage OS, relance après reboot, identité/continuité sur le réseau LAN/TLS réel, interaction d'un opérateur et reprise hors banc isolé ne sont pas démontrés.
+- **G01/G02/G03** (LAN multi-postes, webcam réelle et patients Station) restent des gates distincts. Les contrôles biométriques expérimentaux ou autres workflows **hors scope** ne sont pas promus en blockers sans défaut de sécurité réel ; les tests **REQUIRED** ne sont pas réduits.
+- La logique d'enrôlement initial par d'autres rôles, abus/rate-limit répétés, tenants réels, appareils mobiles/zoom et essais cliniques sur dossiers réels n'ont **pas** été validés par cette preuve ciblée.
+- **PR #821 reste DRAFT / NON MERGED**, master inchangé à la preuve de référence ; ni Vercel, ni release, ni déploiement, ni test sur PC client autorisés par ce résultat.
+
+## Closeout documentaire et prochaine décision
+
+1. Après le commit **document + déclencheur CI sur le chemin de cet audit**, revérifier les checks requis et les archives sur le nouveau HEAD ; **aucun « PASS sur nouveau HEAD » par héritage**. Si rouge, diagnostiquer et corriger sans affaiblir les assertions ni prétendre à une validation asynchrone.
+2. Confirmer que les cinq fichiers de PR sont exclusivement du matériel de test/documentation, que les deux perspectives adversariales restent propres sur le même nouveau HEAD, et que GitHub/Notion sont cohérents.
+3. Proposer la fusion **uniquement après ces preuves**, et **demander une autorisation explicite distincte** pour merge ; Vercel exige un autre accord. La certification terrain exige son protocole/état propre.
+
+Historique : postmerge indépendant de [#820 / run #38014691497](https://github.com/hraaaaf/Digital_crown/actions/runs/38014691497) PASS sur `master@4edd5975…` ; ancienne preuve intégrée [#38034317309](https://github.com/hraaaaf/Digital_crown/actions/runs/38034317309) 34/34 ; deux parcours [#38036303489](https://github.com/hraaaaf/Digital_crown/actions/runs/38036303489) 74/74 ; premier run vert 90/90 [#38038917578](https://github.com/hraaaaf/Digital_crown/actions/runs/38038917578), dont l'inspection a permis de renforcer la capture desktop AFTER. **Seule la certification exacte #38040827000 établit le présent score LAB sur le SHA 36ff.**
