@@ -7,6 +7,8 @@ on:
     paths:
       - scripts/facad_314_d3_snapshot_diff_gate.py
       - scripts/test_facad_314_d3_snapshot_diff_gate.py
+      - scripts/facad_314_d3_cold_warm_verdict_gate.py
+      - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
       - scripts/test_facad_314_d3_storage_authority_gap_gate.py
       - docs/audits/FACAD_314_D3_STORAGE_ISOLATION_STATIC_REVIEW_2026-10-09.md
@@ -44,6 +46,11 @@ jobs:
         run: python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/test_facad_314_d3_snapshot_diff_gate.py
       - name: Verify synthetic D3 drift and fail-closed evidence
         run: python -m unittest scripts/test_facad_314_d3_snapshot_diff_gate.py -v
+      - name: Test independent cold/warm verdict gate (SYNTHETIC ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3_cold_warm_verdict_gate.py scripts/test_facad_314_d3_cold_warm_verdict_gate.py
+          python -m unittest scripts/test_facad_314_d3_cold_warm_verdict_gate.py -v
+          echo 'D3_COLD_WARM_RUNTIME_OBSERVATION=NOT_CERTIFIED_BY_THIS_JOB'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py
