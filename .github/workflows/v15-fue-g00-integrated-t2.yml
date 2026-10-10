@@ -8,6 +8,7 @@ on:
       - "frontend/src/App.tsx"
       - "frontend/src/services/workstationMode.ts"
       - "backend/routers/workstation_mode.py"
+      - "frontend/scripts/audit-v15-fue-g00-fresh-enrollment-t2.mjs"
       - "frontend/src/services/apiBase.ts"
       - "backend/core/cabinet_topology.py"
       - "backend/routers/mobile_legacy.py"
@@ -114,6 +115,13 @@ jobs:
         working-directory: frontend
         run: node scripts/audit-v15-fue-g00-integrated-t2.mjs
 
+      - name: Syntax check fresh browser owner enrollment
+        run: node --check frontend/scripts/audit-v15-fue-g00-fresh-enrollment-t2.mjs
+
+      - name: Run unregistered browser enrollment through owner UI
+        working-directory: frontend
+        run: node scripts/audit-v15-fue-g00-fresh-enrollment-t2.mjs
+
       - name: Dump logs on failure
         if: failure()
         run: |
@@ -127,6 +135,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fue-v15-g00-integrated-t2-evidence
-          path: artifacts/v15-fue-g00-integrated
+          path: |
+            artifacts/v15-fue-g00-integrated
+            artifacts/v15-fue-g00-fresh
           if-no-files-found: error
           retention-days: 14
