@@ -80,6 +80,49 @@ class D3DiffTests(unittest.TestCase):
         self.assertNotIn('entry_key_sha256', json.dumps(result))
         self.assertIs(result['d3_isolation_verified'], False)
 
+    def test_windows_bootstrap_ilexis_three_changes_remains_red_with_safe_counts(self):
+        # Structural reproduction of Windows run 38006857529 verdict: 1 add, 2
+        # changes in Ilexis metadata only. Never ingest original private manifests.
+        name = 'facad_ilexis_roaming_settings'
+        for n in ('existing_settings_a', 'existing_settings_b'):
+            self.before['scopes'][name]['entries'][n] = {
+                'sha256': 'a'*64, 'size': 10
+            }
+            self.after['scopes'][name]['entries'][n] = {
+                'sha256': 'b'*64, 'size': 10
+            }
+        self.after['scopes'][name]['entries']['created_settings'] = {
+            'sha256': 'c'*64, 'size': 15
+        }
+        with tempfile.TemporaryDirectory() as d:
+            directory = Path(d)
+            before_file, after_file, verdict_file = (
+                directory/'before.json', directory/'after.json', directory/'verdict.json'
+            )
+            before_file.write_text(json.dumps(self.before), encoding='utf-8')
+            after_file.write_text(json.dumps(self.after), encoding='utf-8')
+            result = subprocess.run(
+                [sys.executable, str(HERE/'facad_314_d3_snapshot_diff_gate.py'),
+                 '--before', str(before_file), '--after', str(after_file),
+                 '--output', str(verdict_file)],
+                capture_output=True, text=True
+            )
+            verdict = json.loads(verdict_file.read_text(encoding='utf-8'))
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(verdict['verdict'], 'BLOCKED_OBSERVED_STORAGE_DRIFT')
+        self.assertEqual(verdict['observed_change_count'], 3)
+        self.assertEqual(result.stdout.count('D3_OBSERVED_DRIFT_SCOPE='), 1)
+        self.assertIn(
+            'D3_OBSERVED_DRIFT_SCOPE=facad_ilexis_roaming_settings;ADDED=1;MODIFIED=2;DELETED=0;ROOT_CHANGED=0',
+            result.stdout
+        )
+        for private_name in ('existing_settings_a', 'existing_settings_b', 'created_settings'):
+            self.assertNotIn(private_name, result.stdout)
+            self.assertNotIn(private_name, json.dumps(verdict))
+        self.assertNotIn('entry_key_sha256', result.stdout)
+        self.assertIs(verdict['d3_isolation_verified'], False)
+        self.assertIs(verdict['clinical_edit_allowed'], False)
+
     def test_changed_registry_blocks(self):
         row = {'sha256': 'b'*64, 'size': 0}
         self.before['scopes']['facad_registry_hkcu']['entries']['MRU'] = row
