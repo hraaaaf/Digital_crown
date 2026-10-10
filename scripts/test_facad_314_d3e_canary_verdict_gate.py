@@ -26,6 +26,9 @@ def fixture():
         'scoped_4663_event_count':3,
         'scoped_write_mask_event_count':2,
         'scoped_expected_pid_event_count':2,
+        'parsed_file_object_event_count':4,
+        'nonempty_object_name_event_count':3,
+        'canary_file_inherited_audit_rule_present':True,
         'expected_process_pid_matched':True,
         'event_path_scope_matched':True,
         'unexpected_pid_count':0,
@@ -53,6 +56,10 @@ class CanaryTests(unittest.TestCase):
 
     def test_no_audit_policy(self):
         self.data['audit_policy_enabled_during_observation']=False
+        self.assert_invalid()
+
+    def test_no_inherited_canary_sacl(self):
+        self.data['canary_file_inherited_audit_rule_present']=False
         self.assert_invalid()
 
     def test_no_sacl(self):
@@ -109,6 +116,10 @@ class CanaryTests(unittest.TestCase):
 
     def test_inconsistent_write_count_rejected(self):
         self.data['scoped_write_mask_event_count']=1
+        self.assert_invalid()
+
+    def test_inconsistent_xml_parsing_counts_rejected(self):
+        self.data['nonempty_object_name_event_count']=1
         self.assert_invalid()
 
     def test_inconsistent_total_event_count_rejected(self):
