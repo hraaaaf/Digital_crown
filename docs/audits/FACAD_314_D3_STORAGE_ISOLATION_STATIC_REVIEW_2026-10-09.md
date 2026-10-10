@@ -207,3 +207,25 @@ A later Windows re-run remains **EXPERIMENTAL**; success could certify only comp
 **Windows live observation currently pending:** [D3E.3 Windows #38015148922](https://github.com/hraaaaf/Digital_crown/actions/runs/38015148922), executable `c95fd209a45e5d8b7ecb812f40c54ff051b8e9ec`; inspect result and **aggregate-only** artifacts before any claim of same-file identity correlation. Expected final overall D3 run stays RED whenever observed storage drift exists, even if this narrow research step finds a positive overlap.
 
 **Gates remain** `SHARED_APP_STORAGE_ISOLATION=UNVERIFIED`, `CLINICAL_EDIT_ALLOWED=false`, `FACAD_NUMERICAL_PARITY_CERTIFIED=false`, `SAME_LANDMARK_PARITY_PROTOCOL_EXECUTED=false`, `D3_CONVERGED=false`. No claim of complete PID descendants, complete Windows auditing, configured Patient Data Root/Node/Work List, shared UNC or registry, clinical edit authorization, merge or deployment.
+
+### D3E.3 actual Windows outcome — POSITIVE local same-file correlation, REQUIRED D3 RED (2026-10-10)
+
+**Execution code commit:** `c95fd209a45e5d8b7ecb812f40c54ff051b8e9ec`, [Windows run #38015148922](https://github.com/hraaaaf/Digital_crown/actions/runs/38015148922) **completed FAILURE intentionally** on the final independent D3 `REPEATED_OBSERVED_DRIFT` / `BLOCKED_OBSERVED_STORAGE_DRIFT` gate. Its Windows log passed the PowerShell parse gate, invoked the official vendor Quick Demo + disposable Robert sample without Save/Load, showed 10/10 monitored scope captures and no errors, and executed the local SHA-256-relative-filename identity overlap test for **both** cold and warm sessions. No output path, real PID, relative file name, hash or Windows Security XML was published.
+
+**Artifact:** [aggregate-only #11656905110](https://github.com/hraaaaf/Digital_crown/actions/runs/38015148922/artifacts/11656905110) independently downloaded and inspected: nine JSON reports total; importantly includes `d3e3-correlation-cold.json` and `d3e3-correlation-warm.json`, no raw BEFORE/AFTER snapshots or event-key identity list. Both exact JSON files confirm `filename_or_file_hash_exported=false`, `causal_metadata_change_proven=false`, `complete_descendant_process_coverage=false`, `event_delivery_complete=false`, `all_storage_roots_verified=false`, `shared_app_storage_isolation_verified=false` and `clinical_edit_allowed=false`.
+
+| Bounded observation | Cold | Warm |
+| --- | ---: | ---: |
+| Changed Ilexis metadata file identities | 3 | 2 |
+| Unique Ilexis file identities with Windows 4663 used-write right under Facad root PID | 2 | 2 |
+| **SAME FILE identity overlaps** | **2** | **2** |
+| Changed metadata file identities WITHOUT observed Facad-root-PID 4663 event | **1** | **0** |
+| Facad-root-PID event file identities WITHOUT changed metadata | 0 | 0 |
+
+This proves **a positive file-identity overlap** between native 4663 file-write-use events from the Facad root PID and observed local metadata changes in the *same controlled scope and session*. The warm overlap covers all **two** changed identities; the cold overlap only **two of three**. The remaining cold changed identity is **unattributed** by this root-PID observation; possible causes are not identified and cannot be guessed. An overlap does not show the event itself was the cause of the metadata delta, guarantee full event delivery, prove write absence outside `%APPDATA%\Ilexis`, identify child processes, or verify configured patient/UNC roots.
+
+**Confidentiality & restoration:** `d3e3-event-keys-cold/warm.json` were confined to disposable `RUNNER_TEMP` and deleted in the workflow `finally` for both phases, as attested by `D3E3_TEMPORARY_EVENT_KEY_IDS_CLEANED=true` in the log. Each D3E.2 native audit session attested SACL and audit policy restoration and kept `patient_files_or_settings_content_read=false`; no clinical data content or license values were exported. The results are **not** a certification of irreversible erasure of runner memory; the ephemeral file paths themselves were never archived.
+
+**Exact source tests:** [static validator #38015220741 SUCCESS](https://github.com/hraaaaf/Digital_crown/actions/runs/38015220741) on then-current documentation HEAD `be789457506f8cb8b91b366a72943f8d79ff1aa6` confirms 85 synthetic tests (18 snapshot + 15 cold/warm + 19 PID + 20 D3E.3 + 13 topology); proof of test contracts, **not** isolation. The D3 Windows exit code 1 is expected on observed drift and MUST NOT be changed to green.
+
+**NEXT REQUIRED:** (1) investigate **one cold changed file not overlapping observed Facad root-PID write-use events** without exporting file identity; (2) cautiously assess process ancestry and child PIDs across short lived processes with explicit capture completeness limitations; (3) prove effective configured Patient Data Root/Node/Work List, safe network/shared scopes, and correct isolation; (4) pursue numeric/clinical parity only after appropriate approval. `SHARED_APP_STORAGE_ISOLATION=UNVERIFIED`, `CLINICAL_EDIT_ALLOWED=false`, `FACAD_NUMERICAL_PARITY_CERTIFIED=false`, `D3_CONVERGED=false`. No merge, deployment or patient IO.
