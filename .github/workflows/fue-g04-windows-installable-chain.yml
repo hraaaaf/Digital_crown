@@ -234,10 +234,38 @@ jobs:
           python -m PyInstaller --noconfirm --clean DigitalCrown.spec
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
           if (-not (Test-Path -LiteralPath "dist/DigitalCrown/DigitalCrown.exe")) { throw "No Windows executable" }
-          foreach ($proof in @("release-certification.json", ".digitalcrown-release-sha", "release-content.sha256", "installable-certification.json", "runtime-assets-certification.json", "runtime-assets-content.sha256", "github-attestation-verification.json")) {
-            if (-not (Test-Path -LiteralPath (Join-Path "dist/DigitalCrown" $proof))) { throw "PyInstaller dropped mandatory proof $proof" }
+          # PyInstaller 6 onedir stores spec.datas beneath _internal. The
+          # frozen launcher checks sys._MEIPASS there. The unmodified signed
+          # Inno Setup source also requires proof files beside DigitalCrown.exe.
+          # Verify each embedded proof against the already certified release
+          # before copying identical bytes to the installer-visible root.
+          $frozenInternal = Join-Path (Get-Location) "dist/DigitalCrown/_internal"
+          $frozenRoot = Join-Path (Get-Location) "dist/DigitalCrown"
+          if (-not (Test-Path -LiteralPath $frozenInternal -PathType Container)) {
+            throw "PyInstaller onedir internal bundle missing; certificate layout refused"
           }
-          Write-Host "WINDOWS_PYINSTALLER_PROOF_FILES=PASS"
+          $proofs = @(
+            "release-certification.json", ".digitalcrown-release-sha",
+            "release-content.sha256", "installable-certification.json",
+            "runtime-assets-certification.json", "runtime-assets-content.sha256",
+            "github-attestation-verification.json"
+          )
+          foreach ($proof in $proofs) {
+            $signed = Join-Path $release $proof
+            $embedded = Join-Path $frozenInternal $proof
+            $rootCopy = Join-Path $frozenRoot $proof
+            if (-not (Test-Path -LiteralPath $signed -PathType Leaf)) { throw "Missing certified source proof $proof" }
+            if (-not (Test-Path -LiteralPath $embedded -PathType Leaf)) { throw "PyInstaller dropped internal runtime proof $proof" }
+            if (Test-Path -LiteralPath $rootCopy) { throw "Unexpected root proof before authenticated copy: $proof" }
+            $sourceDigest = (Get-FileHash -LiteralPath $signed -Algorithm SHA256).Hash.ToLowerInvariant()
+            $embeddedDigest = (Get-FileHash -LiteralPath $embedded -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($embeddedDigest -ne $sourceDigest) { throw "Embedded proof differs from certified source: $proof" }
+            Copy-Item -LiteralPath $embedded -Destination $rootCopy -ErrorAction Stop
+            if ((Get-FileHash -LiteralPath $rootCopy -Algorithm SHA256).Hash.ToLowerInvariant() -ne $sourceDigest) {
+              throw "Installer-visible proof copy differs from certified source: $proof"
+            }
+          }
+          Write-Host "WINDOWS_RUNTIME_INTERNAL_AND_INSTALLER_ROOT_PROOFS_IDENTICAL=PASS"
 
       - name: Build Inno Setup installer without executing/installing
         shell: pwsh
