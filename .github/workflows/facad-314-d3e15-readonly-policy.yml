@@ -45,8 +45,14 @@ jobs:
           $probe=(Resolve-Path 'scripts/facad_314_d3e15_readonly_user_audit_policy.ps1').Path
           $raw=Join-Path $env:GITHUB_WORKSPACE 'd3e15-audit-policy-readonly.json'
           $checked=Join-Path $env:GITHUB_WORKSPACE 'd3e15-audit-policy-checked.json'
-          & $probe -OutputPath $raw
-          if($LASTEXITCODE -ne 0){throw 'D3E15_POLICY_QUERY_PROBE_BLOCKED'}
+          # Separate pwsh process: a failed read-only auditpol query can be
+          # classified as unavailable, but must not leak its native exit code
+          # into the workflow's success evaluation. The strict gate below is
+          # the authority for the resulting anonymized JSON evidence.
+          pwsh -NoProfile -NonInteractive -File $probe -OutputPath $raw | Out-Host
+          if($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $raw -PathType Leaf)){
+            throw 'D3E15_POLICY_QUERY_PROBE_BLOCKED'
+          }
           python scripts/facad_314_d3e15_readonly_audit_policy_gate.py --input $raw --output $checked | Out-Host
           if($LASTEXITCODE -ne 0){throw 'D3E15_POLICY_AGGREGATE_INVALID'}
           $result=Get-Content -LiteralPath $checked -Raw | ConvertFrom-Json

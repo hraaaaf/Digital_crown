@@ -111,6 +111,8 @@ jobs:
           grep -Fq 'D3E15_CAPTURE_AUTHORIZED=false' scripts/facad_314_d3e15_readonly_user_audit_policy.ps1
           grep -Fq 'D3E15_PER_USER_POLICY_MODIFIED=false' scripts/facad_314_d3e15_readonly_audit_policy_gate.py
           grep -Fq 'READ ONLY' .github/workflows/facad-314-d3e15-readonly-policy.yml
+          grep -Fq 'pwsh -NoProfile -NonInteractive -File $probe -OutputPath $raw' .github/workflows/facad-314-d3e15-readonly-policy.yml
+          grep -Fq 'Test-Path -LiteralPath $raw -PathType Leaf' .github/workflows/facad-314-d3e15-readonly-policy.yml
           if grep -Eq '^[[:space:]]*(&[[:space:]]*)?auditpol(.exe)?[[:space:]]+/(set|restore|clear)' scripts/facad_314_d3e15_readonly_user_audit_policy.ps1; then exit 1; fi
           if grep -Eq 'Get-WinEvent|logman.exe|Set-Acl|Register-ObjectEvent' scripts/facad_314_d3e15_readonly_user_audit_policy.ps1; then exit 1; fi
           grep -Fq 'audit_file_system_success_policy' scripts/facad_314_d3e14_sacl_calibration_gate.py

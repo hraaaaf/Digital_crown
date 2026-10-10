@@ -216,6 +216,18 @@ class B_EvidenceAndCounterfactualTests(unittest.TestCase):
             self.assertFalse(json.loads(out.read_text())["capture_authorized"])
             self.assertIn("CLINICAL_EDIT_ALLOWED=false", p.stdout)
 
+    def test_native_workflow_uses_separate_process_exit_code(self):
+        workflow = (ROOT.parent / ".github/workflows/facad-314-d3e15-readonly-policy.yml")
+        text = workflow.read_text(encoding="utf8")
+        self.assertIn("pwsh -NoProfile -NonInteractive -File $probe -OutputPath $raw", text)
+        self.assertIn("D3E15_POLICY_AGGREGATE_INVALID", text)
+        self.assertNotIn("& $probe -OutputPath $raw", text)
+
+    def test_native_workflow_checks_aggregate_file_exists(self):
+        workflow = (ROOT.parent / ".github/workflows/facad-314-d3e15-readonly-policy.yml")
+        text = workflow.read_text(encoding="utf8")
+        self.assertIn("Test-Path -LiteralPath $raw -PathType Leaf", text)
+
     def test_cli_missing_input_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             p = subprocess.run([
