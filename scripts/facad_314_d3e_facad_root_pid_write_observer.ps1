@@ -49,8 +49,11 @@ try {
  if(-not (Test-Path -LiteralPath $root -PathType Container)) {throw 'SCOPE_ABSENT'}
  if($root.Length -lt 4 -or $root[1] -cne ':' -or
     -not $root.EndsWith('\AppData\Roaming\Ilexis',[StringComparison]::OrdinalIgnoreCase)) {throw 'SCOPE_PATH_GUARD'}
+ $rootInfo=Get-Item -LiteralPath $root -Force -ErrorAction Stop
+ if(($rootInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'SCOPE_REPARSE_POINT'}
  $result.selected_scope_existed_before_start=$true
  $oldAcl=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+ $saclBefore=$oldAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
  $policy=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
  if($LASTEXITCODE -ne 0 -or $policy.Count -lt 2){throw 'POLICY_UNAVAILABLE'}
  $wasEnabled=([string]($policy | Select-Object -Last 1) -match 'Success')
@@ -117,7 +120,13 @@ try {
    try{Stop-Process -Id $proc.Id -Force -ErrorAction Stop}catch{$result.verdict='BLOCKED_PROCESS_STOP_FAILED'}
  }
  if($null -ne $oldAcl -and $null -ne $root){
-   try{Set-Acl -LiteralPath $root -AclObject $oldAcl -ErrorAction Stop;$result.scope_sacl_restored=$true}
+   try{
+     Set-Acl -LiteralPath $root -AclObject $oldAcl -ErrorAction Stop
+     $readback=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+     $saclAfter=$readback.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
+     if($saclBefore -cne $saclAfter){throw 'SACL_RESTORATION_MISMATCH'}
+     $result.scope_sacl_restored=$true
+   }
    catch{$result.verdict='BLOCKED_SACL_RESTORE_FAILED'}
  }
  if($enabled){
@@ -125,6 +134,9 @@ try {
      try{
        & auditpol.exe /set "/subcategory:$guid" '/success:disable' >$null 2>$null
        if($LASTEXITCODE -ne 0){throw 'RESTORE_FAILED'}
+       $policyAfter=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
+       if($LASTEXITCODE -ne 0 -or $policyAfter.Count -lt 2 -or
+          ([string]($policyAfter | Select-Object -Last 1) -match 'Success')){throw 'POLICY_RESTORATION_MISMATCH'}
        $result.audit_policy_restored=$true
      }catch{$result.verdict='BLOCKED_AUDIT_POLICY_RESTORE_FAILED'}
    }elseif($wasEnabled -eq $true){$result.audit_policy_restored=$true}
