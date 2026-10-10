@@ -10,6 +10,7 @@ import http.cookiejar
 import json
 import os
 import pathlib
+import socket
 import ssl
 import sys
 import time
@@ -34,6 +35,7 @@ owner_pin = os.environ["T2_OWNER_PIN"]
 context = ssl.create_default_context(cafile=ca)
 context.check_hostname = True
 context.verify_mode = ssl.CERT_REQUIRED
+tls_checks = {"untrustedCaRejected": False, "sanMismatchRejected": False}
 cookies = http.cookiejar.MozillaCookieJar(str(cookies_path))
 if cookies_path.exists():
     cookies.load(ignore_discard=True, ignore_expires=True)
@@ -97,9 +99,24 @@ def ensure_tls_refusal():
         raise AssertionError("Expected explicit certificate verification error") from exc
     raise AssertionError("Untrusted CA was silently accepted")
 
+def ensure_san_refusal():
+    """The trusted ephemeral CA is insufficient if the actual TLS SAN differs."""
+    # Connect to the genuine Docker-bridge cabinet.local server while requesting
+    # a deliberately incorrect TLS hostname. No certificate bypass, no real LAN.
+    with socket.create_connection(("cabinet.local", 8005), timeout=6) as transport:
+        try:
+            with context.wrap_socket(transport, server_hostname="wrong.cabinet.local"):
+                pass
+        except ssl.SSLCertVerificationError as exc:
+            if "hostname mismatch" not in str(exc).lower() and "not valid for" not in str(exc).lower():
+                raise AssertionError("Expected wrong-SAN rejection, got another TLS failure") from exc
+            return
+    raise AssertionError("Trusted CA incorrectly accepted a mismatched server hostname")
+
 def record(status, **kwargs):
     d = {"role": role, "phase": phase, "status": status, "tlsVerified": phase != "offline",
          "utc": int(time.time()), "productHead": os.environ.get("PRODUCT_HEAD")}
+    d.update(tls_checks)
     d.update(kwargs)
     (report_dir / (phase + ".json")).write_text(json.dumps(d, indent=2), encoding="utf-8")
     print(json.dumps({"role": role, "phase": phase, "status": status,
@@ -119,6 +136,9 @@ if topology.get("port") != 8005 or topology.get("tlsEnabled") is not True or top
     raise AssertionError("Real topology endpoint does not describe LAN HTTPS :8005")
 call("/api/health/db")
 ensure_tls_refusal()
+tls_checks["untrustedCaRejected"] = True
+ensure_san_refusal()
+tls_checks["sanMismatchRejected"] = True
 token = login()
 
 if phase == "setup":

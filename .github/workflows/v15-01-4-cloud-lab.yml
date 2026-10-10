@@ -231,6 +231,8 @@ jobs:
                   r=json.loads(p.read_text())
                   assert r['status']=='PASS' and r['productHead']==os.environ['PRODUCT_HEAD'], (role, phase)
                   assert r['tlsVerified']==(phase!='offline')
+                  assert r['untrustedCaRejected']==(phase!='offline'), (role, phase, 'CA oracle')
+                  assert r['sanMismatchRejected']==(phase!='offline'), (role, phase, 'SAN oracle')
                   items.append(r)
           paired={role:next(i for i in items if i['role']==role and i['phase']=='pair') for role in phases}
           assert len({v['workstationHash'] for v in paired.values()})==4
