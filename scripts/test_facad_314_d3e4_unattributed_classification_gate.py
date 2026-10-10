@@ -48,6 +48,35 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual(s["change_classification"]["modified"]["facad_root_only"],2)
         self.assertEqual(s["changed_identity_without_any_observed_4663_count"],1)
         self.assertFalse(s["specific_process_cause_proven"])
+    def test_unexplained_modified_size_changed(self):
+        # Make a changed existing identity unobserved by any 4663 PID class.
+        self.events=evidence(root=[H("a")])
+        o=self.go()
+        self.assertEqual(o["unexplained_modified_size_changed_count"],1)
+        self.assertEqual(o["unexplained_modified_same_size_fingerprint_changed_count"],0)
+        self.assertFalse(o["specific_process_cause_proven"])
+
+    def test_unexplained_modified_same_size_fingerprint_changed(self):
+        self.events=evidence(root=[H("a")])
+        self.after["scopes"][SCOPE]["entries"][H("b")]={"sha256":H("b"),"size":2}
+        o=self.go()
+        self.assertEqual(o["unexplained_modified_same_size_fingerprint_changed_count"],1)
+        self.assertEqual(o["unexplained_modified_size_changed_count"],0)
+        self.assertFalse(o["event_delivery_complete"])
+
+    def test_unexplained_added_not_mislabeled_modified(self):
+        o=self.go()
+        self.assertEqual(o["change_classification"]["added"]["no_4663_event"],1)
+        self.assertEqual(o["unexplained_modified_size_changed_count"],0)
+        self.assertEqual(o["unexplained_modified_same_size_fingerprint_changed_count"],0)
+
+    def test_modified_size_categories_reconcile(self):
+        self.events=evidence(root=[])
+        o=self.go()
+        self.assertEqual(o["change_classification"]["modified"]["no_4663_event"],
+          o["unexplained_modified_size_changed_count"]+
+          o["unexplained_modified_same_size_fingerprint_changed_count"])
+
     def test_warm_complete_but_not_isolation(self):
         del self.after["scopes"][SCOPE]["entries"][H("c")]
         s=self.go();self.assertEqual(s["changed_identity_without_any_observed_4663_count"],0)
