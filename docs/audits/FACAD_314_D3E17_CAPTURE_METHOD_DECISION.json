@@ -1,0 +1,103 @@
+{
+  "schema": "facad314_d3e17_capture_method_decision_v1",
+  "phase": "DESIGN_ONLY_NO_LIVE_CAPTURE",
+  "baseline_sha": "eb9f2c2bd316ef85ff91e76759f293e869fec655",
+  "baseline_ci_run_id": 38086797632,
+  "baseline_windows_readonly_run_id": 38086797658,
+  "recommendation": "ISOLATED_GUEST_SECURITY_REVIEW_ONLY",
+  "reason": "NO_CURRENT_MECHANISM_PROVES_PER_FILE_WRITER_WITHOUT_NEW_UNREVIEWED_RISKS",
+  "methods": [
+    {
+      "id": "KERNEL_FILE_ETW",
+      "scope": "HOST_WIDE",
+      "writer_pid_proof": "SYNTHETIC_ONLY",
+      "risk": "UNRELATED_FILE_ACTIVITY_IN_RAW_TRACE",
+      "capture_authorized": false
+    },
+    {
+      "id": "ETW_PID_FILTER",
+      "scope": "PROVIDER_SUPPORT_NOT_PROVEN",
+      "writer_pid_proof": "NOT_PROVEN_FOR_KERNEL_FILE",
+      "risk": "USER_MODE_FILTER_CANNOT_BE_ASSUMED_FOR_KERNEL_PROVIDER",
+      "capture_authorized": false
+    },
+    {
+      "id": "FILE_SYSTEM_SACL_4663",
+      "scope": "MATCHING_SACL_WITH_SYSTEM_OR_USER_AUDIT",
+      "writer_pid_proof": "NOT_AVAILABLE_ON_D3E14_RUNNER",
+      "risk": "POLICY_REQUIRED_AND_SECURITY_LOG_SHARED",
+      "capture_authorized": false
+    },
+    {
+      "id": "FILESYSTEMWATCHER",
+      "scope": "DIRECTORY_NOTIFICATION",
+      "writer_pid_proof": "NO_PID",
+      "risk": "BUFFER_LOSS_AND_NOTIFICATION_NOT_CAUSALITY",
+      "capture_authorized": false
+    },
+    {
+      "id": "SYSMON",
+      "scope": "EVENT_FILTERED_SYSTEM_SERVICE_AND_DRIVER",
+      "writer_pid_proof": "NOT_GENERAL_WRITE_COMPLETION",
+      "risk": "FILTERED_LOG_NOT_PROVEN_CAPTURE_CONFINEMENT",
+      "capture_authorized": false
+    },
+    {
+      "id": "MINIFILTER_DRIVER",
+      "scope": "KERNEL_IO_CALLBACK",
+      "writer_pid_proof": "DESIGN_POSSIBLE_NOT_TESTED",
+      "risk": "SIGNED_KERNEL_DRIVER_INSTALLATION_AND_GLOBAL_CALLBACK_RISK",
+      "capture_authorized": false
+    },
+    {
+      "id": "PROC_MONITOR",
+      "scope": "KERNEL_MONITORING_SCOPE_UNPROVEN",
+      "writer_pid_proof": "NOT_VALIDATED",
+      "risk": "POTENTIAL_UNRELATED_ACTIVITY_IN_TRACE",
+      "capture_authorized": false
+    },
+    {
+      "id": "DEDICATED_GUEST_ETW",
+      "scope": "GUEST_WIDE_ONLY",
+      "writer_pid_proof": "SYNTHETIC_ONLY",
+      "risk": "GUEST_PURPOSE_LIMITED_BUT_ETW_STILL_GUEST_WIDE",
+      "capture_authorized": false
+    }
+  ],
+  "guest_architecture_requirements": [
+    "INDEPENDENT_EPHEMERAL_WINDOWS_GUEST",
+    "NO_ACCOUNT_CONNECTORS_OR_PRODUCTION_SECRETS",
+    "OFFICIAL_NONCLINICAL_DEMO_PROVENANCE_AND_CHECKS",
+    "NO_PATIENT_LOAD_SAVE_OR_LICENSE_INSPECTION",
+    "NO_SHARED_STORAGE_OR_HOST_CLINICAL_MOUNTS",
+    "NO_GUEST_TO_HOST_EXPORT_OF_RAW_EVENTS",
+    "ALL_SENSITIVE_TRACE_PROCESSING_GUEST_LOCAL",
+    "AGGREGATE_ALLOWLIST_WITH_MINIMUM_DISCLOSURE",
+    "TRACE_STOP_CLEANUP_GUEST_DESTRUCTION_VERIFIED",
+    "PID_FILEOBJECT_TIMESTAMP_AND_LOSS_EVIDENCE_PREDEFINED",
+    "TWO_REAL_INDEPENDENT_REVIEWS_ON_SAME_HEAD",
+    "EXPLICIT_APPROVAL_FOR_LATER_EXPERIMENT"
+  ],
+  "checks": {
+    "isolated_guest_verified": false,
+    "host_mounts_absent_verified": false,
+    "production_secrets_absent_verified": false,
+    "official_demo_provenance_verified": false,
+    "source_filters_complete_verified": false,
+    "raw_trace_non_export_verified": false,
+    "cleanup_and_guest_destruction_verified": false,
+    "fileobject_pid_correlation_verified_on_quickdemo": false,
+    "event_loss_excluded": false,
+    "independent_privacy_review_complete": false,
+    "independent_evidence_review_complete": false,
+    "explicit_experiment_authorization": false,
+    "real_quickdemo_trace_performed": false,
+    "real_ilexis_writer_proven": false,
+    "shared_app_storage_isolation_verified": false,
+    "clinical_edit_allowed": false,
+    "merge_or_deployment_authorized": false
+  },
+  "converged": false,
+  "live_capture_authorized": false,
+  "verdict": "D3E17_DESIGN_VALIDATION_ONLY_NO_SAFE_CAPTURE_CLEARED"
+}
