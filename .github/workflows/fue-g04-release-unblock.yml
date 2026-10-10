@@ -38,6 +38,8 @@ jobs:
             backend/tests/test_cephalo_vnext_lot06_executable_measurement_contract.py \
             backend/tests/test_cephalo_vnext_lot06_typed_canonical_bridge.py \
             backend/tests/test_mobile_patient_cockpit.py \
+            backend/tests/test_sqlcipher_backup_contract.py \
+            backend/tests/test_workstation_mode_v15.py \
             backend/tests/test_certified_release_policy.py
 
   canonical-focus-registry:
