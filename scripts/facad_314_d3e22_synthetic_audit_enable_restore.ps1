@@ -26,6 +26,7 @@ $targetSuffixMatchCount=0
 $targetExactMatchCount=0
 $targetWritableAccessCount=0
 $liveScopedAliasCount=0
+$trustedNtDevice=$null
 $probeError=$false
 
 function Get-FileAuditSuccess {
@@ -60,6 +61,8 @@ param([Parameter(Mandatory=$true)][string]$Target)
 [IO.File]::WriteAllText($Target,'SYNTHETIC_AFTER')
 '@)
     . (Join-Path $PSScriptRoot 'facad_314_d3e22_event_path_map.ps1')
+    $trustedNtDevice=Get-ScopedNtVolume -ScopeRoot $syntheticScope
+    if([string]::IsNullOrWhiteSpace($trustedNtDevice)){throw 'TRUSTED_DRIVE_MAPPING_UNAVAILABLE'}
     $policyOriginal=Get-FileAuditSuccess
     if(-not $policyOriginal){
         $policyTouched=$true
@@ -122,7 +125,7 @@ param([Parameter(Mandatory=$true)][string]$Target)
             if($suffixMatch){$targetSuffixMatchCount++}
             if($exactMatch){$targetExactMatchCount++}
             if($suffixMatch -or $exactMatch){
-                $relative=Resolve-ScopedEventRelative -ScopeRoot $syntheticScope -ObservedPath $objectName
+                $relative=Resolve-ScopedEventRelative -ScopeRoot $syntheticScope -ObservedPath $objectName -ExpectedNtDevice $trustedNtDevice
                 if($relative -ceq 'synthetic.txt'){$liveScopedAliasCount++}
             }
             if(-not ($suffixMatch -or $exactMatch) -or
@@ -181,6 +184,7 @@ Write-Host "D3E22_OBJECTNAME_FIELD_COUNT=$objectNameFieldCount"
 Write-Host "D3E22_TARGET_SUFFIX_MATCH_COUNT=$targetSuffixMatchCount"
 Write-Host "D3E22_TARGET_EXACT_MATCH_COUNT=$targetExactMatchCount"
 Write-Host "D3E22_TARGET_WRITABLE_ACCESS_COUNT=$targetWritableAccessCount"
+Write-Host "D3E22_TRUSTED_DEVICE_MAPPED=$([bool](-not [string]::IsNullOrWhiteSpace($trustedNtDevice)))"
 Write-Host "D3E22_LIVE_SCOPED_ALIAS_MATCH_COUNT=$liveScopedAliasCount"
 Write-Host "D3E22_TARGET_MATCH_COUNT=$matchCount"
 Write-Host "D3E22_CHILD_PID_MATCH_COUNT=$childCount"

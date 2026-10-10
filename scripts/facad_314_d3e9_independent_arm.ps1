@@ -62,6 +62,8 @@ try{
      -not $dest.Contains('\facad-quick-demo\') -or
      (Test-Path -LiteralPath $dest)){throw 'PUBLIC_OUTPUT_GUARD'}
   $root=[IO.Path]::GetFullPath((Join-Path $env:APPDATA 'Ilexis')).TrimEnd('\')
+   $trustedNtVolume=Get-ScopedNtVolume -ScopeRoot $root
+   if($null -eq $trustedNtVolume){throw 'AUDIT_NT_DEVICE_MAPPING_UNAVAILABLE'}
   if(-not $root.EndsWith('\AppData\Roaming\Ilexis',[StringComparison]::OrdinalIgnoreCase) -or
      -not (Test-Path -LiteralPath $root -PathType Container)){throw 'SCOPE_GUARD'}
   $rootInfo=Get-Item -LiteralPath $root -Force -ErrorAction Stop
@@ -201,7 +203,7 @@ try{
            -not $fields['ObjectName'] -or -not $fields['ProcessId'] -or
            -not $fields['AccessMask']){continue}
         $fullName=[string]$fields['ObjectName']
-        $relative=Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $fullName
+        $relative=Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $fullName -ExpectedNtDevice $trustedNtVolume
         if($null -eq $relative){continue}
         if(-not $relative -or $relative.Length -gt 4096 -or
            @($relative.Split('\') | Where-Object {$_ -eq '.' -or $_ -eq '..'}).Count){continue}

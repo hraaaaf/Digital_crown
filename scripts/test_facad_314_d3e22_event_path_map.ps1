@@ -18,10 +18,22 @@ $checks=@(
 )
 $count=0
 foreach($check in $checks){
-  $actual=Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $check.observed
+  $actual=Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $check.observed -ExpectedNtDevice '\Device\HarddiskVolume3'
   if($actual -cne $check.expected){throw 'D3E22_ALIAS_SYNTHETIC_CASE_FAILED'}
   $count++
 }
+# Explicitly reject a different actual NT volume, even with an identical relative path.
+$wrongVolume='\Device\HarddiskVolume4\Users\example\AppData\Roaming\Ilexis\settings.bin'
+if($null -ne (Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $wrongVolume -ExpectedNtDevice '\Device\HarddiskVolume3')){
+ throw 'UNTRUSTED_NT_DEVICE_WAS_ACCEPTED'
+}
+$count++
+# Reject unpinned device paths: an alias is never enough without a mapped drive.
+$ntPath='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis\settings.bin'
+if($null -ne (Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $ntPath)){
+ throw 'UNPINNED_NT_DEVICE_WAS_ACCEPTED'
+}
+$count++
 Write-Host "D3E22_SOURCE_ALIAS_TESTS_PASSED=$count"
 Write-Host 'D3E22_REAL_ILEXIS_FILE_TOUCHED=false'
 Write-Host 'D3E22_FACAD_EXECUTED=false'
