@@ -96,7 +96,7 @@ def load_plan(path):
     if not path.is_file() or path.stat().st_size > MAX_BYTES:
         raise StagingBlocked("PLAN_MISSING_OR_TOO_LARGE")
     raw = path.read_bytes()
-    if raw.startswith(b"\\xef\\xbb\\xbf") or b"\\x00" in raw:
+    if raw.startswith(b"\xef\xbb\xbf") or b"\x00" in raw:
         raise StagingBlocked("ENCODING_INVALID")
     return json.loads(raw.decode("utf-8"), object_pairs_hook=no_duplicate_keys)
 

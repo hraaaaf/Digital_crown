@@ -131,10 +131,24 @@ class B_TruthAndIndependence(unittest.TestCase):
                                   capture_output=True, text=True)
             self.assertEqual(proc.returncode, 2)
 
+    def test_explicit_bom_rejection_before_json_decode(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "bom.json"
+            path.write_bytes(b"\xef\xbb\xbf" + CONTRACT.read_bytes())
+            with self.assertRaisesRegex(gate.StagingBlocked, "ENCODING_INVALID"):
+                gate.load_plan(path)
+
+    def test_explicit_nul_rejection_before_json_decode(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "nul.json"
+            path.write_bytes(CONTRACT.read_bytes() + b"\x00")
+            with self.assertRaisesRegex(gate.StagingBlocked, "ENCODING_INVALID"):
+                gate.load_plan(path)
+
     def test_cli_bom_blocks(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "bom.json"
-            path.write_bytes(b"\\xef\\xbb\\xbf" + CONTRACT.read_bytes())
+            path.write_bytes(b"\xef\xbb\xbf" + CONTRACT.read_bytes())
             proc = subprocess.run([sys.executable, str(GATE), "--contract", str(path)],
                                   capture_output=True, text=True)
             self.assertEqual(proc.returncode, 2)
