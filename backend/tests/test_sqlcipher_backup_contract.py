@@ -43,16 +43,19 @@ def test_sqlcipher_backup_fails_closed_when_key_missing(tmp_path, monkeypatch):
     source = tmp_path / "cabinet.db"
     source.write_bytes(b"encrypted-source-placeholder")
     fake_engine = _fake_sqlcipher_engine(source, password=None)
-    monkeypatch.delenv("CABINET_MASTER_KEY_HEX", raising=False)
-    monkeypatch.delenv("SECRET_KEY", raising=False)
+    for name in ("SQLCIPHER_KEY_HEX", "CABINET_MASTER_KEY_HEX", "SECRET_KEY"):
+        monkeypatch.delenv(name, raising=False)
 
     with patch("backend.database.engine", fake_engine), \
-         patch.object(BackupService, "_get_or_create_key", return_value=Fernet(Fernet.generate_key())):
+         patch.object(BackupService, "_get_or_create_key", return_value=Fernet(Fernet.generate_key())), \
+         patch.object(BackupService, "_export_sqlcipher_snapshot") as export:
         result = BackupService._backup_sqlite_family(tmp_path, "20260817_020001", "pysqlcipher")
 
     assert result["status"] == "FAILED"
     assert result["error_code"] == "MISSING_SQLCIPHER_KEY"
     assert result["backup_filename"] is None
+    export.assert_not_called()
+    assert not list(tmp_path.glob("db_backup_*.db.enc"))
 
 
 def test_restore_verifies_before_atomic_publish(tmp_path):
