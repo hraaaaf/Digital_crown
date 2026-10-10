@@ -67,6 +67,17 @@ try {
           item.http5xx.push({ status: response.status(), path: new URL(response.url()).pathname });
         }
       });
+      // LoginPage animates its root panel from opacity 0 to 1 via Framer
+      // Motion. A URL transition is not visual readiness; wait for the actual
+      // login form and fully opaque root before recording AFTER evidence.
+      const waitForReadableLogin = async () => {
+        await page.locator('input[type=email]').waitFor({ state: 'visible', timeout: 30000 });
+        await page.waitForFunction(() => {
+          const input = document.querySelector('input[type=email]');
+          const panel = input?.closest('div.max-w-md');
+          return Boolean(panel && Number.parseFloat(getComputedStyle(panel).opacity) >= 0.98);
+        }, null, { timeout: 15000 });
+      };
       const capture = async name => {
         const meta = await page.evaluate(() => {
           const root = document.documentElement;
@@ -98,12 +109,15 @@ try {
         throw new Error('Anonymous direct Dashboard leaked clinical content');
       }
       item.checks.anonymousDirectDashboardDenied = true;
+      await waitForReadableLogin();
       await capture('02-anonymous-refusal');
 
       await page.goto(ui + '/hub?select=1', { waitUntil: 'domcontentloaded', timeout: 45000 });
       await page.locator('[data-hub-experience="cabinet"]').click();
       await page.waitForURL(url => new URL(url).pathname === '/login', { timeout: 30000 });
       item.checks.cabinetCardDemandsRealLogin = true;
+      await waitForReadableLogin();
+      item.checks.loginScreensSettled = true;
       await capture('03-after-cabinet-choice-login');
 
       // Real login UI, no test-only injection of localStorage auth tokens.
@@ -157,7 +171,7 @@ evidence.success =
   evidence.failures.length === 0 &&
   evidence.profiles.length === profiles.length &&
   evidence.profiles.every(p => p.pictures.length === 6 &&
-    Object.keys(p.checks).length === 7 &&
+    Object.keys(p.checks).length === 8 &&
     Object.values(p.checks).every(Boolean));
 await fs.writeFile(path.join(out, 'report.json'), JSON.stringify(evidence, null, 2));
 console.log('FUE_00_2_REAL_AUTH_SUMMARY', JSON.stringify({
