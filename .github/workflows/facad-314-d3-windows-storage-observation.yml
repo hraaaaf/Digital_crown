@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/facad-314-d3-windows-storage-observation.yml
       - scripts/facad_314_d3_windows_snapshot.ps1
+      - scripts/facad_314_d3_cold_warm_verdict_gate.py
   workflow_dispatch:
 
 permissions:
@@ -37,7 +38,7 @@ jobs:
             }
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
-          python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py
+          python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -400,67 +401,105 @@ jobs:
           if($officialHash -ne $copyHash){throw 'Disposable Robert hash differs from original'}
           $script=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_windows_snapshot.ps1'
           $session="$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          $before='facad-quick-demo/d3-storage-before.json'
-          $after='facad-quick-demo/d3-storage-after.json'
-          $verdict='facad-quick-demo/d3-storage-verdict.json'
-          & $script -Phase before -SessionId $session -OfficialExamples $examples -DisposableExamples $copyRoot -InstallDirectory $installed.DirectoryName -OutputPath $before
-          $p=$null
-          try{
-            $p=Start-Process -FilePath $installed.FullName -ArgumentList ('"'+$copy+'"') -WorkingDirectory $installed.DirectoryName -PassThru -ErrorAction Stop
-            Start-Sleep -Seconds 3
-            if($p.HasExited){throw 'Facad exited before process observation'}
-            $processScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_process_io_observer.ps1'
-            $processOut=Join-Path $env:GITHUB_WORKSPACE 'facad-quick-demo/d3-process-io-startup.json'
-            & $processScript -TargetPid $p.Id -DurationSeconds 6 -OutputPath $processOut
-            $processEvidence=Get-Content -LiteralPath $processOut -Raw | ConvertFrom-Json
-            if($processEvidence.schema -cne 'facad314_d3_process_io_v1' -or
-               $processEvidence.verdict -cne 'INCONCLUSIVE_PROCESS_IO_COUNTERS_ONLY' -or
-               $processEvidence.sample_count -ne 12 -or
-               $processEvidence.d3_isolation_verified -ne $false -or
-               $processEvidence.clinical_edit_allowed -ne $false -or
-               $processEvidence.path_attribution_available -ne $false -or
-               $processEvidence.complete_child_process_coverage -ne $false -or
-               $processEvidence.files_or_command_lines_read -ne $false -or
-               $processEvidence.registry_values_read -ne $false){
-              throw 'D3 process-only evidence contract mismatch'
-            }
-            Write-Host 'D3_PROCESS_IO_OBSERVATION_COMPLETE=true'
-            Start-Sleep -Seconds 6
-            if($p.HasExited){throw 'Facad exited before startup observation completed'}
-            Write-Host 'D3_PROBE_ACTION=APP_STARTUP_ONLY_NO_UI_CLICKS'
-          } finally {
-            if($null -ne $p -and -not $p.HasExited){
-              Stop-Process -Id $p.Id -Force -ErrorAction Stop
+          $processScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_process_io_observer.ps1'
+          $officialScopeCount=10
+          # Both experiments remain on one ephemeral Windows runner with the same
+          # copied, rights-cleared Robert demo, and no UI click, patient Load or Save.
+          function Invoke-D3ResearchStartup([string]$label) {
+            $processOut="facad-quick-demo/d3-process-io-$label.json"
+            $p=$null
+            try{
+              $p=Start-Process -FilePath $installed.FullName -ArgumentList ('"'+$copy+'"') -WorkingDirectory $installed.DirectoryName -PassThru -ErrorAction Stop
               Start-Sleep -Seconds 3
+              if($p.HasExited){throw "Facad exited too early during $label nonclinical startup"}
+              & $processScript -TargetPid $p.Id -DurationSeconds 6 -OutputPath (Join-Path $env:GITHUB_WORKSPACE $processOut)
+              $processEvidence=Get-Content -LiteralPath $processOut -Raw | ConvertFrom-Json
+              if($processEvidence.schema -cne 'facad314_d3_process_io_v1' -or
+                 $processEvidence.verdict -cne 'INCONCLUSIVE_PROCESS_IO_COUNTERS_ONLY' -or
+                 $processEvidence.sample_count -ne 12 -or
+                 $processEvidence.d3_isolation_verified -ne $false -or
+                 $processEvidence.clinical_edit_allowed -ne $false -or
+                 $processEvidence.path_attribution_available -ne $false -or
+                 $processEvidence.complete_child_process_coverage -ne $false -or
+                 $processEvidence.files_or_command_lines_read -ne $false -or
+                 $processEvidence.registry_values_read -ne $false){
+                throw "D3 $label process-only evidence contract mismatch"
+              }
+              Write-Host "D3_STARTUP_PHASE=$label"
+              Write-Host 'D3_PROCESS_IO_PATH_ATTRIBUTION=false'
+              Start-Sleep -Seconds 6
+              if($p.HasExited){throw "Facad exited before $label observation complete"}
+              Write-Host 'D3_PROBE_ACTION=APP_STARTUP_ONLY_NO_UI_CLICKS'
+            } finally {
+              if($null -ne $p -and -not $p.HasExited){
+                Stop-Process -Id $p.Id -Force -ErrorAction Stop
+                Start-Sleep -Seconds 3
+              }
             }
           }
-          & $script -Phase after -SessionId $session -OfficialExamples $examples -DisposableExamples $copyRoot -InstallDirectory $installed.DirectoryName -OutputPath $after
-          $officialAfter=(Get-FileHash -LiteralPath $official -Algorithm SHA256).Hash
-          $copyAfter=(Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash
-          if($officialHash -ne $officialAfter -or $copyHash -ne $copyAfter){throw 'Original/copy patient sample changed'}
-          Write-Host 'D3_ORIGINAL_AND_COPY_SHA256_UNCHANGED=true'
-          python scripts/facad_314_d3_snapshot_diff_gate.py --before $before --after $after --output $verdict
-          $status=$LASTEXITCODE
-          if($status -eq 3){
-            $evidence=Get-Content -LiteralPath $verdict -Raw | ConvertFrom-Json
-            if($evidence.verdict -cne 'INCONCLUSIVE_NO_OBSERVED_STORAGE_DRIFT' -or
-               $evidence.d3_isolation_verified -ne $false -or
-               $evidence.clinical_edit_allowed -ne $false -or
-               $evidence.monitored_scope_count -ne 10 -or
-               $evidence.observed_change_count -ne 0){
-              throw 'D3 inconclusive JSON contract mismatch'
+
+          function Invoke-D3ResearchPair([string]$label) {
+            $before="facad-quick-demo/d3-storage-$label-before.json"
+            $after="facad-quick-demo/d3-storage-$label-after.json"
+            $verdict="facad-quick-demo/d3-storage-$label-verdict.json"
+            & $script -Phase before -SessionId "$session-$label" -OfficialExamples $examples -DisposableExamples $copyRoot -InstallDirectory $installed.DirectoryName -OutputPath $before
+            Invoke-D3ResearchStartup $label
+            & $script -Phase after -SessionId "$session-$label" -OfficialExamples $examples -DisposableExamples $copyRoot -InstallDirectory $installed.DirectoryName -OutputPath $after
+            $officialAfter=(Get-FileHash -LiteralPath $official -Algorithm SHA256).Hash
+            $copyAfter=(Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash
+            if($officialHash -ne $officialAfter -or $copyHash -ne $copyAfter){
+              throw "Official demo original/copy hash changed in $label"
             }
+            Write-Host "D3_DEMO_COPY_INTEGRITY_$($label.ToUpperInvariant())=true"
+            python scripts/facad_314_d3_snapshot_diff_gate.py --before $before --after $after --output $verdict
+            $status=$LASTEXITCODE
+            if($status -notin @(1,3)){
+              throw "D3 $label capture invalid or incomplete: comparator code $status"
+            }
+            $evidence=Get-Content -LiteralPath $verdict -Raw | ConvertFrom-Json
+            if($evidence.monitored_scope_count -ne $officialScopeCount -or
+               $evidence.d3_isolation_verified -ne $false -or
+               $evidence.clinical_edit_allowed -ne $false){
+              throw "D3 $label verdict metadata mismatch"
+            }
+            if($status -eq 1 -and
+               ($evidence.verdict -cne 'BLOCKED_OBSERVED_STORAGE_DRIFT' -or
+                $evidence.observed_change_count -lt 1)){
+              throw "D3 $label unexpected storage drift report"
+            }
+            if($status -eq 3 -and
+               ($evidence.verdict -cne 'INCONCLUSIVE_NO_OBSERVED_STORAGE_DRIFT' -or
+                $evidence.observed_change_count -ne 0)){
+              throw "D3 $label invalid clean report"
+            }
+            Write-Host "D3_$($label.ToUpperInvariant())_OBSERVED_CHANGE_COUNT=$($evidence.observed_change_count)"
+            return $evidence
+          }
+
+          $cold=Invoke-D3ResearchPair 'cold'
+          # A scope other than non-patient UI preferences changing is never
+          # permission to launch the second research observation.
+          $coldOutside=@($cold.observed_changes | Where-Object {$_.scope -cne 'facad_ilexis_roaming_settings'})
+          if($coldOutside.Count){
+            throw 'D3 non-preference scope drift in cold startup; abort warm research, D3 BLOCKED'
+          }
+          $warm=Invoke-D3ResearchPair 'warm'
+          $coldVerdict='facad-quick-demo/d3-storage-cold-verdict.json'
+          $warmVerdict='facad-quick-demo/d3-storage-warm-verdict.json'
+          $summary='facad-quick-demo/d3-cold-warm-research-summary.json'
+          python scripts/facad_314_d3_cold_warm_verdict_gate.py --cold $coldVerdict --warm $warmVerdict --output $summary
+          $researchStatus=$LASTEXITCODE
+          if($researchStatus -eq 1){
+            throw 'D3 BLOCKED: observed storage drift in cold or warm nonclinical session'
+          } elseif($researchStatus -eq 3){
             Write-Host 'D3_OBSERVATION_COMPLETE=true'
             Write-Host 'D3_VERDICT=INCONCLUSIVE_NO_OBSERVED_STORAGE_DRIFT'
             Write-Host 'D3_ISOLATION_VERIFIED=false'
             Write-Host 'CLINICAL_EDIT_ALLOWED=false'
-            # Exit 0 means this EXPERIMENTAL OBSERVATION job ran to completion.
-            # D3 REQUIRED clearance remains BLOCKED; gate CLI deliberately returns 3.
+            # Only experimental monitoring completed. This NEVER clears the D3 gate.
             exit 0
-          } elseif($status -eq 1){
-            throw 'Observed storage drift; inspect hashed-path verdict; D3 remains BLOCKED'
           } else {
-            throw "D3 snapshot comparison invalid: exit $status"
+            throw "D3 cold/warm evidence invalid: exit code $researchStatus"
           }
 
       - name: Upload D3 observation evidence (redacted)
@@ -471,9 +510,10 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
           path: |
-            facad-quick-demo/d3-storage-before.json
-            facad-quick-demo/d3-storage-after.json
-            facad-quick-demo/d3-storage-verdict.json
-            facad-quick-demo/d3-process-io-startup.json
-            facad-quick-demo/quick-demo-process.txt
-            facad-quick-demo/settings-found.txt
+            # Restricted runner only. Do not publish raw before/after manifests
+            # or any hashed filename list; output is aggregate verdict-only.
+            facad-quick-demo/d3-storage-cold-verdict.json
+            facad-quick-demo/d3-storage-warm-verdict.json
+            facad-quick-demo/d3-process-io-cold.json
+            facad-quick-demo/d3-process-io-warm.json
+            facad-quick-demo/d3-cold-warm-research-summary.json
