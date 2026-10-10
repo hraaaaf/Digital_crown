@@ -11,6 +11,10 @@ FIELDS = {
     "direct_etl_read_status", "tracerpt_attempted", "tracerpt_exit_zero",
     "tracerpt_output_file_present", "tracerpt_output_file_nonempty",
     "tracerpt_evtx_read_status",
+    "tracerpt_xml_attempted", "tracerpt_xml_exit_zero",
+    "tracerpt_xml_output_file_present", "tracerpt_xml_output_file_nonempty",
+    "tracerpt_xml_read_status", "tracerpt_xml_event_node_count",
+    "tracerpt_xml_raw_exported",
     "etl_events_parsed", "etl_event_count",
     "synthetic_file_matched_write_event_count",
     "synthetic_writer_pid_matched_write_event_count",
@@ -26,6 +30,8 @@ STATUSES = {"events_returned", "no_matching_events", "query_error",
 READ_STATUSES = {"not_attempted", "events_returned", "no_matching_events",
                  "access_denied", "invalid_data", "provider_unavailable",
                  "conversion_failed", "other"}
+XML_STATUSES = {"not_attempted", "conversion_failed", "size_exceeded",
+                "parse_error", "parsed_events", "parsed_no_events"}
 
 
 class InvalidD3E12(ValueError):
@@ -45,7 +51,10 @@ def validate(x):
                 "synthetic_write_verified", "etl_events_parsed",
                 "etl_file_present", "etl_file_nonempty", "tracerpt_attempted",
                 "tracerpt_exit_zero", "tracerpt_output_file_present",
-                "tracerpt_output_file_nonempty"):
+                "tracerpt_output_file_nonempty",
+                "tracerpt_xml_attempted", "tracerpt_xml_exit_zero",
+                "tracerpt_xml_output_file_present",
+                "tracerpt_xml_output_file_nonempty"):
         if type(x[key]) is not bool:
             raise InvalidD3E12("BOOLEAN_INVALID")
     for key in ("etl_event_count", "synthetic_file_matched_write_event_count",
@@ -53,6 +62,36 @@ def validate(x):
                 "other_or_unknown_pid_matched_write_event_count"):
         if type(x[key]) is not int or not 0 <= x[key] <= 20000:
             raise InvalidD3E12("COUNT_INVALID")
+    if (type(x["tracerpt_xml_event_node_count"]) is not int
+            or not 0 <= x["tracerpt_xml_event_node_count"] <= 20000):
+        raise InvalidD3E12("XML_EVENT_COUNT_INVALID")
+    if x["tracerpt_xml_raw_exported"] is not False:
+        raise InvalidD3E12("RAW_XML_CANNOT_LEAVE_RUNNER")
+    if x["tracerpt_xml_read_status"] not in XML_STATUSES:
+        raise InvalidD3E12("XML_STATUS_INVALID")
+    if not x["tracerpt_xml_attempted"] and (
+            x["tracerpt_xml_exit_zero"] or x["tracerpt_xml_output_file_present"]
+            or x["tracerpt_xml_output_file_nonempty"]
+            or x["tracerpt_xml_event_node_count"]
+            or x["tracerpt_xml_read_status"] != "not_attempted"):
+        raise InvalidD3E12("XML_WITHOUT_ATTEMPT")
+    if x["tracerpt_xml_attempted"] and (
+            not x["trace_started"] or not x["etl_file_nonempty"]
+            or x["etl_events_parsed"]):
+        raise InvalidD3E12("XML_NOT_A_VALID_FALLBACK")
+    if x["tracerpt_xml_output_file_nonempty"] and not x["tracerpt_xml_output_file_present"]:
+        raise InvalidD3E12("XML_NONEMPTY_WITHOUT_FILE")
+    if x["tracerpt_xml_read_status"] in {"parsed_events", "parsed_no_events"} and not (
+            x["tracerpt_xml_exit_zero"] and x["tracerpt_xml_output_file_nonempty"]):
+        raise InvalidD3E12("XML_PARSED_WITHOUT_SUCCESSFUL_CONVERSION")
+    if x["tracerpt_xml_event_node_count"] and x["tracerpt_xml_read_status"] != "parsed_events":
+        raise InvalidD3E12("XML_EVENT_COUNT_WITHOUT_PARSE")
+    if (x["tracerpt_xml_read_status"] == "parsed_events"
+            and x["tracerpt_xml_event_node_count"] == 0):
+        raise InvalidD3E12("XML_EVENTS_CLAIMED_WITHOUT_NODES")
+    if (x["tracerpt_xml_read_status"] == "parsed_no_events"
+            and x["tracerpt_xml_event_node_count"]):
+        raise InvalidD3E12("XML_EMPTY_CLAIM_WITH_EVENTS")
     m = x["synthetic_file_matched_write_event_count"]
     if (x["synthetic_writer_pid_matched_write_event_count"]
             + x["other_or_unknown_pid_matched_write_event_count"] != m
@@ -136,6 +175,10 @@ def validate(x):
         "tracerpt_exit_zero": x["tracerpt_exit_zero"],
         "tracerpt_output_file_nonempty": x["tracerpt_output_file_nonempty"],
         "tracerpt_evtx_read_status": x["tracerpt_evtx_read_status"],
+        "tracerpt_xml_attempted": x["tracerpt_xml_attempted"],
+        "tracerpt_xml_output_file_nonempty": x["tracerpt_xml_output_file_nonempty"],
+        "tracerpt_xml_read_status": x["tracerpt_xml_read_status"],
+        "tracerpt_xml_event_node_count": x["tracerpt_xml_event_node_count"],
         "matched_synthetic_file_write_event_count": m,
         "matched_synthetic_writer_pid_event_count":
             x["synthetic_writer_pid_matched_write_event_count"],
@@ -168,6 +211,8 @@ def main():
         print("D3E12_TRACERPT_EXIT_ZERO=" + str(result["tracerpt_exit_zero"]).lower())
         print("D3E12_TRACERPT_OUTPUT_NONEMPTY=" + str(result["tracerpt_output_file_nonempty"]).lower())
         print("D3E12_TRACERPT_EVTX_READ_STATUS=" + result["tracerpt_evtx_read_status"])
+        print("D3E12_XML_READ_STATUS=" + result["tracerpt_xml_read_status"])
+        print("D3E12_XML_EVENT_NODE_COUNT=" + str(result["tracerpt_xml_event_node_count"]))
         print("D3E12_SYNTHETIC_PID_LINK_OBSERVED=" + str(result["bounded_synthetic_pid_link_observed"]).lower())
         return 0
     except (ValueError, TypeError, OSError, UnicodeError, KeyError):

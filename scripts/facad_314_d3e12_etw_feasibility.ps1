@@ -20,6 +20,8 @@ $query='unavailable';$decoder='none';$outputReady=$false;$rawGone=$false
 $etlPresent=$false;$etlNonempty=$false
 $directReadStatus='not_attempted';$fallbackReadStatus='not_attempted'
 $tracerptAttempted=$false;$tracerptExitOk=$false;$tracerptOutputPresent=$false;$tracerptOutputNonempty=$false
+$xmlAttempted=$false;$xmlExitOk=$false;$xmlPresent=$false;$xmlNonempty=$false
+$xmlStatus='not_attempted';$xmlEventCount=0
 try{
  if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
     -not $env:RUNNER_TEMP -or -not $env:GITHUB_WORKSPACE -or -not $env:GITHUB_RUN_ID){throw 'RUNNER_ONLY'}
@@ -134,6 +136,54 @@ param([Parameter(Mandatory=$true)][string]$SyntheticPath)
        }
        $eventsCount=$events.Count
      }
+     if(-not $parsed -and $etlNonempty){
+       # Third diagnostic: XML only. This parser does NOT attribute writers or
+       # use its output for clinical safety decisions.
+       # Tracerpt XML may contain unrelated system paths: never log/serialize it.
+       $xmlAttempted=$true
+       try{
+         $xmlPath=Join-Path $root 'private-tracerpt.xml'
+         & tracerpt.exe $etl '-o' $xmlPath '-of' 'XML' '-lr' '-y' >$null 2>$null
+         $xmlExitOk=($LASTEXITCODE -eq 0)
+         $xmlPresent=Test-Path -LiteralPath $xmlPath -PathType Leaf
+         if($xmlPresent){
+           $xmlLength=([IO.FileInfo]::new($xmlPath)).Length
+           $xmlNonempty=($xmlLength -gt 0)
+         }else{$xmlLength=0}
+         if(-not $xmlExitOk -or -not $xmlNonempty){
+           $xmlStatus='conversion_failed'
+         }elseif($xmlLength -gt 25000000){
+           $xmlStatus='size_exceeded'
+         }else{
+           $settings=[System.Xml.XmlReaderSettings]::new()
+           $settings.DtdProcessing=[System.Xml.DtdProcessing]::Prohibit
+           $settings.XmlResolver=$null
+           $settings.MaxCharactersInDocument=25000000
+           $settings.MaxCharactersFromEntities=0
+           $reader=$null
+           try{
+             $reader=[System.Xml.XmlReader]::Create($xmlPath,$settings)
+             while($reader.Read()){
+               if($reader.NodeType -eq [System.Xml.XmlNodeType]::Element -and
+                  $reader.LocalName -ceq 'Event'){
+                 $xmlEventCount++
+                 if($xmlEventCount -gt 20000){throw 'XML_EVENT_CAP'}
+               }
+             }
+             $xmlStatus=if($xmlEventCount -gt 0){'parsed_events'}else{'parsed_no_events'}
+           }catch{
+             $xmlStatus='parse_error'
+             $xmlEventCount=0
+           }finally{
+             if($null -ne $reader){$reader.Dispose()}
+           }
+         }
+       }catch{
+         # No raw error messages; xml content never leaves RUNNER_TEMP.
+         $xmlStatus='conversion_failed'
+         $xmlEventCount=0
+       }
+     }
    }
  }
  $outputReady=$true
@@ -175,6 +225,13 @@ $result=[ordered]@{
  tracerpt_output_file_present=$tracerptOutputPresent
  tracerpt_output_file_nonempty=$tracerptOutputNonempty
  tracerpt_evtx_read_status=$fallbackReadStatus
+ tracerpt_xml_attempted=$xmlAttempted
+ tracerpt_xml_exit_zero=$xmlExitOk
+ tracerpt_xml_output_file_present=$xmlPresent
+ tracerpt_xml_output_file_nonempty=$xmlNonempty
+ tracerpt_xml_read_status=$xmlStatus
+ tracerpt_xml_event_node_count=[int]$xmlEventCount
+ tracerpt_xml_raw_exported=$false
  etl_events_parsed=$parsed
  etl_event_count=[int]$eventsCount
  synthetic_file_matched_write_event_count=[int]$matchedWrites
@@ -201,6 +258,9 @@ Write-Host "D3E12_TRACERPT_ATTEMPTED=$($tracerptAttempted.ToString().ToLowerInva
 Write-Host "D3E12_TRACERPT_EXIT_ZERO=$($tracerptExitOk.ToString().ToLowerInvariant())"
 Write-Host "D3E12_TRACERPT_OUTPUT_NONEMPTY=$($tracerptOutputNonempty.ToString().ToLowerInvariant())"
 Write-Host "D3E12_TRACERPT_EVTX_READ_STATUS=$fallbackReadStatus"
+Write-Host "D3E12_XML_READ_STATUS=$xmlStatus"
+Write-Host "D3E12_XML_EVENT_NODE_COUNT=$xmlEventCount"
+Write-Host "D3E12_XML_OUTPUT_NONEMPTY=$($xmlNonempty.ToString().ToLowerInvariant())"
 Write-Host "D3E12_SYNTHETIC_FILE_WRITE_EVENT_MATCH_COUNT=$matchedWrites"
 Write-Host "D3E12_SYNTHETIC_WRITER_PID_EVENT_MATCH_COUNT=$matchedChild"
 Write-Host "D3E12_RAW_TRACE_CLEANED=$($rawGone.ToString().ToLowerInvariant())"

@@ -32,6 +32,13 @@ def sample():
         "tracerpt_output_file_present": False,
         "tracerpt_output_file_nonempty": False,
         "tracerpt_evtx_read_status": "not_attempted",
+        "tracerpt_xml_attempted": False,
+        "tracerpt_xml_exit_zero": False,
+        "tracerpt_xml_output_file_present": False,
+        "tracerpt_xml_output_file_nonempty": False,
+        "tracerpt_xml_read_status": "not_attempted",
+        "tracerpt_xml_event_node_count": 0,
+        "tracerpt_xml_raw_exported": False,
         "etl_events_parsed": True,
         "etl_event_count": 10,
         "synthetic_file_matched_write_event_count": 1,
@@ -171,6 +178,71 @@ class FeasibilityTests(unittest.TestCase):
                       tracerpt_evtx_read_status="conversion_failed",
                       etl_event_count=0, synthetic_file_matched_write_event_count=0,
                       synthetic_writer_pid_matched_write_event_count=0)
+        self.bad()
+
+    def test_xml_parsed_events_does_not_clear_writer(self):
+        self.x.update(etl_query_status="query_error", etl_decoder="none",
+                      etl_events_parsed=False, etl_event_count=0,
+                      synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0,
+                      direct_etl_read_status="other",
+                      tracerpt_attempted=True, tracerpt_exit_zero=True,
+                      tracerpt_output_file_present=True,
+                      tracerpt_output_file_nonempty=True,
+                      tracerpt_evtx_read_status="other",
+                      tracerpt_xml_attempted=True, tracerpt_xml_exit_zero=True,
+                      tracerpt_xml_output_file_present=True,
+                      tracerpt_xml_output_file_nonempty=True,
+                      tracerpt_xml_read_status="parsed_events",
+                      tracerpt_xml_event_node_count=5)
+        out = self.go()
+        self.assertEqual(out["tracerpt_xml_event_node_count"], 5)
+        self.assertFalse(out["actual_ilexis_writer_identified"])
+        self.assertFalse(out["bounded_synthetic_pid_link_observed"])
+
+    def test_xml_without_attempt_rejected(self):
+        self.x["tracerpt_xml_event_node_count"] = 1
+        self.bad()
+
+    def test_xml_attempt_requires_prior_decoder_failure(self):
+        self.x["tracerpt_xml_attempted"] = True
+        self.bad()
+
+    def test_xml_raw_export_rejected(self):
+        self.x["tracerpt_xml_raw_exported"] = True
+        self.bad()
+
+    def test_xml_count_bool_rejected(self):
+        self.x["tracerpt_xml_event_node_count"] = True
+        self.bad()
+
+    def test_xml_unknown_status_rejected(self):
+        self.x["tracerpt_xml_read_status"] = "patient_data"
+        self.bad()
+
+    def test_xml_events_claim_without_count_rejected(self):
+        self.x.update(etl_query_status="query_error", etl_decoder="none",
+                      etl_events_parsed=False, etl_event_count=0,
+                      synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0,
+                      direct_etl_read_status="other",
+                      tracerpt_attempted=True, tracerpt_exit_zero=False,
+                      tracerpt_evtx_read_status="conversion_failed",
+                      tracerpt_xml_attempted=True, tracerpt_xml_exit_zero=True,
+                      tracerpt_xml_output_file_present=True,
+                      tracerpt_xml_output_file_nonempty=True,
+                      tracerpt_xml_read_status="parsed_events")
+        self.bad()
+
+    def test_xml_nonempty_without_file_rejected(self):
+        self.x.update(etl_query_status="query_error", etl_decoder="none",
+                      etl_events_parsed=False, etl_event_count=0,
+                      synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0,
+                      direct_etl_read_status="other",
+                      tracerpt_attempted=True, tracerpt_evtx_read_status="conversion_failed",
+                      tracerpt_xml_attempted=True, tracerpt_xml_exit_zero=True,
+                      tracerpt_xml_output_file_nonempty=True)
         self.bad()
 
     def test_other_pid_does_not_prove_writer(self):
