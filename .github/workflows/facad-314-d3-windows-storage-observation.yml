@@ -31,7 +31,7 @@ jobs:
         run: |
           $tokens=$null
           $errors=$null
-          foreach($path in @('scripts/facad_314_d3_windows_snapshot.ps1','scripts/facad_314_d3_process_io_observer.ps1')){
+          foreach($path in @('scripts/facad_314_d3_windows_snapshot.ps1','scripts/facad_314_d3_process_io_observer.ps1','scripts/facad_314_d3e_facad_root_pid_write_observer.ps1')){
             $tokens=$null;$errors=$null
             [void][Management.Automation.Language.Parser]::ParseFile(
               (Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
