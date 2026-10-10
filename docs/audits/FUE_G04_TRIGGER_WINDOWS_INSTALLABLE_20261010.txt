@@ -1,0 +1,13 @@
+FUE-G04 — Windows CI-only installable certification LAB trigger
+Date: 2026-10-10
+Repository: hraaaaf/Digital_crown
+Exact immutable master commit_sha: 9c41d327400b8c41d8541517603d84bf9fdf9c23
+Official CODE_CERTIFIED GitHub Actions run: 38092782085
+CODE_CERTIFIED artifact: code-certified-dc-cabinet-9c41d327400b-run38092782085
+Sigstore provenance attestation: https://github.com/hraaaaf/Digital_crown/attestations/54694472
+Windows scientific model preflight: https://github.com/hraaaaf/Digital_crown/actions/runs/38093155924
+Scientific model source run: 34281082926
+Scientific model SHA256: a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb
+GOAL: trigger staged GitHub Actions Windows ephemeral-runner-only, fail-closed release composition + PyInstaller + Inno Setup proof tests.
+LIMITS: No merge, no Vercel, no installation/execution on real cabinet, no clinic data, no Lenovo, no firewall, no clinical activation.
+CERTIFICATION: This trigger itself does NOT establish INSTALLABLE_CERTIFIED; inspect the actual Windows run, required proof artifacts, and no failures first.
