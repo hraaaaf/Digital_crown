@@ -110,8 +110,19 @@ jobs:
           exit 1
 
       - name: Assert fresh isolated T2 workstation registry empty
+        # t2_runtime_server.py deliberately overrides SECRET_KEY for its
+        # disposable SQLCipher database. The runner's generic test SECRET_KEY
+        # cannot decrypt that file. Align only this read-only verifier.
+        env:
+          SECRET_KEY: t2-runtime-certification-secret-key-000001
         run: |
-          python -c 'from backend import database, models; s=database.SessionLocal(); assert s.query(models.WorkstationMode).count() == 0, "T2 precondition: first ever tenant must have zero stations"; s.close()'
+          python - <<'PY'
+          from backend import database, models
+          with database.SessionLocal() as session:
+              count = session.query(models.WorkstationMode).count()
+          print(f'Isolated T2 initial workstation rows: {count}')
+          assert count == 0, 'T2 precondition: first ever tenant must have zero stations'
+          PY
 
       - name: Syntax check first-ever workstation harness
         run: node --check frontend/scripts/audit-v15-fue-g00-first-ever-t2.mjs
