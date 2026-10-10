@@ -30,6 +30,8 @@ def event(keys=None):
             "source":"EPHEMERAL_FACAD_ROOT_PID_4663_KEYS_LOCAL_ONLY",
             "session_id":"synthetic-only-001","selected_scope":SCOPE,
             "root_pid_relative_key_hashes":list(keys if keys is not None else [H("a")]),
+            "other_pid_relative_key_hashes":[],
+            "observed_descendant_pid_count":0,
             "clinical_edit_allowed":False,"shared_app_storage_isolation_verified":False,
             "complete_descendant_process_coverage":False,"event_delivery_complete":False}
 
