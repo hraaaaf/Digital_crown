@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  fue-v15-01:
+  fue-v15-00-2-auth:
     name: FUE V1.5-00.2 authenticated Hub
     runs-on: ubuntu-latest
     timeout-minutes: 35
