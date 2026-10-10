@@ -727,5 +727,111 @@
       "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_INCISAL_EDGE"
     }
   ],
-  "non_promoted_geometry_covered": []
+  "non_promoted_geometry_covered": [
+    {
+      "measurement_id": "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_CONSTRUCTED_XI_EXPLICIT_PM_RICKETTS_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_EXPLICIT_RICKETTS_ANGLE_POINT_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_MANUAL_DC_CONSTRUCTED_XI_MANUAL_PM_REQUIRED"
+    },
+    {
+      "measurement_id": "M_U6_PTV_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_MANUAL_U6_DISTAL_SOURCE_LOCKED_PTV_MANUAL_PR_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_LOCKED_FOP_CROWNWARD_SIGN__EXPLICIT_ANCHORS_L1_AXIS_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_MOLAR_RELATION_FOP_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_MANUAL_MOLAR_DISTALS_SOURCE_LOCKED_FOP_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_CANINE_RELATION_FOP_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_MANUAL_CANINE_CUSPS_SOURCE_LOCKED_FOP_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_OVERJET_FOP_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_INCISAL_EDGES_SOURCE_LOCKED_FOP_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_EXPLICIT_U1_EDGE_PERPENDICULAR_APOG_ANTERIOR_POSITIVE"
+    },
+    {
+      "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_LOCKED_FOP_XI_PM_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_MANUAL_LABIAL_COMMISSURE_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_LOCKED_MANDIBULAR_PLANE_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_LOCKED_CF_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_ANATOMICAL_FH_BA_N"
+    },
+    {
+      "measurement_id": "M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_ATLAS2009_CC_SOURCE_LOCK_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_MANUAL_GO_RICKETTS_SOURCE_LOCKED_CF_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_CONFLICT_RESOLVED_TOTAL_FACIAL_HEIGHT"
+    },
+    {
+      "measurement_id": "M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_LOCKED_CF_XI"
+    },
+    {
+      "measurement_id": "M_RICKETTS_PORION_LOCATION_PTV_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_LOCKED_PTV_POSTERIOR_NEGATIVE"
+    },
+    {
+      "measurement_id": "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_SOURCE_LOCKED_XI_MANUAL_PM_REQUIRED"
+    },
+    {
+      "measurement_id": "M_RICKETTS_U1_APOG_INCLINATION_DEG_V1",
+      "reason": "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING",
+      "registry_source_status": "GEOMETRY_COVERED_EXPLICIT_U1_AXIS"
+    }
+  ]
 }
