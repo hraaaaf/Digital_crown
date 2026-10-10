@@ -95,6 +95,19 @@ try {
                 ? [{ label: node.getAttribute('aria-label') || node.textContent?.trim(), width: rect.width, height: rect.height }]
                 : [];
             }),
+            cardTextOverflow: [...document.querySelectorAll('[data-station-action]')].flatMap(card => {
+              const cardBox = card.getBoundingClientRect();
+              return [...card.querySelectorAll('span.block')].flatMap(node => {
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                const protrudes = [...range.getClientRects()].some(line =>
+                  line.left < cardBox.left - 1 || line.right > cardBox.right + 1
+                );
+                return protrudes || node.scrollWidth > node.clientWidth + 1
+                  ? [{ action: card.getAttribute('data-station-action'), text: node.textContent?.trim(), protrudes }]
+                  : [];
+              });
+            }),
             clinicalLinks: [...document.querySelectorAll('a')]
               .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
               .map(a => a.getAttribute('href')),
@@ -146,6 +159,7 @@ const failures = report.filter(item =>
   item.selectedLanguages.length !== 1 ||
   item.selectedLanguages[0] !== item.expectedButton ||
   item.tooSmallTargets.length > 0 ||
+  item.cardTextOverflow.length > 0 ||
   item.scrollWidth > item.width ||
   item.clinicalLinks.length > 0 ||
   item.errors.length > 0
