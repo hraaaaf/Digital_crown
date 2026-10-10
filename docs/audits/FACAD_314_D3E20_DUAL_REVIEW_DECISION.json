@@ -1,0 +1,103 @@
+{
+  "schema": "facad314_d3e20_internal_dual_review_v1",
+  "phase": "SOURCE_ONLY_REVIEW",
+  "review_target_sha": "9f01a3fb7dfe37344e34530fe20d6c6661325342",
+  "reviewer_claim": "TWO_INTERNAL_ADVERSARIAL_LENSES_NO_EXTERNAL_INDEPENDENCE",
+  "decision": "NO_GO_NATIVE_EXECUTION",
+  "rationale": "OPEN_BLOCKERS_AND_ABSENT_NATIVE_OR_INDEPENDENT_EVIDENCE",
+  "document_path": "docs/audits/FACAD_314_D3E20_SECURITY_SCIENCE_REVIEW_2026-10-10.md",
+  "security_design_score_10": 6,
+  "security_native_proof_score_10": 0,
+  "science_design_score_10": 5,
+  "science_native_proof_score_10": 0,
+  "findings": [
+    {
+      "id": "SEC-01",
+      "domain": "SECURITY",
+      "severity": "BLOCKER",
+      "status": "OPEN",
+      "issue": "OFFICIAL_PACKAGE_AND_NONCLINICAL_SAMPLE_PROVENANCE_UNVERIFIED"
+    },
+    {
+      "id": "SEC-02",
+      "domain": "SECURITY",
+      "severity": "BLOCKER",
+      "status": "OPEN",
+      "issue": "HYPERV_HOST_GUEST_RUNTIME_BOUNDARIES_UNVERIFIED"
+    },
+    {
+      "id": "SEC-03",
+      "domain": "SECURITY",
+      "severity": "BLOCKER",
+      "status": "OPEN",
+      "issue": "NO_APPROVED_MINIMIZED_EGRESS_OR_INDEPENDENT_PROOF"
+    },
+    {
+      "id": "SEC-04",
+      "domain": "SECURITY",
+      "severity": "MAJOR",
+      "status": "OPEN",
+      "issue": "HOST_ADMIN_HYPERV_AND_ISO_TRUST_BASE_UNASSESSED"
+    },
+    {
+      "id": "SEC-05",
+      "domain": "SECURITY",
+      "severity": "MAJOR",
+      "status": "OPEN",
+      "issue": "VHD_CHECKPOINT_MEDIA_AND_TRACE_DISPOSAL_UNPROVEN"
+    },
+    {
+      "id": "SCI-01",
+      "domain": "SCIENCE",
+      "severity": "BLOCKER",
+      "status": "OPEN",
+      "issue": "REAL_ILEXIS_WRITER_AND_COMPLETION_UNPROVEN"
+    },
+    {
+      "id": "SCI-02",
+      "domain": "SCIENCE",
+      "severity": "BLOCKER",
+      "status": "OPEN",
+      "issue": "GUEST_WIDE_ETW_COVERAGE_AND_LOSS_UNPROVEN"
+    },
+    {
+      "id": "SCI-03",
+      "domain": "SCIENCE",
+      "severity": "BLOCKER",
+      "status": "OPEN",
+      "issue": "INDEPENDENT_HUMAN_REVIEWS_SAME_HEAD_MISSING"
+    },
+    {
+      "id": "SCI-04",
+      "domain": "SCIENCE",
+      "severity": "MAJOR",
+      "status": "OPEN",
+      "issue": "NUMERIC_PARITY_ORACLE_AND_EDITOR_EQUIVALENCE_UNPROVEN"
+    },
+    {
+      "id": "SCI-05",
+      "domain": "SCIENCE",
+      "severity": "MAJOR",
+      "status": "OPEN",
+      "issue": "CONTROL_ARMS_AND_SAMPLE_IDENTITY_UNVALIDATED"
+    }
+  ],
+  "external_privacy_reviewer_verified": false,
+  "external_scientific_reviewer_verified": false,
+  "same_exact_head_external_reviews_verified": false,
+  "privacy_blockers_cleared": false,
+  "science_blockers_cleared": false,
+  "official_demo_and_license_verified": false,
+  "host_guest_channel_confinement_verified": false,
+  "approved_egress_protocol_verified": false,
+  "source_scoped_attribution_verified": false,
+  "event_completeness_verified": false,
+  "native_experiment_separately_authorized": false,
+  "native_vm_or_iso_operated": false,
+  "facad_or_ilexis_executed": false,
+  "raw_etw_captured_or_exported": false,
+  "clinical_edit_allowed": false,
+  "shared_app_storage_isolation_verified": false,
+  "converged": false,
+  "merge_or_deploy_authorized": false
+}

@@ -55,6 +55,10 @@ on:
       - docs/audits/FACAD_314_D3E19_OFFLINE_ISO_STAGING_REVIEW_2026-10-10.md
       - scripts/facad_314_d3e19_iso_staging_gate.py
       - scripts/test_facad_314_d3e19_iso_staging_gate.py
+      - docs/audits/FACAD_314_D3E20_SECURITY_SCIENCE_REVIEW_2026-10-10.md
+      - docs/audits/FACAD_314_D3E20_DUAL_REVIEW_DECISION.json
+      - scripts/facad_314_d3e20_review_decision_gate.py
+      - scripts/test_facad_314_d3e20_review_decision_gate.py
       - docs/audits/FACAD_314_D3E17_CAPTURE_METHOD_DECISION.json
       - docs/audits/FACAD_314_D3E17_CONFINED_CAPTURE_ALTERNATIVES_REVIEW_2026-10-10.md
       - .github/workflows/facad-314-d3e16-readonly-policy-visibility.yml
@@ -132,6 +136,9 @@ jobs:
           grep -Fq 'D3E18_STATIC_CONFIGURATION_VALID_NATIVE_GATES_BLOCKED' scripts/facad_314_d3e18_guest_preflight_gate.py
           grep -Fq 'D3E19_OFFLINE_ISO_DESIGN_ONLY_NATIVE_GATES_BLOCKED' docs/audits/FACAD_314_D3E19_ISO_STAGING_CONTRACT.json
           grep -Fq 'D3E19_STATIC_STAGING_REVIEW_COMPLETE_NATIVE_BLOCKED' scripts/facad_314_d3e19_iso_staging_gate.py
+          grep -Fq 'NO_GO_NATIVE_EXECUTION' docs/audits/FACAD_314_D3E20_DUAL_REVIEW_DECISION.json
+          grep -Fq 'D3E20_INTERNAL_REVIEW_RECORDED_NATIVE_NO_GO' scripts/facad_314_d3e20_review_decision_gate.py
+          test ! -e scripts/facad_314_d3e20_native_capture.ps1
           test ! -e scripts/facad_314_d3e19_native_run.ps1
           test ! -e docs/audits/FACAD_314_D3E19_STAGING_MEDIA.iso
           grep -Fq 'CLINICAL_EDIT_ALLOWED=false' scripts/facad_314_d3e18_guest_preflight_gate.py
@@ -323,6 +330,15 @@ jobs:
           python scripts/facad_314_d3e19_iso_staging_gate.py --contract docs/audits/FACAD_314_D3E19_ISO_STAGING_CONTRACT.json
           echo 'D3E19_NATIVE_VM_RUN=false'
           echo 'D3E19_CAPTURE_AUTHORIZED=false'
+          echo 'FAC03_D3=OPEN_RED'
+      - name: D3E20 internal privacy + science NO-GO review integrity (SOURCE ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3e20_review_decision_gate.py scripts/test_facad_314_d3e20_review_decision_gate.py
+          python -m unittest scripts/test_facad_314_d3e20_review_decision_gate.py -v
+          python scripts/facad_314_d3e20_review_decision_gate.py --decision docs/audits/FACAD_314_D3E20_DUAL_REVIEW_DECISION.json
+          echo 'D3E20_NATIVE_RUN=false'
+          echo 'D3E20_EXTERNAL_REVIEWERS=0'
+          echo 'D3E20_CAPTURE_AUTHORIZED=false'
           echo 'FAC03_D3=OPEN_RED'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
