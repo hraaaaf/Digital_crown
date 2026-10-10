@@ -486,6 +486,10 @@ jobs:
             $class=Get-Content -LiteralPath $classification -Raw | ConvertFrom-Json
             if($class.schema -cne 'facad314_d3e4_unattributed_aggregate_v1' -or
                $class.changed_identity_count -ne $aggregate.selected_scope_metadata_changed_count -or
+               $class.change_classification.modified.no_4663_event -ne (
+                 $class.unexplained_modified_size_changed_count +
+                 $class.unexplained_modified_same_size_fingerprint_changed_count
+               ) -or
                $class.specific_process_cause_proven -ne $false -or
                $class.non_root_events_are_proven_descendants -ne $false -or
                $class.shared_app_storage_isolation_verified -ne $false -or
@@ -493,6 +497,8 @@ jobs:
               throw 'D3E.4 forged class or inconsistent changed-identity counts'
             }
             Write-Host "D3E4_$($label.ToUpperInvariant())_UNATTRIBUTED_CHANGES=$($class.changed_identity_without_any_observed_4663_count)"
+            Write-Host "D3E4_$($label.ToUpperInvariant())_UNEXPLAINED_MODIFIED_SIZE_CHANGED=$($class.unexplained_modified_size_changed_count)"
+            Write-Host "D3E4_$($label.ToUpperInvariant())_UNEXPLAINED_MODIFIED_SAME_SIZE_FINGERPRINT_CHANGED=$($class.unexplained_modified_same_size_fingerprint_changed_count)"
             Write-Host "D3_$($label.ToUpperInvariant())_OBSERVED_CHANGE_COUNT=$($evidence.observed_change_count)"
             return $evidence
             }finally{
