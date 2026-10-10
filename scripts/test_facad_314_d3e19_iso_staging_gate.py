@@ -73,6 +73,26 @@ class B_TruthAndIndependence(unittest.TestCase):
     def setUp(self):
         self.plan = json.loads(CONTRACT.read_text(encoding="utf-8"))
 
+
+    def test_policy_oracle_is_frozen_independently_of_gate(self):
+        # Independent expected controls, not derived from gate.FALSE_KEYS.
+        expected_keys = set(["checkpoint_and_disk_disposal_verified","clinical_edit_allowed","clipboard_redirect_disabled_verified","converged","drive_redirect_disabled_verified","enhanced_session_disabled_verified","facad_demo_executed","guest_service_copy_disabled_verified","host_iso_unmounted_after_verified","host_media_not_exposed_verified","host_secrets_absent_verified","hyperv_guest_available_verified","independent_privacy_review_approved","independent_scientific_review_approved","iso_content_allowlist_verified","iso_readonly_verified","media_custody_verified","merge_or_deployment_authorized","native_execution_authorized","native_trace_captured","native_vm_booted","nic_absence_verified","official_download_provenance_verified","offline_license_authorized_verified","output_channel_approved_verified","powershell_direct_disabled_verified","printer_usb_redirect_disabled_verified","publisher_signature_checked","raw_trace_guest_only_verified","real_ilexis_writer_attributed_verified","sample_nonclinical_verified","secure_boot_verified","sha256_checked","shared_storage_isolation_verified","trace_loss_bounds_verified","vm_switch_absence_verified","vm_teardown_verified"])
+        expected_design = {
+        "based_on_d3e18_commit": "f4c49b332f54113244574a0a87b76ca2f60f2e5d",
+        "phase": "SOURCE_ONLY_DESIGN",
+        "ingress_design": "PREBOOT_READONLY_ISO_NO_HOST_SHARED_FOLDER",
+        "guest_egress_design": "BLOCKED_NO_APPROVED_OUTPUT_CHANNEL",
+        "network_policy": "NO_VIRTUAL_NIC_NO_SWITCH_DESIGN_ONLY",
+        "integration_policy": "NO_GUEST_COPY_NO_POWERSHELL_DIRECT_NO_ENHANCED_SESSION",
+        "publisher_package_status": "NOT_ACQUIRED_NO_BINARY_OR_PATIENT_DATA",
+        "review_status": "INTERNAL_ADVERSARIAL_ONLY_NOT_INDEPENDENT",
+        "collection_scope": "ETW_STILL_GUEST_WIDE_IF_LATER_AUTHORIZED"
+}
+        self.assertEqual(len(expected_keys), 37)
+        self.assertEqual(gate.FALSE_KEYS, expected_keys)
+        for key, expected in expected_design.items():
+            self.assertEqual(gate.REQUIRED[key], expected)
+
     def test_cannot_infer_etw_is_file_scoped(self):
         self.plan["collection_scope"] = "ETW_FILE_SCOPED"
         with self.assertRaises(gate.StagingBlocked):
