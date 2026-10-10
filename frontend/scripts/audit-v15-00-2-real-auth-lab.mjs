@@ -153,7 +153,7 @@ evidence.success =
   evidence.failures.length === 0 &&
   evidence.profiles.length === profiles.length &&
   evidence.profiles.every(p => p.pictures.length === 6 &&
-    Object.keys(p.checks).length === 6 &&
+    Object.keys(p.checks).length === 7 &&
     Object.values(p.checks).every(Boolean));
 await fs.writeFile(path.join(out, 'report.json'), JSON.stringify(evidence, null, 2));
 console.log('FUE_00_2_REAL_AUTH_SUMMARY', JSON.stringify({
