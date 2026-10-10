@@ -11,3 +11,10 @@ Scientific model SHA256: a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e
 GOAL: trigger staged GitHub Actions Windows ephemeral-runner-only, fail-closed release composition + PyInstaller + Inno Setup proof tests.
 LIMITS: No merge, no Vercel, no installation/execution on real cabinet, no clinic data, no Lenovo, no firewall, no clinical activation.
 CERTIFICATION: This trigger itself does NOT establish INSTALLABLE_CERTIFIED; inspect the actual Windows run, required proof artifacts, and no failures first.
+
+CI_ONLY_RUN_RETRY=2
+Prior run: https://github.com/hraaaaf/Digital_crown/actions/runs/38093928122
+Reason: Windows verifier could not import SQLAlchemy because pinned dependencies installed after verifier.
+Fix commit: 9747878cb791eafba6d5307f10838f23425d396e
+New safeguard: dependency files verified against signed CODE manifest and installed before verifier.
+Production release/master SHA/attestation unchanged. Ephemeral Windows GitHub runner only; no physical execution or patient data.
