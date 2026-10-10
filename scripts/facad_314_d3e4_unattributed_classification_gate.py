@@ -62,6 +62,11 @@ def classify(before,after,events):
     left=a["entries"];right=b["entries"]
     results={kind:{bucket:0 for bucket in BUCKETS} for kind in CATEGORIES}
     count=0
+    # Snapshot non-official filetree fingerprints hash only size and UTC mtime.
+    # A same-size fingerprint change is thus consistent with an mtime change.
+    # Do not infer content mutation, causality, or event completeness.
+    unexplained_modified_size_changed=0
+    unexplained_modified_same_size_fingerprint_changed=0
     for key in set(left)|set(right):
         old=left.get(key);new=right.get(key)
         if old==new:continue
@@ -70,6 +75,11 @@ def classify(before,after,events):
                 "facad_root_only" if key in root else
                 "other_pid_only" if key in other else "no_4663_event")
         results[kind][bucket]+=1
+        if kind=="modified" and bucket=="no_4663_event":
+            if old["size"] != new["size"]:
+                unexplained_modified_size_changed+=1
+            else:
+                unexplained_modified_same_size_fingerprint_changed+=1
         count+=1
     total_without_events=sum(results[k]["no_4663_event"] for k in CATEGORIES)
     out={
@@ -79,6 +89,8 @@ def classify(before,after,events):
         "change_classification":results,
         "changed_identity_count":count,
         "changed_identity_without_any_observed_4663_count":total_without_events,
+        "unexplained_modified_size_changed_count":unexplained_modified_size_changed,
+        "unexplained_modified_same_size_fingerprint_changed_count":unexplained_modified_same_size_fingerprint_changed,
         "observed_descendant_pid_count_during_sampling":descendants,
         "non_root_events_are_proven_descendants":False,
         "complete_descendant_process_coverage":False,
@@ -108,6 +120,8 @@ def main():
         code=0
         print("D3E4_CLASSIFICATION_VERDICT="+out["verdict"])
         print("D3E4_UNATTRIBUTED_CHANGED_FILE_COUNT="+str(out["changed_identity_without_any_observed_4663_count"]))
+        print("D3E4_UNEXPLAINED_MODIFIED_SIZE_CHANGED_COUNT="+str(out["unexplained_modified_size_changed_count"]))
+        print("D3E4_UNEXPLAINED_MODIFIED_SAME_SIZE_FINGERPRINT_CHANGED_COUNT="+str(out["unexplained_modified_same_size_fingerprint_changed_count"]))
     except (OSError,UnicodeError,ValueError,TypeError,KeyError):
         print("D3E4_CLASSIFICATION_VERDICT=BLOCKED_INVALID_OR_MISSING_EVIDENCE")
         code=2
