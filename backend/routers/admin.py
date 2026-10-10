@@ -46,23 +46,33 @@ def revoke_mobile_access(
         _legacy.logger.error("Mobile revocation epoch persistence failed: %s", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Échec de la révocation") from exc
 
-    _legacy.audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=emp_id,
-        action="MOBILE_ACCESS_REVOKED",
-        resource_type="MobileSession",
-        resource_id=None,
-        severity="CRITICAL",
-        details=(
-            "Révocation mobile tenant-scopée persistée, codes d'appairage en attente "
-            "invalidés, clés de stockage conservées."
-        ),
-    )
+    audit_recorded = True
+    try:
+        audit_recorded = _legacy.audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=emp_id,
+            action="MOBILE_ACCESS_REVOKED",
+            resource_type="MobileSession",
+            resource_id=None,
+            severity="CRITICAL",
+            details=(
+                "Révocation mobile tenant-scopée persistée, codes d'appairage en attente "
+                "invalidés, clés de stockage conservées."
+            ),
+        ) is True
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        audit_recorded = False
+        _legacy.logger.error("Mobile revocation persisted; audit write failed: %s", type(exc).__name__)
     _legacy.logger.info("Mobile access revoked for cabinet %s by user %s", emp_id, current_user.id)
     return {
         "status": "success",
         "message": "Accès mobiles révoqués. Scannez un nouveau code pour vous reconnecter.",
+        "audit_recorded": audit_recorded,
         "revoked_at": revocation["revoked_at"],
         "pairing_tokens_invalidated": revocation["pairing_tokens_invalidated"],
     }

@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from jose import jwt
 from sqlalchemy.orm import Session
 
+from backend.core.key_material import MOBILE_KEY_VERSION
 from backend import models
 from backend.models_mobile_passkey import MobilePasskeyCredential, MobileWebAuthnChallenge
 from backend.security import ALGORITHM, SECRET_KEY
@@ -130,6 +131,7 @@ def issue_biometric_access_token(*, user: models.User, employer_id: int, device_
         "tenant_id": int(employer_id),
         "device_id": str(device_id),
         "type": "mobile",
+        "mobile_key_version": MOBILE_KEY_VERSION,
         "role": role,
         "jti": f"mobile-uv:{int(employer_id)}:{uuid.uuid4().hex}",
         "iat": now,

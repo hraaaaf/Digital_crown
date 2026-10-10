@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -64,7 +65,7 @@ def _claim_mobile(client, db, owner, user):
         employer_id=owner.id,
         user_id=user.id,
         public_id='abcdef1234567890',
-        master_key='a' * 64,
+        master_key=mobile_pairing_key_hex(),
         role=user.role.value if hasattr(user.role, 'value') else str(user.role),
         expires_at=datetime.utcnow() + timedelta(minutes=5),
     )

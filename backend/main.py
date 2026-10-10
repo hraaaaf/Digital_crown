@@ -664,7 +664,7 @@ async def health_check():
         with database.SessionLocal() as db:
             from sqlalchemy import text
             db.execute(text("SELECT 1"))
-        return {"status": "ok", "db": "ok"}
+        return {"status": "ok", "db": "ok", "instance_id": os.getenv("DIGITALCROWN_INSTANCE_ID", "")}
     except Exception:
         logger.exception("Root health database probe failed")
         return JSONResponse(status_code=503, content={"status": "degraded", "db": "error"})

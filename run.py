@@ -15,48 +15,83 @@ def _verify_frozen_release_certification() -> None:
 
 
 def _first_boot_bootstrap() -> None:
-    """Create the persistent cabinet environment on first packaged launch.
-
-    This runs before importing ``backend.main`` so cabinet secrets exist before
-    settings/database initialization. Development launches remain untouched.
-    """
+    """Explicit, isolated first boot after installable verification."""
     if not getattr(sys, "frozen", False):
         return
-
     from pathlib import Path
     from backend.core.paths import AppPaths
-    from backend.core.platform import get_platform_adapter
-
+    from backend.core.platform import get_platform_adapter, PlatformAdapter
     explicit_env = os.getenv("DIGITALCROWN_ENV_FILE", "").strip()
-    env_path = Path(explicit_env) if explicit_env else AppPaths.get_env_path()
+    if not explicit_env or not Path(explicit_env).is_absolute():
+        raise RuntimeError("Packaged cabinet requires an explicit absolute environment profile")
+    env_path = Path(explicit_env)
     if env_path.exists():
+        if "--initialize-new-cabinet" in sys.argv:
+            raise RuntimeError("Existing configuration refused for new-cabinet initialization")
         return
-
     if "--initialize-new-cabinet" not in sys.argv:
-        raise RuntimeError(
-            "SECURITE : aucun environnement cabinet existant n'a été trouvé. "
-            "Une mise à jour ne doit jamais créer silencieusement une nouvelle base. "
-            "Utilisez DIGITALCROWN_ENV_FILE pour un cabinet existant ou "
-            "--initialize-new-cabinet uniquement pour une installation neuve."
-        )
-
+        raise RuntimeError("Une mise à jour ne doit jamais créer silencieusement une nouvelle base. Select the existing explicit environment.")
+    names = ("DIGITALCROWN_USER_DATA_DIR", "DIGITALCROWN_CONFIG_DIR",
+             "DIGITALCROWN_RUNTIME_DIR", "DIGITALCROWN_LOG_DIR", "DIGITALCROWN_ENV_FILE")
+    paths = {}
+    for name in names:
+        value = os.getenv(name, "").strip()
+        if not value or not Path(value).is_absolute():
+            raise RuntimeError("New cabinet requires five explicit absolute isolated paths")
+        paths[name] = Path(value).resolve()
+    data = paths["DIGITALCROWN_USER_DATA_DIR"]
+    root = data.parent
+    directories = [paths[name] for name in names[:-1]]
+    if data.name != "data" or len(set(directories)) != 4 or any(path.parent != root for path in directories):
+        raise RuntimeError("New cabinet requires distinct data/config/runtime/log directories in its dedicated root")
+    if paths["DIGITALCROWN_ENV_FILE"].parent != paths["DIGITALCROWN_CONFIG_DIR"]:
+        raise RuntimeError("New cabinet environment must be in its config directory")
+    if root == PlatformAdapter(environ={}).user_data_dir().resolve():
+        raise RuntimeError("Historical default cabinet namespace forbidden")
+    if any(path.exists() and (not path.is_dir() or any(path.iterdir())) for path in directories):
+        raise RuntimeError("New cabinet requires empty isolated directories")
+    if root.exists() and any(path.resolve() not in directories for path in root.iterdir()):
+        raise RuntimeError("New cabinet root contains unrelated existing files")
     import secrets
+    import uuid
+    content = "ENVIRONMENT=cabinet\nDEBUG=false\nCABINET_HOST=127.0.0.1\nALLOWED_ORIGINS=http://127.0.0.1:8005\n"
+    for name in ("SECRET_KEY", "PAIRING_CODE_PEPPER", "CABINET_MASTER_KEY_HEX", "SQLCIPHER_KEY_HEX", "MOBILE_PAIRING_KEY_HEX"):
+        content += f"{name}={secrets.token_hex(32)}\n"
+    content += f"DIGITALCROWN_INSTANCE_ID={uuid.uuid4()}\n"
+    content += f'DATABASE_URL="sqlite:///{(data / "clinical_vault.db").as_posix()}"\n'
+    content += f'MEDIA_ROOT="{(data / "media").as_posix()}"\n'
+    for name, path in paths.items():
+        content += f'{name}="{path.as_posix()}"\n'
+    # Exclusive creation prevents two initializations from replacing each other's keys.
+    get_platform_adapter().ensure_private_directory(env_path.parent)
+    descriptor = os.open(env_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(content)
+        stream.flush()
+        os.fsync(stream.fileno())
 
-    # First boot is loopback-only. LAN exposure is enabled later only through
-    # the explicit HTTPS/certificate contract.
-    origins = "http://127.0.0.1:8005"
 
-    env_content = (
-        "# Généré automatiquement au premier démarrage — ne pas modifier à la main,\n"
-        "# ne jamais partager ce fichier (contient des secrets uniques à ce poste).\n"
-        "ENVIRONMENT=cabinet\n"
-        f"SECRET_KEY={secrets.token_hex(32)}\n"
-        f"PAIRING_CODE_PEPPER={secrets.token_hex(32)}\n"
-        f"CABINET_MASTER_KEY_HEX={secrets.token_hex(32)}\n"
-        f"ALLOWED_ORIGINS={origins}\n"
-        "CABINET_HOST=127.0.0.1\n"
-    )
-    get_platform_adapter().atomic_write_text(env_path, env_content)
+def _provision_new_cabinet_interactively() -> bool:
+    """Native secret input works with the packaged console=False executable."""
+    import tkinter
+    from tkinter import simpledialog, messagebox
+    from backend.core.new_cabinet_setup import provision_new_cabinet
+    window = tkinter.Tk()
+    window.withdraw()
+    try:
+        email = simpledialog.askstring("Digital Crown", "Adresse email du propriétaire :", parent=window)
+        if not email:
+            return False
+        password = simpledialog.askstring("Digital Crown", "Mot de passe (12 caractères minimum) :", show="*", parent=window)
+        confirmation = simpledialog.askstring("Digital Crown", "Confirmez le mot de passe :", show="*", parent=window)
+        if not password or password != confirmation:
+            messagebox.showerror("Digital Crown", "Création annulée : mots de passe absents ou différents.", parent=window)
+            return False
+        provision_new_cabinet(email, password, resume="--resume-new-cabinet-setup" in sys.argv)
+        messagebox.showinfo("Digital Crown", "Propriétaire créé. La licence et l'enrôlement du poste restent à effectuer par le parcours authentifié.", parent=window)
+        return True
+    finally:
+        window.destroy()
 
 
 def _setup_frozen_logging() -> None:
@@ -102,9 +137,29 @@ def _maybe_run_guided_restore_worker() -> None:
     raise SystemExit(GuidedRestoreWorker.run(args.restore_id, args.parent_pid, sys.executable))
 
 
+def _select_cabinet_env_profile() -> None:
+    """Profile argument is selected only after the release identity is verified."""
+    if "--cabinet-env-file" in sys.argv:
+        from pathlib import Path
+        index = sys.argv.index("--cabinet-env-file")
+        if index + 1 >= len(sys.argv) or not Path(sys.argv[index + 1]).is_absolute():
+            raise RuntimeError("An absolute cabinet environment file is required")
+        os.environ["DIGITALCROWN_ENV_FILE"] = sys.argv[index + 1]
+
+
+def _load_launcher_environment() -> None:
+    """Load the canonical env before resolving cabinet host/port or acquiring runtime state."""
+    from backend.env_loader import load_backend_env
+
+    load_backend_env(override=bool(getattr(sys, 'frozen', False)))
+
+
 # Order is security-sensitive: INSTALLABLE identity is checked before any env/data write.
 _verify_frozen_release_certification()
+_select_cabinet_env_profile()
 _first_boot_bootstrap()
+if getattr(sys, "frozen", False):
+    _load_launcher_environment()
 _setup_frozen_logging()
 _maybe_run_guided_restore_worker()
 
@@ -112,13 +167,6 @@ import multiprocessing
 import threading
 
 import uvicorn
-
-
-def _load_launcher_environment() -> None:
-    """Load the canonical env before resolving cabinet host/port or acquiring runtime state."""
-    from backend.env_loader import load_backend_env
-
-    load_backend_env(override=False)
 
 
 def _resolve_runtime_network():
@@ -138,6 +186,8 @@ def _resolve_runtime_network():
 def main() -> int:
     multiprocessing.freeze_support()
     _load_launcher_environment()
+    if '--provision-new-cabinet' in sys.argv:
+        return 0 if _provision_new_cabinet_interactively() else 1
     host, port, https_enabled, cert_file, key_file = _resolve_runtime_network()
     instance_lock = None
 

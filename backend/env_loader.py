@@ -65,6 +65,14 @@ def _enforce_cabinet_crypto_secret() -> None:
             "contenir exactement 32 octets aléatoires encodés en 64 caractères hexadécimaux."
         )
 
+    if os.getenv("SQLCIPHER_KEY_HEX") or os.getenv("MOBILE_PAIRING_KEY_HEX"):
+        from backend.core.key_material import sqlcipher_passphrase, mobile_pairing_key_hex
+        try:
+            sqlcipher_passphrase()
+            mobile_pairing_key_hex()
+        except ValueError as exc:
+            raise RuntimeError("SECURITE : invalid separated storage/mobile key configuration") from exc
+
     database_url = os.getenv("DATABASE_URL", "").strip()
     if not database_url:
         raise RuntimeError(
@@ -76,8 +84,14 @@ def _enforce_cabinet_crypto_secret() -> None:
 def load_backend_env(override: bool = True) -> Path:
     """Load backend env vars from explicit, repository-dev, then platform config."""
     explicit = os.getenv("DIGITALCROWN_ENV_FILE", "").strip()
-    candidates = [Path(explicit)] if explicit else []
-    candidates += [
+    if explicit:
+        candidate = Path(explicit)
+        if not candidate.is_absolute() or not candidate.is_file():
+            raise RuntimeError("Explicit cabinet environment file is missing or not absolute; fallback forbidden")
+        load_dotenv(candidate, override=override)
+        _enforce_cabinet_crypto_secret()
+        return candidate
+    candidates = [
         BASE_DIR / ".env.local",
         BASE_DIR / ".env",
         _appdata_env_path(),

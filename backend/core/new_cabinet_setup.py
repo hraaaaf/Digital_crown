@@ -60,11 +60,27 @@ def provision_new_cabinet(owner_email: str, password: str, *, resume: bool = Fal
         from backend import database, models
         from sqlalchemy import inspect, text
         if resume:
-            # A failed setup must never silently adopt a cabinet with users or clinical data.
+            # Recover an interrupted marker write only for the exact initial owner,
+            # authenticated by its password and with no clinical/application data.
             with database.engine.connect() as connection:
-                for table in inspect(connection).get_table_names():
-                    if table != "alembic_version" and connection.execute(text('SELECT COUNT(*) FROM "' + table.replace('"','""') + '"')).scalar():
-                        raise RuntimeError("Resume refused: database contains application data")
+                counts = {table: connection.execute(text('SELECT COUNT(*) FROM "' + table.replace('"','""') + '"')).scalar()
+                          for table in inspect(connection).get_table_names() if table != "alembic_version"}
+            if any(count for table, count in counts.items() if table not in {"users", "cabinet_configs"}):
+                raise RuntimeError("Resume refused: database contains application data")
+            if counts.get("users"):
+                from backend.security import verify_password
+                with database.SessionLocal() as session:
+                    owner = session.query(models.User).one_or_none() if counts["users"] == 1 else None
+                    cabinet = session.query(models.CabinetConfig).one_or_none() if counts.get("cabinet_configs") == 1 else None
+                    if (owner is None or cabinet is None or owner.email != owner_email.strip().lower()
+                            or owner.role != models.UserRole.DENTISTE or owner.employer_id is not None
+                            or cabinet.owner_id != owner.id or not verify_password(password, owner.hashed_password)):
+                        raise RuntimeError("Resume refused: initial owner identity is not verified")
+                get_platform_adapter().atomic_write_text(marker, json.dumps({"instance_id": instance, "state": "complete"}))
+                database.engine.dispose()
+                return
+            if counts.get("cabinet_configs"):
+                raise RuntimeError("Resume refused: inconsistent initial configuration")
         from alembic import command
         from alembic.config import Config
         from backend.core.paths import AppPaths
@@ -83,5 +99,5 @@ def provision_new_cabinet(owner_email: str, password: str, *, resume: bool = Fal
             session.add(models.CabinetConfig(owner_id=owner.id, is_initialized=False))
             session.commit()
         # Mark only after the owner transaction succeeded. No license bypass or workstation cookie.
-        marker.write_text(json.dumps({"instance_id": instance, "state": "complete"}), encoding="utf-8")
+        get_platform_adapter().atomic_write_text(marker, json.dumps({"instance_id": instance, "state": "complete"}))
         database.engine.dispose()

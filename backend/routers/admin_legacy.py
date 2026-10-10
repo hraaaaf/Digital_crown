@@ -396,10 +396,9 @@ def get_zka_key_qr(
 
 @router.post("/revoke-mobile")
 def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
-    """Révoque l'accès mobile en changeant la clé maître et en forçant une synchro."""
+    """Révoque les sessions mobiles sans modifier les clés de stockage."""
     try:
         emp_id = current_user.get_employer_id()
-        env_path = current_backend_env_path()
 
         # 1. Révoquer d'abord les sessions/devices et invalider les pairings en attente.
         # Fail-closed : si cette étape échoue, ne pas prétendre que l'accès mobile est révoqué.
@@ -409,30 +408,40 @@ def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: m
         # Revocation is persisted in the database; storage keys never rotate here.
 
         logger.info(f"🚨 Accès mobile révoqué par l'utilisateur {current_user.id}")
-        # S8 : rotation de la clé maître = invalidation de tous les accès mobiles.
+        # The revocation transaction is already durable; audit failure must not undo it.
         # Opération de sécurité majeure, traçabilité CRITICAL.
-        audit_service.log(
-            db=db,
-            user_id=current_user.id,
-            employer_id=emp_id,
-            action="MOBILE_ACCESS_REVOKED",
-            resource_type="ZKAMasterKey",
-            resource_id=None,
-            severity="CRITICAL",
-            details=(
-                "Rotation de la clé maître ZKA — tous les accès mobiles révoqués. "
-                f"pairings_invalidated={revocation['pairing_tokens_invalidated']} "
-                f"devices_revoked={revocation['devices_revoked']}"
-            ),
-        )
+        audit_recorded = True
+        try:
+            audit_recorded = audit_service.log(
+                db=db,
+                user_id=current_user.id,
+                employer_id=emp_id,
+                action="MOBILE_ACCESS_REVOKED",
+                resource_type="MobileSession",
+                resource_id=None,
+                severity="CRITICAL",
+                details=(
+                    "Sessions mobiles révoquées — clés de stockage conservées. "
+                    f"pairings_invalidated={revocation['pairing_tokens_invalidated']} "
+                    f"devices_revoked={revocation['devices_revoked']}"
+                ),
+            ) is True
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            audit_recorded = False
+            logger.error("Mobile revocation persisted; audit write failed: %s", type(exc).__name__)
         return {
             "status": "success",
+            "audit_recorded": audit_recorded,
             "message": "Accès mobile révoqué. Scannez le nouveau code pour vous reconnecter.",
             "pairing_tokens_invalidated": revocation["pairing_tokens_invalidated"],
             "devices_revoked": revocation["devices_revoked"],
         }
     except Exception as e:
-        logger.error(f"Erreur lors de la révocation ZKA: {e}")
+        logger.error("Mobile revocation failed: %s", type(e).__name__)
         raise HTTPException(status_code=500, detail="Échec de la révocation")
 
 @router.get("/backups")

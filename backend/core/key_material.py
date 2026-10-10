@@ -6,6 +6,18 @@ import os
 
 MOBILE_KEY_VERSION = "2"
 
+def keys_equal(left: str, right: str) -> bool:
+    """Compare encoded key bytes too; hex case cannot bypass separation."""
+    if not left or not right:
+        return False
+    if hmac.compare_digest(left.encode(), right.encode()):
+        return True
+    try:
+        return hmac.compare_digest(bytes.fromhex(left), bytes.fromhex(right))
+    except ValueError:
+        return False
+
+
 def sqlcipher_passphrase() -> str:
     dedicated = os.getenv("SQLCIPHER_KEY_HEX", "").strip()
     if dedicated:
@@ -14,6 +26,8 @@ def sqlcipher_passphrase() -> str:
                 raise ValueError()
         except ValueError:
             raise ValueError("SQLCIPHER_KEY_HEX must encode 32 bytes") from None
+        if keys_equal(dedicated, os.getenv("SECRET_KEY", "")):
+            raise ValueError("Storage key must be independent from authentication key")
         return dedicated
     # Compatibility: retain the EXACT historical passphrase, without rekey/stamp.
     return os.getenv("CABINET_MASTER_KEY_HEX") or os.getenv("SECRET_KEY") or "default-dc-fallback-key"
@@ -26,7 +40,7 @@ def mobile_pairing_key_hex() -> str:
                 raise ValueError()
         except ValueError:
             raise ValueError("MOBILE_PAIRING_KEY_HEX must encode 32 bytes") from None
-        if dedicated == sqlcipher_passphrase() or dedicated == os.getenv("CABINET_MASTER_KEY_HEX") or dedicated == os.getenv("SECRET_KEY"):
+        if any(keys_equal(dedicated, other) for other in (sqlcipher_passphrase(), os.getenv("CABINET_MASTER_KEY_HEX", ""), os.getenv("SECRET_KEY", ""))):
             raise ValueError("Mobile key must be independent from storage and authentication keys")
         return dedicated
     root = os.getenv("CABINET_MASTER_KEY_HEX", "").strip()

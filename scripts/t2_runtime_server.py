@@ -13,6 +13,9 @@ if str(REPO_ROOT) not in sys.path:
 # Runtime CI volontairement isolé : SQLite jetable, aucune donnée cabinet réelle.
 # Le mode "cabinet" reste fail-closed sur SQLCipher dans le produit normal.
 os.environ["ENVIRONMENT"] = "test"
+# Purpose-separated fictitious keys belong only to this disposable CI runtime.
+os.environ["CABINET_MASTER_KEY_HEX"] = "1" * 64
+os.environ["MOBILE_PAIRING_KEY_HEX"] = "2" * 64
 os.environ["SECRET_KEY"] = "t2-runtime-certification-secret-key-000001"
 os.environ["DATABASE_URL"] = "sqlite:///./t2-runtime-cert.db"
 os.environ["TELEMETRY_ENABLED"] = "false"
@@ -51,6 +54,7 @@ rate_limit.check_rate_limit = _t2_check_rate_limit
 from backend import database, models
 from backend.models_imaging_p4 import ImagingTrashRecord  # noqa: F401 - register table in Base metadata
 from backend.security import get_password_hash
+from backend.core.key_material import mobile_pairing_key_hex
 from backend.seed_catalog import CATALOG
 from backend.services import cabinet_catalog_store
 
@@ -109,7 +113,7 @@ with database.SessionLocal() as db:
             employer_id=user.id,
             user_id=user.id,
             public_id="t2-photo-cert",
-            master_key="1" * 64,
+            master_key=mobile_pairing_key_hex(),
             role=models.UserRole.DENTISTE.value,
             expires_at=datetime.utcnow() + timedelta(minutes=30),
         ))

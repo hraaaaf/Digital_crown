@@ -179,3 +179,62 @@ with database.SessionLocal() as db:
  assert db.query(models.Patient).filter_by(prenom='FIRSTBOOT').count()==1
 database.engine.dispose()
 """,env)
+
+def test_setup_recovers_failed_completion_marker_without_duplicate_owner(tmp_path):
+    env=environment(tmp_path)
+    env["DIGITALCROWN_INSTANCE_ID"]="fictitious-resume-instance"
+    env["DATABASE_URL"]="sqlite:///"+str(tmp_path/"data"/"clinical_vault.db").replace("\\","/")
+    run("""
+from backend.core.new_cabinet_setup import provision_new_cabinet
+from backend.core.platform import PlatformAdapter
+from unittest.mock import patch
+from pathlib import Path
+import json,os
+marker=Path(os.environ['DIGITALCROWN_CONFIG_DIR'])/'new-cabinet-setup.json'
+def fail_marker(self,path,content,**kwargs): raise OSError('injected completion marker failure')
+with patch.object(PlatformAdapter,'atomic_write_text',fail_marker):
+ try: provision_new_cabinet('fictitious-resume@cabinet.ma','Fictitious-resume-passphrase')
+ except OSError: pass
+ else: raise AssertionError('injected marker failure not exercised')
+assert json.loads(marker.read_text())['state']=='pending'
+try: provision_new_cabinet('fictitious-resume@cabinet.ma','Wrong-fictitious-password',resume=True)
+except RuntimeError: pass
+else: raise AssertionError('wrong owner credential accepted for resume')
+provision_new_cabinet('fictitious-resume@cabinet.ma','Fictitious-resume-passphrase',resume=True)
+assert json.loads(marker.read_text())['state']=='complete'
+from backend import database,models
+with database.SessionLocal() as db:
+ assert db.query(models.User).count()==1
+ assert db.query(models.CabinetConfig).count()==1
+database.engine.dispose()
+""",env)
+
+@pytest.mark.parametrize("other", ["SQLCIPHER_KEY_HEX", "CABINET_MASTER_KEY_HEX", "SECRET_KEY"])
+def test_encoded_key_case_cannot_bypass_separation(tmp_path, other):
+    env = environment(tmp_path)
+    env[other] = "ab" * 32
+    env["MOBILE_PAIRING_KEY_HEX"] = "AB" * 32
+    run("""
+from backend.core.key_material import mobile_pairing_key_hex
+try:
+ mobile_pairing_key_hex()
+except ValueError:
+ pass
+else:
+ raise AssertionError('Equivalent encoded keys were accepted')
+""", env)
+
+
+def test_storage_authentication_key_cannot_be_shared(tmp_path):
+    env = environment(tmp_path)
+    env["SQLCIPHER_KEY_HEX"] = "AB" * 32
+    env["SECRET_KEY"] = "ab" * 32
+    run("""
+from backend.core.key_material import sqlcipher_passphrase
+try:
+ sqlcipher_passphrase()
+except ValueError:
+ pass
+else:
+ raise AssertionError('Storage/authentication key sharing was accepted')
+""", env)

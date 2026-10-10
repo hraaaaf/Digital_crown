@@ -77,3 +77,31 @@ Les tests SQLCipher persistants utilisent exclusivement des données fictives et
 des dossiers temporaires isolés. Un processus Python neuf démontre la persistance
 inter-processus ; il ne constitue pas un test de reboot Windows. Une sauvegarde DB
 ne démontre pas une sauvegarde exhaustive de tous les médias et documents.
+
+
+## Migration cryptographique existante (sans activation implicite)
+
+La passphrase SQLCipher historique reste exactement inchangée, y compris sa casse.
+Le nouveau résolveur conserve cette compatibilité en absence de SQLCIPHER_KEY_HEX.
+La clé mobile v2 est dédiée ou dérivée par HMAC avec un domaine distinct ; elle ne
+permet pas de retrouver la clé de stockage. Les anciens JWT mobiles sans version v2
+et les QR contenant l'ancienne clé sont refusés : un nouvel appairage est requis.
+La révocation persistante invalide sessions, appareils et QR en attente sans rekey,
+sans modification du fichier de configuration et sans rotation d'authentification.
+
+Un téléphone ancien peut avoir déjà reçu la passphrase historique. La dérivation
+v2 ne peut pas effacer une copie détenue par cet appareil. Avant activation d'un
+cabinet existant, prévoir séparément une sauvegarde cohérente des fichiers et clés,
+une rotation SQLCipher explicitement autorisée et testée sur clone, puis une
+vérification d'intégrité, de restauration et de persistance avant bascule. Ne jamais
+appliquer cette rotation automatiquement, ni à la préservation historique.
+
+Une erreur d'audit après une révocation validée est signalée par audit_recorded=false,
+sans prétendre que la révocation a échoué ni relancer une rotation. Une erreur de
+transaction conserve l'ancien état et permet une reprise sûre.
+
+La création exclusive du premier .env interdit son écrasement concurrent. Une
+interruption pendant l'écriture peut laisser un fichier incomplet : refuser le
+démarrage et traiter la reprise manuellement sur la nouvelle instance seulement.
+Aucun raccourci clinique n'est créé implicitement ; l'activation autorisée devra
+transmettre --cabinet-env-file avec le chemin absolu de cette instance.
