@@ -34,6 +34,33 @@ if($null -ne (Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $ntPath
  throw 'UNPINNED_NT_DEVICE_WAS_ACCEPTED'
 }
 $count++
+# D3E23: a Windows 4663 Delete/WriteAttributes event must NEVER be
+# promoted to an actual WriteData/AppendData event.
+$writeMasks=@(
+ @{ mask='0x0'; expected=$false },
+ @{ mask='0x1'; expected=$false },
+ @{ mask='0x2'; expected=$true },
+ @{ mask='0x4'; expected=$true },
+ @{ mask='0x6'; expected=$true },
+ @{ mask='0x8'; expected=$false },
+ @{ mask='0x100'; expected=$false },
+ @{ mask='0x10000'; expected=$false },
+ @{ mask='0x10100'; expected=$false },
+ @{ mask='0x10106'; expected=$true }
+)
+$maskCases=0
+foreach($case in $writeMasks){
+ $result=Test-ScopedWriteDataAccess -AccessMask $case.mask
+ if($result -ne $case.expected){throw 'D3E23_UNSAFE_WRITE_ACCESS_CLASSIFICATION'}
+ $maskCases++
+}
+foreach($malformed in @('2','0x','0xZZ','0x100000000')){
+ $blocked=$false
+ try{$null=Test-ScopedWriteDataAccess -AccessMask $malformed}catch{$blocked=$true}
+ if(-not $blocked){throw 'D3E23_INVALID_MASK_ACCEPTED'}
+ $maskCases++
+}
+Write-Host "D3E23_SYNTHETIC_ACCESS_MASK_TESTS_PASSED=$maskCases"
 Write-Host "D3E22_SOURCE_ALIAS_TESTS_PASSED=$count"
 Write-Host 'D3E22_REAL_ILEXIS_FILE_TOUCHED=false'
 Write-Host 'D3E22_FACAD_EXECUTED=false'

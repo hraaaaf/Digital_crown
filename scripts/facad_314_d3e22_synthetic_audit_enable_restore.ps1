@@ -130,8 +130,7 @@ param([Parameter(Mandatory=$true)][string]$Target)
             }
             if(-not ($suffixMatch -or $exactMatch) -or
                -not $fields.ContainsKey('AccessMask')){continue}
-            $mask=[Convert]::ToInt64(([string]$fields.AccessMask).Replace('0x',''),16)
-            if(($mask -band 0x6) -eq 0){continue}
+            if(-not (Test-ScopedWriteDataAccess -AccessMask ([string]$fields.AccessMask))){continue}
             $targetWritableAccessCount++
             $matchCount++
             $processHex=[string]$fields.ProcessId

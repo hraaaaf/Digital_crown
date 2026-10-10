@@ -61,3 +61,18 @@ function Resolve-ScopedEventRelative {
  }
  return $relative
 }
+
+# Event 4663 uses an access mask: only WriteData or AppendData is
+# relevant to DATA write-use. Delete/WriteAttributes alone is insufficient.
+function Test-ScopedWriteDataAccess {
+ param([Parameter(Mandatory=$true)][string]$AccessMask)
+ if($AccessMask -cnotmatch '^0[xX][0-9a-fA-F]{1,8}$'){
+   throw 'D3E23_INVALID_WRITE_ACCESS_MASK'
+ }
+ try {
+   $bits=[Convert]::ToUInt32($AccessMask.Substring(2),16)
+   return (($bits -band 0x06) -ne 0)
+ }catch{
+   throw 'D3E23_WRITE_ACCESS_MASK_PARSE_FAILED'
+ }
+}

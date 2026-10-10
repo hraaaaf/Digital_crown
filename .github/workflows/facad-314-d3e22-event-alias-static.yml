@@ -6,6 +6,7 @@ on:
       - fix/facad-d3e22-event-path-alias
     paths:
       - scripts/facad_314_d3e9_independent_arm.ps1
+      - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
       - scripts/facad_314_d3e22_event_path_map.ps1
       - scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
       - scripts/test_facad_314_d3e22_event_path_map.ps1
@@ -28,6 +29,7 @@ jobs:
           $ErrorActionPreference='Stop'
           if ((git rev-parse HEAD) -cne $env:GITHUB_SHA) { throw 'HEAD_MISMATCH' }
           $paths=@('scripts/facad_314_d3e9_independent_arm.ps1',
+                   'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1',
                    'scripts/facad_314_d3e22_event_path_map.ps1',
                    'scripts/test_facad_314_d3e22_event_path_map.ps1',
                    'scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1')
@@ -37,8 +39,15 @@ jobs:
               (Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
             if($errors.Count){throw 'D3E22_SCRIPT_SYNTAX_INVALID'}
           }
+          $realObserver=Get-Content -LiteralPath 'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1' -Raw
+          if($realObserver -match '0x10106' -or
+             $realObserver -notmatch 'Test-ScopedWriteDataAccess' -or
+             $realObserver -notmatch 'Resolve-ScopedEventRelative' -or
+             $realObserver -notmatch 'Get-ScopedNtVolume'){
+            throw 'D3E23_REAL_OBSERVER_SCOPE_OR_MASK_CONTRACT_BROKEN'
+          }
           Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
-      - name: Evaluate synthetic DOS / NT device path aliases in memory only
+      - name: Validate path binding and data-write rights (synthetic inputs only)
         shell: pwsh
         run: |
           & scripts/test_facad_314_d3e22_event_path_map.ps1

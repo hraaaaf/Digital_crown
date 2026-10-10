@@ -15,6 +15,8 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $guid='{0CCE921D-69AE-11D9-BED3-505054503030}'
+. (Join-Path $PSScriptRoot 'facad_314_d3e22_event_path_map.ps1')
+$trustedNtVolume=$null
 $root=$null;$oldAcl=$null;$enabled=$false;$wasEnabled=$null;$proc=$null
 $rootPidEventKeys=@{}
 $otherPidEventKeys=@{}
@@ -136,6 +138,8 @@ try {
  $rootInfo=Get-Item -LiteralPath $root -Force -ErrorAction Stop
  if(($rootInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'SCOPE_REPARSE_POINT'}
  $result.selected_scope_existed_before_start=$true
+ $trustedNtVolume=Get-ScopedNtVolume -ScopeRoot $root
+ if([string]::IsNullOrWhiteSpace($trustedNtVolume)){throw 'D3E23_NT_DEVICE_MAPPING_UNAVAILABLE'}
  Capture-PrivatePreflightCheckpoint 'observer_entry'
  $oldAcl=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
  $saclBefore=$oldAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
@@ -189,37 +193,32 @@ try {
  Stop-Process -Id $proc.Id -Force -ErrorAction Stop
  Start-Sleep -Seconds 3
  Capture-PrivateIlexisCheckpoint 'post_stop'
- # Require full profile-relative Ilexis suffix. Never match bare Ilexis.
- $suffix=$root.Substring(2)
+ # D3E23: exact DOS path or Windows-verified matching NT device only.
+ # A bare suffix could match a different volume or a similar user profile.
  $records=@(Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 4000 -ErrorAction Stop)
  if($records.Count -ge 4000){throw 'AUDIT_CAP'}
  $result.queried_event_count=$records.Count
  foreach($event in $records){
+   if($event.Id -ne 4663 -or $event.ProviderName -cne 'Microsoft-Windows-Security-Auditing'){continue}
    [xml]$xml=$event.ToXml();$fields=@{}
    foreach($field in $xml.Event.EventData.Data){$fields[[string]$field.Name]=[string]$field.'#text'}
    if($fields['ObjectType'] -cne 'File' -or -not $fields['ObjectName'] -or
       -not $fields['ProcessId'] -or -not $fields['AccessMask']){continue}
-   $pathText=[string]$fields['ObjectName']
-   $inside=($pathText.EndsWith($suffix,[StringComparison]::OrdinalIgnoreCase) -or
-            $pathText.IndexOf($suffix+'\', [StringComparison]::OrdinalIgnoreCase) -ge 0)
-   if(-not $inside){continue}
-   $mask=[Convert]::ToInt64(($fields['AccessMask'] -replace '^0x',''),16)
-   if(($mask -band 0x10106) -eq 0){continue}
+   $relative=Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath ([string]$fields['ObjectName']) -ExpectedNtDevice $trustedNtVolume
+   if($null -eq $relative){continue}
+   # 4663: attributes/delete access alone must not count as file DATA write use.
+   if(-not (Test-ScopedWriteDataAccess -AccessMask ([string]$fields['AccessMask']))){continue}
+   $pidHex=[string]$fields['ProcessId']
+   if($pidHex -cnotmatch '^0[xX][0-9a-fA-F]{1,8}$'){throw 'D3E23_PID_FORMAT_INVALID'}
+   $eventPid=[Convert]::ToInt64($pidHex.Substring(2),16)
    $result.scoped_file_write_event_count++
-   $id=[Convert]::ToInt32(($fields['ProcessId'] -replace '^0x',''),16)
-   if($id -eq $proc.Id){$result.facad_root_pid_write_event_count++}
-   else{$result.other_process_pid_write_event_count++}
-   # Local identity only; other PID is NOT automatically a Facad descendant.
-   $at=$pathText.IndexOf($suffix+'\', [StringComparison]::OrdinalIgnoreCase)
-   if($at -ge 0){
-     $relative=$pathText.Substring($at+$suffix.Length+1)
-     $tokens=@($relative.Split('\'))
-     if($relative -and $relative.Length -le 4096 -and
-        -not @($tokens | Where-Object {$_ -eq '..' -or $_ -eq '.'}).Count){
-       $key=HashRelativeName $relative
-       if($id -eq $proc.Id){$rootPidEventKeys[$key]=$true}
-       else{$otherPidEventKeys[$key]=$true}
-     }
+   $key=HashRelativeName $relative
+   if($eventPid -eq [long]$proc.Id){
+     $result.facad_root_pid_write_event_count++
+     $rootPidEventKeys[$key]=$true
+   }else{
+     $result.other_process_pid_write_event_count++
+     $otherPidEventKeys[$key]=$true
    }
  }
  $result.verdict=if($result.facad_root_pid_write_event_count -gt 0){
