@@ -300,7 +300,7 @@ def _patch_context_dependencies(monkeypatch, mobile_payload):
     monkeypatch.setattr(cockpit, '_unique_manual_code', lambda _db, _now: '123456')
     monkeypatch.setattr(cockpit, '_resource_token', lambda: 'opaque-resource-token')
     monkeypatch.setattr(cockpit, '_role_name', lambda _user: 'DENTISTE')
-    monkeypatch.setattr(cockpit.os, 'getenv', lambda _name: 'test-key-material')
+    monkeypatch.setattr(cockpit, 'mobile_pairing_key_hex', lambda: 'ab' * 32)
     monkeypatch.setattr(cockpit.secrets, 'token_urlsafe', lambda _size: 'opaque-context-key')
     monkeypatch.setattr(cockpit.models, 'ZKAPairingToken', lambda **kwargs: SimpleNamespace(**kwargs))
     return mobile_user
