@@ -1,0 +1,77 @@
+name: Facad D3E16 auditpol current-user visibility (READ ONLY)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-d3e16-readonly-policy-visibility.yml
+      - scripts/facad_314_d3e16_readonly_policy_presence.ps1
+      - scripts/facad_314_d3e16_readonly_policy_diagnostic_gate.py
+      - scripts/test_facad_314_d3e16_readonly_policy_diagnostic_gate.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-readonly-current-user:
+    name: Per-user auditpol listing and GET (NO MUTATIONS)
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact HEAD and read-only probe syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'HEAD_MISMATCH'}
+          Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/facad_314_d3e16_readonly_policy_presence.ps1').Path,
+            [ref]$tokens,[ref]$errors)
+          if($errors.Count){throw 'D3E16_POWERSHELL_SYNTAX_INVALID'}
+          python -m py_compile scripts/facad_314_d3e16_readonly_policy_diagnostic_gate.py
+          if($LASTEXITCODE -ne 0){throw 'D3E16_PYTHON_SYNTAX_INVALID'}
+          Write-Host 'D3E16_POLICY_MUTATED=false'
+      - name: Inspect current-user policy visibility anonymously (READ ONLY)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $probe=(Resolve-Path 'scripts/facad_314_d3e16_readonly_policy_presence.ps1').Path
+          $raw=Join-Path $env:GITHUB_WORKSPACE 'd3e16-current-user-readonly.json'
+          $checked=Join-Path $env:GITHUB_WORKSPACE 'd3e16-checked-readonly.json'
+          # Isolate native auditpol exit codes from the workflow invocation.
+          pwsh -NoProfile -NonInteractive -File $probe -OutputPath $raw | Out-Host
+          if($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $raw -PathType Leaf)){
+            throw 'D3E16_READONLY_PROBE_DID_NOT_FINISH'
+          }
+          python scripts/facad_314_d3e16_readonly_policy_diagnostic_gate.py --input $raw --output $checked | Out-Host
+          if($LASTEXITCODE -ne 0){throw 'D3E16_PROVENANCE_INVALID'}
+          $result=Get-Content -LiteralPath $checked -Raw | ConvertFrom-Json
+          if($result.policy_modified -ne $false -or
+             $result.user_policy_configurable_proven -ne $false -or
+             $result.raw_user_policy_inventory_exported -ne $false -or
+             $result.clinical_edit_allowed -ne $false -or
+             $result.shared_app_storage_isolation_verified -ne $false){
+            throw 'D3E16_FORGED_CAPTURE_OR_CLINICAL_CLAIM'
+          }
+          Write-Host "D3E16_FINAL_VERDICT=$($result.verdict)"
+          Write-Host 'D3E16_CURRENT_USER_ONLY=true'
+          Write-Host 'D3E16_REAL_ILEXIS_TRACE_CAPTURED=false'
+          Write-Host 'D3E16_POLICY_MODIFIED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+      - name: Upload allowlisted aggregate statuses only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e16-policy-presence-readonly
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            d3e16-current-user-readonly.json
+            d3e16-checked-readonly.json

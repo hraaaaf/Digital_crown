@@ -41,6 +41,11 @@ on:
       - scripts/facad_314_d3e15_readonly_user_audit_policy.ps1
       - scripts/facad_314_d3e15_readonly_audit_policy_gate.py
       - scripts/test_facad_314_d3e15_readonly_audit_policy_gate.py
+      - scripts/facad_314_d3e16_readonly_policy_presence.ps1
+      - scripts/facad_314_d3e16_readonly_policy_diagnostic_gate.py
+      - scripts/test_facad_314_d3e16_readonly_policy_diagnostic_gate.py
+      - .github/workflows/facad-314-d3e16-readonly-policy-visibility.yml
+      - docs/audits/FACAD_314_D3E16_READONLY_USER_POLICY_VISIBILITY_2026-10-10.md
       - .github/workflows/facad-314-d3e15-readonly-policy.yml
       - docs/audits/FACAD_314_D3E15_READONLY_PER_USER_AUDIT_REVIEW_2026-10-10.md
       - .github/workflows/facad-314-d3e14-sacl-calibration.yml
@@ -108,6 +113,12 @@ jobs:
           grep -Fq 'D3E14_REAL_ILEXIS_WRITER_PROVEN=false' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
           grep -Fq 'D3E14_FILE_SYSTEM_SUCCESS_POLICY=' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
           grep -Fq 'D3E15_POLICY_MODIFIED=false' scripts/facad_314_d3e15_readonly_user_audit_policy.ps1
+          grep -Fq 'D3E16_POLICY_MODIFIED=false' scripts/facad_314_d3e16_readonly_policy_presence.ps1
+          grep -Fq 'D3E16_USER_POLICY_CONFIGURABLE_PROVEN=false' scripts/facad_314_d3e16_readonly_policy_presence.ps1
+          grep -Fq 'D3E16_REAL_ILEXIS_TRACE_CAPTURED=false' .github/workflows/facad-314-d3e16-readonly-policy-visibility.yml
+          grep -Fq 'raw_user_policy_inventory_kept_in_memory_only' scripts/facad_314_d3e16_readonly_policy_diagnostic_gate.py
+          if grep -Eq '^[[:space:]]*(&[[:space:]]*)?auditpol(.exe)?[[:space:]]+/(set|restore|clear)' scripts/facad_314_d3e16_readonly_policy_presence.ps1; then exit 1; fi
+          if grep -Eq 'Get-WinEvent|logman.exe|Set-Acl|Register-ObjectEvent' scripts/facad_314_d3e16_readonly_policy_presence.ps1; then exit 1; fi
           grep -Fq 'D3E15_CAPTURE_AUTHORIZED=false' scripts/facad_314_d3e15_readonly_user_audit_policy.ps1
           grep -Fq 'D3E15_PER_USER_POLICY_MODIFIED=false' scripts/facad_314_d3e15_readonly_audit_policy_gate.py
           grep -Fq 'READ ONLY' .github/workflows/facad-314-d3e15-readonly-policy.yml
@@ -255,6 +266,13 @@ jobs:
           python -m unittest scripts/test_facad_314_d3e15_readonly_audit_policy_gate.py -v
           echo 'D3E15_POLICY_MUTATED=false'
           echo 'D3E15_REAL_ILEXIS_WRITER_PROVEN=false'
+          echo 'CLINICAL_EDIT_ALLOWED=false'
+      - name: D3E16 read-only current-user policy visibility adversarial tests (SOURCE ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3e16_readonly_policy_diagnostic_gate.py scripts/test_facad_314_d3e16_readonly_policy_diagnostic_gate.py
+          python -m unittest scripts/test_facad_314_d3e16_readonly_policy_diagnostic_gate.py -v
+          echo 'D3E16_POLICY_MUTATED=false'
+          echo 'D3E16_ILEXIS_WRITER_PROVEN=false'
           echo 'CLINICAL_EDIT_ALLOWED=false'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
