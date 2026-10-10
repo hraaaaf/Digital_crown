@@ -5,10 +5,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 def get_master_key_bytes() -> bytes:
-    master_key_hex = os.getenv("CABINET_MASTER_KEY_HEX")
-    if not master_key_hex:
-        raise ValueError("CABINET_MASTER_KEY_HEX non défini dans .env")
-    return bytes.fromhex(master_key_hex)
+    from backend.core.key_material import mobile_pairing_key_hex
+    return bytes.fromhex(mobile_pairing_key_hex())
 
 def encrypt_payload(data: dict) -> dict:
     """

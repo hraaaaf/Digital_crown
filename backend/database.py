@@ -33,7 +33,8 @@ SQLCIPHER_REQUIRED = (
 
 # --- CONFIGURATION & ENCRYPTION SQLCIPHER POUR SQLITE ---
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
-    passphrase = os.getenv("CABINET_MASTER_KEY_HEX", os.getenv("SECRET_KEY", "default-dc-fallback-key"))
+    from backend.core.key_material import sqlcipher_passphrase
+    passphrase = sqlcipher_passphrase()
 
     if ":memory:" not in SQLALCHEMY_DATABASE_URL:
         db_file_path = SQLALCHEMY_DATABASE_URL.replace("sqlite:///", "")

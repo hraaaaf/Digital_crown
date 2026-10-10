@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex, MOBILE_KEY_VERSION
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
@@ -311,7 +312,7 @@ def get_zka_key_qr(
     emp_id, target_user = _resolve_mobile_pairing_user(db, current_user, target_user_id)
 
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == emp_id).first()
-    master_key = os.getenv("CABINET_MASTER_KEY_HEX")
+    master_key = mobile_pairing_key_hex()
 
     if not config or not master_key:
         raise HTTPException(status_code=404, detail="Configuration ZKA incomplète.")
@@ -405,12 +406,7 @@ def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: m
         from backend.security import token_blacklist
         revocation = token_blacklist.revoke_mobile_access(emp_id, db)
 
-        # 2. Rotation de la clé (mémoire + fichier env actif)
-        zka_service.rotate_master_key(env_path)
-        
-        # 3. Force une synchronisation immédiate avec la nouvelle clé
-        # Cela rendra les anciens snapshots sur Supabase obsolètes ou illisibles avec l'ancienne clé
-        sync_manager._perform_sync(emp_id)
+        # Revocation is persisted in the database; storage keys never rotate here.
 
         logger.info(f"🚨 Accès mobile révoqué par l'utilisateur {current_user.id}")
         # S8 : rotation de la clé maître = invalidation de tous les accès mobiles.

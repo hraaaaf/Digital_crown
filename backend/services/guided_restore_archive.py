@@ -109,7 +109,8 @@ def _open_database_for_validation(path: Path, driver: str):
             from sqlcipher3 import dbapi2 as sqlcipher
         except ImportError as exc:
             raise RuntimeError("sqlcipher3 indisponible") from exc
-        passphrase = os.getenv("CABINET_MASTER_KEY_HEX") or os.getenv("SECRET_KEY")
+        from backend.core.key_material import sqlcipher_passphrase
+        passphrase = sqlcipher_passphrase()
         if not passphrase:
             raise RuntimeError("Clé SQLCipher indisponible")
         conn = sqlcipher.connect(str(path))

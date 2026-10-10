@@ -32,6 +32,8 @@ a = Analysis(
     binaries=[],
     datas=[
         ('frontend/dist', 'frontend/dist'),
+        ('alembic.ini', '.'),
+        ('alembic', 'alembic'),
         ('backend/data/medications_ma.json', 'backend/data'),
         ('backend/data/medications_ma_ammps_2026.json', 'backend/data'),
         ('backend/data/medications_ma_ammps_current_2026.json', 'backend/data'),

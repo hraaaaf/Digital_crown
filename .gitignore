@@ -117,3 +117,7 @@ treatment_journey_rehearsal_media/
 # ========================================
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# FUE-G04 isolated environments and fictitious persistence fixtures
+.venv-fue-g04*/
+.test-fue-g04*/

@@ -1,0 +1,40 @@
+name: FUE-G04 persistent SQLCipher regression
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - 'tests/test_fue_g04*.py'
+      - 'run.py'
+      - 'DigitalCrown.spec'
+      - 'installer/**'
+      - '.github/workflows/fue-g04-persistence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  persistence:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install SQLCipher build dependency on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install isolated test dependencies matching runtime contract
+        run: >
+          pip install pytest sqlalchemy==2.0.48 alembic==1.20.0 passlib==1.7.4
+          bcrypt==3.2.2 python-jose==3.5.0 fastapi==0.115.6
+          pydantic==2.6.3 pydantic-settings==2.2.1 python-dotenv==1.2.2
+          email-validator==2.3.0 httpx==0.28.1 python-multipart==0.0.22
+          cryptography==49.0.0 sqlcipher3==0.6.2
+      - name: Real encrypted disk database and fresh process
+        run: python -B -c "import glob,pytest; raise SystemExit(pytest.main(glob.glob('tests/test_fue_g04*.py') + ['-q','-p','no:cacheprovider']))"
+      - name: Existing key and environment regression
+        run: python -B -m pytest backend/tests/test_pure_zka_service.py backend/tests/test_env_loader.py backend/tests/test_cabinet_crypto_env_gate.py -q -p no:cacheprovider

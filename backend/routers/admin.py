@@ -46,27 +46,17 @@ def revoke_mobile_access(
         _legacy.logger.error("Mobile revocation epoch persistence failed: %s", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Échec de la révocation") from exc
 
-    try:
-        env_path = _legacy.current_backend_env_path()
-        _legacy.zka_service.rotate_master_key(env_path)
-    except Exception as exc:
-        _legacy.logger.error("Mobile sessions revoked but ZKA key rotation failed: %s", type(exc).__name__)
-        raise HTTPException(
-            status_code=500,
-            detail="Accès mobiles révoqués, mais rotation de la clé locale échouée.",
-        ) from exc
-
     _legacy.audit_service.log(
         db=db,
         user_id=current_user.id,
         employer_id=emp_id,
         action="MOBILE_ACCESS_REVOKED",
-        resource_type="ZKAMasterKey",
+        resource_type="MobileSession",
         resource_id=None,
         severity="CRITICAL",
         details=(
             "Révocation mobile tenant-scopée persistée, codes d'appairage en attente "
-            "invalidés et clé maître ZKA renouvelée."
+            "invalidés, clés de stockage conservées."
         ),
     )
     _legacy.logger.info("Mobile access revoked for cabinet %s by user %s", emp_id, current_user.id)
