@@ -8,6 +8,9 @@ on:
       - .github/workflows/facad-314-d3-windows-storage-observation.yml
       - scripts/facad_314_d3_windows_snapshot.ps1
       - scripts/facad_314_d3_cold_warm_verdict_gate.py
+      - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
+      - scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
+      - scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py
   workflow_dispatch:
 
 permissions:
@@ -39,6 +42,7 @@ jobs:
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -407,35 +411,18 @@ jobs:
           # copied, rights-cleared Robert demo, and no UI click, patient Load or Save.
           function Invoke-D3ResearchStartup([string]$label) {
             $processOut="facad-quick-demo/d3-process-io-$label.json"
-            $p=$null
-            try{
-              $p=Start-Process -FilePath $installed.FullName -ArgumentList ('"'+$copy+'"') -WorkingDirectory $installed.DirectoryName -PassThru -ErrorAction Stop
-              Start-Sleep -Seconds 3
-              if($p.HasExited){throw "Facad exited too early during $label nonclinical startup"}
-              & $processScript -TargetPid $p.Id -DurationSeconds 6 -OutputPath (Join-Path $env:GITHUB_WORKSPACE $processOut)
-              $processEvidence=Get-Content -LiteralPath $processOut -Raw | ConvertFrom-Json
-              if($processEvidence.schema -cne 'facad314_d3_process_io_v1' -or
-                 $processEvidence.verdict -cne 'INCONCLUSIVE_PROCESS_IO_COUNTERS_ONLY' -or
-                 $processEvidence.sample_count -ne 12 -or
-                 $processEvidence.d3_isolation_verified -ne $false -or
-                 $processEvidence.clinical_edit_allowed -ne $false -or
-                 $processEvidence.path_attribution_available -ne $false -or
-                 $processEvidence.complete_child_process_coverage -ne $false -or
-                 $processEvidence.files_or_command_lines_read -ne $false -or
-                 $processEvidence.registry_values_read -ne $false){
-                throw "D3 $label process-only evidence contract mismatch"
-              }
-              Write-Host "D3_STARTUP_PHASE=$label"
-              Write-Host 'D3_PROCESS_IO_PATH_ATTRIBUTION=false'
-              Start-Sleep -Seconds 6
-              if($p.HasExited){throw "Facad exited before $label observation complete"}
-              Write-Host 'D3_PROBE_ACTION=APP_STARTUP_ONLY_NO_UI_CLICKS'
-            } finally {
-              if($null -ne $p -and -not $p.HasExited){
-                Stop-Process -Id $p.Id -Force -ErrorAction Stop
-                Start-Sleep -Seconds 3
-              }
+            $auditOut="facad-quick-demo/d3e2-facad-root-pid-$label.json"
+            $auditScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1'
+            & $auditScript -FacadExecutable $installed.FullName -DisposableRobert $copy -ProcessCounterScript $processScript -ProcessCounterOutput (Join-Path $env:GITHUB_WORKSPACE $processOut) -OutputPath (Join-Path $env:GITHUB_WORKSPACE $auditOut)
+            $auditStatus=$LASTEXITCODE
+            python scripts/facad_314_d3e_facad_root_pid_verdict_gate.py --input $auditOut | Out-Host
+            $contractStatus=$LASTEXITCODE
+            if($auditStatus -ne 0 -or $contractStatus -ne 0){
+              throw "D3E.2 $label root-PID write-use attribution unproven; D3 remains BLOCKED"
             }
+            Write-Host "D3E2_$($label.ToUpperInvariant())_ROOT_PID_POSITIVE_ONLY=true"
+            Write-Host 'D3E2_DESCENDANT_COVERAGE_COMPLETE=false'
+            Write-Host 'D3_PROBE_ACTION=APP_STARTUP_ONLY_NO_UI_CLICKS'
           }
 
           function Invoke-D3ResearchPair([string]$label) {
@@ -517,3 +504,5 @@ jobs:
             facad-quick-demo/d3-process-io-cold.json
             facad-quick-demo/d3-process-io-warm.json
             facad-quick-demo/d3-cold-warm-research-summary.json
+            facad-quick-demo/d3e2-facad-root-pid-cold.json
+            facad-quick-demo/d3e2-facad-root-pid-warm.json
