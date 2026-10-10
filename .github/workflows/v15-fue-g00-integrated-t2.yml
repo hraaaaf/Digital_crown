@@ -9,6 +9,7 @@ on:
       - "frontend/src/services/workstationMode.ts"
       - "backend/routers/workstation_mode.py"
       - "frontend/scripts/audit-v15-fue-g00-fresh-enrollment-t2.mjs"
+      - "frontend/scripts/audit-v15-fue-g00-first-ever-t2.mjs"
       - "frontend/src/services/apiBase.ts"
       - "backend/core/cabinet_topology.py"
       - "backend/routers/mobile_legacy.py"
@@ -108,6 +109,17 @@ jobs:
           cat /tmp/fue-g00-frontend.log
           exit 1
 
+      - name: Assert fresh isolated T2 workstation registry empty
+        run: |
+          python -c 'from backend import database, models; s=database.SessionLocal(); assert s.query(models.WorkstationMode).count() == 0, "T2 precondition: first ever tenant must have zero stations"; s.close()'
+
+      - name: Syntax check first-ever workstation harness
+        run: node --check frontend/scripts/audit-v15-fue-g00-first-ever-t2.mjs
+
+      - name: Run first-ever workstation via real UI
+        working-directory: frontend
+        run: node scripts/audit-v15-fue-g00-first-ever-t2.mjs
+
       - name: Syntax check integrated FUE-G00 harness
         run: node --check frontend/scripts/audit-v15-fue-g00-integrated-t2.mjs
 
@@ -136,6 +148,7 @@ jobs:
         with:
           name: fue-v15-g00-integrated-t2-evidence
           path: |
+            artifacts/v15-fue-g00-first-ever
             artifacts/v15-fue-g00-integrated
             artifacts/v15-fue-g00-fresh
           if-no-files-found: error
