@@ -1,0 +1,84 @@
+name: Facad D3E Windows audit write-attribution CANARY (EXPERIMENTAL)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - scripts/facad_314_d3e_windows_audit_canary.ps1
+      - scripts/facad_314_d3e_canary_verdict_gate.py
+      - scripts/test_facad_314_d3e_canary_verdict_gate.py
+      - .github/workflows/facad-314-d3e-write-attribution-canary.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-evidence-contract:
+    name: SOURCE ONLY - no Facad launch
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enforce immutable exact HEAD and deny real-machine attestation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "D3E_EXACT_HEAD=$GITHUB_SHA"
+          grep -Fq "if(\$env:GITHUB_ACTIONS -cne 'true'" scripts/facad_314_d3e_windows_audit_canary.ps1
+          grep -Fq "EPHEMERAL_WINDOWS_RUNNER_SYNTHETIC_CANARY_ONLY" scripts/facad_314_d3e_canary_verdict_gate.py
+          if grep -Eiq '(Get-Content.+Facad.settings|Get-Content.+license.fcl|Get-ItemProperty.+patient)' scripts/facad_314_d3e_windows_audit_canary.ps1; then exit 1; fi
+      - name: Execute synthetic negative scenarios
+        run: |
+          python -m py_compile scripts/facad_314_d3e_canary_verdict_gate.py scripts/test_facad_314_d3e_canary_verdict_gate.py
+          python -m unittest scripts/test_facad_314_d3e_canary_verdict_gate.py -v
+          echo 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          echo 'FACAD_WRITE_ATTRIBUTION_PROVEN=false'
+          echo 'CLINICAL_EDIT_ALLOWED=false'
+
+  synthetic-windows-event-4663:
+    name: EXPERIMENTAL - Windows 4663 canary only
+    needs: offline-evidence-contract
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse PowerShell without launching it
+        shell: pwsh
+        run: |
+          $tokens=$null;$parseErrors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3e_windows_audit_canary.ps1'),
+            [ref]$tokens,[ref]$parseErrors)
+          if($parseErrors.Count){throw 'Invalid PowerShell canary syntax'}
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows'){throw 'Wrong execution environment'}
+          Write-Host 'D3E_RUNNER_EPHEMERAL=true'
+      - name: Prove synthetic file write PID via Windows Security 4663, or fail closed
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & ./scripts/facad_314_d3e_windows_audit_canary.ps1 -OutputPath 'd3e-synthetic-canary-verdict.json'
+          if($LASTEXITCODE -ne 0){throw 'D3E synthetic 4663 audit instrumentation unavailable, no Facad attribution claimed'}
+          python scripts/facad_314_d3e_canary_verdict_gate.py --input d3e-synthetic-canary-verdict.json
+          if($LASTEXITCODE -ne 0){throw 'D3E synthetic attribution contract invalid'}
+          Write-Host 'D3E_SYNTHETIC_CANARY_EVENT_PID_PROVEN=true'
+          Write-Host 'D3E_FACAD_WRITE_ATTRIBUTION_PROVEN=false'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+      - name: Upload aggregate canary outcome only - never Windows raw Security events
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e-synthetic-4663-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            d3e-synthetic-canary-verdict.json
