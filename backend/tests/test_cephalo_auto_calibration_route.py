@@ -348,14 +348,15 @@ def test_auto_verified_success_does_not_require_clinician_confirmation(monkeypat
     ]
     assert ricketts_blocked, "synthetic auto landmarks must not imply anatomical identities"
     assert all(item["value"] is None for item in ricketts_blocked)
-    # Independent negative oracle: this source-locked edge-to-A-Pog family
-    # requires a manually established anatomical Frankfort Po identity.
-    # A synthetic SRPose auto Po is not an anatomical Po confirmation.
+    # SRPose-certified aliases Po_anatomic and Pog_hard permit A-Pog.
     by_method = {item["method_id"]: item for item in all_measurements}
-    incisal_edge = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
-    assert incisal_edge["availability_status"] == "NOT_COMPUTABLE"
-    assert incisal_edge["value"] is None
-
+    edge = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
+    assert edge["availability_status"] == "AVAILABLE"
+    assert edge["value"] is not None
+    # Functional occlusal plane is absent: do not compute incisal extrusion.
+    extrusion = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
+    assert extrusion["availability_status"] == "NOT_COMPUTABLE"
+    assert extrusion["value"] is None
 
 def test_optional_confirmation_changes_only_audit_state_not_ratio_or_values(monkeypatch):
     analysis = _analysis()
