@@ -107,8 +107,12 @@ try {
       $anyPid=[Convert]::ToInt32(($fields['ProcessId'] -replace '^0x',''),16)
       if($anyPid -eq $PID){$expectedPidAnyPathRecords++}
     }
-    $inside=($fields['ObjectName'].Equals($root,[StringComparison]::OrdinalIgnoreCase) -or
-             $fields['ObjectName'].StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase))
+    # Security 4663 may report an NT-device-qualified path rather than the
+    # drive-qualified RUNNER_TEMP path. Match ONLY the unique GUID-named canary
+    # directory + fixed synthetic leaf as a boundary-safe suffix. Never use
+    # this shortcut to claim real Facad path attribution.
+    $syntheticSuffix='\'+(Split-Path -Leaf $root)+'\'+(Split-Path -Leaf $canary)
+    $inside=$fields['ObjectName'].EndsWith($syntheticSuffix,[StringComparison]::OrdinalIgnoreCase)
     if(-not $inside){continue}
     $scoped++
     if(-not $fields['ProcessId']){continue}
