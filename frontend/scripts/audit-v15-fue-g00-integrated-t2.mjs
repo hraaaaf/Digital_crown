@@ -214,7 +214,9 @@ try {
 matrix.success = matrix.cases.length === viewports.length &&
   matrix.failures.length === 0 &&
   matrix.cases.every(c => c.images.length === 10 &&
-    Object.values(c.checks).every(Boolean));
+    Object.keys(c.checks).length === 17 &&
+    Object.values(c.checks).every(Boolean) &&
+    c.pageErrors.length === 0 && c.http5xx.length === 0);
 await fs.writeFile(path.join(root, 'report.json'), JSON.stringify(matrix, null, 2));
 console.log('FUE_G00_INTEGRATED_SUMMARY', JSON.stringify({
   head: matrix.head, isolated: matrix.isolated, success: matrix.success,
