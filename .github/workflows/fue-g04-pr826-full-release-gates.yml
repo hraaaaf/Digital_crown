@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 
 env:
-  TARGET_PR_SHA: d70bf3879135eca1682f5348214ca5fe4f80003e
+  TARGET_PR_SHA: d6978de60227db9e9bfbe1ffe9496ad748e8191d
 
 jobs:
   backend-complete:
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: d70bf3879135eca1682f5348214ca5fe4f80003e
+          ref: d6978de60227db9e9bfbe1ffe9496ad748e8191d
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -52,7 +52,7 @@ jobs:
       - name: Production safety invariant
         run: python scripts/prod_safety_check.py
       - name: Full release backend suite (no skipping safety)
-        run: python -m pytest backend/tests -q --maxfail=1
+        run: python -m pytest backend/tests -q --maxfail=5
 
   frontend-complete:
     name: Full frontend tests and exact candidate production build
@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: d70bf3879135eca1682f5348214ca5fe4f80003e
+          ref: d6978de60227db9e9bfbe1ffe9496ad748e8191d
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
