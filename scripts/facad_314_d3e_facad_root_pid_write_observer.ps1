@@ -9,6 +9,7 @@ param(
  [Parameter(Mandatory=$true)][string]$TimelinePath,
  [Parameter(Mandatory=$true)][string]$PreLaunchPath,
  [Parameter(Mandatory=$true)][string]$PreflightPath,
+ [Parameter(Mandatory=$true)][string]$PassiveControlPath,
  [Parameter(Mandatory=$true)][string]$SessionId
 )
 $ErrorActionPreference='Stop'
@@ -20,6 +21,8 @@ $otherPidEventKeys=@{}
 $sampledDescendantCount=0
 $timelineOut=$null;$preLaunchOut=$null;$preLaunchEntries=$null;$preflightOut=$null
 $preflightCheckpoints=New-Object 'System.Collections.Generic.List[object]'
+$passiveControlOut=$null
+$controlCheckpoints=New-Object 'System.Collections.Generic.List[object]'
 $checkpoints=New-Object 'System.Collections.Generic.List[object]'
 function HashRelativeName([string]$relative){
   $digest=[Security.Cryptography.SHA256]::Create()
@@ -43,6 +46,10 @@ function Get-PrivateIlexisSizeEntries {
     $entries[$key]=[long]$file.Length
   }
   return $entries
+}
+function Capture-PrivateD3E8ControlCheckpoint([string]$stage){
+ $entries=Get-PrivateIlexisSizeEntries
+ [void]$controlCheckpoints.Add([ordered]@{stage=$stage;entries=$entries})
 }
 function Capture-PrivatePreflightCheckpoint([string]$stage){
  $entries=Get-PrivateIlexisSizeEntries
@@ -107,6 +114,14 @@ try {
     $preflightOut -eq $timelineOut -or $preflightOut -eq $preLaunchOut){
     throw 'PREFLIGHT_MANIFEST_MUST_BE_EPHEMERAL'
  }
+ $passiveControlOut=[IO.Path]::GetFullPath($PassiveControlPath)
+ if(-not $passiveControlOut.StartsWith($tempRoot+'\', [StringComparison]::OrdinalIgnoreCase) -or
+    [IO.Path]::GetFileName($passiveControlOut) -cnotmatch '^d3e8-passive-control-(cold|warm)\.json$' -or
+    (Test-Path -LiteralPath $passiveControlOut) -or
+    $passiveControlOut -eq $eventOut -or $passiveControlOut -eq $timelineOut -or
+    $passiveControlOut -eq $preLaunchOut -or $passiveControlOut -eq $preflightOut){
+    throw 'PASSIVE_CONTROL_MANIFEST_MUST_BE_EPHEMERAL'
+ }
  if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
     [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
     [string]::IsNullOrWhiteSpace($env:APPDATA)) {throw 'RUNNER_ONLY'}
@@ -143,9 +158,15 @@ try {
  $changed=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
  $changed.AddAuditRule($ace)
  Capture-PrivatePreflightCheckpoint 'before_sacl_apply'
+ # D3E8 passive time-matched control. No SACL mutation in this 2s interval.
+ Start-Sleep -Seconds 2
+ Capture-PrivateD3E8ControlCheckpoint 'passive_control_after'
  Set-Acl -LiteralPath $root -AclObject $changed -ErrorAction Stop
  $result.scope_sacl_applied=$true
  Capture-PrivatePreflightCheckpoint 'after_sacl_apply'
+ # D3E8 post-SACL rest also has no mutation; temporal only, not causal.
+ Start-Sleep -Seconds 2
+ Capture-PrivateD3E8ControlCheckpoint 'post_sacl_rest'
  $start=(Get-Date).AddSeconds(-1)
  # Capture size-only Ilexis snapshot before Facad root PID can exist.
  $preLaunchEntries=Get-PrivateIlexisSizeEntries
@@ -308,6 +329,26 @@ try {
        }
        $privatePreflight | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $preflightOut -Encoding utf8 -ErrorAction Stop
      }catch{$result.verdict='BLOCKED_EPHEMERAL_PREFLIGHT_UNAVAILABLE'}
+   }
+ }
+ if($result.verdict -ceq 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){
+   if($controlCheckpoints.Count -ne 2 -or [string]::IsNullOrWhiteSpace($passiveControlOut)){
+     $result.verdict='BLOCKED_PASSIVE_CONTROL_INCOMPLETE'
+   }else{
+     try{
+       $privateControl=[ordered]@{
+         schema='facad314_d3e8_passive_control_local_v1'
+         source='EPHEMERAL_SIZE_ONLY_PASSIVE_SACL_CONTROL'
+         session_id=$SessionId
+         selected_scope='facad_ilexis_roaming_settings'
+         checkpoints=@($controlCheckpoints.ToArray())
+         passive_control_seconds=2
+         post_sacl_rest_seconds=2
+         shared_app_storage_isolation_verified=$false
+         clinical_edit_allowed=$false
+       }
+       $privateControl | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $passiveControlOut -Encoding utf8 -ErrorAction Stop
+     }catch{$result.verdict='BLOCKED_EPHEMERAL_PASSIVE_CONTROL_UNAVAILABLE'}
    }
  }
  $parent=Split-Path -Parent $OutputPath
