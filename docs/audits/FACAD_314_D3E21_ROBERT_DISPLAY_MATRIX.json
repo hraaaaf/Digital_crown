@@ -1,0 +1,126 @@
+{
+  "schema": "FACAD_314_D3E21_UI_ROBERT_SOURCE_ONLY_V1",
+  "phase": "SOURCE_ONLY_NO_PARITY",
+  "reference_commit": "565d3767c2218c8820424e88ab6e936cfae4241d",
+  "source_document": "docs/audits/FACAD_314_ROBERT_DIRECT_PARITY_BASELINE_2026-10-08.md",
+  "source_run_id": 37841266986,
+  "source_kind": "HISTORIC_UIA_SCREEN_ONLY_NOT_DIRECT_EXPORT",
+  "facad_profile": "Bergen short",
+  "case_alias": "ROBERT_EXAMPLE_QUICK_DEMO",
+  "comparator_mode": "NO_SAME_TRACE_COMPARISON",
+  "license_verified": false,
+  "source_integrity_verified": false,
+  "offline_activation_verified": false,
+  "native_guest_isolation_verified": false,
+  "host_guest_management_isolated_verified": false,
+  "minimal_egress_approved": false,
+  "independent_privacy_review": false,
+  "independent_science_review": false,
+  "same_trace_dc_verified": false,
+  "dc_calibration_verified": false,
+  "construction_equivalence_verified": false,
+  "direct_numeric_export_verified": false,
+  "clinical_edit_allowed": false,
+  "real_ilexis_writer_proven": false,
+  "shared_app_storage_isolation_verified": false,
+  "converged": false,
+  "native_execution_authorized": false,
+  "rows": [
+    {
+      "name": "SNA",
+      "value": "67,7",
+      "unit": "degree",
+      "dc_candidate": "M_SNA_DEG_V1",
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "SNB",
+      "value": "78,4",
+      "unit": "degree",
+      "dc_candidate": "M_SNB_DEG_V1",
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "ANB",
+      "value": "-10,7",
+      "unit": "degree",
+      "dc_candidate": "M_ANB_DEG_V1",
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "SNPog",
+      "value": "80,8",
+      "unit": "degree",
+      "dc_candidate": null,
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "NSBa",
+      "value": "126,8",
+      "unit": "degree",
+      "dc_candidate": null,
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "ML/NSL",
+      "value": "33,9",
+      "unit": "degree",
+      "dc_candidate": null,
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "NL/NSL",
+      "value": "4,5",
+      "unit": "degree",
+      "dc_candidate": null,
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "ML/NL",
+      "value": "29,4",
+      "unit": "degree",
+      "dc_candidate": null,
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "InterIncisal",
+      "value": "140,9",
+      "unit": "degree",
+      "dc_candidate": "M_INTERINCISAL_DEG_V1",
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "ILs/NSL",
+      "value": "100,1",
+      "unit": "degree",
+      "dc_candidate": null,
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "ILi/ML",
+      "value": "85,1",
+      "unit": "degree",
+      "dc_candidate": "M_IMPA_GOME_DEG_V1",
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    },
+    {
+      "name": "Pog-NB",
+      "value": "4,7",
+      "unit": "mm",
+      "dc_candidate": "M_POG_NB_MM_V1",
+      "identity_status": "CANDIDATE_ONLY",
+      "parity_status": "NOT_COMPARABLE"
+    }
+  ]
+}

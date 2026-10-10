@@ -59,6 +59,10 @@ on:
       - docs/audits/FACAD_314_D3E20_DUAL_REVIEW_DECISION.json
       - scripts/facad_314_d3e20_review_decision_gate.py
       - scripts/test_facad_314_d3e20_review_decision_gate.py
+      - docs/audits/FACAD_314_D3E21_LAB_PROTOCOL_2026-10-10.md
+      - docs/audits/FACAD_314_D3E21_ROBERT_DISPLAY_MATRIX.json
+      - scripts/facad_314_d3e21_lab_protocol_gate.py
+      - scripts/test_facad_314_d3e21_lab_protocol_gate.py
       - docs/audits/FACAD_314_D3E17_CAPTURE_METHOD_DECISION.json
       - docs/audits/FACAD_314_D3E17_CONFINED_CAPTURE_ALTERNATIVES_REVIEW_2026-10-10.md
       - .github/workflows/facad-314-d3e16-readonly-policy-visibility.yml
@@ -138,6 +142,9 @@ jobs:
           grep -Fq 'D3E19_STATIC_STAGING_REVIEW_COMPLETE_NATIVE_BLOCKED' scripts/facad_314_d3e19_iso_staging_gate.py
           grep -Fq 'NO_GO_NATIVE_EXECUTION' docs/audits/FACAD_314_D3E20_DUAL_REVIEW_DECISION.json
           grep -Fq 'D3E20_INTERNAL_REVIEW_RECORDED_NATIVE_NO_GO' scripts/facad_314_d3e20_review_decision_gate.py
+          grep -Fq 'D3E21_HISTORIC_UI_LOCKED_PARITY_UNPROVEN' scripts/facad_314_d3e21_lab_protocol_gate.py
+          grep -Fq 'SOURCE_ONLY_NO_PARITY' docs/audits/FACAD_314_D3E21_ROBERT_DISPLAY_MATRIX.json
+          test ! -e scripts/facad_314_d3e21_native_capture.ps1
           test ! -e scripts/facad_314_d3e20_native_capture.ps1
           test ! -e scripts/facad_314_d3e19_native_run.ps1
           test ! -e docs/audits/FACAD_314_D3E19_STAGING_MEDIA.iso
@@ -339,6 +346,14 @@ jobs:
           echo 'D3E20_NATIVE_RUN=false'
           echo 'D3E20_EXTERNAL_REVIEWERS=0'
           echo 'D3E20_CAPTURE_AUTHORIZED=false'
+          echo 'FAC03_D3=OPEN_RED'
+      - name: D3E21 historic Robert source-lock + synthetic-only comparison (NO Facad)
+        run: |
+          python -m py_compile scripts/facad_314_d3e21_lab_protocol_gate.py scripts/test_facad_314_d3e21_lab_protocol_gate.py
+          python -m unittest scripts/test_facad_314_d3e21_lab_protocol_gate.py -v
+          python scripts/facad_314_d3e21_lab_protocol_gate.py
+          echo 'D3E21_FACAD_EXECUTED=false'
+          echo 'D3E21_DIRECT_PARITY_PROVEN=false'
           echo 'FAC03_D3=OPEN_RED'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
