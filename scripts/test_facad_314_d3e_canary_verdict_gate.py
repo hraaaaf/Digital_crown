@@ -22,6 +22,10 @@ def fixture():
         'scoped_sacl_configuration_proven':True,
         'audit_policy_enabled_during_observation':True,
         'matching_4663_write_event_count':2,
+        'queried_4663_event_count':4,
+        'scoped_4663_event_count':3,
+        'scoped_write_mask_event_count':2,
+        'scoped_expected_pid_event_count':2,
         'expected_process_pid_matched':True,
         'event_path_scope_matched':True,
         'unexpected_pid_count':0,
@@ -101,6 +105,14 @@ class CanaryTests(unittest.TestCase):
 
     def test_negative_counter_rejected(self):
         self.data['matching_4663_write_event_count']=-1
+        self.assert_invalid()
+
+    def test_inconsistent_write_count_rejected(self):
+        self.data['scoped_write_mask_event_count']=1
+        self.assert_invalid()
+
+    def test_inconsistent_total_event_count_rejected(self):
+        self.data['queried_4663_event_count']=1
         self.assert_invalid()
 
     def test_bogus_verdict_rejected(self):
