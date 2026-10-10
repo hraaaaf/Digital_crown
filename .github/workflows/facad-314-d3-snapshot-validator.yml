@@ -26,6 +26,8 @@ on:
       - scripts/facad_314_d3e9_independent_arm.ps1
       - scripts/facad_314_d3e9_arm_gate.py
       - scripts/test_facad_314_d3e9_arm_gate.py
+      - scripts/facad_314_d3e10_provenance_gate.py
+      - scripts/test_facad_314_d3e10_provenance_gate.py
       - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
       - scripts/test_facad_314_d3_storage_authority_gap_gate.py
@@ -73,6 +75,12 @@ jobs:
           grep -Fq 'arm: [passive_1, passive_2, sacl_1, sacl_2]' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -q 'name: facad-314-d3-windows-storage-.*matrix.arm' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E9_MATCHED_COUNTERFACTUAL_PROVEN=false' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'D3E10_ARM_VERDICT=' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'd3e10-checked-sacl_1.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'file_content_read=$false' scripts/facad_314_d3e9_independent_arm.ps1
+          grep -Fq 'full_event_delivery_proven=$false' scripts/facad_314_d3e9_independent_arm.ps1
+          grep -Fq 'file_identity_or_size_or_timestamp_exported=$false' scripts/facad_314_d3e9_independent_arm.ps1
+          if grep -Fq 'raw_event_xml' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
           grep -Fq 'sacl_restored' scripts/facad_314_d3e9_independent_arm.ps1
           grep -Fq 'Set-Acl -LiteralPath $root -AclObject $oldAcl' scripts/facad_314_d3e9_independent_arm.ps1
           grep -Fq 'if($Arm.StartsWith' scripts/facad_314_d3e9_independent_arm.ps1
@@ -138,6 +146,12 @@ jobs:
           python -m unittest scripts/test_facad_314_d3e9_arm_gate.py -v
           echo 'D3E9_INDEPENDENT_RUNNERS=NOT_SIMULATED_BY_SOURCE_ONLY_CI'
           echo 'D3E9_CAUSALITY_PROVEN=false'
+      - name: Adversarial synthetic prelaunch size/mtime and 4663 provenance (NO Facad)
+        run: |
+          python -m py_compile scripts/facad_314_d3e10_provenance_gate.py scripts/test_facad_314_d3e10_provenance_gate.py
+          python -m unittest scripts/test_facad_314_d3e10_provenance_gate.py -v
+          echo 'D3E10_WRITER_CAUSALITY=NOT_PROVEN_BY_THIS_JOB'
+          echo 'D3E10_CLINICAL_EDIT_ALLOWED=false'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py

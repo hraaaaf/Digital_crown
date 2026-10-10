@@ -19,6 +19,8 @@ on:
       - scripts/facad_314_d3e8_passive_control_gate.py
       - scripts/facad_314_d3e9_independent_arm.ps1
       - scripts/facad_314_d3e9_arm_gate.py
+      - scripts/facad_314_d3e10_provenance_gate.py
+      - scripts/test_facad_314_d3e10_provenance_gate.py
       - scripts/test_facad_314_d3e9_arm_gate.py
       - scripts/test_facad_314_d3e8_passive_control_gate.py
       - scripts/test_facad_314_d3e7_preflight_gate.py
@@ -61,7 +63,7 @@ jobs:
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
-          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/facad_314_d3e5_first_observed_timing_gate.py scripts/facad_314_d3e6_early_window_gate.py scripts/facad_314_d3e7_preflight_gate.py scripts/facad_314_d3e8_passive_control_gate.py scripts/facad_314_d3e9_arm_gate.py
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/facad_314_d3e5_first_observed_timing_gate.py scripts/facad_314_d3e6_early_window_gate.py scripts/facad_314_d3e7_preflight_gate.py scripts/facad_314_d3e8_passive_control_gate.py scripts/facad_314_d3e9_arm_gate.py scripts/facad_314_d3e10_provenance_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -446,6 +448,23 @@ jobs:
           Write-Host "D3E9_ARM=$d3e9Arm"
           Write-Host "D3E9_ARM_CHANGED_SIZE_COUNT=$($d3e9.changed_size_count)"
           Write-Host 'D3E9_MATCHED_COUNTERFACTUAL_PROVEN=false'
+          # D3E10 size/mtime and 4663 aggregate, no path/PID/content transfer.
+          $d3e10Evidence=Join-Path $env:GITHUB_WORKSPACE ("facad-quick-demo/d3e10-provenance-$d3e9Arm.json")
+          $d3e10Checked=Join-Path $env:GITHUB_WORKSPACE ("facad-quick-demo/d3e10-checked-$d3e9Arm.json")
+          python scripts/facad_314_d3e10_provenance_gate.py --d3e9-arm $d3e9Public --d3e10-evidence $d3e10Evidence --arm $d3e9Arm --output $d3e10Checked | Out-Host
+          if($LASTEXITCODE -ne 0){throw 'D3E.10 provenance invalid; D3 remains BLOCKED'}
+          $d3e10=Get-Content -LiteralPath $d3e10Checked -Raw | ConvertFrom-Json
+          if($d3e10.schema -cne 'facad314_d3e10_checked_aggregate_v1' -or
+             $d3e10.clinical_edit_allowed -ne $false -or
+             $d3e10.shared_app_storage_isolation_verified -ne $false -or
+             $d3e10.writer_causality_proven -ne $false -or
+             $d3e10.file_content_read -ne $false){
+            throw 'D3E10 unsafe evidence claim'
+          }
+          Write-Host "D3E10_ARM=$d3e9Arm"
+          Write-Host "D3E10_ARM_VERDICT=$($d3e10.verdict)"
+          Write-Host "D3E10_ARM_SIZE_AND_TIMESTAMP_CHANGED_COUNT=$($d3e10.size_and_timestamp_changed_count)"
+          Write-Host "D3E10_ARM_4663_OTHER_PROCESS_MATCHED_FILE_COUNT=$($d3e10.other_process_4663_matched_file_count)"
           # Both experiments remain on one ephemeral Windows runner with the same
           # copied, rights-cleared Robert demo, and no UI click, patient Load or Save.
           function Invoke-D3ResearchStartup([string]$label) {
@@ -678,3 +697,11 @@ jobs:
             facad-quick-demo/d3e9-checked-passive_2.json
             facad-quick-demo/d3e9-checked-sacl_1.json
             facad-quick-demo/d3e9-checked-sacl_2.json
+            facad-quick-demo/d3e10-provenance-passive_1.json
+            facad-quick-demo/d3e10-provenance-passive_2.json
+            facad-quick-demo/d3e10-provenance-sacl_1.json
+            facad-quick-demo/d3e10-provenance-sacl_2.json
+            facad-quick-demo/d3e10-checked-passive_1.json
+            facad-quick-demo/d3e10-checked-passive_2.json
+            facad-quick-demo/d3e10-checked-sacl_1.json
+            facad-quick-demo/d3e10-checked-sacl_2.json
