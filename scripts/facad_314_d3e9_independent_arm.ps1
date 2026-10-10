@@ -1,4 +1,4 @@
-# FAC-03 D3E9/D3E10: independent disposable Windows arms and metadata-only file provenance.
+# FAC-03 D3E9/D3E10/D3E11: independent disposable Windows arms and metadata-only provenance.
 # Read metadata only. Never persist file identities/paths/sizes or profile content.
 param(
  [Parameter(Mandatory=$true)][ValidateSet('passive_1','passive_2','sacl_1','sacl_2')][string]$Arm,
@@ -17,11 +17,20 @@ $timeCounters=@{size_and_timestamp_changed=0;size_without_timestamp_changed=0;sa
 $eventQueryAttempted=$false;$eventQueryAvailable=$false;$eventQueryOutcome='not_attempted'
 $matchedOwn=@{};$matchedOther=@{};$matchedAuditWriteUseCount=0
 $d3e10Completed=$false
+$watcher=$null;$watchRegistered=$false;$watchErrorsRegistered=$false
+$watchEventsOk=$false;$watcherStarted=$false;$watcherReportedError=$false
+$watchEventCount=0;$watchMatches=@{}
+$watchChangedSource='D3E11-Changed-'+$Arm
+$watchErrorSource='D3E11-Error-'+$Arm
+$script:privatePaths=@{}
+$matchedSacl=0;$matchedInheritedSacl=0;$saclChecked=0;$saclFailed=0
+$d3e11Completed=$false
 function Get-Metadata {
   $files=@(Get-ChildItem -LiteralPath $root -File -Recurse -Force -ErrorAction Stop)
   if($files.Count -gt 5000){throw 'FILE_CAP'}
   $entries=@{}
   $times=@{}
+  $privatePaths=@{}
   foreach($file in $files){
     if(($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_POINT'}
     $relative=$file.FullName.Substring($root.Length).TrimStart('\','/')
@@ -34,7 +43,9 @@ function Get-Metadata {
     if($entries.ContainsKey($key)){throw 'DUPLICATE_ENTRY'}
     $entries[$key]=[long]$file.Length
     $times[$key]=[long]$file.LastWriteTimeUtc.Ticks
+    $privatePaths[$key]=$file.FullName
   }
+  $script:privatePaths=$privatePaths
   $script:privateTimes=$times
   return $entries
 }
@@ -66,6 +77,19 @@ try{
   $policyEnabled=$true
   $pre=Get-Metadata
   $preTimes=$script:privateTimes
+  # Native Windows change notification is independent of Security event 4663.
+  # All paths remain in memory; NEVER output event args or raw paths.
+  $watcher=[IO.FileSystemWatcher]::new($root)
+  $watcher.IncludeSubdirectories=$true
+  $watcher.Filter='*'
+  $watcher.NotifyFilter=[IO.NotifyFilters]::Size -bor [IO.NotifyFilters]::LastWrite
+  $watcher.InternalBufferSize=16384
+  Register-ObjectEvent -InputObject $watcher -EventName Changed -SourceIdentifier $watchChangedSource -ErrorAction Stop | Out-Null
+  $watchRegistered=$true
+  Register-ObjectEvent -InputObject $watcher -EventName Error -SourceIdentifier $watchErrorSource -ErrorAction Stop | Out-Null
+  $watchErrorsRegistered=$true
+  $watcher.EnableRaisingEvents=$true
+  $watcherStarted=$true
   $eventStart=(Get-Date).AddSeconds(-1)
   if($Arm.StartsWith('sacl_',[StringComparison]::Ordinal)){
     $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
@@ -87,6 +111,12 @@ try{
   Start-Sleep -Seconds 2
   $post=Get-Metadata
   $postTimes=$script:privateTimes
+  $postPaths=$script:privatePaths
+  if($watcherStarted){$watcher.EnableRaisingEvents=$false}
+  $changeEvents=@(Get-Event -SourceIdentifier $watchChangedSource -ErrorAction SilentlyContinue)
+  $errorEvents=@(Get-Event -SourceIdentifier $watchErrorSource -ErrorAction SilentlyContinue)
+  $watchEventCount=$changeEvents.Count
+  $watcherReportedError=($errorEvents.Count -gt 0 -or $watchEventCount -ge 4000)
   $eventEnd=(Get-Date)
   $changedSizeKeys=@{}
   foreach($key in $pre.Keys){
@@ -103,6 +133,51 @@ try{
   foreach($key in $post.Keys){
     if(-not $pre.ContainsKey($key)){$counts.created++}
   }
+  # Match OS notifications to changed-size files without exporting identities.
+  if($watcherStarted -and -not $watcherReportedError){
+    $prefix=$root+'\'
+    foreach($queued in $changeEvents){
+      try{
+        $candidate=[string]$queued.SourceEventArgs.FullPath
+        if(-not $candidate.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){continue}
+        $relative=$candidate.Substring($prefix.Length)
+        if(-not $relative -or $relative.Length -gt 4096 -or
+           @($relative.Split('\') | Where-Object {$_ -eq '.' -or $_ -eq '..'}).Count){continue}
+        $hash=[Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($relative.ToLowerInvariant()))
+        $key=[Convert]::ToHexString($hash).ToLowerInvariant()
+        if($changedSizeKeys.ContainsKey($key)){$watchMatches[$key]=$true}
+      }catch{
+        $watcherReportedError=$true
+        $watchMatches=@{}
+        break
+      }
+    }
+  }
+  $watchEventsOk=($watcherStarted -and -not $watcherReportedError)
+  # Read only SACL metadata for size-changing files; never file content.
+  # Count current-runner-SID Success write-audit ACEs, including inheritance.
+  $currentSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+  foreach($key in $changedSizeKeys.Keys){
+    if(-not $postPaths.ContainsKey($key)){$saclFailed++;continue}
+    try{
+      $fileAcl=Get-Acl -LiteralPath $postPaths[$key] -Audit -ErrorAction Stop
+      $saclChecked++
+      $hasRule=$false;$hasInheritedRule=$false
+      foreach($rule in $fileAcl.Audit){
+        $ruleSid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+        $rightsBits=[long]$rule.FileSystemRights
+        $auditBits=[int]$rule.AuditFlags
+        if($ruleSid -ceq $currentSid -and ($rightsBits -band 0x06) -ne 0 -and
+           ($auditBits -band [int][Security.AccessControl.AuditFlags]::Success) -ne 0){
+          $hasRule=$true
+          if($rule.IsInherited){$hasInheritedRule=$true}
+        }
+      }
+      if($hasRule){$matchedSacl++}
+      if($hasInheritedRule){$matchedInheritedSacl++}
+    }catch{$saclFailed++}
+  }
+  $d3e11Completed=$true
   # Query Windows Security 4663 only within the bounded prelaunch interval.
   # 4663 records ACCESS USE, not proof that file content changed or who wrote it.
   # We compare temporary relative-file SHA identities entirely in memory.
@@ -170,6 +245,13 @@ try{
   # No file path, raw metadata, WinEvent, ACL, or caller error detail in logs.
   $complete=$false
 }finally{
+  if($watcherStarted){try{$watcher.EnableRaisingEvents=$false}catch{$complete=$false}}
+  if($watchRegistered){try{Unregister-Event -SourceIdentifier $watchChangedSource -ErrorAction Stop}catch{$complete=$false}}
+  if($watchErrorsRegistered){try{Unregister-Event -SourceIdentifier $watchErrorSource -ErrorAction Stop}catch{$complete=$false}}
+  foreach($eventSource in @($watchChangedSource,$watchErrorSource)){
+    try{Get-Event -SourceIdentifier $eventSource -ErrorAction SilentlyContinue | Remove-Event -ErrorAction Stop}catch{}
+  }
+  if($null -ne $watcher){try{$watcher.Dispose()}catch{$complete=$false}}
   if($saclMutated -and $null -ne $oldAcl){
     try{
       Set-Acl -LiteralPath $root -AclObject $oldAcl -ErrorAction Stop
@@ -194,7 +276,7 @@ try{
     }elseif($wasEnabled -eq $true){$policyRestored=$true}
   }
 }
-if(-not $complete -or -not $d3e10Completed -or -not $saclRestored -or -not $policyRestored){
+if(-not $complete -or -not $d3e10Completed -or -not $d3e11Completed -or -not $saclRestored -or -not $policyRestored){
   Write-Host 'D3E9_ARM_VERDICT=BLOCKED_INCOMPLETE_OR_UNRESTORED_TRIAL'
   Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
   Write-Host 'CLINICAL_EDIT_ALLOWED=false'
@@ -263,6 +345,44 @@ Write-Host "D3E10_SECURITY_EVENT_RECORDS_AVAILABLE=$($eventQueryAvailable.ToStri
 Write-Host "D3E10_SECURITY_QUERY_OUTCOME=$eventQueryOutcome"
 Write-Host 'D3E10_FILE_CONTENT_READ=false'
 Write-Host 'D3E10_WRITER_CAUSALITY_PROVEN=false'
+
+
+$d3e11=[ordered]@{
+  schema='facad314_d3e11_fsw_sacl_aggregate_v1'
+  source='NATIVE_CHANGE_NOTIFICATION_AND_FILE_AUDIT_RULE_METADATA_ONLY'
+  arm=$Arm
+  changed_size_file_count=[int]$counts.modified_size_changed
+  filesystem_watcher_started=$watcherStarted
+  filesystem_watcher_error_reported=$watcherReportedError
+  filesystem_watcher_received_event_count=[int]$watchEventCount
+  changed_size_files_with_notification_count=[int]$watchMatches.Count
+  file_sacl_checked_changed_file_count=[int]$saclChecked
+  file_sacl_unchecked_changed_file_count=[int]$saclFailed
+  changed_files_with_current_sid_write_audit_count=[int]$matchedSacl
+  changed_files_with_inherited_current_sid_write_audit_count=[int]$matchedInheritedSacl
+  file_content_read=$false
+  file_identifiers_or_paths_or_sizes_exported=$false
+  notification_delivery_complete_proven=$false
+  writer_pid_proven=$false
+  change_caused_by_set_acl_proven=$false
+  shared_app_storage_isolation_verified=$false
+  clinical_edit_allowed=$false
+  verdict='FSW_SACL_COVERAGE_OBSERVATION_NOT_CAUSALITY'
+}
+$d3e11Path=[IO.Path]::GetFullPath((Join-Path (Split-Path $dest -Parent) ("d3e11-observation-$Arm.json")))
+if((Test-Path -LiteralPath $d3e11Path) -or
+   -not $d3e11Path.StartsWith($workspace+'\', [StringComparison]::OrdinalIgnoreCase)){
+  Write-Host 'D3E11_AGGREGATE_OUTPUT_BOUNDARY_INVALID'
+  exit 2
+}
+$d3e11 | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $d3e11Path -Encoding utf8 -ErrorAction Stop
+Write-Host "D3E11_FSW_MATCHED_CHANGED_SIZE_COUNT=$($watchMatches.Count)"
+Write-Host "D3E11_FSW_ERROR_REPORTED=$($watcherReportedError.ToString().ToLowerInvariant())"
+Write-Host "D3E11_SACL_CHANGED_FILES_AUDITED_COUNT=$matchedSacl"
+Write-Host "D3E11_SACL_CHANGED_FILES_INHERITED_AUDITED_COUNT=$matchedInheritedSacl"
+Write-Host "D3E11_SACL_INSPECTION_FAILED_COUNT=$saclFailed"
+Write-Host 'D3E11_WRITER_PID_PROVEN=false'
+Write-Host 'D3E11_CLINICAL_EDIT_ALLOWED=false'
 
 $aggregate | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $dest -Encoding utf8 -ErrorAction Stop
 Write-Host "D3E9_TRIAL_ARM=$Arm"
