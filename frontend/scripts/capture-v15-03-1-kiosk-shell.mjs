@@ -60,20 +60,23 @@ try {
         if (message.type() === 'error') errors.push(message.text());
       });
 
-      await page.goto('http://127.0.0.1:4195/s      for (const language of languages) {
-        // Exercise real language controls, rather than injecting lang or dir.
+      await page.goto('http://127.0.0.1:4195/station', {
+        waitUntil: 'networkidle',
+        timeout: 30000,
+      });
+      if (scale.rootFontSize) {
+        await page.evaluate(value => { document.documentElement.style.fontSize = value; }, scale.rootFontSize);
+        await page.waitForTimeout(100);
+      }
+
+      for (const language of languages) {
+        // Exercise the actual public language buttons. Never inject dir/lang.
         await page.getByRole('button', { name: language.button, exact: true }).click();
         const meta = await page.evaluate(() => {
           const shell = document.querySelector('[data-workstation-experience="station"]');
-          const targets = [...document.querySelectorAll(
+          const touchTargets = [...document.querySelectorAll(
             '[data-station-action], button[aria-pressed], button[aria-label="Digital Crown"]',
           )];
-          const tooSmallTargets = targets.flatMap(node => {
-            const rect = node.getBoundingClientRect();
-            return rect.width < 44 || rect.height < 44
-              ? [{ name: node.getAttribute('aria-label') || node.textContent?.trim(), width: rect.width, height: rect.height }]
-              : [];
-          });
           return {
             width: document.documentElement.clientWidth,
             scrollWidth: document.documentElement.scrollWidth,
@@ -86,7 +89,12 @@ try {
             dir: shell?.getAttribute('dir') || null,
             selectedLanguages: [...document.querySelectorAll('button[aria-pressed="true"]')]
               .map(node => node.getAttribute('aria-label')),
-            tooSmallTargets,
+            tooSmallTargets: touchTargets.flatMap(node => {
+              const rect = node.getBoundingClientRect();
+              return rect.width < 44 || rect.height < 44
+                ? [{ label: node.getAttribute('aria-label') || node.textContent?.trim(), width: rect.width, height: rect.height }]
+                : [];
+            }),
             clinicalLinks: [...document.querySelectorAll('a')]
               .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
               .map(a => a.getAttribute('href')),
@@ -100,7 +108,6 @@ try {
           fullPage: true,
           animations: 'disabled',
         });
-
         report.push({
           phase,
           viewport: vp.label,
@@ -114,20 +121,6 @@ try {
           errors: [...errors],
         });
       }
-screenshot({
-        path: path.join(out, filename),
-        fullPage: true,
-        animations: 'disabled',
-      });
-
-      report.push({
-        phase,
-        viewport: vp.label,
-        scale: scale.label,
-        filename,
-        ...meta,
-        errors,
-      });
       await context.close();
     }
   }
