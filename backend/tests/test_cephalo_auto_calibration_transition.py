@@ -121,12 +121,35 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert {item["method_id"] for item in blocked} == explicit_identity_required
     assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
     assert all(item["value"] is None for item in blocked)
-    assert all(
-        item["availability_status"] == "AVAILABLE"
-        for item in measurements
+    # A trusted physical scale unlocks *only* geometry whose exact landmark
+    # identities are also present. Ricketts methods requiring manual anatomical
+    # Po/Pog or other source-locked landmarks must stay NOT_COMPUTABLE.
+    all_measurements = measurements
+    legacy_calibrated = [
+        item for item in all_measurements
         if item["requires_calibration"]
+        and item["analysis_id"] in {"CRANIOM", "MCNAMARA"}
         and item["method_id"] not in explicit_identity_required
-    )
+    ]
+    assert legacy_calibrated
+    assert all(item["availability_status"] == "AVAILABLE" for item in legacy_calibrated)
+    ricketts_blocked = [
+        item for item in all_measurements
+        if item["analysis_id"] == "RICKETTS"
+        and item["requires_calibration"]
+        and item["availability_status"] == "NOT_COMPUTABLE"
+    ]
+    assert ricketts_blocked, "synthetic auto landmarks must not imply anatomical identities"
+    assert all(item["value"] is None for item in ricketts_blocked)
+    # SRPose-certified aliases Po_anatomic and Pog_hard permit A-Pog.
+    by_method = {item["method_id"]: item for item in all_measurements}
+    edge = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
+    assert edge["availability_status"] == "AVAILABLE"
+    assert edge["value"] is not None
+    # Functional occlusal plane is absent: do not compute incisal extrusion.
+    extrusion = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
+    assert extrusion["availability_status"] == "NOT_COMPUTABLE"
+    assert extrusion["value"] is None
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
     steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]

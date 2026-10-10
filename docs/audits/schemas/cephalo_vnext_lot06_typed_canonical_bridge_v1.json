@@ -313,6 +313,174 @@
       "canonical_measurement_id": "M_SN_GOGN_DEG_V1",
       "state": "MAPPED",
       "reason": "CANONICAL_V2_EXPLICIT_GN_ANATOMIC"
+    },
+    {
+      "method_id": "RICKETTS_MAXILLARY_DEPTH_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_RICKETTS_INFERIOR_ANGLE_POINT_AND_MENTON"
+    },
+    {
+      "method_id": "RICKETTS_L1_APOG_INCLINATION_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
+    },
+    {
+      "method_id": "RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_L1_EDGE_APOG_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_INCISAL_EDGE_AND_SIGN_ORIENTATION"
+    },
+    {
+      "method_id": "RICKETTS_MOLAR_RELATION_FOP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_MOLAR_RELATION_FOP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_MOLAR_DISTALS_SOURCE_LOCKED_FOP"
+    },
+    {
+      "method_id": "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_CANINE_RELATION_FOP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_CANINE_CUSPS_SOURCE_LOCKED_FOP"
+    },
+    {
+      "method_id": "RICKETTS_OVERJET_FOP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_OVERJET_FOP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_INCISAL_EDGES_SOURCE_LOCKED_FOP"
+    },
+    {
+      "method_id": "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_OVERBITE_FOP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_ORIENTATION_EVIDENCED_FOP_NORMAL"
+    },
+    {
+      "method_id": "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_ORIENTATION_EVIDENCED_FOP_XI"
+    },
+    {
+      "method_id": "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_COMMISSURE_FOP_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_ORIENTATION_EVIDENCED_COMMISSURE_FOP"
+    },
+    {
+      "method_id": "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_ORIENTATION_EVIDENCED_SIGNED_PALATAL_FH"
+    },
+    {
+      "method_id": "RICKETTS_U1_APOG_INCLINATION_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_U1_APOG_INCLINATION_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_EXPLICIT_U1_AXIS"
+    },
+    {
+      "method_id": "RICKETTS_U1_APOG_PROTRUSION_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_U1_EDGE_PERPENDICULAR_APOG_ANTERIOR_POSITIVE"
+    },
+    {
+      "method_id": "RICKETTS_OCCLUSAL_PLANE_XIPM_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SOURCE_LOCKED_FOP_XI_MANUAL_PM"
+    },
+    {
+      "method_id": "RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_ANS_MANUAL_LABIAL_COMMISSURE"
+    },
+    {
+      "method_id": "RICKETTS_FACIAL_TAPER_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_NPOG_SOURCE_LOCKED_RICKETTS_MP"
+    },
+    {
+      "method_id": "RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SOURCE_LOCKED_CF_N_A"
+    },
+    {
+      "method_id": "RICKETTS_CRANIAL_DEFLECTION_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_ANATOMICAL_FH_BA_N"
+    },
+    {
+      "method_id": "RICKETTS_ANTERIOR_CRANIAL_LENGTH_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_ATLAS2009_CC_N"
+    },
+    {
+      "method_id": "RICKETTS_POSTERIOR_FACIAL_HEIGHT_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_MANUAL_GO_RICKETTS_SOURCE_LOCKED_CF"
+    },
+    {
+      "method_id": "RICKETTS_TOTAL_FACIAL_HEIGHT_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_BA_N_SOURCE_LOCKED_XI_MANUAL_PM"
+    },
+    {
+      "method_id": "RICKETTS_RAMUS_POSITION_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_FH_SOURCE_LOCKED_CF_XI"
+    },
+    {
+      "method_id": "RICKETTS_PORION_LOCATION_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_PORION_LOCATION_PTV_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SOURCE_LOCKED_PTV_POSTERIOR_NEGATIVE"
+    },
+    {
+      "method_id": "RICKETTS_CORPUS_LENGTH_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SOURCE_LOCKED_XI_MANUAL_PM"
+    },
+    {
+      "method_id": "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_SOURCE_LOCKED_FOP_AND_CROWNWARD_SIGN"
+    },
+    {
+      "method_id": "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_CONSTRUCTED_XI_EXPLICIT_PM_RICKETTS"
+    },
+    {
+      "method_id": "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2",
+      "canonical_measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_MANUAL_DC_CONSTRUCTED_XI_MANUAL_PM"
+    },
+    {
+      "method_id": "RICKETTS_U6_PTV_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_U6_PTV_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_MANUAL_U6_DISTAL_SOURCE_LOCKED_PTV"
     }
   ]
 }

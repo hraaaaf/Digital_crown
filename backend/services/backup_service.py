@@ -136,6 +136,13 @@ class BackupService:
         password = getattr(active_engine.url, "password", None)
         if password:
             return str(password)
+        # A SQLCipher file must not be exported using the development-only
+        # default passphrase when no storage/authentication key was provided.
+        # Preserve the exact legacy key whenever it is explicitly configured.
+        if not any(os.getenv(name) for name in (
+            "SQLCIPHER_KEY_HEX", "CABINET_MASTER_KEY_HEX", "SECRET_KEY"
+        )):
+            raise RuntimeError("SQLCipher key unavailable")
         from backend.core.key_material import sqlcipher_passphrase
         configured = sqlcipher_passphrase()
         if configured:

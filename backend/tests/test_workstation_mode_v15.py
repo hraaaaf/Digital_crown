@@ -1067,5 +1067,46 @@ def test_frozen_first_boot_generates_independent_pairing_pepper():
     launcher = (root / "run.py").read_text(encoding="utf-8-sig")
     env_example = (root / "backend" / ".env.example").read_text(encoding="utf-8-sig")
 
-    assert 'f"PAIRING_CODE_PEPPER={secrets.token_hex(32)}\\n"' in launcher
+    # The frozen first boot now issues five purpose-separated secrets from
+    # one loop, instead of five separate f-string statements.
+    import ast
+
+    launcher_ast = ast.parse(launcher)
+    bootstrap = next(
+        node for node in launcher_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_first_boot_bootstrap"
+    )
+    key_loops = [
+        node for node in ast.walk(bootstrap)
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "name"
+        and isinstance(node.iter, ast.Tuple)
+        and "PAIRING_CODE_PEPPER" in ast.literal_eval(node.iter)
+    ]
+    assert len(key_loops) == 1
+    keys = ast.literal_eval(key_loops[0].iter)
+    assert keys == (
+        "SECRET_KEY", "PAIRING_CODE_PEPPER", "CABINET_MASTER_KEY_HEX",
+        "SQLCIPHER_KEY_HEX", "MOBILE_PAIRING_KEY_HEX",
+    )
+    assert len(keys) == len(set(keys))
+    writes = [
+        node for node in key_loops[0].body
+        if isinstance(node, ast.AugAssign)
+        and isinstance(node.target, ast.Name) and node.target.id == "content"
+        and isinstance(node.value, ast.JoinedStr)
+    ]
+    assert len(writes) == 1
+    calls = [
+        node for node in ast.walk(writes[0])
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "secrets"
+        and node.func.attr == "token_hex"
+    ]
+    assert len(calls) == 1
+    assert len(calls[0].args) == 1
+    assert ast.literal_eval(calls[0].args[0]) == 32
     assert "PAIRING_CODE_PEPPER=" in env_example

@@ -1,0 +1,109 @@
+name: FUE-G04 targeted release unblock validation
+on:
+  push:
+    branches:
+      - fix/fue-g04-master-release-ci-regressions
+permissions:
+  contents: read
+jobs:
+  release-and-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: development
+      DATABASE_URL: "sqlite:///:memory:"
+      SECRET_KEY: "ci-release-unblock-strong-secret-32-plus-characters"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install canonical release backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          pip install pytest pytest-asyncio httpx==0.28.1
+          python -m pip check
+      - name: Gate clinical calibration, complete LOT06 registry mirrors, mobile key seams and release policy
+        run: |
+          python -m pytest -q --maxfail=1 \
+            backend/tests/test_cephalo_auto_calibration_route.py \
+            backend/tests/test_cephalo_auto_calibration_transition.py \
+            backend/tests/test_cephalo_calibration_evidence.py \
+            backend/tests/test_cephalo_calibration_route_provenance.py \
+            backend/tests/test_cephalo_vnext_lot06_executable_measurement_contract.py \
+            backend/tests/test_cephalo_vnext_lot06_typed_canonical_bridge.py \
+            backend/tests/test_mobile_patient_cockpit.py \
+            backend/tests/test_sqlcipher_backup_contract.py \
+            backend/tests/test_workstation_mode_v15.py \
+            backend/tests/test_certified_release_policy.py
+
+  canonical-focus-registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Re-run exact contract generator and detect drift
+        run: |
+          python3 scripts/generate_cephalo_lot06_focus_registry.py
+          git diff --exit-code -- src/features/ortho/cephaloLot06FocusRegistry.generated.ts
+      - name: Validate canonical focus adapter
+        run: npx vitest run src/features/ortho/cephaloCanonicalFocusAdapter.test.ts
+      - name: Production build
+        run: npm run build
+
+  postgres-release-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cabinet_compat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cabinet_compat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/cabinet_compat"
+      CABINET_COMPAT_POSTGRES_URL: "postgresql://postgres:postgres@127.0.0.1:5432/cabinet_compat"
+      SECRET_KEY: "ci-release-unblock-postgres-strong-secret-32-plus-characters"
+      SUPERADMIN_EMAIL: "ci-admin@example.invalid"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install release policy dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - name: PostgreSQL preservation and certified release policy
+        run: |
+          python -m pytest -q \
+            backend/tests/test_cabinet_upgrade_compatibility.py \
+            backend/tests/test_cabinet_upgrade_postgres.py \
+            backend/tests/test_clinic_local_data_preservation.py \
+            backend/tests/test_certified_release_policy.py

@@ -115,11 +115,21 @@ def test_route_persists_operator_timestamp_and_typed_calibration_atomically(monk
     assert {item["method_id"] for item in blocked} == explicit_identity_required
     assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
     assert all(item["value"] is None for item in blocked)
-    assert all(
-        item["availability_status"] == "AVAILABLE"
-        for item in calibrated_measurements
-        if item["method_id"] not in explicit_identity_required
-    )
+    legacy = [
+        item for item in calibrated_measurements
+        if item["analysis_id"] in {"CRANIOM", "MCNAMARA"}
+        and item["method_id"] not in explicit_identity_required
+    ]
+    assert legacy
+    assert all(item["availability_status"] == "AVAILABLE" and item["value"] is not None for item in legacy)
+    ricketts = [item for item in calibrated_measurements if item["analysis_id"] == "RICKETTS"]
+    assert ricketts
+    assert all(item["value"] is None for item in ricketts if item["availability_status"] == "NOT_COMPUTABLE")
+    by_method = {item["method_id"]: item for item in calibrated_measurements}
+    assert by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]["availability_status"] == "AVAILABLE"
+    assert by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]["value"] is not None
+    assert by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]["availability_status"] == "NOT_COMPUTABLE"
+    assert by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]["value"] is None
     assert {
         (item["analysis_id"], item["method_id"]): (
             item["availability_status"], item["value"]

@@ -92,12 +92,37 @@ def test_manual_calibration_creates_audited_revision_unlocks_linear_and_preserve
     assert {item["method_id"] for item in blocked} == explicit_identity_required
     assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
     assert all(item["value"] is None for item in blocked)
-    assert all(
-        item["availability_status"] == "AVAILABLE"
-        for item in measurements
+    # Physical mm/px calibration does not grant missing canonical anatomical
+    # identities. Preserve the positive linear oracle only for the CRANIOM /
+    # McNamara methods that actually have certified source geometry.
+    calibrated_legacy = [
+        item for item in measurements
         if item["requires_calibration"]
+        and item["analysis_id"] in {"CRANIOM", "MCNAMARA"}
         and item["method_id"] not in explicit_identity_required
-    )
+    ]
+    assert calibrated_legacy
+    assert all(item["availability_status"] == "AVAILABLE" for item in calibrated_legacy)
+    assert all(item["value"] is not None for item in calibrated_legacy)
+
+    # The same SRPose38 landmark identities are used by the manual and
+    # AUTO_VERIFIED transitions: A-Pog can be computed, but a functional
+    # occlusal plane not present in the source must fail closed.
+    ricketts_blocked = [
+        item for item in measurements
+        if item["analysis_id"] == "RICKETTS"
+        and item["requires_calibration"]
+        and item["availability_status"] == "NOT_COMPUTABLE"
+    ]
+    assert ricketts_blocked, "manual calibration must not create anatomical source identities"
+    assert all(item["value"] is None for item in ricketts_blocked)
+    by_method = {item["method_id"]: item for item in measurements}
+    edge = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
+    assert edge["availability_status"] == "AVAILABLE"
+    assert edge["value"] is not None
+    extrusion = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
+    assert extrusion["availability_status"] == "NOT_COMPUTABLE"
+    assert extrusion["value"] is None
 
     craniom = [item for item in measurements if item["analysis_id"] == "CRANIOM"]
     steiner = [item for item in measurements if item["analysis_id"] == "STEINER"]
