@@ -78,6 +78,53 @@ jobs:
           "MODEL_SOURCE_RUN=$env:HISTORICAL_ASSET_RUN; SHA256=$env:MODEL_SHA256" | Out-File -FilePath (Join-Path $env:RUNNER_TEMP "model-source.txt")
           Write-Host "PINNED_SCIENTIFIC_MODEL_BYTES=VERIFIED"
 
+      - name: Authenticate and install canonical Windows dependencies before code verifier
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $code = Join-Path $env:RUNNER_TEMP "code-payload"
+          $env:CODE_PAYLOAD = $code
+          # Verify both dependency inputs against the signed release manifest
+          # with stdlib only; never execute unverified dependency instructions.
+          @'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["CODE_PAYLOAD"])
+          certificate = json.loads((root / "release-certification.json").read_text(encoding="utf-8-sig"))
+          expected_sha = os.environ["EXPECTED_SHA"]
+          expected_run = int(os.environ["CODE_RUN"])
+          if (
+              certificate.get("certification_level") != "CODE_CERTIFIED"
+              or certificate.get("commit_sha") != expected_sha
+              or certificate.get("certification_run_id") != expected_run
+          ):
+              raise SystemExit("CODE release identity or certification run mismatch")
+          manifest = root / "release-content.sha256"
+          if hashlib.sha256(manifest.read_bytes()).hexdigest() != certificate.get("content_manifest_sha256"):
+              raise SystemExit("CODE manifest digest mismatch")
+          hashes = {}
+          for line in manifest.read_text(encoding="utf-8").splitlines():
+              digest, path = line.split("  ", 1)
+              if path in hashes:
+                  raise SystemExit("Duplicate manifest path")
+              hashes[path] = digest.lower()
+          for relative in ("backend/requirements.txt", "backend/requirements-windows-build.txt"):
+              source = root / relative
+              if not source.is_file() or source.is_symlink() or relative not in hashes:
+                  raise SystemExit("Missing authenticated dependency input: " + relative)
+              if hashlib.sha256(source.read_bytes()).hexdigest() != hashes[relative]:
+                  raise SystemExit("Dependency input hash mismatch: " + relative)
+          print("WINDOWS_CANONICAL_DEPENDENCY_INPUTS=SIGNED_AND_HASH_VERIFIED")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw "Unverified Windows dependencies refused" }
+          python -m pip install -r (Join-Path $code "backend/requirements-windows-build.txt")
+          if ($LASTEXITCODE -ne 0) { throw "Canonical Windows dependency installation failed" }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw "Windows dependency closure failed" }
+
       - name: Certify SHA-bound runtime asset bundle and compose verified installable
         shell: pwsh
         run: |
@@ -133,12 +180,10 @@ jobs:
           $ErrorActionPreference = "Stop"
           $release = Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP "release-path.txt") -Raw
           Set-Location $release
-          python -m pip install --upgrade pip
-          if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed" }
-          python -m pip install -r backend/requirements-windows-build.txt
-          if ($LASTEXITCODE -ne 0) { throw "Windows runtime/build dependencies failed" }
+          # Dependencies were installed and verified from the signed CODE
+          # artifact before the first Python release verifier ran.
           python -m pip check
-          if ($LASTEXITCODE -ne 0) { throw "Windows dependency closure failed" }
+          if ($LASTEXITCODE -ne 0) { throw "Windows dependency closure failed before PyInstaller" }
           python -m PyInstaller --noconfirm --clean DigitalCrown.spec
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
           if (-not (Test-Path -LiteralPath "dist/DigitalCrown/DigitalCrown.exe")) { throw "No Windows executable" }
