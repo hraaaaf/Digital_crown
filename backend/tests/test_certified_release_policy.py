@@ -289,18 +289,27 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "github-attestation-verification.json" in installer
 
 
-def test_desktop_shortcut_uses_stable_runtime_not_dev_launcher():
+def test_installer_never_creates_implicit_shortcut_to_historical_cabinet():
     root = Path(__file__).resolve().parents[2]
     helper = (root / "scripts/install-desktop-shortcut.ps1").read_text(encoding="utf-8-sig")
     installer = (root / "installer/DigitalCrown.iss").read_text(encoding="utf-8-sig")
 
+    # The pre-existing manual helper is not an installer action. Preserve its
+    # stable executable target but never auto-wire it to an isolated new cabinet.
     assert "Programs\\DigitalCrown" in helper
     assert "open_digitalcrown.ps1" in helper
     assert "Start_DigitalCrown.bat" not in helper
     assert "--reload" not in helper
     assert "DigitalCrown.lnk" in helper
-    assert "{autodesktop}\\{#MyAppName}" in installer
-    assert 'Filename: "{app}\\{#MyAppExeName}"' in installer
+
+    # FUE-G04 intentionally forbids a shortcut with no explicit cabinet profile:
+    # the older test requiring {autodesktop} was unsafe for a second cabinet.
+    icons = installer.split("[Icons]", 1)[1].split("[Run]", 1)[0]
+    run = installer.split("[Run]", 1)[1].split("[UninstallRun]", 1)[0]
+    assert "{autodesktop}" not in icons
+    assert not any(line.strip().startswith("Name:") for line in icons.splitlines())
+    assert not any(line.strip().startswith("Filename:") for line in run.splitlines())
+    assert "CloseApplications=no" in installer
 
 
 def test_future_prs_cannot_skip_cabinet_upgrade_gate_by_path_filter():
