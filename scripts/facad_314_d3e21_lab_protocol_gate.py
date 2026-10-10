@@ -57,6 +57,26 @@ def check(data):
         raise SourceBlocked("DISPLAY_ARITHMETIC_INVALID")
     return {"count":len(rows),"direct_comparisons":0,"verdict":"D3E21_HISTORIC_UI_LOCKED_PARITY_UNPROVEN"}
 
+def verify_historic_source(source, rows):
+    """Verify UI rows from the archival table, independently of the JSON copy."""
+    start=source.find("## 2. Données de mesure relevées")
+    end=source.find("## 3.",start+1) if start>=0 else -1
+    if start<0 or end<start: raise SourceBlocked("REFERENCE_TABLE_MISSING")
+    found={}
+    expected={r[0] for r in DISPLAY}
+    for line in source[start:end].splitlines():
+        if not line.startswith("|"): continue
+        cells=[part.strip() for part in line.strip().strip("|").split("|")]
+        if len(cells)<4: continue
+        name,value=cells[0],cells[1].replace("−","-")
+        if name in expected:
+            if name in found: raise SourceBlocked("DUPLICATE_HISTORIC_MEASUREMENT")
+            found[name]=value
+    if set(found)!={row["name"] for row in rows}: raise SourceBlocked("HISTORIC_ROWS_MISSING")
+    for row in rows:
+        if found[row["name"]]!=row["value"]: raise SourceBlocked("HISTORIC_VALUE_MISMATCH")
+    return True
+
 def synthetic_compare(left,right,unit1,unit2,tolerance,origin):
     """No patient/export inputs. This function is for synthetic arithmetic tests only."""
     if origin!="SYNTHETIC_ONLY": raise SourceBlocked("REAL_INPUT_NOT_SUPPORTED")
@@ -85,7 +105,9 @@ def main():
         raw=MATRIX.read_bytes()
         if raw.startswith(bytes([239,187,191])) or bytes([0]) in raw:
             raise SourceBlocked("ENCODING_INVALID")
-        result=check(json.loads(raw.decode("utf-8"),object_pairs_hook=unique))
+        matrix=json.loads(raw.decode("utf-8"),object_pairs_hook=unique)
+        result=check(matrix)
+        verify_historic_source(source,matrix["rows"])
         print("D3E21_VERDICT="+result["verdict"])
         print("D3E21_OBSERVED_UI_ROWS="+str(result["count"]))
         print("D3E21_SAME_TRACE_COMPARISONS=0")

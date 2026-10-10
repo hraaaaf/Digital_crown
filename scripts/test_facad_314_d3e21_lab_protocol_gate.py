@@ -64,6 +64,24 @@ class A_ObservedNotClinical(unittest.TestCase):
     def test_duplicate_json_key(self):
         with self.assertRaises(lab.SourceBlocked):
             lab.unique([("case_alias","A"),("case_alias","B")])
+    def test_historic_table_reconciles_all_twelve(self):
+        source=lab.REFERENCE.read_text(encoding="utf-8")
+        self.assertTrue(lab.verify_historic_source(source,self.m["rows"]))
+
+    def test_historic_value_drift_is_blocked(self):
+        source=lab.REFERENCE.read_text(encoding="utf-8")
+        changed=source.replace("| SNA | 67,7 |","| SNA | 99,9 |")
+        self.assertNotEqual(source,changed)
+        with self.assertRaises(lab.SourceBlocked):
+            lab.verify_historic_source(changed,self.m["rows"])
+
+    def test_historic_missing_measurement_is_blocked(self):
+        source=lab.REFERENCE.read_text(encoding="utf-8")
+        changed=source.replace("| Pog-NB | 4,7 |","| Pog-NB changed | 4,7 |")
+        self.assertNotEqual(source,changed)
+        with self.assertRaises(lab.SourceBlocked):
+            lab.verify_historic_source(changed,self.m["rows"])
+
     def test_cli_never_leaks_reference_numbers(self):
         p=subprocess.run([sys.executable,str(MOD)],capture_output=True,text=True)
         self.assertEqual(p.returncode,0,p.stdout+p.stderr)
