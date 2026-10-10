@@ -82,9 +82,11 @@ try{
       await page.locator('input[type=email]').fill(owner);
       await page.locator('input[type=password]').fill(password);
       await page.getByRole('button',{name:'Se connecter',exact:true}).click();
-      await route('/dashboard');
-      await page.getByRole('button',{name:'Ajout rapide'}).waitFor({
+      // The first authenticated entry returns to Hub. The real Hub admin
+      // calls /workstation/state and registers the first workstation.
+      await page.locator('[data-workstation-admin]').waitFor({
         state:'visible',timeout:30000});
+      ok('ownerMayManageFirstPost',new URL(page.url()).pathname==='/hub');
       ok('loginCreatesActualUserAuth',await page.evaluate(()=>
         !!localStorage.getItem('token')));
       const cookie=(await ctx.cookies(backend)).filter(c=>c.name==='dc_workstation');
@@ -109,14 +111,20 @@ try{
         proof.rows?.[0]?.workstationId===proof.state?.workstationId);
       ok('noSpuriousEnrollmentGate',
         await page.locator('[data-workstation-enrollment]').count()===0);
+      await shot('03-first-ever-auto-registered-hub');
+
+      // The operator deliberately opens Cabinet from the Hub rather
+      // than treating the Hub dispatcher as an unexpected redirect.
+      await page.locator('[data-hub-experience="cabinet"]').click();
+      await route('/dashboard');
+      await page.getByRole('button',{name:'Ajout rapide'}).waitFor({
+        state:'visible',timeout:30000});
       p.timingsMs.firstClinicalValue=Date.now()-started;
-      await shot('03-first-ever-auto-registered-cabinet');
+      await shot('04-first-ever-cabinet-after-choice');
 
       await go('/hub?select=1');
-      await page.locator('[data-workstation-admin]').waitFor({
+      await page.locator('[data-hub-experience="control"]').waitFor({
         state:'visible',timeout:30000});
-      ok('ownerMayManageFirstPost',true);
-      await shot('04-first-ever-configure-post');
       await page.locator('[data-hub-experience="control"]').click();
       await route('/control-center');
       await page.locator('[data-control-center-topology]').waitFor({
