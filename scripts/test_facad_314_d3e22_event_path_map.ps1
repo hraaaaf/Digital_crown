@@ -1,0 +1,67 @@
+# D3E22: synthetic-only path alias tests. Dot-sources a pure function; no FACAD launch.
+$ErrorActionPreference='Stop'
+Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'facad_314_d3e22_event_path_map.ps1')
+$root='C:\Users\example\AppData\Roaming\Ilexis'
+$checks=@(
+ @{ observed='C:\Users\example\AppData\Roaming\Ilexis\settings.bin'; expected='settings.bin' },
+ @{ observed='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis\settings.bin'; expected='settings.bin' },
+ @{ observed='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis\cache\settings.bin'; expected='cache\settings.bin' },
+ @{ observed='C:\Users\example\AppData\Roaming\IlexisX\settings.bin'; expected=$null },
+ @{ observed='D:\Users\example\AppData\Roaming\Ilexis\settings.bin'; expected=$null },
+ @{ observed='\Device\HarddiskVolume3\Users\another\AppData\Roaming\Ilexis\settings.bin'; expected=$null },
+ @{ observed='\Device\HarddiskVolume3\Temp\Users\example\AppData\Roaming\Ilexis\settings.bin'; expected=$null },
+ @{ observed='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis\..\outside'; expected=$null },
+ @{ observed='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis\cache\\double.bin'; expected=$null },
+ @{ observed='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis\cache\foo:bar'; expected=$null },
+ @{ observed='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis'; expected=$null }
+)
+$count=0
+foreach($check in $checks){
+  $actual=Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $check.observed -ExpectedNtDevice '\Device\HarddiskVolume3'
+  if($actual -cne $check.expected){throw 'D3E22_ALIAS_SYNTHETIC_CASE_FAILED'}
+  $count++
+}
+# Explicitly reject a different actual NT volume, even with an identical relative path.
+$wrongVolume='\Device\HarddiskVolume4\Users\example\AppData\Roaming\Ilexis\settings.bin'
+if($null -ne (Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $wrongVolume -ExpectedNtDevice '\Device\HarddiskVolume3')){
+ throw 'UNTRUSTED_NT_DEVICE_WAS_ACCEPTED'
+}
+$count++
+# Reject unpinned device paths: an alias is never enough without a mapped drive.
+$ntPath='\Device\HarddiskVolume3\Users\example\AppData\Roaming\Ilexis\settings.bin'
+if($null -ne (Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $ntPath)){
+ throw 'UNPINNED_NT_DEVICE_WAS_ACCEPTED'
+}
+$count++
+# D3E23: a Windows 4663 Delete/WriteAttributes event must NEVER be
+# promoted to an actual WriteData/AppendData event.
+$writeMasks=@(
+ @{ mask='0x0'; expected=$false },
+ @{ mask='0x1'; expected=$false },
+ @{ mask='0x2'; expected=$true },
+ @{ mask='0x4'; expected=$true },
+ @{ mask='0x6'; expected=$true },
+ @{ mask='0x8'; expected=$false },
+ @{ mask='0x100'; expected=$false },
+ @{ mask='0x10000'; expected=$false },
+ @{ mask='0x10100'; expected=$false },
+ @{ mask='0x10106'; expected=$true }
+)
+$maskCases=0
+foreach($case in $writeMasks){
+ $result=Test-ScopedWriteDataAccess -AccessMask $case.mask
+ if($result -ne $case.expected){throw 'D3E23_UNSAFE_WRITE_ACCESS_CLASSIFICATION'}
+ $maskCases++
+}
+foreach($malformed in @('2','0x','0xZZ','0x100000000')){
+ $blocked=$false
+ try{$null=Test-ScopedWriteDataAccess -AccessMask $malformed}catch{$blocked=$true}
+ if(-not $blocked){throw 'D3E23_INVALID_MASK_ACCEPTED'}
+ $maskCases++
+}
+Write-Host "D3E23_SYNTHETIC_ACCESS_MASK_TESTS_PASSED=$maskCases"
+Write-Host "D3E22_SOURCE_ALIAS_TESTS_PASSED=$count"
+Write-Host 'D3E22_REAL_ILEXIS_FILE_TOUCHED=false'
+Write-Host 'D3E22_FACAD_EXECUTED=false'
+Write-Host 'CLINICAL_EDIT_ALLOWED=false'

@@ -1,0 +1,110 @@
+name: FACAD D3E22 synthetic native event alias integration (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - fix/facad-d3e22-event-path-alias
+    paths:
+      - scripts/facad_314_d3e9_independent_arm.ps1
+      - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
+      - .github/workflows/facad-314-d3-windows-storage-observation.yml
+      - scripts/facad_314_d3e22_event_path_map.ps1
+      - scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
+      - scripts/test_facad_314_d3e22_event_path_map.ps1
+      - .github/workflows/facad-314-d3e22-event-alias-static.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-path-alias-validation:
+    name: Windows ephemeral synthetic event audit / never run Facad
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert exact SHA and parse audit observer only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD) -cne $env:GITHUB_SHA) { throw 'HEAD_MISMATCH' }
+          $paths=@('scripts/facad_314_d3e9_independent_arm.ps1',
+                   'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1',
+                   'scripts/facad_314_d3e22_event_path_map.ps1',
+                   'scripts/test_facad_314_d3e22_event_path_map.ps1',
+                   'scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1')
+          foreach($path in $paths){
+            $tokens=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw 'D3E22_SCRIPT_SYNTAX_INVALID'}
+          }
+          $realObserver=Get-Content -LiteralPath 'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1' -Raw
+          if($realObserver -match '0x10106' -or
+             $realObserver -notmatch 'Test-ScopedWriteDataAccess' -or
+             $realObserver -notmatch 'Resolve-ScopedEventRelative' -or
+             $realObserver -notmatch 'Get-ScopedNtVolume'){
+            throw 'D3E23_REAL_OBSERVER_SCOPE_OR_MASK_CONTRACT_BROKEN'
+          }
+          $vendorWorkflow=Get-Content -LiteralPath '.github/workflows/facad-314-d3-windows-storage-observation.yml' -Raw
+          $onSection=($vendorWorkflow -split '(?m)^permissions:\s*$')[0]
+          if($onSection -match '(?m)^\s*push:\s*$' -or
+             $onSection -notmatch '(?m)^\s*workflow_dispatch:\s*$'){
+            throw 'D3E23_VENDOR_WORKFLOW_NOT_MANUAL_ONLY'
+          }
+          foreach($flag in @('vendor_nonclinical_rights_approved',
+                              'dedicated_nonclinical_runner_approved',
+                              'collection_privacy_protocol_approved')){
+            if($onSection -notmatch [regex]::Escape($flag)){
+              throw 'D3E23_VENDOR_EXPLICIT_APPROVAL_MISSING'
+            }
+          }
+          if($vendorWorkflow -notmatch "github.event_name == 'workflow_dispatch'" -or
+             $vendorWorkflow -notmatch "inputs.vendor_nonclinical_rights_approved == true" -or
+             $vendorWorkflow -notmatch "inputs.dedicated_nonclinical_runner_approved == true" -or
+             $vendorWorkflow -notmatch "inputs.collection_privacy_protocol_approved == true"){
+            throw 'D3E23_VENDOR_JOB_APPROVAL_GUARD_MISSING'
+          }
+          Write-Host 'D3E23_VENDOR_WORKFLOW_PUSH_DISABLED=true'
+          # D3E25 official native preflight pinned one actual 206MB vendor payload.
+          $hash='A60D13EA2C32D49C192BCF07F40BA07D8C0410E6577FE28CE4B0181BB4018B86'
+          $signer='F9030606E8FC12921F38AF03DA4158C3A8A42FCC'
+          if(-not $vendorWorkflow.Contains($hash) -or -not $vendorWorkflow.Contains($signer) -or
+             -not $vendorWorkflow.Contains('D3E25_PINNED_OFFICIAL_INSTALLER_HASH_MISMATCH') -or
+             -not $vendorWorkflow.Contains('D3E25_PINNED_OFFICIAL_SIGNER_MISMATCH') -or
+             -not $vendorWorkflow.Contains('D3E25_EULA_ASSENT_NOT_EXPLICITLY_AUTHORIZED') -or
+             -not $vendorWorkflow.Contains('accept_facad_314_trial_eula:')){
+            throw 'D3E25_VENDOR_SIGNER_HASH_OR_EULA_GUARD_MISSING'
+          }
+          $hashAt=$vendorWorkflow.IndexOf('D3E25_PINNED_OFFICIAL_INSTALLER_HASH_MISMATCH')
+          $signatureAt=$vendorWorkflow.IndexOf('D3E25_PINNED_OFFICIAL_SIGNER_MISMATCH')
+          $extractAt=$vendorWorkflow.IndexOf('& $seven x $installer')
+          $eulaAt=$vendorWorkflow.IndexOf('D3E25_EULA_ASSENT_NOT_EXPLICITLY_AUTHORIZED')
+          $clickAt=$vendorWorkflow.IndexOf('Click-VerifiedPane -Window $eulaWindow -Name ''I accept the license''')
+          if($extractAt -le $hashAt -or $extractAt -le $signatureAt -or $clickAt -le $eulaAt){
+            throw 'D3E25_SAFETY_ORDER_BROKEN'
+          }
+          Write-Host 'D3E25_VENDOR_SOURCE_PIN_AND_EXPLICIT_EULA_GUARD=true'
+          Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
+      - name: Validate path binding and data-write rights (synthetic inputs only)
+        shell: pwsh
+        run: |
+          & scripts/test_facad_314_d3e22_event_path_map.ps1
+          if(-not $?){throw 'SYNTHETIC_ALIASES_FAILED'}
+          Write-Host 'D3E22_NO_REAL_WINDOWS_FILE_AUDIT=true'
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+
+      - name: Native synthetic 4663 event passes exact scoped path adapter; audit restored
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
+          $code=$LASTEXITCODE
+          if($code -ne 0){throw "D3E22_NATIVE_ALIAS_INTEGRATION_BLOCKED_EXIT=$code"}
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
