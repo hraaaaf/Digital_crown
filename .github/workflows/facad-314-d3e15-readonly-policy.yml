@@ -1,0 +1,75 @@
+name: Facad D3E15 per-user audit policy discovery (READ ONLY)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-d3e15-readonly-policy.yml
+      - scripts/facad_314_d3e15_readonly_user_audit_policy.ps1
+      - scripts/facad_314_d3e15_readonly_audit_policy_gate.py
+      - scripts/test_facad_314_d3e15_readonly_audit_policy_gate.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-readonly-audit-policy:
+    name: READ-ONLY per-user policy inquiry - NOT Ilexis audit
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove exact source HEAD and parse policy probe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'HEAD_MISMATCH'}
+          Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/facad_314_d3e15_readonly_user_audit_policy.ps1').Path,
+            [ref]$tokens,[ref]$errors)
+          if($errors.Count){throw 'D3E15_POWERSHELL_SYNTAX_INVALID'}
+          python -m py_compile scripts/facad_314_d3e15_readonly_audit_policy_gate.py
+          if($LASTEXITCODE -ne 0){throw 'D3E15_PYTHON_SYNTAX_INVALID'}
+          Write-Host 'D3E15_NO_POLICY_MUTATION=true'
+      - name: Query File System system and current-user policy (READ ONLY)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $probe=(Resolve-Path 'scripts/facad_314_d3e15_readonly_user_audit_policy.ps1').Path
+          $raw=Join-Path $env:GITHUB_WORKSPACE 'd3e15-audit-policy-readonly.json'
+          $checked=Join-Path $env:GITHUB_WORKSPACE 'd3e15-audit-policy-checked.json'
+          & $probe -OutputPath $raw
+          if($LASTEXITCODE -ne 0){throw 'D3E15_POLICY_QUERY_PROBE_BLOCKED'}
+          python scripts/facad_314_d3e15_readonly_audit_policy_gate.py --input $raw --output $checked | Out-Host
+          if($LASTEXITCODE -ne 0){throw 'D3E15_POLICY_AGGREGATE_INVALID'}
+          $result=Get-Content -LiteralPath $checked -Raw | ConvertFrom-Json
+          if($result.global_policy_modified -ne $false -or
+             $result.per_user_policy_modified -ne $false -or
+             $result.capture_authorized -ne $false -or
+             $result.clinical_edit_allowed -ne $false -or
+             $result.real_ilexis_writer_proven -ne $false){
+            throw 'D3E15_UNSAFE_POLICY_CLAIM'
+          }
+          Write-Host "D3E15_VERDICT=$($result.verdict)"
+          Write-Host "D3E15_SYSTEM_AUDIT_STATUS=$($result.system_success_audit_status)"
+          Write-Host "D3E15_CURRENT_USER_AUDIT_STATUS=$($result.per_user_inclusion_success_audit_status)"
+          Write-Host 'D3E15_REAL_ILEXIS_TRACE_CAPTURED=false'
+          Write-Host 'D3E15_PER_USER_POLICY_MODIFIED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+      - name: Upload strict read-only anonymous policy statuses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e15-readonly-policy-status
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            d3e15-audit-policy-readonly.json
+            d3e15-audit-policy-checked.json
