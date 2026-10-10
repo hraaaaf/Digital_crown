@@ -59,6 +59,7 @@ jobs:
             throw 'D3E12_FORGED_CLINICAL_OR_PRIVACY_CLAIM'
           }
           Write-Host "D3E12_ETW_SYNTHETIC_FEASIBILITY=$($result.verdict)"
+          Write-Host "D3E12_ETW_DECODE_PATH=$($result.etl_decoder)"
           Write-Host 'D3E12_REAL_ILEXIS_TRACE_CAPTURED=false'
           Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
           Write-Host 'CLINICAL_EDIT_ALLOWED=false'

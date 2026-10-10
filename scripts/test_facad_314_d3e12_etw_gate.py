@@ -23,6 +23,7 @@ def sample():
         "trace_stopped": True,
         "synthetic_write_verified": True,
         "etl_query_status": "events_returned",
+        "etl_decoder": "direct_etl",
         "etl_events_parsed": True,
         "etl_event_count": 10,
         "synthetic_file_matched_write_event_count": 1,
@@ -59,13 +60,13 @@ class FeasibilityTests(unittest.TestCase):
         self.assertFalse(out["actual_ilexis_writer_identified"])
 
     def test_no_matching_event_remains_unverified(self):
-        self.x.update(etl_query_status="no_matching_events", etl_events_parsed=False,
+        self.x.update(etl_query_status="no_matching_events", etl_decoder="none", etl_events_parsed=False,
                       etl_event_count=0, synthetic_file_matched_write_event_count=0,
                       synthetic_writer_pid_matched_write_event_count=0)
         self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
 
     def test_query_error_remains_unverified(self):
-        self.x.update(etl_query_status="query_error", etl_events_parsed=False,
+        self.x.update(etl_query_status="query_error", etl_decoder="none", etl_events_parsed=False,
                       etl_event_count=0, synthetic_file_matched_write_event_count=0,
                       synthetic_writer_pid_matched_write_event_count=0)
         self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
@@ -73,10 +74,23 @@ class FeasibilityTests(unittest.TestCase):
     def test_provider_unavailable_supported_as_unverified(self):
         self.x.update(provider_discovered=False, trace_started=False,
                       trace_stopped=False, synthetic_write_verified=False,
-                      etl_query_status="unavailable", etl_events_parsed=False,
+                      etl_query_status="unavailable", etl_decoder="none", etl_events_parsed=False,
                       etl_event_count=0, synthetic_file_matched_write_event_count=0,
                       synthetic_writer_pid_matched_write_event_count=0)
         self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
+
+    def test_tracerpt_fallback_can_be_bounded_synthetic(self):
+        self.x["etl_decoder"] = "tracerpt_evtx"
+        self.assertTrue(self.go()["bounded_synthetic_pid_link_observed"])
+
+    def test_forged_fallback_without_parsing_rejected(self):
+        self.x["etl_decoder"] = "tracerpt_evtx"
+        self.x["etl_events_parsed"] = False
+        self.bad()
+
+    def test_unknown_decoder_rejected(self):
+        self.x["etl_decoder"] = "upload_raw"
+        self.bad()
 
     def test_other_pid_does_not_prove_writer(self):
         self.x["synthetic_writer_pid_matched_write_event_count"] = 0

@@ -7,7 +7,7 @@ $traceName='D3E12_'+[guid]::NewGuid().ToString('N')
 $root=$null;$etl=$null;$started=$false;$stopped=$false
 $verified=$false;$providerAvailable=$false;$parsed=$false
 $eventsCount=0;$matchedWrites=0;$matchedChild=0;$matchedOthers=0
-$query='unavailable';$outputReady=$false;$rawGone=$false
+$query='unavailable';$decoder='none';$outputReady=$false;$rawGone=$false
 try{
  if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
     -not $env:RUNNER_TEMP -or -not $env:GITHUB_WORKSPACE -or -not $env:GITHUB_RUN_ID){throw 'RUNNER_ONLY'}
@@ -51,10 +51,30 @@ param([Parameter(Mandatory=$true)][string]$SyntheticPath)
      try{
        $events=@(Get-WinEvent -Path $etl -Oldest -MaxEvents 20000 -ErrorAction Stop)
        if($events.Count -ge 20000){throw 'EVENT_CAP'}
-       $parsed=$true;$query='events_returned'
+       $parsed=$true;$query='events_returned';$decoder='direct_etl'
      }catch{
        $errorId=[string]$_.FullyQualifiedErrorId
        $query=if($errorId -like 'NoMatchingEventsFound*'){'no_matching_events'}else{'query_error'}
+       # Microsoft's tracerpt is a second native decoder for archived ETW.
+       # Converted EVTX is restricted to RUNNER_TEMP and deleted in finally.
+       # Never emit tracerpt stdout, stderr, XML, names or process IDs.
+       try{
+         $converted=Join-Path $root 'local-converted.evtx'
+         & tracerpt.exe $etl '-o' $converted '-of' 'EVTX' '-y' >$null 2>$null
+         if($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $converted)){
+           throw 'TRACERPT_CONVERT_UNAVAILABLE'
+         }
+         $events=@(Get-WinEvent -Path $converted -Oldest -MaxEvents 20000 -ErrorAction Stop)
+         if($events.Count -ge 20000){throw 'EVENT_CAP'}
+         $parsed=$true;$query='events_returned';$decoder='tracerpt_evtx'
+       }catch{
+         $fallbackId=[string]$_.FullyQualifiedErrorId
+         if($query -ceq 'no_matching_events' -and
+            $fallbackId -like 'NoMatchingEventsFound*'){
+           $query='no_matching_events'
+         }else{$query='query_error'}
+         $parsed=$false;$decoder='none';$events=@()
+       }
      }
      if($parsed){
        $objects=@{}
@@ -118,6 +138,7 @@ $result=[ordered]@{
  trace_stopped=$stopped
  synthetic_write_verified=$verified
  etl_query_status=$query
+ etl_decoder=$decoder
  etl_events_parsed=$parsed
  etl_event_count=[int]$eventsCount
  synthetic_file_matched_write_event_count=[int]$matchedWrites
@@ -137,6 +158,7 @@ $result=[ordered]@{
 }
 $result | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $dest -Encoding utf8 -ErrorAction Stop
 Write-Host "D3E12_ETW_QUERY_STATUS=$query"
+Write-Host "D3E12_ETW_DECODER=$decoder"
 Write-Host "D3E12_SYNTHETIC_FILE_WRITE_EVENT_MATCH_COUNT=$matchedWrites"
 Write-Host "D3E12_SYNTHETIC_WRITER_PID_EVENT_MATCH_COUNT=$matchedChild"
 Write-Host "D3E12_RAW_TRACE_CLEANED=$($rawGone.ToString().ToLowerInvariant())"

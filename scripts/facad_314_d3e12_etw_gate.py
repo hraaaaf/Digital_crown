@@ -7,6 +7,7 @@ from pathlib import Path
 FIELDS = {
     "schema", "source", "provider", "provider_discovered", "trace_started",
     "trace_stopped", "synthetic_write_verified", "etl_query_status",
+    "etl_decoder",
     "etl_events_parsed", "etl_event_count",
     "synthetic_file_matched_write_event_count",
     "synthetic_writer_pid_matched_write_event_count",
@@ -52,6 +53,12 @@ def validate(x):
         raise InvalidD3E12("TRACE_STARTED_NOT_CLEANLY_STOPPED")
     if x["synthetic_write_verified"] and not x["trace_started"]:
         raise InvalidD3E12("SYNTHETIC_WRITE_OUTSIDE_TRACE")
+    if x["etl_decoder"] not in {"none", "direct_etl", "tracerpt_evtx"}:
+        raise InvalidD3E12("UNKNOWN_ETW_DECODER")
+    if (x["etl_events_parsed"] and x["etl_decoder"] == "none") or (
+        not x["etl_events_parsed"] and x["etl_decoder"] != "none"
+    ):
+        raise InvalidD3E12("DECODER_EVIDENCE_MISMATCH")
     if x["etl_events_parsed"] != (x["etl_query_status"] == "events_returned"):
         raise InvalidD3E12("TRACE_QUERY_MISMATCH")
     if m and (not x["synthetic_write_verified"] or not x["etl_events_parsed"]):
@@ -74,6 +81,7 @@ def validate(x):
         "provider_discovered": x["provider_discovered"],
         "synthetic_write_verified": x["synthetic_write_verified"],
         "etl_query_status": x["etl_query_status"],
+        "etl_decoder": x["etl_decoder"],
         "matched_synthetic_file_write_event_count": m,
         "matched_synthetic_writer_pid_event_count":
             x["synthetic_writer_pid_matched_write_event_count"],
@@ -99,6 +107,7 @@ def main():
         args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8")
         print("D3E12_FEASIBILITY_VERDICT=" + result["verdict"])
         print("D3E12_ETW_QUERY_STATUS=" + result["etl_query_status"])
+        print("D3E12_ETW_DECODER=" + result["etl_decoder"])
         print("D3E12_SYNTHETIC_PID_LINK_OBSERVED=" + str(result["bounded_synthetic_pid_link_observed"]).lower())
         return 0
     except (ValueError, TypeError, OSError, UnicodeError, KeyError):
