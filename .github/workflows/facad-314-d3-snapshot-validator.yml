@@ -35,6 +35,11 @@ on:
       - scripts/test_facad_314_d3e12_etw_gate.py
       - scripts/facad_314_d3e13_capture_readiness_gate.py
       - scripts/test_facad_314_d3e13_capture_readiness_gate.py
+      - scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+      - scripts/facad_314_d3e14_sacl_calibration_gate.py
+      - scripts/test_facad_314_d3e14_sacl_calibration_gate.py
+      - .github/workflows/facad-314-d3e14-sacl-calibration.yml
+      - docs/audits/FACAD_314_D3E14_SCOPED_AUDIT_METHOD_REVIEW_2026-10-10.md
       - docs/audits/FACAD_314_D3E13_CAPTURE_READINESS_CONTRACT.json
       - docs/audits/FACAD_314_D3E13_PRE_CAPTURE_SECURITY_REVIEW_2026-10-10.md
       - .github/workflows/facad-314-d3e12-etw-feasibility.yml
@@ -95,6 +100,13 @@ jobs:
           grep -Fq 'DESIGN ONLY / LIVE CAPTURE BLOCKED' docs/audits/FACAD_314_D3E13_PRE_CAPTURE_SECURITY_REVIEW_2026-10-10.md
           grep -Fq 'FAC03_D3=OPEN_RED' scripts/facad_314_d3e13_capture_readiness_gate.py
           grep -Fq 'D3E13_CAPTURE_AUTHORIZED=false' scripts/facad_314_d3e13_capture_readiness_gate.py
+          grep -Fq 'D3E14_REAL_ILEXIS_WRITER_PROVEN=false' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+          grep -Fq 'used_global_kernel_etw_capture=$false' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+          grep -Fq 'global_audit_policy_modified=$policyChanged' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+          grep -Fq 'Get-WinEvent -FilterHashtable' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+          grep -Fq 'D3E14_REAL_ILEXIS_TRACE_CAPTURED=false' .github/workflows/facad-314-d3e14-sacl-calibration.yml
+          if grep -Eqi 'auditpol\.exe[[:space:]]+/(set|restore|clear)' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1; then exit 1; fi
+          if grep -Fq '.etl' .github/workflows/facad-314-d3e14-sacl-calibration.yml; then exit 1; fi
           grep -Fq 'D3E12_DIRECT_ETL_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_TRACERPT_EVTX_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_XML_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
@@ -215,6 +227,13 @@ jobs:
           echo 'D3E13_REAL_QUICKDEMO_CAPTURE_PERFORMED=false'
           echo 'D3E13_CAPTURE_AUTHORIZED=false'
           echo 'FAC03_D3=OPEN_RED'
+      - name: D3E14 synthetic object SACL writer access gate (SOURCE ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3e14_sacl_calibration_gate.py scripts/test_facad_314_d3e14_sacl_calibration_gate.py
+          python -m unittest scripts/test_facad_314_d3e14_sacl_calibration_gate.py -v
+          echo 'D3E14_OBJECT_SCOPED_AUDIT_SYNTHETIC_ONLY=true'
+          echo 'D3E14_REAL_ILEXIS_CAPTURE=false'
+          echo 'CLINICAL_EDIT_ALLOWED=false'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py

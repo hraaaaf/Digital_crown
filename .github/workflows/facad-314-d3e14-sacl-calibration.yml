@@ -1,0 +1,76 @@
+name: Facad D3E14 object-scoped SACL synthetic calibration (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-d3e14-sacl-calibration.yml
+      - scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+      - scripts/facad_314_d3e14_sacl_calibration_gate.py
+      - scripts/test_facad_314_d3e14_sacl_calibration_gate.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-object-sacl-observer:
+    name: SYNTHETIC file SACL only - NEVER Ilexis writer clearance
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact SHA and syntax, synthetic-only provenance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'HEAD_MISMATCH'}
+          Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1').Path,
+            [ref]$tokens,[ref]$errors)
+          if($errors.Count){throw 'D3E14_POWERSHELL_SYNTAX_INVALID'}
+          python -m py_compile scripts/facad_314_d3e14_sacl_calibration_gate.py
+          if($LASTEXITCODE -ne 0){throw 'D3E14_PYTHON_SYNTAX_INVALID'}
+          Write-Host 'D3E14_SYNTHETIC_ONLY=true'
+          Write-Host 'D3E14_GLOBAL_ETW_CAPTURE=false'
+      - name: Calibrate only an ephemeral synthetic file without changing auditpol
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $probe=(Resolve-Path 'scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1').Path
+          $raw=Join-Path $env:GITHUB_WORKSPACE 'd3e14-audit-calibration.json'
+          $checked=Join-Path $env:GITHUB_WORKSPACE 'd3e14-audit-checked.json'
+          & $probe -OutputPath $raw
+          if($LASTEXITCODE -ne 0){throw 'D3E14_SYNTHETIC_PROBE_CLEANUP_FAILED'}
+          python scripts/facad_314_d3e14_sacl_calibration_gate.py --input $raw --output $checked | Out-Host
+          if($LASTEXITCODE -ne 0){throw 'D3E14_PRIVATE_OR_INVALID_AGGREGATE'}
+          $result=Get-Content -LiteralPath $checked -Raw | ConvertFrom-Json
+          if($result.global_audit_policy_modified -ne $false -or
+             $result.used_global_kernel_etw_capture -ne $false -or
+             $result.raw_security_event_exported -ne $false -or
+             $result.real_ilexis_writer_proven -ne $false -or
+             $result.clinical_edit_allowed -ne $false -or
+             $result.private_synthetic_files_deleted -ne $true){
+            throw 'D3E14_UNSAFE_RESULT_REJECTED'
+          }
+          Write-Host "D3E14_NATIVE_VERDICT=$($result.verdict)"
+          Write-Host "D3E14_SYNTHETIC_4663_PID_LINK=$($result.object_scoped_synthetic_4663_pid_link_observed)"
+          Write-Host 'D3E14_REAL_ILEXIS_TRACE_CAPTURED=false'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+      - name: Upload only schema-checked synthetic aggregate counts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e14-object-audit-synthetic
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            d3e14-audit-calibration.json
+            d3e14-audit-checked.json
