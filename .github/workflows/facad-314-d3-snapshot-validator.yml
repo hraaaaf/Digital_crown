@@ -46,6 +46,11 @@ on:
       - scripts/test_facad_314_d3e16_readonly_policy_diagnostic_gate.py
       - scripts/facad_314_d3e17_capture_method_decision_gate.py
       - scripts/test_facad_314_d3e17_capture_method_decision_gate.py
+      - scripts/facad_314_d3e18_guest_preflight_gate.py
+      - scripts/test_facad_314_d3e18_guest_preflight_gate.py
+      - docs/audits/FACAD_314_D3E18_ISOLATED_GUEST_DESIGN.wsb.template
+      - docs/audits/FACAD_314_D3E18_GUEST_PREFLIGHT_CONTRACT.json
+      - docs/audits/FACAD_314_D3E18_GUEST_THREAT_MODEL_2026-10-10.md
       - docs/audits/FACAD_314_D3E17_CAPTURE_METHOD_DECISION.json
       - docs/audits/FACAD_314_D3E17_CONFINED_CAPTURE_ALTERNATIVES_REVIEW_2026-10-10.md
       - .github/workflows/facad-314-d3e16-readonly-policy-visibility.yml
@@ -119,6 +124,11 @@ jobs:
           grep -Fq 'D3E15_POLICY_MODIFIED=false' scripts/facad_314_d3e15_readonly_user_audit_policy.ps1
           grep -Fq 'D3E16_POLICY_MODIFIED=false' scripts/facad_314_d3e16_readonly_policy_presence.ps1
           grep -Fq 'D3E17_DESIGN_VALIDATION_ONLY_NO_SAFE_CAPTURE_CLEARED' docs/audits/FACAD_314_D3E17_CAPTURE_METHOD_DECISION.json
+          grep -Fq 'GUEST_BLUEPRINT_SOURCE_ONLY_NATIVE_PROOF_BLOCKED' docs/audits/FACAD_314_D3E18_GUEST_PREFLIGHT_CONTRACT.json
+          grep -Fq 'D3E18_STATIC_CONFIGURATION_VALID_NATIVE_GATES_BLOCKED' scripts/facad_314_d3e18_guest_preflight_gate.py
+          grep -Fq 'CLINICAL_EDIT_ALLOWED=false' scripts/facad_314_d3e18_guest_preflight_gate.py
+          test ! -e docs/audits/FACAD_314_D3E18_ISOLATED_GUEST_DESIGN.wsb
+          if grep -Eiq '<MappedFolders>|<LogonCommand>|<Networking>Enable|<ClipboardRedirection>Enable' docs/audits/FACAD_314_D3E18_ISOLATED_GUEST_DESIGN.wsb.template; then exit 1; fi
           grep -Fq 'ISOLATED_GUEST_SECURITY_REVIEW_ONLY' docs/audits/FACAD_314_D3E17_CONFINED_CAPTURE_ALTERNATIVES_REVIEW_2026-10-10.md
           grep -Fq 'FAC03_D3=OPEN_RED' scripts/facad_314_d3e17_capture_method_decision_gate.py
           if test -e scripts/facad_314_d3e17_native_capture.ps1; then exit 1; fi
@@ -289,6 +299,14 @@ jobs:
           python scripts/facad_314_d3e17_capture_method_decision_gate.py --contract docs/audits/FACAD_314_D3E17_CAPTURE_METHOD_DECISION.json --repo-root .
           echo 'D3E17_NATIVE_CAPTURE_PERFORMED=false'
           echo 'D3E17_LIVE_CAPTURE_AUTHORIZED=false'
+          echo 'FAC03_D3=OPEN_RED'
+      - name: D3E18 Windows guest static preflight NEVER NATIVE (SOURCE ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3e18_guest_preflight_gate.py scripts/test_facad_314_d3e18_guest_preflight_gate.py
+          python -m unittest scripts/test_facad_314_d3e18_guest_preflight_gate.py -v
+          python scripts/facad_314_d3e18_guest_preflight_gate.py --contract docs/audits/FACAD_314_D3E18_GUEST_PREFLIGHT_CONTRACT.json --template docs/audits/FACAD_314_D3E18_ISOLATED_GUEST_DESIGN.wsb.template
+          echo 'D3E18_NATIVE_SANDBOX_RUN=false'
+          echo 'D3E18_CAPTURE_AUTHORIZED=false'
           echo 'FAC03_D3=OPEN_RED'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
