@@ -17,6 +17,7 @@ spec.loader.exec_module(d3)
 SHA=re.compile(r"^[0-9a-f]{64}$")
 SOURCE="EPHEMERAL_FACAD_ROOT_PID_4663_KEYS_LOCAL_ONLY"
 FIELDS={"schema","source","session_id","selected_scope","root_pid_relative_key_hashes",
+        "other_pid_relative_key_hashes","observed_descendant_pid_count",
         "clinical_edit_allowed","shared_app_storage_isolation_verified",
         "complete_descendant_process_coverage","event_delivery_complete"}
 SCOPE="facad_ilexis_roaming_settings"
@@ -47,6 +48,15 @@ def compute(before,after,events):
         raise InvalidCorrelation("BAD_KEY_IDS")
     if len(set(keys))!=len(keys):
         raise InvalidCorrelation("DUPLICATED_KEY_IDS")
+    extra=events["other_pid_relative_key_hashes"]
+    if not isinstance(extra,list) or len(extra)>4000 or not all(
+            isinstance(v,str) and SHA.fullmatch(v) for v in extra):
+        raise InvalidCorrelation("BAD_OTHER_PID_KEY_IDS")
+    if len(set(extra))!=len(extra):
+        raise InvalidCorrelation("DUPLICATED_OTHER_PID_KEY_IDS")
+    descendants=events["observed_descendant_pid_count"]
+    if type(descendants) is not int or not 0<=descendants<=4000:
+        raise InvalidCorrelation("BAD_SAMPLED_DESCENDANT_COUNT")
     a=before["scopes"][SCOPE];b=after["scopes"][SCOPE]
     if (not a["present"] or not b["present"] or
         a["root_fingerprint"].lower()!=b["root_fingerprint"].lower()):
