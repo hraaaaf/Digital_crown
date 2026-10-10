@@ -19,6 +19,11 @@ $matchCount=0
 $childCount=0
 $otherCount=0
 $queryOutcome='not_attempted'
+$eventCount=0
+$objectNameFieldCount=0
+$targetSuffixMatchCount=0
+$targetExactMatchCount=0
+$targetWritableAccessCount=0
 $probeError=$false
 
 function Get-FileAuditSuccess {
@@ -89,6 +94,7 @@ param([Parameter(Mandatory=$true)][string]$Target)
         $records=@(Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$since;EndTime=$until} -MaxEvents 5000 -ErrorAction Stop)
         if($records.Count -ge 5000){throw 'EVENT_LIMIT_UNTRUSTED'}
         $queryOutcome=if($records.Count){'returned'}else{'none'}
+        $eventCount=$records.Count
     }catch {
         if(([string]$_.FullyQualifiedErrorId) -like 'NoMatchingEventsFound*'){
             $queryOutcome='none'
@@ -102,11 +108,19 @@ param([Parameter(Mandatory=$true)][string]$Target)
             [xml]$xml=$ev.ToXml()
             $fields=@{}
             foreach($field in $xml.Event.EventData.Data){$fields[[string]$field.Name]=[string]$field.'#text'}
-            if(-not $fields.ContainsKey('ObjectName') -or
-               -not ([string]$fields.ObjectName).Equals($file,[StringComparison]::OrdinalIgnoreCase) -or
+            if(-not $fields.ContainsKey('ObjectName')){continue}
+            $objectNameFieldCount++
+            $objectName=[string]$fields.ObjectName
+            $uniqueSuffix='\'+[IO.Path]::GetFileName($root)+'\'+[IO.Path]::GetFileName($file)
+            $suffixMatch=$objectName.EndsWith($uniqueSuffix,[StringComparison]::OrdinalIgnoreCase)
+            $exactMatch=$objectName.Equals($file,[StringComparison]::OrdinalIgnoreCase)
+            if($suffixMatch){$targetSuffixMatchCount++}
+            if($exactMatch){$targetExactMatchCount++}
+            if(-not ($suffixMatch -or $exactMatch) -or
                -not $fields.ContainsKey('AccessMask')){continue}
             $mask=[Convert]::ToInt64(([string]$fields.AccessMask).Replace('0x',''),16)
             if(($mask -band 0x6) -eq 0){continue}
+            $targetWritableAccessCount++
             $matchCount++
             $processHex=[string]$fields.ProcessId
             if($processHex -match '^0x[0-9a-fA-F]+$' -and
@@ -153,6 +167,11 @@ param([Parameter(Mandatory=$true)][string]$Target)
 Write-Host "D3E22_POLICY_EFFECTIVE=$($policyEnabledObserved.ToString().ToLowerInvariant())"
 Write-Host "D3E22_CHILD_WRITE=$($workerOk.ToString().ToLowerInvariant())"
 Write-Host "D3E22_4663_QUERY=$queryOutcome"
+Write-Host "D3E22_4663_TOTAL_EVENT_COUNT=$eventCount"
+Write-Host "D3E22_OBJECTNAME_FIELD_COUNT=$objectNameFieldCount"
+Write-Host "D3E22_TARGET_SUFFIX_MATCH_COUNT=$targetSuffixMatchCount"
+Write-Host "D3E22_TARGET_EXACT_MATCH_COUNT=$targetExactMatchCount"
+Write-Host "D3E22_TARGET_WRITABLE_ACCESS_COUNT=$targetWritableAccessCount"
 Write-Host "D3E22_TARGET_MATCH_COUNT=$matchCount"
 Write-Host "D3E22_CHILD_PID_MATCH_COUNT=$childCount"
 Write-Host "D3E22_OTHER_PID_COUNT=$otherCount"
