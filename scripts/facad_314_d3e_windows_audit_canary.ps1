@@ -85,6 +85,9 @@ try {
   $matched=0
   $fileObjectRecords=0
   $objectNameRecords=0
+  $syntheticLeafRecords=0
+  $syntheticRootTokenRecords=0
+  $expectedPidAnyPathRecords=0
   $scoped=0
   $scopedWrites=0
   $scopedExpectedPid=0
@@ -97,6 +100,13 @@ try {
     $fileObjectRecords++
     if(-not $fields['ObjectName']){continue}
     $objectNameRecords++
+    # Only check known SYNTHETIC canary tokens; never emit actual ObjectName.
+    if($fields['ObjectName'].EndsWith('ephemeral-canary.txt',[StringComparison]::OrdinalIgnoreCase)){$syntheticLeafRecords++}
+    if($fields['ObjectName'].IndexOf('facad-d3e-synthetic-',[StringComparison]::OrdinalIgnoreCase) -ge 0){$syntheticRootTokenRecords++}
+    if($fields['ProcessId']){
+      $anyPid=[Convert]::ToInt32(($fields['ProcessId'] -replace '^0x',''),16)
+      if($anyPid -eq $PID){$expectedPidAnyPathRecords++}
+    }
     $inside=($fields['ObjectName'].Equals($root,[StringComparison]::OrdinalIgnoreCase) -or
              $fields['ObjectName'].StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase))
     if(-not $inside){continue}
@@ -110,6 +120,9 @@ try {
     $scopedWrites++
     if($pidNumber -eq $PID){$matched++}else{[void]$unexpected.Add($pidNumber)}
   }
+  Write-Host ('D3E_SYNTHETIC_LEAF_NAME_MATCH_EVENTS='+$syntheticLeafRecords)
+  Write-Host ('D3E_SYNTHETIC_ROOT_TOKEN_MATCH_EVENTS='+$syntheticRootTokenRecords)
+  Write-Host ('D3E_EXPECTED_PID_ANY_PATH_EVENTS='+$expectedPidAnyPathRecords)
   $result.parsed_file_object_event_count=$fileObjectRecords
   $result.nonempty_object_name_event_count=$objectNameRecords
   $result.scoped_4663_event_count=$scoped
