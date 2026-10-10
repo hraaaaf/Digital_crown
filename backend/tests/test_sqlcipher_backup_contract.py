@@ -58,6 +58,31 @@ def test_sqlcipher_backup_fails_closed_when_key_missing(tmp_path, monkeypatch):
     assert not list(tmp_path.glob("db_backup_*.db.enc"))
 
 
+
+def test_sqlcipher_backup_retains_explicit_legacy_master_key_without_rekey(tmp_path, monkeypatch):
+    source = tmp_path / "cabinet.db"
+    source.write_bytes(b"encrypted-source-placeholder")
+    fake_engine = _fake_sqlcipher_engine(source, password=None)
+    original_key = "a1" * 32  # Synthetic legacy fixture, never a production secret.
+    monkeypatch.delenv("SQLCIPHER_KEY_HEX", raising=False)
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setenv("CABINET_MASTER_KEY_HEX", original_key)
+    cipher = Fernet(Fernet.generate_key())
+
+    def fake_export(source_db, snapshot_db, passphrase):
+        assert source_db == source
+        assert passphrase == original_key
+        snapshot_db.write_bytes(b"legacy-compatible-sqlcipher-snapshot")
+
+    with patch("backend.database.engine", fake_engine), \
+         patch.object(BackupService, "_get_or_create_key", return_value=cipher), \
+         patch.object(BackupService, "_export_sqlcipher_snapshot", side_effect=fake_export) as export:
+        result = BackupService._backup_sqlite_family(tmp_path, "20260817_020002", "pysqlcipher")
+
+    export.assert_called_once()
+    assert result["status"] == "SUCCESS"
+    assert cipher.decrypt((tmp_path / result["backup_filename"]).read_bytes()) == b"legacy-compatible-sqlcipher-snapshot"
+
 def test_restore_verifies_before_atomic_publish(tmp_path):
     cipher = Fernet(Fernet.generate_key())
     encrypted = tmp_path / "backup.db.enc"
