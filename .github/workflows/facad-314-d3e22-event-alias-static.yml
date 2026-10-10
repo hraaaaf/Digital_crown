@@ -1,0 +1,48 @@
+name: FACAD D3E22 file event alias tests ONLY (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - fix/facad-d3e22-event-path-alias
+    paths:
+      - scripts/facad_314_d3e9_independent_arm.ps1
+      - scripts/facad_314_d3e22_event_path_map.ps1
+      - scripts/test_facad_314_d3e22_event_path_map.ps1
+      - .github/workflows/facad-314-d3e22-event-alias-static.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-path-alias-validation:
+    name: Windows source-only / never run Facad or Security audit
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert exact SHA and parse audit observer only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD) -cne $env:GITHUB_SHA) { throw 'HEAD_MISMATCH' }
+          $paths=@('scripts/facad_314_d3e9_independent_arm.ps1',
+                   'scripts/facad_314_d3e22_event_path_map.ps1',
+                   'scripts/test_facad_314_d3e22_event_path_map.ps1')
+          foreach($path in $paths){
+            $tokens=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw 'D3E22_SCRIPT_SYNTAX_INVALID'}
+          }
+          Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
+      - name: Evaluate synthetic DOS / NT device path aliases in memory only
+        shell: pwsh
+        run: |
+          & scripts/test_facad_314_d3e22_event_path_map.ps1
+          if($LASTEXITCODE -ne 0){throw 'SYNTHETIC_ALIASES_FAILED'}
+          Write-Host 'D3E22_NO_REAL_WINDOWS_FILE_AUDIT=true'
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'

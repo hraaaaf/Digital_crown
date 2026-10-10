@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $guid='{0CCE921D-69AE-11D9-BED3-505054503030}'
+. (Join-Path $PSScriptRoot 'facad_314_d3e22_event_path_map.ps1')
 $root=$null;$oldAcl=$null;$sddlBefore=$null;$wasEnabled=$null
 $policyEnabled=$false;$saclMutated=$false;$policyRestored=$false;$saclRestored=$false
 $complete=$false
@@ -189,7 +190,6 @@ try{
     if($auditEvents.Count -ge 4000){throw 'AUDIT_EVENT_CAP'}
     $eventQueryAvailable=$true
     $eventQueryOutcome='records_returned'
-    $rootPrefix=$root+'\'
     foreach($record in $auditEvents){
       try{
         [xml]$xml=$record.ToXml()
@@ -201,8 +201,8 @@ try{
            -not $fields['ObjectName'] -or -not $fields['ProcessId'] -or
            -not $fields['AccessMask']){continue}
         $fullName=[string]$fields['ObjectName']
-        if(-not $fullName.StartsWith($rootPrefix,[StringComparison]::OrdinalIgnoreCase)){continue}
-        $relative=$fullName.Substring($rootPrefix.Length)
+        $relative=Resolve-ScopedEventRelative -ScopeRoot $root -ObservedPath $fullName
+        if($null -eq $relative){continue}
         if(-not $relative -or $relative.Length -gt 4096 -or
            @($relative.Split('\') | Where-Object {$_ -eq '.' -or $_ -eq '..'}).Count){continue}
         $hash=[Security.Cryptography.SHA256]::HashData(
