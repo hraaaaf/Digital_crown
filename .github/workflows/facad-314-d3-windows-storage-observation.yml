@@ -9,6 +9,8 @@ on:
       - scripts/facad_314_d3_windows_snapshot.ps1
       - scripts/facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
+      - scripts/facad_314_d3e3_same_file_correlation_gate.py
+      - scripts/test_facad_314_d3e3_same_file_correlation_gate.py
       - scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
       - scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py
   workflow_dispatch:
@@ -42,7 +44,7 @@ jobs:
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
-          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -412,8 +414,9 @@ jobs:
           function Invoke-D3ResearchStartup([string]$label) {
             $processOut="facad-quick-demo/d3-process-io-$label.json"
             $auditOut="facad-quick-demo/d3e2-facad-root-pid-$label.json"
+            $eventOut=Join-Path $env:RUNNER_TEMP ("d3e3-event-keys-$label.json")
             $auditScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1'
-            & $auditScript -FacadExecutable $installed.FullName -DisposableRobert $copy -ProcessCounterScript $processScript -ProcessCounterOutput (Join-Path $env:GITHUB_WORKSPACE $processOut) -OutputPath (Join-Path $env:GITHUB_WORKSPACE $auditOut)
+            & $auditScript -FacadExecutable $installed.FullName -DisposableRobert $copy -ProcessCounterScript $processScript -ProcessCounterOutput (Join-Path $env:GITHUB_WORKSPACE $processOut) -OutputPath (Join-Path $env:GITHUB_WORKSPACE $auditOut) -EventKeysPath $eventOut -SessionId "$session-$label"
             $auditStatus=$LASTEXITCODE
             python scripts/facad_314_d3e_facad_root_pid_verdict_gate.py --input $auditOut | Out-Host
             $contractStatus=$LASTEXITCODE
@@ -426,6 +429,7 @@ jobs:
           }
 
           function Invoke-D3ResearchPair([string]$label) {
+            try{
             $before="facad-quick-demo/d3-storage-$label-before.json"
             $after="facad-quick-demo/d3-storage-$label-after.json"
             $verdict="facad-quick-demo/d3-storage-$label-verdict.json"
@@ -459,8 +463,28 @@ jobs:
                 $evidence.observed_change_count -ne 0)){
               throw "D3 $label invalid clean report"
             }
+            $keys=Join-Path $env:RUNNER_TEMP ("d3e3-event-keys-$label.json")
+            $correlation="facad-quick-demo/d3e3-correlation-$label.json"
+            python scripts/facad_314_d3e3_same_file_correlation_gate.py --before $before --after $after --event-keys $keys --output $correlation | Out-Host
+            $correlationStatus=$LASTEXITCODE
+            if($correlationStatus -ne 0){
+              throw "D3E.3 $label local same-file correlation UNVERIFIED; clinical D3 still BLOCKED"
+            }
+            $aggregate=Get-Content -LiteralPath $correlation -Raw | ConvertFrom-Json
+            if($aggregate.schema -cne 'facad314_d3e3_same_file_aggregate_v1' -or
+               $aggregate.causal_metadata_change_proven -ne $false -or
+               $aggregate.shared_app_storage_isolation_verified -ne $false -or
+               $aggregate.clinical_edit_allowed -ne $false){
+              throw 'D3E.3 invalid aggregate or forged clearance'
+            }
+            Write-Host "D3E3_$($label.ToUpperInvariant())_SAME_FILE_OVERLAP=$($aggregate.same_file_metadata_and_4663_count)"
             Write-Host "D3_$($label.ToUpperInvariant())_OBSERVED_CHANGE_COUNT=$($evidence.observed_change_count)"
             return $evidence
+            }finally{
+              $keys=Join-Path $env:RUNNER_TEMP ("d3e3-event-keys-$label.json")
+              if(Test-Path -LiteralPath $keys){Remove-Item -LiteralPath $keys -Force -ErrorAction Stop}
+              Write-Host 'D3E3_TEMPORARY_EVENT_KEY_IDS_CLEANED=true'
+            }
           }
 
           $cold=Invoke-D3ResearchPair 'cold'
@@ -506,3 +530,5 @@ jobs:
             facad-quick-demo/d3-cold-warm-research-summary.json
             facad-quick-demo/d3e2-facad-root-pid-cold.json
             facad-quick-demo/d3e2-facad-root-pid-warm.json
+            facad-quick-demo/d3e3-correlation-cold.json
+            facad-quick-demo/d3e3-correlation-warm.json
