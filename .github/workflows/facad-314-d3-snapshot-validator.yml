@@ -19,6 +19,8 @@ on:
       - scripts/test_facad_314_d3e5_first_observed_timing_gate.py
       - scripts/facad_314_d3e6_early_window_gate.py
       - scripts/test_facad_314_d3e6_early_window_gate.py
+      - scripts/facad_314_d3e7_preflight_gate.py
+      - scripts/test_facad_314_d3e7_preflight_gate.py
       - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
       - scripts/test_facad_314_d3_storage_authority_gap_gate.py
@@ -61,6 +63,9 @@ jobs:
           grep -Fq 'D3E4_' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E5_PRIVATE_TIMELINE_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E6_PRIVATE_PRELAUNCH_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'D3E7_PRIVATE_PREFLIGHT_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'd3e7-preflight-cold.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          if grep -Fq 'facad-quick-demo/d3e7-preflight-cold.json.local' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
           grep -Fq 'd3e6-early-window-cold.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
           if grep -Fq 'facad-quick-demo/d3e6-prelaunch-' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
           if grep -Fq 'facad-quick-demo/d3e5-timeline-' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
@@ -103,6 +108,11 @@ jobs:
           python -m py_compile scripts/facad_314_d3e6_early_window_gate.py scripts/test_facad_314_d3e6_early_window_gate.py
           python -m unittest scripts/test_facad_314_d3e6_early_window_gate.py -v
           echo 'D3E6_LIVE_ROOT_PROCESS_WRITER=NOT_PROVEN_BY_THIS_JOB'
+      - name: Adversarial synthetic observer audit and SACL brackets (NO live Facad)
+        run: |
+          python -m py_compile scripts/facad_314_d3e7_preflight_gate.py scripts/test_facad_314_d3e7_preflight_gate.py
+          python -m unittest scripts/test_facad_314_d3e7_preflight_gate.py -v
+          echo 'D3E7_AUDIT_OR_SACL_CAUSALITY=NOT_PROVEN_BY_THIS_JOB'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py

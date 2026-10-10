@@ -8,6 +8,7 @@ param(
  [Parameter(Mandatory=$true)][string]$EventKeysPath,
  [Parameter(Mandatory=$true)][string]$TimelinePath,
  [Parameter(Mandatory=$true)][string]$PreLaunchPath,
+ [Parameter(Mandatory=$true)][string]$PreflightPath,
  [Parameter(Mandatory=$true)][string]$SessionId
 )
 $ErrorActionPreference='Stop'
@@ -17,7 +18,8 @@ $root=$null;$oldAcl=$null;$enabled=$false;$wasEnabled=$null;$proc=$null
 $rootPidEventKeys=@{}
 $otherPidEventKeys=@{}
 $sampledDescendantCount=0
-$timelineOut=$null;$preLaunchOut=$null;$preLaunchEntries=$null
+$timelineOut=$null;$preLaunchOut=$null;$preLaunchEntries=$null;$preflightOut=$null
+$preflightCheckpoints=New-Object 'System.Collections.Generic.List[object]'
 $checkpoints=New-Object 'System.Collections.Generic.List[object]'
 function HashRelativeName([string]$relative){
   $digest=[Security.Cryptography.SHA256]::Create()
@@ -41,6 +43,10 @@ function Get-PrivateIlexisSizeEntries {
     $entries[$key]=[long]$file.Length
   }
   return $entries
+}
+function Capture-PrivatePreflightCheckpoint([string]$stage){
+ $entries=Get-PrivateIlexisSizeEntries
+ [void]$preflightCheckpoints.Add([ordered]@{stage=$stage;entries=$entries})
 }
 function Capture-PrivateIlexisCheckpoint([string]$stage){
   $entries=Get-PrivateIlexisSizeEntries
@@ -94,6 +100,13 @@ try {
     $preLaunchOut -eq $timelineOut){
     throw 'PRELAUNCH_MANIFEST_MUST_BE_EPHEMERAL'
  }
+ $preflightOut=[IO.Path]::GetFullPath($PreflightPath)
+ if(-not $preflightOut.StartsWith($tempRoot+'\', [StringComparison]::OrdinalIgnoreCase) -or
+    [IO.Path]::GetFileName($preflightOut) -cnotmatch '^d3e7-preflight-(cold|warm)\.json$' -or
+    (Test-Path -LiteralPath $preflightOut) -or $preflightOut -eq $eventOut -or
+    $preflightOut -eq $timelineOut -or $preflightOut -eq $preLaunchOut){
+    throw 'PREFLIGHT_MANIFEST_MUST_BE_EPHEMERAL'
+ }
  if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
     [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
     [string]::IsNullOrWhiteSpace($env:APPDATA)) {throw 'RUNNER_ONLY'}
@@ -108,6 +121,7 @@ try {
  $rootInfo=Get-Item -LiteralPath $root -Force -ErrorAction Stop
  if(($rootInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'SCOPE_REPARSE_POINT'}
  $result.selected_scope_existed_before_start=$true
+ Capture-PrivatePreflightCheckpoint 'observer_entry'
  $oldAcl=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
  $saclBefore=$oldAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
  $policy=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
@@ -128,8 +142,10 @@ try {
     [Security.AccessControl.AuditFlags]::Success)
  $changed=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
  $changed.AddAuditRule($ace)
+ Capture-PrivatePreflightCheckpoint 'before_sacl_apply'
  Set-Acl -LiteralPath $root -AclObject $changed -ErrorAction Stop
  $result.scope_sacl_applied=$true
+ Capture-PrivatePreflightCheckpoint 'after_sacl_apply'
  $start=(Get-Date).AddSeconds(-1)
  # Capture size-only Ilexis snapshot before Facad root PID can exist.
  $preLaunchEntries=Get-PrivateIlexisSizeEntries
@@ -274,6 +290,24 @@ try {
        }
        $privatePre | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $preLaunchOut -Encoding utf8 -ErrorAction Stop
      }catch{$result.verdict='BLOCKED_EPHEMERAL_PRELAUNCH_UNAVAILABLE'}
+   }
+ }
+ if($result.verdict -ceq 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){
+   if($preflightCheckpoints.Count -ne 3 -or [string]::IsNullOrWhiteSpace($preflightOut)){
+     $result.verdict='BLOCKED_PREFLIGHT_CHECKPOINTS_INCOMPLETE'
+   }else{
+     try{
+       $privatePreflight=[ordered]@{
+         schema='facad314_d3e7_preflight_local_v1'
+         source='EPHEMERAL_SIZE_ONLY_OBSERVER_AUDIT_SACL_STAGES'
+         selected_scope='facad_ilexis_roaming_settings'
+         session_id=$SessionId
+         checkpoints=@($preflightCheckpoints.ToArray())
+         shared_app_storage_isolation_verified=$false
+         clinical_edit_allowed=$false
+       }
+       $privatePreflight | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $preflightOut -Encoding utf8 -ErrorAction Stop
+     }catch{$result.verdict='BLOCKED_EPHEMERAL_PREFLIGHT_UNAVAILABLE'}
    }
  }
  $parent=Split-Path -Parent $OutputPath

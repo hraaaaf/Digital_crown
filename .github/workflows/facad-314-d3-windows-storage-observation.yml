@@ -15,6 +15,8 @@ on:
       - scripts/test_facad_314_d3e4_unattributed_classification_gate.py
       - scripts/facad_314_d3e5_first_observed_timing_gate.py
       - scripts/facad_314_d3e6_early_window_gate.py
+      - scripts/facad_314_d3e7_preflight_gate.py
+      - scripts/test_facad_314_d3e7_preflight_gate.py
       - scripts/test_facad_314_d3e6_early_window_gate.py
       - scripts/test_facad_314_d3e5_first_observed_timing_gate.py
       - scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
@@ -50,7 +52,7 @@ jobs:
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
-          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/facad_314_d3e5_first_observed_timing_gate.py scripts/facad_314_d3e6_early_window_gate.py
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/facad_314_d3e5_first_observed_timing_gate.py scripts/facad_314_d3e6_early_window_gate.py scripts/facad_314_d3e7_preflight_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -423,8 +425,9 @@ jobs:
             $eventOut=Join-Path $env:RUNNER_TEMP ("d3e3-event-keys-$label.json")
             $timelineManifest=Join-Path $env:RUNNER_TEMP ("d3e5-timeline-$label.json")
             $preLaunchManifest=Join-Path $env:RUNNER_TEMP ("d3e6-prelaunch-$label.json")
+            $preflightManifest=Join-Path $env:RUNNER_TEMP ("d3e7-preflight-$label.json")
             $auditScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1'
-            & $auditScript -FacadExecutable $installed.FullName -DisposableRobert $copy -ProcessCounterScript $processScript -ProcessCounterOutput (Join-Path $env:GITHUB_WORKSPACE $processOut) -OutputPath (Join-Path $env:GITHUB_WORKSPACE $auditOut) -EventKeysPath $eventOut -TimelinePath $timelineManifest -PreLaunchPath $preLaunchManifest -SessionId "$session-$label"
+            & $auditScript -FacadExecutable $installed.FullName -DisposableRobert $copy -ProcessCounterScript $processScript -ProcessCounterOutput (Join-Path $env:GITHUB_WORKSPACE $processOut) -OutputPath (Join-Path $env:GITHUB_WORKSPACE $auditOut) -EventKeysPath $eventOut -TimelinePath $timelineManifest -PreLaunchPath $preLaunchManifest -PreflightPath $preflightManifest -SessionId "$session-$label"
             $auditStatus=$LASTEXITCODE
             python scripts/facad_314_d3e_facad_root_pid_verdict_gate.py --input $auditOut | Out-Host
             $contractStatus=$LASTEXITCODE
@@ -533,6 +536,20 @@ jobs:
               throw 'D3E.6 early-window count mismatch or forged isolation claim'
             }
             Write-Host "D3E6_$($label.ToUpperInvariant())_EARLY_WINDOW_VERDICT=$($early.verdict)"
+            $preflightManifest=Join-Path $env:RUNNER_TEMP ("d3e7-preflight-$label.json")
+            $preflightAggregate="facad-quick-demo/d3e7-preflight-$label.json"
+            python scripts/facad_314_d3e7_preflight_gate.py --before $before --after $after --event-keys $keys --timeline $timelineManifest --classification $classification --timing $timingAggregate --prelaunch $preLaunchManifest --early-window $earlyAggregate --preflight $preflightManifest --output $preflightAggregate | Out-Host
+            if($LASTEXITCODE -ne 0){throw "D3E.7 $label preflight evidence incomplete; D3 still BLOCKED"}
+            $preflight=Get-Content -LiteralPath $preflightAggregate -Raw | ConvertFrom-Json
+            if($preflight.schema -cne 'facad314_d3e7_preflight_aggregate_v1' -or
+               $preflight.unattributed_modified_size_changed_count -ne $class.unexplained_modified_size_changed_count -or
+               $preflight.shared_app_storage_isolation_verified -ne $false -or
+               $preflight.clinical_edit_allowed -ne $false -or
+               $preflight.audit_policy_or_sacl_causality_proven -ne $false -or
+               $preflight.file_identity_or_metadata_exported -ne $false){
+              throw 'D3E.7 preflight aggregate inconsistent or forged isolation claim'
+            }
+            Write-Host "D3E7_$($label.ToUpperInvariant())_PREFLIGHT_VERDICT=$($preflight.verdict)"
             Write-Host "D3_$($label.ToUpperInvariant())_OBSERVED_CHANGE_COUNT=$($evidence.observed_change_count)"
             return $evidence
             }finally{
@@ -544,6 +561,9 @@ jobs:
               $preLaunchManifest=Join-Path $env:RUNNER_TEMP ("d3e6-prelaunch-$label.json")
               if(Test-Path -LiteralPath $preLaunchManifest){Remove-Item -LiteralPath $preLaunchManifest -Force -ErrorAction Stop}
               Write-Host 'D3E6_PRIVATE_PRELAUNCH_CLEANED=true'
+              $preflightManifest=Join-Path $env:RUNNER_TEMP ("d3e7-preflight-$label.json")
+              if(Test-Path -LiteralPath $preflightManifest){Remove-Item -LiteralPath $preflightManifest -Force -ErrorAction Stop}
+              Write-Host 'D3E7_PRIVATE_PREFLIGHT_CLEANED=true'
               Write-Host 'D3E3_TEMPORARY_EVENT_KEY_IDS_CLEANED=true'
             }
           }
@@ -599,3 +619,5 @@ jobs:
             facad-quick-demo/d3e5-timing-warm.json
             facad-quick-demo/d3e6-early-window-cold.json
             facad-quick-demo/d3e6-early-window-warm.json
+            facad-quick-demo/d3e7-preflight-cold.json
+            facad-quick-demo/d3e7-preflight-warm.json
