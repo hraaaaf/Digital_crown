@@ -33,6 +33,10 @@ on:
       - scripts/facad_314_d3e12_etw_feasibility.ps1
       - scripts/facad_314_d3e12_etw_gate.py
       - scripts/test_facad_314_d3e12_etw_gate.py
+      - scripts/facad_314_d3e13_capture_readiness_gate.py
+      - scripts/test_facad_314_d3e13_capture_readiness_gate.py
+      - docs/audits/FACAD_314_D3E13_CAPTURE_READINESS_CONTRACT.json
+      - docs/audits/FACAD_314_D3E13_PRE_CAPTURE_SECURITY_REVIEW_2026-10-10.md
       - .github/workflows/facad-314-d3e12-etw-feasibility.yml
       - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
@@ -87,6 +91,10 @@ jobs:
           grep -Fq 'D3E12_RAW_TRACE_CLEANED=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'tracerpt.exe' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_ETW_DECODER=' scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq 'D3E13_DESIGN_ONLY_CAPTURE_BLOCKED' docs/audits/FACAD_314_D3E13_CAPTURE_READINESS_CONTRACT.json
+          grep -Fq 'DESIGN ONLY / LIVE CAPTURE BLOCKED' docs/audits/FACAD_314_D3E13_PRE_CAPTURE_SECURITY_REVIEW_2026-10-10.md
+          grep -Fq 'FAC03_D3=OPEN_RED' scripts/facad_314_d3e13_capture_readiness_gate.py
+          grep -Fq 'D3E13_CAPTURE_AUTHORIZED=false' scripts/facad_314_d3e13_capture_readiness_gate.py
           grep -Fq 'D3E12_DIRECT_ETL_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_TRACERPT_EVTX_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_XML_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
@@ -199,6 +207,14 @@ jobs:
           python -m unittest scripts/test_facad_314_d3e12_etw_gate.py -v
           echo 'D3E12_ETW_SYNTHETIC_ONLY=true'
           echo 'D3E12_ILEXIS_WRITER_IDENTIFIED=false'
+      - name: D3E13 review-only capture readiness contract, NEVER live ETW (SOURCE ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3e13_capture_readiness_gate.py scripts/test_facad_314_d3e13_capture_readiness_gate.py
+          python -m unittest scripts/test_facad_314_d3e13_capture_readiness_gate.py -v
+          python scripts/facad_314_d3e13_capture_readiness_gate.py --contract docs/audits/FACAD_314_D3E13_CAPTURE_READINESS_CONTRACT.json --repo-root .
+          echo 'D3E13_REAL_QUICKDEMO_CAPTURE_PERFORMED=false'
+          echo 'D3E13_CAPTURE_AUTHORIZED=false'
+          echo 'FAC03_D3=OPEN_RED'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py
