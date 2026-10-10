@@ -18,14 +18,14 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 35
     env:
-      EXPECTED_MASTER: f61d0c90eb46fc2ac07d9873e35559df07090afe
+      EXPECTED_MASTER: 9c41d327400b8c41d8541517603d84bf9fdf9c23
       SOURCE_RUN_ID: "34281082926"
       MODEL_SHA256: a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb
       MODEL_BYTES: "267484931"
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: f61d0c90eb46fc2ac07d9873e35559df07090afe
+          ref: 9c41d327400b8c41d8541517603d84bf9fdf9c23
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -154,7 +154,7 @@ jobs:
       - name: Publish hash-only preflight evidence, never publish duplicate model
         uses: actions/upload-artifact@v4
         with:
-          name: fue-g04-windows-pinned-srpose-preflight-f61d0c90
+          name: fue-g04-windows-pinned-srpose-preflight-9c41d327
           path: ${{ runner.temp }}/fue-g04-model-source-evidence.json
           if-no-files-found: error
           retention-days: 30
