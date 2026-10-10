@@ -30,6 +30,10 @@ on:
       - scripts/test_facad_314_d3e10_provenance_gate.py
       - scripts/facad_314_d3e11_observation_gate.py
       - scripts/test_facad_314_d3e11_observation_gate.py
+      - scripts/facad_314_d3e12_etw_feasibility.ps1
+      - scripts/facad_314_d3e12_etw_gate.py
+      - scripts/test_facad_314_d3e12_etw_gate.py
+      - .github/workflows/facad-314-d3e12-etw-feasibility.yml
       - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
       - scripts/test_facad_314_d3_storage_authority_gap_gate.py
@@ -79,6 +83,12 @@ jobs:
           grep -Fq 'D3E9_MATCHED_COUNTERFACTUAL_PROVEN=false' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E10_ARM_VERDICT=' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E11_ARM_VERDICT=' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'Microsoft-Windows-Kernel-File' scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq 'D3E12_RAW_TRACE_CLEANED=' scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq 'D3E12_REAL_ILEXIS_TRACE_CAPTURED=false' .github/workflows/facad-314-d3e12-etw-feasibility.yml
+          grep -Fq 'facad-d3e12-synthetic-etw' .github/workflows/facad-314-d3e12-etw-feasibility.yml
+          if grep -Fq 'local-trace.etl' .github/workflows/facad-314-d3e12-etw-feasibility.yml; then exit 1; fi
+          if grep -Fq 'patient' .github/workflows/facad-314-d3e12-etw-feasibility.yml; then exit 1; fi
           grep -Fq 'D3E11_WRITER_PID_PROVEN=false' scripts/facad_314_d3e9_independent_arm.ps1
           grep -Fq 'Register-ObjectEvent -InputObject $watcher -EventName Error' scripts/facad_314_d3e9_independent_arm.ps1
           grep -Fq 'Get-Acl -LiteralPath $postPaths[$key] -Audit' scripts/facad_314_d3e9_independent_arm.ps1
@@ -170,6 +180,12 @@ jobs:
           python -m unittest scripts/test_facad_314_d3e11_observation_gate.py -v
           echo 'D3E11_FILE_NOTIFICATION_NOT_WRITER_CAUSALITY=true'
           echo 'D3E11_CLINICAL_EDIT_ALLOWED=false'
+      - name: D3E12 synthetic ETW feasibility adversarial gate (SOURCE ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3e12_etw_gate.py scripts/test_facad_314_d3e12_etw_gate.py
+          python -m unittest scripts/test_facad_314_d3e12_etw_gate.py -v
+          echo 'D3E12_ETW_SYNTHETIC_ONLY=true'
+          echo 'D3E12_ILEXIS_WRITER_IDENTIFIED=false'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py

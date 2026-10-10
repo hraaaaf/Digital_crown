@@ -1,0 +1,192 @@
+"""D3E12 ETW synthetic feasibility: adversarial schema and false-claim tests."""
+import importlib.util
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location("d3e12", HERE / "facad_314_d3e12_etw_gate.py")
+gate = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gate)
+
+
+def sample():
+    return {
+        "schema": "facad314_d3e12_synthetic_kernel_file_etw_v1",
+        "source": "WINDOWS_EPHEMERAL_SYNTHETIC_FILE_ONLY",
+        "provider": "Microsoft-Windows-Kernel-File",
+        "provider_discovered": True,
+        "trace_started": True,
+        "trace_stopped": True,
+        "synthetic_write_verified": True,
+        "etl_query_status": "events_returned",
+        "etl_events_parsed": True,
+        "etl_event_count": 10,
+        "synthetic_file_matched_write_event_count": 1,
+        "synthetic_writer_pid_matched_write_event_count": 1,
+        "other_or_unknown_pid_matched_write_event_count": 0,
+        "raw_trace_and_worker_deleted": True,
+        "raw_etl_exported": False,
+        "private_file_identity_exported": False,
+        "process_pid_exported": False,
+        "clinical_file_touched": False,
+        "actual_ilexis_writer_identified": False,
+        "file_write_completion_proven": False,
+        "complete_etw_delivery_proven": False,
+        "shared_app_storage_isolation_verified": False,
+        "clinical_edit_allowed": False,
+        "verdict": "SYNTHETIC_ETW_FEASIBILITY_NOT_ILEXIS_CAUSALITY",
+    }
+
+
+class FeasibilityTests(unittest.TestCase):
+    def setUp(self):
+        self.x = sample()
+
+    def go(self):
+        return gate.validate(self.x)
+
+    def bad(self):
+        with self.assertRaises(gate.InvalidD3E12):
+            self.go()
+
+    def test_positive_synthetic_only(self):
+        out = self.go()
+        self.assertTrue(out["bounded_synthetic_pid_link_observed"])
+        self.assertFalse(out["actual_ilexis_writer_identified"])
+
+    def test_no_matching_event_remains_unverified(self):
+        self.x.update(etl_query_status="no_matching_events", etl_events_parsed=False,
+                      etl_event_count=0, synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0)
+        self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
+
+    def test_query_error_remains_unverified(self):
+        self.x.update(etl_query_status="query_error", etl_events_parsed=False,
+                      etl_event_count=0, synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0)
+        self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
+
+    def test_provider_unavailable_supported_as_unverified(self):
+        self.x.update(provider_discovered=False, trace_started=False,
+                      trace_stopped=False, synthetic_write_verified=False,
+                      etl_query_status="unavailable", etl_events_parsed=False,
+                      etl_event_count=0, synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0)
+        self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
+
+    def test_other_pid_does_not_prove_writer(self):
+        self.x["synthetic_writer_pid_matched_write_event_count"] = 0
+        self.x["other_or_unknown_pid_matched_write_event_count"] = 1
+        self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
+
+    def test_missing_raw_cleanup_rejected(self):
+        self.x["raw_trace_and_worker_deleted"] = False
+        self.bad()
+
+    def test_mismatched_event_sum_rejected(self):
+        self.x["other_or_unknown_pid_matched_write_event_count"] = 1
+        self.bad()
+
+    def test_pid_matches_exceed_matched_file_rejected(self):
+        self.x["synthetic_writer_pid_matched_write_event_count"] = 2
+        self.bad()
+
+    def test_match_exceeds_total_rejected(self):
+        self.x["etl_event_count"] = 0
+        self.bad()
+
+    def test_trace_started_without_stop_rejected(self):
+        self.x["trace_stopped"] = False
+        self.bad()
+
+    def test_trace_started_without_provider_rejected(self):
+        self.x["provider_discovered"] = False
+        self.bad()
+
+    def test_synthetic_write_outside_trace_rejected(self):
+        self.x["trace_started"] = False
+        self.bad()
+
+    def test_match_without_write_rejected(self):
+        self.x["synthetic_write_verified"] = False
+        self.bad()
+
+    def test_query_status_vs_parse_flag_rejected(self):
+        self.x["etl_query_status"] = "query_error"
+        self.bad()
+
+    def test_bad_query_status_rejected(self):
+        self.x["etl_query_status"] = "safe_to_edit"
+        self.bad()
+
+    def test_forged_sensitive_claims_rejected(self):
+        for field in (
+            "raw_etl_exported", "private_file_identity_exported", "process_pid_exported",
+            "clinical_file_touched", "actual_ilexis_writer_identified",
+            "file_write_completion_proven", "complete_etw_delivery_proven",
+            "shared_app_storage_isolation_verified", "clinical_edit_allowed",
+        ):
+            with self.subTest(field=field):
+                self.x[field] = True
+                self.bad()
+                self.x[field] = False
+
+    def test_extra_path_rejected(self):
+        self.x["private_file_path"] = "secret"
+        self.bad()
+
+    def test_extra_pid_rejected(self):
+        self.x["writer_pid"] = 1234
+        self.bad()
+
+    def test_boolean_as_count_rejected(self):
+        self.x["etl_event_count"] = True
+        self.bad()
+
+    def test_negative_and_large_counts_rejected(self):
+        for n in (-1, 20001, "1"):
+            with self.subTest(value=n):
+                self.x["etl_event_count"] = n
+                self.bad()
+                self.x = sample()
+
+    def test_wrong_source_rejected(self):
+        self.x["source"] = "REAL_PATIENT"
+        self.bad()
+
+    def test_wrong_provider_rejected(self):
+        self.x["provider"] = "untrusted"
+        self.bad()
+
+    def test_wrong_verdict_rejected(self):
+        self.x["verdict"] = "ISOLATION_VERIFIED"
+        self.bad()
+
+    def test_cli_success_no_private_info(self):
+        with tempfile.TemporaryDirectory() as d:
+            inp = Path(d) / "in.json"; out = Path(d) / "out.json"
+            inp.write_text(json.dumps(self.x), encoding="utf8")
+            p = subprocess.run([sys.executable, str(HERE/"facad_314_d3e12_etw_gate.py"),
+                                "--input", str(inp), "--output", str(out)],
+                               capture_output=True, text=True)
+            self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+            result = json.loads(out.read_text())
+            self.assertFalse(result["actual_ilexis_writer_identified"])
+            self.assertNotIn("process_pid_exported", result)
+
+    def test_cli_missing_input_fails_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = subprocess.run([sys.executable, str(HERE/"facad_314_d3e12_etw_gate.py"),
+                                "--input", str(Path(d)/"missing"), "--output", str(Path(d)/"out")],
+                               capture_output=True, text=True)
+            self.assertEqual(p.returncode, 2)
+            self.assertIn("CLINICAL_EDIT_ALLOWED=false", p.stdout)
+            self.assertNotIn("Traceback", p.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

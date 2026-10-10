@@ -1,0 +1,74 @@
+name: Facad D3E12 synthetic kernel File ETW feasibility (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - feat/cephalo-facad-direct-parity-runtime-probe
+    paths:
+      - .github/workflows/facad-314-d3e12-etw-feasibility.yml
+      - scripts/facad_314_d3e12_etw_feasibility.ps1
+      - scripts/facad_314_d3e12_etw_gate.py
+      - scripts/test_facad_314_d3e12_etw_gate.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-ephemeral-synthetic-etw:
+    name: EXPERIMENTAL ETW synthetic sentinel only - NOT Facad D3 clearance
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove exact SHA and PowerShell syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'HEAD_MISMATCH'}
+          Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
+          $tokens=$null
+          $errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/facad_314_d3e12_etw_feasibility.ps1').Path,
+            [ref]$tokens,[ref]$errors)
+          if($errors.Count){throw 'D3E12_COLLECTOR_POWERSHELL_PARSE_FAILURE'}
+          python -m py_compile scripts/facad_314_d3e12_etw_gate.py
+          if($LASTEXITCODE -ne 0){throw 'D3E12_PYTHON_PARSE_FAILURE'}
+          Write-Host 'D3E12_POWERSHELL_PARSE_PASSED=true'
+      - name: Observe Kernel File ETW ONLY for synthetic worker
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $probe=(Resolve-Path 'scripts/facad_314_d3e12_etw_feasibility.ps1').Path
+          $aggregate=Join-Path $env:GITHUB_WORKSPACE 'd3e12-etw-feasibility.json'
+          $checked=Join-Path $env:GITHUB_WORKSPACE 'd3e12-etw-checked.json'
+          & $probe -OutputPath $aggregate
+          if($LASTEXITCODE -ne 0){throw 'D3E12_LOCAL_ETW_PROBE_OR_CLEANUP_FAILED'}
+          python scripts/facad_314_d3e12_etw_gate.py --input $aggregate --output $checked | Out-Host
+          if($LASTEXITCODE -ne 0){throw 'D3E12_LOCAL_ETW_AGGREGATE_INVALID'}
+          $result=Get-Content -LiteralPath $checked -Raw | ConvertFrom-Json
+          if($result.actual_ilexis_writer_identified -ne $false -or
+             $result.clinical_edit_allowed -ne $false -or
+             $result.shared_app_storage_isolation_verified -ne $false -or
+             $result.complete_etw_delivery_proven -ne $false -or
+             $result.raw_trace_and_worker_deleted -ne $true){
+            throw 'D3E12_FORGED_CLINICAL_OR_PRIVACY_CLAIM'
+          }
+          Write-Host "D3E12_ETW_SYNTHETIC_FEASIBILITY=$($result.verdict)"
+          Write-Host 'D3E12_REAL_ILEXIS_TRACE_CAPTURED=false'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+      - name: Upload ONLY safe synthetic aggregate metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e12-synthetic-etw
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            d3e12-etw-feasibility.json
+            d3e12-etw-checked.json
