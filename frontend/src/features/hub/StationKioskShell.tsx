@@ -175,20 +175,20 @@ export const StationKioskShell = ({
           </div>
 
           {screen === 'home' ? (
-            <div className="mt-8 grid gap-3 sm:mt-10 sm:grid-cols-3 sm:gap-4">
+            <div className="mt-8 grid gap-3 sm:mt-10 lg:grid-cols-2 xl:grid-cols-3 sm:gap-4">
               {ACTIONS.map(({ id, icon: Icon, title, hint }) => (
                 <button
                   key={id}
                   type="button"
                   data-station-action={id}
                   onClick={() => setScreen(id)}
-                  className="group min-h-40 rounded-elite-lg border border-border-main bg-card-bg p-5 text-start shadow-elite transition-elite motion-reduce:transition-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 hover:border-primary/30 hover:shadow-elite-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-48 sm:p-6"
+                  className="group min-h-40 min-w-0 rounded-elite-lg border border-border-main bg-card-bg p-5 text-start shadow-elite transition-elite motion-reduce:transition-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 hover:border-primary/30 hover:shadow-elite-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-48 sm:p-6"
                 >
                   <span className="flex h-12 w-12 items-center justify-center rounded-elite-sm bg-primary/10 text-primary">
                     <Icon size={24} aria-hidden="true" />
                   </span>
-                  <span className="mt-5 block font-outfit text-lg font-black tracking-tight sm:text-xl">{copy[title]}</span>
-                  <span className="mt-2 block text-sm font-semibold leading-relaxed text-text-muted">{copy[hint]}</span>
+                  <span className="mt-5 block min-w-0 [overflow-wrap:anywhere] font-outfit text-lg font-black tracking-tight sm:text-xl">{copy[title]}</span>
+                  <span className="mt-2 block min-w-0 [overflow-wrap:anywhere] text-sm font-semibold leading-relaxed text-text-muted">{copy[hint]}</span>
                 </button>
               ))}
             </div>

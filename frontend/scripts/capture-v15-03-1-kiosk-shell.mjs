@@ -29,6 +29,11 @@ const scales = [
   { label: 'normal', rootFontSize: null },
   { label: 'text200', rootFontSize: '200%' },
 ];
+const languages = [
+  { code: 'fr', button: 'Français', heading: 'Bienvenue au cabinet', dir: 'ltr' },
+  { code: 'ar', button: 'العربية', heading: 'مرحباً بكم في العيادة', dir: 'rtl' },
+  { code: 'en', button: 'English', heading: 'Welcome to the clinic', dir: 'ltr' },
+];
 
 const browser = await chromium.launch({ headless: true });
 const report = [];
@@ -64,31 +69,71 @@ try {
         await page.waitForTimeout(100);
       }
 
-      const meta = await page.evaluate(() => ({
-        width: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-        height: document.documentElement.clientHeight,
-        scrollHeight: document.documentElement.scrollHeight,
-        stationVisible: Boolean(document.querySelector('[data-workstation-experience="station"]')),
-        clinicalLinks: Array.from(document.querySelectorAll('a')).filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || '')).map(a => a.getAttribute('href')),
-        h1: document.querySelector('h1')?.textContent || '',
-      }));
+      for (const language of languages) {
+        // Exercise the actual public language buttons. Never inject dir/lang.
+        await page.getByRole('button', { name: language.button, exact: true }).click();
+        const meta = await page.evaluate(() => {
+          const shell = document.querySelector('[data-workstation-experience="station"]');
+          const touchTargets = [...document.querySelectorAll(
+            '[data-station-action], button[aria-pressed], button[aria-label="Digital Crown"]',
+          )];
+          return {
+            width: document.documentElement.clientWidth,
+            scrollWidth: document.documentElement.scrollWidth,
+            height: document.documentElement.clientHeight,
+            scrollHeight: document.documentElement.scrollHeight,
+            stationVisible: Boolean(shell),
+            screen: shell?.getAttribute('data-station-screen') || null,
+            language: shell?.getAttribute('data-station-language') || null,
+            lang: shell?.getAttribute('lang') || null,
+            dir: shell?.getAttribute('dir') || null,
+            selectedLanguages: [...document.querySelectorAll('button[aria-pressed="true"]')]
+              .map(node => node.getAttribute('aria-label')),
+            tooSmallTargets: touchTargets.flatMap(node => {
+              const rect = node.getBoundingClientRect();
+              return rect.width < 44 || rect.height < 44
+                ? [{ label: node.getAttribute('aria-label') || node.textContent?.trim(), width: rect.width, height: rect.height }]
+                : [];
+            }),
+            cardTextOverflow: [...document.querySelectorAll('[data-station-action]')].flatMap(card => {
+              const cardBox = card.getBoundingClientRect();
+              return [...card.querySelectorAll('span.block')].flatMap(node => {
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                const protrudes = [...range.getClientRects()].some(line =>
+                  line.left < cardBox.left - 1 || line.right > cardBox.right + 1
+                );
+                return protrudes || node.scrollWidth > node.clientWidth + 1
+                  ? [{ action: card.getAttribute('data-station-action'), text: node.textContent?.trim(), protrudes }]
+                  : [];
+              });
+            }),
+            clinicalLinks: [...document.querySelectorAll('a')]
+              .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
+              .map(a => a.getAttribute('href')),
+            h1: document.querySelector('h1')?.textContent || '',
+          };
+        });
 
-      const filename = `${phase}-station-${vp.label}-${scale.label}.png`;
-      await page.screenshot({
-        path: path.join(out, filename),
-        fullPage: true,
-        animations: 'disabled',
-      });
-
-      report.push({
-        phase,
-        viewport: vp.label,
-        scale: scale.label,
-        filename,
-        ...meta,
-        errors,
-      });
+        const filename = `${phase}-station-${vp.label}-${scale.label}-${language.code}.png`;
+        await page.screenshot({
+          path: path.join(out, filename),
+          fullPage: true,
+          animations: 'disabled',
+        });
+        report.push({
+          phase,
+          viewport: vp.label,
+          scale: scale.label,
+          expectedLanguage: language.code,
+          expectedDir: language.dir,
+          expectedHeading: language.heading,
+          expectedButton: language.button,
+          filename,
+          ...meta,
+          errors: [...errors],
+        });
+      }
       await context.close();
     }
   }
@@ -106,6 +151,15 @@ await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, nul
 
 const failures = report.filter(item =>
   !item.stationVisible ||
+  item.screen !== 'home' ||
+  item.language !== item.expectedLanguage ||
+  item.lang !== item.expectedLanguage ||
+  item.dir !== item.expectedDir ||
+  item.h1 !== item.expectedHeading ||
+  item.selectedLanguages.length !== 1 ||
+  item.selectedLanguages[0] !== item.expectedButton ||
+  item.tooSmallTargets.length > 0 ||
+  item.cardTextOverflow.length > 0 ||
   item.scrollWidth > item.width ||
   item.clinicalLinks.length > 0 ||
   item.errors.length > 0
