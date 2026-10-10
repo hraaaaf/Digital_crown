@@ -4,12 +4,22 @@ param(
  [Parameter(Mandatory=$true)][string]$DisposableRobert,
  [Parameter(Mandatory=$true)][string]$ProcessCounterScript,
  [Parameter(Mandatory=$true)][string]$ProcessCounterOutput,
- [Parameter(Mandatory=$true)][string]$OutputPath
+ [Parameter(Mandatory=$true)][string]$OutputPath,
+ [Parameter(Mandatory=$true)][string]$EventKeysPath,
+ [Parameter(Mandatory=$true)][string]$SessionId
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $guid='{0CCE921D-69AE-11D9-BED3-505054503030}'
 $root=$null;$oldAcl=$null;$enabled=$false;$wasEnabled=$null;$proc=$null
+$rootPidEventKeys=@{}
+function HashRelativeName([string]$relative){
+  $digest=[Security.Cryptography.SHA256]::Create()
+  try{
+    $bytes=[Text.Encoding]::UTF8.GetBytes($relative.ToLowerInvariant())
+    return [Convert]::ToHexString($digest.ComputeHash($bytes)).ToLowerInvariant()
+  }finally{$digest.Dispose()}
+}
 $result=[ordered]@{
  schema='facad314_d3e_root_pid_write_v1'
  source='EPHEMERAL_OFFICIAL_ROBERT_STARTUP_ONLY'
@@ -38,6 +48,282 @@ $result=[ordered]@{
  verdict='BLOCKED_AUDIT_NOT_STARTED'
 }
 try {
+ if($SessionId -notmatch '^[A-Za-z0-9_-]{1,128}
+    [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
+    [string]::IsNullOrWhiteSpace($env:APPDATA)) {throw 'RUNNER_ONLY'}
+ if([IO.Path]::GetFileName($FacadExecutable) -cne 'Facad.exe' -or
+    -not (Test-Path -LiteralPath $FacadExecutable -PathType Leaf)) {throw 'EXE_GUARD'}
+ if([IO.Path]::GetFileName($DisposableRobert) -cne 'Robert-2.0.fcd' -or
+    -not (Test-Path -LiteralPath $DisposableRobert -PathType Leaf)) {throw 'DEMO_GUARD'}
+ $root=[IO.Path]::GetFullPath((Join-Path $env:APPDATA 'Ilexis')).TrimEnd('\')
+ if(-not (Test-Path -LiteralPath $root -PathType Container)) {throw 'SCOPE_ABSENT'}
+ if($root.Length -lt 4 -or $root[1] -cne ':' -or
+    -not $root.EndsWith('\AppData\Roaming\Ilexis',[StringComparison]::OrdinalIgnoreCase)) {throw 'SCOPE_PATH_GUARD'}
+ $rootInfo=Get-Item -LiteralPath $root -Force -ErrorAction Stop
+ if(($rootInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'SCOPE_REPARSE_POINT'}
+ $result.selected_scope_existed_before_start=$true
+ $oldAcl=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+ $saclBefore=$oldAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
+ $policy=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
+ if($LASTEXITCODE -ne 0 -or $policy.Count -lt 2){throw 'POLICY_UNAVAILABLE'}
+ $wasEnabled=([string]($policy | Select-Object -Last 1) -match 'Success')
+ & auditpol.exe /set "/subcategory:$guid" '/success:enable' >$null 2>$null
+ if($LASTEXITCODE -ne 0){throw 'POLICY_ENABLE_FAILED'}
+ $enabled=$true;$result.audit_policy_success_enabled=$true
+ $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
+ $rights=[Security.AccessControl.FileSystemRights]::WriteData -bor
+         [Security.AccessControl.FileSystemRights]::AppendData -bor
+         [Security.AccessControl.FileSystemRights]::WriteAttributes -bor
+         [Security.AccessControl.FileSystemRights]::Delete
+ $inherit=[Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+          [Security.AccessControl.InheritanceFlags]::ObjectInherit
+ $ace=[Security.AccessControl.FileSystemAuditRule]::new($sid,$rights,$inherit,
+    [Security.AccessControl.PropagationFlags]::None,
+    [Security.AccessControl.AuditFlags]::Success)
+ $changed=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+ $changed.AddAuditRule($ace)
+ Set-Acl -LiteralPath $root -AclObject $changed -ErrorAction Stop
+ $result.scope_sacl_applied=$true
+ $start=(Get-Date).AddSeconds(-1)
+ $proc=Start-Process -FilePath $FacadExecutable -ArgumentList ('"'+$DisposableRobert+'"') -WorkingDirectory (Split-Path -Parent $FacadExecutable) -PassThru -ErrorAction Stop
+ Start-Sleep -Seconds 3
+ if($proc.HasExited){throw 'EARLY_EXIT'}
+ & $ProcessCounterScript -TargetPid $proc.Id -DurationSeconds 6 -OutputPath $ProcessCounterOutput
+ $counter=Get-Content -LiteralPath $ProcessCounterOutput -Raw | ConvertFrom-Json
+ if($counter.schema -cne 'facad314_d3_process_io_v1' -or $counter.sample_count -ne 12 -or
+    $counter.path_attribution_available -ne $false -or $counter.clinical_edit_allowed -ne $false) {throw 'COUNTERS_INVALID'}
+ $result.process_counter_samples=[int]$counter.sample_count
+ Start-Sleep -Seconds 6
+ if($proc.HasExited){throw 'EARLY_EXIT_AFTER_OBSERVATION'}
+ $result.process_root_alive_during_observation=$true
+ Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+ Start-Sleep -Seconds 3
+ # Require full profile-relative Ilexis suffix. Never match bare Ilexis.
+ $suffix=$root.Substring(2)
+ $records=@(Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 4000 -ErrorAction Stop)
+ if($records.Count -ge 4000){throw 'AUDIT_CAP'}
+ $result.queried_event_count=$records.Count
+ foreach($event in $records){
+   [xml]$xml=$event.ToXml();$fields=@{}
+   foreach($field in $xml.Event.EventData.Data){$fields[[string]$field.Name]=[string]$field.'#text'}
+   if($fields['ObjectType'] -cne 'File' -or -not $fields['ObjectName'] -or
+      -not $fields['ProcessId'] -or -not $fields['AccessMask']){continue}
+   $pathText=[string]$fields['ObjectName']
+   $inside=($pathText.EndsWith($suffix,[StringComparison]::OrdinalIgnoreCase) -or
+            $pathText.IndexOf($suffix+'\', [StringComparison]::OrdinalIgnoreCase) -ge 0)
+   if(-not $inside){continue}
+   $mask=[Convert]::ToInt64(($fields['AccessMask'] -replace '^0x',''),16)
+   if(($mask -band 0x10106) -eq 0){continue}
+   $result.scoped_file_write_event_count++
+   $id=[Convert]::ToInt32(($fields['ProcessId'] -replace '^0x',''),16)
+   if($id -eq $proc.Id){
+     $result.facad_root_pid_write_event_count++
+     # Native NT/drive prefixes differ. Only take the relative suffix
+     # under the already-validated exact profile-specific Ilexis root.
+     $where=$pathText.IndexOf($suffix+'\',[StringComparison]::OrdinalIgnoreCase)
+     if($where -lt 0){continue}
+     $relative=$pathText.Substring($where+$suffix.Length+1)
+     if($relative -and
+        -not (@($relative.Split('\') | Where-Object {$_ -eq '..' -or $_ -eq '.'}).Count) -and
+        $relative.Length -le 4096){
+       $rootPidEventKeys[(HashRelativeName $relative)]=$true
+     }
+   }else {$result.other_process_pid_write_event_count++}
+ }
+ $result.verdict=if($result.facad_root_pid_write_event_count -gt 0){
+   'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'
+ } else {'BLOCKED_NO_FACAD_ROOT_PID_WRITE_EVENT'}
+} catch {
+ # Never print exception content, raw Security XML, paths, or PID.
+ $result.verdict='BLOCKED_INCOMPLETE_OR_UNAVAILABLE_4663_EVIDENCE'
+} finally {
+ if($null -ne $proc -and -not $proc.HasExited){
+   try{Stop-Process -Id $proc.Id -Force -ErrorAction Stop}catch{$result.verdict='BLOCKED_PROCESS_STOP_FAILED'}
+ }
+ if($null -ne $oldAcl -and $null -ne $root){
+   try{
+     Set-Acl -LiteralPath $root -AclObject $oldAcl -ErrorAction Stop
+     $readback=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+     $saclAfter=$readback.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
+     if($saclBefore -cne $saclAfter){throw 'SACL_RESTORATION_MISMATCH'}
+     $result.scope_sacl_restored=$true
+   }
+   catch{$result.verdict='BLOCKED_SACL_RESTORE_FAILED'}
+ }
+ if($enabled){
+   if($wasEnabled -eq $false){
+     try{
+       & auditpol.exe /set "/subcategory:$guid" '/success:disable' >$null 2>$null
+       if($LASTEXITCODE -ne 0){throw 'RESTORE_FAILED'}
+       $policyAfter=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
+       if($LASTEXITCODE -ne 0 -or $policyAfter.Count -lt 2 -or
+          ([string]($policyAfter | Select-Object -Last 1) -match 'Success')){throw 'POLICY_RESTORATION_MISMATCH'}
+       $result.audit_policy_restored=$true
+     }catch{$result.verdict='BLOCKED_AUDIT_POLICY_RESTORE_FAILED'}
+   }elseif($wasEnabled -eq $true){$result.audit_policy_restored=$true}
+   else{$result.verdict='BLOCKED_UNKNOWN_INITIAL_POLICY'}
+ }
+ if(-not $result.scope_sacl_restored -or -not $result.audit_policy_restored){
+   $result.verdict='BLOCKED_RESTORATION_NOT_PROVEN'
+ }
+ if($result.verdict -ceq 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){
+   try{
+     $ephemeral=[ordered]@{
+       schema='facad314_d3e3_event_ids_v1'
+       source='EPHEMERAL_FACAD_ROOT_PID_4663_KEYS_LOCAL_ONLY'
+       selected_scope='facad_ilexis_roaming_settings'
+       session_id=$SessionId
+       root_pid_relative_key_hashes=@($rootPidEventKeys.Keys | Sort-Object)
+       clinical_edit_allowed=$false
+       shared_app_storage_isolation_verified=$false
+       complete_descendant_process_coverage=$false
+       event_delivery_complete=$false
+     }
+     $ephemeral | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $eventOut -Encoding utf8
+   }catch{$result.verdict='BLOCKED_EPHEMERAL_EVENT_KEYS_UNAVAILABLE'}
+ }
+ $parent=Split-Path -Parent $OutputPath
+ if($parent -and -not (Test-Path -LiteralPath $parent)){
+   New-Item -ItemType Directory -Path $parent -Force | Out-Null
+ }
+ $result | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $OutputPath -Encoding utf8
+ Write-Host ('D3E2_ROOT_PID_4663_VERDICT='+$result.verdict)
+ Write-Host ('D3E2_SCOPED_WRITE_USE_EVENTS='+$result.scoped_file_write_event_count)
+ Write-Host ('D3E2_FACAD_ROOT_PID_WRITE_USE_EVENTS='+$result.facad_root_pid_write_event_count)
+ Write-Host ('D3E2_OTHER_PID_WRITE_USE_EVENTS='+$result.other_process_pid_write_event_count)
+ Write-Host 'D3E2_DESCENDANT_COVERAGE_COMPLETE=false'
+ Write-Host 'D3E2_SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+ Write-Host 'D3E2_CLINICAL_EDIT_ALLOWED=false'
+ Write-Host 'D3E3_ROOT_PID_EVENT_KEY_IDS_UPLOADED=false'
+}
+if($result.verdict -cne 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){exit 2}
+){throw 'BAD_SESSION_ID'}
+ $tempRoot=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+ $eventOut=[IO.Path]::GetFullPath($EventKeysPath)
+ if(-not $eventOut.StartsWith($tempRoot+'\',[StringComparison]::OrdinalIgnoreCase) -or
+    [IO.Path]::GetFileName($eventOut) -notmatch '^d3e3-event-keys-[a-z]+\.json
+    [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
+    [string]::IsNullOrWhiteSpace($env:APPDATA)) {throw 'RUNNER_ONLY'}
+ if([IO.Path]::GetFileName($FacadExecutable) -cne 'Facad.exe' -or
+    -not (Test-Path -LiteralPath $FacadExecutable -PathType Leaf)) {throw 'EXE_GUARD'}
+ if([IO.Path]::GetFileName($DisposableRobert) -cne 'Robert-2.0.fcd' -or
+    -not (Test-Path -LiteralPath $DisposableRobert -PathType Leaf)) {throw 'DEMO_GUARD'}
+ $root=[IO.Path]::GetFullPath((Join-Path $env:APPDATA 'Ilexis')).TrimEnd('\')
+ if(-not (Test-Path -LiteralPath $root -PathType Container)) {throw 'SCOPE_ABSENT'}
+ if($root.Length -lt 4 -or $root[1] -cne ':' -or
+    -not $root.EndsWith('\AppData\Roaming\Ilexis',[StringComparison]::OrdinalIgnoreCase)) {throw 'SCOPE_PATH_GUARD'}
+ $rootInfo=Get-Item -LiteralPath $root -Force -ErrorAction Stop
+ if(($rootInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'SCOPE_REPARSE_POINT'}
+ $result.selected_scope_existed_before_start=$true
+ $oldAcl=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+ $saclBefore=$oldAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
+ $policy=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
+ if($LASTEXITCODE -ne 0 -or $policy.Count -lt 2){throw 'POLICY_UNAVAILABLE'}
+ $wasEnabled=([string]($policy | Select-Object -Last 1) -match 'Success')
+ & auditpol.exe /set "/subcategory:$guid" '/success:enable' >$null 2>$null
+ if($LASTEXITCODE -ne 0){throw 'POLICY_ENABLE_FAILED'}
+ $enabled=$true;$result.audit_policy_success_enabled=$true
+ $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
+ $rights=[Security.AccessControl.FileSystemRights]::WriteData -bor
+         [Security.AccessControl.FileSystemRights]::AppendData -bor
+         [Security.AccessControl.FileSystemRights]::WriteAttributes -bor
+         [Security.AccessControl.FileSystemRights]::Delete
+ $inherit=[Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+          [Security.AccessControl.InheritanceFlags]::ObjectInherit
+ $ace=[Security.AccessControl.FileSystemAuditRule]::new($sid,$rights,$inherit,
+    [Security.AccessControl.PropagationFlags]::None,
+    [Security.AccessControl.AuditFlags]::Success)
+ $changed=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+ $changed.AddAuditRule($ace)
+ Set-Acl -LiteralPath $root -AclObject $changed -ErrorAction Stop
+ $result.scope_sacl_applied=$true
+ $start=(Get-Date).AddSeconds(-1)
+ $proc=Start-Process -FilePath $FacadExecutable -ArgumentList ('"'+$DisposableRobert+'"') -WorkingDirectory (Split-Path -Parent $FacadExecutable) -PassThru -ErrorAction Stop
+ Start-Sleep -Seconds 3
+ if($proc.HasExited){throw 'EARLY_EXIT'}
+ & $ProcessCounterScript -TargetPid $proc.Id -DurationSeconds 6 -OutputPath $ProcessCounterOutput
+ $counter=Get-Content -LiteralPath $ProcessCounterOutput -Raw | ConvertFrom-Json
+ if($counter.schema -cne 'facad314_d3_process_io_v1' -or $counter.sample_count -ne 12 -or
+    $counter.path_attribution_available -ne $false -or $counter.clinical_edit_allowed -ne $false) {throw 'COUNTERS_INVALID'}
+ $result.process_counter_samples=[int]$counter.sample_count
+ Start-Sleep -Seconds 6
+ if($proc.HasExited){throw 'EARLY_EXIT_AFTER_OBSERVATION'}
+ $result.process_root_alive_during_observation=$true
+ Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+ Start-Sleep -Seconds 3
+ # Require full profile-relative Ilexis suffix. Never match bare Ilexis.
+ $suffix=$root.Substring(2)
+ $records=@(Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 4000 -ErrorAction Stop)
+ if($records.Count -ge 4000){throw 'AUDIT_CAP'}
+ $result.queried_event_count=$records.Count
+ foreach($event in $records){
+   [xml]$xml=$event.ToXml();$fields=@{}
+   foreach($field in $xml.Event.EventData.Data){$fields[[string]$field.Name]=[string]$field.'#text'}
+   if($fields['ObjectType'] -cne 'File' -or -not $fields['ObjectName'] -or
+      -not $fields['ProcessId'] -or -not $fields['AccessMask']){continue}
+   $pathText=[string]$fields['ObjectName']
+   $inside=($pathText.EndsWith($suffix,[StringComparison]::OrdinalIgnoreCase) -or
+            $pathText.IndexOf($suffix+'\', [StringComparison]::OrdinalIgnoreCase) -ge 0)
+   if(-not $inside){continue}
+   $mask=[Convert]::ToInt64(($fields['AccessMask'] -replace '^0x',''),16)
+   if(($mask -band 0x10106) -eq 0){continue}
+   $result.scoped_file_write_event_count++
+   $id=[Convert]::ToInt32(($fields['ProcessId'] -replace '^0x',''),16)
+   if($id -eq $proc.Id){$result.facad_root_pid_write_event_count++}
+   else {$result.other_process_pid_write_event_count++}
+ }
+ $result.verdict=if($result.facad_root_pid_write_event_count -gt 0){
+   'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'
+ } else {'BLOCKED_NO_FACAD_ROOT_PID_WRITE_EVENT'}
+} catch {
+ # Never print exception content, raw Security XML, paths, or PID.
+ $result.verdict='BLOCKED_INCOMPLETE_OR_UNAVAILABLE_4663_EVIDENCE'
+} finally {
+ if($null -ne $proc -and -not $proc.HasExited){
+   try{Stop-Process -Id $proc.Id -Force -ErrorAction Stop}catch{$result.verdict='BLOCKED_PROCESS_STOP_FAILED'}
+ }
+ if($null -ne $oldAcl -and $null -ne $root){
+   try{
+     Set-Acl -LiteralPath $root -AclObject $oldAcl -ErrorAction Stop
+     $readback=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
+     $saclAfter=$readback.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
+     if($saclBefore -cne $saclAfter){throw 'SACL_RESTORATION_MISMATCH'}
+     $result.scope_sacl_restored=$true
+   }
+   catch{$result.verdict='BLOCKED_SACL_RESTORE_FAILED'}
+ }
+ if($enabled){
+   if($wasEnabled -eq $false){
+     try{
+       & auditpol.exe /set "/subcategory:$guid" '/success:disable' >$null 2>$null
+       if($LASTEXITCODE -ne 0){throw 'RESTORE_FAILED'}
+       $policyAfter=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
+       if($LASTEXITCODE -ne 0 -or $policyAfter.Count -lt 2 -or
+          ([string]($policyAfter | Select-Object -Last 1) -match 'Success')){throw 'POLICY_RESTORATION_MISMATCH'}
+       $result.audit_policy_restored=$true
+     }catch{$result.verdict='BLOCKED_AUDIT_POLICY_RESTORE_FAILED'}
+   }elseif($wasEnabled -eq $true){$result.audit_policy_restored=$true}
+   else{$result.verdict='BLOCKED_UNKNOWN_INITIAL_POLICY'}
+ }
+ if(-not $result.scope_sacl_restored -or -not $result.audit_policy_restored){
+   $result.verdict='BLOCKED_RESTORATION_NOT_PROVEN'
+ }
+ $parent=Split-Path -Parent $OutputPath
+ if($parent -and -not (Test-Path -LiteralPath $parent)){
+   New-Item -ItemType Directory -Path $parent -Force | Out-Null
+ }
+ $result | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $OutputPath -Encoding utf8
+ Write-Host ('D3E2_ROOT_PID_4663_VERDICT='+$result.verdict)
+ Write-Host ('D3E2_SCOPED_WRITE_USE_EVENTS='+$result.scoped_file_write_event_count)
+ Write-Host ('D3E2_FACAD_ROOT_PID_WRITE_USE_EVENTS='+$result.facad_root_pid_write_event_count)
+ Write-Host ('D3E2_OTHER_PID_WRITE_USE_EVENTS='+$result.other_process_pid_write_event_count)
+ Write-Host 'D3E2_DESCENDANT_COVERAGE_COMPLETE=false'
+ Write-Host 'D3E2_SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+ Write-Host 'D3E2_CLINICAL_EDIT_ALLOWED=false'
+}
+if($result.verdict -cne 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){exit 2}
+ -or
+    (Test-Path -LiteralPath $eventOut)) {throw 'EVENT_MANIFEST_MUST_BE_EPHEMERAL'}
  if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
     [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
     [string]::IsNullOrWhiteSpace($env:APPDATA)) {throw 'RUNNER_ONLY'}
