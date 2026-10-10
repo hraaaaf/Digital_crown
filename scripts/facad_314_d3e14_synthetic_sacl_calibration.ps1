@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 $root=$null;$originalAcl=$null;$file=$null;$saclApplied=$false
 $restored=$false;$cleanupOk=$false;$readBack=$false;$workerWrite=$false
 $preAuditCount=0;$matchedCount=0;$writerCount=0;$otherCount=0
-$policyQueryOk=$false;$outcome='not_attempted';$success=$false
+$policyQueryOk=$false;$auditSuccessSetting='undetermined';$outcome='not_attempted';$success=$false
 $eventReadError=$false;$securityReadCount=0
 $policyChanged=$false
 try{
@@ -34,7 +34,23 @@ param([Parameter(Mandatory=$true)][string]$Target)
  try{
    $policyText=@(& auditpol.exe /get /subcategory:'{0cce921d-69ae-11d9-bed3-505054503030}' /r 2>$null)
    $policyQueryOk=($LASTEXITCODE -eq 0 -and $policyText.Count -gt 0)
- }catch{$policyQueryOk=$false}
+   if($policyQueryOk){
+     try{
+       $csv=@($policyText | ConvertFrom-Csv -ErrorAction Stop)
+       foreach($row in $csv){
+         $rowGuid=([string]$row.'Subcategory GUID').Trim('{} ').ToLowerInvariant()
+         if($rowGuid -cne '0cce921d-69ae-11d9-bed3-505054503030'){continue}
+         $setting=([string]$row.'Inclusion Setting').Trim()
+         if($setting -match '(?i)\bsuccess\b'){
+           $auditSuccessSetting='success_configured'
+         }elseif($setting -match '(?i)\b(no auditing|failure)\b'){
+           $auditSuccessSetting='success_not_configured'
+         }
+         break
+       }
+     }catch{$auditSuccessSetting='undetermined'}
+   }
+ }catch{$policyQueryOk=$false;$auditSuccessSetting='undetermined'}
  # SACL is added only to the synthetic file; original ACL is preserved locally.
  $identity=[Security.Principal.WindowsIdentity]::GetCurrent().User
  $currentSid=$identity.Value
@@ -137,6 +153,7 @@ $result=[ordered]@{
  schema='facad314_d3e14_synthetic_object_sacl_v1'
  source='SYNTHETIC_FILE_OBJECT_AUDIT_ONLY'
  audit_policy_queried=$policyQueryOk
+ audit_file_system_success_policy=$auditSuccessSetting
  global_audit_policy_modified=$policyChanged
  object_sacl_applied=$saclApplied
  object_sacl_readback_confirmed=$readBack
@@ -161,6 +178,7 @@ $result=[ordered]@{
 }
 $result | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $dest -Encoding utf8 -ErrorAction Stop
 Write-Host "D3E14_AUDIT_POLICY_QUERY_OK=$($policyQueryOk.ToString().ToLowerInvariant())"
+Write-Host "D3E14_FILE_SYSTEM_SUCCESS_POLICY=$auditSuccessSetting"
 Write-Host "D3E14_SYNTHETIC_SACL_READBACK=$($readBack.ToString().ToLowerInvariant())"
 Write-Host "D3E14_SYNTHETIC_CHILD_WRITE_VERIFIED=$($workerWrite.ToString().ToLowerInvariant())"
 Write-Host "D3E14_4663_QUERY_OUTCOME=$outcome"

@@ -101,6 +101,8 @@ jobs:
           grep -Fq 'FAC03_D3=OPEN_RED' scripts/facad_314_d3e13_capture_readiness_gate.py
           grep -Fq 'D3E13_CAPTURE_AUTHORIZED=false' scripts/facad_314_d3e13_capture_readiness_gate.py
           grep -Fq 'D3E14_REAL_ILEXIS_WRITER_PROVEN=false' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+          grep -Fq 'D3E14_FILE_SYSTEM_SUCCESS_POLICY=' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
+          grep -Fq 'audit_file_system_success_policy' scripts/facad_314_d3e14_sacl_calibration_gate.py
           grep -Fq 'used_global_kernel_etw_capture=$false' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
           grep -Fq 'global_audit_policy_modified=$policyChanged' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1
           grep -Fq 'Get-WinEvent -FilterHashtable' scripts/facad_314_d3e14_synthetic_sacl_calibration.ps1

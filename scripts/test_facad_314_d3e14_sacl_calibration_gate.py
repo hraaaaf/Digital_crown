@@ -21,6 +21,7 @@ def sample():
         "schema": "facad314_d3e14_synthetic_object_sacl_v1",
         "source": "SYNTHETIC_FILE_OBJECT_AUDIT_ONLY",
         "audit_policy_queried": True,
+        "audit_file_system_success_policy": "success_configured",
         "global_audit_policy_modified": False,
         "object_sacl_applied": True,
         "object_sacl_readback_confirmed": True,
@@ -56,6 +57,22 @@ class SyntheticSaclAuditTests(unittest.TestCase):
         with self.assertRaises(gate.InvalidD3E14):
             self.go()
 
+    def test_success_not_configured_does_not_exonerate_writer(self):
+        self.x["audit_file_system_success_policy"] = "success_not_configured"
+        self.assertFalse(self.go()["real_ilexis_writer_proven"])
+
+    def test_policy_unknown_does_not_exonerate_writer(self):
+        self.x["audit_file_system_success_policy"] = "undetermined"
+        self.assertFalse(self.go()["clinical_edit_allowed"])
+
+    def test_illegal_policy_claim_rejected(self):
+        self.x["audit_file_system_success_policy"] = "all_files_safe"
+        self.rejects()
+
+    def test_claim_configured_without_query_rejected(self):
+        self.x["audit_policy_queried"] = False
+        self.rejects()
+
     def test_synthetic_pid_link_is_not_ilexis_causality(self):
         self.assertTrue(self.go()["object_scoped_synthetic_4663_pid_link_observed"])
         self.assertFalse(self.go()["real_ilexis_writer_proven"])
@@ -75,7 +92,9 @@ class SyntheticSaclAuditTests(unittest.TestCase):
         self.assertFalse(self.go()["object_scoped_synthetic_4663_pid_link_observed"])
 
     def test_probe_error_without_sacl_is_unverified(self):
-        self.x.update(audit_policy_queried=False, object_sacl_applied=False,
+        self.x.update(audit_policy_queried=False,
+                      audit_file_system_success_policy="undetermined",
+                      object_sacl_applied=False,
                       object_sacl_readback_confirmed=False,
                       synthetic_child_write_verified=False,
                       security_4663_query_outcome="probe_error",

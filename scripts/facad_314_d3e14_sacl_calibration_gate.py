@@ -10,6 +10,7 @@ from pathlib import Path
 
 FIELDS = {
     "schema", "source", "audit_policy_queried",
+    "audit_file_system_success_policy",
     "global_audit_policy_modified", "object_sacl_applied",
     "object_sacl_readback_confirmed", "synthetic_child_write_verified",
     "security_4663_query_outcome", "security_4663_query_error",
@@ -69,6 +70,12 @@ def validate(x):
     for f in FORBIDDEN:
         if x[f] is not False:
             raise InvalidD3E14("FORGED_PRIVACY_CAUSALITY_OR_CLINICAL_CLAIM")
+    if x["audit_file_system_success_policy"] not in {
+            "success_configured", "success_not_configured", "undetermined"}:
+        raise InvalidD3E14("AUDIT_SUCCESS_POLICY_ENUM_INVALID")
+    if (not x["audit_policy_queried"]
+            and x["audit_file_system_success_policy"] != "undetermined"):
+        raise InvalidD3E14("AUDIT_POLICY_CLAIM_WITHOUT_QUERY")
     for f in COUNTS:
         if type(x[f]) is not int or not 0 <= x[f] <= 10000:
             raise InvalidD3E14("INVALID_COUNT")
@@ -105,6 +112,7 @@ def validate(x):
     return {
         "schema": "facad314_d3e14_synthetic_audit_checked_v1",
         "audit_policy_queried": x["audit_policy_queried"],
+        "audit_file_system_success_policy": x["audit_file_system_success_policy"],
         "object_sacl_readback_confirmed": x["object_sacl_readback_confirmed"],
         "synthetic_child_write_verified": x["synthetic_child_write_verified"],
         "security_4663_query_outcome": outcome,
@@ -140,6 +148,7 @@ def main():
                                encoding="utf-8")
         print("D3E14_VERDICT=" + result["verdict"])
         print("D3E14_4663_QUERY_OUTCOME=" + result["security_4663_query_outcome"])
+        print("D3E14_FILE_SYSTEM_SUCCESS_POLICY=" + result["audit_file_system_success_policy"])
         print("D3E14_SYNTHETIC_CHILD_PID_LINK_OBSERVED="
               + str(result["object_scoped_synthetic_4663_pid_link_observed"]).lower())
         return 0
