@@ -1,0 +1,178 @@
+name: FUE-G04 Windows installable certification + installer LAB
+
+# CI-only runner, never touches a real cabinet/PC, firewall, Vercel or archives.
+# Deliberately dormant until the exact trigger file is added to this branch.
+on:
+  push:
+    branches:
+      - ci/fue-g04-windows-installable-chain-20261010
+    paths:
+      - 'docs/audits/FUE_G04_TRIGGER_WINDOWS_INSTALLABLE_20261010.txt'
+
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: f61d0c90eb46fc2ac07d9873e35559df07090afe
+      CODE_RUN: "38078443003"
+      HISTORICAL_ASSET_RUN: "34281082926"
+      MODEL_SHA256: a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb
+    steps:
+      - name: Refuse a moving master or failed code release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:GITHUB_REPOSITORY -ne "hraaaaf/Digital_crown") { throw "Unexpected repository" }
+          if ($env:GITHUB_REF -ne "refs/heads/ci/fue-g04-windows-installable-chain-20261010") { throw "Unexpected ref" }
+          $master = gh api repos/hraaaaf/Digital_crown/git/ref/heads/master --jq '.object.sha'
+          if ($LASTEXITCODE -ne 0 -or $master.Trim() -ne $env:EXPECTED_SHA) { throw "Master moved; exact-SHA gate refused" }
+          $upstream = gh api "repos/hraaaaf/Digital_crown/actions/runs/$env:CODE_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $upstream.head_sha -ne $env:EXPECTED_SHA -or $upstream.status -ne "completed" -or $upstream.conclusion -ne "success") {
+            throw "Canonical CODE certification has not succeeded for the expected master SHA"
+          }
+          Write-Host "EXACT_MASTER_AND_CODE_RUN=VERIFIED"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download exact CODE_CERTIFIED contents from canonical master run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38078443003
+          name: code-certified-dc-cabinet-f61d0c90eb46-run38078443003
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/code-payload
+
+      - name: Recover historical scientific model artifact (source only, not code)
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 34281082926
+          name: cephalo-srpose38-onnx-parity
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/historical-model
+
+      - name: Verify Sigstore provenance and exact pinned model hash
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $code = Join-Path $env:RUNNER_TEMP "code-payload"
+          $manifest = Join-Path $code "release-content.sha256"
+          if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) { throw "Missing CODE manifest" }
+          gh attestation verify "$manifest" --repo hraaaaf/Digital_crown --signer-workflow hraaaaf/Digital_crown/.github/workflows/cabinet-release-certification.yml --source-digest $env:EXPECTED_SHA --source-ref refs/heads/master --deny-self-hosted-runners
+          if ($LASTEXITCODE -ne 0) { throw "CODE Sigstore provenance rejected" }
+          $sources = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP "historical-model") -Filter "srpose38-tta-1024.onnx" -File -Recurse)
+          if ($sources.Count -ne 1) { throw "Expected exactly one pinned SRPose model, found $($sources.Count)" }
+          if ($sources[0].Length -ne 267484931) { throw "SRPose size mismatch" }
+          if ((Get-FileHash -LiteralPath $sources[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:MODEL_SHA256) { throw "SRPose SHA256 mismatch" }
+          $assets = Join-Path $env:RUNNER_TEMP "external-ai-models"
+          New-Item -Path $assets -ItemType Directory -Force | Out-Null
+          Copy-Item -LiteralPath $sources[0].FullName -Destination (Join-Path $assets "srpose38-tta-1024.onnx")
+          "MODEL_SOURCE_RUN=$env:HISTORICAL_ASSET_RUN; SHA256=$env:MODEL_SHA256" | Out-File -FilePath (Join-Path $env:RUNNER_TEMP "model-source.txt")
+          Write-Host "PINNED_SCIENTIFIC_MODEL_BYTES=VERIFIED"
+
+      - name: Certify SHA-bound runtime asset bundle and compose verified installable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $code = Join-Path $env:RUNNER_TEMP "code-payload"
+          $assets = Join-Path $env:RUNNER_TEMP "external-ai-models"
+          $assetZip = Join-Path $env:RUNNER_TEMP "runtime-assets.zip"
+          $codeZip = Join-Path $env:RUNNER_TEMP "code-certified.zip"
+          $runtime = Join-Path $env:RUNNER_TEMP "cabinet-ci-runtime"
+          $env:PYTHONPATH = $code
+          python (Join-Path $code "backend/scripts/verify_certified_release.py") --release-dir $code
+          if ($LASTEXITCODE -ne 0) { throw "CODE verifier rejected" }
+          python (Join-Path $code "backend/scripts/certify_runtime_assets.py") --code-release-dir $code --ai-models-dir $assets --output $assetZip
+          if ($LASTEXITCODE -ne 0) { throw "Runtime assets failed exact SHA certification" }
+          $env:CODE_SOURCE = $code
+          $env:CODE_ZIP = $codeZip
+          @'
+          import os
+          import zipfile
+          from pathlib import Path
+          root = Path(os.environ["CODE_SOURCE"])
+          with zipfile.ZipFile(os.environ["CODE_ZIP"], "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+              for path in sorted(root.rglob("*")):
+                  if path.is_file():
+                      archive.write(path, path.relative_to(root).as_posix())
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw "CODE ZIP preparation failed" }
+          & (Join-Path $code "backend/scripts/create_release.ps1") -CertifiedArtifactZip $codeZip -RuntimeAssetsZip $assetZip -RuntimeRoot $runtime -VerifierPython python -GitHubCli gh
+          if ($LASTEXITCODE -ne 0) { throw "Certified installable composition failed" }
+          $releases = @(Get-ChildItem -LiteralPath (Join-Path $runtime "releases") -Directory)
+          if ($releases.Count -ne 1) { throw "Expected exactly one immutable composed release" }
+          $release = $releases[0].FullName
+          $env:PYTHONPATH = $release
+          python (Join-Path $release "backend/scripts/verify_installable_release.py") --release-dir $release
+          if ($LASTEXITCODE -ne 0) { throw "Final installable verification failed" }
+          $release | Out-File -FilePath (Join-Path $env:RUNNER_TEMP "release-path.txt") -NoNewline
+          Write-Host "INSTALLABLE_CERTIFIED_COMPOSED=YES"
+          Write-Host "CODE_RUN=$env:CODE_RUN"
+          Write-Host "RELEASE_ID=$($releases[0].Name)"
+
+      - name: Upload composed installable source (not yet a Windows installer)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g04-installable-release-f61d0c90
+          path: ${{ runner.temp }}/cabinet-ci-runtime/releases/
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Build Windows PyInstaller from verified composed release only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $release = Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP "release-path.txt") -Raw
+          Set-Location $release
+          python -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed" }
+          python -m pip install -r backend/requirements-windows-build.txt
+          if ($LASTEXITCODE -ne 0) { throw "Windows runtime/build dependencies failed" }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw "Windows dependency closure failed" }
+          python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+          if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
+          if (-not (Test-Path -LiteralPath "dist/DigitalCrown/DigitalCrown.exe")) { throw "No Windows executable" }
+          foreach ($proof in @("release-certification.json", ".digitalcrown-release-sha", "release-content.sha256", "installable-certification.json", "runtime-assets-certification.json", "runtime-assets-content.sha256", "github-attestation-verification.json")) {
+            if (-not (Test-Path -LiteralPath (Join-Path "dist/DigitalCrown" $proof))) { throw "PyInstaller dropped mandatory proof $proof" }
+          }
+          Write-Host "WINDOWS_PYINSTALLER_PROOF_FILES=PASS"
+
+      - name: Build Inno Setup installer without executing/installing
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $release = Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP "release-path.txt") -Raw
+          Set-Location $release
+          $compiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path -LiteralPath $compiler)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation on ephemeral GitHub runner failed" }
+          }
+          if (-not (Test-Path -LiteralPath $compiler)) { throw "ISCC missing" }
+          & $compiler "installer/DigitalCrown.iss" "/DCabinetInstanceId=FUEG04CI"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          $installers = @(Get-ChildItem -LiteralPath "dist_installer" -Filter "*.exe" -File)
+          if ($installers.Count -ne 1) { throw "Expected exactly one installer" }
+          $file = $installers[0]
+          $digest = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "MASTER_SHA=$env:EXPECTED_SHA`nCODE_RUN=$env:CODE_RUN`nMODEL_SOURCE_RUN=$env:HISTORICAL_ASSET_RUN`nINSTALLER_NAME=$($file.Name)`nINSTALLER_SHA256=$digest`nINSTALLER_BYTES=$($file.Length)`nWINDOWS_RUNNER_ONLY=YES`nACTUAL_CABINET_INSTALL=NOT_EXECUTED" | Out-File -FilePath "dist_installer/INSTALLER_EVIDENCE.txt" -Encoding utf8
+          Write-Host "CI_WINDOWS_INSTALLER_SHA256=$digest"
+          Write-Host "Physical Lenovo reboot, TLS trust, QR on actual phone remain HUMAN_GATES."
+
+      - name: Upload Windows installer + SHA256 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g04-windows-installer-f61d0c90
+          path: ${{ runner.temp }}/cabinet-ci-runtime/releases/*/dist_installer/
+          retention-days: 14
+          if-no-files-found: error
