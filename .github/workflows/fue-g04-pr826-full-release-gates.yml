@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 
 env:
-  TARGET_PR_SHA: 875f2fed1e160185d9616a2a995711dd7c0bb21c
+  TARGET_PR_SHA: ce247eed6fff947bffc892edaff0d1e6470a33c0
 
 jobs:
   backend-complete:
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 875f2fed1e160185d9616a2a995711dd7c0bb21c
+          ref: ce247eed6fff947bffc892edaff0d1e6470a33c0
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 875f2fed1e160185d9616a2a995711dd7c0bb21c
+          ref: ce247eed6fff947bffc892edaff0d1e6470a33c0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
