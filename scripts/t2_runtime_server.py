@@ -13,8 +13,7 @@ if str(REPO_ROOT) not in sys.path:
 # Runtime CI volontairement isolé : SQLite jetable, aucune donnée cabinet réelle.
 # Le mode "cabinet" reste fail-closed sur SQLCipher dans le produit normal.
 os.environ["ENVIRONMENT"] = "test"
-# Purpose-separated fictitious keys belong only to this disposable CI runtime.
-os.environ["CABINET_MASTER_KEY_HEX"] = "1" * 64
+# Dedicated fictitious mobile key; keep this existing CI database passphrase unchanged.
 os.environ["MOBILE_PAIRING_KEY_HEX"] = "2" * 64
 os.environ["SECRET_KEY"] = "t2-runtime-certification-secret-key-000001"
 os.environ["DATABASE_URL"] = "sqlite:///./t2-runtime-cert.db"

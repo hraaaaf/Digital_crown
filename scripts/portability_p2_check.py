@@ -123,11 +123,32 @@ def _source_contract() -> None:
     assert "target=supervisor.open_ui_when_ready" in run_source
     assert "DIGITALCROWN_RESTORE_RESTART" in run_source
     assert "open_existing=not suppress_browser" in run_source
-    assert "_load_launcher_environment()\n    host, port, https_enabled, cert_file, key_file = _resolve_runtime_network()" in run_source
+    # Provisioning may intervene; enforce ordering rather than textual adjacency.
+    launcher_tree = ast.parse(run_source, filename="run.py")
+    launcher_main = next(node for node in launcher_tree.body
+                         if isinstance(node, ast.FunctionDef) and node.name == "main")
+    calls = [(node.func.id, node.lineno) for node in ast.walk(launcher_main)
+             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)]
+    load_lines = [line for name, line in calls if name == "_load_launcher_environment"]
+    network_lines = [line for name, line in calls if name == "_resolve_runtime_network"]
+    assert load_lines and network_lines
+    assert max(load_lines) < min(network_lines), "Profile must load before runtime network resolution"
     assert "resolve_cabinet_network" in run_source
     assert "exposition réseau cabinet/production refusée sans HTTPS explicite" in topology_source
     assert "ssl_certfile=cert_file if https_enabled else None" in run_source
-    assert "load_backend_env(override=False)" in run_source
+    load_function = next(node for node in launcher_tree.body
+                         if isinstance(node, ast.FunctionDef) and node.name == "_load_launcher_environment")
+    captured = []
+    fake_loader = types.ModuleType("backend.env_loader")
+    fake_loader.load_backend_env = lambda **kwargs: captured.append(kwargs)
+    fake_backend = types.ModuleType("backend")
+    fake_backend.__path__ = []
+    with patch.dict(sys.modules, {"backend": fake_backend, "backend.env_loader": fake_loader}):
+        for frozen in (False, True):
+            namespace = {"sys": types.SimpleNamespace(frozen=frozen)}
+            exec(compile(ast.Module(body=[load_function], type_ignores=[]), "run.py", "exec"), namespace)
+            namespace["_load_launcher_environment"]()
+    assert captured == [{"override": False}, {"override": True}], "Packaged explicit profile must win; development OS values must win"
     assert "http://127.0.0.1:8000" not in main_source
     assert "webbrowser.open(" not in main_source
     assert "import webbrowser" not in main_source
