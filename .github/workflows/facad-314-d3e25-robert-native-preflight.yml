@@ -1,0 +1,96 @@
+name: FACAD D3E25 official Robert native Windows preflight (ONE-SHOT RESEARCH)
+
+# One-time and isolated branch; no default-branch change, vendor EULA assent or clinical data.
+on:
+  push:
+    branches:
+      - experiment/facad-d3e25-robert-native-preflight
+    paths:
+      - .github/workflows/facad-314-d3e25-robert-native-preflight.yml
+
+permissions:
+  contents: read
+
+jobs:
+  official-robert-on-disposable-windows:
+    if: ${{ github.event_name == 'push' && github.event.head_commit.message == 'EXPERIMENT_FACAD_D3E25_ONCE_20261010' && github.ref == 'refs/heads/experiment/facad-d3e25-robert-native-preflight' }}
+    runs-on: windows-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert one-shot source and hosted runner, run existing synthetic checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REF_NAME -cne 'experiment/facad-d3e25-robert-native-preflight'){
+             throw 'NON_DISPOSABLE_OR_UNEXPECTED_RUNNER'
+          }
+          if((git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'HEAD_MISMATCH'}
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1').Path,
+            [ref]$tokens,[ref]$errors)
+          if($errors.Count){throw 'PID_OBSERVER_INVALID'}
+          Write-Host "D3E25_EXACT_HEAD=$env:GITHUB_SHA"
+          & scripts/test_facad_314_d3e22_event_path_map.ps1
+          if(-not $?){throw 'SYNTHETIC_PATH_OR_MASK_TESTS_FAILED'}
+      - name: Obtain official installer and Robert Quick Demo sample on native Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $out=Join-Path $env:RUNNER_TEMP 'facad-d3e25'
+          if(Test-Path -LiteralPath $out){throw 'D3E25_NONEMPTY_OUTPUT'}
+          $null=New-Item -ItemType Directory -Path $out
+          $installer=Join-Path $out 'Facad-Installer-3.14.1.1111.exe'
+          $url='https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe'
+          try {
+            Invoke-WebRequest -Uri $url -OutFile $installer -MaximumRedirection 2 -TimeoutSec 180 -ErrorAction Stop
+          }catch{
+            Write-Host 'D3E25_VERDICT=OFFICIAL_INSTALLER_DOWNLOAD_UNAVAILABLE'
+            throw 'D3E25_OFFICIAL_INSTALLER_FETCH_FAILED'
+          }
+          $len=(Get-Item -LiteralPath $installer).Length
+          if($len -lt 1048576 -or $len -gt 1073741824){throw 'D3E25_INSTALLER_SIZE_OUTSIDE_SAFETY_RANGE'}
+          $sha=(Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+          $sig=Get-AuthenticodeSignature -LiteralPath $installer
+          Write-Host "D3E25_OFFICIAL_INSTALLER_SIZE_BYTES=$len"
+          Write-Host "D3E25_OFFICIAL_INSTALLER_SHA256=$sha"
+          Write-Host "D3E25_AUTHENTICODE_STATUS=$($sig.Status)"
+          if($sig.Status -ne [Management.Automation.SignatureStatus]::Valid -or $null -eq $sig.SignerCertificate){
+            Write-Host 'D3E25_VERDICT=UNVERIFIED_VENDOR_BINARY_DO_NOT_EXECUTE'
+            throw 'D3E25_VENDOR_AUTHENTICODE_NOT_VALID'
+          }
+          Write-Host "D3E25_VENDOR_SIGNER_THUMBPRINT=$($sig.SignerCertificate.Thumbprint)"
+          $seven=Join-Path $env:ProgramFiles '7-Zip\7z.exe'
+          if(-not (Test-Path -LiteralPath $seven)){throw 'D3E25_7ZIP_UNAVAILABLE'}
+          $outer=Join-Path $out 'outer'
+          $null=New-Item -ItemType Directory -Path $outer
+          & $seven x $installer "-o$outer" -y *> $null
+          if($LASTEXITCODE -ne 0){throw 'D3E25_OUTER_EXTRACT_FAILED'}
+          $zip=Join-Path $outer 'FacadRelease-3.14.1.1111.zip'
+          if(-not (Test-Path -LiteralPath $zip -PathType Leaf)){throw 'D3E25_OFFICIAL_SAMPLE_ARCHIVE_MISSING'}
+          $sampleDir=Join-Path $out 'release'
+          $null=New-Item -ItemType Directory -Path $sampleDir
+          & $seven x $zip "-o$sampleDir" -y 'Examples\Robert-2.0.fcd' *> $null
+          if($LASTEXITCODE -ne 0){throw 'D3E25_SAMPLE_EXTRACT_FAILED'}
+          $sample=Join-Path $sampleDir 'Examples\Robert-2.0.fcd'
+          if(-not (Test-Path -LiteralPath $sample -PathType Leaf)){throw 'D3E25_OFFICIAL_ROBERT_SAMPLE_MISSING'}
+          Write-Host 'D3E25_NATIVE_WINDOWS_OFFICIAL_ROBERT_PRESENT=true'
+          Write-Host "D3E25_ROBERT_SIZE_BYTES=$((Get-Item -LiteralPath $sample).Length)"
+          Write-Host "D3E25_ROBERT_SHA256=$((Get-FileHash -LiteralPath $sample -Algorithm SHA256).Hash)"
+          Write-Host 'D3E25_VENDOR_LICENSE_EULA_ACCEPTED=false'
+          Write-Host 'D3E25_FACAD_EXE_EXECUTED=false'
+          Write-Host 'D3E25_REAL_ILEXIS_WRITER_PROVEN=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'D3E25_VERDICT=OFFICIAL_SAMPLE_BOOTSTRAP_COMPLETE_ONLY'
+      - name: Preserve nonclinical scope and zero EULA assent
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host 'D3E25_PATIENT_RECORDS_USED=false'
+          Write-Host 'D3E25_LICENSE_ACCEPTANCE_PERFORMED=false'
+          Write-Host 'D3E25_RAW_SECURITY_EVENTS_EXPORTED=false'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+          Write-Host 'CONVERGED=false'
