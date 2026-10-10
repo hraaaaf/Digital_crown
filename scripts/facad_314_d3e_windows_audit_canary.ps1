@@ -17,6 +17,9 @@ $result=[ordered]@{
   scoped_4663_event_count=0
   scoped_write_mask_event_count=0
   scoped_expected_pid_event_count=0
+  parsed_file_object_event_count=0
+  nonempty_object_name_event_count=0
+  canary_file_inherited_audit_rule_present=$false
   expected_process_pid_matched=$false
   event_path_scope_matched=$false
   unexpected_pid_count=0
@@ -68,11 +71,20 @@ try {
   $canary=Join-Path $root 'ephemeral-canary.txt'
   [IO.File]::WriteAllText($canary,'D3E synthetic only',[Text.Encoding]::UTF8)
   [IO.File]::AppendAllText($canary,'-write',[Text.Encoding]::UTF8)
+  # ACL readback is metadata-only, never opens or reads the canary payload.
+  $fileAcl=Get-Acl -LiteralPath $canary -Audit -ErrorAction Stop
+  $result.canary_file_inherited_audit_rule_present=@($fileAcl.Audit |
+    Where-Object {
+      ($_.AuditFlags -band [System.Security.AccessControl.AuditFlags]::Success) -ne 0 -and
+      ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::WriteData) -ne 0
+    }).Count -gt 0
   Start-Sleep -Seconds 2
   # Never serialize EventRecord.ToXml(), its ObjectName/ProcessName or any SID.
   $records=Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 500 -ErrorAction Stop
   $result.queried_4663_event_count=@($records).Count
   $matched=0
+  $fileObjectRecords=0
+  $objectNameRecords=0
   $scoped=0
   $scopedWrites=0
   $scopedExpectedPid=0
@@ -81,7 +93,10 @@ try {
     [xml]$xml=$event.ToXml()
     $fields=@{}
     foreach($field in $xml.Event.EventData.Data){$fields[[string]$field.Name]=[string]$field.'#text'}
-    if($fields['ObjectType'] -cne 'File' -or -not $fields['ObjectName']){continue}
+    if($fields['ObjectType'] -cne 'File'){continue}
+    $fileObjectRecords++
+    if(-not $fields['ObjectName']){continue}
+    $objectNameRecords++
     $inside=($fields['ObjectName'].Equals($root,[StringComparison]::OrdinalIgnoreCase) -or
              $fields['ObjectName'].StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase))
     if(-not $inside){continue}
@@ -95,6 +110,8 @@ try {
     $scopedWrites++
     if($pidNumber -eq $PID){$matched++}else{[void]$unexpected.Add($pidNumber)}
   }
+  $result.parsed_file_object_event_count=$fileObjectRecords
+  $result.nonempty_object_name_event_count=$objectNameRecords
   $result.scoped_4663_event_count=$scoped
   $result.scoped_write_mask_event_count=$scopedWrites
   $result.scoped_expected_pid_event_count=$scopedExpectedPid
@@ -124,6 +141,9 @@ try {
   $result | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $OutputPath -Encoding utf8
   Write-Host ('D3E_CANARY_VERDICT='+$result.verdict)
   Write-Host ('D3E_4663_EVENTS_QUERIED='+$result.queried_4663_event_count)
+  Write-Host ('D3E_PARSED_FILE_OBJECT_EVENTS='+$result.parsed_file_object_event_count)
+  Write-Host ('D3E_NONEMPTY_OBJECT_NAME_EVENTS='+$result.nonempty_object_name_event_count)
+  Write-Host ('D3E_CANARY_INHERITED_AUDIT_RULE_PRESENT='+$result.canary_file_inherited_audit_rule_present.ToString().ToLowerInvariant())
   Write-Host ('D3E_SCOPED_4663_EVENTS='+$result.scoped_4663_event_count)
   Write-Host ('D3E_SCOPED_WRITE_EVENTS='+$result.scoped_write_mask_event_count)
   Write-Host ('D3E_SCOPED_EXPECTED_PID_EVENTS='+$result.scoped_expected_pid_event_count)
