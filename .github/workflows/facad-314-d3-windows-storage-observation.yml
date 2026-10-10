@@ -1,36 +1,25 @@
 name: Facad D3 Windows storage observation (EXPERIMENTAL)
 
+# NEVER run vendor software from a push. Separate manual review + explicit
+# rights and nonclinical environment acknowledgement are mandatory.
 on:
-  push:
-    branches:
-      - feat/cephalo-facad-direct-parity-runtime-probe
-    paths:
-      - .github/workflows/facad-314-d3-windows-storage-observation.yml
-      - scripts/facad_314_d3_windows_snapshot.ps1
-      - scripts/facad_314_d3_cold_warm_verdict_gate.py
-      - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
-      - scripts/facad_314_d3e3_same_file_correlation_gate.py
-      - scripts/test_facad_314_d3e3_same_file_correlation_gate.py
-      - scripts/facad_314_d3e4_unattributed_classification_gate.py
-      - scripts/test_facad_314_d3e4_unattributed_classification_gate.py
-      - scripts/facad_314_d3e5_first_observed_timing_gate.py
-      - scripts/facad_314_d3e6_early_window_gate.py
-      - scripts/facad_314_d3e7_preflight_gate.py
-      - scripts/facad_314_d3e8_passive_control_gate.py
-      - scripts/facad_314_d3e9_independent_arm.ps1
-      - scripts/facad_314_d3e9_arm_gate.py
-      - scripts/facad_314_d3e10_provenance_gate.py
-      - scripts/facad_314_d3e11_observation_gate.py
-      - scripts/test_facad_314_d3e11_observation_gate.py
-      - scripts/test_facad_314_d3e10_provenance_gate.py
-      - scripts/test_facad_314_d3e9_arm_gate.py
-      - scripts/test_facad_314_d3e8_passive_control_gate.py
-      - scripts/test_facad_314_d3e7_preflight_gate.py
-      - scripts/test_facad_314_d3e6_early_window_gate.py
-      - scripts/test_facad_314_d3e5_first_observed_timing_gate.py
-      - scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
-      - scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py
   workflow_dispatch:
+    inputs:
+      vendor_nonclinical_rights_approved:
+        description: 'Confirm authorized Facad demo, license and nonclinical sample rights'
+        type: boolean
+        required: true
+        default: false
+      dedicated_nonclinical_runner_approved:
+        description: 'Confirm disposable Windows runner with no patient records, credentials or clinical license'
+        type: boolean
+        required: true
+        default: false
+      collection_privacy_protocol_approved:
+        description: 'Confirm independent approval of local capture, minimal outputs and cleanup'
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -38,6 +27,7 @@ permissions:
 jobs:
   windows-sample-storage-observation:
     name: EXPERIMENTAL D3E9 ${{ matrix.arm }} - NOT clinical clearance
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.vendor_nonclinical_rights_approved == true && inputs.dedicated_nonclinical_runner_approved == true && inputs.collection_privacy_protocol_approved == true }}
     runs-on: windows-latest
     strategy:
       fail-fast: false

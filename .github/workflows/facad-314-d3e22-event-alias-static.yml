@@ -7,6 +7,7 @@ on:
     paths:
       - scripts/facad_314_d3e9_independent_arm.ps1
       - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
+      - .github/workflows/facad-314-d3-windows-storage-observation.yml
       - scripts/facad_314_d3e22_event_path_map.ps1
       - scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
       - scripts/test_facad_314_d3e22_event_path_map.ps1
@@ -46,6 +47,92 @@ jobs:
              $realObserver -notmatch 'Get-ScopedNtVolume'){
             throw 'D3E23_REAL_OBSERVER_SCOPE_OR_MASK_CONTRACT_BROKEN'
           }
+          $vendorWorkflow=Get-Content -LiteralPath '.github/workflows/facad-314-d3-windows-storage-observation.yml' -Raw
+          $onSection=($vendorWorkflow -split '(?m)^permissions:\s*
+      - name: Validate path binding and data-write rights (synthetic inputs only)
+        shell: pwsh
+        run: |
+          & scripts/test_facad_314_d3e22_event_path_map.ps1
+          if(-not $?){throw 'SYNTHETIC_ALIASES_FAILED'}
+          Write-Host 'D3E22_NO_REAL_WINDOWS_FILE_AUDIT=true'
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+
+      - name: Native synthetic 4663 event passes exact scoped path adapter; audit restored
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
+          $code=$LASTEXITCODE
+          if($code -ne 0){throw "D3E22_NATIVE_ALIAS_INTEGRATION_BLOCKED_EXIT=$code"}
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+)[0]
+          if($onSection -match '(?m)^\s*push:\s*
+      - name: Validate path binding and data-write rights (synthetic inputs only)
+        shell: pwsh
+        run: |
+          & scripts/test_facad_314_d3e22_event_path_map.ps1
+          if(-not $?){throw 'SYNTHETIC_ALIASES_FAILED'}
+          Write-Host 'D3E22_NO_REAL_WINDOWS_FILE_AUDIT=true'
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+
+      - name: Native synthetic 4663 event passes exact scoped path adapter; audit restored
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
+          $code=$LASTEXITCODE
+          if($code -ne 0){throw "D3E22_NATIVE_ALIAS_INTEGRATION_BLOCKED_EXIT=$code"}
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+ -or
+             $onSection -notmatch '(?m)^\s*workflow_dispatch:\s*
+      - name: Validate path binding and data-write rights (synthetic inputs only)
+        shell: pwsh
+        run: |
+          & scripts/test_facad_314_d3e22_event_path_map.ps1
+          if(-not $?){throw 'SYNTHETIC_ALIASES_FAILED'}
+          Write-Host 'D3E22_NO_REAL_WINDOWS_FILE_AUDIT=true'
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+
+      - name: Native synthetic 4663 event passes exact scoped path adapter; audit restored
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
+          $code=$LASTEXITCODE
+          if($code -ne 0){throw "D3E22_NATIVE_ALIAS_INTEGRATION_BLOCKED_EXIT=$code"}
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+){
+            throw 'D3E23_VENDOR_WORKFLOW_NOT_MANUAL_ONLY'
+          }
+          foreach($flag in @('vendor_nonclinical_rights_approved',
+                              'dedicated_nonclinical_runner_approved',
+                              'collection_privacy_protocol_approved')){
+            if($onSection -notmatch [regex]::Escape($flag)){
+              throw 'D3E23_VENDOR_EXPLICIT_APPROVAL_MISSING'
+            }
+          }
+          if($vendorWorkflow -notmatch "github.event_name == 'workflow_dispatch'" -or
+             $vendorWorkflow -notmatch "inputs.vendor_nonclinical_rights_approved == true" -or
+             $vendorWorkflow -notmatch "inputs.dedicated_nonclinical_runner_approved == true" -or
+             $vendorWorkflow -notmatch "inputs.collection_privacy_protocol_approved == true"){
+            throw 'D3E23_VENDOR_JOB_APPROVAL_GUARD_MISSING'
+          }
+          Write-Host 'D3E23_VENDOR_WORKFLOW_PUSH_DISABLED=true'
           Write-Host "EXACT_HEAD=$env:GITHUB_SHA"
       - name: Validate path binding and data-write rights (synthetic inputs only)
         shell: pwsh
