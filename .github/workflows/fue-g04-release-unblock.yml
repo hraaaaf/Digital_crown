@@ -28,11 +28,16 @@ jobs:
           pip install -r /tmp/requirements-ci.txt
           pip install pytest pytest-asyncio httpx==0.28.1
           python -m pip check
-      - name: Target the two new clinical safety oracles and release policy
+      - name: Gate clinical calibration, complete LOT06 registry mirrors, mobile key seams and release policy
         run: |
           python -m pytest -q --maxfail=1 \
             backend/tests/test_cephalo_auto_calibration_route.py \
             backend/tests/test_cephalo_auto_calibration_transition.py \
+            backend/tests/test_cephalo_calibration_evidence.py \
+            backend/tests/test_cephalo_calibration_route_provenance.py \
+            backend/tests/test_cephalo_vnext_lot06_executable_measurement_contract.py \
+            backend/tests/test_cephalo_vnext_lot06_typed_canonical_bridge.py \
+            backend/tests/test_mobile_patient_cockpit.py \
             backend/tests/test_certified_release_policy.py
 
   canonical-focus-registry:
