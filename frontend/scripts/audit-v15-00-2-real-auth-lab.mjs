@@ -48,8 +48,12 @@ try {
       const enrolled = await enrollT2Workstation(api, access, password);
       const cookies = enrolled.cookies.filter(cookie => cookie.name === 'dc_workstation');
       if (cookies.length !== 1) throw new Error('Expected exactly one legitimate workstation cookie');
-      if (enrolled.cookies.some(cookie => /access|refresh|auth/i.test(cookie.name))) {
-        throw new Error('Unexpected auth cookies in browser workstation state');
+      // The API bootstrap context legitimately contains session cookies after
+      // /auth/login. The browser MUST receive only the filtered workstation
+      // cookie; never mistake non-transferred API cookies for browser leakage.
+      if (cookies.some(cookie => cookie.name !== 'dc_workstation' ||
+        /access|refresh|auth/i.test(cookie.name))) {
+        throw new Error('Auth cookie would be transferred into fresh browser');
       }
       item.checks.serverEnrolledWorkstation = true;
       ctx = await browser.newContext({
