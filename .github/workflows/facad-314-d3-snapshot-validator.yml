@@ -23,6 +23,9 @@ on:
       - scripts/test_facad_314_d3e7_preflight_gate.py
       - scripts/facad_314_d3e8_passive_control_gate.py
       - scripts/test_facad_314_d3e8_passive_control_gate.py
+      - scripts/facad_314_d3e9_independent_arm.ps1
+      - scripts/facad_314_d3e9_arm_gate.py
+      - scripts/test_facad_314_d3e9_arm_gate.py
       - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
       - scripts/test_facad_314_d3_storage_authority_gap_gate.py
@@ -67,6 +70,12 @@ jobs:
           grep -Fq 'D3E6_PRIVATE_PRELAUNCH_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E7_PRIVATE_PREFLIGHT_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E8_PRIVATE_CONTROL_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'arm: [passive_1, passive_2, sacl_1, sacl_2]' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'name: facad-314-d3-windows-storage-${{ github.sha }}-${{ matrix.arm }}' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'D3E9_MATCHED_COUNTERFACTUAL_PROVEN=false' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'sacl_restored' scripts/facad_314_d3e9_independent_arm.ps1
+          grep -Fq 'Set-Acl -LiteralPath $root -AclObject $oldAcl' scripts/facad_314_d3e9_independent_arm.ps1
+          grep -Fq 'if($Arm.StartsWith' scripts/facad_314_d3e9_independent_arm.ps1
           grep -Fq 'd3e8-control-cold.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
           if grep -Fq 'facad-quick-demo/d3e8-passive-control-' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
           grep -Fq 'd3e7-preflight-cold.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
@@ -123,6 +132,12 @@ jobs:
           python -m py_compile scripts/facad_314_d3e8_passive_control_gate.py scripts/test_facad_314_d3e8_passive_control_gate.py
           python -m unittest scripts/test_facad_314_d3e8_passive_control_gate.py -v
           echo 'D3E8_SACL_CAUSALITY=NOT_PROVEN_BY_THIS_JOB'
+      - name: Adversarial synthetic independent Windows D3E9 arms (NO live Facad)
+        run: |
+          python -m py_compile scripts/facad_314_d3e9_arm_gate.py scripts/test_facad_314_d3e9_arm_gate.py
+          python -m unittest scripts/test_facad_314_d3e9_arm_gate.py -v
+          echo 'D3E9_INDEPENDENT_RUNNERS=NOT_SIMULATED_BY_SOURCE_ONLY_CI'
+          echo 'D3E9_CAUSALITY_PROVEN=false'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py

@@ -17,6 +17,9 @@ on:
       - scripts/facad_314_d3e6_early_window_gate.py
       - scripts/facad_314_d3e7_preflight_gate.py
       - scripts/facad_314_d3e8_passive_control_gate.py
+      - scripts/facad_314_d3e9_independent_arm.ps1
+      - scripts/facad_314_d3e9_arm_gate.py
+      - scripts/test_facad_314_d3e9_arm_gate.py
       - scripts/test_facad_314_d3e8_passive_control_gate.py
       - scripts/test_facad_314_d3e7_preflight_gate.py
       - scripts/test_facad_314_d3e6_early_window_gate.py
@@ -30,8 +33,12 @@ permissions:
 
 jobs:
   windows-sample-storage-observation:
-    name: EXPERIMENTAL only - NOT Facad D3 isolation clearance
+    name: EXPERIMENTAL D3E9 ${{ matrix.arm }} - NOT clinical clearance
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [passive_1, passive_2, sacl_1, sacl_2]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +50,7 @@ jobs:
         run: |
           $tokens=$null
           $errors=$null
-          foreach($path in @('scripts/facad_314_d3_windows_snapshot.ps1','scripts/facad_314_d3_process_io_observer.ps1','scripts/facad_314_d3e_facad_root_pid_write_observer.ps1')){
+          foreach($path in @('scripts/facad_314_d3_windows_snapshot.ps1','scripts/facad_314_d3_process_io_observer.ps1','scripts/facad_314_d3e_facad_root_pid_write_observer.ps1','scripts/facad_314_d3e9_independent_arm.ps1')){
             $tokens=$null;$errors=$null
             [void][Management.Automation.Language.Parser]::ParseFile(
               (Resolve-Path $path).Path,[ref]$tokens,[ref]$errors)
@@ -54,7 +61,7 @@ jobs:
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
-          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/facad_314_d3e5_first_observed_timing_gate.py scripts/facad_314_d3e6_early_window_gate.py scripts/facad_314_d3e7_preflight_gate.py scripts/facad_314_d3e8_passive_control_gate.py
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/facad_314_d3e5_first_observed_timing_gate.py scripts/facad_314_d3e6_early_window_gate.py scripts/facad_314_d3e7_preflight_gate.py scripts/facad_314_d3e8_passive_control_gate.py scripts/facad_314_d3e9_arm_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -419,6 +426,26 @@ jobs:
           $session="$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
           $processScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_process_io_observer.ps1'
           $officialScopeCount=10
+          # D3E9 compares four independent fresh GitHub Windows runners. The
+          # D3E9 arm runs AFTER official Quick demo install and disposable Robert
+          # preparation but BEFORE any Facad.exe Start-Process.
+          $d3e9Arm='${{ matrix.arm }}'
+          $d3e9Public=Join-Path $env:GITHUB_WORKSPACE ("facad-quick-demo/d3e9-arm-$d3e9Arm.json")
+          $d3e9Checked=Join-Path $env:GITHUB_WORKSPACE ("facad-quick-demo/d3e9-checked-$d3e9Arm.json")
+          $d3e9Script=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3e9_independent_arm.ps1'
+          & $d3e9Script -Arm $d3e9Arm -OutputPath $d3e9Public
+          if($LASTEXITCODE -ne 0){throw 'D3E9 independent trial failed; D3 remains BLOCKED'}
+          python scripts/facad_314_d3e9_arm_gate.py --input $d3e9Public --arm $d3e9Arm --output $d3e9Checked | Out-Host
+          if($LASTEXITCODE -ne 0){throw 'D3E9 trial validation failed; D3 remains BLOCKED'}
+          $d3e9=Get-Content -LiteralPath $d3e9Checked -Raw | ConvertFrom-Json
+          if($d3e9.clinical_edit_allowed -ne $false -or
+             $d3e9.shared_app_storage_isolation_verified -ne $false -or
+             $d3e9.causality_proven -ne $false){
+            throw 'D3E9 forged clinical or causal clearance'
+          }
+          Write-Host "D3E9_ARM=$d3e9Arm"
+          Write-Host "D3E9_ARM_CHANGED_SIZE_COUNT=$($d3e9.changed_size_count)"
+          Write-Host 'D3E9_MATCHED_COUNTERFACTUAL_PROVEN=false'
           # Both experiments remain on one ephemeral Windows runner with the same
           # copied, rights-cleared Robert demo, and no UI click, patient Load or Save.
           function Invoke-D3ResearchStartup([string]$label) {
@@ -618,7 +645,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: facad-314-d3-windows-storage-${{ github.sha }}
+          name: facad-314-d3-windows-storage-${{ github.sha }}-${{ matrix.arm }}
           retention-days: 14
           if-no-files-found: warn
           path: |
@@ -643,3 +670,11 @@ jobs:
             facad-quick-demo/d3e7-preflight-warm.json
             facad-quick-demo/d3e8-control-cold.json
             facad-quick-demo/d3e8-control-warm.json
+            facad-quick-demo/d3e9-arm-passive_1.json
+            facad-quick-demo/d3e9-arm-passive_2.json
+            facad-quick-demo/d3e9-arm-sacl_1.json
+            facad-quick-demo/d3e9-arm-sacl_2.json
+            facad-quick-demo/d3e9-checked-passive_1.json
+            facad-quick-demo/d3e9-checked-passive_2.json
+            facad-quick-demo/d3e9-checked-sacl_1.json
+            facad-quick-demo/d3e9-checked-sacl_2.json
