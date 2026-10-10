@@ -7,6 +7,7 @@ param(
  [Parameter(Mandatory=$true)][string]$OutputPath,
  [Parameter(Mandatory=$true)][string]$EventKeysPath,
  [Parameter(Mandatory=$true)][string]$TimelinePath,
+ [Parameter(Mandatory=$true)][string]$PreLaunchPath,
  [Parameter(Mandatory=$true)][string]$SessionId
 )
 $ErrorActionPreference='Stop'
@@ -16,7 +17,7 @@ $root=$null;$oldAcl=$null;$enabled=$false;$wasEnabled=$null;$proc=$null
 $rootPidEventKeys=@{}
 $otherPidEventKeys=@{}
 $sampledDescendantCount=0
-$timelineOut=$null
+$timelineOut=$null;$preLaunchOut=$null;$preLaunchEntries=$null
 $checkpoints=New-Object 'System.Collections.Generic.List[object]'
 function HashRelativeName([string]$relative){
   $digest=[Security.Cryptography.SHA256]::Create()
@@ -25,7 +26,7 @@ function HashRelativeName([string]$relative){
     return [Convert]::ToHexString($digest.ComputeHash($bytes)).ToLowerInvariant()
   }finally{$digest.Dispose()}
 }
-function Capture-PrivateIlexisCheckpoint([string]$stage){
+function Get-PrivateIlexisSizeEntries {
   # Strictly metadata (size only), path identity used ONLY as ephemeral local digest.
   $files=@(Get-ChildItem -LiteralPath $root -File -Recurse -Force -ErrorAction Stop)
   if($files.Count -gt 5000){throw 'TIMELINE_ENUMERATION_CAP'}
@@ -39,7 +40,11 @@ function Capture-PrivateIlexisCheckpoint([string]$stage){
     if($entries.ContainsKey($key)){throw 'TIMELINE_DUPLICATE_KEY'}
     $entries[$key]=[long]$file.Length
   }
-  $checkpoints.Add([ordered]@{stage=$stage;entries=$entries})
+  return $entries
+}
+function Capture-PrivateIlexisCheckpoint([string]$stage){
+  $entries=Get-PrivateIlexisSizeEntries
+  [void]$checkpoints.Add([ordered]@{stage=$stage;entries=$entries})
 }
 $result=[ordered]@{
  schema='facad314_d3e_root_pid_write_v1'
@@ -82,6 +87,13 @@ try {
     (Test-Path -LiteralPath $timelineOut) -or $timelineOut -eq $eventOut){
     throw 'TIMELINE_MANIFEST_MUST_BE_EPHEMERAL'
  }
+ $preLaunchOut=[IO.Path]::GetFullPath($PreLaunchPath)
+ if(-not $preLaunchOut.StartsWith($tempRoot+'\', [StringComparison]::OrdinalIgnoreCase) -or
+    [IO.Path]::GetFileName($preLaunchOut) -cnotmatch '^d3e6-prelaunch-(cold|warm)\.json$' -or
+    (Test-Path -LiteralPath $preLaunchOut) -or $preLaunchOut -eq $eventOut -or
+    $preLaunchOut -eq $timelineOut){
+    throw 'PRELAUNCH_MANIFEST_MUST_BE_EPHEMERAL'
+ }
  if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
     [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
     [string]::IsNullOrWhiteSpace($env:APPDATA)) {throw 'RUNNER_ONLY'}
@@ -119,6 +131,8 @@ try {
  Set-Acl -LiteralPath $root -AclObject $changed -ErrorAction Stop
  $result.scope_sacl_applied=$true
  $start=(Get-Date).AddSeconds(-1)
+ # Capture size-only Ilexis snapshot before Facad root PID can exist.
+ $preLaunchEntries=Get-PrivateIlexisSizeEntries
  $proc=Start-Process -FilePath $FacadExecutable -ArgumentList ('"'+$DisposableRobert+'"') -WorkingDirectory (Split-Path -Parent $FacadExecutable) -PassThru -ErrorAction Stop
  Capture-PrivateIlexisCheckpoint 'after_launch'
  Start-Sleep -Seconds 3
@@ -241,6 +255,25 @@ try {
        }
        $private | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $timelineOut -Encoding utf8 -ErrorAction Stop
      }catch{$result.verdict='BLOCKED_EPHEMERAL_TIMELINE_UNAVAILABLE'}
+   }
+ }
+ if($result.verdict -ceq 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){
+   if($null -eq $preLaunchEntries -or [string]::IsNullOrWhiteSpace($preLaunchOut)){
+     $result.verdict='BLOCKED_PRIVATE_PRELAUNCH_CAPTURE_INCOMPLETE'
+   }else{
+     try{
+       $privatePre=[ordered]@{
+         schema='facad314_d3e6_prelaunch_local_v1'
+         source='EPHEMERAL_ILEXIS_SIZE_ONLY_BEFORE_FACAD_START'
+         session_id=$SessionId
+         selected_scope='facad_ilexis_roaming_settings'
+         capture_stage='immediately_before_start_process'
+         entries=$preLaunchEntries
+         shared_app_storage_isolation_verified=$false
+         clinical_edit_allowed=$false
+       }
+       $privatePre | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $preLaunchOut -Encoding utf8 -ErrorAction Stop
+     }catch{$result.verdict='BLOCKED_EPHEMERAL_PRELAUNCH_UNAVAILABLE'}
    }
  }
  $parent=Split-Path -Parent $OutputPath
