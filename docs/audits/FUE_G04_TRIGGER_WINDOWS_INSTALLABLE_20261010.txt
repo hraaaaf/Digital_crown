@@ -25,3 +25,9 @@ Reason: authenticated verifier imported module and wrote unmanifested __pycache_
 Fix commit: d83bacf5a67bef70ab7b3e33bd21a055ce878424
 Controls: PYTHONDONTWRITEBYTECODE=1, full signed-manifest exact-file-set verification, signed-only ZIP packaging, refuse all extras.
 No relaxation of safety/provenance checks. No master, CODE artifact, physical cabinet, or patient data modifications.
+
+CI_ONLY_RUN_RETRY=4
+Prior red: https://github.com/hraaaaf/Digital_crown/actions/runs/38094796568
+Root cause: PyInstaller 6 onedir stores signed runtime proofs in dist/DigitalCrown/_internal; the canonical Inno Setup preprocessor also requires same proof bytes at dist/DigitalCrown root.
+Fix CI workflow commit d3a3df6bc3de48f97eed4494df85decb19b2c096: require all seven _internal proofs, SHA256-match each to certified source release, fail on unexpected root file, copy exact bytes to installer root, rehash and refuse mismatches.
+No change to master, CODE_CERTIFIED, frozen launcher, original installer .iss or original DigitalCrown.spec. No real cabinet or data operations.
