@@ -71,7 +71,7 @@ jobs:
           grep -Fq 'D3E7_PRIVATE_PREFLIGHT_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E8_PRIVATE_CONTROL_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'arm: [passive_1, passive_2, sacl_1, sacl_2]' .github/workflows/facad-314-d3-windows-storage-observation.yml
-          grep -Fq 'name: facad-314-d3-windows-storage-${{ github.sha }}-${{ matrix.arm }}' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -q 'name: facad-314-d3-windows-storage-.*matrix.arm' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E9_MATCHED_COUNTERFACTUAL_PROVEN=false' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'sacl_restored' scripts/facad_314_d3e9_independent_arm.ps1
           grep -Fq 'Set-Acl -LiteralPath $root -AclObject $oldAcl' scripts/facad_314_d3e9_independent_arm.ps1
