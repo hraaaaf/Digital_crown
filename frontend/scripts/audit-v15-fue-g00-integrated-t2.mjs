@@ -104,7 +104,8 @@ try {
       await page.locator('input[type=password]').fill(password);
       await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
       await at('/dashboard');
-      await visible('button');
+      // Wait for the specific clinical action. A generic 'button' locator is
+      // ambiguous across Login and Dashboard and can fail in strict mode.
       await page.getByRole('button', { name: 'Ajout rapide' }).waitFor({
         state: 'visible', timeout: 30000 });
       yes('actualUiAuthAndDashboard', await page.evaluate(() =>
