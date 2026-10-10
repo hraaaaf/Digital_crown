@@ -90,6 +90,9 @@ jobs:
           grep -Fq 'D3E12_DIRECT_ETL_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_TRACERPT_EVTX_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_XML_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq "\$traceKeywordMask='0x280'" scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq "'Microsoft-Windows-Kernel-File' \$traceKeywordMask '5'" scripts/facad_314_d3e12_etw_feasibility.ps1
+          if grep -Fq "'0x2B0'" scripts/facad_314_d3e12_etw_feasibility.ps1; then exit 1; fi
           grep -Fq '[System.Xml.DtdProcessing]::Prohibit' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'MaxCharactersInDocument=25000000' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'tracerpt_xml_raw_exported=$false' scripts/facad_314_d3e12_etw_feasibility.ps1

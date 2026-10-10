@@ -18,6 +18,7 @@ def sample():
         "schema": "facad314_d3e12_synthetic_kernel_file_etw_v1",
         "source": "WINDOWS_EPHEMERAL_SYNTHETIC_FILE_ONLY",
         "provider": "Microsoft-Windows-Kernel-File",
+        "capture_keyword_mask": "0x280",
         "provider_discovered": True,
         "trace_started": True,
         "trace_stopped": True,
@@ -68,6 +69,22 @@ class FeasibilityTests(unittest.TestCase):
     def bad(self):
         with self.assertRaises(gate.InvalidD3E12):
             self.go()
+
+    def test_narrowed_keywords_still_not_writer_causality(self):
+        self.assertEqual(self.go()["capture_keyword_mask"], "0x280")
+        self.assertFalse(self.go()["actual_ilexis_writer_identified"])
+
+    def test_old_broad_keyword_mask_rejected(self):
+        self.x["capture_keyword_mask"] = "0x2B0"
+        self.bad()
+
+    def test_write_keyword_missing_rejected(self):
+        self.x["capture_keyword_mask"] = "0x80"
+        self.bad()
+
+    def test_nonliteral_mask_type_rejected(self):
+        self.x["capture_keyword_mask"] = 640
+        self.bad()
 
     def test_positive_synthetic_only(self):
         out = self.go()

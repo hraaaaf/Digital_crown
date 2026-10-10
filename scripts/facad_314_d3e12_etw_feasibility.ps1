@@ -4,6 +4,10 @@ param([Parameter(Mandatory=$true)][string]$OutputPath)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $traceName='D3E12_'+[guid]::NewGuid().ToString('N')
+# Reduced MatchAny ETW keywords: CREATE=0x80 and WRITE=0x200.
+# Exclude generic FILEIO=0x20 and FILENAME=0x10 to reduce background events.
+# This is hypothesis testing only, not proof of complete file-I/O coverage.
+$traceKeywordMask='0x280'
 function Classify-EtwReaderError($record){
  # Return ONLY a known code, never exception messages, paths or raw native logs.
  $id=[string]$record.FullyQualifiedErrorId
@@ -45,8 +49,8 @@ param([Parameter(Mandatory=$true)][string]$SyntheticPath)
  $provider=@(& logman.exe query providers 'Microsoft-Windows-Kernel-File' 2>$null)
  $providerAvailable=($LASTEXITCODE -eq 0 -and $provider.Count -gt 0)
  if($providerAvailable){
-   # FILENAME=0x10 FILEIO=0x20 CREATE=0x80 WRITE=0x200 => 0x2B0.
-   & logman.exe start $traceName '-p' 'Microsoft-Windows-Kernel-File' '0x2B0' '5' '-o' $etl '-f' 'bincirc' '-max' '12' '-ets' >$null 2>$null
+   # Only Create and Write events selected. Generic FileIO/Filename disabled.
+   & logman.exe start $traceName '-p' 'Microsoft-Windows-Kernel-File' $traceKeywordMask '5' '-o' $etl '-f' 'bincirc' '-max' '12' '-ets' >$null 2>$null
    if($LASTEXITCODE -ne 0){throw 'TRACE_START_UNAVAILABLE'}
    $started=$true
  }
@@ -211,6 +215,7 @@ $result=[ordered]@{
  schema='facad314_d3e12_synthetic_kernel_file_etw_v1'
  source='WINDOWS_EPHEMERAL_SYNTHETIC_FILE_ONLY'
  provider='Microsoft-Windows-Kernel-File'
+ capture_keyword_mask=$traceKeywordMask
  provider_discovered=$providerAvailable
  trace_started=$started
  trace_stopped=$stopped
@@ -250,6 +255,7 @@ $result=[ordered]@{
  verdict='SYNTHETIC_ETW_FEASIBILITY_NOT_ILEXIS_CAUSALITY'
 }
 $result | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $dest -Encoding utf8 -ErrorAction Stop
+Write-Host "D3E12_ETW_CAPTURE_KEYWORD_MASK=$traceKeywordMask"
 Write-Host "D3E12_ETW_QUERY_STATUS=$query"
 Write-Host "D3E12_ETW_DECODER=$decoder"
 Write-Host "D3E12_ETL_FILE_NONEMPTY=$($etlNonempty.ToString().ToLowerInvariant())"

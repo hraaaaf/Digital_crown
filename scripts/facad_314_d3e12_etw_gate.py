@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 
 FIELDS = {
-    "schema", "source", "provider", "provider_discovered", "trace_started",
+    "schema", "source", "provider", "capture_keyword_mask",
+    "provider_discovered", "trace_started",
     "trace_stopped", "synthetic_write_verified", "etl_query_status",
     "etl_decoder", "etl_file_present", "etl_file_nonempty",
     "direct_etl_read_status", "tracerpt_attempted", "tracerpt_exit_zero",
@@ -44,6 +45,7 @@ def validate(x):
     if (x["schema"] != "facad314_d3e12_synthetic_kernel_file_etw_v1"
             or x["source"] != "WINDOWS_EPHEMERAL_SYNTHETIC_FILE_ONLY"
             or x["provider"] != "Microsoft-Windows-Kernel-File"
+            or x["capture_keyword_mask"] != "0x280"
             or x["verdict"] != "SYNTHETIC_ETW_FEASIBILITY_NOT_ILEXIS_CAUSALITY"
             or x["etl_query_status"] not in STATUSES):
         raise InvalidD3E12("PROVENANCE_INVALID")
@@ -165,6 +167,7 @@ def validate(x):
     return {
         "schema": "facad314_d3e12_checked_feasibility_v1",
         "provider_discovered": x["provider_discovered"],
+        "capture_keyword_mask": x["capture_keyword_mask"],
         "synthetic_write_verified": x["synthetic_write_verified"],
         "etl_query_status": x["etl_query_status"],
         "etl_decoder": x["etl_decoder"],
@@ -203,6 +206,7 @@ def main():
         result = validate(json.loads(args.input.read_text(encoding="utf-8-sig")))
         args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8")
         print("D3E12_FEASIBILITY_VERDICT=" + result["verdict"])
+        print("D3E12_ETW_CAPTURE_KEYWORD_MASK=" + result["capture_keyword_mask"])
         print("D3E12_ETW_QUERY_STATUS=" + result["etl_query_status"])
         print("D3E12_ETW_DECODER=" + result["etl_decoder"])
         print("D3E12_ETL_FILE_NONEMPTY=" + str(result["etl_file_nonempty"]).lower())
