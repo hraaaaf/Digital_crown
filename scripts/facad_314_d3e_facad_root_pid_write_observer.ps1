@@ -13,6 +13,8 @@ Set-StrictMode -Version Latest
 $guid='{0CCE921D-69AE-11D9-BED3-505054503030}'
 $root=$null;$oldAcl=$null;$enabled=$false;$wasEnabled=$null;$proc=$null
 $rootPidEventKeys=@{}
+$otherPidEventKeys=@{}
+$sampledDescendantCount=0
 function HashRelativeName([string]$relative){
   $digest=[Security.Cryptography.SHA256]::Create()
   try{
@@ -99,6 +101,8 @@ try {
  $counter=Get-Content -LiteralPath $ProcessCounterOutput -Raw | ConvertFrom-Json
  if($counter.schema -cne 'facad314_d3_process_io_v1' -or $counter.sample_count -ne 12 -or
     $counter.path_attribution_available -ne $false -or $counter.clinical_edit_allowed -ne $false) {throw 'COUNTERS_INVALID'}
+ if($counter.related_processes_observed -lt 1 -or $counter.related_processes_observed -gt 4001){throw 'UNSAFE_PROCESS_COUNTER'}
+ $sampledDescendantCount=[int]$counter.related_processes_observed-1
  $result.process_counter_samples=[int]$counter.sample_count
  Start-Sleep -Seconds 6
  if($proc.HasExited){throw 'EARLY_EXIT_AFTER_OBSERVATION'}
@@ -123,19 +127,20 @@ try {
    if(($mask -band 0x10106) -eq 0){continue}
    $result.scoped_file_write_event_count++
    $id=[Convert]::ToInt32(($fields['ProcessId'] -replace '^0x',''),16)
-   if($id -eq $proc.Id){
-     $result.facad_root_pid_write_event_count++
-     # Use only local relative name digests; no raw names reach stdout/artifacts.
-     $at=$pathText.IndexOf($suffix+'\', [StringComparison]::OrdinalIgnoreCase)
-     if($at -ge 0){
-       $relative=$pathText.Substring($at+$suffix.Length+1)
-       $tokens=@($relative.Split('\'))
-       if($relative -and $relative.Length -le 4096 -and
-          -not @($tokens | Where-Object {$_ -eq '..' -or $_ -eq '.'}).Count){
-         $rootPidEventKeys[(HashRelativeName $relative)]=$true
-       }
+   if($id -eq $proc.Id){$result.facad_root_pid_write_event_count++}
+   else{$result.other_process_pid_write_event_count++}
+   # Local identity only; other PID is NOT automatically a Facad descendant.
+   $at=$pathText.IndexOf($suffix+'\', [StringComparison]::OrdinalIgnoreCase)
+   if($at -ge 0){
+     $relative=$pathText.Substring($at+$suffix.Length+1)
+     $tokens=@($relative.Split('\'))
+     if($relative -and $relative.Length -le 4096 -and
+        -not @($tokens | Where-Object {$_ -eq '..' -or $_ -eq '.'}).Count){
+       $key=HashRelativeName $relative
+       if($id -eq $proc.Id){$rootPidEventKeys[$key]=$true}
+       else{$otherPidEventKeys[$key]=$true}
      }
-   }else {$result.other_process_pid_write_event_count++}
+   }
  }
  $result.verdict=if($result.facad_root_pid_write_event_count -gt 0){
    'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'
@@ -181,6 +186,8 @@ try {
        selected_scope='facad_ilexis_roaming_settings'
        session_id=$SessionId
        root_pid_relative_key_hashes=@($rootPidEventKeys.Keys | Sort-Object)
+       other_pid_relative_key_hashes=@($otherPidEventKeys.Keys | Sort-Object)
+       observed_descendant_pid_count=$sampledDescendantCount
        clinical_edit_allowed=$false
        shared_app_storage_isolation_verified=$false
        complete_descendant_process_coverage=$false
@@ -202,5 +209,7 @@ try {
  Write-Host 'D3E2_SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
  Write-Host 'D3E2_CLINICAL_EDIT_ALLOWED=false'
  Write-Host 'D3E3_ROOT_PID_EVENT_KEY_IDS_UPLOADED=false'
+ Write-Host 'D3E4_OTHER_PID_EVENT_KEY_IDS_UPLOADED=false'
+ Write-Host ('D3E4_SAMPLED_DESCENDANT_PIDS='+$sampledDescendantCount)
 }
 if($result.verdict -cne 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){exit 2}
