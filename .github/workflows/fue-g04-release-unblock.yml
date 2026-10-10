@@ -3,8 +3,6 @@ on:
   push:
     branches:
       - fix/fue-g04-master-release-ci-regressions
-    paths:
-      - '.github/workflows/fue-g04-release-unblock.yml'
 permissions:
   contents: read
 jobs:
