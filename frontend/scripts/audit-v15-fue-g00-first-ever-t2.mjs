@@ -87,7 +87,6 @@ try{
         state:'visible',timeout:30000});
       ok('loginCreatesActualUserAuth',await page.evaluate(()=>
         !!localStorage.getItem('token')));
-      await page.waitForFunction(()=>false,{timeout:1}).catch(()=>{});
       const cookie=(await ctx.cookies(backend)).filter(c=>c.name==='dc_workstation');
       ok('productCreatedSingleWorkstationCookie',cookie.length===1);
       ok('neverCalledEnrollmentApi',p.workstationEnrollCalls.length===0);
