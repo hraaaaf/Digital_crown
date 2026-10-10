@@ -1,0 +1,42 @@
+name: FUE-G04 one-shot exact-master CODE_CERTIFIED dispatch
+
+# Deliberately branch-only operational harness. NOT merged into master.
+# It requests the existing master-only release workflow; it cannot certify a PR.
+on:
+  push:
+    branches:
+      - ci/fue-g04-code-cert-dispatch-20261010
+    paths:
+      - '.github/workflows/fue-g04-code-cert-dispatch.yml'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-pinned-master:
+    name: Request canonical release certification without relaxing its gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_MASTER_SHA: f61d0c90eb46fc2ac07d9873e35559df07090afe
+    steps:
+      - name: Verify current master SHA and request its canonical workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/ci/fue-g04-code-cert-dispatch-20261010"
+          actual="$(gh api repos/hraaaaf/Digital_crown/git/ref/heads/master --jq '.object.sha')"
+          if [[ "$actual" != "$EXPECTED_MASTER_SHA" ]]; then
+            echo "::error::Master changed, refusing to dispatch an outdated release"
+            printf 'expected=%s actual=%s\n' "$EXPECTED_MASTER_SHA" "$actual"
+            exit 1
+          fi
+          # The canonical workflow independently checks ref=master, input SHA and HEAD.
+          gh api --method POST \
+            repos/hraaaaf/Digital_crown/actions/workflows/cabinet-release-certification.yml/dispatches \
+            -f ref=master -f "inputs[commit_sha]=$EXPECTED_MASTER_SHA"
+          echo "DISPATCH_ACCEPTED_FOR_MASTER_SHA=$EXPECTED_MASTER_SHA"
+          echo "This is CODE_CERTIFIED request only; no runtime assets, executable or installer certified."
