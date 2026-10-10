@@ -40,7 +40,7 @@ jobs:
         shell: pwsh
         run: |
           & scripts/test_facad_314_d3e22_event_path_map.ps1
-          if($LASTEXITCODE -ne 0){throw 'SYNTHETIC_ALIASES_FAILED'}
+          if(-not $?){throw 'SYNTHETIC_ALIASES_FAILED'}
           Write-Host 'D3E22_NO_REAL_WINDOWS_FILE_AUDIT=true'
           Write-Host 'D3E22_FACAD_EXECUTED=false'
           Write-Host 'FAC03_D3=OPEN_RED'
