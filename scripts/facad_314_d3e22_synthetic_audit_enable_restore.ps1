@@ -35,6 +35,7 @@ function Get-FileAuditSuccess {
 
 try {
     if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
+       $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
        [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP) -or
        [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID)){
         throw 'GITHUB_EPHEMERAL_WINDOWS_REQUIRED'
@@ -55,7 +56,7 @@ param([Parameter(Mandatory=$true)][string]$Target)
         & auditpol.exe /set "/subcategory:$guid" /success:enable >$null 2>$null
         if($LASTEXITCODE -ne 0){throw 'AUDIT_POLICY_ENABLE_FAILED'}
     }
-    $policyEnabledObserved=(Get-FileAuditSuccess -eq $true)
+    $policyEnabledObserved=((Get-FileAuditSuccess) -eq $true)
     if(-not $policyEnabledObserved){throw 'AUDIT_POLICY_EFFECT_NOT_OBSERVED'}
 
     $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
