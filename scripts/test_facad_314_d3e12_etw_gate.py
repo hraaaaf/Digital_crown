@@ -24,6 +24,14 @@ def sample():
         "synthetic_write_verified": True,
         "etl_query_status": "events_returned",
         "etl_decoder": "direct_etl",
+        "etl_file_present": True,
+        "etl_file_nonempty": True,
+        "direct_etl_read_status": "events_returned",
+        "tracerpt_attempted": False,
+        "tracerpt_exit_zero": False,
+        "tracerpt_output_file_present": False,
+        "tracerpt_output_file_nonempty": False,
+        "tracerpt_evtx_read_status": "not_attempted",
         "etl_events_parsed": True,
         "etl_event_count": 10,
         "synthetic_file_matched_write_event_count": 1,
@@ -61,12 +69,18 @@ class FeasibilityTests(unittest.TestCase):
 
     def test_no_matching_event_remains_unverified(self):
         self.x.update(etl_query_status="no_matching_events", etl_decoder="none", etl_events_parsed=False,
+                      direct_etl_read_status="no_matching_events",
+                      tracerpt_attempted=True, tracerpt_exit_zero=False,
+                      tracerpt_evtx_read_status="conversion_failed",
                       etl_event_count=0, synthetic_file_matched_write_event_count=0,
                       synthetic_writer_pid_matched_write_event_count=0)
         self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
 
     def test_query_error_remains_unverified(self):
         self.x.update(etl_query_status="query_error", etl_decoder="none", etl_events_parsed=False,
+                      direct_etl_read_status="no_matching_events",
+                      tracerpt_attempted=True, tracerpt_exit_zero=False,
+                      tracerpt_evtx_read_status="conversion_failed",
                       etl_event_count=0, synthetic_file_matched_write_event_count=0,
                       synthetic_writer_pid_matched_write_event_count=0)
         self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
@@ -75,21 +89,88 @@ class FeasibilityTests(unittest.TestCase):
         self.x.update(provider_discovered=False, trace_started=False,
                       trace_stopped=False, synthetic_write_verified=False,
                       etl_query_status="unavailable", etl_decoder="none", etl_events_parsed=False,
+                      etl_file_present=False, etl_file_nonempty=False,
+                      direct_etl_read_status="not_attempted",
+                      tracerpt_attempted=False, tracerpt_exit_zero=False,
+                      tracerpt_evtx_read_status="not_attempted",
                       etl_event_count=0, synthetic_file_matched_write_event_count=0,
                       synthetic_writer_pid_matched_write_event_count=0)
         self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
 
     def test_tracerpt_fallback_can_be_bounded_synthetic(self):
-        self.x["etl_decoder"] = "tracerpt_evtx"
+        self.x.update(etl_decoder="tracerpt_evtx", direct_etl_read_status="other",
+                      tracerpt_attempted=True, tracerpt_exit_zero=True,
+                      tracerpt_output_file_present=True, tracerpt_output_file_nonempty=True,
+                      tracerpt_evtx_read_status="events_returned")
         self.assertTrue(self.go()["bounded_synthetic_pid_link_observed"])
 
     def test_forged_fallback_without_parsing_rejected(self):
-        self.x["etl_decoder"] = "tracerpt_evtx"
+        self.x.update(etl_decoder="tracerpt_evtx", direct_etl_read_status="other",
+                      tracerpt_attempted=True, tracerpt_exit_zero=True,
+                      tracerpt_output_file_present=True, tracerpt_output_file_nonempty=True,
+                      tracerpt_evtx_read_status="events_returned")
         self.x["etl_events_parsed"] = False
         self.bad()
 
     def test_unknown_decoder_rejected(self):
         self.x["etl_decoder"] = "upload_raw"
+        self.bad()
+
+    def test_etl_metadata_missing_is_not_a_green_pid_claim(self):
+        self.x["etl_file_nonempty"] = False
+        self.bad()
+
+    def test_illegal_raw_error_text_field_rejected(self):
+        self.x["raw_exception"] = "C:/secret"
+        self.bad()
+
+    def test_nonempty_etl_requires_present_file(self):
+        self.x["etl_file_present"] = False
+        self.bad()
+
+    def test_fallback_requires_direct_error(self):
+        self.x["tracerpt_attempted"] = True
+        self.bad()
+
+    def test_fallback_output_requires_attempt(self):
+        self.x["tracerpt_output_file_nonempty"] = True
+        self.bad()
+
+    def test_invalid_error_category_rejected(self):
+        self.x["direct_etl_read_status"] = "full_user_path"
+        self.bad()
+
+    def test_only_aggregate_stage_diagnostics_in_checked_result(self):
+        out = self.go()
+        self.assertTrue(out["etl_file_nonempty"])
+        self.assertEqual(out["direct_etl_read_status"], "events_returned")
+        self.assertNotIn("raw_etl", out)
+        self.assertFalse(out["clinical_edit_allowed"])
+
+    def test_empty_trace_and_no_decoder_remains_unverified(self):
+        self.x.update(etl_query_status="probe_error", etl_decoder="none",
+                      etl_file_present=False, etl_file_nonempty=False,
+                      direct_etl_read_status="not_attempted", etl_events_parsed=False,
+                      synthetic_write_verified=False, etl_event_count=0,
+                      synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0)
+        self.assertFalse(self.go()["bounded_synthetic_pid_link_observed"])
+
+    def test_trace_not_started_cannot_claim_etl_present(self):
+        self.x.update(trace_started=False, trace_stopped=False,
+                      synthetic_write_verified=False, etl_events_parsed=False,
+                      etl_query_status="unavailable", etl_decoder="none",
+                      etl_event_count=0, synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0)
+        self.bad()
+
+    def test_tracerpt_cannot_run_on_unverified_synthetic_file(self):
+        self.x.update(etl_query_status="query_error", etl_decoder="none",
+                      direct_etl_read_status="other", etl_events_parsed=False,
+                      synthetic_write_verified=False, tracerpt_attempted=True,
+                      tracerpt_evtx_read_status="conversion_failed",
+                      etl_event_count=0, synthetic_file_matched_write_event_count=0,
+                      synthetic_writer_pid_matched_write_event_count=0)
         self.bad()
 
     def test_other_pid_does_not_prove_writer(self):

@@ -87,6 +87,9 @@ jobs:
           grep -Fq 'D3E12_RAW_TRACE_CLEANED=' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'tracerpt.exe' scripts/facad_314_d3e12_etw_feasibility.ps1
           grep -Fq 'D3E12_ETW_DECODER=' scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq 'D3E12_DIRECT_ETL_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq 'D3E12_TRACERPT_EVTX_READ_STATUS=' scripts/facad_314_d3e12_etw_feasibility.ps1
+          grep -Fq 'D3E12_RAW_ETL_EXPORTED=false' scripts/facad_314_d3e12_etw_gate.py
           grep -Fq 'D3E12_REAL_ILEXIS_TRACE_CAPTURED=false' .github/workflows/facad-314-d3e12-etw-feasibility.yml
           grep -Fq 'facad-d3e12-synthetic-etw' .github/workflows/facad-314-d3e12-etw-feasibility.yml
           if grep -Fq 'local-trace.etl' .github/workflows/facad-314-d3e12-etw-feasibility.yml; then exit 1; fi

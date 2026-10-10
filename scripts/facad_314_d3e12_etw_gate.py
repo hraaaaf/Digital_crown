@@ -7,7 +7,10 @@ from pathlib import Path
 FIELDS = {
     "schema", "source", "provider", "provider_discovered", "trace_started",
     "trace_stopped", "synthetic_write_verified", "etl_query_status",
-    "etl_decoder",
+    "etl_decoder", "etl_file_present", "etl_file_nonempty",
+    "direct_etl_read_status", "tracerpt_attempted", "tracerpt_exit_zero",
+    "tracerpt_output_file_present", "tracerpt_output_file_nonempty",
+    "tracerpt_evtx_read_status",
     "etl_events_parsed", "etl_event_count",
     "synthetic_file_matched_write_event_count",
     "synthetic_writer_pid_matched_write_event_count",
@@ -20,6 +23,9 @@ FIELDS = {
 }
 STATUSES = {"events_returned", "no_matching_events", "query_error",
             "parse_error", "probe_error", "unavailable"}
+READ_STATUSES = {"not_attempted", "events_returned", "no_matching_events",
+                 "access_denied", "invalid_data", "provider_unavailable",
+                 "conversion_failed", "other"}
 
 
 class InvalidD3E12(ValueError):
@@ -36,7 +42,10 @@ def validate(x):
             or x["etl_query_status"] not in STATUSES):
         raise InvalidD3E12("PROVENANCE_INVALID")
     for key in ("provider_discovered", "trace_started", "trace_stopped",
-                "synthetic_write_verified", "etl_events_parsed"):
+                "synthetic_write_verified", "etl_events_parsed",
+                "etl_file_present", "etl_file_nonempty", "tracerpt_attempted",
+                "tracerpt_exit_zero", "tracerpt_output_file_present",
+                "tracerpt_output_file_nonempty"):
         if type(x[key]) is not bool:
             raise InvalidD3E12("BOOLEAN_INVALID")
     for key in ("etl_event_count", "synthetic_file_matched_write_event_count",
@@ -53,6 +62,44 @@ def validate(x):
         raise InvalidD3E12("TRACE_STARTED_NOT_CLEANLY_STOPPED")
     if x["synthetic_write_verified"] and not x["trace_started"]:
         raise InvalidD3E12("SYNTHETIC_WRITE_OUTSIDE_TRACE")
+    if (x["direct_etl_read_status"] not in READ_STATUSES - {"conversion_failed"}
+            or x["tracerpt_evtx_read_status"] not in READ_STATUSES):
+        raise InvalidD3E12("UNRECOGNIZED_READ_STATUS")
+    if x["etl_file_nonempty"] and not x["etl_file_present"]:
+        raise InvalidD3E12("NONEMPTY_WITHOUT_ETL_FILE")
+    if not x["trace_started"] and (
+            x["etl_file_present"] or x["tracerpt_attempted"]
+            or x["direct_etl_read_status"] != "not_attempted"):
+        raise InvalidD3E12("ETW_ARTIFACT_WITHOUT_TRACE")
+    if x["tracerpt_attempted"] and not (
+            x["trace_started"] and x["etl_file_present"]
+            and x["synthetic_write_verified"]):
+        raise InvalidD3E12("TRACERPT_WITHOUT_VALID_SYNTHETIC_TRACE")
+    if (x["direct_etl_read_status"] == "events_returned"
+            and x["etl_decoder"] != "direct_etl"):
+        raise InvalidD3E12("DIRECT_EVENTS_NOT_REFLECTED_IN_DECODER")
+    if x["tracerpt_attempted"] and x["direct_etl_read_status"] in {
+            "not_attempted", "events_returned"}:
+        raise InvalidD3E12("FALLBACK_WAS_NOT_NEEDED")
+    if (not x["tracerpt_attempted"] and
+            (x["tracerpt_exit_zero"] or x["tracerpt_output_file_present"]
+             or x["tracerpt_output_file_nonempty"]
+             or x["tracerpt_evtx_read_status"] != "not_attempted")):
+        raise InvalidD3E12("FALLBACK_OUTCOME_WITHOUT_ATTEMPT")
+    if x["tracerpt_output_file_nonempty"] and not x["tracerpt_output_file_present"]:
+        raise InvalidD3E12("OUTPUT_NONEMPTY_WITHOUT_FILE")
+    if x["tracerpt_exit_zero"] and not x["tracerpt_attempted"]:
+        raise InvalidD3E12("TRACERPT_EXIT_WITHOUT_ATTEMPT")
+    if (x["etl_decoder"] == "direct_etl"
+            and x["direct_etl_read_status"] != "events_returned"):
+        raise InvalidD3E12("DIRECT_DECODER_WITHOUT_EVENTS")
+    if (x["etl_decoder"] == "tracerpt_evtx"
+            and not (x["tracerpt_attempted"] and x["tracerpt_exit_zero"]
+                     and x["tracerpt_output_file_nonempty"]
+                     and x["tracerpt_evtx_read_status"] == "events_returned")):
+        raise InvalidD3E12("FALLBACK_DECODER_WITHOUT_EVENTS")
+    if (x["etl_events_parsed"] and not x["etl_file_nonempty"]):
+        raise InvalidD3E12("EVENTS_PARSED_FROM_EMPTY_ETL")
     if x["etl_decoder"] not in {"none", "direct_etl", "tracerpt_evtx"}:
         raise InvalidD3E12("UNKNOWN_ETW_DECODER")
     if (x["etl_events_parsed"] and x["etl_decoder"] == "none") or (
@@ -82,6 +129,13 @@ def validate(x):
         "synthetic_write_verified": x["synthetic_write_verified"],
         "etl_query_status": x["etl_query_status"],
         "etl_decoder": x["etl_decoder"],
+        "etl_file_present": x["etl_file_present"],
+        "etl_file_nonempty": x["etl_file_nonempty"],
+        "direct_etl_read_status": x["direct_etl_read_status"],
+        "tracerpt_attempted": x["tracerpt_attempted"],
+        "tracerpt_exit_zero": x["tracerpt_exit_zero"],
+        "tracerpt_output_file_nonempty": x["tracerpt_output_file_nonempty"],
+        "tracerpt_evtx_read_status": x["tracerpt_evtx_read_status"],
         "matched_synthetic_file_write_event_count": m,
         "matched_synthetic_writer_pid_event_count":
             x["synthetic_writer_pid_matched_write_event_count"],
@@ -108,6 +162,12 @@ def main():
         print("D3E12_FEASIBILITY_VERDICT=" + result["verdict"])
         print("D3E12_ETW_QUERY_STATUS=" + result["etl_query_status"])
         print("D3E12_ETW_DECODER=" + result["etl_decoder"])
+        print("D3E12_ETL_FILE_NONEMPTY=" + str(result["etl_file_nonempty"]).lower())
+        print("D3E12_DIRECT_ETL_READ_STATUS=" + result["direct_etl_read_status"])
+        print("D3E12_TRACERPT_ATTEMPTED=" + str(result["tracerpt_attempted"]).lower())
+        print("D3E12_TRACERPT_EXIT_ZERO=" + str(result["tracerpt_exit_zero"]).lower())
+        print("D3E12_TRACERPT_OUTPUT_NONEMPTY=" + str(result["tracerpt_output_file_nonempty"]).lower())
+        print("D3E12_TRACERPT_EVTX_READ_STATUS=" + result["tracerpt_evtx_read_status"])
         print("D3E12_SYNTHETIC_PID_LINK_OBSERVED=" + str(result["bounded_synthetic_pid_link_observed"]).lower())
         return 0
     except (ValueError, TypeError, OSError, UnicodeError, KeyError):
