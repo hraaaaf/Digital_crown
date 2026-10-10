@@ -55,7 +55,10 @@ jobs:
 
       - name: Generate isolated credential
         shell: bash
-        run: python -c 'import secrets; print("T2_PASSWORD=" + secrets.token_urlsafe(24))' >> "$GITHUB_ENV"
+        run: |
+          credential="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$credential"
+          echo "T2_PASSWORD=$credential" >> "$GITHUB_ENV"
 
       - name: Install backend
         run: |
