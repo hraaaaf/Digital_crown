@@ -11,6 +11,8 @@ on:
       - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
       - scripts/facad_314_d3e3_same_file_correlation_gate.py
       - scripts/test_facad_314_d3e3_same_file_correlation_gate.py
+      - scripts/facad_314_d3e4_unattributed_classification_gate.py
+      - scripts/test_facad_314_d3e4_unattributed_classification_gate.py
       - scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
       - scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py
   workflow_dispatch:
@@ -44,7 +46,7 @@ jobs:
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
-          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -478,6 +480,19 @@ jobs:
               throw 'D3E.3 invalid aggregate or forged clearance'
             }
             Write-Host "D3E3_$($label.ToUpperInvariant())_SAME_FILE_OVERLAP=$($aggregate.same_file_metadata_and_4663_count)"
+            $classification="facad-quick-demo/d3e4-classification-$label.json"
+            python scripts/facad_314_d3e4_unattributed_classification_gate.py --before $before --after $after --event-keys $keys --output $classification | Out-Host
+            if($LASTEXITCODE -ne 0){throw "D3E.4 $label metadata change classification incomplete; D3 still BLOCKED"}
+            $class=Get-Content -LiteralPath $classification -Raw | ConvertFrom-Json
+            if($class.schema -cne 'facad314_d3e4_unattributed_aggregate_v1' -or
+               $class.changed_identity_count -ne $aggregate.selected_scope_metadata_changed_count -or
+               $class.specific_process_cause_proven -ne $false -or
+               $class.non_root_events_are_proven_descendants -ne $false -or
+               $class.shared_app_storage_isolation_verified -ne $false -or
+               $class.clinical_edit_allowed -ne $false){
+              throw 'D3E.4 forged class or inconsistent changed-identity counts'
+            }
+            Write-Host "D3E4_$($label.ToUpperInvariant())_UNATTRIBUTED_CHANGES=$($class.changed_identity_without_any_observed_4663_count)"
             Write-Host "D3_$($label.ToUpperInvariant())_OBSERVED_CHANGE_COUNT=$($evidence.observed_change_count)"
             return $evidence
             }finally{
@@ -532,3 +547,5 @@ jobs:
             facad-quick-demo/d3e2-facad-root-pid-warm.json
             facad-quick-demo/d3e3-correlation-cold.json
             facad-quick-demo/d3e3-correlation-warm.json
+            facad-quick-demo/d3e4-classification-cold.json
+            facad-quick-demo/d3e4-classification-warm.json
