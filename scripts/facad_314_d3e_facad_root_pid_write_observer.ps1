@@ -6,6 +6,7 @@ param(
  [Parameter(Mandatory=$true)][string]$ProcessCounterOutput,
  [Parameter(Mandatory=$true)][string]$OutputPath,
  [Parameter(Mandatory=$true)][string]$EventKeysPath,
+ [Parameter(Mandatory=$true)][string]$TimelinePath,
  [Parameter(Mandatory=$true)][string]$SessionId
 )
 $ErrorActionPreference='Stop'
@@ -15,12 +16,30 @@ $root=$null;$oldAcl=$null;$enabled=$false;$wasEnabled=$null;$proc=$null
 $rootPidEventKeys=@{}
 $otherPidEventKeys=@{}
 $sampledDescendantCount=0
+$timelineOut=$null
+$checkpoints=New-Object 'System.Collections.Generic.List[object]'
 function HashRelativeName([string]$relative){
   $digest=[Security.Cryptography.SHA256]::Create()
   try{
     $bytes=[Text.Encoding]::UTF8.GetBytes($relative.ToLowerInvariant())
     return [Convert]::ToHexString($digest.ComputeHash($bytes)).ToLowerInvariant()
   }finally{$digest.Dispose()}
+}
+function Capture-PrivateIlexisCheckpoint([string]$stage){
+  # Strictly metadata (size only), path identity used ONLY as ephemeral local digest.
+  $files=@(Get-ChildItem -LiteralPath $root -File -Recurse -Force -ErrorAction Stop)
+  if($files.Count -gt 5000){throw 'TIMELINE_ENUMERATION_CAP'}
+  $entries=@{}
+  foreach($file in $files){
+    if(($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'TIMELINE_REPARSE_POINT'}
+    $relative=$file.FullName.Substring($root.Length).TrimStart('\','/')
+    if([string]::IsNullOrWhiteSpace($relative) -or $relative.Contains('..') -or
+       $relative.Length -gt 4096){throw 'TIMELINE_INVALID_RELATIVE_IDENTITY'}
+    $key=HashRelativeName $relative
+    if($entries.ContainsKey($key)){throw 'TIMELINE_DUPLICATE_KEY'}
+    $entries[$key]=[long]$file.Length
+  }
+  $checkpoints.Add([ordered]@{stage=$stage;entries=$entries})
 }
 $result=[ordered]@{
  schema='facad314_d3e_root_pid_write_v1'
@@ -57,6 +76,12 @@ try {
  if(-not $eventOut.StartsWith($tempRoot+'\', [StringComparison]::OrdinalIgnoreCase) -or
     [IO.Path]::GetFileName($eventOut) -notmatch '^d3e3-event-keys-(cold|warm)\.json$' -or
     (Test-Path -LiteralPath $eventOut)) {throw 'EVENT_MANIFEST_MUST_BE_EPHEMERAL'}
+ $timelineOut=[IO.Path]::GetFullPath($TimelinePath)
+ if(-not $timelineOut.StartsWith($tempRoot+'\', [StringComparison]::OrdinalIgnoreCase) -or
+    [IO.Path]::GetFileName($timelineOut) -cnotmatch '^d3e5-timeline-(cold|warm)\.json$' -or
+    (Test-Path -LiteralPath $timelineOut) -or $timelineOut -eq $eventOut){
+    throw 'TIMELINE_MANIFEST_MUST_BE_EPHEMERAL'
+ }
  if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
     [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
     [string]::IsNullOrWhiteSpace($env:APPDATA)) {throw 'RUNNER_ONLY'}
@@ -95,6 +120,7 @@ try {
  $result.scope_sacl_applied=$true
  $start=(Get-Date).AddSeconds(-1)
  $proc=Start-Process -FilePath $FacadExecutable -ArgumentList ('"'+$DisposableRobert+'"') -WorkingDirectory (Split-Path -Parent $FacadExecutable) -PassThru -ErrorAction Stop
+ Capture-PrivateIlexisCheckpoint 'after_launch'
  Start-Sleep -Seconds 3
  if($proc.HasExited){throw 'EARLY_EXIT'}
  & $ProcessCounterScript -TargetPid $proc.Id -DurationSeconds 6 -OutputPath $ProcessCounterOutput
@@ -107,8 +133,11 @@ try {
  Start-Sleep -Seconds 6
  if($proc.HasExited){throw 'EARLY_EXIT_AFTER_OBSERVATION'}
  $result.process_root_alive_during_observation=$true
+ Capture-PrivateIlexisCheckpoint 'pre_stop'
+ if($proc.HasExited){throw 'EARLY_EXIT_DURING_CHECKPOINT'}
  Stop-Process -Id $proc.Id -Force -ErrorAction Stop
  Start-Sleep -Seconds 3
+ Capture-PrivateIlexisCheckpoint 'post_stop'
  # Require full profile-relative Ilexis suffix. Never match bare Ilexis.
  $suffix=$root.Substring(2)
  $records=@(Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 4000 -ErrorAction Stop)
@@ -195,6 +224,24 @@ try {
      }
      $ephemeral | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $eventOut -Encoding utf8
    }catch{$result.verdict='BLOCKED_EPHEMERAL_EVENT_KEYS_UNAVAILABLE'}
+ }
+ if($result.verdict -ceq 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION'){
+   if($checkpoints.Count -ne 3 -or [string]::IsNullOrWhiteSpace($timelineOut)){
+     $result.verdict='BLOCKED_TIMELINE_CHECKPOINTS_INCOMPLETE'
+   }else{
+     try{
+       $private=[ordered]@{
+         schema='facad314_d3e5_timeline_local_v1'
+         source='EPHEMERAL_ILEXIS_METADATA_ONLY'
+         session_id=$SessionId
+         selected_scope='facad_ilexis_roaming_settings'
+         checkpoints=@($checkpoints.ToArray())
+         shared_app_storage_isolation_verified=$false
+         clinical_edit_allowed=$false
+       }
+       $private | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $timelineOut -Encoding utf8 -ErrorAction Stop
+     }catch{$result.verdict='BLOCKED_EPHEMERAL_TIMELINE_UNAVAILABLE'}
+   }
  }
  $parent=Split-Path -Parent $OutputPath
  if($parent -and -not (Test-Path -LiteralPath $parent)){

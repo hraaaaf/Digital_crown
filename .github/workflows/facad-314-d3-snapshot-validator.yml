@@ -15,6 +15,8 @@ on:
       - scripts/test_facad_314_d3e3_same_file_correlation_gate.py
       - scripts/facad_314_d3e4_unattributed_classification_gate.py
       - scripts/test_facad_314_d3e4_unattributed_classification_gate.py
+      - scripts/facad_314_d3e5_first_observed_timing_gate.py
+      - scripts/test_facad_314_d3e5_first_observed_timing_gate.py
       - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
       - scripts/test_facad_314_d3_storage_authority_gap_gate.py
@@ -55,6 +57,8 @@ jobs:
           grep -Fq 'd3e3-event-keys-' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E3_TEMPORARY_EVENT_KEY_IDS_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E4_' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'D3E5_PRIVATE_TIMELINE_CLEANED=true' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          if grep -Fq 'facad-quick-demo/d3e5-timeline-' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
           grep -Fq 'other_pid_relative_key_hashes' scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
           grep -Fq 'non_root_events_are_proven_descendants' scripts/facad_314_d3e4_unattributed_classification_gate.py
           if grep -Fq 'facad-quick-demo/d3e3-event-keys-' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
@@ -84,6 +88,11 @@ jobs:
           python -m py_compile scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/test_facad_314_d3e4_unattributed_classification_gate.py
           python -m unittest scripts/test_facad_314_d3e4_unattributed_classification_gate.py -v
           echo 'D3E4_LIVE_UNATTRIBUTED_FILE_CLASSIFICATION=NOT_TESTED_BY_THIS_JOB'
+      - name: Adversarial synthetic temporal classification (NO live Facad)
+        run: |
+          python -m py_compile scripts/facad_314_d3e5_first_observed_timing_gate.py scripts/test_facad_314_d3e5_first_observed_timing_gate.py
+          python -m unittest scripts/test_facad_314_d3e5_first_observed_timing_gate.py -v
+          echo 'D3E5_LIVE_INTERVAL_CAUSALITY=UNVERIFIED'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py

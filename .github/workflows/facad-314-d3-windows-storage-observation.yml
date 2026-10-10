@@ -13,6 +13,8 @@ on:
       - scripts/test_facad_314_d3e3_same_file_correlation_gate.py
       - scripts/facad_314_d3e4_unattributed_classification_gate.py
       - scripts/test_facad_314_d3e4_unattributed_classification_gate.py
+      - scripts/facad_314_d3e5_first_observed_timing_gate.py
+      - scripts/test_facad_314_d3e5_first_observed_timing_gate.py
       - scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
       - scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py
   workflow_dispatch:
@@ -46,7 +48,7 @@ jobs:
             Write-Host "D3_POWERSHELL_PARSE_PASS=$path"
           }
           python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/facad_314_d3_cold_warm_verdict_gate.py
-          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/facad_314_d3e3_same_file_correlation_gate.py scripts/facad_314_d3e4_unattributed_classification_gate.py scripts/facad_314_d3e5_first_observed_timing_gate.py
           if($LASTEXITCODE -ne 0){throw 'D3 Python gate failed syntax'}
 
       - name: Extract official Facad installer wrapper
@@ -417,8 +419,9 @@ jobs:
             $processOut="facad-quick-demo/d3-process-io-$label.json"
             $auditOut="facad-quick-demo/d3e2-facad-root-pid-$label.json"
             $eventOut=Join-Path $env:RUNNER_TEMP ("d3e3-event-keys-$label.json")
+            $timelineManifest=Join-Path $env:RUNNER_TEMP ("d3e5-timeline-$label.json")
             $auditScript=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3e_facad_root_pid_write_observer.ps1'
-            & $auditScript -FacadExecutable $installed.FullName -DisposableRobert $copy -ProcessCounterScript $processScript -ProcessCounterOutput (Join-Path $env:GITHUB_WORKSPACE $processOut) -OutputPath (Join-Path $env:GITHUB_WORKSPACE $auditOut) -EventKeysPath $eventOut -SessionId "$session-$label"
+            & $auditScript -FacadExecutable $installed.FullName -DisposableRobert $copy -ProcessCounterScript $processScript -ProcessCounterOutput (Join-Path $env:GITHUB_WORKSPACE $processOut) -OutputPath (Join-Path $env:GITHUB_WORKSPACE $auditOut) -EventKeysPath $eventOut -TimelinePath $timelineManifest -SessionId "$session-$label"
             $auditStatus=$LASTEXITCODE
             python scripts/facad_314_d3e_facad_root_pid_verdict_gate.py --input $auditOut | Out-Host
             $contractStatus=$LASTEXITCODE
@@ -499,11 +502,28 @@ jobs:
             Write-Host "D3E4_$($label.ToUpperInvariant())_UNATTRIBUTED_CHANGES=$($class.changed_identity_without_any_observed_4663_count)"
             Write-Host "D3E4_$($label.ToUpperInvariant())_UNEXPLAINED_MODIFIED_SIZE_CHANGED=$($class.unexplained_modified_size_changed_count)"
             Write-Host "D3E4_$($label.ToUpperInvariant())_UNEXPLAINED_MODIFIED_SAME_SIZE_FINGERPRINT_CHANGED=$($class.unexplained_modified_same_size_fingerprint_changed_count)"
+            $timelineManifest=Join-Path $env:RUNNER_TEMP ("d3e5-timeline-$label.json")
+            $timingAggregate="facad-quick-demo/d3e5-timing-$label.json"
+            python scripts/facad_314_d3e5_first_observed_timing_gate.py --before $before --after $after --event-keys $keys --timeline $timelineManifest --classification $classification --output $timingAggregate | Out-Host
+            if($LASTEXITCODE -ne 0){throw 'D3E.5 incomplete temporal evidence; D3 still BLOCKED'}
+            $timing=Get-Content -LiteralPath $timingAggregate -Raw | ConvertFrom-Json
+            if($timing.schema -cne 'facad314_d3e5_first_observed_timing_aggregate_v1' -or
+               $timing.unattributed_modified_size_changed_count -ne $class.unexplained_modified_size_changed_count -or
+               $timing.shared_app_storage_isolation_verified -ne $false -or
+               $timing.clinical_edit_allowed -ne $false -or
+               $timing.causality_proven -ne $false -or
+               $timing.continuous_change_tracking -ne $false){
+              throw 'D3E.5 timing count mismatch or forged isolation claim'
+            }
+            Write-Host "D3E5_$($label.ToUpperInvariant())_TIMING_VERDICT=$($timing.verdict)"
             Write-Host "D3_$($label.ToUpperInvariant())_OBSERVED_CHANGE_COUNT=$($evidence.observed_change_count)"
             return $evidence
             }finally{
               $keys=Join-Path $env:RUNNER_TEMP ("d3e3-event-keys-$label.json")
               if(Test-Path -LiteralPath $keys){Remove-Item -LiteralPath $keys -Force -ErrorAction Stop}
+              $timelineManifest=Join-Path $env:RUNNER_TEMP ("d3e5-timeline-$label.json")
+              if(Test-Path -LiteralPath $timelineManifest){Remove-Item -LiteralPath $timelineManifest -Force -ErrorAction Stop}
+              Write-Host 'D3E5_PRIVATE_TIMELINE_CLEANED=true'
               Write-Host 'D3E3_TEMPORARY_EVENT_KEY_IDS_CLEANED=true'
             }
           }
@@ -555,3 +575,5 @@ jobs:
             facad-quick-demo/d3e3-correlation-warm.json
             facad-quick-demo/d3e4-classification-cold.json
             facad-quick-demo/d3e4-classification-warm.json
+            facad-quick-demo/d3e5-timing-cold.json
+            facad-quick-demo/d3e5-timing-warm.json
