@@ -30,6 +30,7 @@ def evidence(arm="sacl_1"):
         "unchanged_size_changed_timestamp_count": 0,
         "security_4663_query_attempted": True,
         "security_4663_records_available": False,
+        "security_4663_query_outcome": "query_error",
         "matching_write_data_or_append_access_event_count": 0,
         "same_powershell_pid_matching_file_count": 0,
         "other_pid_matching_file_count": 0,
@@ -81,14 +82,37 @@ class ProvenanceTests(unittest.TestCase):
         self.assertFalse(self.go()["audit_event_records_available"])
         self.assertFalse(self.go()["writer_causality_proven"])
 
+    def test_empty_query_is_distinct_from_inaccessible(self):
+        self.meta["security_4663_query_outcome"] = "no_matching_events"
+        self.assertEqual(self.go()["audit_query_outcome"], "no_matching_events")
+        self.assertFalse(self.go()["writer_causality_proven"])
+
+    def test_query_error_is_not_misreported_as_empty(self):
+        self.assertEqual(self.go()["audit_query_outcome"], "query_error")
+
+    def test_invalid_event_remains_fail_closed(self):
+        self.meta["security_4663_query_outcome"] = "invalid_event"
+        self.assertFalse(self.go()["audit_event_records_available"])
+
+    def test_forged_query_outcome_rejected(self):
+        self.meta["security_4663_query_outcome"] = "not_attempted"
+        self.bad()
+
+    def test_inconsistent_available_flag_rejected(self):
+        self.meta["security_4663_query_outcome"] = "no_matching_events"
+        self.meta["security_4663_records_available"] = True
+        self.bad()
+
     def test_own_process_write_use_does_not_prove_writer(self):
         self.meta["security_4663_records_available"] = True
+        self.meta["security_4663_query_outcome"] = "records_returned"
         self.meta["matching_write_data_or_append_access_event_count"] = 1
         self.meta["same_powershell_pid_matching_file_count"] = 1
         self.assertFalse(self.go()["writer_causality_proven"])
 
     def test_other_pid_write_use_does_not_prove_writer(self):
         self.meta["security_4663_records_available"] = True
+        self.meta["security_4663_query_outcome"] = "records_returned"
         self.meta["matching_write_data_or_append_access_event_count"] = 1
         self.meta["other_pid_matching_file_count"] = 1
         self.assertFalse(self.go()["writer_causality_proven"])
@@ -123,6 +147,7 @@ class ProvenanceTests(unittest.TestCase):
 
     def test_own_and_other_file_counts_cannot_exceed_size_targets(self):
         self.meta["security_4663_records_available"] = True
+        self.meta["security_4663_query_outcome"] = "records_returned"
         self.meta["matching_write_data_or_append_access_event_count"] = 20
         self.meta["other_pid_matching_file_count"] = 2
         self.bad()

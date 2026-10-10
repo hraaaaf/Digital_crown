@@ -14,7 +14,7 @@ $counts=@{modified_size_changed=0;created=0;removed=0}
 $script:privateTimes=@{}
 $preTimes=@{};$postTimes=@{};$eventStart=$null;$eventEnd=$null
 $timeCounters=@{size_and_timestamp_changed=0;size_without_timestamp_changed=0;same_size_timestamp_changed=0}
-$eventQueryAttempted=$false;$eventQueryAvailable=$false
+$eventQueryAttempted=$false;$eventQueryAvailable=$false;$eventQueryOutcome='not_attempted'
 $matchedOwn=@{};$matchedOther=@{};$matchedAuditWriteUseCount=0
 $d3e10Completed=$false
 function Get-Metadata {
@@ -113,6 +113,7 @@ try{
     } -MaxEvents 4000 -ErrorAction Stop)
     if($auditEvents.Count -ge 4000){throw 'AUDIT_EVENT_CAP'}
     $eventQueryAvailable=$true
+    $eventQueryOutcome='records_returned'
     $rootPrefix=$root+'\'
     foreach($record in $auditEvents){
       try{
@@ -145,12 +146,21 @@ try{
       }catch{
         # One malformed 4663 event cannot create positive attribution.
         $eventQueryAvailable=$false
+        $eventQueryOutcome='invalid_event'
         $matchedOwn=@{};$matchedOther=@{};$matchedAuditWriteUseCount=0
         break
       }
     }
   }catch{
-    # Missing or inaccessible security events remain unknown, not negative proof.
+    # Get-WinEvent raises NoMatchingEventsFound on a valid empty result.
+    # Distinguish an empty bounded query from an unavailable/failed query.
+    # Neither proves the absence of a writer or complete event delivery.
+    $errorId=[string]$_.FullyQualifiedErrorId
+    if($errorId -like 'NoMatchingEventsFound*'){
+      $eventQueryOutcome='no_matching_events'
+    }else{
+      $eventQueryOutcome='query_error'
+    }
     $eventQueryAvailable=$false
     $matchedOwn=@{};$matchedOther=@{};$matchedAuditWriteUseCount=0
   }
@@ -225,6 +235,7 @@ $d3e10=[ordered]@{
   unchanged_size_changed_timestamp_count=[int]$timeCounters.same_size_timestamp_changed
   security_4663_query_attempted=$eventQueryAttempted
   security_4663_records_available=$eventQueryAvailable
+  security_4663_query_outcome=$eventQueryOutcome
   matching_write_data_or_append_access_event_count=[int]$matchedAuditWriteUseCount
   same_powershell_pid_matching_file_count=[int]$matchedOwn.Count
   other_pid_matching_file_count=[int]$matchedOther.Count
@@ -249,6 +260,7 @@ Write-Host "D3E10_SIZE_ONLY_CHANGED_COUNT=$($timeCounters.size_without_timestamp
 Write-Host "D3E10_MATCHING_4663_WRITE_USE_COUNT=$matchedAuditWriteUseCount"
 Write-Host "D3E10_MATCHING_4663_OTHER_PROCESS_FILE_COUNT=$($matchedOther.Count)"
 Write-Host "D3E10_SECURITY_EVENT_RECORDS_AVAILABLE=$($eventQueryAvailable.ToString().ToLowerInvariant())"
+Write-Host "D3E10_SECURITY_QUERY_OUTCOME=$eventQueryOutcome"
 Write-Host 'D3E10_FILE_CONTENT_READ=false'
 Write-Host 'D3E10_WRITER_CAUSALITY_PROVEN=false'
 

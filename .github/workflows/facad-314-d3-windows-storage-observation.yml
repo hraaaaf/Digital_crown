@@ -463,6 +463,7 @@ jobs:
           }
           Write-Host "D3E10_ARM=$d3e9Arm"
           Write-Host "D3E10_ARM_VERDICT=$($d3e10.verdict)"
+          Write-Host "D3E10_ARM_AUDIT_QUERY_OUTCOME=$($d3e10.audit_query_outcome)"
           Write-Host "D3E10_ARM_SIZE_AND_TIMESTAMP_CHANGED_COUNT=$($d3e10.size_and_timestamp_changed_count)"
           Write-Host "D3E10_ARM_4663_OTHER_PROCESS_MATCHED_FILE_COUNT=$($d3e10.other_process_4663_matched_file_count)"
           # Both experiments remain on one ephemeral Windows runner with the same

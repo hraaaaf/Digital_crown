@@ -76,6 +76,9 @@ jobs:
           grep -q 'name: facad-314-d3-windows-storage-.*matrix.arm' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E9_MATCHED_COUNTERFACTUAL_PROVEN=false' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'D3E10_ARM_VERDICT=' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'D3E10_ARM_AUDIT_QUERY_OUTCOME=' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq "'NoMatchingEventsFound*'" scripts/facad_314_d3e9_independent_arm.ps1
+          grep -Fq "security_4663_query_outcome" scripts/facad_314_d3e10_provenance_gate.py
           grep -Fq 'd3e10-checked-sacl_1.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'file_content_read=$false' scripts/facad_314_d3e9_independent_arm.ps1
           grep -Fq 'full_event_delivery_proven=$false' scripts/facad_314_d3e9_independent_arm.ps1
