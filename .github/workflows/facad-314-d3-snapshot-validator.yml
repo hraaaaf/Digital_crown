@@ -8,6 +8,9 @@ on:
       - scripts/facad_314_d3_snapshot_diff_gate.py
       - scripts/test_facad_314_d3_snapshot_diff_gate.py
       - scripts/facad_314_d3_cold_warm_verdict_gate.py
+      - scripts/facad_314_d3e_facad_root_pid_write_observer.ps1
+      - scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
+      - scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py
       - scripts/test_facad_314_d3_cold_warm_verdict_gate.py
       - scripts/facad_314_d3_storage_authority_gap_gate.py
       - scripts/test_facad_314_d3_storage_authority_gap_gate.py
@@ -44,6 +47,8 @@ jobs:
           grep -Fq 'D3 BLOCKED: observed storage drift in cold or warm' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'd3-cold-warm-research-summary.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
           if grep -Fq '$evidence.monitored_scope_count -ne 9' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
+          grep -Fq 'D3E2 root-PID write-use attribution unproven' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION' scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
           echo "D3_REGISTRY_VALUES_READ=false"
       - name: Validate syntax
         run: python -m py_compile scripts/facad_314_d3_snapshot_diff_gate.py scripts/test_facad_314_d3_snapshot_diff_gate.py
@@ -54,6 +59,11 @@ jobs:
           python -m py_compile scripts/facad_314_d3_cold_warm_verdict_gate.py scripts/test_facad_314_d3_cold_warm_verdict_gate.py
           python -m unittest scripts/test_facad_314_d3_cold_warm_verdict_gate.py -v
           echo 'D3_COLD_WARM_RUNTIME_OBSERVATION=NOT_CERTIFIED_BY_THIS_JOB'
+      - name: Verify root-PID file-write evidence contract (SYNTHETIC ONLY)
+        run: |
+          python -m py_compile scripts/facad_314_d3e_facad_root_pid_verdict_gate.py scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py
+          python -m unittest scripts/test_facad_314_d3e_facad_root_pid_verdict_gate.py -v
+          echo 'FACAD_REAL_WRITE_ATTRIBUTION=NOT_TESTED_BY_THIS_JOB'
       - name: Compare manufacturer storage topology to blind spots (SOURCE ONLY)
         run: |
           python -m py_compile scripts/facad_314_d3_storage_authority_gap_gate.py scripts/test_facad_314_d3_storage_authority_gap_gate.py
