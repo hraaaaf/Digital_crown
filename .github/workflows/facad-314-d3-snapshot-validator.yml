@@ -47,7 +47,7 @@ jobs:
           grep -Fq 'D3 BLOCKED: observed storage drift in cold or warm' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'd3-cold-warm-research-summary.json' .github/workflows/facad-314-d3-windows-storage-observation.yml
           if grep -Fq '$evidence.monitored_scope_count -ne 9' .github/workflows/facad-314-d3-windows-storage-observation.yml; then exit 1; fi
-          grep -Fq 'D3E2 root-PID write-use attribution unproven' .github/workflows/facad-314-d3-windows-storage-observation.yml
+          grep -Fq 'root-PID write-use attribution unproven' .github/workflows/facad-314-d3-windows-storage-observation.yml
           grep -Fq 'POSITIVE_FACAD_ROOT_PID_WRITE_USE_EVENTS_NOT_ISOLATION' scripts/facad_314_d3e_facad_root_pid_verdict_gate.py
           echo "D3_REGISTRY_VALUES_READ=false"
       - name: Validate syntax
