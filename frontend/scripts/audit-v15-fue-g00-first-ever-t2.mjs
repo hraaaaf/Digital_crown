@@ -82,13 +82,26 @@ try{
       await page.locator('input[type=email]').fill(owner);
       await page.locator('input[type=password]').fill(password);
       await page.getByRole('button',{name:'Se connecter',exact:true}).click();
-      // The first authenticated entry returns to Hub. The real Hub admin
-      // calls /workstation/state and registers the first workstation.
+      // The Cabinet card was explicitly selected BEFORE the login. LoginPage
+      // navigates /dashboard, while the server bootstrap can briefly route to
+      // the safe Hub. Do not demand a Hub that the product need not display.
+      // Either landing must be FULLY rendered, not just a changed URL.
+      await page.waitForFunction(()=>
+        (location.pathname==='/dashboard' &&
+          !!document.querySelector('[data-tour="quick-action-new-patient"]')) ||
+        (location.pathname==='/hub' &&
+          !!document.querySelector('[data-workstation-admin]')),
+        null,{timeout:35000});
+      const entryRoute=new URL(page.url()).pathname;
+      p.firstLoginDestination=entryRoute;
+      ok('loginCreatesActualUserAuth',await page.evaluate(()=>
+        !!localStorage.getItem('token')));
+      // Audit the actual first-post owner Hub and backend, regardless of which
+      // allowable after-login screen was painted first.
+      await go('/hub?select=1');
       await page.locator('[data-workstation-admin]').waitFor({
         state:'visible',timeout:30000});
       ok('ownerMayManageFirstPost',new URL(page.url()).pathname==='/hub');
-      ok('loginCreatesActualUserAuth',await page.evaluate(()=>
-        !!localStorage.getItem('token')));
       const cookie=(await ctx.cookies(backend)).filter(c=>c.name==='dc_workstation');
       ok('productCreatedSingleWorkstationCookie',cookie.length===1);
       ok('neverCalledEnrollmentApi',p.workstationEnrollCalls.length===0);
