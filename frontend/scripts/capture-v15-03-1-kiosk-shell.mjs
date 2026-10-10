@@ -29,6 +29,11 @@ const scales = [
   { label: 'normal', rootFontSize: null },
   { label: 'text200', rootFontSize: '200%' },
 ];
+const languages = [
+  { code: 'fr', button: 'Français', heading: 'Bienvenue au cabinet', dir: 'ltr' },
+  { code: 'ar', button: 'العربية', heading: 'مرحباً بكم في العيادة', dir: 'rtl' },
+  { code: 'en', button: 'English', heading: 'Welcome to the clinic', dir: 'ltr' },
+];
 
 const browser = await chromium.launch({ headless: true });
 const report = [];
@@ -55,27 +60,61 @@ try {
         if (message.type() === 'error') errors.push(message.text());
       });
 
-      await page.goto('http://127.0.0.1:4195/station', {
-        waitUntil: 'networkidle',
-        timeout: 30000,
-      });
-      if (scale.rootFontSize) {
-        await page.evaluate(value => { document.documentElement.style.fontSize = value; }, scale.rootFontSize);
-        await page.waitForTimeout(100);
+      await page.goto('http://127.0.0.1:4195/s      for (const language of languages) {
+        // Exercise real language controls, rather than injecting lang or dir.
+        await page.getByRole('button', { name: language.button, exact: true }).click();
+        const meta = await page.evaluate(() => {
+          const shell = document.querySelector('[data-workstation-experience="station"]');
+          const targets = [...document.querySelectorAll(
+            '[data-station-action], button[aria-pressed], button[aria-label="Digital Crown"]',
+          )];
+          const tooSmallTargets = targets.flatMap(node => {
+            const rect = node.getBoundingClientRect();
+            return rect.width < 44 || rect.height < 44
+              ? [{ name: node.getAttribute('aria-label') || node.textContent?.trim(), width: rect.width, height: rect.height }]
+              : [];
+          });
+          return {
+            width: document.documentElement.clientWidth,
+            scrollWidth: document.documentElement.scrollWidth,
+            height: document.documentElement.clientHeight,
+            scrollHeight: document.documentElement.scrollHeight,
+            stationVisible: Boolean(shell),
+            screen: shell?.getAttribute('data-station-screen') || null,
+            language: shell?.getAttribute('data-station-language') || null,
+            lang: shell?.getAttribute('lang') || null,
+            dir: shell?.getAttribute('dir') || null,
+            selectedLanguages: [...document.querySelectorAll('button[aria-pressed="true"]')]
+              .map(node => node.getAttribute('aria-label')),
+            tooSmallTargets,
+            clinicalLinks: [...document.querySelectorAll('a')]
+              .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
+              .map(a => a.getAttribute('href')),
+            h1: document.querySelector('h1')?.textContent || '',
+          };
+        });
+
+        const filename = `${phase}-station-${vp.label}-${scale.label}-${language.code}.png`;
+        await page.screenshot({
+          path: path.join(out, filename),
+          fullPage: true,
+          animations: 'disabled',
+        });
+
+        report.push({
+          phase,
+          viewport: vp.label,
+          scale: scale.label,
+          expectedLanguage: language.code,
+          expectedDir: language.dir,
+          expectedHeading: language.heading,
+          expectedButton: language.button,
+          filename,
+          ...meta,
+          errors: [...errors],
+        });
       }
-
-      const meta = await page.evaluate(() => ({
-        width: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-        height: document.documentElement.clientHeight,
-        scrollHeight: document.documentElement.scrollHeight,
-        stationVisible: Boolean(document.querySelector('[data-workstation-experience="station"]')),
-        clinicalLinks: Array.from(document.querySelectorAll('a')).filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || '')).map(a => a.getAttribute('href')),
-        h1: document.querySelector('h1')?.textContent || '',
-      }));
-
-      const filename = `${phase}-station-${vp.label}-${scale.label}.png`;
-      await page.screenshot({
+screenshot({
         path: path.join(out, filename),
         fullPage: true,
         animations: 'disabled',
@@ -106,6 +145,14 @@ await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, nul
 
 const failures = report.filter(item =>
   !item.stationVisible ||
+  item.screen !== 'home' ||
+  item.language !== item.expectedLanguage ||
+  item.lang !== item.expectedLanguage ||
+  item.dir !== item.expectedDir ||
+  item.h1 !== item.expectedHeading ||
+  item.selectedLanguages.length !== 1 ||
+  item.selectedLanguages[0] !== item.expectedButton ||
+  item.tooSmallTargets.length > 0 ||
   item.scrollWidth > item.width ||
   item.clinicalLinks.length > 0 ||
   item.errors.length > 0
