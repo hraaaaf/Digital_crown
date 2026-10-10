@@ -107,7 +107,12 @@ for(const v of viewports){
     await goto('/dashboard');
     await at('/dashboard');
     await page.getByRole('button',{name:'Ajout rapide'}).waitFor({state:'visible',timeout:30000});
-    ok('clinicalDashboardNowAccessible',true);
+    // The navigation action can mount before clinical quick cards render.
+    // Preserve a meaningful AFTER proof, not a white loading transition.
+    await page.locator('[data-tour="quick-action-new-patient"]').waitFor({
+      state:'visible',timeout:30000});
+    ok('clinicalDashboardNowAccessible',
+      await page.getByRole('heading',{name:'Nouveau Patient',exact:true}).isVisible());
     p.timingsMs.clinical=Date.now()-begin;
     await img('06-dashboard-after-enrollment');
     await goto('/hub?select=1');
