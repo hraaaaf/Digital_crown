@@ -5,6 +5,7 @@ $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $guid='{0cce921d-69ae-11d9-bed3-505054503030}'
 $root=$null
+$syntheticScope=$null
 $file=$null
 $aclOriginal=$null
 $aclApplied=$false
@@ -24,6 +25,7 @@ $objectNameFieldCount=0
 $targetSuffixMatchCount=0
 $targetExactMatchCount=0
 $targetWritableAccessCount=0
+$liveScopedAliasCount=0
 $probeError=$false
 
 function Get-FileAuditSuccess {
@@ -48,13 +50,16 @@ try {
     $tempBase=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
     $root=Join-Path $tempBase ('FACAD-D3E22-SYNTHETIC-'+[Guid]::NewGuid().ToString('N'))
     $null=New-Item -ItemType Directory -Force -Path $root
-    $file=Join-Path $root 'synthetic.txt'
+    $syntheticScope=Join-Path $root 'AppData\Roaming\Ilexis'
+    $null=New-Item -ItemType Directory -Force -Path $syntheticScope
+    $file=Join-Path $syntheticScope 'synthetic.txt'
     $worker=Join-Path $root 'worker.ps1'
     [IO.File]::WriteAllText($file,'SYNTHETIC_BEFORE')
     [IO.File]::WriteAllText($worker,@'
 param([Parameter(Mandatory=$true)][string]$Target)
 [IO.File]::WriteAllText($Target,'SYNTHETIC_AFTER')
 '@)
+    . (Join-Path $PSScriptRoot 'facad_314_d3e22_event_path_map.ps1')
     $policyOriginal=Get-FileAuditSuccess
     if(-not $policyOriginal){
         $policyTouched=$true
@@ -111,11 +116,15 @@ param([Parameter(Mandatory=$true)][string]$Target)
             if(-not $fields.ContainsKey('ObjectName')){continue}
             $objectNameFieldCount++
             $objectName=[string]$fields.ObjectName
-            $uniqueSuffix='\'+[IO.Path]::GetFileName($root)+'\'+[IO.Path]::GetFileName($file)
+            $uniqueSuffix='\'+[IO.Path]::GetFileName($root)+'\AppData\Roaming\Ilexis\'+[IO.Path]::GetFileName($file)
             $suffixMatch=$objectName.EndsWith($uniqueSuffix,[StringComparison]::OrdinalIgnoreCase)
             $exactMatch=$objectName.Equals($file,[StringComparison]::OrdinalIgnoreCase)
             if($suffixMatch){$targetSuffixMatchCount++}
             if($exactMatch){$targetExactMatchCount++}
+            if($suffixMatch -or $exactMatch){
+                $relative=Resolve-ScopedEventRelative -ScopeRoot $syntheticScope -ObservedPath $objectName
+                if($relative -ceq 'synthetic.txt'){$liveScopedAliasCount++}
+            }
             if(-not ($suffixMatch -or $exactMatch) -or
                -not $fields.ContainsKey('AccessMask')){continue}
             $mask=[Convert]::ToInt64(([string]$fields.AccessMask).Replace('0x',''),16)
@@ -172,6 +181,7 @@ Write-Host "D3E22_OBJECTNAME_FIELD_COUNT=$objectNameFieldCount"
 Write-Host "D3E22_TARGET_SUFFIX_MATCH_COUNT=$targetSuffixMatchCount"
 Write-Host "D3E22_TARGET_EXACT_MATCH_COUNT=$targetExactMatchCount"
 Write-Host "D3E22_TARGET_WRITABLE_ACCESS_COUNT=$targetWritableAccessCount"
+Write-Host "D3E22_LIVE_SCOPED_ALIAS_MATCH_COUNT=$liveScopedAliasCount"
 Write-Host "D3E22_TARGET_MATCH_COUNT=$matchCount"
 Write-Host "D3E22_CHILD_PID_MATCH_COUNT=$childCount"
 Write-Host "D3E22_OTHER_PID_COUNT=$otherCount"
@@ -191,7 +201,7 @@ if($probeError -or -not $workerOk -or -not $policyEnabledObserved){
     Write-Host 'D3E22_VERDICT=BLOCKED_SYNTHETIC_NATIVE_PROBE_FAILED'
     exit 2
 }
-if($childCount -eq 0 -or $matchCount -eq 0){
+if($childCount -eq 0 -or $matchCount -eq 0 -or $liveScopedAliasCount -eq 0){
     Write-Host 'D3E22_VERDICT=INCONCLUSIVE_NO_SYNTHETIC_4663_PID_LINK'
     exit 3
 }

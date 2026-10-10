@@ -1,4 +1,4 @@
-name: FACAD D3E22 file event alias tests ONLY (EXPERIMENTAL)
+name: FACAD D3E22 synthetic native event alias integration (EXPERIMENTAL)
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     paths:
       - scripts/facad_314_d3e9_independent_arm.ps1
       - scripts/facad_314_d3e22_event_path_map.ps1
+      - scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
       - scripts/test_facad_314_d3e22_event_path_map.ps1
       - .github/workflows/facad-314-d3e22-event-alias-static.yml
   workflow_dispatch:
@@ -16,7 +17,7 @@ permissions:
 
 jobs:
   synthetic-path-alias-validation:
-    name: Windows source-only / never run Facad or Security audit
+    name: Windows ephemeral synthetic event audit / never run Facad
     runs-on: windows-latest
     timeout-minutes: 5
     steps:
@@ -28,7 +29,8 @@ jobs:
           if ((git rev-parse HEAD) -cne $env:GITHUB_SHA) { throw 'HEAD_MISMATCH' }
           $paths=@('scripts/facad_314_d3e9_independent_arm.ps1',
                    'scripts/facad_314_d3e22_event_path_map.ps1',
-                   'scripts/test_facad_314_d3e22_event_path_map.ps1')
+                   'scripts/test_facad_314_d3e22_event_path_map.ps1',
+                   'scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1')
           foreach($path in $paths){
             $tokens=$null;$errors=$null
             [void][Management.Automation.Language.Parser]::ParseFile(
@@ -45,4 +47,15 @@ jobs:
           Write-Host 'D3E22_FACAD_EXECUTED=false'
           Write-Host 'FAC03_D3=OPEN_RED'
           Write-Host 'SHARED_APP_STORAGE_ISOLATION=UNVERIFIED'
+          Write-Host 'CLINICAL_EDIT_ALLOWED=false'
+
+      - name: Native synthetic 4663 event passes exact scoped path adapter; audit restored
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e22_synthetic_audit_enable_restore.ps1
+          $code=$LASTEXITCODE
+          if($code -ne 0){throw "D3E22_NATIVE_ALIAS_INTEGRATION_BLOCKED_EXIT=$code"}
+          Write-Host 'D3E22_FACAD_EXECUTED=false'
+          Write-Host 'FAC03_D3=OPEN_RED'
           Write-Host 'CLINICAL_EDIT_ALLOWED=false'
