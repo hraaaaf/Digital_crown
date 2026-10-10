@@ -1,0 +1,131 @@
+name: FUE-G04 Windows pinned runtime preflight (no code cert required)
+
+# Staging gate for a known, immutable scientific binary. This is NOT the
+# installation or the later CODE_CERTIFIED/INSTALLABLE_CERTIFIED chain.
+on:
+  push:
+    branches:
+      - ci/fue-g04-windows-installable-chain-20261010
+    paths:
+      - '.github/workflows/fue-g04-windows-asset-preflight.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-windows-scientific-asset:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      EXPECTED_MASTER: f61d0c90eb46fc2ac07d9873e35559df07090afe
+      SOURCE_RUN_ID: "34281082926"
+      MODEL_SHA256: a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb
+      MODEL_BYTES: "267484931"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f61d0c90eb46fc2ac07d9873e35559df07090afe
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify exact source commit and external-asset policy
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_MASTER) { throw "Unpinned checkout" }
+          $tracked = @(git ls-files -- backend/ai_models/srpose38-tta-1024.onnx)
+          if ($tracked.Count -gt 0) { throw "Clinical model must stay external to Git" }
+          Write-Host "SOURCE_SHA_VERIFIED=$actual"
+
+      - name: Recover source proof asset from prior successful GH Actions run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 34281082926
+          name: cephalo-srpose38-onnx-parity
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/external-srpose-source
+
+      - name: Verify pinned scientific asset bytes and contract on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:RUNNER_TEMP 'external-srpose-source'
+          $matches = @(Get-ChildItem -LiteralPath $source -Filter 'srpose38-tta-1024.onnx' -Recurse -File)
+          if ($matches.Count -ne 1) { throw "Expected one historical certified ONNX source, found $($matches.Count)" }
+          $model = $matches[0]
+          if ($model.Length -ne [long]$env:MODEL_BYTES) { throw "ONNX byte size mismatch" }
+          $sha = (Get-FileHash -LiteralPath $model.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($sha -ne $env:MODEL_SHA256) { throw "ONNX hash mismatch" }
+          $env:RECOVERED_MODEL_PATH = $model.FullName
+          @'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from backend.services.srpose38_contract import SRPOSE38_MODEL_NAME, SRPOSE38_MODEL_SHA256, SRPOSE38_MODEL_SIZE_BYTES
+          registry = json.loads(Path('backend/scientific_assets.json').read_text(encoding='utf-8'))
+          found = [row for row in registry['assets'] if row['id'] == 'cephalo_sota']
+          assert len(found) == 1
+          row = found[0]
+          assert row['canonical_path'] == 'backend/ai_models/' + SRPOSE38_MODEL_NAME
+          assert row['provenance']['onnx_proof_run'] == int(os.environ['SOURCE_RUN_ID'])
+          assert row['runtime_provider'] == 'CPUExecutionProvider'
+          assert row['sha256'] == SRPOSE38_MODEL_SHA256 == os.environ['MODEL_SHA256']
+          assert row['size_bytes'] == SRPOSE38_MODEL_SIZE_BYTES == int(os.environ['MODEL_BYTES'])
+          source = Path(os.environ['RECOVERED_MODEL_PATH'])
+          assert source.stat().st_size == row['size_bytes']
+          with source.open('rb') as handle:
+              digest = hashlib.file_digest(handle, 'sha256').hexdigest()
+          assert digest == row['sha256']
+          report = {
+              'kind': 'FUE_G04_WINDOWS_MODEL_BYTE_PREFLIGHT',
+              'source_run': int(os.environ['SOURCE_RUN_ID']),
+              'source_master_sha': os.environ['EXPECTED_MASTER'],
+              'model': row['canonical_path'],
+              'sha256': digest,
+              'size_bytes': source.stat().st_size,
+              'status': 'MODEL_BYTES_AND_REGISTRY_IDENTICAL',
+              'release_certification': 'NOT_PERFORMED',
+              'physical_cabinet_installation': 'NOT_PERFORMED'
+          }
+          output = Path(os.environ['RUNNER_TEMP']) / 'fue-g04-model-source-evidence.json'
+          output.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(report, sort_keys=True))
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw "Scientific registry identity preflight failed" }
+
+      - name: Verify Windows script parsing and fail-closed packaging guard
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($script in @('backend/scripts/create_release.ps1','backend/scripts/run_real_backend.ps1','scripts/setup-https.ps1')) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path (Get-Location) $script), [ref]$tokens, [ref]$errors) | Out-Null
+            if (@($errors).Count -ne 0) { throw "PowerShell parse errors in $script" }
+            Write-Host "WINDOWS_POWERSHELL_SYNTAX_PASS=$script"
+          }
+          @'
+          import runpy
+          from backend.release_certification import ReleaseCertificationError
+          try:
+              runpy.run_path('DigitalCrown.spec')
+          except ReleaseCertificationError:
+              print('UNCERTIFIED_WINDOWS_PYINSTALLER_BUILD_REJECTED=YES')
+          else:
+              raise SystemExit('FAIL OPEN: uncertified source tree passed the installer spec')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw "Uncertified PyInstaller source must be rejected" }
+
+      - name: Publish hash-only preflight evidence, never publish duplicate model
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g04-windows-pinned-srpose-preflight-f61d0c90
+          path: ${{ runner.temp }}/fue-g04-model-source-evidence.json
+          if-no-files-found: error
+          retention-days: 30
