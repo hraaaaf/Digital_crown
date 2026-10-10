@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import socket
 import os
 import time
 from pathlib import Path
@@ -36,6 +37,7 @@ class RuntimeSupervisor:
         if resolved_scheme not in {"http", "https"}:
             raise ValueError("scheme must be http or https")
         self.scheme = resolved_scheme
+        self.instance_id = os.getenv('DIGITALCROWN_INSTANCE_ID', '').strip()
 
     @property
     def ui_url(self) -> str:
@@ -61,7 +63,8 @@ class RuntimeSupervisor:
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
             return False
-        return payload.get("status") == "ok" and payload.get("db") == "ok"
+        return (payload.get("status") == "ok" and payload.get("db") == "ok"
+                and (not self.instance_id or payload.get("instance_id") == self.instance_id))
 
     def wait_until_ready(self, *, timeout: float = 120.0, poll_interval: float = 0.25) -> bool:
         deadline = time.monotonic() + max(0.0, float(timeout))
@@ -82,6 +85,16 @@ class RuntimeSupervisor:
     ) -> PlatformFileLock | None:
         lock = self.try_acquire_instance()
         if lock is not None:
+            # Never accept or focus a different backend occupying this instance port.
+            if self.instance_id:
+                probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                try:
+                    probe.bind(('127.0.0.1', self.port))
+                except OSError:
+                    lock.release()
+                    raise RuntimeError('Cabinet port already occupied; existing backend must not be replaced')
+                finally:
+                    probe.close()
             return lock
 
         if not self.wait_until_ready(timeout=timeout):

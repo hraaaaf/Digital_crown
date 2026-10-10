@@ -1,3 +1,5 @@
+from backend.core.key_material import mobile_pairing_key_hex, MOBILE_KEY_VERSION
+import hmac
 """
 Routes PWA Mobile â€” LAN-first, zÃ©ro cloud.
 Aucune donnÃ©e ne sort du rÃ©seau local du cabinet.
@@ -31,6 +33,7 @@ def _create_mobile_jwt(user_id: int, role: str, employer_id: int | None = None, 
         "tenant_id": tenant_id,
         "device_id": device_id,
         "type": "mobile",
+        "mobile_key_version": MOBILE_KEY_VERSION,
         "role": role,
         "jti": str(uuid.uuid4()),
         "exp": datetime.now(timezone.utc) + timedelta(hours=24),
@@ -45,7 +48,7 @@ def _decode_mobile_identity(authorization: str, db: Session):
         if scheme.lower() != "bearer":
             raise err
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "mobile":
+        if payload.get("type") != "mobile" or payload.get("mobile_key_version") != MOBILE_KEY_VERSION:
             raise err
         jti = payload.get("jti")
         if not jti:
@@ -322,6 +325,9 @@ def claim_pairing_token(
     )
     if not record:
         raise HTTPException(status_code=404, detail="Token invalide, expiré ou déjà utilisé.")
+
+    if not hmac.compare_digest(str(record.master_key or ""), mobile_pairing_key_hex()):
+        raise HTTPException(status_code=409, detail="Ancien code mobile incompatible. Générez un nouveau QR.")
 
     user_id = getattr(record, "user_id", None)
     if not user_id:

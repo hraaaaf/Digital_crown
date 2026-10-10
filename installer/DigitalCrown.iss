@@ -7,7 +7,10 @@
 #define MyAppName "DigitalCrown"
 #define MyAppPublisher "SANINOVA"
 #define MyAppExeName "DigitalCrown.exe"
-#define MyAppTaskName "DigitalCrown"
+#ifndef CabinetInstanceId
+  #define CabinetInstanceId "SoloV2"
+#endif
+#define MyInstanceName "DigitalCrown-" + CabinetInstanceId
 #define MyDistDir "..\dist\DigitalCrown"
 
 #if !FileExists(MyDistDir + "\release-certification.json")
@@ -33,12 +36,12 @@
 #endif
 
 [Setup]
-AppId={{8F1B6C1E-6C7E-4B7B-9C7C-7E6C1E6C7E6C}
+AppId=DigitalCrown-{#CabinetInstanceId}
 AppName={#MyAppName}
 AppVersion=1.0.0
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\Programs\{#MyAppName}
-DefaultGroupName={#MyAppName}
+DefaultDirName={localappdata}\Programs\{#MyInstanceName}
+DefaultGroupName={#MyInstanceName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist_installer
@@ -47,7 +50,7 @@ Compression=zip
 SolidCompression=no
 WizardStyle=modern
 UninstallDisplayIcon={app}\{#MyAppExeName}
-CloseApplications=yes
+CloseApplications=no
 RestartApplications=no
 
 [Languages]
@@ -57,8 +60,8 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Source: "{#MyDistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+; Clinical shortcuts are created only by an explicitly approved activation profile.
+; Never launch this new installer with the implicit historical APPDATA environment.
 
 [Run]
 ; V1 managed update safety:
@@ -67,8 +70,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 ; explicit cabinet environment has been selected by the controlled update path.
 
 [UninstallRun]
-Filename: "{sys}\schtasks.exe"; Parameters: "/delete /tn ""{#MyAppTaskName}"" /f"; \
-    Flags: runhidden; RunOnceId: "RemoveDigitalCrownTask"
+; No global task deletion: activation owns only explicitly identified instance tasks.
 
 [UninstallDelete]
 ; Ne supprime QUE les fichiers programme copiés par [Files].

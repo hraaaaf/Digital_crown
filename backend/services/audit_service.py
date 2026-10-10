@@ -18,7 +18,7 @@ class AuditService:
         severity: str = "INFO",
         employer_id: Optional[int] = None,
         ip_address: Optional[str] = None
-    ):
+    ) -> bool:
         """
         Enregistre une action dans les logs systeme et en base de donnees.
         """
@@ -47,8 +47,13 @@ class AuditService:
             )
             db.add(audit_entry)
             db.commit()
-        except Exception as e:
-            logger.error(f"Echec de la persistance de l'audit log : {e}")
-            db.rollback()
+            return True
+        except Exception as exc:
+            logger.error("Audit persistence failed: %s", type(exc).__name__)
+            try:
+                db.rollback()
+            except Exception as rollback_exc:
+                logger.error("Audit rollback failed: %s", type(rollback_exc).__name__)
+            return False
 
 audit_service = AuditService()

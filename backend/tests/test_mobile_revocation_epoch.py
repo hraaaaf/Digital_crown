@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex
 from datetime import datetime, timedelta
 import uuid
 from unittest.mock import patch
@@ -12,7 +13,7 @@ def _pending_pairing(db, employer_id: int, suffix: str):
         token=f"{suffix}-{uuid.uuid4().hex[:12]}",
         employer_id=employer_id,
         public_id=uuid.uuid4().hex[:16],
-        master_key="a" * 64,
+        master_key=mobile_pairing_key_hex(),
         role="DENTISTE",
         expires_at=datetime.utcnow() + timedelta(minutes=5),
     )
@@ -114,4 +115,59 @@ def test_admin_revoke_endpoint_rejects_existing_mobile_token(client, db, dentist
     assert response.status_code == 200
     assert response.json()["status"] == "success"
     assert response.json()["pairing_tokens_invalidated"] >= 1
+    assert _snapshot(client, old_token).status_code == 401
+
+
+def test_admin_revoke_audit_failure_does_not_undo_persisted_revocation(client, db, dentiste, auth_headers):
+    dentiste.role = models.UserRole.ADMIN
+    dentiste.permissions = {**(dentiste.permissions or {}), "admin": True}
+    db.commit()
+    old_token = _paired_mobile_token(db, dentiste)
+    with patch("backend.routers.admin._legacy.audit_service.log", side_effect=RuntimeError("fictitious audit failure")):
+        response = client.post("/api/admin/revoke-mobile", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["audit_recorded"] is False
+    token_blacklist._mobile_cutoffs.clear()
+    assert _snapshot(client, old_token).status_code == 401
+
+
+def test_mobile_assistant_cannot_revoke_cabinet(client, db, dentiste):
+    assistant = models.User(email="fictitious-assistant-revoke@test.local", hashed_password=get_password_hash("Pass123!"), role=models.UserRole.SECRETAIRE, employer_id=dentiste.id, is_active=True)
+    db.add(assistant)
+    db.commit()
+    token = _paired_mobile_token(db, assistant)
+    response = client.post("/api/admin/revoke-mobile", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code in (401, 403)
+    assert db.query(models.MobilePairedDevice).filter_by(user_id=assistant.id, revoked_at=None).count() == 1
+
+
+def test_admin_revoke_never_calls_storage_rotation(client, db, dentiste, auth_headers):
+    dentiste.role = models.UserRole.ADMIN
+    dentiste.permissions = {**(dentiste.permissions or {}), "admin": True}
+    db.commit()
+    with patch("backend.routers.admin._legacy.zka_service.rotate_master_key", side_effect=AssertionError("Storage rotation forbidden")) as rotation:
+        response = client.post("/api/admin/revoke-mobile", headers=auth_headers)
+    assert response.status_code == 200
+    rotation.assert_not_called()
+
+
+def test_committed_revocation_reports_real_audit_commit_failure(client, db, dentiste, auth_headers):
+    dentiste.role = models.UserRole.ADMIN
+    dentiste.permissions = {**(dentiste.permissions or {}), "admin": True}
+    db.commit()
+    old_token = _paired_mobile_token(db, dentiste)
+    commit = db.commit
+    calls = 0
+    def failing_audit_commit():
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("fictitious second commit failure")
+        return commit()
+    with patch.object(db, "commit", side_effect=failing_audit_commit):
+        response = client.post("/api/admin/revoke-mobile", headers=auth_headers)
+    assert calls == 2
+    assert response.status_code == 200
+    assert response.json()["audit_recorded"] is False
+    token_blacklist._mobile_cutoffs.clear()
     assert _snapshot(client, old_token).status_code == 401

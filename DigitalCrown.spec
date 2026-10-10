@@ -32,6 +32,8 @@ a = Analysis(
     binaries=[],
     datas=[
         ('frontend/dist', 'frontend/dist'),
+        ('alembic.ini', '.'),
+        ('alembic', 'alembic'),
         ('backend/data/medications_ma.json', 'backend/data'),
         ('backend/data/medications_ma_ammps_2026.json', 'backend/data'),
         ('backend/data/medications_ma_ammps_current_2026.json', 'backend/data'),
@@ -54,7 +56,8 @@ a = Analysis(
         'passlib.handlers', 'passlib.handlers.bcrypt',
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
         'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical',
-        'backend.release_certification', 'backend.runtime_asset_certification'
+        'backend.release_certification', 'backend.runtime_asset_certification',
+        'backend.core.new_cabinet_setup', 'tkinter', 'tkinter.simpledialog', 'tkinter.messagebox'
     ],
     hookspath=[],
     hooksconfig={},

@@ -74,27 +74,8 @@ class ZKAService:
 
     def rotate_master_key(self, env_path: str) -> str:
         """Génère une nouvelle clé et met à jour le fichier .env de manière persistante."""
-        new_key = self.generate_master_key()
-        
-        # 1. Mise à jour dans l'environnement courant
-        os.environ["CABINET_MASTER_KEY_HEX"] = new_key
-        
-        # 2. Mise à jour du fichier .env
-        if os.path.exists(env_path):
-            with open(env_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-            
-            with open(env_path, 'w', encoding='utf-8') as f:
-                found = False
-                for line in lines:
-                    if line.startswith("CABINET_MASTER_KEY_HEX="):
-                        f.write(f"CABINET_MASTER_KEY_HEX={new_key}\n")
-                        found = True
-                    else:
-                        f.write(line)
-                if not found:
-                    f.write(f"\nCABINET_MASTER_KEY_HEX={new_key}\n")
-        
-        return new_key
+        raise RuntimeError(
+            "Implicit storage key rotation is forbidden; use an explicit backed-up rekey procedure"
+        )
 
 zka_service = ZKAService()

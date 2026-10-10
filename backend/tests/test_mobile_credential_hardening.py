@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex
 from datetime import datetime, timedelta, timezone
 import uuid
 
@@ -16,7 +17,7 @@ def _pairing_record(db, dentiste):
         employer_id=dentiste.id,
         user_id=dentiste.id,
         public_id="abcdef1234567890",
-        master_key="a" * 64,
+        master_key=mobile_pairing_key_hex(),
         role="DENTISTE",
         expires_at=datetime.utcnow() + timedelta(minutes=5),
     )

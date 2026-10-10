@@ -136,7 +136,8 @@ class BackupService:
         password = getattr(active_engine.url, "password", None)
         if password:
             return str(password)
-        configured = os.getenv("CABINET_MASTER_KEY_HEX") or os.getenv("SECRET_KEY")
+        from backend.core.key_material import sqlcipher_passphrase
+        configured = sqlcipher_passphrase()
         if configured:
             return configured
         raise RuntimeError("SQLCipher key unavailable")

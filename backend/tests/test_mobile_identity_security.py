@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex
 from datetime import datetime, timedelta
 from pathlib import Path
 import uuid
@@ -55,7 +56,7 @@ def _pairing(db, owner, user, *, token=None, manual_code='654321'):
         employer_id=owner.id,
         user_id=user.id if user else None,
         public_id='abcdef1234567890',
-        master_key='a' * 64,
+        master_key=mobile_pairing_key_hex(),
         role='DENTISTE',
         expires_at=datetime.utcnow() + timedelta(minutes=5),
     )

@@ -62,38 +62,12 @@ class TestGenerateMasterKey:
 
 
 class TestRotateMasterKey:
-    def test_rotate_creates_key_in_env_file(self):
-        svc = ZKAService()
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
-            f.write("OTHER_KEY=value\n")
-            f.write("CABINET_MASTER_KEY_HEX=oldhexkey\n")
-            tmp_path = f.name
-
-        try:
-            new_key = svc.rotate_master_key(tmp_path)
-            assert len(new_key) == 64
-            with open(tmp_path, 'r') as f:
-                content = f.read()
-            assert f"CABINET_MASTER_KEY_HEX={new_key}" in content
-            assert "oldhexkey" not in content
-        finally:
-            os.unlink(tmp_path)
-
-    def test_rotate_adds_key_if_missing(self):
-        svc = ZKAService()
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
-            f.write("OTHER_KEY=value\n")
-            tmp_path = f.name
-
-        try:
-            new_key = svc.rotate_master_key(tmp_path)
-            with open(tmp_path, 'r') as f:
-                content = f.read()
-            assert f"CABINET_MASTER_KEY_HEX={new_key}" in content
-        finally:
-            os.unlink(tmp_path)
-
-    def test_rotate_nonexistent_env_file(self):
-        svc = ZKAService()
-        new_key = svc.rotate_master_key("/nonexistent/path/.env")
-        assert len(new_key) == 64  # Should still return a key
+    def test_implicit_rotation_is_refused_and_environment_unchanged(self, tmp_path, monkeypatch):
+        import pytest
+        env_file = tmp_path / ".env"
+        env_file.write_text("CABINET_MASTER_KEY_HEX=historical\n")
+        monkeypatch.setenv("CABINET_MASTER_KEY_HEX", "historical")
+        with pytest.raises(RuntimeError, match="Implicit storage key rotation"):
+            ZKAService().rotate_master_key(str(env_file))
+        assert env_file.read_text() == "CABINET_MASTER_KEY_HEX=historical\n"
+        assert os.environ["CABINET_MASTER_KEY_HEX"] == "historical"

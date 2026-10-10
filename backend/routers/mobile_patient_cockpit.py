@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex, MOBILE_KEY_VERSION
 """Read-only patient cockpit for the paired mobile PWA.
 
 The endpoint deliberately exposes only the data needed for a sub-30-second chairside
@@ -215,7 +216,7 @@ def create_mobile_patient_cockpit_context(
         raise HTTPException(status_code=401, detail="Session mobile sans appareil associé.")
 
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == tenant_id).first()
-    master_key = os.getenv('CABINET_MASTER_KEY_HEX')
+    master_key = mobile_pairing_key_hex()
     if not config or not master_key:
         raise HTTPException(status_code=404, detail="Configuration ZKA incomplète.")
 

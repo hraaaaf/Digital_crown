@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex, MOBILE_KEY_VERSION
 """Canonical mobile auth wrapper: user identity + tenant scope + rotating device refresh + contextual bridge."""
 from datetime import datetime, timedelta, timezone
 import base64
@@ -61,6 +62,7 @@ def _create_mobile_jwt(
         "tenant_id": tenant_id,
         "device_id": device_id,
         "type": "mobile",
+        "mobile_key_version": MOBILE_KEY_VERSION,
         "role": role,
         "jti": _mobile_jti(tenant_id, now),
         "iat": now,
@@ -81,6 +83,7 @@ def _create_mobile_refresh_jwt(
         "tenant_id": int(employer_id),
         "device_id": device_id,
         "type": "mobile_refresh",
+        "mobile_key_version": MOBILE_KEY_VERSION,
         "role": role,
         "jti": _mobile_jti(int(employer_id), now),
         "iat": now,
@@ -210,7 +213,7 @@ def create_mobile_bridge_pairing(
 
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
-    master_key = os.getenv("CABINET_MASTER_KEY_HEX")
+    master_key = mobile_pairing_key_hex()
     if not config or not master_key:
         raise HTTPException(status_code=404, detail="Configuration ZKA incomplète.")
 
@@ -492,7 +495,7 @@ def refresh_mobile_credentials(
     err = HTTPException(status_code=401, detail='Session mobile expirée ou révoquée.')
     try:
         payload = jwt.decode(body.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get('type') != 'mobile_refresh':
+        if payload.get('type') != 'mobile_refresh' or payload.get('mobile_key_version') != MOBILE_KEY_VERSION:
             raise err
         jti = payload.get('jti')
         device_id = payload.get('device_id')

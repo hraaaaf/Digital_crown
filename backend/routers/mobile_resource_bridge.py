@@ -1,3 +1,4 @@
+from backend.core.key_material import mobile_pairing_key_hex, MOBILE_KEY_VERSION
 """Contextual mobile resource bridge: patient, panoramic, document and appointment resources."""
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -427,7 +428,7 @@ def create_resource_bridge_pairing(
 
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
-    master_key = os.getenv("CABINET_MASTER_KEY_HEX")
+    master_key = mobile_pairing_key_hex()
     if not config or not master_key:
         raise HTTPException(status_code=404, detail="Configuration ZKA incomplète.")
 
