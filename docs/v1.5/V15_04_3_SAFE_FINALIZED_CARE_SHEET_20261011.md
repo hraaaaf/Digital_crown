@@ -24,3 +24,11 @@ Perspective A Sécurité : une archive AUTRE forgée, des métadonnées artifici
 Perspective B Qualité métier : un praticien légitime peut-il explicitement autoriser puis un patient identifié retirer **seulement** le fichier finalisé, sans générer de nouvelle version ? Les tests couvrent-ils statut, annulation, version, expiration, téléphone/desktop et réponse binaire exacte ?
 
 **NO-GO merge / NO-GO Vercel / NO-GO Lenovo** avant CI complet, revues adversariales sur le même commit et accord explicite de publication. Le chantier Windows native PDF #831 est indépendant.
+
+
+## Revue A/B du 11 octobre — corrections en cours (non convergé)
+
+- **Perspective A — sécurité / provenance** : le premier candidat avait une faiblesse de contrat entre le PDF renvoyé par le service de finalisation et le patient du draft. Le producteur de preuve vérifiera désormais explicitement `expected_patient_id == document.patient_id`, en plus du praticien et du SHA. Sans cette égalité, la finalisation HTTP refuse l'événement de confiance.
+- **Perspective B — QA / faux vert** : les 51 tests verts sur `501e53f1` exerçaient le retrait station via une fonction de preuve invoquée directement par les fixtures, mais ne démontraient pas que la route `/api/documents/insurance-submissions/finalize` enregistrait cette preuve. Nouveaux tests HTTP : événement de provenance émis par la vraie route (service de rendu contrôlé/stub), refus d'un document de patient différent renvoyé par ce service, puis retrait autorisé. Ces tests sont une preuve d'intégration **du routage**, pas un E2E non simulé de rendu CNSS/CNOPS/FAR.
+- **Périmètre résiduel** : la vérification symlink se fait sur chemins avant ouverture puis les octets réellement livrés sont SHA-vérifiés ; le risque résiduel de race sur le système de fichiers et les ACL poste/Windows doit être évalué au gate terrain. L'autorisation concurrente, les scénarios multi-utilisateurs staff et le chemin de rendu assurance non simulé ne sont pas certifiés par le sous-ensemble ciblé.
+- **Gate** : redémarrer tests/CI exact nouveau HEAD après modifications ; deux perspectives propres + confirmation restent nécessaires. Pas de FUE complet pour 04.3 (FUE-0 selon plan), FUE-I prévu 04.4, FUE-G premier à 04.5 et final à 04.7. Aucun merge, Vercel ni activation cabinet autorisé.
