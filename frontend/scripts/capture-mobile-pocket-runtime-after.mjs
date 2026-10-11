@@ -137,6 +137,52 @@ async function seedPocketSession(page) {
   }, runtimeCredentials);
 }
 
+async function captureRuntimeFailure(page, stage, role, viewport, errors) {
+  // Diagnostics are strictly synthetic. Never serialize tokens, IDB values or headers.
+  const label = `failure-${engine.name()}-${role.slug}-${viewport.width}x${viewport.height}-${stage}`;
+  const diagnostic = { stage, engine: engine.name(), role: role.value, viewport, pageUrlPath: null,
+    readyState: null, locationPath: null, shellCount: null, onboardingCount: null,
+    textPreview: null, indexedDbNames: null, credentialKeyPresent: null, errors };
+  try {
+    const url = new URL(page.url());
+    diagnostic.pageUrlPath = url.pathname;
+    Object.assign(diagnostic, await page.evaluate(async () => {
+      let indexedDbNames = null;
+      let credentialKeyPresent = null;
+      try {
+        const dbs = await indexedDB.databases();
+        indexedDbNames = dbs.map(db => db.name);
+        const request = indexedDB.open('digital-crown-zka', 1);
+        credentialKeyPresent = await new Promise(resolve => {
+          request.onerror = () => resolve(false);
+          request.onsuccess = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('secure_keys')) { db.close(); resolve(false); return; }
+            const tx = db.transaction('secure_keys', 'readonly');
+            const get = tx.objectStore('secure_keys').get('zka_credentials');
+            get.onerror = () => resolve(false);
+            get.onsuccess = () => resolve(Boolean(get.result?.publicId && get.result?.device_id));
+            tx.oncomplete = () => db.close();
+          };
+        });
+      } catch { indexedDbNames = ['unavailable']; credentialKeyPresent = false; }
+      return {
+        readyState: document.readyState,
+        locationPath: location.pathname,
+        shellCount: document.querySelectorAll('[data-dc-mobile-shell]').length,
+        onboardingCount: document.querySelectorAll('[data-mobile-onboarding]').length,
+        textPreview: document.body?.innerText?.slice(0, 500) ?? null,
+        indexedDbNames,
+        credentialKeyPresent,
+      };
+    }));
+  } catch (error) { diagnostic.inspectError = error instanceof Error ? error.message : String(error); }
+  try { await page.screenshot({ path: path.join(outputDir, label + '.png'), timeout: 7000 }); }
+  catch (error) { diagnostic.screenshotError = error instanceof Error ? error.message : String(error); }
+  await fs.writeFile(path.join(outputDir, label + '.json'), JSON.stringify(diagnostic, null, 2));
+  console.error('Pocket WebKit failure diagnostics:', JSON.stringify(diagnostic));
+}
+
 async function assertTouchTarget(locator, label) {
   const box = await locator.boundingBox();
   if (!box || box.width < 44 || box.height < 44) {
@@ -323,11 +369,18 @@ try {
         }
       });
 
-      await installRoutes(page, role.value);
-      await seedPocketSession(page);
-      await page.goto(`${baseUrl}/mobile/dashboard`, { waitUntil: 'domcontentloaded' });
-      evidence.push(await assertRuntime(page, role, viewport, runtimeErrors));
-      await context.close();
+      const failStage = 'runtime';
+      try {
+        await installRoutes(page, role.value);
+        await seedPocketSession(page);
+        await page.goto(`${baseUrl}/mobile/dashboard`, { waitUntil: 'domcontentloaded' });
+        evidence.push(await assertRuntime(page, role, viewport, runtimeErrors));
+      } catch (error) {
+        await captureRuntimeFailure(page, failStage, role, viewport, runtimeErrors).catch(console.error);
+        throw error;
+      } finally {
+        await context.close();
+      }
     }
   }
   // Selectable themes must come from the same paired cabinet runtime endpoint,
