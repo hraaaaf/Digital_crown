@@ -325,24 +325,12 @@ export function useMobileDashboard() {
 
   useEffect(() => {
     if (!whatsappApt) return;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateFormatted = tomorrow.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    
-    const motifLower = (whatsappApt.motif || "").toLowerCase();
-    let motifStr = "votre consultation";
-    if (motifLower) {
-      if (motifLower.includes("empreinte") || motifLower.includes("taille") || motifLower.includes("armature") || motifLower.includes("biscuit") || motifLower.includes("prothèse")) {
-        motifStr = `l'essayage / l'étape ${motifLower}`;
-      } else {
-        motifStr = `votre séance de ${motifLower}`;
-      }
-    }
-    
+    // The externally shared default intentionally avoids patient identity,
+    // treatment details and assumptions such as "tomorrow" for an arbitrary RDV.
     if (whatsappTemplate === 'rappel') {
-      setCustomMessage(`Bonjour, n'oubliez pas votre rdv de demain à ${whatsappApt.time} pour ${motifStr}.`);
+      setCustomMessage('Bonjour, ceci est un rappel de votre rendez-vous au cabinet. Merci de nous contacter pour toute question.');
     } else {
-      setCustomMessage(`Bonjour ${whatsappApt.patient_name}, nous vous confirmons votre rendez-vous du ${dateFormatted} à ${whatsappApt.time} pour ${whatsappApt.motif || 'votre consultation'}.`);
+      setCustomMessage('Bonjour, votre rendez-vous au cabinet est confirmé. Contactez-nous si vous souhaitez le modifier.');
     }
   }, [whatsappApt, whatsappTemplate]);
 
