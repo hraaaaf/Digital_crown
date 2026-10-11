@@ -103,17 +103,7 @@ jobs:
           $archives = @(Get-ChildItem -LiteralPath $pkgDir -File -Filter '*.pkg.tar.zst')
           $pkgs = @()
           foreach ($line in $lines) {
-            if ($line -notmatch '^(mingw-w64-ucrt-x86_64-\S+)\s+(\S+)        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fue-g04-experimental-native-ucrt64-inventory
-          path: |
-            ${{ runner.temp }}/FUE-G04-experimental-dll-hashes.json
-            ${{ runner.temp }}/FUE-G04-experimental-complete-provenance.json
-            ${{ runner.temp }}/FUE-G04-experimental-python-requirements.txt
-          if-no-files-found: error
-          retention-days: 7
-) { continue }
+            if ($line -notmatch '^(mingw-w64-ucrt-x86_64-\S+)\s+(\S+)$') { continue }
             $name = $Matches[1]; $ver = $Matches[2]
             $found = @($archives | Where-Object { $_.Name.StartsWith("$name-$ver-", [StringComparison]::Ordinal) })
             if ($found.Count -ne 1) { throw "Missing/ambiguous archive for $name $ver" }
@@ -157,6 +147,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fue-g04-experimental-native-ucrt64-inventory
-          path: ${{ runner.temp }}/FUE-G04-experimental-dll-hashes.json
+          path: |
+            ${{ runner.temp }}/FUE-G04-experimental-dll-hashes.json
+            ${{ runner.temp }}/FUE-G04-experimental-complete-provenance.json
+            ${{ runner.temp }}/FUE-G04-experimental-python-requirements.txt
           if-no-files-found: error
           retention-days: 7
