@@ -422,6 +422,19 @@ jobs:
           if($LASTEXITCODE -ne 0){throw 'C02 page/source SHA comparison failed'}
           if(Get-Process -Name Facad -ErrorAction SilentlyContinue){throw 'Unexpected Facad process'}
           'C02_COOCCURRENCE_METADATA_DONE=true' | Add-Content -Encoding utf8 facad-quick-demo/installed-manual-status.txt
+      - name: C02 original short-page quotations (strict 160-word total bound)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if(Get-Process -Name Facad -ErrorAction SilentlyContinue){throw 'Clinical process unexpectedly active'}
+          python -m py_compile docs/audits/scripts/facad_c02_bounded_source_context.py
+          if($LASTEXITCODE -ne 0){throw 'Excerpt collector syntax error'}
+          python docs/audits/scripts/facad_c02_bounded_source_context.py --self-test
+          if($LASTEXITCODE -ne 0){throw 'Excerpt collector negative tests failed'}
+          python docs/audits/scripts/facad_c02_bounded_source_context.py --root 'C:\Facad' --manifest docs/audits/data/FACAD_314_INSTALLED_SCIENCE_PDF_PROVENANCE_2026-10-09.json --index facad-quick-demo/c02-pdf-minimal-index.json --out facad-quick-demo/c02-bounded-page-contexts.json
+          if($LASTEXITCODE -ne 0){throw 'Source SHA/page extraction or bounded quotation failed'}
+          if(Get-Process -Name Facad -ErrorAction SilentlyContinue){throw 'Unexpected Facad process'}
+          'C02_BOUNDED_QUOTES_METADATA_DONE=true' | Add-Content -Encoding utf8 facad-quick-demo/installed-manual-status.txt
       - name: Upload ONLY tiny scientific metadata, never installed PDF or patient files
         uses: actions/upload-artifact@v4
         if: always()
@@ -431,5 +444,6 @@ jobs:
           path: |
             facad-quick-demo/c02-pdf-minimal-index.json
             facad-quick-demo/c02-landmark-cooccurrence.json
+            facad-quick-demo/c02-bounded-page-contexts.json
             facad-quick-demo/installed-manual-status.txt
           if-no-files-found: warn
