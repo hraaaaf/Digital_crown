@@ -408,7 +408,7 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   const navAlpha = navChannels.length === 3 ? 1
     : navChannels.length === 4 ? Number(navChannels[3]) : null;
   if (!isOpaqueColor(menuState.dialogBackground)
-    || navAlpha === null || !Number.isFinite(navAlpha) || navAlpha < 0.95 || navAlpha > 1
+    || navAlpha === null || !Number.isFinite(navAlpha) || navAlpha < 0.985 || navAlpha > 1
     || (navAlpha < 0.999 && !/blur\(/.test(menuState.navBackdropFilter ?? ''))
     || menuState.ancestorOpacity.some(entry => Number(entry.opacity) < 0.999 || entry.filter !== 'none')) {
     throw new Error(`Pocket Safari Plus dialog opaque / nav glass required: ${JSON.stringify(menuState)}`);
