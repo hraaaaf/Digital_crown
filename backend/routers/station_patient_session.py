@@ -7,6 +7,7 @@ import secrets
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from typing import Literal
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.config import settings as app_settings
 from backend.models_patient_companion import PatientCompanionAccess
 from backend.routers.auth import get_current_user, require_permission
 from backend.routers.patient_companion_common import (
@@ -88,6 +90,48 @@ class StationWallCall(BaseModel):
 
 def _hash(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _station_handoff_origin(request: Request) -> str:
+    """Reject Host-header poisoning of a raw QR/NFC identity bearer link.
+
+    Cabinet/production must publish one deliberately configured, HTTPS,
+    non-loopback frontend origin reachable by the patient's device. Test/local
+    can use only a loopback or TestClient Host if no explicit origin is set.
+    """
+    configured = str(app_settings.STATION_HANDOFF_PUBLIC_ORIGIN or "").strip()
+    strict = str(app_settings.ENVIRONMENT).lower() in {"cabinet", "production"}
+    if configured:
+        origin = configured
+    elif strict:
+        raise HTTPException(status_code=503, detail="STATION_HANDOFF_ORIGIN_NOT_CONFIGURED")
+    else:
+        origin = str(request.base_url).rstrip("/")
+
+    try:
+        parsed = urlsplit(origin)
+        _ = parsed.port  # Reject invalid port numbers before issuing a bearer URL.
+        valid = (
+            parsed.scheme in {"http", "https"}
+            and bool(parsed.hostname)
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.path in {"", "/"}
+            and not parsed.query
+            and not parsed.fragment
+        )
+    except ValueError:
+        valid = False
+        parsed = None
+    if not valid or parsed is None:
+        raise HTTPException(status_code=503, detail="STATION_HANDOFF_ORIGIN_INVALID")
+
+    local = parsed.hostname.lower() in {"testserver", "localhost", "127.0.0.1", "::1"}
+    if strict and (parsed.scheme != "https" or local):
+        raise HTTPException(status_code=503, detail="STATION_HANDOFF_ORIGIN_INSECURE")
+    if not configured and not local:
+        raise HTTPException(status_code=503, detail="STATION_HANDOFF_ORIGIN_NOT_TRUSTED")
+    return origin.rstrip("/")
 
 
 def _normalized_text(raw: str | None) -> str:
@@ -227,6 +271,8 @@ def create_station_patient_session(
     current_user: models.User = Depends(get_current_user),
 ):
     workstation = _station_or_423(request, db, current_user)
+    # Validate public handoff origin BEFORE mutating or purging station sessions.
+    canonical_origin = _station_handoff_origin(request)
     now = datetime.utcnow()
 
     db.query(models.WorkstationPatientSession).filter(
@@ -257,7 +303,7 @@ def create_station_patient_session(
         raise HTTPException(status_code=409, detail="STATION_SESSION_CONCURRENT_REPLACEMENT") from exc
     db.refresh(row)
 
-    handoff_url = str(request.base_url).rstrip("/") + "/companion?stationSession=" + raw
+    handoff_url = canonical_origin + "/companion?stationSession=" + raw
     qr_data_url = "data:image/png;base64," + base64.b64encode(
         qr_service.generate_qr_bytes(handoff_url, qr_style="classic").getvalue()
     ).decode("ascii")
