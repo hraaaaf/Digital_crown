@@ -7,6 +7,7 @@ on:
       - feature/fue-g04-certified-windows-native-pdf-20261011
     paths:
       - '.github/workflows/fue-g04-native-pdf-candidate.yml'
+      - '.gitattributes'
       - 'DigitalCrown.spec'
       - 'backend/windows_native_pdf_bundle.py'
       - 'backend/windows_fontconfig/fonts.conf'
