@@ -373,6 +373,20 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         <StepTab id={4} label="Documents & stratégie" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
       </div>
 
+      {viewMode === 'studio' && step === 1 && (
+        <div data-ortho-mobile-next-step className="flex justify-end px-4 pb-3 sm:px-6 md:hidden" style={{ background: P.bg }}>
+          <button
+            type="button"
+            onClick={() => goToStep(2)}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold shadow-lg transition-all hover:opacity-90 sm:w-auto"
+            style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}
+          >
+            Passer aux moulages
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
+
       <AnimatePresence>
         {stepError && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-4 sm:px-6">
@@ -403,7 +417,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
                   </button>
                 )}
                 {step < 4 && (
-                  <button type="button" onClick={() => goToStep((step + 1) as StepId)} className="flex min-h-11 items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg sm:px-6" style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}>
+                  <button type="button" data-ortho-next-step-footer onClick={() => goToStep((step + 1) as StepId)} className={`${step === 1 ? 'hidden md:inline-flex' : 'flex'} min-h-11 items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg sm:px-6`} style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}>
                     {step === 1 && 'Passer aux moulages'}
                     {step === 2 && 'Passer à la synthèse'}
                     {step === 3 && 'Préparer les documents et la stratégie'}
