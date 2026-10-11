@@ -45,10 +45,10 @@ export function MobileHeader({
   previewMode?: boolean;
 }) {
   return (
-    <div className="px-4 sm:px-6 pt-14 pb-6 relative z-10">
-      <div className="flex items-center justify-between gap-2 sm:gap-3 mb-8">
+    <div className="px-4 sm:px-6 pt-[max(18px,env(safe-area-inset-top))] pb-3 relative z-10">
+      <div className="flex items-center justify-between gap-2 sm:gap-3 mb-4">
         <div data-dc-pocket-brand className="flex min-w-0 items-center gap-2">
-          <img src={Logo} alt="Digital Crown Pocket" className="w-24 min-[430px]:w-28 sm:w-36 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
+          <img src={Logo} alt="Digital Crown Pocket" className="w-[92px] min-[430px]:w-24 sm:w-28 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
           <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-primary">
             Pocket
           </span>
@@ -60,7 +60,7 @@ export function MobileHeader({
               type="button"
               aria-label="Ouvrir la recherche patients"
               onClick={onOpenPatients}
-              className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary active:scale-95 transition-transform"
+              className="relative h-11 w-11 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary active:scale-95 transition-transform"
               style={{ backgroundColor: 'var(--glass-bg)' }}
             >
               <Search size={18} aria-hidden="true" />
@@ -71,7 +71,7 @@ export function MobileHeader({
               type="button"
               disabled
               aria-label="Notifications désactivées dans la démonstration"
-              className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary"
+              className="relative h-11 w-11 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary"
               style={{ backgroundColor: 'var(--glass-bg)' }}
             >
               <Bell size={18} aria-hidden="true" />
@@ -87,22 +87,22 @@ export function MobileHeader({
               fetchSnapshot();
             }}
             disabled={syncStatus === 'loading'}
-            className="h-12 w-12 sm:w-auto sm:min-w-12 flex items-center justify-center gap-1.5 px-0 sm:px-3 bg-card border border-glass-border rounded-[16px] shadow-elite disabled:opacity-40 active:scale-95 transition-all hover:bg-primary/5 backdrop-blur-md"
+            className="h-11 w-11 sm:w-auto sm:min-w-11 flex items-center justify-center gap-1.5 px-0 sm:px-3 bg-card border border-glass-border rounded-[16px] shadow-elite disabled:opacity-40 active:scale-95 transition-all hover:bg-primary/5 backdrop-blur-md"
             style={{ backgroundColor: 'var(--glass-bg)' }}
           >
             <div className={cn(
               'w-1.5 h-1.5 rounded-full',
               syncStatus === 'loading' ? 'bg-primary animate-pulse'
-              : (syncStatus === 'error' || queuedActionsCount > 0) ? 'bg-rose-500 animate-pulse'
-              : 'bg-emerald-500'
+              : (syncStatus === 'error' || queuedActionsCount > 0) ? 'bg-danger animate-pulse'
+              : 'bg-success'
             )} />
             <RefreshCw size={10} className={cn('text-text-muted', syncStatus === 'loading' ? 'animate-spin' : '')} />
             <span className="hidden sm:flex text-[9px] font-black text-text-muted uppercase tracking-widest items-center gap-1">
               {syncStatus === 'loading' ? 'Mise à jour…' : syncStatus === 'error' ? 'Hors ligne' : 'À jour'}
-              {queuedActionsCount > 0 && <span className="bg-rose-500 text-white px-1 rounded-full">{queuedActionsCount}</span>}
+              {queuedActionsCount > 0 && <span className="bg-danger-surface text-danger border border-danger-border px-1 rounded-full">{queuedActionsCount}</span>}
             </span>
             {queuedActionsCount > 0 && (
-              <span aria-label={`${queuedActionsCount} modification(s) en attente de synchronisation`} className="sm:hidden ml-1 rounded-full bg-amber-500/10 px-1.5 text-[10px] font-black text-amber-700">
+              <span aria-label={`${queuedActionsCount} modification(s) en attente de synchronisation`} className="sm:hidden ml-1 rounded-full bg-warning-surface px-1.5 text-[11px] font-bold text-warning">
                 {queuedActionsCount}
               </span>
             )}
@@ -112,7 +112,7 @@ export function MobileHeader({
 
       <div>
         {(activeTab === 'today' || activeTab === 'agenda' || activeTab === 'finance') && (
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
             <Calendar size={12} className="text-primary shrink-0" />
             <button
               aria-label="Jour précédent"
@@ -137,7 +137,7 @@ export function MobileHeader({
           </div>
         )}
 
-        <h1 className="text-4xl font-black tracking-tight text-primary leading-none">
+        {!(['stock', 'frontdesk', 'lab'] as Tab[]).includes(activeTab) && <h1 className="text-[29px] min-[430px]:text-[32px] font-bold tracking-tight text-text-main leading-tight">
           {activeTab === 'today' ? `${greeting()},` :
            activeTab === 'agenda' ? 'Agenda' :
            activeTab === 'patients' ? 'Patients' :
@@ -152,20 +152,20 @@ export function MobileHeader({
            activeTab === 'library' ? 'Bibliothèque' :
            activeTab === 'marketplace' ? 'Catalogue' :
            activeTab === 'bot' ? 'Assistant' : ''}
-        </h1>
+        </h1>}
 
         {(activeTab === 'today' || activeTab === 'agenda') && totalCount > 0 && (
-          <div className="flex items-center gap-2 mt-4">
+          <div className="flex flex-wrap items-center gap-2 mt-2.5">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 border border-primary/10 rounded-full shadow-sm">
-              <span className="text-[10px] font-black text-primary">
+              <span className="text-[11px] font-bold text-primary">
                 {totalCount} RDV {selectedDate === localDateKey()
                   ? "aujourd'hui"
                   : `le ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`}
               </span>
             </div>
             {termineCount > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/5 border border-emerald-500/20 rounded-full shadow-sm">
-                <span className="text-[10px] font-black text-emerald-600">{termineCount} terminé{termineCount > 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-success-surface border border-success-border rounded-full shadow-sm">
+                <span className="text-[11px] font-bold text-success">{termineCount} terminé{termineCount > 1 ? 's' : ''}</span>
               </div>
             )}
           </div>
