@@ -122,7 +122,7 @@ def verify(manifest: dict, measures: dict, parity: dict, backlog: dict, mapping:
     require(c.get("prior_unmapped") == 26 and c.get("dispositioned") == 26
             and c.get("scientific_parity_certified") is False, "RICKETTS_CLOSEOUT_SCOPE")
     require("26/26" in closeout
-            and "does not" in closeout
+            and "It does **not** mean:" in closeout
             and "non-authoritative" in closeout, "HANDOVER_EVIDENCE_BOUNDARY")
     flows = manifest.get("delivery_sequence", [])
     require(isinstance(flows, list) and [a.get("id") for a in flows] == ORDER, "DC_SEQUENCE")
