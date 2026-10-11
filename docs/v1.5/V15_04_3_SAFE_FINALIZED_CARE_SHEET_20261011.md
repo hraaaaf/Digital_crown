@@ -5,7 +5,7 @@
 - [CI ciblée #38128827178](https://github.com/hraaaaf/Digital_crown/actions/runs/38128827178) : **102/102 tests collectés et PASS** (suites Station care sheet, Eligibility, Patient Session, Insurance Finalization et Insurance Submission API).
 - Revues contradictoires **internes** sur le même HEAD : A sécurité/provenance **8.8/10**, B QA/métier **8.6/10**, zéro BLOCKER/MAJOR dans le scope FUE-0 ; pas de reviewer humain indépendant.
 - [Campagne intégrée FUE LAB #38132438594](https://github.com/hraaaaf/Digital_crown/actions/runs/38132438594), [PR #839](https://github.com/hraaaaf/Digital_crown/pull/839) encore Draft : 48 captures BEFORE/AFTER mockées, 8 autorisations simultanées sur PostgreSQL 18 isolé (1 créée, 7 dédupliquées), 30 tests assurance incluant finalisation HTTP PDF réel **sur document/template synthétique** jusqu'au retrait HTTP. Ne pas confondre ces tests avec un essai sur imprimante, NFC, Pocket ou vrai patient.
-- [Post-merge PostgreSQL #38141345526](https://github.com/hraaaaf/Digital_crown/actions/runs/38141345526) lancé sur master exact ; **son résultat terminal doit être vérifié avant de marquer le closeout post-merge intégralement terminé**. Le workflow CI ciblé 04.3 n'est pas déclenché par push master : la preuve des 102 tests porte sur HEAD parent intégré sans changement de contenu dans le commit de merge.
+- [Post-merge PostgreSQL #38141345526](https://github.com/hraaaaf/Digital_crown/actions/runs/38141345526) exécuté sur master exact **TERMINAL SUCCESS**, avec les deux jobs verts : **Windows PowerShell 5.1 release guards** et **PostgreSQL 18 + immutable release invariants**. Closeout technique GitHub post-merge validé. Le workflow CI ciblé 04.3 n'est pas déclenché par push master : la preuve des 102 tests porte sur HEAD parent intégré sans changement de contenu dans le commit de merge.
 - **Aucun déploiement Vercel, activation cabinet ni validation UX terrain autorisé par cette fusion.** Le bouton Station « Retirer un document » affiche encore « en cours de construction » ; cette PR ajoute des routes/contrats backend et pas une interface de retrait utilisable.
 
 ## Contrat d'autorité (implémenté)
@@ -26,6 +26,6 @@
 
 ## Chaîne de preuves et closeout
 
-Le produit 04.3 est intégré dans master au commit `db403bb4d4aee38470d537f71d39893142e1b983`. Ne pas inférer « installable / deployed / ready for patient » depuis cette fusion. Le post-merge reste **ouvert jusqu'au résultat terminal** de sa certification PostgreSQL. Les sous-lots en aval nécessitent leurs propres checks, leurs propres revues et accord de merge distinct.
+Le produit 04.3 est intégré dans master au commit `db403bb4d4aee38470d537f71d39893142e1b983`. Ne pas inférer « installable / deployed / ready for patient » depuis cette fusion. Le post-merge technique GitHub est **validé sur le merge SHA exact** (les deux jobs de certification PostgreSQL/Windows sont verts) ; les validations utilisateur FUE-I/G restent à mener. Les sous-lots en aval nécessitent leurs propres checks, leurs propres revues et accord de merge distinct.
 
 ---
