@@ -17,6 +17,8 @@ on:
       - "frontend/src/features/hub/StationKioskShell.test.tsx"
       - "frontend/scripts/capture-v15-04-4-documents-identity.mjs"
       - "frontend/scripts/capture-v15-03-3-patient-session.mjs"
+      # Shared station journey checks change the meaning of QR/NFC FUE proof.
+      - "frontend/scripts/audit-v15-00-3-fue-journeys.mjs"
   workflow_dispatch:
 
 permissions:
