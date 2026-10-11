@@ -2,7 +2,10 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const phase = 'after';
+const phase = process.env.EVIDENCE_PHASE === 'before' ? 'before' : 'after';
+const proofNow = new Date();
+const proofExpiresAt = new Date(proofNow.getTime() + 120_000).toISOString();
+const proofClaimedAt = proofNow.toISOString();
 const out = path.resolve(`artifacts/v15-04-4-documents-identity-${phase}`);
 await fs.mkdir(out, { recursive: true });
 
@@ -37,6 +40,7 @@ const scenarios = [
   { name: 'documents-identified', mode: 'identified' },
 ];
 
+// The QR image is mocked for layout only; this harness does not prove scanability or expiry enforcement.
 const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 const browser = await chromium.launch({ headless: true });
 const report = [];
@@ -67,7 +71,7 @@ try {
               handoffUrl: 'https://cabinet.local/companion?stationSession=opaque-proof-token',
               qrDataUrl: onePixelPng,
               nfcPayload: 'https://cabinet.local/companion?stationSession=opaque-proof-token',
-              expiresAt: '2026-10-04T01:02:00',
+              expiresAt: proofExpiresAt,
               fallbackMode: 'phone_dob',
             }),
           });
@@ -75,8 +79,8 @@ try {
         await context.route('**/api/workstation/patient-session/proof-session', route => {
           if (route.request().method() !== 'GET') return route.continue();
           const payload = scenario.mode === 'identified'
-            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: '2026-10-04T01:00:10' }
-            : { status: 'pending', sessionId: 'proof-session', expiresAt: '2026-10-04T01:02:00' };
+            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: proofClaimedAt }
+            : { status: 'pending', sessionId: 'proof-session', expiresAt: proofExpiresAt };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
         });
         await context.route('**/api/workstation/patient-session/proof-session/appointments/today', route => route.fulfill({
@@ -159,6 +163,7 @@ const evidence = {
   phase,
   head: process.env.EVALUATED_SHA || process.env.GITHUB_SHA || null,
   base: process.env.EVALUATED_BASE || null,
+  limitations: ['Synthetic QR placeholder: scanability not certified', 'Mocked session status: real expiry and revocation require backend tests', 'Screenshots are AFTER only unless EVIDENCE_PHASE=before is explicitly run against the matching base'],
   report,
 };
 await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, null, 2));
