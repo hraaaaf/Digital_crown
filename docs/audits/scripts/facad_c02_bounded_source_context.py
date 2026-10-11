@@ -114,7 +114,7 @@ def self_test():
     assert not matches("ANB", "dANBv")
     assert matches("PM'", "PM' / Xi")
     assert clip_words("A B C D", 2) == "A B"
-    assert one_context("SNA\nA to N\nSN reference angle\nContinued", "SNA")["context_words"] == 9
+    assert one_context("SNA\nA to N\nSN reference angle\nContinued", "SNA")["context_words"] == 8
     assert one_context("Xi\nOL\npoint", "Xi")["context"] == "Xi OL point"
     assert len(ANCHORS) == MAX_CONTEXTS and MAX_TOTAL_WORDS == MAX_CONTEXTS * MAX_WORDS_PER_CONTEXT
     assert all(1 <= x <= 34 for x, _ in ANCHORS)
