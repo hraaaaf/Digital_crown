@@ -32,7 +32,14 @@ jobs:
           rows=d['primary_gates']
           assert len(rows)==len(f['canonical_facad_gates_before'])==39
           for row,old in zip(rows,f['canonical_facad_gates_before']):
-            assert row['id']==old['id'] and row['title']==old['title'] and row['section']==row['id'][:3]
+            assert row['id']==old['id'] and row['section']==row['id'][:3]
+            permitted_title_changes={
+              'F06.3':('Revue finale A/B et couverture','Revue finale de COUVERTURE FACAD (A/B)'),
+              'F06.4':('Clôture de la campagne Facad',"Décision de clôture de l'ACQUISITION FACAD et transfert vers Digital Crown")}
+            if old['id'] in permitted_title_changes:
+                assert (old['title'],row['title'])==permitted_title_changes[old['id']]
+            else:
+                assert row['title']==old['title']
             # F06.2 was OPEN in the pinned source snapshot, then closed by exact CI #38143440439.
             # All other canonical states must remain identical.
             expect='CLOSED_HISTORICAL_SOURCE' if old['canonical_state']=='ALREADY_CHECKED' or old['id']=='F06.2' else 'OPEN_REQUIREMENTS_UNMET'
