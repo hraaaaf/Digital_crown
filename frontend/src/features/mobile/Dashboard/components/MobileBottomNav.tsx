@@ -111,7 +111,8 @@ export function MobileBottomNav({
         <div className="fixed inset-0 z-[60]" data-mobile-more-menu>
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/15 backdrop-blur-[1px]"
+            className="absolute inset-0 backdrop-blur-[2px]"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--text-main) 23%, transparent)' }}
             aria-label="Fermer le menu Plus"
             onClick={() => setMoreOpen(false)}
           />
@@ -121,13 +122,13 @@ export function MobileBottomNav({
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-more-title"
-            className="absolute left-4 right-4 bottom-[100px] mx-auto max-w-[720px] rounded-[28px] border border-glass-border bg-card p-4 shadow-elite-hover"
+            className="absolute left-3 right-3 bottom-[calc(96px+env(safe-area-inset-bottom))] mx-auto max-w-[720px] rounded-[24px] border border-glass-border bg-card p-4 shadow-elite"
             style={{ backgroundColor: 'var(--glass-bg)', fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)' }}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 id="mobile-more-title" className="text-[18px] font-black text-text-main">Plus</h2>
-                <p className="mt-0.5 text-[10px] font-bold text-text-muted">Accès secondaires</p>
+                <h2 id="mobile-more-title" className="text-[18px] font-bold text-text-main">Plus</h2>
+                <p className="mt-0.5 text-[11px] font-medium text-text-muted">Accès secondaires</p>
               </div>
               <button
                 type="button"
@@ -139,7 +140,7 @@ export function MobileBottomNav({
               </button>
             </div>
 
-            <div className="grid gap-2.5 max-h-[min(60dvh,520px)] overflow-y-auto pr-0.5">
+            <div className="grid gap-1.5 max-h-[min(54dvh,470px)] overflow-y-auto overscroll-contain pr-0.5">
               {secondaryTabs.some(tab => tab.id === 'waiting-room') && (
                 <p className="px-2 text-[10px] font-black uppercase tracking-wider text-primary">Accueil &amp; attente</p>
               )}
@@ -150,21 +151,21 @@ export function MobileBottomNav({
                   data-mobile-more-item={id}
                   aria-label={id === 'bot' ? 'Assistant' : label}
                   onClick={() => selectTab(id)}
-                  className={cn('flex min-h-[56px] items-center gap-3 rounded-[18px] border border-glass-border bg-background px-4 text-left text-text-main active:scale-[0.99]', id === 'waiting-room' || id === 'frontdesk' ? 'border-primary/25 bg-primary/5' : '')}
+                  className={cn('flex min-h-12 items-center gap-3 rounded-[14px] border border-glass-border bg-background px-4 text-left text-text-main active:scale-[0.99]', id === 'waiting-room' || id === 'frontdesk' ? 'border-primary/25 bg-primary/5' : '')}
                 >
-                  <span className="relative grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
+                  <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-[12px] bg-primary/10 text-primary">
                     <Icon size={18} />
                   </span>
-                  <span className="flex-1 text-[11px] font-black">{label}</span>
+                  <span className="flex-1 text-[12px] font-semibold">{label}</span>
                   {badge != null && (
-                    <span data-mob5i-waiting-badge className="grid min-h-7 min-w-7 place-items-center rounded-full bg-amber-500/10 px-2 text-[10px] font-black text-amber-700">
+                    <span data-mob5i-waiting-badge className="grid min-h-7 min-w-7 place-items-center rounded-full bg-warning-surface border border-warning-border px-2 text-[11px] font-bold text-warning">
                       {badge}
                     </span>
                   )}
                 </button>
               ))}
               {secondaryTabs.length === 0 && (
-                <div className="rounded-[18px] border border-glass-border bg-background px-4 py-4 text-[10px] font-bold text-text-muted">
+                <div className="rounded-[18px] border border-glass-border bg-background px-4 py-4 text-[11px] font-medium text-text-muted">
                   Aucun accès secondaire disponible pour ce rôle.
                 </div>
               )}
@@ -176,7 +177,7 @@ export function MobileBottomNav({
       <nav
         data-mobile-bottom-nav
         aria-label="Navigation mobile principale"
-        className="fixed left-3 right-3 mx-auto h-[76px] max-w-[720px] rounded-[34px] border backdrop-blur-2xl shadow-elite-hover z-[65]"
+        className="fixed left-3 right-3 mx-auto h-[76px] max-w-[720px] rounded-[28px] border backdrop-blur-xl shadow-elite z-[65]"
         style={{
           backgroundColor: 'var(--glass-bg)',
           borderColor: 'var(--glass-border)',
@@ -189,13 +190,13 @@ export function MobileBottomNav({
             aria-current={activeTab === 'today' ? 'page' : undefined}
             onClick={() => selectTab('today')}
             className={cn(
-              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               activeTab === 'today' ? 'text-primary' : 'text-text-muted'
             )}
           >
             <span className="relative grid h-8 w-11 place-items-center">
               <LayoutDashboard size={20} strokeWidth={activeTab === 'today' ? 2.35 : 1.9} />
-              {agendaHasPending && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-white/80" />}
+              {agendaHasPending && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-card" />}
             </span>
             <span className="max-w-full truncate">Aujourd’hui</span>
           </button>
@@ -205,7 +206,7 @@ export function MobileBottomNav({
             aria-current={activeTab === 'agenda' ? 'page' : undefined}
             onClick={() => selectTab('agenda')}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               activeTab === 'agenda' ? 'text-primary' : 'text-text-muted'
             )}
           >
@@ -223,7 +224,7 @@ export function MobileBottomNav({
                 setMoreOpen(false);
                 onToggleQuickActions();
               }}
-              className="absolute -top-4 grid h-[60px] w-[60px] place-items-center rounded-full border-[3px] border-white bg-primary text-white shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
+              className="absolute -top-2.5 grid h-[54px] w-[54px] place-items-center rounded-full border-[3px] border-card bg-primary text-on-primary shadow-elite transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
             >
               {quickActionsOpen ? <X size={24} /> : <span className="text-[30px] font-light leading-none">+</span>}
             </button>
@@ -234,7 +235,7 @@ export function MobileBottomNav({
             aria-current={activeTab === 'patients' ? 'page' : undefined}
             onClick={() => selectTab('patients')}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               activeTab === 'patients' ? 'text-primary' : 'text-text-muted'
             )}
           >
@@ -252,7 +253,7 @@ export function MobileBottomNav({
               setMoreOpen(value => !value);
             }}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               isMoreActive || moreOpen ? 'text-primary' : 'text-text-muted'
             )}
           >
