@@ -121,13 +121,26 @@ def run_negative_controls(doc: dict) -> int:
 def run_geometry_invariants() -> int:
     # These source-specific primitives are chosen for distinct failure modes.
     # The tests do not substitute for a clinical/real-image study or all 38 runtime paths.
-    from backend.services.cephalo_steiner_geometry import steiner_anb_deg_v1
-    from backend.services.cephalo_mcnamara_geometry import mcnamara_co_a_mm_v1
-    from backend.services.cephalo_constructions import (
-        craniom_ab_prime_mm_v1, nasion_vertical_offset_mm_v1,
-    )
-    from backend.services.cephalo_ricketts_geometry import (
-        ricketts_e_line_perpendicular_signed_distance_px_v2,
+    # Load exact source files without bootstrapping backend/__init__.py, which
+    # imports database services. This is a primitive-unit test, not runtime proof.
+    import importlib.util
+
+    def from_source(short_name: str):
+        module_name = "dc_ceph02_" + short_name
+        source_path = ROOT / "backend" / "services" / (short_name + ".py")
+        spec = importlib.util.spec_from_file_location(module_name, source_path)
+        require(spec is not None and spec.loader is not None, "PRIMITIVE_SOURCE_LOADER")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    steiner_anb_deg_v1 = from_source("cephalo_steiner_geometry").steiner_anb_deg_v1
+    mcnamara_co_a_mm_v1 = from_source("cephalo_mcnamara_geometry").mcnamara_co_a_mm_v1
+    constructions = from_source("cephalo_constructions")
+    craniom_ab_prime_mm_v1 = constructions.craniom_ab_prime_mm_v1
+    nasion_vertical_offset_mm_v1 = constructions.nasion_vertical_offset_mm_v1
+    ricketts_e_line_perpendicular_signed_distance_px_v2 = (
+        from_source("cephalo_ricketts_geometry").ricketts_e_line_perpendicular_signed_distance_px_v2
     )
 
     checked = 0
