@@ -90,14 +90,14 @@ export function PocketTodayOverview({
       data-dc-pocket-role={isAssistant ? 'assistant' : 'practitioner'}
       className="mb-5 space-y-3"
     >
-      <div className="rounded-[28px] border border-glass-border bg-glass-bg p-5 shadow-elite backdrop-blur-md">
+      <div className="rounded-[24px] border border-border-main bg-card p-4 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Digital Crown Pocket</p>
-            <h1 className="mt-1 font-outfit text-[27px] font-black tracking-tight text-text-main">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Digital Crown Pocket</p>
+            <h1 className="mt-1 font-outfit text-[24px] font-bold tracking-tight text-text-main">
               {isToday ? 'Aujourd’hui' : selectedDateLabel}
             </h1>
-            <p className="mt-1 text-[11px] font-bold text-text-muted">
+            <p className="mt-1 text-[12px] font-medium text-text-muted">
               {isAssistant ? 'Vue assistante · flux cabinet' : 'Vue praticien · priorité clinique'}
             </p>
           </div>
@@ -106,7 +106,7 @@ export function PocketTodayOverview({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           <div className="rounded-[17px] border border-border-main bg-background px-3 py-3">
             <CalendarDays size={14} className="text-primary" />
             <p className="mt-2 text-[18px] font-black text-text-main">{appointments.length}</p>
@@ -116,17 +116,17 @@ export function PocketTodayOverview({
             type="button"
             onClick={onOpenWaitingRoom}
             data-dc-pocket-waiting-count={waitingCount}
-            className="rounded-[17px] border border-amber-500/20 bg-amber-500/5 px-3 py-3 text-left active:scale-[0.98]"
+            className="rounded-[17px] border border-warning-border bg-warning-surface px-3 py-3 text-left active:scale-[0.98]"
           >
-            <UsersRound size={14} className="text-amber-700" />
+            <UsersRound size={14} className="text-warning" />
             <p className="mt-2 text-[18px] font-black text-text-main">{waitingCount}</p>
             <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">Attente</p>
           </button>
           <div
             data-dc-pocket-progress-count={isAssistant ? remainingCount : completedCount}
-            className="rounded-[17px] border border-emerald-500/20 bg-emerald-500/5 px-3 py-3"
+            className="rounded-[17px] border border-success-border bg-success-surface px-3 py-3"
           >
-            <CheckCircle2 size={14} className="text-emerald-600" />
+            <CheckCircle2 size={14} className="text-success" />
             <p className="mt-2 text-[18px] font-black text-text-main">{isAssistant ? remainingCount : completedCount}</p>
             <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">
               {isAssistant ? 'À gérer' : 'Terminés'}
@@ -136,7 +136,7 @@ export function PocketTodayOverview({
       </div>
 
       {!isAssistant && nextAppointment && (
-        <article className="rounded-[24px] border border-primary/15 bg-card p-4 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)' }}>
+        <article className="rounded-[24px] border border-primary/15 bg-card p-4 shadow-sm" style={{ backgroundColor: 'var(--glass-bg)' }}>
           <div className="flex items-start gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-primary/10 text-primary">
               <span className="text-[12px] font-black">{nextAppointment.time}</span>
@@ -161,7 +161,7 @@ export function PocketTodayOverview({
             type="button"
             disabled={!nextAppointment.patient_id}
             onClick={() => nextAppointment.patient_id && onOpenPatient(nextAppointment.patient_id)}
-            className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[16px] bg-primary px-4 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[16px] bg-primary px-4 text-xs font-bold text-on-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
             Ouvrir le dossier <ChevronRight size={15} />
           </button>
@@ -196,7 +196,7 @@ export function PocketTodayOverview({
 
       <div
         data-dc-pocket-compact-agenda
-        className="overflow-hidden rounded-[24px] border border-glass-border bg-card shadow-elite"
+        className="overflow-hidden rounded-[24px] border border-glass-border bg-card shadow-sm"
         style={{ backgroundColor: 'var(--glass-bg)' }}
       >
         <div className="flex items-center justify-between gap-3 border-b border-border-main px-4 py-3">
@@ -214,7 +214,7 @@ export function PocketTodayOverview({
         </div>
 
         {compactAgenda.length === 0 ? (
-          <p className="px-4 py-6 text-center text-[11px] font-bold text-text-muted">
+          <p className="px-4 py-6 text-center text-[12px] font-medium text-text-muted">
             Aucun rendez-vous pour cette journée.
           </p>
         ) : (
