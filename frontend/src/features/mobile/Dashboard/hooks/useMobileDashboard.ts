@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { MobileStorage } from '../../../../services/zka/MobileStorage';
+import { MobileStorage, isReplayablePocketAction } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { mobileApiJson } from '../../../../services/zka/mobileApi';
@@ -156,6 +156,12 @@ export function useMobileDashboard() {
     let hasError = false;
 
     for (const action of queue) {
+      // Defense in depth: never replay legacy destructive or foreign-origin actions.
+      if (!isReplayablePocketAction(action, creds.api_base_url)) {
+        await MobileStorage.removeActionFromQueue(action.id);
+        toast.error('Action hors ligne non autorisée annulée.');
+        continue;
+      }
       try {
         const res = await mobileFetch(action.url, {
           method: action.method,
@@ -256,9 +262,17 @@ export function useMobileDashboard() {
   };
 
   const handleDeleteAppt = async (id: number) => {
+    // A destructive action must be confirmed by the cabinet now, never replayed later.
+    if (!navigator.onLine) {
+      toast.error('Suppression impossible hors ligne. Reconnectez-vous au cabinet.');
+      return;
+    }
     if (!window.confirm("Supprimer ce rendez-vous ?")) return;
     const creds = credsRef.current || await MobileStorage.getCredentials();
-    if (!creds) return;
+    if (!creds) {
+      toast.error('Session mobile expirée ou révoquée');
+      return;
+    }
     const actionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${id}-delete`;
     try {
       const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
@@ -269,22 +283,12 @@ export function useMobileDashboard() {
         toast.error(`Suppression refusée (${res.status})`);
         return;
       }
-      fetchSnapshot();
+      void fetchSnapshot();
       toast.success("Rendez-vous supprimé");
     } catch (err) {
-      if (!isQueueableNetworkError(err)) {
-        toast.error(err instanceof Error && err.message === 'Non appairé'
-          ? 'Session mobile expirée ou révoquée'
-          : 'Erreur lors de la suppression');
-        return;
-      }
-      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, 'DELETE', undefined, actionId);
-      setQueuedActionsCount((await MobileStorage.getActionQueue()).length);
-      toast('Suppression mise en attente (hors ligne)', { icon: '🔄' });
-      setSnapshot(prev => prev ? {
-        ...prev,
-        appointments: prev.appointments.filter(a => a.id !== id),
-      } : prev);
+      toast.error(err instanceof Error && err.message === 'Non appairé'
+        ? 'Session mobile expirée ou révoquée'
+        : 'Suppression non confirmée par le cabinet. Réessayez en ligne.');
     }
   };
 
