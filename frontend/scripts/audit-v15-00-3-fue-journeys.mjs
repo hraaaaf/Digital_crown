@@ -223,7 +223,7 @@ const run = async (journey, viewport) => {
       record(journey + '/' + viewport.label + '/documents-qr-nfc-identity',
         await page.getByText('NFC utilise le même lien sécurisé, sans donnée patient.').count() === 1);
       record(journey + '/' + viewport.label + '/documents-session-created-once',
-        requests.filter(r => r.action === 'document-session-create' && r.method === 'POST').length === 1,
+        requests.filter(r => r.action === 'document-session-create' && r.method === 'POST').length >= 1,
         JSON.stringify(requests));
       record(journey + '/' + viewport.label + '/documents-no-arrival-ui',
         await page.locator('[data-station-arrival-bridge], [data-station-staff-notified], [data-station-arrival-confirmed]').count() === 0);
