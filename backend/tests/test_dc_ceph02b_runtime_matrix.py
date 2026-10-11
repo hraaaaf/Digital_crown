@@ -135,7 +135,16 @@ def test_real_runtime_revisions_and_all_38_contract_statuses() -> None:
     final_projection = _read(fourth, fourth_result)
     final_status, final_count = _matrix(final_projection)
     assert final_status["M_CO_A_MM_V1"] == "AVAILABLE"
-    assert final_count["AVAILABLE"] == third_count["AVAILABLE"], "Landmark correction changed availability coverage"
+    lost_available = sorted(
+        key for key, status in third_status.items()
+        if status == "AVAILABLE" and final_status[key] != "AVAILABLE"
+    )
+    assert lost_available == [], "A previously available measurement became unavailable"
+    newly_available = sorted(
+        key for key, status in final_status.items()
+        if status == "AVAILABLE" and third_status[key] != "AVAILABLE"
+    )
+    assert final_count["AVAILABLE"] == third_count["AVAILABLE"] + len(newly_available)
     assert all(
         x["calibration_ref"] is not None
         for x in fourth["measurements"]
@@ -175,6 +184,8 @@ def test_real_runtime_revisions_and_all_38_contract_statuses() -> None:
         "calibrated": third_count,
         "post_correction": final_count,
         "per_measure_statuses": status_rows,
+        "newly_available_contract_ids_after_correction": newly_available,
+        "previously_available_lost_after_correction": [],
         "revision_sequence": ["INITIAL", "LANDMARK_EDIT", "MANUAL_CALIBRATION", "LANDMARK_EDIT"],
         "typed_runtime_read_valid": True,
         "pdf_projection_invoked": True,
