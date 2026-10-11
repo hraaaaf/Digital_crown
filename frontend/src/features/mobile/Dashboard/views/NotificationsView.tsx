@@ -170,7 +170,7 @@ export function NotificationsView({
                   <button
                     type="button"
                     onClick={() => onNavigate(action.tab)}
-                    className="min-h-11 rounded-[16px] bg-primary px-2 text-[10px] font-black text-white"
+                    className="min-h-11 rounded-[16px] bg-primary px-2 text-[11px] font-semibold text-on-primary"
                   >
                     {action.label}
                   </button>
