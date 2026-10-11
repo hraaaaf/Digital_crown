@@ -140,6 +140,9 @@ export function MobileBottomNav({
             </div>
 
             <div className="grid gap-2.5 max-h-[min(60dvh,520px)] overflow-y-auto pr-0.5">
+              {secondaryTabs.some(tab => tab.id === 'waiting-room') && (
+                <p className="px-2 text-[10px] font-black uppercase tracking-wider text-primary">Accueil &amp; attente</p>
+              )}
               {secondaryTabs.map(({ id, icon: Icon, label, badge }) => (
                 <button
                   key={id}
