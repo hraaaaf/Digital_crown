@@ -128,10 +128,10 @@ export function SecuriteView({
 
       <div className={cn(premiumGlass, 'rounded-[20px] p-4 flex items-center gap-3')}>
         <GlassReflection />
-        <div className="relative z-10 w-2 h-2 rounded-full bg-success animate-pulse" />
+        <div className={cn("relative z-10 h-2 w-2 rounded-full", isOnline ? "bg-success animate-pulse" : "bg-warning")} />
         <div className="relative z-10">
           <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">État de la connexion</p>
-          <p className="text-sm font-bold text-text-main">Cabinet accessible</p>
+          <p className="text-sm font-bold text-text-main">{isOnline ? "Cabinet accessible" : "Cabinet hors ligne"}</p>
         </div>
         <FileText size={16} className="relative z-10 ml-auto text-text-muted" />
       </div>
