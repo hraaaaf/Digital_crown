@@ -20,8 +20,8 @@ jobs:
     timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
-      EXPECTED_SHA: 9c41d327400b8c41d8541517603d84bf9fdf9c23
-      CODE_RUN: "38092782085"
+      EXPECTED_SHA: fa377f1ee05534cafbc26971f70f2e8ba8b792fd
+      CODE_RUN: "38100167771"
       HISTORICAL_ASSET_RUN: "34281082926"
       MODEL_SHA256: a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb
       # Python imports must not mutate a GitHub-attested CODE artifact by
@@ -49,8 +49,8 @@ jobs:
       - name: Download exact CODE_CERTIFIED contents from canonical master run
         uses: actions/download-artifact@v4
         with:
-          run-id: 38092782085
-          name: code-certified-dc-cabinet-9c41d327400b-run38092782085
+          run-id: 38100167771
+          name: code-certified-dc-cabinet-fa377f1ee055-run38100167771
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/code-payload
 
@@ -215,7 +215,7 @@ jobs:
       - name: Upload composed installable source (not yet a Windows installer)
         uses: actions/upload-artifact@v4
         with:
-          name: fue-g04-installable-release-9c41d327
+          name: fue-g04-installable-release-fa377f1e
           path: ${{ runner.temp }}/cabinet-ci-runtime/releases/
           retention-days: 14
           if-no-files-found: error
@@ -292,7 +292,7 @@ jobs:
       - name: Upload Windows installer + SHA256 evidence
         uses: actions/upload-artifact@v4
         with:
-          name: fue-g04-windows-installer-9c41d327
+          name: fue-g04-windows-installer-fa377f1e
           path: ${{ runner.temp }}/cabinet-ci-runtime/releases/*/dist_installer/
           retention-days: 14
           if-no-files-found: error
