@@ -33,12 +33,12 @@ export interface Snapshot {
 export const STATUS_META: Record<ApptStatus, { label: string; className: string; icon: any }> = {
   PLANIFIE: {
     label: 'Planifié',
-    className: 'bg-slate-100 text-slate-600 border-slate-200',
+    className: 'bg-background text-text-muted border-border-main',
     icon: <Clock size={11} />,
   },
   EN_ATTENTE: {
     label: 'En salle d’attente',
-    className: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
+    className: 'bg-warning-surface text-warning border-warning-border',
     icon: <UsersRound size={11} />,
   },
   EN_COURS: {
@@ -48,12 +48,12 @@ export const STATUS_META: Record<ApptStatus, { label: string; className: string;
   },
   TERMINE: {
     label: 'Terminé',
-    className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    className: 'bg-success-surface text-success border-success-border',
     icon: <CheckCircle2 size={11} />,
   },
   ANNULE: {
     label: 'Annulé',
-    className: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+    className: 'bg-danger-surface text-danger border-danger-border',
     icon: <XCircle size={11} />,
   },
 };
