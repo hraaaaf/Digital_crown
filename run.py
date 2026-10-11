@@ -214,6 +214,12 @@ def main() -> int:
             host=host,
             port=port,
             log_level="info",
+            # PyInstaller console=False leaves stdout/stderr unavailable. The
+            # Uvicorn default logging formatter probes stderr.isatty() and
+            # aborts startup before the server binds its loopback port.
+            # In frozen mode, retain the rotating file logger installed by
+            # _setup_frozen_logging() instead of applying console logging.
+            log_config=None if getattr(sys, "frozen", False) else uvicorn.config.LOGGING_CONFIG,
             ssl_certfile=cert_file if https_enabled else None,
             ssl_keyfile=key_file if https_enabled else None,
         )
