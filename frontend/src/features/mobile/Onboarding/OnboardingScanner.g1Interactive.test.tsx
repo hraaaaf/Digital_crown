@@ -182,7 +182,7 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     }
   });
 
-  it('provides a secure manual continuation when Safari throttles the success timer', async () => {
+  it('provides a native same-origin route link when Safari cannot dispatch React navigation', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(response(true, 200, {
         publicId: 'a'.repeat(16),
@@ -198,8 +198,10 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     expect(screen.getByRole('button', { name: "Valider le code d'appairage" })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
-    const button = await screen.findByRole('button', { name: 'Continuer vers Agenda' });
-    fireEvent.click(button);
+    const link = await screen.findByRole('link', { name: 'Continuer vers Agenda' }) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/mobile/dashboard?tab=agenda');
+    expect(link.origin).toBe(window.location.origin);
+    // Automatic route transition still works; manual link does not depend on it.
     expect(await screen.findByText('Mobile dashboard destination')).toBeTruthy();
   });
 
