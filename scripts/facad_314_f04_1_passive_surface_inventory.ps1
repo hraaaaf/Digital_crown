@@ -39,6 +39,7 @@ for($i=0;$i -lt $windows.Count;$i++){
 }
 $matched=0
 $visible=0
+$visibleAnchorHits=0
 $unique=New-Object 'System.Collections.Generic.HashSet[string]'
 try{
   foreach($name in $targetNames){
@@ -67,7 +68,10 @@ try{
           if(-not $unique.Add($key)){continue}
           $matched++
           $targetCount++
-          if(-not $offscreen){$visible++}
+          if(-not $offscreen){
+            $visible++
+            if($name -eq 'Values' -or $name -eq 'Properties'){$visibleAnchorHits++}
+          }
           if($matched -gt 100){throw 'FACAD_UIA_LIMIT_EXCEEDED'}
           $values=@($name,$type,$enabled,[string]$offscreen,$selected,$rect,
                     'FACAD_PROCESS_OWNED')
@@ -88,6 +92,7 @@ try{
   Record "WINDOW_SCOPES_SCANNED=$($scopes.Count)"
   Record "TARGET_ALLOWLIST_HITS=$matched"
   Record "TARGET_ALLOWLIST_VISIBLE=$visible"
+  Record "TARGET_VISIBLE_ANCHORS=$visibleAnchorHits"
   Record "UIA_READ_ERRORS=$uiaErrors"
   Record 'NO_VENDOR_CONTROL_ACTIVATED_BY_THIS_SCRIPT=true'
   Record 'TAB_SELECT_INVOKED=false'
@@ -101,9 +106,11 @@ try{
   Record 'F04_1_EXPORT_VALIDATED=false'
   Record 'FAC05_NUMERIC_PARITY_TESTED=false'
 }
-if($uiaErrors -gt 0){
-  Record 'F04_1_INVENTORY_VERDICT=INCONCLUSIVE_UIA_READ_ERRORS'
-  throw 'F04.1 UIA read errors: census incomplete, no negative claims'
+. (Join-Path $PSScriptRoot 'facad_314_f04_1_census_gate.ps1')
+$verdict=Get-FacadF04CensusVerdict -UiaReadErrors $uiaErrors -Hits $matched `
+  -VisibleAnchors $visibleAnchorHits -WindowScopes $scopes.Count
+Record "F04_1_INVENTORY_VERDICT=$verdict"
+if($verdict -cne 'COMPLETE_CURRENT_STATE_ONLY'){
+  throw "F04.1 negative-control verdict $verdict; never claim missing vendor feature"
 }
-Record 'F04_1_INVENTORY_VERDICT=COMPLETE_CURRENT_STATE_ONLY'
 Record 'F04_1_ALLOWLIST_CENSUS_COMPLETE=true'
