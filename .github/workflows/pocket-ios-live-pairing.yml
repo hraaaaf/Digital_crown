@@ -6,6 +6,12 @@ on:
       - test/pocket-ios-live-pairing-20261011
     paths:
       - .github/workflows/pocket-ios-live-pairing.yml
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - fix/pocket-ios-micropolish-theme-20261011
+    paths:
+      - .github/workflows/pocket-ios-live-pairing.yml
   workflow_dispatch:
 
 permissions:
@@ -37,8 +43,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "test/pocket-ios-live-pairing-20261011"
-          test "$GITHUB_EVENT_NAME" = "push" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            test "$GITHUB_HEAD_REF" = "test/pocket-ios-live-pairing-20261011"
+          else
+            test "$GITHUB_REF_NAME" = "test/pocket-ios-live-pairing-20261011"
+          fi
           test -f scripts/ci/pocket_ios_fue_gateway.py
           test -f scripts/ci/pocket_ios_fue_issue.py
           echo "FUE_REPO_SHA=$(git rev-parse HEAD)"
