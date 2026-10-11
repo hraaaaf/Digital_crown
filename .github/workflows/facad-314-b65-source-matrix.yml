@@ -11,6 +11,7 @@ on:
       - docs/audits/facad_trial_20261011/B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json
       - docs/audits/facad_trial_20261011/B_WAVE4_OFFICIAL_REFERENCE_OPERATOR_TYPES.json
       - docs/audits/facad_trial_20261011/FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json
+      - docs/audits/facad_trial_20261011/FACAD_F01_13_WAVE5_SOURCE_CROSSWALK.json
   workflow_dispatch:
 
 permissions:
@@ -306,4 +307,57 @@ jobs:
           print('F06_2_D3_OPEN_BLOCKERS=6_AND_CASE_EXCEPTIONS='+str(len(reg['case_specific_exceptions'])))
           print('F06_2_MUTATIONS_REJECTED=12')
           print('F06_2_REGISTER_DOCUMENTED_ONLY_NO_CLINICAL_CERTIFICATION=true')
+          PY
+
+      - name: F01.13 reject unproven source formula and profile equivalence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,copy
+          from pathlib import Path
+          base=Path('research/docs/audits/facad_trial_20261011')
+          x=json.loads((base/'FACAD_F01_13_WAVE5_SOURCE_CROSSWALK.json').read_text())
+          b=json.loads((base/'B_65_PROFILE_SOURCE_GATES_20261011.json').read_text())
+          w=json.loads((base/'B_WAVE4_OFFICIAL_REFERENCE_OPERATOR_TYPES.json').read_text())
+          assert x['schema']=='FACAD_F01_13_WAVE5_SCIENCE_BLOCKER_MATRIX_V1'
+          assert x['source_git']['b65_blob']=='54cf83e2f76fb08b8d887ac73f138bfd003ec189'
+          assert x['source_git']['generic_types_wave4_blob']=='e0832abc15e0357c7e58d8cef899e91927b1155b'
+          priorities=x['priority_analyses']
+          assert len(priorities)==8
+          byname={v['analysis']:v for v in b['items']}
+          for a in priorities:
+              src=byname[a['analysis']]
+              assert src['ordinal']==a['ordinal']
+              assert str(src['source_run_id'])==str(a['editor_run_id'])
+              assert src['git_uia_triplets']==a['strict_git_three_csv']
+              assert a['facad_numeric_parity']=='NOT_TESTED'
+              assert a['source_page_specific_formula']=='NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE'
+          types=x['operator_type_matrix']
+          assert len(types)==10
+          assert {v['name'] for v in types}=={v['operator'] for v in w['records']}
+          assert all(v['source_C01_C02_specific_formula']=='UNKNOWN'
+                     and not v['verified_clinical_formula']
+                     and v['numeric_vendor_comparison']=='NOT_TESTED' for v in types)
+          assert len(x['contraindicated_aliases'])>=5
+          assert x['unverified_formula_count']==10
+          assert x['f01_13']=='OPEN' and x['ceph08']=='OPEN' and x['d3']=='OPEN_RED' and x['fac05']=='NOT_TESTED'
+          assert x['clinical_equivalence'] is False
+          def fail_closed(z):
+              return (not z['clinical_equivalence'] and z['f01_13']=='OPEN'
+                      and z['ceph08']=='OPEN' and z['fac05']=='NOT_TESTED'
+                      and all(a['facad_numeric_parity']=='NOT_TESTED' for a in z['priority_analyses'])
+                      and all(op['source_C01_C02_specific_formula']=='UNKNOWN' and
+                              not op['verified_clinical_formula'] for op in z['operator_type_matrix']))
+          assert fail_closed(x)
+          n=0
+          for j in range(8):
+              y=copy.deepcopy(x);y['priority_analyses'][j]['facad_numeric_parity']='VERIFIED'
+              assert not fail_closed(y);n+=1
+          for j in range(10):
+              y=copy.deepcopy(x);y['operator_type_matrix'][j]['verified_clinical_formula']=True
+              assert not fail_closed(y);n+=1
+          print('F01_13_SOURCE_ANALYSIS_CROSSWALK=8_PRIORITY_ANALYSES')
+          print('F01_13_OPERATOR_UNKNOWN_GATES=10')
+          print(f'F01_13_FALSE_PROMOTIONS_REJECTED={n}')
+          print('F01_13_NUMERIC_FACAD_PARITY_VALIDATED=false')
           PY
