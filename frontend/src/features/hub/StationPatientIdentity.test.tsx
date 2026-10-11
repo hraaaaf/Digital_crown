@@ -219,4 +219,52 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     }
   });
 
+  it('revokes a QR created after navigating away before create resolves', async () => {
+    let resolveCreate!: (value: Awaited<ReturnType<typeof stationPatientSessionService.create>>) => void;
+    vi.mocked(stationPatientSessionService.create).mockReturnValue(
+      new Promise(resolve => { resolveCreate = resolve; }),
+    );
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending', sessionId: 'late-session', expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+    const onBack = vi.fn();
+    const rendered = render(<StationPatientIdentity purpose="documents" onBack={onBack} backLabel="Retour" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    rendered.unmount();
+    resolveCreate({
+      sessionId: 'late-session',
+      handoffUrl: 'https://cabinet.local/companion?stationSession=late',
+      nfcPayload: 'https://cabinet.local/companion?stationSession=late',
+      qrDataUrl: 'data:image/png;base64,AAAA',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      fallbackMode: 'disabled',
+    });
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('late-session'));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('revokes a QR created by Retry after leaving, without rendering stale patient identity', async () => {
+    vi.mocked(stationPatientSessionService.create).mockRejectedValueOnce(new Error('offline'));
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending', sessionId: 'retry-late', expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+    let resolveRetry!: (value: Awaited<ReturnType<typeof stationPatientSessionService.create>>) => void;
+    vi.mocked(stationPatientSessionService.create).mockImplementationOnce(
+      () => new Promise(resolve => { resolveRetry = resolve; }),
+    );
+    const rendered = render(<StationPatientIdentity purpose="documents" onBack={vi.fn()} backLabel="Retour" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    rendered.unmount();
+    resolveRetry({
+      sessionId: 'retry-late',
+      handoffUrl: 'https://cabinet.local/companion?stationSession=late-retry',
+      nfcPayload: 'https://cabinet.local/companion?stationSession=late-retry',
+      qrDataUrl: 'data:image/png;base64,AAAA',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      fallbackMode: 'disabled',
+    });
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('retry-late'));
+  });
+
 });
