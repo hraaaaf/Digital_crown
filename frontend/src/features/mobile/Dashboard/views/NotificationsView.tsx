@@ -20,10 +20,10 @@ type Filter = 'all' | 'priority';
 function priorityMeta(value?: string | null) {
   const normalized = String(value || '').toUpperCase();
   if (['CRITICAL', 'URGENT', 'HIGH'].includes(normalized)) {
-    return { label: 'Urgent', className: 'border-rose-500/25 bg-rose-500/5 text-rose-600', important: true };
+    return { label: 'Urgent', className: 'border-danger-border bg-danger-surface text-danger', important: true };
   }
   if (['MEDIUM', 'IMPORTANT', 'WARNING'].includes(normalized)) {
-    return { label: 'Important', className: 'border-amber-500/25 bg-amber-500/5 text-amber-700', important: true };
+    return { label: 'Important', className: 'border-warning-border bg-warning-surface text-warning', important: true };
   }
   return { label: 'Info', className: 'border-primary/20 bg-primary/5 text-primary', important: false };
 }
@@ -127,7 +127,7 @@ export function NotificationsView({
             type="button"
             aria-pressed={filter === id}
             onClick={() => setFilter(id)}
-            className={`min-h-11 rounded-[14px] px-3 text-[11px] font-black ${filter === id ? 'bg-primary text-white' : 'text-text-muted'}`}
+            className={`min-h-11 rounded-[14px] px-3 text-[11px] font-black ${filter === id ? 'bg-primary text-on-primary' : 'text-text-muted'}`}
           >
             {label}
           </button>
@@ -135,7 +135,7 @@ export function NotificationsView({
       </div>
 
       {error && (
-        <div className="mb-3 rounded-[18px] border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-[11px] font-bold text-rose-600">
+        <div className="mb-3 rounded-[18px] border border-danger-border bg-danger-surface px-4 py-3 text-[11px] font-bold text-danger">
           {error}
         </div>
       )}
