@@ -52,6 +52,26 @@ export interface QueuedAction {
   deviceId: string;
 }
 
+/** Only the existing, non-destructive Pocket appointment-status mutation is replayable. */
+export function isReplayablePocketAction(
+  action: Pick<QueuedAction, 'url' | 'method'>,
+  apiBaseUrl: string,
+): boolean {
+  if (typeof action.method !== 'string' || action.method.toUpperCase() !== 'PATCH') return false;
+  try {
+    const target = new URL(action.url);
+    const cabinet = new URL(resolveMobileApiBaseUrl(apiBaseUrl));
+    return target.origin === cabinet.origin
+      && /^\/api\/mobile\/appointments\/[0-9]+\/status$/.test(target.pathname)
+      && target.search === ''
+      && target.hash === ''
+      && !target.username
+      && !target.password;
+  } catch {
+    return false;
+  }
+}
+
 interface SnapshotEntry {
   data: any;
   saved_at: number;
@@ -407,6 +427,9 @@ export const MobileStorage = {
   async enqueueAction(url: string, method: string, body?: any, actionId?: string): Promise<string> {
     const creds = await rawCredentials();
     if (!creds?.device_id) throw new Error('Session mobile non appairée.');
+    if (!isReplayablePocketAction({ url, method }, creds.api_base_url)) {
+      throw new Error('Cette action ne peut pas être mise en attente hors ligne.');
+    }
     await mobileStore().removeItem(LEGACY_ACTION_QUEUE_ID);
     const queue = await this.getActionQueue();
     const id = actionId || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
@@ -437,7 +460,23 @@ export const MobileStorage = {
     const queue: QueuedAction[] = (await rawVault())
       ? unlockedVault?.payload.actionQueue ?? []
       : await mobileStore().getItem<QueuedAction[]>(STORE_ACTION_QUEUE_ID) || [];
-    return queue.filter(a => a.cabinetPublicId === creds.publicId && a.deviceId === creds.device_id);
+    // Purge previously queued destructive/unknown mutations before any replay.
+    // This also applies to an unlocked biometric vault, not just IndexedDB.
+    const replayable = queue.filter(a =>
+      a.cabinetPublicId === creds.publicId
+      && a.deviceId === creds.device_id
+      && isReplayablePocketAction(a, creds.api_base_url)
+    );
+    if (replayable.length !== queue.length) {
+      if (await rawVault()) {
+        if (!unlockedVault) return [];
+        unlockedVault.payload.actionQueue = replayable;
+        await persistUnlockedVault();
+      } else {
+        await mobileStore().setItem(STORE_ACTION_QUEUE_ID, replayable);
+      }
+    }
+    return replayable;
   },
 
   async clearActionQueue(): Promise<void> {
