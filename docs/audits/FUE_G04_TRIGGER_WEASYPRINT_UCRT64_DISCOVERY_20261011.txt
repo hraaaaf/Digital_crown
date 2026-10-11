@@ -1,0 +1,9 @@
+FUE-G04 Windows native PDF TEST LAB ONLY — 2026-10-11.
+Use separately authenticated official MSYS2 UCRT64 native Pango package SHA256: 8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8, version 1.58.2-1.
+Official WeasyPrint doc recommends MSYS2 UCRT64 + mingw-w64-ucrt-x86_64-pango; source docs https://doc.courtbouillon.org/weasyprint/stable/first_steps.html and https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-pango.
+Lab action msys2/setup-msys2 pinned to commit ec48f7c5447b3140e2b088413ae3a55687bccb6e.
+Actual native WeasyPrint==68.1 render test uses synthetic HTML only and no installed/packaged Digital Crown executable.
+STRICT limitation: MSYS2 dependency closure/transitive pacman and Python pip transitive dependencies are NOT pinned at this stage; no binary may be imported into CODE_CERTIFIED, production, Windows setup, physical Lenovo, or historic patient records.
+This research proves candidate upstream availability and will record native DLL hashes for a follow-up immutable full provenance manifest; run must never certify clinic native PDF.
+Trigger workflow .github/workflows/fue-g04-weasyprint-ucrt64-discovery.yml on DRAFT CI-only PR #825. Keep master fa377f1ee05534cafbc26971f70f2e8ba8b792fd and official CODE_CERTIFIED run #38100167771 untouched.
+Previous native DLL audit #38103213961 legitimately RED (five missing DLL), unchanged.
