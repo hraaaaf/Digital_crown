@@ -1,0 +1,7 @@
+FUE-G04 — isolated Windows CI smoke trigger (runner-only, no clinical data)
+Source: official CODE_CERTIFIED master SHA 9c41d327400b8c41d8541517603d84bf9fdf9c23, run 38092782085
+Successful Windows installer build: https://github.com/hraaaaf/Digital_crown/actions/runs/38095783298
+Inner setup EXE SHA256: 9a8e07644dde4b7eff153a84a53d4c7a81c9ea7731262e8aa1daa807f765e33d
+Scope: throw-away GitHub Windows runner install under RUNNER_TEMP, check 7 identity proofs with exact bytes, isolated synthetic database/paths and loopback health; fail on errors.
+No Lenovo, historic patient archive, real cabinet, Vercel, clinic secrets, physical installation or release/branch merge.
+Initial run: 1
