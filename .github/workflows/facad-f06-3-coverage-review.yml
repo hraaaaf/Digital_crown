@@ -1,0 +1,107 @@
+name: FACAD F06.3 full canonical coverage and adversarial research review
+on:
+  push:
+    branches:
+      - research/facad-f06-3-coverage-review-20261011
+    paths:
+      - .github/workflows/facad-f06-3-coverage-review.yml
+      - docs/audits/facad_trial_20261011/FACAD_F06_3_WAVE6_ADVERSARIAL_COVERAGE_REPORT.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canonical-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify all 39 original gates and 19 open exact acceptance criteria
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,copy,subprocess
+          from pathlib import Path
+          base=Path('docs/audits/facad_trial_20261011')
+          d=json.loads((base/'FACAD_F06_3_WAVE6_ADVERSARIAL_COVERAGE_REPORT.json').read_text())
+          f=json.loads((base/'FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json').read_text())
+          assert d['schema']=='FACAD_F06_3_COVERAGE_ADVERSARIAL_AUDIT_V1'
+          assert d['source_manifest_blobs']['f06_2']==subprocess.check_output(
+            ['git','hash-object',str(base/'FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json')],text=True).strip()
+          rows=d['primary_gates']
+          assert len(rows)==len(f['canonical_facad_gates_before'])==39
+          for row,old in zip(rows,f['canonical_facad_gates_before']):
+            assert row['id']==old['id'] and row['title']==old['title'] and row['section']==row['id'][:3]
+            expect='CLOSED_HISTORICAL_SOURCE' if old['canonical_state']=='ALREADY_CHECKED' else 'OPEN_REQUIREMENTS_UNMET'
+            assert row['canonical_state']==expect
+            assert row['historical_closed_evidence_replayed_this_lot'] is False
+            if expect=='OPEN_REQUIREMENTS_UNMET':
+                assert row['missing_proof'] is not None
+                assert row['missing_proof']['blocker_code']
+                assert row['missing_proof']['why'] and row['missing_proof']['next_observable']
+            else:
+                assert row['missing_proof'] is None
+          open_rows=[z for z in rows if z['canonical_state']=='OPEN_REQUIREMENTS_UNMET']
+          assert len(open_rows)==19 and d['snapshot_before']=={'total':39,'closed':20,'open':19}
+          assert set(z['id'] for z in open_rows)=={
+            'F00.4','F01.13','F02.2','F02.3','F02.4','F03.3','F03.4','F03.5',
+            'F04.1','F04.2','F04.3','F04.4','F05.1','F05.2','F05.3','F05.4',
+            'F06.1','F06.3','F06.4'}
+          expect={'F00':(4,3,1),'F01':(14,13,1),'F02':(4,1,3),'F03':(5,2,3),
+                  'F04':(4,0,4),'F05':(4,0,4),'F06':(4,1,3)}
+          assert {k:(v['total'],v['closed'],v['open']) for k,v in d['group_counts'].items()}==expect
+          e=d['source_evidence']
+          assert e['profiles_seen_ui']==65
+          assert (e['git_complete_three_tab_csv'],e['git_missing_three_tab_csv'])==(42,23)
+          assert e['facad_d3_unresolved_blockers']==6
+          assert e['direct_vendor_identical_case_numeric_comparisons']==0
+          assert e['human_independent_reviewers_for_d3']==0
+          assert e['F02_view_menu_app_items']==20 and e['F02_tracing_menu_app_items']==10
+          assert d['f06_3_canonical_gate']=='OPEN_PENDING_AUDIT_CERTIFICATION'
+          assert d['f06_4']=='OPEN' and d['other_gates_promoted']==0
+          assert d['safety_conditions']['d3']=='OPEN_RED'
+          assert d['safety_conditions']['real_facad_numeric_parity']=='NOT_TESTED'
+          assert d['safety_conditions']['converged'] is False
+          assert d['fresh_independent_human_reviewers'] is False
+          for review in ('review_A_science','review_B_security_program'):
+              x=d[review]
+              assert x['type']=='INTERNAL_ADVERSARIAL_NOT_HUMAN_INDEPENDENT'
+              assert len(x['blocking_findings'])>=3
+              assert 0<=x['audit_completeness_score_10']<=8
+          def safe(a):
+              r=a['primary_gates']
+              c=a['safety_conditions']
+              return (
+                len(r)==39 and len({v['id'] for v in r})==39 and
+                sum(v['canonical_state']=='OPEN_REQUIREMENTS_UNMET' for v in r)==19 and
+                all(v['missing_proof'] and v['missing_proof']['why'] and v['missing_proof']['next_observable']
+                    for v in r if v['canonical_state']=='OPEN_REQUIREMENTS_UNMET') and
+                a['f06_4']=='OPEN' and c['d3']=='OPEN_RED' and
+                c['real_facad_numeric_parity']=='NOT_TESTED' and c['converged'] is False and
+                a['source_evidence']['direct_vendor_identical_case_numeric_comparisons']==0 and
+                a['fresh_independent_human_reviewers'] is False and
+                a['other_gates_promoted']==0)
+          assert safe(d)
+          mutants=[]
+          for field,val in [('d3','CLOSED'),('real_facad_numeric_parity','VERIFIED'),('converged',True)]:
+              x=copy.deepcopy(d);x['safety_conditions'][field]=val;mutants.append(x)
+          for field,val in [('f06_4','CLOSED'),('fresh_independent_human_reviewers',True),('other_gates_promoted',1)]:
+              x=copy.deepcopy(d);x[field]=val;mutants.append(x)
+          x=copy.deepcopy(d);x['source_evidence']['direct_vendor_identical_case_numeric_comparisons']=1;mutants.append(x)
+          for i in range(7):
+              x=copy.deepcopy(d)
+              for y in x['primary_gates']:
+                  if y['canonical_state']=='OPEN_REQUIREMENTS_UNMET':
+                      if i%2: y['missing_proof']=None
+                      else: y['canonical_state']='CLOSED_HISTORICAL_SOURCE'
+                      break
+              mutants.append(x)
+          assert len(mutants)==14 and all(not safe(x) for x in mutants)
+          print('F06_3_ALL_CANONICAL_GATES_AUDITED=39')
+          print('F06_3_ALL_UNMET_GATES_CLASSIFIED=19')
+          print('F06_3_INTERNAL_ADVERSARIAL_PERSPECTIVES=2_NONINDEPENDENT')
+          print('F06_3_FALSE_CLOSURE_MUTATIONS_REJECTED=14')
+          print('F06_3_PROGRAM_D3_OPEN_RED=true')
+          print('F06_3_NUMERIC_PARITY_VALIDATED=false')
+          PY
