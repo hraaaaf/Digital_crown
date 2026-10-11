@@ -35,9 +35,9 @@ class Gateway(BaseHTTPRequestHandler):
         # Never emit the capability URL, session cookie or patient-like payloads.
         pass
 
-    def answer(self, status: int, message: bytes, headers=None):
+    def answer(self, status: int, message: bytes, headers=None, content_type="text/plain; charset=utf-8"):
         self.send_response(status)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(message)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -53,11 +53,25 @@ class Gateway(BaseHTTPRequestHandler):
         if path == "/healthz":
             return self.answer(200, b"ok")
         if hmac.compare_digest(path, "/session/" + SESSION_KEY):
-            return self.answer(302, b"", [
+            # Some iOS Safari contexts do not retain Secure cookies on a
+            # cross-app 302 chain. Commit the HttpOnly cookie on a real 200
+            # first-party document and require a user navigation gesture.
+            # Never downgrade to URL bearer auth for protected API calls.
+            landing = """<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session iPhone de test</title><style>
+body{font-family:system-ui,sans-serif;max-width:460px;margin:18vh auto;padding:24px;color:#17253d}
+a{display:block;text-align:center;background:#083781;color:white;border-radius:14px;
+padding:18px;text-decoration:none;font-weight:700;min-height:26px}
+p{line-height:1.5}</style></head><body>
+<h1>Session de test prête</h1>
+<p>Appuyez sur le bouton pour ouvrir Digital Crown dans Safari.
+L'autorisation reste limitée à ce cabinet fictif et temporaire.</p>
+<a href="/mobile/onboarding">Continuer vers l'appairage</a></body></html>"""
+            return self.answer(200, landing.encode("utf-8"), [
                 ("Set-Cookie", COOKIE + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=1500"),
-                ("Location", "/mobile/onboarding"),
-                ("Referrer-Policy", "no-referrer"),
-            ])
+                ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"),
+            ], content_type="text/html; charset=utf-8")
         received = self.headers.get("Cookie", "")
         cookies = [cookie.strip() for cookie in received.split(";")]
         if not any(hmac.compare_digest(cookie, COOKIE) for cookie in cookies):
