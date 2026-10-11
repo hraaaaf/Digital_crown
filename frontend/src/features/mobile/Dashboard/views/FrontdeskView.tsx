@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Check, Clock3, MessageCircle, Phone, RefreshCw, X } from 'lucide-react';
-import { api } from '../../../../services/api';
+import { mobileApiJson } from '../../../../services/zka/mobileApi';
 
 export interface PendingRequest {
   id: number;
@@ -41,10 +41,10 @@ export function FrontdeskView({ previewData }: { previewData?: PendingRequest[] 
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get<PendingRequest[]>('/appointments/pending');
-      setRequests(response.data);
+      const data = await mobileApiJson<PendingRequest[]>('/frontdesk/pending');
+      setRequests(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Impossible de charger les demandes.');
+      setError(err instanceof Error ? err.message : 'Impossible de charger les demandes.');
     } finally {
       setLoading(false);
     }
@@ -56,13 +56,17 @@ export function FrontdeskView({ previewData }: { previewData?: PendingRequest[] 
 
   const mutate = async (request: PendingRequest, action: 'confirm' | 'reject' | 'request-confirmation') => {
     if (previewMode) return;
+    if (!navigator.onLine) {
+      setError('Action Accueil impossible hors ligne. Reconnectez-vous au cabinet.');
+      return;
+    }
     setMutatingId(request.id);
     setError(null);
     setMessage(null);
     try {
-      const response = await api.post(`/appointments/${request.id}/${action}`);
+      const response = await mobileApiJson<{ message_template?: string; status?: string }>(`/frontdesk/requests/${request.id}/${action}`, { method: 'POST' });
       if (action === 'request-confirmation') {
-        const template = response.data?.message_template;
+        const template = response.message_template;
         setMessage(template ? 'Message de confirmation préparé. Aucun envoi automatique n’a été effectué.' : 'Confirmation demandée.');
       } else if (action === 'confirm') {
         setMessage('Rendez-vous confirmé.');
@@ -72,7 +76,7 @@ export function FrontdeskView({ previewData }: { previewData?: PendingRequest[] 
       setRejecting(null);
       await load();
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Action impossible.');
+      setError(err instanceof Error ? err.message : 'Action impossible.');
     } finally {
       setMutatingId(null);
     }
