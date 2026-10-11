@@ -133,9 +133,10 @@ describe('StationKioskShell', () => {
     expect(french.className).toContain('text-on-primary');
 
     fireEvent.click(screen.getByRole('button', { name: /Retirer un document/i }));
+    expect(screen.getByText('Préparation de la session sécurisée…')).toBeInTheDocument();
     const back = screen.getByRole('button', { name: 'Retour à l’accueil' });
-    expect(back.className).toContain('bg-primary');
-    expect(back.className).toContain('text-on-primary');
+    expect(back.className).toContain('min-h-12');
+    expect(back.className).toContain('border-border-main');
   });
 
   it('includes reduced-motion guards on animated kiosk controls', () => {
@@ -165,6 +166,29 @@ describe('StationKioskShell', () => {
     fireEvent.click(screen.getByRole('button', { name: /لدي موعد/i }));
     expect(await screen.findByText('جارٍ إعداد الجلسة الآمنة…')).toBeInTheDocument();
     expect(container.querySelector('[data-station-language="ar"]')).toHaveAttribute('dir', 'rtl');
+  });
+
+
+  it('04.4 documents starts QR/NFC identity flow on Station without opening appointment flow', async () => {
+    const { container } = render(<StationKioskShell onAdminTap={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Retirer un document/i }));
+
+    expect(container.querySelector('[data-station-screen="documents"]')).toBeInTheDocument();
+    expect(screen.getByText('Accès aux documents autorisés')).toBeInTheDocument();
+    expect(await screen.findByText('Préparation de la session sécurisée…')).toBeInTheDocument();
+    expect(stationPatientSessionService.create).toHaveBeenCalledTimes(1);
+    expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
+    expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
+  });
+
+  it('04.4 documents uses localized identity prompt for Arabic RTL', async () => {
+    const { container } = render(<StationKioskShell onAdminTap={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'العربية' }));
+    fireEvent.click(screen.getByRole('button', { name: /استلام وثيقة/i }));
+
+    expect(container.querySelector('[data-station-screen="documents"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-station-language="ar"]')).toHaveAttribute('dir', 'rtl');
+    expect(await screen.findByText('جارٍ إعداد الجلسة الآمنة…')).toBeInTheDocument();
   });
 
 });
