@@ -145,7 +145,7 @@ def test_real_runtime_revisions_and_all_38_contract_statuses() -> None:
     # PDF is an authoritative presentation consumer, not a clinical diagnosis.
     data = fourth_result.model_dump()
     data[EVIDENCE_GRAPH_KEY] = fourth
-    pdf = build_cephalo_pdf_projection(patient_id=7, analysis_id=None, angles_data=data)
+    pdf = build_cephalo_pdf_projection(patient_id=7, analysis_id=9, angles_data=data)
     if pdf["active_runtime_chain_verified"]:
         assert pdf["measurements"] and pdf["canonical_measurements"]
     else:
@@ -189,7 +189,7 @@ def test_tampered_active_landmark_prevents_runtime_and_pdf_value_promotion() -> 
         _read(tampered, result)
     data = result.model_dump()
     data[EVIDENCE_GRAPH_KEY] = tampered
-    pdf = build_cephalo_pdf_projection(patient_id=7, analysis_id=None, angles_data=data)
+    pdf = build_cephalo_pdf_projection(patient_id=7, analysis_id=9, angles_data=data)
     assert pdf["active_runtime_chain_verified"] is False
     assert pdf["measurements"] == [] and pdf["canonical_measurements"] == []
     assert pdf["document_state"] == "INCOMPLETE"
