@@ -57,6 +57,20 @@ Vérifications réalisées dans le script :
 
 **Important :** le résultat `+180°→−180°` du normaliseur candidat `[-180°,180°)` n'est pas démontré conforme à la règle du fabricant ; le choix de borne exacte doit être traité séparément dans une campagne de parité numérique.
 
+## Adversarial mutation probes — checks that SHOULD fail
+
+Pour ne pas se contenter d'un « 30/30 OK » autosatisfait, **5 substitutions intentionnellement incorrectes** ont été appliquées **seulement dans des copies Python temporaires**, puis la même suite `unittest` a été relancée. Résultats observés : **5/5 mutants détectés** (`returncode=1` à chaque fois), aucun code original modifié.
+
+| Mutation incorrecte | Réponse du banc |
+|---|---|
+| Sélecteur Auto `upper < 135` remplacé par `upper <= 135` | FAILED, 1 assertion : seuil 135° |
+| Tweed `ML=Go–Me` remplacé par alias global `Go–Gn` | FAILED, 1 assertion : géométrie profil |
+| Désactivation du contrôle des unités dans `Sub` | FAILED, 1 assertion : incompatibilité de dimensions |
+| Suppression du garde parallèles dans `Intersect` | FAILED, 2 erreurs attendues sur lignes dégénérées |
+| Suppression de la normalisation angulaire signée candidate | FAILED, 2 assertions |
+
+Cela prouve que le **banc interne détecte cinq classes de régression injectées**, et non qu'il décrit les détails de géométrie FACAD ou qu'il a obtenu une revue scientifique humaine.
+
 ## Revue adversariale interne (deux perspectives ; pas revue humaine)
 
 **A — Science :** l'alternative de plage documentaire est une preuve du **rendu**, non de la valeur brute ni de la géométrie. 30 tests du banc ne prouvent aucune exécution de Facad ni Digital Crown. C02 34 pages reste non acquis, donc les familles `Angle2ln`, `Angle3p`, `Angle4p`, `DistLine`, `ProjLine`, `Proj90Line`, `Dist3p` demeurent `DEFINITION_NOT_VERIFIED`. **BLOCKER scientifique non résolu.**
