@@ -4,6 +4,7 @@ from pathlib import Path
 
 from backend.release_certification import verify_installable_release_directory
 from backend.runtime_asset_certification import iter_runtime_asset_files
+from backend.windows_native_pdf_bundle import verified_windows_pdf_spec_assets
 
 # A production EXE may only be built from an INSTALLABLE_CERTIFIED release.
 # This validates exact SHA identity, GitHub provenance composition, BASIC/GOLD/ELITE
@@ -11,6 +12,8 @@ from backend.runtime_asset_certification import iter_runtime_asset_files
 # PyInstaller transforms the Python sources.
 _CERTIFIED_RELEASE_ROOT = os.getcwd()
 verify_installable_release_directory(_CERTIFIED_RELEASE_ROOT)
+
+_PDF_NATIVE_BINARIES, _PDF_NATIVE_DATAS = verified_windows_pdf_spec_assets()
 
 block_cipher = None
 
@@ -29,7 +32,7 @@ def _collect_ai_models_datas():
 a = Analysis(
     ['run.py'],
     pathex=[],
-    binaries=[],
+    binaries=_PDF_NATIVE_BINARIES,
     datas=[
         ('frontend/dist', 'frontend/dist'),
         ('alembic.ini', '.'),
@@ -49,7 +52,7 @@ a = Analysis(
         ('github-attestation-verification.json', '.'),
         ('backend/scientific_assets.json', 'backend'),
         # SÉCURITÉ : ne JAMAIS embarquer de fichier .env contenant des secrets.
-    ] + _collect_ai_models_datas(),
+    ] + _collect_ai_models_datas() + _PDF_NATIVE_DATAS,
     hiddenimports=[
         'uvicorn', 'fastapi', 'sqlalchemy', 'sqlite3', 'pydantic', 'sentry_sdk',
         'onnxruntime', 'cv2', 'numpy', 'PIL', 'python-multipart', 'passlib', 'bcrypt', 'jose',
@@ -57,11 +60,12 @@ a = Analysis(
         'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
         'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical',
         'backend.release_certification', 'backend.runtime_asset_certification',
+        'backend.windows_native_pdf_bundle',
         'backend.core.new_cabinet_setup', 'tkinter', 'tkinter.simpledialog', 'tkinter.messagebox'
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['backend/scripts/pyi_rth_windows_native_pdf.py'] if os.name == 'nt' else [],
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
