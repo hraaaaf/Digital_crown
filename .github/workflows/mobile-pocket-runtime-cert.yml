@@ -129,7 +129,7 @@ jobs:
           import struct
           from pathlib import Path
           for engine in ('mobile-pocket-runtime', 'mobile-pocket-webkit'):
-              root = Path('artifacts/mobile-pocket-runtime')
+              root = Path('artifacts') / engine
               roles = ('dentiste', 'secretaire')
               viewports = ((390, 844), (430, 932), (768, 1024), (1280, 800))
               for role in roles:
