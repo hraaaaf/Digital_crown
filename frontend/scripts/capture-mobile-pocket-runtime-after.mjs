@@ -321,9 +321,21 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
       const b = element.getBoundingClientRect();
       return { top: b.top, bottom: b.bottom, height: b.height };
     };
+    const css = dialog ? getComputedStyle(dialog) : null;
+    const ancestorOpacity = [];
+    for (let parent = dialog; parent && parent !== document.body; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      ancestorOpacity.push({ tag: parent.tagName, opacity: style.opacity, filter: style.filter, backdropFilter: style.backdropFilter });
+    }
+    const nav = document.querySelector('[data-mobile-bottom-nav]');
     return {
       role: document.querySelector('[data-dc-pocket-today]')?.getAttribute('data-dc-pocket-role'),
       dialog: dialog ? rect(dialog) : null,
+      dialogBackground: css?.backgroundColor ?? null,
+      dialogOpacity: css?.opacity ?? null,
+      cardToken: css?.getPropertyValue('--card-bg').trim() ?? null,
+      ancestorOpacity,
+      navBackground: nav ? getComputedStyle(nav).backgroundColor : null,
       items: items.map(item => ({
         id: item.getAttribute('data-mobile-more-item'),
         text: item.textContent?.trim(),
@@ -333,6 +345,20 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   });
   await fs.writeFile(path.join(outputDir, `menu-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.json`),
     JSON.stringify(menuState, null, 2));
+  // A visual smoke test cannot pass merely because the dialog has "bg-card":
+  // Safari must resolve the actual drawn surface and every ancestor to opaque.
+  const isOpaqueColor = value => {
+    if (!value || value === 'transparent') return false;
+    const rgba = value.match(/^rgba?\\(([^)]*)\\)$/);
+    if (!rgba) return false;
+    const channels = rgba[1].split(/[,\\s/]+/).filter(Boolean);
+    return channels.length === 3 || (channels.length === 4 && Number(channels[3]) >= 0.999);
+  };
+  if (!isOpaqueColor(menuState.dialogBackground)
+    || !isOpaqueColor(menuState.navBackground)
+    || menuState.ancestorOpacity.some(entry => Number(entry.opacity) < 0.999 || entry.filter !== 'none')) {
+    throw new Error(`Pocket Safari Plus must be opaque: ${JSON.stringify(menuState)}`);
+  }
   await captureStableScreenshot(page, { path: path.join(outputDir, `menu-before-scroll-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.png`) });
   // Plus contains an intentionally scrollable secondary-action list. A menu
   // item can be in the DOM but outside the visible scrollport on WebKit.
