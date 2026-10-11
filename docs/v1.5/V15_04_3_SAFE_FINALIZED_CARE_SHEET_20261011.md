@@ -1,34 +1,31 @@
-# V1.5-04.3 — Feuille de soins déjà finalisée : candidat fail-closed
+# V1.5-04.3 — Feuille de soins déjà finalisée : retrait station fail-closed
 
-**Statut : DRAFT / tests GitHub requis / pas d'activation cabinet.** Branche indépendante du master canonique `fa377f1ee05534cafbc26971f70f2e8ba8b792fd`. La PR #836 reste l'audit documentaire et la PR #799 est trop divergente pour être fusionnée.
+**Statut produit : MERGED vers master le 11 octobre 2026 — FUE-0 technique prouvée sur HEAD de la PR ; FUE-I / FUE-G / terrain non certifiés.**
+- [PR produit #837](https://github.com/hraaaaf/Digital_crown/pull/837) : fusionnée ; candidat exact `db2756a5de97967260c8f1e1b248beff564cdb6e`, merge commit master `db403bb4d4aee38470d537f71d39893142e1b983`.
+- [CI ciblée #38128827178](https://github.com/hraaaaf/Digital_crown/actions/runs/38128827178) : **102/102 tests collectés et PASS** (suites Station care sheet, Eligibility, Patient Session, Insurance Finalization et Insurance Submission API).
+- Revues contradictoires **internes** sur le même HEAD : A sécurité/provenance **8.8/10**, B QA/métier **8.6/10**, zéro BLOCKER/MAJOR dans le scope FUE-0 ; pas de reviewer humain indépendant.
+- [Campagne intégrée FUE LAB #38132438594](https://github.com/hraaaaf/Digital_crown/actions/runs/38132438594), [PR #839](https://github.com/hraaaaf/Digital_crown/pull/839) encore Draft : 48 captures BEFORE/AFTER mockées, 8 autorisations simultanées sur PostgreSQL 18 isolé (1 créée, 7 dédupliquées), 30 tests assurance incluant finalisation HTTP PDF réel **sur document/template synthétique** jusqu'au retrait HTTP. Ne pas confondre ces tests avec un essai sur imprimante, NFC, Pocket ou vrai patient.
+- [Post-merge PostgreSQL #38141345526](https://github.com/hraaaaf/Digital_crown/actions/runs/38141345526) exécuté sur master exact **TERMINAL SUCCESS**, avec les deux jobs verts : **Windows PowerShell 5.1 release guards** et **PostgreSQL 18 + immutable release invariants**. Closeout technique GitHub post-merge validé. Le workflow CI ciblé 04.3 n'est pas déclenché par push master : la preuve des 102 tests porte sur HEAD parent intégré sans changement de contenu dans le commit de merge.
+- **Aucun déploiement Vercel, activation cabinet ni validation UX terrain autorisé par cette fusion.** Le bouton Station « Retirer un document » affiche encore « en cours de construction » ; cette PR ajoute des routes/contrats backend et pas une interface de retrait utilisable.
 
-## Contrat d'autorité
+## Contrat d'autorité (implémenté)
 
-- Seul `POST /api/insurance-submissions/finalize` (après revalidation DB + hash de template + rendu canonique) enregistre un événement de finalisation `STATION_CARE_SHEET_TRUSTED_FINALIZATION_V1`, lié à `document_id`, `patient_id`, SHA-256 et identité du praticien qui a produit ce PDF.
-- La station ne croit pas une simple archive `AUTRE` même si des métadonnées déclarent `VALIDATED` ; elle exige l'événement serveur de finalisation lié au **SHA courant**, des métadonnées de rendu cohérentes, la version active et récente, le patient et le tenant courant.
-- Avant la station, ce **même praticien** doit approuver explicitement le retrait via le poste staff autorisé (permission comptabilité + poste non-station) ; l'événement d'autorisation est également lié au SHA exact.
-- Une session identifiée de station enrôlée, non révoquée, non expirée et appartenant au même tenant/patient est requise via le garde 03.3/04.1 existant ; aucune modification ni génération de contenu depuis la station.
-- Retrait : chemin limité à l'archive privée autorisée, refus symlink/traversal, taille bornée, contrôle PDF et SHA-256 **des octets réellement retournés** au client. Réponse en mémoire, pas de `FileResponse` ouvrant plus tard un autre chemin. Audit de retrait, `Cache-Control: no-store`, `nosniff`.
+- Seule la route `POST /api/documents/insurance-submissions/finalize`, après revalidation DB du patient et praticien, provenance du template, empreinte et production PDF, peut attester une finalisation serveur `STATION_CARE_SHEET_TRUSTED_FINALIZATION_V1`.
+- La station ne croit pas une simple archive `AUTRE` ni des métadonnées `VALIDATED` : elle exige événement de confiance lié au SHA-256 **actuel**, métadonnées de rendu, version la plus récente, patient et tenant.
+- Le **même praticien** qui a finalisé doit autoriser explicitement le retrait depuis un poste staff non-Station avec permission comptabilité ; autorisation liée à la même empreinte documentaire.
+- Le retrait exige une session patient identifiée d'une station enrôlée, non révoquée, non expirée et dans le bon cabinet. Station = **lecture/retrait uniquement**, jamais édition clinique.
+- Les octets PDF réellement renvoyés sont contrôlés (extension/chemin privé, taille, validation PDF, empreinte SHA-256) avant envoi, avec audit, `Cache-Control: no-store` et `X-Content-Type-Options: nosniff`.
 
-## Limites / à prouver
+## Limites connues et sous-lots suivants
 
-- Ce mécanisme ajoute une preuve de finalisation aux **nouveaux** documents finalisés ; les anciennes feuilles historiques sans preuve restent non éligibles. Il n'y a pas de migration rétroactive automatique.
-- SHA et audit en DB ne sont pas une signature cryptographique indépendante de la DB, et le contrôle ne prouve pas encore un environnement cabinet hostile ayant un accès local à la DB. La configuration physique et les ACL de fichiers restent des gates terrain.
-- 04.3 ne fait ni QR éphémère, ni Pocket, ni impression (04.5), ni anti-replay spécifique à une remise unique (04.4/04.7). Aucun UI kiosk/mobile nouveau dans cette PR.
-- CI cible : tests FastAPI de refus/provenance et tests 04.1, collecte + syntaxe + run exact HEAD. En cas de rouge, corriger avant revue ; aucune conclusion avant les logs.
+- Historiques sans événement de finalisation : **non éligibles** ; pas de migration automatique.
+- SHA et audit stockés ensemble en DB ne constituent pas une signature indépendante contre un administrateur DB malveillant. Résidus : ACL physiques / Windows, attaques de course symlink/TOCTOU, scénarios multiprocess et rendu sur les vrais documents administratifs assureurs.
+- 04.3 est un **FUE-0** backend ; la station Documents reste « en cours de construction » sur mobile, tablette et bureau.
+- [PR #840 — 04.4 QR/NFC](https://github.com/hraaaaf/Digital_crown/pull/840) reste Draft avec preuves backend (103 tests) et captures lab, mais FUE-I complète ouverte : origine HTTPS de handoff doit être configurée sur site, QR/NFC physiques non testés. 04.5 = impression/Pocket/QR remise ; 04.6 = audit/purge ; 04.7 = gate FUE-G adversarial final.
+- Le workflow « UI Human Visual Approval » vert est un statut CI et **ne remplace pas** une observation auprès d'un patient humain.
 
-## Revue contradictoire à appliquer sur SHA final
+## Chaîne de preuves et closeout
 
-Perspective A Sécurité : une archive AUTRE forgée, des métadonnées artificiellement VALIDATED, un changement de file_hash ou une collision de tenant, un chemin ou lien symbolique peuvent-ils divulguer un PDF ? Refus et audit précèdent-ils le transfert ?
+Le produit 04.3 est intégré dans master au commit `db403bb4d4aee38470d537f71d39893142e1b983`. Ne pas inférer « installable / deployed / ready for patient » depuis cette fusion. Le post-merge technique GitHub est **validé sur le merge SHA exact** (les deux jobs de certification PostgreSQL/Windows sont verts) ; les validations utilisateur FUE-I/G restent à mener. Les sous-lots en aval nécessitent leurs propres checks, leurs propres revues et accord de merge distinct.
 
-Perspective B Qualité métier : un praticien légitime peut-il explicitement autoriser puis un patient identifié retirer **seulement** le fichier finalisé, sans générer de nouvelle version ? Les tests couvrent-ils statut, annulation, version, expiration, téléphone/desktop et réponse binaire exacte ?
-
-**NO-GO merge / NO-GO Vercel / NO-GO Lenovo** avant CI complet, revues adversariales sur le même commit et accord explicite de publication. Le chantier Windows native PDF #831 est indépendant.
-
-
-## Revue A/B du 11 octobre — corrections en cours (non convergé)
-
-- **Perspective A — sécurité / provenance** : le premier candidat avait une faiblesse de contrat entre le PDF renvoyé par le service de finalisation et le patient du draft. Le producteur de preuve vérifiera désormais explicitement `expected_patient_id == document.patient_id`, en plus du praticien et du SHA. Sans cette égalité, la finalisation HTTP refuse l'événement de confiance.
-- **Perspective B — QA / faux vert** : les 51 tests verts sur `501e53f1` exerçaient le retrait station via une fonction de preuve invoquée directement par les fixtures, mais ne démontraient pas que la route `/api/documents/insurance-submissions/finalize` enregistrait cette preuve. Nouveaux tests HTTP : événement de provenance émis par la vraie route (service de rendu contrôlé/stub), refus d'un document de patient différent renvoyé par ce service, puis retrait autorisé. Ces tests sont une preuve d'intégration **du routage**, pas un E2E non simulé de rendu CNSS/CNOPS/FAR.
-- **Périmètre résiduel** : la vérification symlink se fait sur chemins avant ouverture puis les octets réellement livrés sont SHA-vérifiés ; le risque résiduel de race sur le système de fichiers et les ACL poste/Windows doit être évalué au gate terrain. L'autorisation concurrente, les scénarios multi-utilisateurs staff et le chemin de rendu assurance non simulé ne sont pas certifiés par le sous-ensemble ciblé.
-- **Gate** : redémarrer tests/CI exact nouveau HEAD après modifications ; deux perspectives propres + confirmation restent nécessaires. Pas de FUE complet pour 04.3 (FUE-0 selon plan), FUE-I prévu 04.4, FUE-G premier à 04.5 et final à 04.7. Aucun merge, Vercel ni activation cabinet autorisé.
+---
