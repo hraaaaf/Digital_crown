@@ -94,7 +94,7 @@ export function MobileHeader({
               'w-1.5 h-1.5 rounded-full',
               syncStatus === 'loading' ? 'bg-primary animate-pulse'
               : (syncStatus === 'error' || queuedActionsCount > 0) ? 'bg-danger animate-pulse'
-              : 'bg-success'
+              : syncStatus === 'success' ? 'bg-success' : 'bg-text-muted'
             )} />
             <RefreshCw size={10} className={cn('text-text-muted', syncStatus === 'loading' ? 'animate-spin' : '')} />
             <span className="hidden sm:flex text-[9px] font-black text-text-muted uppercase tracking-widest items-center gap-1">
