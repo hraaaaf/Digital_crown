@@ -163,7 +163,10 @@ def audit(msys_root: Path, provenance: Path, report_path: Path) -> dict:
     set_native = {Path(source).name.casefold() for source, _ in dll_pairs}
     for source, _ in dll_pairs:
         path = Path(source)
-        owner = _run([pacman, "-Qo", "-q", str(path)])
+        # pacman owns POSIX MSYS2 paths; the Windows host Python supplies
+        # drive-letter paths that pacman -Qo cannot resolve reliably.
+        posix_path = "/ucrt64/bin/" + path.name
+        owner = _run([pacman, "-Qo", "-q", posix_path])
         if owner.casefold() not in allowed:
             raise RuntimeError(f"Native DLL not owned by pinned MSYS2 package: {path.name}")
         imports = inspect_pe(path, set_native, system32)
