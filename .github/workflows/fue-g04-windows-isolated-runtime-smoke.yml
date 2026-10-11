@@ -235,6 +235,19 @@ jobs:
               throw "Frozen FastAPI multipart form auth did not produce a valid synthetic token"
             }
             Write-Host "FROZEN_MULTIPART_FORM_LOGIN=PASS"
+            # Exercise the actual built-in ReportLab ordonnance preview through
+            # authenticated backend routes using only a fictional patient.
+            # Do not use real patients, external URLs or alternate media roots.
+            $authHeader = @{ Authorization = "Bearer $($login.access_token)" }
+            $preview = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$port/api/documents/sample-preview" -Headers $authHeader -ContentType "application/json" -Body "{}" -TimeoutSec 25 -ErrorAction Stop
+            $pdfRel = [string]$preview.pdf_url
+            if (-not $pdfRel.StartsWith("static/documents/", [StringComparison]::Ordinal) -or $pdfRel.Contains("..")) { throw "Synthetic ordonnance PDF preview returned an unsafe or unknown relative document path" }
+            $pdfOutput = Join-Path $sandbox "synthetic-ordonnance.pdf"
+            Invoke-WebRequest -Method Get -Uri ("http://127.0.0.1:$port/api/" + $pdfRel) -Headers $authHeader -OutFile $pdfOutput -TimeoutSec 25 -ErrorAction Stop | Out-Null
+            $pdfBytes = [IO.File]::ReadAllBytes($pdfOutput)
+            if ($pdfBytes.Length -lt 1024 -or $pdfBytes.Length -gt 5242880) { throw "Synthetic ordonnance PDF has invalid size" }
+            if ([Text.Encoding]::ASCII.GetString($pdfBytes, 0, 5) -ne "%PDF-") { throw "Synthetic ordonnance output is not a PDF" }
+            Write-Host "FROZEN_REPORTLAB_ORDONNANCE_PDF=PASS"
           } finally {
             # Diagnostic is intentionally runner-local and secret-safe: only synthetic
             # log lines matching known error categories; never print env/profile,
