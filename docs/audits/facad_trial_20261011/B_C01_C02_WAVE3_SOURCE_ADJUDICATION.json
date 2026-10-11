@@ -1,0 +1,184 @@
+{
+  "schema": "FACAD_B_WAVE3_C01_C02_SOURCE_ADJUDICATION_V1",
+  "date": "2026-10-11",
+  "scope": "RESEARCH_ONLY_METADATA_WITHOUT_PROPRIETARY_PDF_TEXT",
+  "sources": {
+    "operator_registry_blob": "e6bd251f24cb2c347af8b2f1f30299090ca1e37f",
+    "c02_artifact_run": 38102158028,
+    "c02_artifact_id": 11688004374,
+    "c02_artifact_zip_sha256": "d121d062920dea17cecb5ff43c778a93681283530b21a582f044b9f9186d0bd3",
+    "c02_minimal_index_sha256": "011f9330320c46ce2b776506710080bc42826c4155e54a9e9600ee5ed5158a4",
+    "c02_cooccurrence_sha256": "a6903d480aa21c97b8bce40d5f13b1a3666e9b102fa4432cb4d8127fb84edf28",
+    "c02_pdf_sha256": "4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548",
+    "c02_pdf_pages": 34,
+    "c01_pdf_sha256": "a977f219b6c9b95543551fe7a6e48587ac597b065e0200ab844e20ed322ba119",
+    "c01_pdf_pages": 12
+  },
+  "c02_verified_lexical_index": {
+    "pages_with_target_lines": [
+      5,
+      10,
+      19,
+      20,
+      22,
+      24,
+      30
+    ],
+    "label_matched_lines_total": 24,
+    "source_index_crosslink_verified": true,
+    "anatomical_relation_verified": false,
+    "formula_definition_verified": false,
+    "visual_page_definition_reviewed": false,
+    "whole_token_operator_names_found": false,
+    "scope": "Whole-token/index observations restricted to selected labels; not a whole-book scientific definition analysis"
+  },
+  "c01_provenance": {
+    "source": "historical installed manual C01 index; source bytes not included in this sprint artifact",
+    "marker_identifications_from_source": "PARTIAL",
+    "actual_formula_page_certification": false
+  },
+  "operators": [
+    {
+      "operator": "Angle2ln",
+      "observed_count_in_5_profiles": 12,
+      "example_from_vendor_editor": "Ricketts (13 F) / Facial depth: FL,FH",
+      "lexical_c02_link": null,
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "Angle3p",
+      "observed_count_in_5_profiles": 11,
+      "example_from_vendor_editor": "Ricketts (13 F) / LFH: Xi,ANS,PM",
+      "lexical_c02_link": {
+        "label": "SNA/SNB/ANB",
+        "pages": [
+          5
+        ],
+        "scope": "LABEL_ONLY_NOT_OPERATOR_DEFINITION"
+      },
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "Angle4p",
+      "observed_count_in_5_profiles": 20,
+      "example_from_vendor_editor": "Ricketts (13 F) / Facial axis: Pt,Gn,N,Ba",
+      "lexical_c02_link": null,
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "Dist2p",
+      "observed_count_in_5_profiles": 8,
+      "example_from_vendor_editor": "Ricketts (13 F) / PFH: CF,Go",
+      "lexical_c02_link": {
+        "label": "PFH",
+        "pages": [
+          19,
+          20
+        ],
+        "scope": "LABEL_ONLY_NOT_OPERATOR_DEFINITION"
+      },
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "Dist3p",
+      "observed_count_in_5_profiles": 4,
+      "example_from_vendor_editor": "Ricketts (13 F) / Ii to A-Pog: Pog,A,Ii",
+      "lexical_c02_link": null,
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "DistLine",
+      "observed_count_in_5_profiles": 13,
+      "example_from_vendor_editor": "Ricketts (13 F) / Convexity: FL,A",
+      "lexical_c02_link": null,
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "Heading",
+      "observed_count_in_5_profiles": 13,
+      "example_from_vendor_editor": "Ricketts (13 F) / Mandible",
+      "lexical_c02_link": null,
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "Proj90Line",
+      "observed_count_in_5_profiles": 1,
+      "example_from_vendor_editor": "Ricketts (32 F) / Overbite: OL,Is,Ii",
+      "lexical_c02_link": null,
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "ProjLine",
+      "observed_count_in_5_profiles": 9,
+      "example_from_vendor_editor": "Ricketts (32 F) / Overjet: OL,Ii,Is",
+      "lexical_c02_link": null,
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    },
+    {
+      "operator": "Sub",
+      "observed_count_in_5_profiles": 2,
+      "example_from_vendor_editor": "McNamara / Max-Mand diff: (Co-Gn),(Co-A)",
+      "lexical_c02_link": {
+        "label": "Max-Mand",
+        "pages": [
+          22,
+          30
+        ],
+        "scope": "LABEL_ONLY_NOT_OPERATOR_DEFINITION"
+      },
+      "operator_definition_state": "UNKNOWN",
+      "orientation_sign_and_units": "UNKNOWN",
+      "geometry_identity_verified": false,
+      "numeric_parity_tested": false,
+      "clinical_gate": "OPEN"
+    }
+  ],
+  "anti_alias_checks": [
+    "Steiner ML: Go-Gn; Tweed ML: Go-Me (UIA editor only)",
+    "PFH vendor label may be linear, cannot infer an angular norm from lexical occurrence",
+    "PM prime constructed intersection cannot alias global Pm",
+    "Analysis-specific norms never populated from headings or lexical PDF tokens"
+  ],
+  "next_proofs_needed": [
+    "Authorized direct page-visible C01/C02 definitions or licensed source-controlled extracts with exact pages",
+    "Resolve every operator's mathematical definition, orientation and degenerate behaviors",
+    "Independent primary-source and clinician review on versioned contracts",
+    "Same trace vendor+DC numeric comparison only after D3 security gate"
+  ]
+}
