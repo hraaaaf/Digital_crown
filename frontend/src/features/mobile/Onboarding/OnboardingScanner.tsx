@@ -195,9 +195,12 @@ export const OnboardingScanner = () => {
       try {
         sessionStorage.setItem('dc_mobile_bridge_route', destination.route);
         sessionStorage.setItem('dc_mobile_bridge_label', destination.label);
-        // Scrub one-time QR token without discarding React Router's history state.
+      } catch { /* Safari may reject sessionStorage; destination stays in React state. */ }
+      try {
+        // Scrub the consumed one-time token even when sessionStorage is blocked.
+        // Retain BrowserRouter's history state for the subsequent destination.
         window.history.replaceState(window.history.state, '', '/mobile/onboarding');
-      } catch { /* best effort: never weaken pairing on storage/history quirks */ }
+      } catch { /* The authenticated route's own replace-navigation still scrubs it. */ }
 
       // A render-driven effect owns the transition. The confirmation state is
       // not allowed to remain indefinitely due to a storage exception in a timer.
