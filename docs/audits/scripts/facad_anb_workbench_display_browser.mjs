@@ -101,7 +101,7 @@ try{
   const page=await ctx.newPage();const errors=[];
   page.on('pageerror',err=>errors.push(err.message));
   await page.route('**/*',route=>{
-   const u=new URL(route.request().url);
+   const u=new URL(route.request().url());
    if(u.hostname==='127.0.0.1'&&Number(u.port)===PORT)return route.continue();
    networkBlocked.push(u.origin);return route.abort('blockedbyclient');
   });
