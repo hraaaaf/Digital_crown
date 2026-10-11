@@ -6,6 +6,7 @@ on:
       - .github/workflows/mobile-pocket-runtime-cert.yml
       - frontend/src/features/mobile/**
       - frontend/src/services/zka/**
+      - frontend/src/services/api.ts
       - frontend/src/App.tsx
       - frontend/scripts/capture-mobile-pocket-runtime-after.mjs
       - backend/routers/mobile.py
@@ -75,6 +76,10 @@ jobs:
           npx vitest run
           src/features/mobile/bridge.m5a.test.ts
           src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx
+          src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          src/features/mobile/Security/MobileBiometricGate.test.tsx
+          src/services/zka/mobileBiometricLock.test.ts
+          src/test/mobileM6IPasskey.test.ts
           src/features/mobile/Dashboard/views/StockView.test.tsx
           src/features/mobile/Dashboard/views/LibraryView.test.tsx
           src/features/mobile/Dashboard/PocketRuntimeScope.contract.test.ts
