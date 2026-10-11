@@ -267,7 +267,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
       </div>
 
       {addOpen && !quickMode && (
-        <div className="fixed inset-0 z-[80] flex items-end bg-black/20 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-12 backdrop-blur-[1px]">
+        <div className="fixed inset-0 z-[80] flex items-end px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-12 backdrop-blur-[1px]" style={{ backgroundColor: 'color-mix(in srgb, var(--text-main) 23%, transparent)' }}>
           <section role="dialog" aria-modal="true" aria-labelledby="mobile-stock-add-title" className="mx-auto w-full max-w-[720px] rounded-[28px] border border-glass-border bg-card p-5 shadow-elite-hover">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -287,7 +287,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
                 <input aria-label="Seuil d'alerte" type="number" min="0" step="0.5" value={form.seuil_alerte} onChange={event => setForm(current => ({ ...current, seuil_alerte: event.target.value }))} placeholder="Seuil" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[12px] font-bold text-text-main outline-none" />
                 <input aria-label="Unité" value={form.unite} onChange={event => setForm(current => ({ ...current, unite: event.target.value }))} placeholder="Unité" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[12px] font-bold text-text-main outline-none" />
               </div>
-              <button type="submit" disabled={saving || !form.nom.trim()} className="min-h-11 rounded-[16px] bg-primary px-4 text-[11px] font-black text-white disabled:opacity-50">{saving ? 'Ajout…' : 'Ajouter'}</button>
+              <button type="submit" disabled={saving || !form.nom.trim()} className="min-h-11 rounded-[16px] bg-primary px-4 text-[12px] font-semibold text-on-primary disabled:opacity-50">{saving ? 'Ajout…' : 'Ajouter'}</button>
             </form>
           </section>
         </div>
