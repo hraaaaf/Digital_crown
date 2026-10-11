@@ -1,0 +1,70 @@
+name: DC Cephalo 02A deterministic geometry source gate
+
+on:
+  push:
+    branches:
+      - research/dc-ceph02-geometry-concordance-20261011
+    paths:
+      - .github/workflows/dc-ceph02-geometry-source.yml
+      - scripts/certify_dc_ceph02_geometry_source.py
+      - docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json
+
+permissions:
+  contents: read
+
+jobs:
+  geometry-source-gate:
+    name: 38 binding audit and selected synthetic geometry
+    if: github.event_name == 'push' && github.ref == 'refs/heads/research/dc-ceph02-geometry-concordance-20261011'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact head and research-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/research/dc-ceph02-geometry-concordance-20261011"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "DC_CEPH02_EXACT_HEAD=$GITHUB_SHA"
+          echo 'DC_CEPH02_PATIENT_OR_FACAD_EXECUTION=false'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse source-only gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/certify_dc_ceph02_geometry_source.py
+      - name: Run static 38 bindings and numeric geometry invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/certify_dc_ceph02_geometry_source.py | tee dc-ceph02-safe-aggregate.json
+          python - <<'PY'
+          import json
+          x=json.load(open("dc-ceph02-safe-aggregate.json",encoding="utf-8"))
+          assert x["verdict"]=="SELECTED_GEOMETRY_AND_BINDINGS_PASS_ONLY"
+          assert x["contract_bindings_verified"]==38
+          assert x["distinct_implementation_modules"]==8
+          assert x["contract_mutations_rejected"]==12
+          assert x["synthetic_geometry_invariants_passed"]>=20
+          assert x["geometry_primitive_families_exercised"]==5
+          assert x["all_38_runtime_paths_executed"] is False
+          assert x["clinical_numeric_parity_certified"] is False
+          assert x["scientific_validation_complete"] is False
+          assert x["facad_executed"] is False
+          assert x["patient_data_accessed"] is False
+          assert x["production_modified"] is False
+          assert x["ceph_engine_concordant"] is False
+          print("DC_CEPH02A=SOURCE_AND_SELECTED_GEOMETRY_PASS_ONLY")
+          PY
+      - name: Upload anonymized synthetic aggregate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc-ceph02a-geometry-safe-aggregate
+          path: dc-ceph02-safe-aggregate.json
+          if-no-files-found: warn
+          retention-days: 7
