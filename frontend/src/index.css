@@ -9,6 +9,7 @@
   
   /* VARIABLES DYNAMIQUES */
   --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
   --color-on-primary: var(--text-on-primary);
@@ -75,6 +76,7 @@
 
   /* Couleurs par défaut (Elite Blue) */
   --primary: #003380;
+  --primary-ink: var(--primary);
   --secondary: #1e40af;
   --accent: #60a5fa;
   --text-on-primary: #ffffff;
