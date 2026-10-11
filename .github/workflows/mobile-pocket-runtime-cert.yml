@@ -24,10 +24,12 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Record exact candidate
         run: |
-          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
-          echo "candidate=${{ github.sha }}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          echo "candidate=${{ github.event.pull_request.head.sha || github.sha }}"
       - name: Verify mobile backend facade syntax
         run: python -m py_compile backend/routers/mobile.py
       - uses: actions/setup-node@v4
@@ -110,11 +112,11 @@ jobs:
               if row['horizontalOverflow'] or row['runtimeErrors']:
                   raise SystemExit(f"runtime defect: {row}")
           PY
-          printf 'head=%s\nruntime=MobileDashboard\npreview=false\nroles=DENTISTE,SECRETAIRE\nviewports=390x844,430x932,768x1024\nstock=real-runtime-routable\nlibrary=real-runtime-routable-rbac\nrestored_modules=real-runtime-routable\nrole_guards=verified\ntouch_targets=date+plus-close>=44\ndeployment=none\n' '${{ github.sha }}' > artifacts/mobile-pocket-runtime/result.txt
+          printf 'head=%s\nruntime=MobileDashboard\npreview=false\nroles=DENTISTE,SECRETAIRE\nviewports=390x844,430x932,768x1024\nstock=real-runtime-routable\nlibrary=real-runtime-routable-rbac\nrestored_modules=real-runtime-routable\nrole_guards=verified\ntouch_targets=date+plus-close>=44\ndeployment=none\n' '${{ github.event.pull_request.head.sha || github.sha }}' > artifacts/mobile-pocket-runtime/result.txt
           cp /tmp/mobile-pocket-runtime-vite.log artifacts/mobile-pocket-runtime/vite.log
       - uses: actions/upload-artifact@v4
         with:
-          name: mobile-pocket-real-runtime-${{ github.sha }}
+          name: mobile-pocket-real-runtime-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/mobile-pocket-runtime
           if-no-files-found: error
           retention-days: 30
