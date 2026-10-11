@@ -79,9 +79,9 @@ try{
       }
     }
     if($targetCount -gt 0){
-      Record "TARGET_$($targetNames.IndexOf($name))=OBSERVED_COUNT_$targetCount"
+      Record "TARGET_$([array]::IndexOf($targetNames,$name))=OBSERVED_COUNT_$targetCount"
     }else{
-      Record "TARGET_$($targetNames.IndexOf($name))=NOT_OBSERVED_IN_CURRENT_STATE"
+      Record "TARGET_$([array]::IndexOf($targetNames,$name))=NOT_OBSERVED_IN_CURRENT_STATE"
     }
   }
 }finally{
