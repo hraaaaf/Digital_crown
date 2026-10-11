@@ -1,0 +1,275 @@
+{
+  "schema": "FACAD_F01_13_WAVE5_SCIENCE_BLOCKER_MATRIX_V1",
+  "date": "2026-10-11",
+  "status": "SOURCE_CROSSWALK_IMPROVED_GATES_NOT_CLOSED",
+  "source_git": {
+    "b65_blob": "54cf83e2f76fb08b8d887ac73f138bfd003ec189",
+    "c01_c02_wave3_blob": "d766e19a39f29f12d06740fd570035412bae863e",
+    "generic_types_wave4_blob": "e0832abc15e0357c7e58d8cef899e91927b1155b",
+    "dc_source_ref": "068d30a5437a4bf0fe8a46a96391fa3cd8a6428d",
+    "dc_steiner_geometry_blob": "70900959042c7e7373c404959c18122e3b8038e3",
+    "dc_tweed_geometry_blob": "bf307c7c5f0a99a1f6a589af5795bd50855b0465",
+    "dc_mcnamara_geometry_blob": "5c1b010b4380697807cd7baad3427843f532f075",
+    "dc_ricketts_geometry_blob": "29cb2a34b5d45e7b0e67d060ddcdf689bf80f16a",
+    "C01_pdf_sha256": "a977f219b6c9b95543551fe7a6e48587ac597b065e0200ab844e20ed322ba119",
+    "C02_pdf_sha256": "4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548"
+  },
+  "priority_analyses": [
+    {
+      "analysis": "Steiner",
+      "ordinal": 59,
+      "editor_run_id": "37857655276",
+      "strict_git_three_csv": "0_OF_3_IN_THIS_REF",
+      "source_mapping_class": "EXACT_NAMED_MAPPING_UNVERIFIED",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    },
+    {
+      "analysis": "Tweed",
+      "ordinal": 62,
+      "editor_run_id": "37861203066",
+      "strict_git_three_csv": "0_OF_3_IN_THIS_REF",
+      "source_mapping_class": "EXACT_NAMED_MAPPING_UNVERIFIED",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    },
+    {
+      "analysis": "McNamara",
+      "ordinal": 43,
+      "editor_run_id": "37862652488",
+      "strict_git_three_csv": "3_OF_3_FILES_PRESENT",
+      "source_mapping_class": "EXACT_NAMED_MAPPING_UNVERIFIED",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    },
+    {
+      "analysis": "Ricketts",
+      "ordinal": 51,
+      "editor_run_id": "37865416188",
+      "strict_git_three_csv": "3_OF_3_FILES_PRESENT",
+      "source_mapping_class": "NAME_ONLY_PROVISIONAL_PACK",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    },
+    {
+      "analysis": "Ricketts (13 F)",
+      "ordinal": 52,
+      "editor_run_id": "37864557101",
+      "strict_git_three_csv": "3_OF_3_FILES_PRESENT",
+      "source_mapping_class": "RICKETTS_VENDOR_VARIANT_UNRESOLVED",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    },
+    {
+      "analysis": "Ricketts (32 F)",
+      "ordinal": 53,
+      "editor_run_id": "37863549712",
+      "strict_git_three_csv": "3_OF_3_FILES_PRESENT",
+      "source_mapping_class": "RICKETTS_VENDOR_VARIANT_UNRESOLVED",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    },
+    {
+      "analysis": "Downs",
+      "ordinal": 27,
+      "editor_run_id": "37948363599",
+      "strict_git_three_csv": "3_OF_3_FILES_PRESENT",
+      "source_mapping_class": "EXACT_NAMED_MAPPING_UNVERIFIED",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    },
+    {
+      "analysis": "Airway (McNamara)",
+      "ordinal": 3,
+      "editor_run_id": "37914729075",
+      "strict_git_three_csv": "3_OF_3_FILES_PRESENT",
+      "source_mapping_class": "NO_REPO_MAPPING",
+      "clinical_formula_status": "UNKNOWN",
+      "DC_geometry_equivalence": "UNVERIFIED",
+      "facad_numeric_parity": "NOT_TESTED",
+      "source_page_specific_formula": "NOT_AVAILABLE_IN_B65_CURRENT_EVIDENCE",
+      "must_not_substitute": "Generic source operator definition / same-named DC measure / vendor-editor label"
+    }
+  ],
+  "operator_type_matrix": [
+    {
+      "name": "Angle2ln",
+      "editor_occurrences": 12,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "Angle3p",
+      "editor_occurrences": 11,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "Angle4p",
+      "editor_occurrences": 20,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "Dist2p",
+      "editor_occurrences": 8,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "Dist3p",
+      "editor_occurrences": 4,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "DistLine",
+      "editor_occurrences": 13,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "Proj90Line",
+      "editor_occurrences": 1,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "ProjLine",
+      "editor_occurrences": 9,
+      "facad_manual_generic_reference_printed_page": 86,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "Sub",
+      "editor_occurrences": 2,
+      "facad_manual_generic_reference_printed_page": 87,
+      "manual_type_evidence": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    },
+    {
+      "name": "Heading",
+      "editor_occurrences": 13,
+      "facad_manual_generic_reference_printed_page": null,
+      "manual_type_evidence": "UIA_EDITOR_STRUCTURAL_ONLY",
+      "source_C01_C02_specific_formula": "UNKNOWN",
+      "vector_orientation_and_sign": "UNKNOWN",
+      "exact_analysis_and_measurement_mapping": "UNKNOWN",
+      "numeric_vendor_comparison": "NOT_TESTED",
+      "verified_clinical_formula": false
+    }
+  ],
+  "contraindicated_aliases": [
+    {
+      "code": "ML_STEINER_TWEED",
+      "first": "Steiner: Line Go-Gn observed editor",
+      "second": "Tweed: Line Go-Me observed editor",
+      "consequence": "Cannot identify same ML line, no auto alias"
+    },
+    {
+      "code": "RICKETTS_GN_CONSTRUCTED",
+      "first": "Ricketts candidate Gn computed at N-Pog and Go-Me intersection in DC code",
+      "second": "FACAD formula not directly page certified",
+      "consequence": "No FACAD=DC marker identity claim"
+    },
+    {
+      "code": "ANB_SAME_LABEL",
+      "first": "DC ANB SNA-SNB source-only semantics",
+      "second": "Vendor ANB label lexical p5 of C02; orientation/formula unknown",
+      "consequence": "No numeric parity or equality by label"
+    },
+    {
+      "code": "RICKETTS_ELINE_V1_V2",
+      "first": "Two distinct DC E-line conventions exist by version",
+      "second": "FACAD source measurement geometry unknown",
+      "consequence": "Need exact version and signed perpendicular vs projected distance"
+    },
+    {
+      "code": "MCMANARA_UNITS",
+      "first": "DC linear mm lengths need explicit mm/pixel calibration",
+      "second": "Vendor case calibration/source conventions not paired",
+      "consequence": "Do not compare uncalibrated px to mm"
+    }
+  ],
+  "required_per_measurement": [
+    "FACAD profile, exact measurement and argument list",
+    "C01 construction page and C02 measurement page visible from legitimate source with copyright-safe notes",
+    "Operator order, signed angle range and degeneracy rule",
+    "Physical calibration (mm/pixel), orientation/mirroring and rounding",
+    "DC persisted exact formula/blob and identical marker coordinates",
+    "Approved same-trace paired vendor result with blinded tolerance preregistered after D3"
+  ],
+  "unverified_formula_count": 10,
+  "priority_analysis_count": 8,
+  "source_level": "EDITOR_AND_GENERIC_OPERATOR_TYPES_NOT_SPECIFIC_FORMULAS",
+  "f01_13": "OPEN",
+  "ceph08": "OPEN",
+  "d3": "OPEN_RED",
+  "fac05": "NOT_TESTED",
+  "clinical_equivalence": false
+}
