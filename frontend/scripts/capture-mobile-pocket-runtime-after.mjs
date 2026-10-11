@@ -310,12 +310,22 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
     return {
       navButtons: nav.querySelectorAll('button').length,
       navHeight: nav.getBoundingClientRect().height,
+      glassNav: nav.hasAttribute('data-pocket-glass-nav'),
+      movingIndicator: Boolean(nav.querySelector('[data-mobile-nav-indicator]')),
+      buttonsAligned: (() => {
+        const targets = [...nav.querySelectorAll('[data-mobile-nav-item]')].map(button => button.getBoundingClientRect());
+        return targets.length === 5
+          && targets.every(rect => rect.width >= 44 && rect.height >= 44)
+          && targets.every(rect => Math.abs((rect.top + rect.bottom) / 2 - (targets[0].top + targets[0].bottom) / 2) < 1);
+      })(),
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       innerWidth: window.innerWidth,
     };
   });
-  if (geometry.navButtons !== 5) throw new Error(`${role.value}/${viewport.width}: nav buttons ${geometry.navButtons}`);
+  if (geometry.navButtons !== 5 || !geometry.glassNav || !geometry.movingIndicator || !geometry.buttonsAligned) {
+    throw new Error(`${role.value}/${viewport.width}: misaligned Glass navigation: ${JSON.stringify(geometry)}`);
+  }
   await nav.getByText('Agenda', { exact: true }).waitFor({ state: 'visible' });
   await nav.getByText('Patients', { exact: true }).waitFor({ state: 'visible' });
   if (await nav.getByText('Assistant', { exact: true }).count()) throw new Error('P1: unfinished assistant still pinned to the primary nav');
@@ -365,6 +375,7 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
       cardToken: css?.getPropertyValue('--card-bg').trim() ?? null,
       ancestorOpacity,
       navBackground: nav ? getComputedStyle(nav).backgroundColor : null,
+      navBackdropFilter: nav ? getComputedStyle(nav).backdropFilter : null,
       items: items.map(item => ({
         id: item.getAttribute('data-mobile-more-item'),
         text: item.textContent?.trim(),
@@ -389,10 +400,18 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
       && channels.slice(0, 3).every(channel => Number.isFinite(Number(channel)))
       && (channels.length === 3 || Number(channels[3]) >= 0.999);
   };
+  // Clinical decision sheet stays solid; the *separate* bottom navigation
+  // is intentionally frosted. Require substantial nav opacity plus real blur.
+  const navRgb = menuState.navBackground?.match(/^rgba?\(([^)]*)\)$/);
+  const navSrgb = menuState.navBackground?.match(/^color\(srgb\s+([^)]*)\)$/);
+  const navChannels = (navRgb?.[1] ?? navSrgb?.[1] ?? '').split(/[,\s/]+/).filter(Boolean);
+  const navAlpha = navChannels.length === 3 ? 1
+    : navChannels.length === 4 ? Number(navChannels[3]) : null;
   if (!isOpaqueColor(menuState.dialogBackground)
-    || !isOpaqueColor(menuState.navBackground)
+    || navAlpha === null || !Number.isFinite(navAlpha) || navAlpha < 0.85 || navAlpha > 1
+    || (navAlpha < 0.999 && !/blur\(/.test(menuState.navBackdropFilter ?? ''))
     || menuState.ancestorOpacity.some(entry => Number(entry.opacity) < 0.999 || entry.filter !== 'none')) {
-    throw new Error(`Pocket Safari Plus must be opaque: ${JSON.stringify(menuState)}`);
+    throw new Error(`Pocket Safari Plus dialog opaque / nav glass required: ${JSON.stringify(menuState)}`);
   }
   await captureStableScreenshot(page, { path: path.join(outputDir, `menu-before-scroll-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.png`) });
   // Plus contains an intentionally scrollable secondary-action list. A menu
@@ -570,20 +589,23 @@ try {
         && computed.getPropertyValue('--primary').trim().toLowerCase() === primary.toLowerCase();
     }, { id: theme.id, primary: theme.primary }, { timeout: 20000 });
     // Theme data can arrive before the mobile capability guard has resolved.
-    // A disabled + button is not a valid on-primary contrast oracle.
+    // A disabled quick-action target is not a valid contrast oracle.
     await page.waitForFunction(() => {
       const action = document.querySelector('[data-mobile-bottom-nav] button[aria-label="Ouvrir les actions rapides"]');
       return action instanceof HTMLButtonElement && !action.disabled;
     }, null, { timeout: 20000 });
-    // Global .bg-primary color transitions can briefly expose an intermediate
-    // RGB even after the backend capability has enabled the button. Certify the
-    // final on-primary foreground, never a transitional animation frame.
-    await page.waitForFunction(({ foreground }) => {
+    // The new aligned center action uses muted ink on glass, not white/black
+    // on an elevated solid brand-colored FAB. Wait for that ink to settle.
+    await page.waitForFunction(() => {
       const action = document.querySelector('[data-mobile-bottom-nav] button[aria-label="Ouvrir les actions rapides"]');
-      return action instanceof HTMLButtonElement
-        && !action.disabled
-        && getComputedStyle(action).color === foreground;
-    }, { foreground: theme.foreground }, { timeout: 15000 });
+      if (!(action instanceof HTMLButtonElement) || action.disabled) return false;
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--text-muted)';
+      document.body.appendChild(probe);
+      const expected = getComputedStyle(probe).color;
+      probe.remove();
+      return getComputedStyle(action).color === expected;
+    }, null, { timeout: 15000 });
 
     // Wait for the *actual* active navigation ink to finish its CSS color
     // transition. Dark themes otherwise yield a transient 3.1:1 during
@@ -628,7 +650,7 @@ try {
       };
     });
     if (result.preview || result.horizontalOverflow || result.primaryActionDisabled !== false
-      || result.primaryActionText !== theme.foreground
+      || !result.primaryActionText
       || !result.primaryInk || canonicalHexColor(result.textMuted) !== canonicalHexColor(theme.muted)) {
       throw new Error(`Pocket theme ${theme.id}: invalid mobile runtime inheritance: ${JSON.stringify(result)}`);
     }
@@ -637,6 +659,8 @@ try {
       canvasInk: contrastRatio(result.primaryInk, result.canvasSurface),
       cardRenderedText: contrastRatio(result.activeNavInk, result.cardSurface),
       canvasRenderedText: contrastRatio(result.activeNavInk, result.canvasSurface),
+      cardActionText: contrastRatio(result.primaryActionText, result.cardSurface),
+      canvasActionText: contrastRatio(result.primaryActionText, result.canvasSurface),
     };
     if (Object.values(ratios).some(value => value === null || value < 4.5)) {
       throw new Error(`Pocket ${theme.id}: actual WCAG text contrast below 4.5:1: ${JSON.stringify({ ...result, ratios })}`);
