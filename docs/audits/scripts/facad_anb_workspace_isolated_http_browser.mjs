@@ -66,7 +66,7 @@ if(existsSync(ENTRY)||existsSync(HTML))throw Error('Fixture collision: refuse ov
 await mkdir(OUTPUT,{recursive:true});
 let server,browser,stub,viteLog='';
 const httpObserved=[];
-const captures=[],traces=[],networkBlocked=[],occlusionObservations=[],detectorControls=[];
+const captures=[],traces=[],networkBlocked=[],occlusionObservations=[],detectorControls=[],navigationChecks=[];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function waitVite(){
  for(let i=0;i<120;i++){
@@ -190,6 +190,20 @@ try{
     await page.screenshot({path:path.join(OUTPUT,v.name+'-startup-failure.png'),fullPage:false}).catch(()=>{});
     throw err;
    }
+   const mobileNav=page.locator('[data-ortho-mobile-next-step] button');
+   const footerNav=page.locator('[data-ortho-next-step-footer]');
+   const mobileShown=await mobileNav.isVisible();
+   const footerShown=await footerNav.isVisible();
+   if(v.name==='mobile' && (!mobileShown || footerShown))throw Error('Mobile step-1 navigation duplicated or hidden');
+   if(v.name==='desktop' && (mobileShown || !footerShown))throw Error('Desktop step-1 footer navigation unexpectedly moved');
+   if(v.name==='mobile'){
+    await mobileNav.scrollIntoViewIfNeeded({timeout:10000});
+    const mobileNavBox=await mobileNav.boundingBox();
+    if(!mobileNavBox || mobileNavBox.y<0 || mobileNavBox.y+mobileNavBox.height>v.height)throw Error('Relocated mobile action not accessible within viewport');
+    if(!/Passer aux moulages/i.test(await mobileNav.innerText()))throw Error('Mobile step-1 action label changed');
+    await page.screenshot({path:path.join(OUTPUT,'mobile-NAV-step1-visible.png'),fullPage:false});
+   }
+   navigationChecks.push({viewport:v.name,mobile_cta_visible:mobileShown,desktop_footer_visible:footerShown,duplicate_visible:false});
    for(const fixture of cases){
     await page.getByTestId('fixture-'+fixture.id).click();
     await mode(page,'all');
@@ -244,7 +258,7 @@ try{
   expected_inter_mode_values_equal:true,unverified_steiner_fail_closed:true,
   explicit_divergence_visible:true,clinical_bug_confirmed:false,
   caveat:'BEFORE and AFTER are two display modes on one unchanged build, not a software change',
-  captures,traces,occlusionObservations,detectorControls,visualNoOcclusion:occlusionObservations.every(x=>x.probe.obstructionSamples===0),blocked_external_requests:[...new Set(networkBlocked)]};
+  captures,traces,occlusionObservations,detectorControls,navigationChecks,visualNoOcclusion:occlusionObservations.every(x=>x.probe.obstructionSamples===0),blocked_external_requests:[...new Set(networkBlocked)]};
  await writeFile(path.join(OUTPUT,'report.json'),JSON.stringify(result,null,2)+'\n');
  console.log('ANB_REAL_WORKSPACE_ISOLATED_HTTP_STUB_PASS=true');
  console.log('ANB_VIEWPORTS=2 ANB_FIXTURES=4 ANB_FAIL_CLOSED=true');
