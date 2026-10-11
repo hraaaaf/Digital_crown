@@ -1,0 +1,71 @@
+name: FACAD F05.4 CEPH07 observed gap source-only gate
+on:
+  push:
+    branches:
+      - research/facad-dc-visual-comparison-20261011
+    paths:
+      - .github/workflows/facad-f05-4-backlog-source-proof.yml
+      - docs/audits/FACAD_DC_F05_4_BACKLOG_P0_CEPH07_VIEWPORT_2026-10-11.md
+      - docs/audits/FACAD_DC_WAVE6_OBSERVED_VISUAL_COMPARISON.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  observed-gap-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify source refs and preserve scientific / vendor no-go gates
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,copy
+          from pathlib import Path
+          base=Path('docs/audits')
+          d=json.loads((base/'FACAD_DC_WAVE6_OBSERVED_VISUAL_COMPARISON.json').read_text())
+          note=(base/'FACAD_DC_F05_4_BACKLOG_P0_CEPH07_VIEWPORT_2026-10-11.md').read_text()
+          assert d['schema']=='FACAD_DC_WAVE6_OBSERVED_VISUAL_COMPARISON_V1'
+          f=d['source_snapshots']['facad']
+          dc=d['source_snapshots']['digital_crown']
+          assert f['run']==37967170536 and f['artifact_id']==11634502406
+          assert f['artifact_zip_sha256'] in note
+          assert dc['run']==38149915778 and dc['artifact_id']==11706532622
+          assert dc['artifact_zip_sha256'] in note
+          assert dc['source_head'] in note and dc['screenshots_verified_by_CI']==24
+          assert len(d['observed_differences'])==3
+          assert set(dc['viewports'])=={'390x844','768x1024','1024x768','1280x900'}
+          assert set(dc['modes'])=={'all','steiner','tweed','mcnamara','com','ricketts'}
+          for flag in ('F02.4 = OPEN','F05.4 = OPEN','D3 = OPEN_RED','CONVERGED=false',
+                       'GitHub Issues disabled','FACAD 21/39 = 53,8 %','global 41/99 = 41,4 %'):
+              assert flag in note, flag
+          r=d['redlines']
+          assert r['same_anatomical_case'] is False
+          assert r['same_landmarks_calibration'] is False
+          assert r['facad_numeric_results_collected_on_dc_fixture'] is False
+          assert r['clinical_parity_validated'] is False
+          assert r['facad_software_relaunched'] is False
+          assert r['d3']=='OPEN_RED'
+          assert r['f02_4']=='OPEN_PARTIAL_COMPARISON'
+          assert r['f05_4']=='OPEN_TICKETS_NOT_COMPLETE'
+          def safe(x):
+              y=x['redlines']
+              return (y['d3']=='OPEN_RED' and not y['same_anatomical_case']
+                      and not y['clinical_parity_validated'] and not y['facad_software_relaunched']
+                      and y['f05_4']=='OPEN_TICKETS_NOT_COMPLETE' and
+                      y['f02_4']=='OPEN_PARTIAL_COMPARISON')
+          assert safe(d)
+          variants=[]
+          for field,val in [('d3','CLOSED'),('same_anatomical_case',True),
+                            ('clinical_parity_validated',True),('facad_software_relaunched',True),
+                            ('f05_4','CLOSED'),('f02_4','CLOSED')]:
+              z=copy.deepcopy(d);z['redlines'][field]=val;variants.append(z)
+          assert len(variants)==6 and all(not safe(v) for v in variants)
+          print('FACAD_F05_4_REAL_VISUAL_GAPS=3_EVIDENCE_BACKED')
+          print('FACAD_F05_4_ISSUES_API_DISABLED=true')
+          print('FACAD_F05_4_FALSE_PROMOTIONS_REJECTED=6')
+          print('FACAD_F05_4_GATES_CLOSED=false')
+          print('FACAD_F05_4_PROGRESS_UNCHANGED_21_OF_39=true')
+          PY
