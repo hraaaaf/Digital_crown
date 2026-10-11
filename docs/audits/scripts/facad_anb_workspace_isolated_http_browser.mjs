@@ -127,7 +127,15 @@ try{
   });
   try{
    await page.goto(APP_URL,{waitUntil:'domcontentloaded',timeout:45000});
-   await page.locator('[data-r19-analysis-panel="all"]').waitFor({state:'visible'});
+   try {
+    await page.locator('[data-r19-analysis-panel="all"]').waitFor({state:'visible',timeout:12000});
+   } catch(err) {
+    const body=(await page.locator('body').innerText().catch(()=>''))?.slice(0,1800);
+    const details={url:page.url(),body,errors,httpObserved,blockedOrigins:networkBlocked,viteLog:viteLog.slice(-1200)};
+    console.error('F01_13_WORKSPACE_RENDER_DIAGNOSTIC='+JSON.stringify(details));
+    await page.screenshot({path:path.join(OUTPUT,v.name+'-startup-failure.png'),fullPage:false}).catch(()=>{});
+    throw err;
+   }
    for(const fixture of cases){
     await page.getByTestId('fixture-'+fixture.id).click();
     await mode(page,'all');
