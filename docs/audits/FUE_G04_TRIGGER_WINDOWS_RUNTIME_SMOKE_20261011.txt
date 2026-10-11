@@ -22,3 +22,8 @@ INNER_SETUP_EXE_SHA256=a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1
 GitHub run SHA evidence in uploaded installer evidence and successful runner logs; CI-only signed identity/7 proofs preserved.
 New smoke workflow commit=18636767a6b339e39143b9a2578e27ed2138bfd4 with mandatory inner installer SHA pinned; install ONLY on throw-away GH Windows runner temp; synthetic test database and ephemeral localhost TCP port, no clinic data. Require frozen installed DigitalCrown.exe /health.status=ok and db=ok. Fail-closed if anything missing.
 No real Lenovo/36 patient records, Vercel, production merge or machine activation.
+
+CI_ONLY_NEW_MASTER_RUNTIME_SMOKE_RETRY=2
+Previous GitHub smoke workflow parse RED: https://github.com/hraaaaf/Digital_crown/actions/runs/38101948661, 0 jobs, invalid workflow YAML due corrupted string substitution in new SHA256 guard; NOT an application executable failure.
+Repair commit e1b1c35123e0c5736cdce962bf2cfd81d88ce12e restores valid workflow. GitHub compared old known-working workflow: exactly seven changed lines (new official master/CODE run/build run/installer hash/artifact name plus additional SHA pin regex guard), no clinical code changes or bypass.
+Fresh inner installed installer SHA256 a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c. Installer LAB #38101353034 SUCCESS. Rerun Windows isolated full installed EXE /health with synthetic database only; protect archived patient records/Lenovo and no Vercel.
