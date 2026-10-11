@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0",
+  "scope": "FAC-TRIAL-B research-only / vendor editor observations, no FACAD runtime numbers",
+  "generated_date": "2026-10-11",
+  "source_branch": "docs/facad-product-science-coverage-20261011",
+  "source_head": "068d30a5437a4bf0fe8a46a96391fa3cd8a6428d",
+  "primary_counts_source": {
+    "path": "docs/audits/FACAD_314_C02_MEASUREMENT_OPERATOR_PILOT_2026-10-11.md",
+    "git_blob_sha": "573507694a7df08ba0035f03cfcc6b8caa5f7f39",
+    "profiles": [
+      "Steiner",
+      "Tweed",
+      "Ricketts (13 F)",
+      "Ricketts (32 F)",
+      "McNamara"
+    ],
+    "editor_rows": 93,
+    "heading_rows": 13,
+    "non_heading_rows": 80
+  },
+  "official_c02": {
+    "title": "C02_Lateral Cephalometry Library - Measurements.pdf",
+    "pages": 34,
+    "source_pdf_sha256": "4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548",
+    "note": "Lexical page index and short excerpts exist; the operator mathematical definitions are not source-verified from that index."
+  },
+  "source_editor_csv": [
+    {
+      "path": "docs/audits/data/FACAD_314_D1C_RICKETTS13F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv",
+      "blob_sha": "802df33d3c15cbaba095123f4b2b700689edae44"
+    },
+    {
+      "path": "docs/audits/data/FACAD_314_D1C_RICKETTS32F_EDITOR_MEASUREMENTS_UIA_2026-10-09.csv",
+      "blob_sha": "220b4a23d469e1c634ff9d8df7ad22706ae7cc7a"
+    }
+  ],
+  "operators": [
+    {
+      "operator": "Angle2ln",
+      "ui_editor_occurrences_5_profiles": 12,
+      "source_example": "Ricketts (13 F) / Facial depth: FL,FH",
+      "critical_open_question": "Angle orientation, signed interval and degeneracy are unverified",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "Angle3p",
+      "ui_editor_occurrences_5_profiles": 11,
+      "source_example": "Ricketts (13 F) / LFH: Xi,ANS,PM",
+      "critical_open_question": "Vertex/order, signed/reflex behavior and constructed PM provenance are unverified",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "Angle4p",
+      "ui_editor_occurrences_5_profiles": 20,
+      "source_example": "Ricketts (13 F) / Facial axis: Pt,Gn,N,Ba",
+      "critical_open_question": "Line orientation, winding/sign, boundary conventions unverified",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "Dist2p",
+      "ui_editor_occurrences_5_profiles": 8,
+      "source_example": "Ricketts (13 F) / PFH: CF,Go",
+      "critical_open_question": "Distance identity and calibration must be verified; cannot compare PFH to angular norm",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "Dist3p",
+      "ui_editor_occurrences_5_profiles": 4,
+      "source_example": "Ricketts (13 F) / Ii to A-Pog: Pog,A,Ii",
+      "critical_open_question": "Point-to-segment versus infinite-line projection, orientation and calibration unverified",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "DistLine",
+      "ui_editor_occurrences_5_profiles": 13,
+      "source_example": "Ricketts (13 F) / Convexity: FL,A",
+      "critical_open_question": "Absolute versus signed distance, line direction and constructed line provenance unverified",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "Heading",
+      "ui_editor_occurrences_5_profiles": 13,
+      "source_example": "Ricketts (13 F) / Mandible",
+      "critical_open_question": "Non-computational row; do not count as an executed measurement",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "Proj90Line",
+      "ui_editor_occurrences_5_profiles": 1,
+      "source_example": "Ricketts (32 F) / Overbite: OL,Is,Ii",
+      "critical_open_question": "Perpendicular projection convention and argument order unverified",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "ProjLine",
+      "ui_editor_occurrences_5_profiles": 9,
+      "source_example": "Ricketts (32 F) / Overjet: OL,Ii,Is",
+      "critical_open_question": "Axis direction/sign and dependence on profile-specific OL unverified",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    },
+    {
+      "operator": "Sub",
+      "ui_editor_occurrences_5_profiles": 2,
+      "source_example": "McNamara / Max-Mand diff: (Co-Gn),(Co-A)",
+      "critical_open_question": "Derived inputs must exist with matching units; no missing-as-zero fallback",
+      "evidence_class": "VENDOR_EDITOR_UIA_OBSERVED",
+      "official_operator_formula": "UNKNOWN",
+      "signed_and_orientation_convention": "UNKNOWN",
+      "numeric_facad_same_trace_output": "NOT_TESTED",
+      "population_norm_applicability": "NOT_ACTIVATED",
+      "clinical_equivalence": "NOT_VERIFIED"
+    }
+  ],
+  "blockers": [
+    "FAC03_D3_OPEN_RED: shared app storage isolation unverified",
+    "FACAD_TRIAL_EXPIRATION_UNKNOWN: Robert Windows offline",
+    "C02_FULL_OPERATOR_DEFINITION_NOT_VERIFIED",
+    "FAC05_SAME_TRACE_NUMERIC_PARITY_NOT_TESTED"
+  ],
+  "next": "Recover legally authorized C02 definitions page by page; assign primary-source page and semantics separately to each operator/profile instantiation. Independently collect exact same-trace manufacturer outputs only after D3 safety gate. No clinical runtime activation.",
+  "status": "SOURCE_GATES_OPEN"
+}
