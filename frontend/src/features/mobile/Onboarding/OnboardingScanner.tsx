@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight, Share, Plus } from 'lucide-react';
@@ -66,6 +66,28 @@ export const OnboardingScanner = () => {
   const [destinationLabel, setDestinationLabel] = useState('Agenda');
   const { isIOS, isInstalled } = usePWAInstall();
   const isPreviewDemo = PREVIEW_DEMO_HOSTS.has(window.location.hostname) && searchParams.get('demo') === '1';
+
+  const continueAfterPairing = useCallback(() => {
+    let certSkipped = false;
+    try { certSkipped = localStorage.getItem('dc_cert_skipped') === '1'; } catch { /* storage may be restricted in Safari */ }
+    if (!window.isSecureContext && !certSkipped) {
+      setPhase('cert-setup');
+      return;
+    }
+    try {
+      sessionStorage.removeItem('dc_mobile_bridge_route');
+      sessionStorage.removeItem('dc_mobile_bridge_label');
+    } catch { /* navigation must never depend on sessionStorage availability */ }
+    navigate(destinationRoute, { replace: true });
+  }, [destinationRoute, navigate]);
+
+  useEffect(() => {
+    if (phase !== 'success') return;
+    // Safari can pause background timers. Keep a manual continuation action on
+    // the confirmation screen; either path remains subject to route auth gates.
+    const timer = window.setTimeout(continueAfterPairing, 1200);
+    return () => window.clearTimeout(timer);
+  }, [phase, continueAfterPairing]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = '';
@@ -173,21 +195,13 @@ export const OnboardingScanner = () => {
       try {
         sessionStorage.setItem('dc_mobile_bridge_route', destination.route);
         sessionStorage.setItem('dc_mobile_bridge_label', destination.label);
-        window.history.replaceState({}, '', '/mobile/onboarding');
+        // Scrub one-time QR token without discarding React Router's history state.
+        window.history.replaceState(window.history.state, '', '/mobile/onboarding');
       } catch { /* best effort: never weaken pairing on storage/history quirks */ }
 
+      // A render-driven effect owns the transition. The confirmation state is
+      // not allowed to remain indefinitely due to a storage exception in a timer.
       setPhase('success');
-      const alreadySecure = window.isSecureContext;
-      const certSkipped = localStorage.getItem('dc_cert_skipped') === '1';
-      setTimeout(() => {
-        if (alreadySecure || certSkipped) {
-          sessionStorage.removeItem('dc_mobile_bridge_route');
-          sessionStorage.removeItem('dc_mobile_bridge_label');
-          navigate(destination.route, { replace: true });
-        } else {
-          setPhase('cert-setup');
-        }
-      }, 1200);
     } catch (err: any) {
       setErrorMessage(err.message ?? 'Token invalide ou expiré. Régénérez le QR Code.');
       setPhase('error');
@@ -405,6 +419,13 @@ export const OnboardingScanner = () => {
         <p className="font-black text-2xl tracking-tight z-10 text-emerald-600">Appairage réussi</p>
         <p className="text-sm z-10 text-slate-500">Ouverture :</p>
         <p className="text-xl font-black z-10 text-primary">{destinationLabel}</p>
+        <button
+          type="button"
+          onClick={continueAfterPairing}
+          className="z-10 mt-5 min-h-[52px] w-full max-w-xs rounded-2xl bg-primary px-6 text-sm font-black text-white shadow-elite active:scale-[0.98] transition-transform"
+        >
+          Continuer vers {destinationLabel}
+        </button>
       </div>
     );
   }
