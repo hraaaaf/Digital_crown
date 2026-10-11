@@ -21,19 +21,26 @@ Invoke-Expression $defs[0].Extent.Text
 
 $pwsh=(Get-Command pwsh -ErrorAction Stop).Source
 $dead=Start-Process -FilePath $pwsh -ArgumentList @('-NoProfile','-NonInteractive','-Command','exit 0') -Wait -PassThru
-$raceReproduced=$false
+# Deterministic race simulation using the *real parsed function*: exited child
+# must return null; the same exited PID used as the root must throw (fail closed).
+$childExitHandled=$false
 try {
-  $null=Get-SafeCounters ([int]$dead.Id)
+  $returned=Get-SafeCounters ([int]$dead.Id) 0
+  $childExitHandled=($null -eq $returned)
 } catch {
-  # Only enum, never exception message, path, PID or command line in published summary.
-  $kind=$_.Exception.GetType().Name
-  if($kind -in @('ArgumentException','MethodInvocationException','RuntimeException','InvalidOperationException')){
-    $raceReproduced=$true
-  }else{
-    throw 'D3E28_UNEXPECTED_EXCEPTION_CLASS'
-  }
+  throw 'D3E28_CONFIRMED_CHILD_EXIT_NOT_HANDLED'
 }
-if(-not $raceReproduced){throw 'D3E28_EXPECTED_CHILD_EXIT_RACE_NOT_REPRODUCED'}
+if(-not $childExitHandled){throw 'D3E28_CHILD_COUNTER_DID_NOT_RETURN_NULL'}
+$rootLookupFailsClosed=$false
+try {
+  $null=Get-SafeCounters ([int]$dead.Id) ([int]$dead.Id)
+} catch {
+  if($_.Exception.Message -notmatch 'D3_ROOT_PROCESS_ABSENT_AT_COUNTER_LOOKUP'){
+    throw 'D3E28_UNEXPECTED_ROOT_LOOKUP_ERROR'
+  }
+  $rootLookupFailsClosed=$true
+}
+if(-not $rootLookupFailsClosed){throw 'D3E28_ABSENT_ROOT_COUNTER_ACCEPTED'}
 
 # Healthy root process: the *real* observer must collect process I/O without vendor.
 $live=$null
@@ -47,6 +54,7 @@ try {
   if($healthy.schema -cne 'facad314_d3_process_io_v1' -or
     $healthy.sample_count -ne 6 -or $healthy.target_observed_every_poll -ne $true -or
     $healthy.path_attribution_available -ne $false -or
+    $healthy.disappeared_child_counter_reads -lt 0 -or
     $healthy.d3_isolation_verified -ne $false -or
     $healthy.clinical_edit_allowed -ne $false){
     throw 'D3E28_HEALTHY_OBSERVER_BAD_CONTRACT'
@@ -70,7 +78,8 @@ if(-not $rootGoneFails -or (Test-Path -LiteralPath $gonePath)){
 $result=[ordered]@{
   schema='facad_d3e28_synthetic_observer_reproducer_v1'
   source='WINDOWS_SYNTHETIC_PROCESS_ONLY'
-  old_observer_child_exit_exception_reproduced=$raceReproduced
+  exited_synthetic_child_counter_skipped=$childExitHandled
+  exited_synthetic_root_lookup_fails_closed=$rootLookupFailsClosed
   healthy_root_sample_count=$healthySamples
   root_absent_fails_closed=$rootGoneFails
   synthetic_vendor_launches=0
@@ -81,7 +90,8 @@ $result=[ordered]@{
   d3_gate='OPEN_RED'
 }
 $result|ConvertTo-Json -Depth 4|Set-Content -LiteralPath $summary -Encoding utf8
-Write-Host 'D3E28_CHILD_EXIT_RACE=REPRODUCED_ON_OLD_FUNCTION'
+Write-Host 'D3E28_CHILD_EXIT_RACE=HANDLED_CONFIRMED_MISSING_CHILD_ONLY'
+Write-Host 'D3E28_ROOT_COUNTER_LOOKUP_FAIL_CLOSED=true'
 Write-Host "D3E28_SYNTHETIC_HEALTHY_ROOT_SAMPLES=$healthySamples"
 Write-Host 'D3E28_ROOT_ABSENT_FAIL_CLOSED=true'
 Write-Host 'D3E28_FACAD_EXECUTED=false'
