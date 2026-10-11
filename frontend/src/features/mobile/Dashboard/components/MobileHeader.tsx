@@ -106,7 +106,7 @@ export function MobileHeader({
       </div>
 
       <div>
-        {(activeTab === 'agenda' || activeTab === 'finance') && (
+        {(activeTab === 'today' || activeTab === 'agenda' || activeTab === 'finance') && (
           <div className="flex items-center gap-2 mb-2">
             <Calendar size={12} className="text-primary shrink-0" />
             <button
@@ -133,7 +133,8 @@ export function MobileHeader({
         )}
 
         <h1 className="text-4xl font-black tracking-tight text-primary leading-none">
-          {activeTab === 'agenda' ? `${greeting()},` :
+          {activeTab === 'today' ? `${greeting()},` :
+           activeTab === 'agenda' ? 'Agenda' :
            activeTab === 'patients' ? 'Patients' :
            activeTab === 'finance' ? 'Finances' :
            activeTab === 'securite' ? 'Sécurité' :
@@ -148,7 +149,7 @@ export function MobileHeader({
            activeTab === 'bot' ? 'Assistant' : ''}
         </h1>
 
-        {activeTab === 'agenda' && totalCount > 0 && (
+        {(activeTab === 'today' || activeTab === 'agenda') && totalCount > 0 && (
           <div className="flex items-center gap-2 mt-4">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 border border-primary/10 rounded-full shadow-sm">
               <span className="text-[10px] font-black text-primary">
