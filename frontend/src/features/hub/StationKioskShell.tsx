@@ -170,7 +170,7 @@ export const StationKioskShell = ({
               {screen === 'home' ? copy.title : copy[ACTIONS.find((action) => action.id === screen)?.title ?? 'appointment']}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-relaxed text-text-muted sm:text-lg">
-              {screen === 'home' ? copy.subtitle : screen === 'appointment' ? copy.appointmentHint : copy.building}
+              {screen === 'home' ? copy.subtitle : screen === 'appointment' ? copy.appointmentHint : screen === 'documents' ? copy.documentsHint : copy.building}
             </p>
           </div>
 
@@ -192,8 +192,14 @@ export const StationKioskShell = ({
                 </button>
               ))}
             </div>
-          ) : screen === 'appointment' ? (
-            <StationPatientIdentity onBack={() => setScreen('home')} backLabel={copy.back} language={language} />
+          ) : screen === 'appointment' || screen === 'documents' ? (
+            <StationPatientIdentity
+              key={screen}
+              purpose={screen}
+              onBack={() => setScreen('home')}
+              backLabel={copy.back}
+              language={language}
+            />
           ) : (
             <div className="mx-auto mt-9 w-full max-w-xl rounded-elite-lg border border-border-main bg-card-bg p-6 text-center shadow-elite sm:p-8">
               <button
