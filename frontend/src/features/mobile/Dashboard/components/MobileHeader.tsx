@@ -123,6 +123,7 @@ export function MobileHeader({
             </button>
             <input
               type="date"
+              aria-label="Choisir la date du planning"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="min-h-11 min-w-0 max-w-[148px] flex-1 bg-transparent border-none text-text-main font-semibold text-[16px] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
