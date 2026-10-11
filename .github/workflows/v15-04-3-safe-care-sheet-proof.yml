@@ -58,6 +58,8 @@ jobs:
           python -m py_compile backend/services/station_care_sheet.py
           python -m py_compile backend/routers/insurance_submissions.py
           python -m py_compile backend/tests/test_station_care_sheet_v15.py
+          python -m py_compile backend/tests/test_insurance_finalization.py
+          python -m py_compile backend/tests/test_insurance_submission_api.py
           python -m py_compile backend/services/station_presence_receipt.py
           python -m py_compile backend/routers/station_patient_session.py
           python -m py_compile backend/routers/appointments.py
@@ -65,8 +67,8 @@ jobs:
 
       - name: Collect targeted tests
         run: |
-          python -m pytest backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py --collect-only -q | tee /tmp/v15-04-3-collect.txt
+          python -m pytest backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py backend/tests/test_insurance_finalization.py backend/tests/test_insurance_submission_api.py --collect-only -q | tee /tmp/v15-04-3-collect.txt
           grep -Eq '[0-9]+ tests? collected' /tmp/v15-04-3-collect.txt
 
       - name: Run targeted finalization, station and denial tests
-        run: python -m pytest backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py -q
+        run: python -m pytest backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py backend/tests/test_insurance_finalization.py backend/tests/test_insurance_submission_api.py -q
