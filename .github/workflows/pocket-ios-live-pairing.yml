@@ -127,7 +127,7 @@ jobs:
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:5183/mobile/onboarding)" = "403"
           test "$(curl --silent http://127.0.0.1:5183/healthz)" = "ok"
           echo "FUE_LOCAL_GATEWAY_PROTECTED=true"
-      - name: Start temporary Cloudflare HTTPS tunnel and issue real 6-digit pairing
+      - name: Establish temporary HTTPS tunnel
         shell: bash
         run: |
           set -euo pipefail
@@ -136,15 +136,15 @@ jobs:
             --output /tmp/cloudflared
           chmod 700 /tmp/cloudflared
           /tmp/cloudflared --version
-          /tmp/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:5183 > /tmp/pocket-fue-cloudflare.log 2>&1 &
-          echo $! > /tmp/pocket-fue-tunnel.pid
+          /tmp/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:5183 >/tmp/pocket-fue-cloudflare.log 2>&1 &
+          echo $! >/tmp/pocket-fue-tunnel.pid
           origin=""
           for i in $(seq 1 90); do
             origin="$(python - <<'PY'
           import re
           from pathlib import Path
-          s=Path("/tmp/pocket-fue-cloudflare.log").read_text(errors="replace")
-          matches=re.findall(r"https://[a-z0-9-]+\.trycloudflare\.com",s)
+          content = Path("/tmp/pocket-fue-cloudflare.log").read_text(errors="replace")
+          matches = re.findall(r"https://[a-z0-9-]+\\.trycloudflare\\.com", content)
           print(matches[-1] if matches else "")
           PY
             )"
@@ -152,12 +152,73 @@ jobs:
             sleep 2
           done
           test -n "$origin"
+          echo "FUE_TUNNEL_ORIGIN=$origin" >> "$GITHUB_ENV"
           echo "FUE_HTTPS_TUNNEL_CREATED=true"
-          # A real backend-issued code remains valid for 300 seconds.
-          # Rotate it for late arrivals; user should enter the latest code.
-          for iteration in 1 2 3 4; do
-            echo "FUE_PAIRING_GENERATION=$iteration"
-            FUE_TUNNEL_ORIGIN="$origin" python scripts/ci/pocket_ios_fue_issue.py
-            if [ "$iteration" != "4" ]; then sleep 225; fi
-          done
-          echo "FUE_LIVE_WINDOW_CLOSED=true"
+      - name: Issue real five-minute pairing code 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-1.txt"
+      - name: Publish live pairing artifact 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-1
+          path: ${{ runner.temp }}/pocket-fue-code-1.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 1
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 215
+      - name: Issue real five-minute pairing code 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-2.txt"
+      - name: Publish live pairing artifact 2
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-2
+          path: ${{ runner.temp }}/pocket-fue-code-2.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 2
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 215
+      - name: Issue real five-minute pairing code 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-3.txt"
+      - name: Publish live pairing artifact 3
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-3
+          path: ${{ runner.temp }}/pocket-fue-code-3.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 3
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 215
+      - name: Issue real five-minute pairing code 4
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-4.txt"
+      - name: Publish live pairing artifact 4
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-4
+          path: ${{ runner.temp }}/pocket-fue-code-4.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep final live code usable and close test session
+        shell: bash
+        run: |
+          sleep 250
+          echo "POCKET_FUE_SESSION_EXPIRED=true"
