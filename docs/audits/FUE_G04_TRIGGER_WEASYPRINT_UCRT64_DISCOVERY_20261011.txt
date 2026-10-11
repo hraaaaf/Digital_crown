@@ -18,3 +18,6 @@ Run #38104035183 PASS on SHA 09b965920a917fc0a198173327717a984cbd0dae: real synt
 
 RETRY_VALID_YAML_INVENTORY=5
 Previous #38104472360 failed before job scheduling because the experimental YAML was corrupted by editing. Corrected the workflow structure, preserve green PDF laboratory and fail-closed provenance inventory.
+
+RETRY_COPIED_DLL_ISOLATION=6
+2026-10-11 Gate after manifest green #38104533589: copy SHA-checked 64 UCRT64 DLLs into standalone LAB folder, strip MSYS2 PATH, generate synthetic PDF with WeasyPrint 68.1, verify GetModuleFileNameW resolves five critical DLLs exclusively to isolated folder. Experimental only, not a packaged Digital Crown app, not permission to ship binaries.
