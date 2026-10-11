@@ -647,7 +647,7 @@ def test_official_finalize_api_rejects_mismatched_patient_archive(client, db, de
 
 def test_care_sheet_fue0_cross_tenant_authorization_denied(client, db, dentiste):
     """A staff workstation must not authorize another tenant's finalized document."""
-    from backend.core.security import get_password_hash
+    from backend.security import get_password_hash
 
     headers, _session_id, _patient = _identified_session(
         client, db, dentiste, dossier="ST043-FUE0-TENANT-LOCAL"
