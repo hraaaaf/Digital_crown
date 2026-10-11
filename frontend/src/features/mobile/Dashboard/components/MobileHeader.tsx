@@ -1,5 +1,4 @@
-import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Search, Shield } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
 import type { Tab, SyncStatus, Snapshot } from '../types';
@@ -24,7 +23,6 @@ function moveLocalDate(value: string, delta: number): string {
 export function MobileHeader({
   activeTab,
   syncStatus,
-  snapshot,
   selectedDate,
   setSelectedDate,
   fetchSnapshot,
@@ -46,7 +44,6 @@ export function MobileHeader({
   onOpenPatients?: () => void;
   previewMode?: boolean;
 }) {
-  const navigate = useNavigate();
   return (
     <div className="px-4 sm:px-6 pt-14 pb-6 relative z-10">
       <div className="flex items-center justify-between gap-2 sm:gap-3 mb-8">
@@ -150,15 +147,6 @@ export function MobileHeader({
            activeTab === 'marketplace' ? 'Catalogue' :
            activeTab === 'bot' ? 'Assistant' : ''}
         </h1>
-
-        {snapshot?.is_superadmin && (
-          <button
-            onClick={() => navigate('/mobile/superadmin')}
-            className="mt-4 px-4 py-2 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-full font-black text-xs shadow-md uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
-          >
-            <Shield size={14} /> SuperAdmin
-          </button>
-        )}
 
         {activeTab === 'agenda' && totalCount > 0 && (
           <div className="flex items-center gap-2 mt-4">
