@@ -142,6 +142,89 @@ jobs:
           Write-Host "EXPERIMENTAL_NATIVE_DLLS=$($dlls.Count)"
           Write-Host "EXPERIMENTAL_PYTHON_WHEELS=$($wheels.Count)"
           Write-Host 'EXPERIMENTAL_METADATA_ONLY=YES'
+      - name: Prove synthetic PDF with copied UCRT64 DLLs and isolated PATH (LAB only)
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $native = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          $copy = Join-Path $env:RUNNER_TEMP 'fue-g04-isolated-dll-directory'
+          New-Item -Path $copy -ItemType Directory -Force | Out-Null
+          $libraries = @(Get-ChildItem -LiteralPath $native -Filter '*.dll' -File)
+          if ($libraries.Count -ne 64) { throw "Unexpected UCRT64 DLL inventory: $($libraries.Count), expected 64" }
+          foreach ($lib in $libraries) {
+            $destination = Join-Path $copy $lib.Name
+            Copy-Item -LiteralPath $lib.FullName -Destination $destination -ErrorAction Stop
+            $fromHash = (Get-FileHash -LiteralPath $lib.FullName -Algorithm SHA256).Hash
+            $toHash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
+            if ($fromHash -ne $toHash) { throw "Isolated copied DLL mismatch: $($lib.Name)" }
+          }
+          $python = Join-Path $env:pythonLocation 'python.exe'
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw 'Missing pinned GitHub Python 3.12' }
+          $env:WEASYPRINT_DLL_DIRECTORIES = $copy
+          $system = $env:SystemRoot
+          $env:PATH = "$env:pythonLocation;$system\System32;$system;$system\System32\Wbem"
+          if ($env:PATH -match '(?i)(msys|ucrt64)') { throw 'Native MSYS2 PATH was not isolated' }
+          @'
+          import ctypes
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from weasyprint import HTML
+
+          native = Path(os.environ["WEASYPRINT_DLL_DIRECTORIES"]).resolve()
+          if "msys" in os.environ["PATH"].lower() or "ucrt64" in os.environ["PATH"].lower():
+              raise AssertionError("MSYS2 installation leaked into PATH")
+          dll_guard = os.add_dll_directory(str(native))
+          required = (
+              "libgobject-2.0-0.dll", "libpango-1.0-0.dll",
+              "libpangoft2-1.0-0.dll", "libfontconfig-1.dll", "libharfbuzz-0.dll",
+          )
+          for name in required:
+              ctypes.WinDLL(str(native / name))
+          out = Path(os.environ["RUNNER_TEMP"]) / "fue-g04-isolated-native-smoke.pdf"
+          HTML(string="<html><body><h1>Isolated native PDF</h1><p>Fictional data only.</p></body></html>").write_pdf(out)
+          data = out.read_bytes()
+          if not (data.startswith(b"%PDF-") and 1024 < len(data) < 500000):
+              raise AssertionError("Invalid isolated Windows native PDF")
+
+          kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+          kernel.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
+          kernel.GetModuleHandleW.restype = ctypes.c_void_p
+          kernel.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint]
+          kernel.GetModuleFileNameW.restype = ctypes.c_uint
+          modules = {}
+          for name in required:
+              handle = kernel.GetModuleHandleW(name)
+              if not handle:
+                  raise AssertionError(f"Native DLL not loaded: {name}")
+              buf = ctypes.create_unicode_buffer(4096)
+              if not kernel.GetModuleFileNameW(handle, buf, len(buf)):
+                  raise AssertionError(f"Cannot inspect module path: {name}")
+              resolved = Path(buf.value).resolve()
+              if resolved.parent != native:
+                  raise AssertionError(f"Unexpected DLL loader fallback: {name} at {resolved}")
+              modules[name] = str(resolved)
+          report = {
+              "status": "EXPERIMENTAL_ISOLATION_ONLY",
+              "sha": os.environ["GITHUB_SHA"],
+              "pdf_bytes": len(data),
+              "pdf_sha256": hashlib.sha256(data).hexdigest(),
+              "isolated_dll_count": len(list(native.glob("*.dll"))),
+              "five_loaded_modules": modules,
+              "notes": "Not a packaged Digital Crown executable. No clinic or Lenovo test.",
+          }
+          (Path(os.environ["RUNNER_TEMP"]) / "fue-g04-isolated-native-check.json").write_text(
+              json.dumps(report, indent=2), encoding="utf-8"
+          )
+          print("EXPERIMENTAL_ISOLATED_NATIVE_PDF=PASS")
+          print("EXPERIMENTAL_ISOLATED_PDF_BYTES=" + str(len(data)))
+          print("EXPERIMENTAL_DLL_PATHS_ONLY_COPIED_FOLDER=PASS")
+          '@ | & $python -
+          if ($LASTEXITCODE -ne 0) { throw 'Isolated native smoke failed' }
+          Write-Host 'EXPERIMENTAL_ONLY_NO_STANDALONE_INSTALLER=YES'
       - name: Save experimental digest inventory for subsequent strict manifest work
         if: success()
         uses: actions/upload-artifact@v4
@@ -151,5 +234,7 @@ jobs:
             ${{ runner.temp }}/FUE-G04-experimental-dll-hashes.json
             ${{ runner.temp }}/FUE-G04-experimental-complete-provenance.json
             ${{ runner.temp }}/FUE-G04-experimental-python-requirements.txt
+            ${{ runner.temp }}/fue-g04-isolated-native-smoke.pdf
+            ${{ runner.temp }}/fue-g04-isolated-native-check.json
           if-no-files-found: error
           retention-days: 7
