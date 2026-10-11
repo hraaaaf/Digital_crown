@@ -8,3 +8,17 @@ html[data-mobile-theme-runtime='true'] body,
 html[data-mobile-theme-runtime='true'] body :is(.font-outfit, .font-sans, .font-serif, .font-mono) {
   font-family: var(--app-font-family, "Inter", system-ui, sans-serif) !important;
 }
+
+/* iOS accessibility: avoid pulsing status, sliding panels and motion when
+   the user has requested Reduce Motion. Scope to the paired Pocket shell. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-mobile-theme-runtime='true'] [data-dc-mobile-shell],
+  html[data-mobile-theme-runtime='true'] [data-dc-mobile-shell] *,
+  html[data-mobile-theme-runtime='true'] [data-dc-mobile-shell] *::before,
+  html[data-mobile-theme-runtime='true'] [data-dc-mobile-shell] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
