@@ -241,8 +241,13 @@ const run = async (journey, viewport) => {
       await page.getByRole('button', { name: 'Retour à l’accueil' }).click();
       await page.locator('[data-station-screen="home"]').waitFor();
       // Every distinct session minted by StrictMode must receive its own purge.
-      await page.waitForFunction(() => true);
-      await page.waitForTimeout(250);
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const createdSoFar = requests.filter(r => r.action === 'document-session-create' && r.method === 'POST');
+        const purgedSoFar = requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST');
+        if (createdSoFar.length > 0 && createdSoFar.every(r => purgedSoFar.some(p => p.sessionId === r.sessionId))) break;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
       const created = requests.filter(r => r.action === 'document-session-create' && r.method === 'POST');
       const purged = requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST');
       record(journey + '/' + viewport.label + '/documents-all-created-ids-purged',
