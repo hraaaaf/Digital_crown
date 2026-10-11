@@ -10,7 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -280,11 +280,20 @@ def claim_station_patient_session(
     identity=Depends(patient_identity),
 ):
     now = datetime.utcnow()
+    # A minted QR/NFC must stop being usable if its station is revoked,
+    # switched out of kiosk mode, or rehomed to another cabinet. Never
+    # authenticate an orphaned patient session merely by a valid token hash.
+    active_station_ids = select(models.WorkstationMode.id).where(
+        models.WorkstationMode.revoked_at.is_(None),
+        models.WorkstationMode.default_experience == "station",
+        models.WorkstationMode.employer_id == models.WorkstationPatientSession.employer_id,
+    )
     row = db.query(models.WorkstationPatientSession).filter(
         models.WorkstationPatientSession.claim_token_hash == _hash(body.token),
         models.WorkstationPatientSession.purged_at.is_(None),
         models.WorkstationPatientSession.claimed_at.is_(None),
         models.WorkstationPatientSession.expires_at > now,
+        models.WorkstationPatientSession.workstation_id.in_(active_station_ids),
     ).first()
     if row is None:
         raise HTTPException(status_code=409, detail="STATION_SESSION_INVALID_OR_USED")
@@ -306,6 +315,7 @@ def claim_station_patient_session(
         models.WorkstationPatientSession.claimed_at.is_(None),
         models.WorkstationPatientSession.purged_at.is_(None),
         models.WorkstationPatientSession.expires_at > now,
+        models.WorkstationPatientSession.workstation_id.in_(active_station_ids),
     ).update(
         {
             models.WorkstationPatientSession.claimed_at: now,
