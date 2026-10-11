@@ -1,0 +1,71 @@
+name: FACAD F06.1 Archive coverage source-only audit
+on:
+  push:
+    branches: [research/facad-f06-1-archive-evidence-20261011]
+    paths:
+      - .github/workflows/facad-f06-1-wave5-archive-coverage.yml
+      - docs/audits/facad_trial_20261011/FACAD_F06_1_WAVE5_ARCHIVE_COVERAGE.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify F06.1 no-go archive source coverage and negative controls
+        shell: bash
+        run: |
+          python - <<'PY'
+          import copy,json,subprocess
+          from pathlib import Path
+          root=Path('docs/audits/facad_trial_20261011')
+          a=json.loads((root/'FACAD_F06_1_WAVE5_ARCHIVE_COVERAGE.json').read_text())
+          b=json.loads((root/'B_65_PROFILE_SOURCE_GATES_20261011.json').read_text())
+          assert subprocess.check_output(['git','hash-object',str(root/'B_65_PROFILE_SOURCE_GATES_20261011.json')],text=True).strip()==a['sources']['b65_blob']
+          assert a['schema']=='FACAD_F06_1_WAVE5_DURABLE_ARCHIVE_COVERAGE_V1'
+          assert len(b['items'])==len(a['profiles'])==65
+          for s,t in zip(b['items'],a['profiles']):
+              assert (s['ordinal'],s['analysis'],str(s['source_run_id']),s['git_uia_triplets']) == (
+                  t['ordinal'],t['analysis'],t['run_id'],t['git_three_ui_csv'])
+              assert t['archive_durable_complete'] is False
+          direct=[p for p in a['profiles'] if p['drive_copy'] is not None]
+          assert len(direct)==8
+          assert len({p['drive_copy']['drive_id'] for p in direct})==8
+          assert all(p['drive_copy']['status']=='FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED' for p in direct)
+          assert a['counts']=={
+            'catalog':65,'editor_ledger':65,'git_complete_csv_triplets':42,
+            'git_strict_triplets_not_versioned':23,'drive_profile_zip_files_visible':8,
+            'other_drive_folder_zip_files_visible':1,
+            'remaining_without_confirmed_drive_zip_in_THIS_FOLDER':57,
+            'global_archive_absence_proven':False}
+          def fail_closed(x):
+              v=x['retention_gates']
+              return (x['f06_1']=='OPEN' and x['d3']=='OPEN_RED'
+                      and x['facad_numeric_parity']=='NOT_TESTED'
+                      and x['no_vendor_execution'] is True and x['converged'] is False
+                      and v['all_profiles_durable_archive_pass'] is False
+                      and v['retention_deadline_and_deletion']=='UNKNOWN'
+                      and v['content_hash_verification_all_drive_zips']=='NOT_EXECUTED'
+                      and v['vendor_artifact_redistribution_permission']=='NOT_GRANTED_IN_THIS_WAVE')
+          assert fail_closed(a)
+          muts=[]
+          for field,value in [
+              ('f06_1','CLOSED'),('d3','CLOSED'),('facad_numeric_parity','VERIFIED'),('converged',True)]:
+              x=copy.deepcopy(a);x[field]=value;muts.append(x)
+          for field,value in [
+              ('all_profiles_durable_archive_pass',True),
+              ('retention_deadline_and_deletion','CONFIRMED'),
+              ('content_hash_verification_all_drive_zips','DONE'),
+              ('vendor_artifact_redistribution_permission','APPROVED')]:
+              x=copy.deepcopy(a);x['retention_gates'][field]=value;muts.append(x)
+          assert len(muts)==8 and all(not fail_closed(m) for m in muts)
+          print('F06_1_ARCHIVE_PROFILES=65_LEDGER_JOINED')
+          print('F06_1_DRIVE_METADATA_ONLY=8_PROFILE_ZIPS_PLUS_ONE_AGGREGATE')
+          print('F06_1_GIT_THREE_CSV_TRIPLETS=42_PRESENT_23_GAPS')
+          print('F06_1_FALSE_ARCHIVE_CLOSURES_REJECTED=8')
+          print('F06_1_NOT_CLOSED_NO_RETENTION_ATTESTATION=true')
+          PY
