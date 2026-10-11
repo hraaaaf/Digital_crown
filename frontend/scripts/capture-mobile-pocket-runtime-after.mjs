@@ -593,6 +593,11 @@ try {
         id: document.documentElement.dataset.theme,
         primary: computed.getPropertyValue('--primary').trim(),
         primaryInk: computed.getPropertyValue('--primary-ink').trim(),
+        cardSurface: computed.getPropertyValue('--card-bg').trim(),
+        canvasSurface: computed.getPropertyValue('--bg-medical-pearl').trim(),
+        activeNavInk: nav?.querySelector('button[aria-current="page"]')
+          ? getComputedStyle(nav.querySelector('button[aria-current="page"]')).color
+          : null,
         textMuted: computed.getPropertyValue('--text-muted').trim(),
         textOnPrimary: computed.getPropertyValue('--text-on-primary').trim(),
         background: computed.getPropertyValue('--bg-medical-pearl').trim(),
