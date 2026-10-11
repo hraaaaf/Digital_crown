@@ -10,13 +10,15 @@ export function FinanceView({
   syncStatus,
   selectedDate,
   openWhatsApp,
-  handleExportPDF
+  handleExportPDF,
+  pocketSummaryOnly = false,
 }: {
   snapshot: Snapshot | null;
   syncStatus: SyncStatus;
   selectedDate: string;
   openWhatsApp: (phone: string | null, msg: string) => void;
   handleExportPDF: () => void;
+  pocketSummaryOnly?: boolean;
 }) {
   const f = snapshot?.finance;
 
@@ -71,7 +73,11 @@ export function FinanceView({
         </div>
       </div>
 
-      {f?.weekly_revenue && f.weekly_revenue.length > 0 && (
+      {pocketSummaryOnly && <div data-mobile-finance-summary className="rounded-[22px] border border-glass-border bg-card px-5 py-4">
+        <p className="text-[11px] font-black text-primary">Aperçu financier · lecture seule</p>
+        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-text-muted">Rapprochement, édition des écritures, détails des créances et exports restent sur le poste de travail.</p>
+      </div>}
+      {!pocketSummaryOnly && f?.weekly_revenue && f.weekly_revenue.length > 0 && (
         <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-6 shadow-elite">
           <div className="flex items-center justify-between mb-6 border-b border-border-main pb-4">
             <div>
@@ -120,7 +126,7 @@ export function FinanceView({
         </div>
       )}
 
-      <div>
+      {!pocketSummaryOnly && <div>
         <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-3 px-1 flex items-center gap-2">
           <AlertTriangle size={14} className="text-rose-500" /> Impayés
           <span className="ml-auto">{snapshot?.debtors.length ?? 0} dossiers</span>
@@ -163,12 +169,12 @@ export function FinanceView({
         )}
       </div>
 
-      <button
+      {!pocketSummaryOnly && <button
         onClick={handleExportPDF}
         className="w-full py-4 bg-primary border border-primary/20 text-white rounded-[24px] font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-elite hover:bg-primary/90"
       >
         <Download size={16} /> Exporter le bilan mensuel en PDF
-      </button>
+      </button>}
     </div>
   );
 }
