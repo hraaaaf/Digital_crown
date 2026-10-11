@@ -236,7 +236,9 @@ const run = async (journey, viewport) => {
       await page.locator('[data-station-screen="home"]').waitFor();
       await purgeResponse;
       record(journey + '/' + viewport.label + '/documents-purged-on-home',
-        requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST').length === 1,
+        requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST').length >= 1 &&
+        requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST').length ===
+          requests.filter(r => r.action === 'document-session-create' && r.method === 'POST').length,
         JSON.stringify(requests));
       record(journey + '/' + viewport.label + '/documents-no-clinical-requests',
         unexpected.every(url => !/\/appointments(?:\/|$)|\/arrive(?:\/|$)|\/staff-assistance(?:\/|$)/i.test(url)),
