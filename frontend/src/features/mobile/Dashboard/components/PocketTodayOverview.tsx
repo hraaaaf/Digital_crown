@@ -110,7 +110,7 @@ export function PocketTodayOverview({
           <div className="rounded-[17px] border border-border-main bg-background px-3 py-3">
             <CalendarDays size={14} className="text-primary" />
             <p className="mt-2 text-[18px] font-black text-text-main">{appointments.length}</p>
-            <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">RDV</p>
+            <p className="text-[11px] font-black uppercase tracking-wider text-text-muted">RDV</p>
           </div>
           <button
             type="button"
@@ -120,7 +120,7 @@ export function PocketTodayOverview({
           >
             <UsersRound size={14} className="text-warning" />
             <p className="mt-2 text-[18px] font-black text-text-main">{waitingCount}</p>
-            <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">Attente</p>
+            <p className="text-[11px] font-black uppercase tracking-wider text-text-muted">Attente</p>
           </button>
           <div
             data-dc-pocket-progress-count={isAssistant ? remainingCount : completedCount}
@@ -128,7 +128,7 @@ export function PocketTodayOverview({
           >
             <CheckCircle2 size={14} className="text-success" />
             <p className="mt-2 text-[18px] font-black text-text-main">{isAssistant ? remainingCount : completedCount}</p>
-            <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">
+            <p className="text-[11px] font-black uppercase tracking-wider text-text-muted">
               {isAssistant ? 'À gérer' : 'Terminés'}
             </p>
           </div>
@@ -142,7 +142,7 @@ export function PocketTodayOverview({
               <span className="text-[12px] font-black">{nextAppointment.time}</span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">
                 {selectedDate > localToday
                   ? 'Premier patient'
                   : nextAppointment.status === 'EN_COURS'
@@ -172,7 +172,7 @@ export function PocketTodayOverview({
         <button
           type="button"
           onClick={onOpenWaitingRoom}
-          className="min-h-12 rounded-[16px] border border-glass-border bg-card px-3 text-[10px] font-black text-text-main shadow-sm active:scale-[0.98]"
+          className="min-h-12 rounded-[16px] border border-glass-border bg-card px-3 text-[11px] font-semibold text-text-main shadow-sm active:scale-[0.98]"
         >
           Salle d’attente
         </button>
@@ -180,7 +180,7 @@ export function PocketTodayOverview({
           <button
             type="button"
             onClick={onOpenFrontdesk}
-            className="min-h-12 rounded-[16px] border border-glass-border bg-card px-3 text-[10px] font-black text-text-main shadow-sm active:scale-[0.98]"
+            className="min-h-12 rounded-[16px] border border-glass-border bg-card px-3 text-[11px] font-semibold text-text-main shadow-sm active:scale-[0.98]"
           >
             Accueil
           </button>
@@ -188,7 +188,7 @@ export function PocketTodayOverview({
         <button
           type="button"
           onClick={onOpenAlerts}
-          className="flex min-h-12 items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-card px-3 text-[10px] font-black text-text-main shadow-sm active:scale-[0.98]"
+          className="flex min-h-12 items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-card px-3 text-[11px] font-semibold text-text-main shadow-sm active:scale-[0.98]"
         >
           <Bell size={13} /> Alertes
         </button>
@@ -201,14 +201,14 @@ export function PocketTodayOverview({
       >
         <div className="flex items-center justify-between gap-3 border-b border-border-main px-4 py-3">
           <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">
               {isToday ? 'Agenda du jour' : 'Agenda sélectionné'}
             </p>
             <p className="mt-0.5 text-[10px] font-bold text-text-muted">
               {isAssistant ? 'Vue opérationnelle' : 'Lecture rapide avant le fauteuil'}
             </p>
           </div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
             {compactAgenda.length} RDV
           </span>
         </div>
@@ -225,7 +225,7 @@ export function PocketTodayOverview({
                   <div className="w-12 shrink-0 text-[11px] font-black text-primary">{appointment.time}</div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] font-black text-text-main">{appointment.patient_name}</p>
-                    <p className="mt-0.5 truncate text-[9px] font-bold uppercase tracking-wider text-text-muted">
+                    <p className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-wider text-text-muted">
                       {appointment.motif || 'Rendez-vous'} · {(appointment.status || 'PLANIFIE').replace('_', ' ')}
                     </p>
                   </div>
