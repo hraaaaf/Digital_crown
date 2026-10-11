@@ -1,0 +1,89 @@
+name: FACAD D3E30 synthetic 4663 query and envelope guard
+
+on:
+  push:
+    branches:
+      - research/facad-d3e30-synthetic-4663-gate-20261011
+    paths:
+      - .github/workflows/facad-d3e30-synthetic-4663-gate.yml
+      - scripts/facad_314_d3e30_synthetic_4663_gate.ps1
+      - scripts/facad_314_d3e30_4663_guard.ps1
+      - scripts/facad_314_d3e27_root_pid_diagnostic.ps1
+      - scripts/facad_314_d3_process_io_observer.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-audit-only:
+    name: Windows mocked 4663, no FACAD or real Security log
+    if: github.event_name == 'push' && github.ref == 'refs/heads/research/facad-d3e30-synthetic-4663-gate-20261011'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact HEAD and no native FACAD or audit side effects
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:RUNNER_OS -cne 'Windows' -or
+            $env:GITHUB_REF -cne 'refs/heads/research/facad-d3e30-synthetic-4663-gate-20261011' -or
+            (git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'D3E30_SCOPE_OR_HEAD_MISMATCH'}
+          foreach($file in @('scripts/facad_314_d3e30_synthetic_4663_gate.ps1','scripts/facad_314_d3e30_4663_guard.ps1','scripts/facad_314_d3e27_root_pid_diagnostic.ps1')){
+            if(-not (Test-Path -LiteralPath $file -PathType Leaf)){throw 'D3E30_MISSING_SOURCE'}
+          }
+          $test=Get-Content -LiteralPath 'scripts/facad_314_d3e30_synthetic_4663_gate.ps1' -Raw
+          if($test -notmatch '(?m)^function Get-WinEvent \{' -or
+            $test -match '(?i)\bauditpol\.exe\b|\bSet-Acl\b|\bStart-Process\s+.*Facad\.exe'){
+            throw 'D3E30_MOCK_BOUNDARY_UNTRUSTED'
+          }
+          Write-Host ('D3E30_EXACT_HEAD='+$env:GITHUB_SHA)
+          Write-Host 'D3E30_AUDIT_QUERY=MOCK_ONLY'
+      - name: Validate 15 synthetic 4663 behaviors and fail-closed envelope
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e30_synthetic_4663_gate.ps1
+          if(-not $?){throw 'D3E30_SYNTHETIC_GATE_FAILURE'}
+      - name: Re-run prior D3E29 counter fail-closed regression
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e29_synthetic_counter_failure.ps1
+          if(-not $?){throw 'D3E30_D3E29_REGRESSION_FAILURE'}
+      - name: Audit scrubbed aggregate and forbid clinical promotion
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $file='d3e30-synthetic-audit-safe.json'
+          if(-not (Test-Path -LiteralPath $file)){throw 'D3E30_NO_AGGREGATE'}
+          $s=Get-Content -LiteralPath $file -Raw|ConvertFrom-Json
+          if($s.schema -cne 'facad_d3e30_synthetic_4663_gate_v1' -or
+            $s.synthetic_cases_passed -ne 15 -or
+            $s.production_observer_wired -cne $true -or
+            $s.query_failure_rejected -cne $true -or
+            $s.no_events_inconclusive -cne $true -or
+            $s.event_limit_rejected -cne $true -or
+            $s.malformed_xml_rejected -cne $true -or
+            $s.invalid_pid_and_mask_rejected -cne $true -or
+            $s.wrong_id_provider_type_ignored -cne $true -or
+            $s.confidential_native_error_redacted -cne $true -or
+            $s.vendor_executed -cne $false -or
+            $s.windows_security_log_read -cne $false -or
+            $s.windows_sacl_modified -cne $false -or
+            $s.audit_4663_certified -cne $false -or
+            $s.shared_app_storage_isolation_verified -cne $false -or
+            $s.clinical_edit_allowed -cne $false -or
+            $s.verdict -cne 'SYNTHETIC_ONLY_D3_OPEN_RED'){
+            throw 'D3E30_AGGREGATE_CONTRACT_INVALID'
+          }
+          Write-Host 'D3E30_SYNTHETIC_GATE=PASS'
+          Write-Host 'D3E30_D3=OPEN_RED'
+      - name: Upload scrubbed safe JSON only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e30-synthetic-4663-safe-aggregate
+          path: d3e30-synthetic-audit-safe.json
+          if-no-files-found: warn
+          retention-days: 7
