@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 18
     env:
-      FACAD_ANB_SYNTHETIC_FIXTURES_PATH: ${{ runner.temp }}/facad-anb-source-fixtures.json
-      FACAD_ANB_BROWSER_OUTPUT: ${{ runner.temp }}/facad-anb-display-proof
+      FACAD_ANB_SYNTHETIC_FIXTURES_PATH: facad-anb-source-fixtures.json
+      FACAD_ANB_BROWSER_OUTPUT: facad-anb-display-proof
     steps:
       - name: Checkout exact HEAD
         uses: actions/checkout@v4
@@ -87,5 +87,5 @@ jobs:
         with:
           name: facad-anb-dual-display-chromium-${{ github.sha }}
           retention-days: 14
-          path: ${{ runner.temp }}/facad-anb-display-proof/
+          path: facad-anb-display-proof/
           if-no-files-found: warn
