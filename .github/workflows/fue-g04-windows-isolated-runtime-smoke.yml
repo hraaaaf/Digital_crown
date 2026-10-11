@@ -22,7 +22,7 @@ jobs:
       MASTER_SHA: fa377f1ee05534cafbc26971f70f2e8ba8b792fd
       CODE_RUN: "38100167771"
       WINDOWS_BUILD_RUN: "38101353034"
-      EXPECTED_INSTALLER_SHA256: SET_AFTER_NEW_INSTALLER_BUILD_SHA256
+      EXPECTED_INSTALLER_SHA256: a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c
     steps:
       - name: Pin canonical certified master and completed installer run
         shell: pwsh
