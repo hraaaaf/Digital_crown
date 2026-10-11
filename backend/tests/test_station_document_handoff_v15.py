@@ -126,3 +126,55 @@ def test_044_replaced_or_expired_token_never_identifies_a_document_patient(clien
     dbrow.expires_at = datetime.utcnow() - timedelta(seconds=1)
     db.commit()
     assert _claim(client, third, patient_headers, access).status_code == 409
+
+
+def test_044_host_header_poisoning_cannot_issue_qr_link(client, db, dentiste):
+    """Unauthenticated Host authority may not become QR bearer destination."""
+    staff, _station_id = _station(client, dentiste)
+    attack_headers = {**staff, "Host": "attacker.invalid"}
+    response = client.post("/api/workstation/patient-session", headers=attack_headers)
+    assert response.status_code == 503, response.text
+    assert response.json()["detail"] == "STATION_HANDOFF_ORIGIN_NOT_TRUSTED"
+    assert db.query(models.WorkstationPatientSession).count() == 0
+
+
+def test_044_configured_origin_ignores_untrusted_host(client, db, dentiste, monkeypatch):
+    """Handoff QR + NFC reflect only deliberate canonical configuration."""
+    from backend.config import settings as app_settings
+
+    staff, _station_id = _station(client, dentiste)
+    monkeypatch.setattr(app_settings, "STATION_HANDOFF_PUBLIC_ORIGIN", "https://cabinet.example:8005")
+    response = client.post(
+        "/api/workstation/patient-session", headers={**staff, "Host": "attacker.invalid"},
+    )
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert data["handoffUrl"].startswith("https://cabinet.example:8005/companion?stationSession=")
+    assert data["nfcPayload"] == data["handoffUrl"]
+    assert "attacker.invalid" not in data["handoffUrl"]
+    assert db.query(models.WorkstationPatientSession).count() == 1
+
+
+def test_044_cabinet_requires_https_non_loopback_handoff_origin(client, db, dentiste, monkeypatch):
+    """Reject unsafe or absent configured origins before revoking active session."""
+    from backend.config import settings as app_settings
+
+    staff, _station_id = _station(client, dentiste)
+    monkeypatch.setattr(app_settings, "ENVIRONMENT", "cabinet")
+    for origin, error in [
+        ("", "STATION_HANDOFF_ORIGIN_NOT_CONFIGURED"),
+        ("http://cabinet.example:8005", "STATION_HANDOFF_ORIGIN_INSECURE"),
+        ("https://localhost:8005", "STATION_HANDOFF_ORIGIN_INSECURE"),
+        ("https://cabinet.example:8005/companion", "STATION_HANDOFF_ORIGIN_INVALID"),
+        ("https://cabinet.example:invalid", "STATION_HANDOFF_ORIGIN_INVALID"),
+    ]:
+        monkeypatch.setattr(app_settings, "STATION_HANDOFF_PUBLIC_ORIGIN", origin)
+        response = client.post("/api/workstation/patient-session", headers=staff)
+        assert response.status_code == 503, (origin, response.text)
+        assert response.json()["detail"] == error
+        assert db.query(models.WorkstationPatientSession).count() == 0
+
+    monkeypatch.setattr(app_settings, "STATION_HANDOFF_PUBLIC_ORIGIN", "https://cabinet.example:8005")
+    allowed = client.post("/api/workstation/patient-session", headers=staff)
+    assert allowed.status_code == 201, allowed.text
+    assert allowed.json()["handoffUrl"].startswith("https://cabinet.example:8005/companion?stationSession=")
