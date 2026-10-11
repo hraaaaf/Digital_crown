@@ -44,6 +44,13 @@ export function MobileBiometricGate({ children }: Props) {
         setState('origin-error');
         return;
       }
+      if (!vault) {
+        // The server may require passkey UV, but this browser has no sealed PRF
+        // vault. Never display a nonfunctional unlock button or bypass UV.
+        setMessage('Coffre biométrique absent sur cet appareil. Réappairez-le depuis le cabinet ; si la passkey reste active, faites révoquer cet appareil.');
+        setState('error');
+        return;
+      }
       if (await MobileStorage.isBiometricVaultUnlocked() && MobileStorage.getBiometricAccessToken()) {
         setState('allow');
         return;
@@ -70,7 +77,20 @@ export function MobileBiometricGate({ children }: Props) {
   useEffect(() => {
     const lock = () => {
       MobileStorage.lockBiometricVault();
-      setState('locked');
+      void MobileStorage.getBiometricVaultEnvelope()
+        .then(vault => {
+          if (!vault) {
+            // Fail closed with an actionable explanation, not a dead Face ID button.
+            setMessage('Coffre biométrique local absent. Réappairez cet appareil depuis le cabinet.');
+            setState('error');
+            return;
+          }
+          setState('locked');
+        })
+        .catch(() => {
+          setMessage('Vérification du coffre biométrique impossible. Accès bloqué.');
+          setState('error');
+        });
     };
     window.addEventListener('digitalcrown:mobile-biometric-locked', lock);
     return () => window.removeEventListener('digitalcrown:mobile-biometric-locked', lock);
@@ -124,6 +144,7 @@ export function MobileBiometricGate({ children }: Props) {
   if (state === 'allow') return <>{children}</>;
 
   const originError = state === 'origin-error';
+  const recoveryError = state === 'error';
   return (
     <main className="min-h-[100dvh] bg-background text-text-main flex items-center justify-center px-6 py-10">
       <section className="w-full max-w-md bg-glass-bg border border-glass-border backdrop-blur-xl rounded-[32px] p-7 shadow-elite text-center">
@@ -132,14 +153,14 @@ export function MobileBiometricGate({ children }: Props) {
         </div>
         <p className="mt-5 text-[10px] font-black uppercase tracking-[0.22em] text-text-muted">Terminal protégé</p>
         <h1 className="mt-2 text-2xl font-black font-outfit">
-          {originError ? 'Adresse sécurisée requise' : 'Déverrouiller Digital Crown'}
+          {originError ? 'Adresse sécurisée requise' : recoveryError ? 'Accès mobile protégé' : 'Déverrouiller Digital Crown'}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-text-muted font-semibold">
           {originError
             ? `La biométrie est liée à ${status?.expected_origin || 'digitalcrown.local'}. Ouvrez cette adresse sur le réseau du cabinet.`
             : 'Utilisez Face ID, votre empreinte ou le verrouillage sécurisé de cet appareil. Aucune donnée biométrique n’est transmise à Digital Crown.'}
         </p>
-        {!originError && (
+        {!originError && !recoveryError && (
           <button
             type="button"
             disabled={busy}
