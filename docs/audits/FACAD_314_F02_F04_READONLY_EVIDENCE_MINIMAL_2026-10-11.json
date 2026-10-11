@@ -12,9 +12,10 @@
       "height": 768
     },
     "baseline_uia_sha256": "1cdd845f2400d11b94a49091e838fb6124f55cb811f004196076cf89ed4f308d",
-    "f02_2_target_csv_sha256": "UNKNOWN_NOT_RECORDED",
+    "f02_2_target_csv_sha256": "2b4d762a6a3452b9adb8140c171b0ad63e8566581b8db9a4682c178c01657e6c",
     "source_and_copy_sha_unchanged": true,
-    "shared_storage_isolation": "UNVERIFIED"
+    "shared_storage_isolation": "UNVERIFIED",
+    "f02_3_menu_csv_sha256": "7e35fdaf90bb99771228fcd564e23e0efe739bcdc4c76e44bc0f1aabdcaa0265"
   },
   "f02_2": {
     "targets": [
