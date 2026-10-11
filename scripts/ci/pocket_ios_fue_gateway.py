@@ -78,12 +78,16 @@ class Gateway(BaseHTTPRequestHandler):
             if length > 1024 * 1024 or length < 0:
                 return self.answer(413, b"Request too large")
             body = self.rfile.read(length) if length else None
-            upstream = http.client.HTTPConnection(HOST, TARGET_PORT, timeout=25)
+            # Public frontend and test-only FastAPI share one HTTPS origin.
+            # No backend port :8005 ever needs to be opened to the Internet.
+            backend_path = path.startswith("/api/") or path in ("/stock/alerts", "/health")
+            port = 8005 if backend_path else TARGET_PORT
+            upstream = http.client.HTTPConnection(HOST, port, timeout=25)
             forward_headers = {
                 key: value for key, value in self.headers.items()
                 if key.lower() not in HOP_HEADERS and key.lower() not in {"host", "cookie"}
             }
-            forward_headers["Host"] = f"{HOST}:{TARGET_PORT}"
+            forward_headers["Host"] = f"{HOST}:{port}"
             forward_headers["X-Forwarded-Proto"] = "https"
             upstream.request(self.command, self.path, body=body, headers=forward_headers)
             response = upstream.getresponse()
