@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from sqlalchemy import exists, insert, literal, select
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -119,19 +120,39 @@ def care_sheet_state(db: Session, document: models.DocumentArchive, *, employer_
 
 
 def authorize_withdrawal(db: Session, document: models.DocumentArchive, *, employer_id: int, user_id: int, ip_address: str | None = None) -> bool:
-    if not is_finalized_care_sheet(db, document, employer_id=employer_id):
+    # Serialize per-document authorizations on PostgreSQL. On SQLite the
+    # conditional INSERT below is one write statement rather than a separate
+    # read/check followed by INSERT (which can duplicate audit events).
+    locked = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == document.id,
+    ).with_for_update().first()
+    if locked is None:
         raise ValueError("CARE_SHEET_NOT_FINALIZED")
-    if _finalizer_id(document) != user_id:
+    db.refresh(locked)
+    if not is_finalized_care_sheet(db, locked, employer_id=employer_id):
+        raise ValueError("CARE_SHEET_NOT_FINALIZED")
+    if _finalizer_id(locked) != user_id:
         raise ValueError("CARE_SHEET_AUTHORIZER_NOT_FINALIZER")
-    if _has_event(db, document, employer_id=employer_id, action=AUTHORIZE_ACTION):
-        return False
-    db.add(models.AuditLog(
-        user_id=user_id, employer_id=employer_id, action=AUTHORIZE_ACTION,
-        resource_type="DocumentArchive", resource_id=str(document.id),
-        details=_claim(document), ip_address=ip_address,
-    ))
+
+    claim = _claim(locked)
+    prior = select(models.AuditLog.id).where(
+        models.AuditLog.employer_id == employer_id,
+        models.AuditLog.action == AUTHORIZE_ACTION,
+        models.AuditLog.resource_type == "DocumentArchive",
+        models.AuditLog.resource_id == str(locked.id),
+        models.AuditLog.details == claim,
+    )
+    stmt = insert(models.AuditLog).from_select(
+        ["user_id", "employer_id", "action", "resource_type", "resource_id", "details", "ip_address"],
+        select(
+            literal(user_id), literal(employer_id), literal(AUTHORIZE_ACTION),
+            literal("DocumentArchive"), literal(str(locked.id)),
+            literal(claim), literal(ip_address),
+        ).where(~exists(prior)),
+    )
+    created = db.execute(stmt).rowcount == 1
     db.commit()
-    return True
+    return created
 
 
 def verified_care_sheet_bytes(document: models.DocumentArchive) -> bytes:
