@@ -56,8 +56,8 @@ function TeamContent({
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-500/5 border border-rose-200 rounded-[16px] mb-4">
-          <p className="text-xs font-black text-rose-600">{error}</p>
+        <div className="p-4 bg-danger-surface border border-danger-border rounded-[16px] mb-4">
+          <p className="text-xs font-black text-danger">{error}</p>
         </div>
       )}
 
@@ -81,7 +81,7 @@ function TeamContent({
                   className="w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0"
                   style={{ background: i === 0 ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
                 >
-                  <User size={20} className={i === 0 ? 'text-white' : 'text-primary'} />
+                  <User size={20} className={i === 0 ? 'text-on-primary' : 'text-primary'} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-text-main truncate">{d.name}</p>
