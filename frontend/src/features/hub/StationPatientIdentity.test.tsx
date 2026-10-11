@@ -176,4 +176,47 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     expect(screen.getByRole('button', { name: 'ليس لدي هاتفي' })).toBeInTheDocument();
   });
 
+
+  it('04.4 documents: identifies via QR without invoking appointment arrival or staff signal, and purges on exit', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    const onBack = vi.fn();
+    render(<StationPatientIdentity purpose="documents" onBack={onBack} backLabel="Retour" />);
+
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    expect(screen.getByText('Aya Audit')).toBeInTheDocument();
+    expect(screen.getByText(/retrait des documents est en cours de construction/)).toBeInTheDocument();
+    expect(screen.queryByText('Confirmer mon arrivée')).toBeNull();
+    expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
+    expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
+    expect(stationPatientSessionService.requestStaffAssistance).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
+  });
+
+  it('04.4 documents: FR/EN/AR identify text does not advertise printing or Pocket', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified',
+      sessionId: 'session-1',
+      displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    for (const [lang, phrase] of [
+      ['fr', 'Le retrait des documents est en cours de construction sur cette station.'],
+      ['en', 'Document collection is under construction at this station.'],
+      ['ar', 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.'],
+    ] as const) {
+      const rendered = render(<StationPatientIdentity purpose="documents" language={lang} onBack={vi.fn()} backLabel="Retour" />);
+      expect(await screen.findByText(phrase)).toBeInTheDocument();
+      expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
+      rendered.unmount();
+    }
+  });
+
 });
