@@ -1,0 +1,74 @@
+{
+  "schema": "FACAD_F02_F04_READ_ONLY_REPLAY_MINIMAL_V1",
+  "date": "2026-10-11",
+  "evidence": {
+    "run_id": 37967170536,
+    "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37967170536",
+    "artifact_id": 11634502406,
+    "zip_sha256": "e8db415cda6c4dbc27cdca1eaa25bd6f6200a95a428c902726998a4fc79c1574",
+    "member_count": 47,
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "baseline_uia_sha256": "1cdd845f2400d11b94a49091e838fb6124f55cb811f004196076cf89ed4f308d",
+    "f02_2_target_csv_sha256": "UNKNOWN_NOT_RECORDED",
+    "source_and_copy_sha_unchanged": true,
+    "shared_storage_isolation": "UNVERIFIED"
+  },
+  "f02_2": {
+    "targets": [
+      {
+        "name": "Marker guide",
+        "enabled": true,
+        "visible": true,
+        "toggle_pattern": "On",
+        "leaf_clicked": false
+      },
+      {
+        "name": "Planned positions",
+        "enabled": true,
+        "visible": true,
+        "toggle_pattern": "On",
+        "leaf_clicked": false
+      }
+    ],
+    "behavior_verified": false
+  },
+  "f02_3": {
+    "menu_app_entries": {
+      "Tracing": 10,
+      "View": 20
+    },
+    "system_entries_excluded_per_menu": 2,
+    "leaf_clicked": false,
+    "behavior_verified": false
+  },
+  "f04_1": {
+    "passively_observed_tab_items": {
+      "Values": {
+        "files": 7
+      },
+      "Properties": {
+        "files": 7
+      }
+    },
+    "not_observed_in_passive_menu_capture": [
+      "Analysis Values",
+      "Analysis Properties",
+      "Marker Positions",
+      "Object Values"
+    ],
+    "no_excluded_item_claimed_missing_from_product": true,
+    "export_executed": false
+  },
+  "gates": {
+    "F02_2": "OPEN",
+    "F02_3": "OPEN",
+    "F04_1": "OPEN_PARTIAL",
+    "FAC03_D3": "OPEN_RED",
+    "clinical_edit_allowed": false,
+    "facad_numeric_parity_verified": false
+  },
+  "scope": "prior authorized GitHub-hosted disposable Windows quick demo. Offline replay and adjudication only; no new app execution."
+}
