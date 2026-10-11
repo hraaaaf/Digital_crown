@@ -54,7 +54,7 @@ function Assert-Fails([string]$code){
  try{
    $null=Get-D3E30Security4663Batch -StartTime ([datetime]'2026-10-11T08:00:00')
  }catch{
-   if($_.Exception.Message -cne $code){throw 'D3E30_WRONG_OR_UNREDACTED_EXCEPTION'}
+   if($_.Exception.Message -cne $code){throw ('D3E30_WRONG_RESULT_FOR_'+$code)}
    $raised=$true
  }
  if(-not $raised){throw 'D3E30_AUDIT_FALSE_PASS'}
