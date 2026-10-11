@@ -24,3 +24,6 @@ RETRY_COPIED_DLL_ISOLATION=6
 
 RETRY_FROZEN_NATIVE_PROBE=7
 Green #38104766896 verified 64 copied DLLs and real synthetic PDF with no MSYS2 PATH. Now CI-only probe builds a minimal synthetic PyInstaller==6.22.3 onedir EXE with 64 DLLs under _internal/native, executes with system-only PATH, hashes synthetic PDF, checks five loaded DLL paths, publishes only metadata+PDF (never frozen executable). It is not a Digital Crown app installer nor clinic certification.
+
+RETRY_FROZEN_ROOT_DUPLICATES_SHA=8
+RED #38105118650: frozen PyInstaller minimal EXE built and rendered but assertion rejected libgobject auto-collected into _internal instead of _internal/native. Next check accepts only those two exact package directories; SHA must equal the official source across all 64 native DLLs and every auto-collected duplicate, fail on any external module path/hash mismatch. Report EXE SHA and synthetic PDF only. Fontconfig warnings persist and font fidelity is not certified. Still LAB, no release/Lenovo.
