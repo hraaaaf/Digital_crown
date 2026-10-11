@@ -27,6 +27,22 @@ const themes = [
   { id: 'dark', muted: '#94a3b8', primary: '#4f46e5', secondary: '#3730a3', accent: '#6366f1', foreground: 'rgb(255, 255, 255)' },
   { id: 'high-contrast', muted: '#111111', primary: '#000000', secondary: '#000000', accent: '#000000', foreground: 'rgb(255, 255, 255)' },
 ];
+// CSS custom properties preserve authored tokens, and production CSS minifiers
+// may shorten #111111 to #111. Compare actual RGB hex semantics, not spelling.
+function canonicalHexColor(value) {
+  const hex = String(value ?? '').trim().toLowerCase();
+  if (/^#[0-9a-f]{3}$/.test(hex)) {
+    return '#' + [...hex.slice(1)].map(channel => channel + channel).join('');
+  }
+  if (/^#[0-9a-f]{6}$/.test(hex)) return hex;
+  return null; // No silent acceptance for invalid colors or unknown formats.
+}
+if (canonicalHexColor('#111') !== canonicalHexColor('#111111')
+  || canonicalHexColor('#112') === canonicalHexColor('#111111')
+  || canonicalHexColor('') !== null) {
+  throw new Error('Pocket color normalization guard failed');
+}
+
 const expectedDentistLabels = ['Notifications', 'Stock', 'Bibliothèque', 'Approvisionnement', 'Trésorerie', 'Envois Labo', 'Équipe'];
 const expectedSecretaryLabels = ['Notifications', 'Stock', 'Équipe'];
 const credentials = {
@@ -434,7 +450,7 @@ try {
     });
     if (result.preview || result.horizontalOverflow || result.primaryActionDisabled !== false
       || result.primaryActionText !== theme.foreground
-      || !result.primaryInk || result.textMuted.toLowerCase() !== theme.muted) {
+      || !result.primaryInk || canonicalHexColor(result.textMuted) !== canonicalHexColor(theme.muted)) {
       throw new Error(`Pocket theme ${theme.id}: invalid mobile runtime inheritance: ${JSON.stringify(result)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-today-430x932.png`) });
