@@ -455,7 +455,7 @@ try {
       const recordAssetFailure = (requestUrl, reason) => {
         try {
           const url = new URL(requestUrl);
-          if (url.origin !== new URL(baseUrl).origin || !/^\\/assets\\/.*\\.(js|css)$/.test(url.pathname)) return;
+          if (url.origin !== new URL(baseUrl).origin || !/^\/assets\/.*\.(js|css)$/.test(url.pathname)) return;
           assetFailures.push({ path: url.pathname, reason: String(reason).slice(0, 160) });
         } catch { /* Invalid diagnostic URL; never log opaque credentials. */ }
       };
