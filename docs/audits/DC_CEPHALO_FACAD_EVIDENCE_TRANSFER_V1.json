@@ -1,0 +1,87 @@
+{
+  "schema_version": "DC_CEPHALO_VENDOR_EVIDENCE_TRANSFER_V1",
+  "decision": "DC_FIRST__VENDOR_NEW_RUNS_PAUSED",
+  "applies_to": "DIGITAL_CROWN_CEPHALO",
+  "canonical_repo_baseline": "c0d47f4832e6da2211c6f94eb88f0db56fcaebb6",
+  "evidence_only": true,
+  "facad_new_executions_allowed": false,
+  "facad_trial_license_reuse_claimed": false,
+  "clinical_parity_certified": false,
+  "numeric_parity_certified": false,
+  "vendor_norms_authoritative": false,
+  "vendor_label_is_direct_alias": false,
+  "clinical_activation_authorized_by_transfer": false,
+  "patient_data_required_for_transfer": false,
+  "scientific_claims_source": "INDEPENDENT_DENTAL_SCIENTIFIC_SOURCES_AND_DC_CONTRACTS_ONLY",
+  "data_sources": {
+    "dc_executable_measurements": {
+      "path": "docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json",
+      "declared_measurement_count": 38,
+      "clinical_interpretation_expected": false
+    },
+    "facad_ricketts_direct_parity": {
+      "path": "docs/audits/schemas/ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json",
+      "status_expected": "DIRECT_DEFINITION_OBSERVED",
+      "expected_evidence_records": 0,
+      "expected_parity_rows": 0,
+      "profiles_expected_unobserved": [
+        "Ricketts (32 F)",
+        "Ricketts (13 F)"
+      ]
+    },
+    "facad_compatibility_backlog": {
+      "path": "docs/audits/schemas/ortho_lot08_facad_dc_unmapped_backlog_v1.json",
+      "expected_profiles": 5,
+      "expected_remaining_unmapped": 0,
+      "decision_not_direct_alias": true
+    },
+    "source_locked_protocol_mapping": {
+      "path": "docs/audits/schemas/ortho_lot08_facad_dc_existing_protocol_mapping_v1.json",
+      "must_not_infer_equivalence_from_labels": true
+    },
+    "ricketts32_closeout": {
+      "path": "docs/handovers/2026-10-07-ricketts32-compatibility-closeout.md",
+      "prior_unmapped": 26,
+      "dispositioned": 26,
+      "scientific_parity_certified": false
+    }
+  },
+  "delivery_sequence": [
+    {
+      "id": "DC-CEPH-01",
+      "name": "Source and computation readiness: preserve explicit landmark, calibration, geometry, profile and provenance gates",
+      "status": "IN_PROGRESS_EVIDENCE_GATE",
+      "runtime_change_allowed": false
+    },
+    {
+      "id": "DC-CEPH-02",
+      "name": "Complete Digital Crown sourced executable analysis coverage and adversarial synthetic geometry tests",
+      "status": "NEXT_AFTER_DC_CEPH_01",
+      "runtime_change_requires_scientific_review": true
+    },
+    {
+      "id": "DC-CEPH-03",
+      "name": "Complete Digital Crown desktop cephalo overlays/layers and mobile behavior only where the feature exists",
+      "status": "PLANNED",
+      "visual_before_after_required": true,
+      "clinical_parity_claim_allowed": false
+    },
+    {
+      "id": "DC-CEPH-04",
+      "name": "Digital Crown report/PDF output consistency and provenance/precision controls",
+      "status": "PLANNED",
+      "patient_data_forbidden_in_tests": true
+    },
+    {
+      "id": "DC-CEPH-05",
+      "name": "FACAD same-trace comparison only if lawful actual numeric evidence becomes available",
+      "status": "PARKED_EXTERNAL_VENDOR_DEPENDENCY",
+      "needs_same_trace_evidence": true
+    }
+  ],
+  "validation_status": "PROVISIONAL_SOURCE_ONLY",
+  "gate_overrides_forbidden": true,
+  "production_data_access": false,
+  "merge_authorized": false,
+  "vercel_deployment_authorized": false
+}
