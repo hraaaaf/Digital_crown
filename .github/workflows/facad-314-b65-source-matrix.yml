@@ -9,6 +9,7 @@ on:
       - docs/audits/facad_trial_20261011/B_65_PROFILE_SOURCE_GATES_20261011.json
       - docs/audits/facad_trial_20261011/B_STEINER_TWEED_SOURCE_ARTIFACT_RECOVERY_20261011.json
       - docs/audits/facad_trial_20261011/B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json
+      - docs/audits/facad_trial_20261011/B_WAVE4_OFFICIAL_REFERENCE_OPERATOR_TYPES.json
   workflow_dispatch:
 
 permissions:
@@ -154,4 +155,51 @@ jobs:
           print('B_WAVE3_C01_C02_10_OPERATORS_SOURCE_GATES_PASS=true')
           print('B_WAVE3_C02_SEVEN_PAGES_24_LABEL_LINES_FORMULAS_UNKNOWN=true')
           print('B_WAVE3_C01_C02_NUMERIC_PARITY_VALIDATED=false')
+          PY
+
+      - name: Require source-gated nine generic type definitions without promoting C01/C02 formulas
+        shell: bash
+        run: |
+          python - <<'PY'
+          import copy,json
+          from pathlib import Path
+          base=Path('research/docs/audits/facad_trial_20261011')
+          x=json.loads((base/'B_WAVE4_OFFICIAL_REFERENCE_OPERATOR_TYPES.json').read_text())
+          old=json.loads((base/'B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json').read_text())
+          assert x['schema']=='FACAD_B_WAVE4_OFFICIAL_314_OPERATOR_TYPE_REFERENCES_V1'
+          assert x['source']['url']=='https://www.facad.com/dox/dox314/FacadRefMan.pdf'
+          assert x['source']['direct_pdf_bytes_acquired'] is False
+          assert x['source']['direct_visual_page_review'] is False
+          assert x['source']['not_equivalent_to_c01_c02_measurement_library'] is True
+          assert x['type_definitions_from_official_reference']==9
+          assert x['structural_editor_heading']==1
+          rows=x['records']
+          assert len(rows)==10 and len({r['operator'] for r in rows})==10
+          assert {r['operator'] for r in rows}=={r['operator'] for r in old['operators']}
+          for r in rows:
+              assert r['c01_c02_specific_definition']=='NOT_CERTIFIED'
+              assert r['measured_FACAD_DigitalCrown_numeric_parity']=='NOT_TESTED'
+              assert r['clinical_use_allowed'] is False
+              if r['operator']=='Heading':
+                  assert r['facad_314_reference_manual_print_page'] is None
+                  assert r['evidence_level']=='UIA_EDITOR_STRUCTURAL_ONLY'
+              else:
+                  assert r['facad_314_reference_manual_print_page'] in (86,87)
+                  assert r['evidence_level']=='OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED'
+                  assert r['generic_arguments'] and r['known_unresolved']
+          def fail_closed(doc):
+              return (doc['science_gate']=='OPEN_VENDOR_FORMULA_AND_SAME_TRACE_PARITY'
+                      and all(not r['clinical_use_allowed']
+                              and r['c01_c02_specific_definition']=='NOT_CERTIFIED'
+                              and r['measured_FACAD_DigitalCrown_numeric_parity']=='NOT_TESTED'
+                              for r in doc['records']))
+          assert fail_closed(x)
+          for index in range(10):
+              bogus=copy.deepcopy(x)
+              bogus['records'][index]['clinical_use_allowed']=True
+              assert not fail_closed(bogus),f'UNSAFE_SCIENCE_PROMOTION:{index}'
+          print('B_WAVE4_OFFICIAL_GENERIC_OPERATOR_TYPES=9_OF_10')
+          print('B_WAVE4_NEGATIVE_CLINICAL_PROMOTIONS_REJECTED=10')
+          print('B_WAVE4_C01_C02_FORMULAS_CERTIFIED=false')
+          print('B_WAVE4_VENDOR_NUMERIC_PARITY_TESTED=false')
           PY
