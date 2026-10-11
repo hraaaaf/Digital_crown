@@ -1,0 +1,37 @@
+name: FACAD F02.4 archival visual research gate
+on:
+  push:
+    branches:
+      - research/facad-f02-f04-observational-ledger-20261011
+    paths:
+      - .github/workflows/facad-f02-4-wave5-source-gate.yml
+      - docs/audits/FACAD_314_F02_4_WAVE5_VISUAL_GAP_MATRIX.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject promotion of visual comparisons without paired images
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          d=json.loads(pathlib.Path('docs/audits/FACAD_314_F02_4_WAVE5_VISUAL_GAP_MATRIX.json').read_text())
+          assert d['f02_4']=='OPEN'
+          assert d['d3']=='OPEN_RED'
+          assert d['converged'] is False
+          assert d['legacy_facad']['files_in_zip']==47
+          assert len(d['legacy_facad']['screenshots'])==6
+          assert d['legacy_facad']['pixel_analysis']['f02_3_full_frame_changed_pixels']==0
+          assert d['legacy_facad']['pixel_analysis']['f02_2_full_frame_changed_pixels']==730
+          assert d['digital_crown']['actual_comparable_screenshots']==0
+          assert d['digital_crown']['mobile_implementation_tested'] is False
+          assert len(d['compare_rows'])==12
+          assert all(v['behavior_parity']=='NOT_TESTED' and v['pixel_parity']=='NOT_TESTED' for v in d['compare_rows'])
+          print('FACAD_F02_4_SOURCE_MATRIX_PASS=12_GAPS')
+          print('FACAD_F02_4_PAIRED_UI_PARITY=false')
+          PY
