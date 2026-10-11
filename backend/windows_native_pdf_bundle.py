@@ -31,6 +31,7 @@ CRITICAL_DLLS = frozenset({
     "libfontconfig-1.dll",
     "libharfbuzz-0.dll",
 })
+FONTCONFIG_XML_SHA256 = "65247abfac13b2e4a8e1b70c879ff69ea9a26df0ceaa3db4eab758a72c5c8a13"
 PANGO_ARCHIVE_SHA256 = "8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8"
 DEJAVU_ARCHIVE_SHA256 = "dd9fd7bb48ceb0f0f004a4b34d6ac0d9cb4fd2d15273d88780b3cda6cab0beea"
 
@@ -146,6 +147,7 @@ def verify_windows_pdf_sources(
     )
     if not source_cfg.is_file() or source_cfg.is_symlink():
         raise WindowsNativePdfError("Signed Fontconfig configuration missing")
+    _verified_file(source_cfg, FONTCONFIG_XML_SHA256)
     config = source_cfg.read_text(encoding="utf-8")
     if '<dir prefix="relative">../fonts</dir>' not in config or "/usr/" in config:
         raise WindowsNativePdfError("Fontconfig must resolve fonts from the package")
