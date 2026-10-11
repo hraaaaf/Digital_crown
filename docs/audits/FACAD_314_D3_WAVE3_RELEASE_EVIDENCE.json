@@ -1,0 +1,99 @@
+{
+  "schema": "FACAD_D3_WAVE3_EVIDENCE_RELEASE_V1",
+  "status": "NO_GO_SOURCE_ONLY_PENDING_REAL_PROOFS",
+  "go_live_authorized": false,
+  "experimental_controls_only": true,
+  "case_context": "OFFLINE_NONCLINICAL_DEDICATED_GUEST_WITH_NO_PATIENT_SOURCES",
+  "review_scope": "Design of acceptance proofs only; no vendor writer, EULA, Hyper-V or trace capture executed",
+  "requirements": [
+    {
+      "blocker_id": "SEC-01",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "reviewed_exact_head": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SEC-02",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "reviewed_exact_head": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SEC-03",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "reviewed_exact_head": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SCI-01",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "reviewed_exact_head": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SCI-02",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "reviewed_exact_head": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SCI-03",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "reviewed_exact_head": null,
+      "controls_passed": false
+    }
+  ],
+  "cross_cutting": [
+    {
+      "id": "RIGHTS",
+      "ready": false,
+      "provenance": "UNKNOWN"
+    },
+    {
+      "id": "ISOLATION",
+      "ready": false,
+      "provenance": "NOT_TESTED"
+    },
+    {
+      "id": "EGRESS",
+      "ready": false,
+      "provenance": "NOT_APPROVED"
+    },
+    {
+      "id": "DESTRUCTION",
+      "ready": false,
+      "provenance": "NOT_TESTED"
+    },
+    {
+      "id": "REVIEWER_INDEPENDENCE",
+      "ready": false,
+      "provenance": "NOT_VERIFIED"
+    }
+  ],
+  "red_flags": [
+    "Shared Windows host with patient data or clinical credentials",
+    "Guest services, PowerShell Direct, clipboard, USB, hypervisor management or NIC paths not controlled/verified",
+    "Kernel-wide raw ETW/Security events available to CI artifact upload",
+    "Source/copy hash equality mistaken for application storage isolation",
+    "Synthetic event matching mistaken for true Ilexis persisted writer",
+    "Review from two prompts of the same AI mislabeled independent",
+    "Approvals represented as true without a source-authority signer and exact-head evidence"
+  ],
+  "verdict": "D3_OPEN_RED",
+  "clinical_edit_allowed": false,
+  "facad_live_writer_allowed": false,
+  "vendor_export_allowed": false,
+  "converged": false
+}
