@@ -19,13 +19,13 @@ const roles = [
   { value: 'SECRETAIRE', slug: 'secretaire', marker: 'assistant', label: 'Vue assistante · flux cabinet' },
 ];
 const themes = [
-  { id: 'emerald', primary: '#059669', secondary: '#065f46', accent: '#10b981', foreground: 'rgb(2, 6, 23)' },
-  { id: 'rose', primary: '#db2777', secondary: '#9d174d', accent: '#f472b6', foreground: 'rgb(255, 255, 255)' },
-  { id: 'prestige', primary: '#3b82f6', secondary: '#2563eb', accent: '#60a5fa', foreground: 'rgb(2, 6, 23)' },
-  { id: 'ocean', primary: '#0284c7', secondary: '#0369a1', accent: '#38bdf8', foreground: 'rgb(2, 6, 23)' },
-  { id: 'graphite', primary: '#475569', secondary: '#334155', accent: '#94a3b8', foreground: 'rgb(255, 255, 255)' },
-  { id: 'dark', primary: '#4f46e5', secondary: '#3730a3', accent: '#6366f1', foreground: 'rgb(255, 255, 255)' },
-  { id: 'high-contrast', primary: '#000000', secondary: '#000000', accent: '#000000', foreground: 'rgb(255, 255, 255)' },
+  { id: 'emerald', muted: '#065f46', primary: '#059669', secondary: '#065f46', accent: '#10b981', foreground: 'rgb(2, 6, 23)' },
+  { id: 'rose', muted: '#9d174d', primary: '#db2777', secondary: '#9d174d', accent: '#f472b6', foreground: 'rgb(255, 255, 255)' },
+  { id: 'prestige', muted: '#94a3b8', primary: '#3b82f6', secondary: '#2563eb', accent: '#60a5fa', foreground: 'rgb(2, 6, 23)' },
+  { id: 'ocean', muted: '#0369a1', primary: '#0284c7', secondary: '#0369a1', accent: '#38bdf8', foreground: 'rgb(2, 6, 23)' },
+  { id: 'graphite', muted: '#475569', primary: '#475569', secondary: '#334155', accent: '#94a3b8', foreground: 'rgb(255, 255, 255)' },
+  { id: 'dark', muted: '#94a3b8', primary: '#4f46e5', secondary: '#3730a3', accent: '#6366f1', foreground: 'rgb(255, 255, 255)' },
+  { id: 'high-contrast', muted: '#111111', primary: '#000000', secondary: '#000000', accent: '#000000', foreground: 'rgb(255, 255, 255)' },
 ];
 const expectedDentistLabels = ['Notifications', 'Stock', 'Bibliothèque', 'Approvisionnement', 'Trésorerie', 'Envois Labo', 'Équipe'];
 const expectedSecretaryLabels = ['Notifications', 'Stock', 'Équipe'];
@@ -322,7 +322,8 @@ try {
         preview: Boolean(document.querySelector('[data-dc-preview-demo]')),
       };
     });
-    if (result.preview || result.horizontalOverflow || result.primaryActionText !== theme.foreground) {
+    if (result.preview || result.horizontalOverflow || result.primaryActionText !== theme.foreground
+      || !result.primaryInk || result.textMuted.toLowerCase() !== theme.muted) {
       throw new Error(`Pocket theme ${theme.id}: invalid mobile runtime inheritance: ${JSON.stringify(result)}`);
     }
     await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-today-430x932.png`) });
