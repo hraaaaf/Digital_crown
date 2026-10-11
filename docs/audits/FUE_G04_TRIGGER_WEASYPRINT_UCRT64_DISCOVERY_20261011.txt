@@ -27,3 +27,6 @@ Green #38104766896 verified 64 copied DLLs and real synthetic PDF with no MSYS2 
 
 RETRY_FROZEN_ROOT_DUPLICATES_SHA=8
 RED #38105118650: frozen PyInstaller minimal EXE built and rendered but assertion rejected libgobject auto-collected into _internal instead of _internal/native. Next check accepts only those two exact package directories; SHA must equal the official source across all 64 native DLLs and every auto-collected duplicate, fail on any external module path/hash mismatch. Report EXE SHA and synthetic PDF only. Fontconfig warnings persist and font fidelity is not certified. Still LAB, no release/Lenovo.
+
+RETRY_BUNDLED_FONTCONFIG=9
+Run #38105319697 frozen PyInstaller PDF SUCCESS on af8d9c7248b00d1a4303f03c9c973303815fb0e2, 5127 bytes. But unresolved Fontconfig 'Cannot load default config file' affects font fidelity. CI-only retry adds pinned official MSYS2 DejaVu fonts 2.37-4 SHA256 dd9fd7bb48ceb0f0f004a4b34d6ac0d9cb4fd2d15273d88780b3cda6cab0beea with license, self-contained XML Fontconfig relative fonts directory, native FcFontMatch selected path assertion, and captures stderr fail-closed against missing-fontconfig error. Synthetic proof only; never production DLL promotion, install or merge.
