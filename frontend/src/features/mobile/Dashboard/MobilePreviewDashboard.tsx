@@ -114,7 +114,12 @@ export function MobilePreviewDashboard() {
   const totalCount = snapshot.appointments.length;
   const termineCount = snapshot.appointments.filter(appointment => appointment.status === 'TERMINE').length;
 
-  useEffect(() => { applyMobileRuntimeTheme({ selected_theme: 'elite', primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa', app_accent_color: null, font_fr: 'inter' }); }, []);
+  useEffect(() => {
+    // Demo-only switch for visual/theme certification; no cabinet palette is baked in.
+    const requested = new URLSearchParams(window.location.search).get('theme') || 'elite';
+    const supported = ['elite', 'emerald', 'rose', 'prestige', 'ocean', 'graphite', 'dark', 'high-contrast'];
+    applyMobileRuntimeTheme({ selected_theme: supported.includes(requested) ? requested : 'elite', font_fr: 'inter' });
+  }, []);
   useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [activeTab]);
   const selectNavTab = (tab: Tab) => { setQuickActionsOpen(false); setActiveTab(tab); };
 
@@ -123,7 +128,7 @@ export function MobilePreviewDashboard() {
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-50" />
       <MobileHeader activeTab={activeTab} syncStatus="error" snapshot={snapshot} selectedDate={selectedDate} setSelectedDate={setSelectedDate} fetchSnapshot={noop} totalCount={totalCount} termineCount={termineCount} queuedActionsCount={0} onOpenPatients={() => selectNavTab('patients')} previewMode />
       <div className="mx-6 mb-4 px-4 py-3 rounded-[18px] border border-primary/15 bg-primary/5 relative z-10 shadow-sm"><p className="text-[9px] font-black text-primary uppercase tracking-[0.16em]">MODE DÉMO — DONNÉES FICTIVES</p><p className="mt-1 text-[10px] font-bold text-text-muted">Aucune donnée cabinet • aucune session réelle</p></div>
-      <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
+      <main ref={mainRef} className="min-w-0 flex-1 px-4 sm:px-6 overflow-x-hidden overflow-y-auto pb-[calc(108px+env(safe-area-inset-bottom))]">
         <AnimatePresence mode="wait"><motion.div key={activeTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="h-full">
           {activeTab === 'today' && <PocketTodayOverview snapshot={snapshot} selectedDate={selectedDate} onOpenPatient={noop} onOpenWaitingRoom={() => selectNavTab('waiting-room')} onOpenFrontdesk={() => selectNavTab('frontdesk')} onOpenAlerts={() => selectNavTab('notifications')} />}
           {activeTab === 'agenda' && <PocketAgendaDay snapshot={snapshot} selectedDate={selectedDate} isOnline onOpenPatient={noop} />}
