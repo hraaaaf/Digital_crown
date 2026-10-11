@@ -4,7 +4,8 @@ import { MobileHeader } from './components/MobileHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { MobileQuickActionHub } from './components/MobileQuickActionHub';
 import './components/mobileQuickActionHub.css';
-import { AgendaView } from './views/AgendaView';
+import { PocketAgendaDay } from './views/PocketAgendaDay';
+import { PocketTodayOverview } from './components/PocketTodayOverview';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { FinanceView } from './views/FinanceView';
 import { LabView } from './views/LabView';
@@ -106,7 +107,7 @@ const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
   const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-  return tab && ['agenda', 'waiting-room', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace'].includes(tab) ? tab : 'agenda';
+  return tab && ['today', 'agenda', 'waiting-room', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace'].includes(tab) ? tab : 'today';
 }
 
 function requestedQuickOpen(): boolean { return new URLSearchParams(window.location.search).get('quick') === '1'; }
@@ -131,9 +132,10 @@ export function MobilePreviewDashboard() {
       <div className="mx-6 mb-4 px-4 py-3 rounded-[18px] border border-primary/15 bg-primary/5 relative z-10 shadow-sm"><p className="text-[9px] font-black text-primary uppercase tracking-[0.16em]">MODE DÉMO — DONNÉES FICTIVES</p><p className="mt-1 text-[10px] font-bold text-text-muted">Aucune donnée cabinet • aucune session réelle</p></div>
       <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
         <AnimatePresence mode="wait"><motion.div key={activeTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="h-full">
-          {activeTab === 'agenda' && <div className="pointer-events-none" aria-label="Agenda de démonstration en lecture seule"><AgendaView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} setSelectedDate={setSelectedDate} patients={DEMO_PATIENTS} onStatusChange={noop} onRescheduleAppt={noop} openApptWhatsApp={noop as (appointment: Appointment) => void} handleDeleteAppt={noop} handleOpenSignature={noop} onRefresh={noop} onPatientCreated={noop} /></div>}
+          {activeTab === 'today' && <PocketTodayOverview snapshot={snapshot} selectedDate={selectedDate} onOpenPatient={noop} onOpenWaitingRoom={() => selectNavTab('waiting-room')} onOpenFrontdesk={() => selectNavTab('frontdesk')} onOpenAlerts={() => selectNavTab('notifications')} />}
+          {activeTab === 'agenda' && <PocketAgendaDay snapshot={snapshot} selectedDate={selectedDate} isOnline onOpenPatient={noop} />}
           {activeTab === 'waiting-room' && <WaitingRoomView snapshot={snapshot} onStatusChange={noop} />}
-          {activeTab === 'patients' && <MobilePatientsView onClose={() => selectNavTab('agenda')} previewData={DEMO_PATIENT_COCKPIT} />}
+          {activeTab === 'patients' && <MobilePatientsView onClose={() => selectNavTab('today')} previewData={DEMO_PATIENT_COCKPIT} />}
           {activeTab === 'finance' && <FinanceView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} openWhatsApp={noop} handleExportPDF={noop} />}
           {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />}
           {activeTab === 'frontdesk' && <FrontdeskView previewData={DEMO_FRONTDESK} />}
