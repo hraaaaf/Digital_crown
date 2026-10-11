@@ -135,7 +135,7 @@ def test_real_runtime_revisions_and_all_38_contract_statuses() -> None:
     final_projection = _read(fourth, fourth_result)
     final_status, final_count = _matrix(final_projection)
     assert final_status["M_CO_A_MM_V1"] == "AVAILABLE"
-    assert final_count["AVAILABLE"] >= third_count["AVAILABLE"] - 2
+    assert final_count["AVAILABLE"] == third_count["AVAILABLE"], "Landmark correction changed availability coverage"
     assert all(
         x["calibration_ref"] is not None
         for x in fourth["measurements"]
@@ -152,7 +152,21 @@ def test_real_runtime_revisions_and_all_38_contract_statuses() -> None:
         assert pdf["measurements"] == [] and pdf["canonical_measurements"] == []
     assert pdf["document_state"] != "COMPLETE", "Fixture cannot certify a clinical report"
 
-    # Never write per-measure, per-patient, raw landmark or numeric values to CI.
+    # Only publish canonical contract IDs, units and *statuses*; never publish
+    # numeric values, fixture identifiers, coordinates, landmark refs, or clinical data.
+    contract_items = json.loads(CONTRACT.read_text(encoding="utf-8"))["measurements"]
+    status_rows = {
+        item["measurement_id"]: {
+            "unit": item["unit"],
+            "requires_calibration": item["requires_calibration"],
+            "uncalibrated": initial_status[item["measurement_id"]],
+            "calibrated": third_status[item["measurement_id"]],
+            "post_correction": final_status[item["measurement_id"]],
+        }
+        for item in sorted(contract_items, key=lambda item: item["measurement_id"])
+    }
+    assert len(status_rows) == 38
+    assert sum(row["post_correction"] == "NOT_EXPOSED" for row in status_rows.values()) == final_count["NOT_EXPOSED"]
     aggregate = {
         "schema": "DC_CEPH02B_RUNTIME_MATRIX_V1",
         "status": "SYNTHETIC_RUNTIME_ONLY",
@@ -160,11 +174,12 @@ def test_real_runtime_revisions_and_all_38_contract_statuses() -> None:
         "uncalibrated": initial_count,
         "calibrated": third_count,
         "post_correction": final_count,
+        "per_measure_statuses": status_rows,
         "revision_sequence": ["INITIAL", "LANDMARK_EDIT", "MANUAL_CALIBRATION", "LANDMARK_EDIT"],
         "typed_runtime_read_valid": True,
         "pdf_projection_invoked": True,
         "pdf_document_clinically_complete": False,
-        "all_38_measurements_available": False,
+        "all_38_measurements_available": final_count["AVAILABLE"] == 38,
         "facad_numeric_parity_proved": False,
         "clinical_activation_allowed": False,
         "real_patient_data_used": False,
