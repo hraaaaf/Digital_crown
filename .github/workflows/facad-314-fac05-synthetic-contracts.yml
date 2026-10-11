@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/facad-314-fac05-synthetic-contracts.yml
       - docs/audits/facad_trial_20261011/FAC05_SAME_TRACE_PREREGISTRATION_20261011.json
+      - docs/audits/scripts/facad_fac05_dc_synthetic_bridge_test.py
   workflow_dispatch:
 
 permissions:
@@ -39,6 +40,12 @@ jobs:
             exit 1
           fi
           echo "EXACT_ORACLE_BLOB_PASS=$observed"
+          observed_dc="$(git -C science-source hash-object backend/services/cephalo_steiner_geometry.py)"
+          if [ "$observed_dc" != "70900959042c7e7373c404959c18122e3b8038e3" ]; then
+            echo "DC_SOURCE_DRIFT_STOP"
+            exit 1
+          fi
+          echo "EXACT_DC_STEINER_BLOB_PASS=$observed_dc"
 
       - name: Validate research-only prerequisite gates and twelve synthetic scenarios
         shell: bash
@@ -69,4 +76,13 @@ jobs:
         run: |
           python science-source/docs/audits/scripts/facad_c02_synthetic_geometry_contract.py -v
           echo "FAC05_SYNTHETIC_CANDIDATE_ORACLE_PASS=true"
+          echo "FAC05_VENDOR_PARITY_VALIDATED=false"
+
+      - name: Compare synthetic candidate contracts with pinned DC Steiner geometry
+        shell: bash
+        env:
+          FAC05_PINNED_SOURCE_ROOT: ${{ github.workspace }}/science-source
+        run: |
+          python protocol/docs/audits/scripts/facad_fac05_dc_synthetic_bridge_test.py -v
+          echo "FAC05_DC_SOURCE_ONLY_BRIDGE_PASS=true"
           echo "FAC05_VENDOR_PARITY_VALIDATED=false"
