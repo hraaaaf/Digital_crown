@@ -137,7 +137,12 @@ def audit(msys_root: Path, provenance: Path, report_path: Path) -> dict:
             normalized = raw.replace("\\", "/")
             if "/share/licenses/" not in normalized or normalized.endswith("/"):
                 continue
-            full = Path(raw)
+            if normalized.startswith("/ucrt64/"):
+                full = msys_root / normalized.removeprefix("/")
+            elif re.match(r"^[A-Za-z]:/", normalized):
+                full = Path(normalized)
+            else:
+                raise RuntimeError(f"MSYS2 license notice outside UCRT64: {name}")
             if not full.is_file() or full.is_symlink():
                 raise RuntimeError(f"Missing linked license notice in {name}")
             notice_files.append({
