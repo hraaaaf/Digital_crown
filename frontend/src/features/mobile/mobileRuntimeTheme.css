@@ -4,6 +4,28 @@
  * Once the mobile runtime theme is active, those utilities must resolve to the
  * cabinet-selected app font instead of owning a font family themselves.
  */
+/* Keep small Pocket labels WCAG-readable while preserving the selected primary
+   fill/accent. The primary-ink token is computed from the actual cabinet theme. */
+html[data-mobile-theme-runtime='true'] [data-dc-mobile-shell] .text-primary {
+  color: var(--primary-ink);
+}
+html[data-mobile-theme-runtime='true'][data-theme='emerald'],
+html[data-mobile-theme-runtime='true'] body[data-theme='emerald'] {
+  --text-muted: #065f46;
+}
+html[data-mobile-theme-runtime='true'][data-theme='rose'],
+html[data-mobile-theme-runtime='true'] body[data-theme='rose'] {
+  --text-muted: #9d174d;
+}
+html[data-mobile-theme-runtime='true'][data-theme='ocean'],
+html[data-mobile-theme-runtime='true'] body[data-theme='ocean'] {
+  --text-muted: #0369a1;
+}
+html[data-mobile-theme-runtime='true'][data-theme='dark'],
+html[data-mobile-theme-runtime='true'] body[data-theme='dark'] {
+  --text-muted: #94a3b8;
+}
+
 html[data-mobile-theme-runtime='true'] body,
 html[data-mobile-theme-runtime='true'] body :is(.font-outfit, .font-sans, .font-serif, .font-mono) {
   font-family: var(--app-font-family, "Inter", system-ui, sans-serif) !important;
