@@ -38,14 +38,21 @@ function setCssVariable(name: string, value?: string | null) {
   }
 }
 
-function textColorForHex(hexColor?: string | null): string | null {
+export function textColorForHex(hexColor?: string | null): string | null {
   if (!hexColor || !/^#[0-9a-f]{6}$/i.test(hexColor)) return null;
   const hex = hexColor.slice(1);
-  const r = Number.parseInt(hex.slice(0, 2), 16);
-  const g = Number.parseInt(hex.slice(2, 4), 16);
-  const b = Number.parseInt(hex.slice(4, 6), 16);
-  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-  return yiq >= 128 ? '#0f172a' : '#ffffff';
+  const rgb = [0, 2, 4].map(index => Number.parseInt(hex.slice(index, index + 2), 16));
+  const luminance = (channels: number[]) => channels
+    .map(channel => channel / 255)
+    .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  const background = luminance(rgb);
+  const dark = '#020617';
+  const white = '#ffffff';
+  const contrastDark = (Math.max(background, luminance([2, 6, 23])) + 0.05)
+    / (Math.min(background, luminance([2, 6, 23])) + 0.05);
+  const contrastWhite = (1.05) / (background + 0.05);
+  return contrastDark >= contrastWhite ? dark : white;
 }
 
 function enableMobileRuntimeFontRouting() {
