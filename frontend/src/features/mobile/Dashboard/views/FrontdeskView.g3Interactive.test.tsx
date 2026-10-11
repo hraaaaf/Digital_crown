@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FrontdeskView } from './FrontdeskView';
-import { api } from '../../../../services/api';
+import { mobileApiJson } from '../../../../services/zka/mobileApi';
 
-vi.mock('../../../../services/api', () => ({
-  api: { get: vi.fn(), post: vi.fn() },
+vi.mock('../../../../services/zka/mobileApi', () => ({
+  mobileApiJson: vi.fn(),
 }));
 
 const request = {
@@ -22,8 +22,7 @@ const request = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(api.get).mockResolvedValue({ data: [request] } as never);
-  vi.mocked(api.post).mockResolvedValue({ data: {} } as never);
+  vi.mocked(mobileApiJson).mockResolvedValue([request] as never);
 });
 afterEach(() => cleanup());
 
@@ -31,22 +30,23 @@ describe('FrontdeskView G3 mobile action matrix', () => {
   it('loads and refreshes pending requests from backend truth', async () => {
     render(<FrontdeskView />);
     expect(await screen.findByText('Sara BENALI')).toBeTruthy();
-    expect(api.get).toHaveBeenCalledWith('/appointments/pending');
+    expect(mobileApiJson).toHaveBeenCalledWith('/frontdesk/pending');
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualiser les demandes de rendez-vous' }));
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mobileApiJson).toHaveBeenCalledTimes(2));
   });
 
   it('confirms a request then reloads only after backend ACK', async () => {
-    vi.mocked(api.get)
-      .mockResolvedValueOnce({ data: [request] } as never)
-      .mockResolvedValueOnce({ data: [] } as never);
+    vi.mocked(mobileApiJson)
+      .mockResolvedValueOnce([request] as never)
+      .mockResolvedValueOnce({ status: 'CONFIRME' } as never)
+      .mockResolvedValueOnce([] as never);
     render(<FrontdeskView />);
     await screen.findByText('Sara BENALI');
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/appointments/3/confirm'));
+    await waitFor(() => expect(mobileApiJson).toHaveBeenCalledWith('/frontdesk/requests/3/confirm', { method: 'POST' }));
     expect(await screen.findByText('Rendez-vous confirmé.')).toBeTruthy();
     expect(await screen.findByText('Aucune demande en attente')).toBeTruthy();
   });
@@ -60,13 +60,14 @@ describe('FrontdeskView G3 mobile action matrix', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
     expect(screen.queryByRole('dialog', { name: 'Confirmer le refus' })).toBeNull();
-    expect(api.post).not.toHaveBeenCalled();
+    expect(mobileApiJson).not.toHaveBeenCalledWith('/frontdesk/requests/3/reject', { method: 'POST' });
   });
 
   it('rejects after explicit dialog confirmation and reloads', async () => {
-    vi.mocked(api.get)
-      .mockResolvedValueOnce({ data: [request] } as never)
-      .mockResolvedValueOnce({ data: [] } as never);
+    vi.mocked(mobileApiJson)
+      .mockResolvedValueOnce([request] as never)
+      .mockResolvedValueOnce({ status: 'CONFIRME' } as never)
+      .mockResolvedValueOnce([] as never);
     render(<FrontdeskView />);
     await screen.findByText('Sara BENALI');
 
@@ -74,23 +75,23 @@ describe('FrontdeskView G3 mobile action matrix', () => {
     const dialog = screen.getByRole('dialog', { name: 'Confirmer le refus' });
     fireEvent.click(dialog.querySelectorAll('button')[1]);
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/appointments/3/reject'));
+    await waitFor(() => expect(mobileApiJson).toHaveBeenCalledWith('/frontdesk/requests/3/reject', { method: 'POST' }));
     expect(await screen.findByText('Demande refusée.')).toBeTruthy();
   });
 
   it('requests confirmation without claiming that a message was sent automatically', async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { message_template: 'Bonjour' } } as never);
+    vi.mocked(mobileApiJson).mockResolvedValueOnce([request] as never).mockResolvedValueOnce({ message_template: 'Bonjour' } as never);
     render(<FrontdeskView />);
     await screen.findByText('Sara BENALI');
 
     fireEvent.click(screen.getByRole('button', { name: 'Demander confirmation' }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/appointments/3/request-confirmation'));
+    await waitFor(() => expect(mobileApiJson).toHaveBeenCalledWith('/frontdesk/requests/3/request-confirmation', { method: 'POST' }));
     expect(await screen.findByText(/Aucun envoi automatique n’a été effectué/i)).toBeTruthy();
   });
 
   it('preserves the request and surfaces backend refusal details', async () => {
-    vi.mocked(api.post).mockRejectedValueOnce({ response: { data: { detail: 'Demande expirée' } } });
+    vi.mocked(mobileApiJson).mockResolvedValueOnce([request] as never).mockRejectedValueOnce(new Error('Demande expirée'));
     render(<FrontdeskView />);
     await screen.findByText('Sara BENALI');
 
