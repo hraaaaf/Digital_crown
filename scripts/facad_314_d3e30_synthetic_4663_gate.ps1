@@ -65,6 +65,8 @@ $other=New-Event -Pid '0xBCD'
 $script:Batch=@($valid,$other)
 $batch=Get-D3E30Security4663Batch -StartTime ([datetime]'2026-10-11T08:00:00')
 if($batch.queried_event_count -ne 2 -or @($batch.file_records).Count -ne 2 -or
+   $batch.file_records[0] -isnot [System.Collections.IDictionary] -or
+   $batch.file_records[0]['ObjectType'] -cne 'File' -or
    $batch.file_records[0].ProcessId -cne '0xABC' -or
    $batch.file_records[1].ProcessId -cne '0xBCD'){throw 'D3E30_VALID_BATCH_FAILED'}
 $passed++
