@@ -12,6 +12,7 @@ on:
       - scripts/facad_314_f04_1_passive_surface_inventory.ps1
       - scripts/facad_314_f04_1_census_gate.ps1
       - scripts/test_facad_314_f04_1_census_gate.ps1
+      - scripts/facad_314_f04_2_passive_tab_capabilities.ps1
   workflow_dispatch:
 
 permissions:
@@ -37,6 +38,7 @@ jobs:
             'scripts/facad_314_f04_1_passive_surface_inventory.ps1',
             'scripts/facad_314_f04_1_census_gate.ps1',
             'scripts/test_facad_314_f04_1_census_gate.ps1',
+            'scripts/facad_314_f04_2_passive_tab_capabilities.ps1',
             'scripts/facad_314_d1b_catalog_selection.ps1',
             'scripts/facad_314_d2_view_probe.ps1',
             'scripts/facad_314_d2b_view_structure.ps1',
@@ -1005,6 +1007,7 @@ jobs:
           $f023=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f02_3_passive_anatomy_menu.ps1'
           $f041=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f04_1_passive_export_menus.ps1'
           $f04Surface=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f04_1_passive_surface_inventory.ps1'
+          $f042=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_f04_2_passive_tab_capabilities.ps1'
           $d3Preflight=Join-Path $env:GITHUB_WORKSPACE 'scripts/facad_314_d3_sandbox_preflight.ps1'
           $observationFailure=$null
           $preflightFailure=$null
@@ -1023,6 +1026,10 @@ jobs:
               -OutDir 'facad-quick-demo'
             if(-not (Test-Path -LiteralPath $f04Surface)){throw 'F04.1 passive allowlist inventory missing'}
             & $f04Surface -FacadProcessId ([int]$facadPid) `
+              -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
+              -OutDir 'facad-quick-demo'
+            if(-not (Test-Path -LiteralPath $f042)){throw 'F04.2 passive tab capabilities probe missing'}
+            & $f042 -FacadProcessId ([int]$facadPid) `
               -MainWindowHwnd ([long]$facadWindow.Current.NativeWindowHandle) `
               -OutDir 'facad-quick-demo'
           }catch{
@@ -1086,6 +1093,8 @@ jobs:
             facad-quick-demo/f04-1-menu-observations.csv
             facad-quick-demo/f04-1-surface-status.txt
             facad-quick-demo/f04-1-surface-allowlist.csv
+            facad-quick-demo/f04-2-status.txt
+            facad-quick-demo/f04-2-tab-capabilities.csv
             facad-quick-demo/d1c-*.png
             facad-quick-demo/d1c-*.txt
             facad-quick-demo/d1c-editor-pilot.csv
