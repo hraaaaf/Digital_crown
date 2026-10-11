@@ -6,6 +6,9 @@ on:
       - feat/v15-04-4-station-bound-document-qr-nfc-20261011
     paths:
       - "backend/routers/station_patient_session.py"
+      - "backend/config.py"
+      - "backend/.env.example"
+      - "docs/v1.5/V15_04_4_STATION_DOCUMENT_QR_NFC_HANDOFF_20261011.md"
       - "backend/tests/test_station_document_handoff_v15.py"
       - ".github/workflows/v15-04-4-station-document-qr-nfc.yml"
       - "frontend/src/features/hub/StationPatientIdentity.tsx"
