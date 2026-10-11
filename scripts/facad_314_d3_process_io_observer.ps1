@@ -28,8 +28,19 @@ public static class D3SafeProcessIoCounters {
 }
 '@
 
-function Get-SafeCounters([int]$id){
-  $proc=[Diagnostics.Process]::GetProcessById($id)
+function Get-SafeCounters([int]$id,[int]$rootId){
+  # A child can exit after the CIM lineage snapshot and before GetProcessById.
+  # Ignore ONLY the confirmed missing-child lookup; never hide root or access errors.
+  try{
+    $proc=[Diagnostics.Process]::GetProcessById($id)
+  }catch{
+    $reason=$_.Exception
+    $confirmedAbsent=($reason -is [ArgumentException] -or
+                      $reason.InnerException -is [ArgumentException])
+    if(-not $confirmedAbsent){throw}
+    if($id -eq $rootId){throw 'D3_ROOT_PROCESS_ABSENT_AT_COUNTER_LOOKUP'}
+    return $null
+  }
   try{
     $c=[D3SafeProcessIoCounters+Counters]::new()
     if(-not [D3SafeProcessIoCounters]::GetProcessIoCounters($proc.Handle,[ref]$c)){
@@ -68,12 +79,17 @@ $latest=@{}
 $observedPids=@{}
 $rootPolls=0
 $sampleCount=0
+$disappearedChildCounterReads=0
 $intervalMs=500
 $polls=$DurationSeconds*2
 for($poll=0;$poll -lt $polls;$poll++){
   $ids=@(Read-ProcessIds $TargetPid)
   foreach($id in $ids){
-    $counter=Get-SafeCounters ([int]$id)
+    $counter=Get-SafeCounters ([int]$id) $TargetPid
+    if($null -eq $counter){
+      $disappearedChildCounterReads++
+      continue
+    }
     if(-not $baselines.ContainsKey($id)){$baselines[$id]=$counter}
     $latest[$id]=$counter
     $observedPids[$id]=$true
@@ -110,6 +126,7 @@ $result=@{
   read_operation_count_delta=$readOps
   path_attribution_available=$false
   complete_child_process_coverage=$false
+  disappeared_child_counter_reads=$disappearedChildCounterReads
   registry_values_read=$false
   files_or_command_lines_read=$false
   d3_isolation_verified=$false
@@ -120,6 +137,7 @@ $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $outFull -Encoding 
 Write-Host 'D3_PROCESS_IO_CAPTURE_COMPLETE=true'
 Write-Host "D3_PROCESS_IO_SAMPLES=$sampleCount"
 Write-Host "D3_PROCESS_IO_RELATED_PROCESSES=$($observedPids.Count)"
+Write-Host "D3_PROCESS_IO_DISAPPEARED_CHILD_READS=$disappearedChildCounterReads"
 Write-Host "D3_PROCESS_IO_WRITE_TRANSFER_BYTES_DELTA=$writes"
 Write-Host 'D3_PROCESS_IO_PATH_ATTRIBUTION=false'
 Write-Host 'D3_ISOLATION_VERIFIED=false'
