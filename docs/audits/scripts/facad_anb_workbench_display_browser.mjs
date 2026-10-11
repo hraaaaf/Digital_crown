@@ -53,7 +53,7 @@ const entry=[
  "  <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:8}}>{cases.map((c,i)=><button key={c.id} data-testid={'fixture-'+c.id} onClick={()=>swap(i,'valid')}>{c.id}</button>)}</div>",
  "  <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:12}}><button data-testid='source-valid' onClick={()=>swap(index,'valid')}>Source valide</button><button data-testid='source-invalid' onClick={()=>swap(index,'invalid')}>Source non vérifiée</button><button data-testid='source-divergent' onClick={()=>swap(index,'divergent')}>Divergence injectée</button></div>",
  "  <div data-testid='fixture-id'>{cases[index].id}</div><div data-testid='fixture-mode'>{scenario}</div>",
- "  <div style={{height:'calc(100vh - 210px)',minHeight:390,maxWidth:850,display:'flex'}}><div style={{width:'100%',height:'100%',minWidth:0,display:'flex'}}><CephaloAnalysisWorkbenchPanel P={P} analysis={analysis}/></div></div>",
+ "  <div style={{height:1100,minHeight:900,maxWidth:850,display:'flex'}}><div style={{width:'100%',height:'100%',minWidth:0,display:'flex'}}><CephaloAnalysisWorkbenchPanel P={P} analysis={analysis}/></div></div>",
  " </main>",
  "}",
  "createRoot(document.getElementById('root')).render(<App/>);"
@@ -117,8 +117,18 @@ try{
     if(a!==fixture.legacy||b!==fixture.legacy)throw Error('ANB render mismatch '+fixture.id+' '+a+' '+b+' expected '+fixture.legacy);
     traces.push({viewport:v.name,fixture:fixture.id,all_mode_anb:a,steiner_mode_anb:b,facad_numeric_output:null});
     if(fixture.id==='F1_STRADDLE'){
-     await mode(page,'all');await page.screenshot({path:path.join(OUTPUT,v.name+'-BEFORE-all.png'),fullPage:false});
-     await mode(page,'steiner');await page.screenshot({path:path.join(OUTPUT,v.name+'-AFTER-steiner.png'),fullPage:false});
+     await mode(page,'all');
+     const beforeRow=page.locator('[data-r19-metric="ANB"]');
+     await beforeRow.scrollIntoViewIfNeeded({timeout:10000});
+     const beforeBox=await beforeRow.boundingBox();
+     if(!beforeBox || beforeBox.height<8 || beforeBox.y<0 || beforeBox.y+beforeBox.height>v.height)throw Error('BEFORE ANB row not visible in screenshot '+v.name);
+     await page.screenshot({path:path.join(OUTPUT,v.name+'-BEFORE-all.png'),fullPage:false});
+     await mode(page,'steiner');
+     const afterRow=page.locator('[data-r19-metric="M_ANB_DEG_V1"]');
+     await afterRow.scrollIntoViewIfNeeded({timeout:10000});
+     const afterBox=await afterRow.boundingBox();
+     if(!afterBox || afterBox.height<8 || afterBox.y<0 || afterBox.y+afterBox.height>v.height)throw Error('AFTER ANB row not visible in screenshot '+v.name);
+     await page.screenshot({path:path.join(OUTPUT,v.name+'-AFTER-steiner.png'),fullPage:false});
      captures.push({viewport:v.name,width:v.width,height:v.height,before:'BEFORE-all',after:'AFTER-steiner'});
     }
    }
