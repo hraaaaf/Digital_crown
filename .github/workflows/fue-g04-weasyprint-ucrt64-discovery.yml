@@ -25,7 +25,7 @@ jobs:
           msystem: UCRT64
           update: true
           cache: false
-          install: mingw-w64-ucrt-x86_64-pango
+          install: mingw-w64-ucrt-x86_64-pango mingw-w64-ucrt-x86_64-ttf-dejavu
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -235,12 +235,45 @@ jobs:
           $sourceNative = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
           $dlls = @(Get-ChildItem -LiteralPath $sourceNative -File -Filter '*.dll' | Sort-Object Name)
           if ($dlls.Count -ne 64) { throw 'Unexpected DLL count: abort frozen laboratory' }
+          # The font package is official MSYS2 UCRT64 and its archive bytes are pinned.
+          $fontPackageName = 'mingw-w64-ucrt-x86_64-ttf-dejavu-2.37-4-any.pkg.tar.zst'
+          $fontArchive = Join-Path $env:MSYS2_LOCATION "var/cache/pacman/pkg/$fontPackageName"
+          if (-not (Test-Path -LiteralPath $fontArchive -PathType Leaf)) {
+            $bash = Join-Path $env:MSYS2_LOCATION 'usr/bin/bash.exe'
+            & $bash -lc 'pacman -Sw --noconfirm --cachedir /var/cache/pacman/pkg mingw-w64-ucrt-x86_64-ttf-dejavu'
+            if ($LASTEXITCODE -ne 0) { throw 'Official DejaVu archive not available via pacman' }
+          }
+          if (-not (Test-Path -LiteralPath $fontArchive -PathType Leaf)) { throw 'Missing pinned DejaVu font package archive' }
+          $fontPackageHash = (Get-FileHash -LiteralPath $fontArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($fontPackageHash -ne 'dd9fd7bb48ceb0f0f004a4b34d6ac0d9cb4fd2d15273d88780b3cda6cab0beea') {
+            throw 'Official DejaVu font package SHA256 mismatch'
+          }
+          $fontDir = Join-Path $env:MSYS2_LOCATION 'ucrt64/share/fonts/TTF'
+          $regular = Join-Path $fontDir 'DejaVuSans.ttf'
+          $bold = Join-Path $fontDir 'DejaVuSans-Bold.ttf'
+          $fontLicense = Join-Path $env:MSYS2_LOCATION 'ucrt64/share/licenses/ttf-dejavu/LICENSE'
+          foreach ($item in @($regular, $bold, $fontLicense)) {
+            if (-not (Test-Path -LiteralPath $item -PathType Leaf)) { throw "Missing official bundled font source: $item" }
+          }
+          Write-Host 'EXPERIMENTAL_DEJAVU_PACKAGE_SHA256=VERIFIED'
           # This is the canonical Windows toolchain version; no app runtime is changed.
           & $python -m pip install --no-input --disable-pip-version-check 'pyinstaller==6.22.3'
           if ($LASTEXITCODE -ne 0) { throw 'PyInstaller 6.22.3 unavailable' }
           $root = Join-Path $env:RUNNER_TEMP 'fue-g04-disposable-frozen-probe'
           New-Item -ItemType Directory -Path $root -Force | Out-Null
           $source = Join-Path $root 'fue-g04-synthetic-pdf-only.py'
+          $config = Join-Path $root 'fontconfig/fonts.conf'
+          New-Item -ItemType Directory -Path (Split-Path -Path $config -Parent) -Force | Out-Null
+          @'
+          <?xml version="1.0"?>
+          <fontconfig>
+            <dir prefix="relative">../fonts</dir>
+            <alias>
+              <family>sans-serif</family>
+              <prefer><family>DejaVu Sans</family></prefer>
+            </alias>
+          </fontconfig>
+          '@ | Set-Content -LiteralPath $config -Encoding utf8
           @'
           import ctypes
           import hashlib
@@ -264,6 +297,16 @@ jobs:
           if len(list(bundled.glob("*.dll"))) != 64:
               raise AssertionError("Bundled DLL count mismatch")
 
+          font_root = frozen_internal / "fonts"
+          fontconfig = frozen_internal / "fontconfig" / "fonts.conf"
+          regular_font = font_root / "DejaVuSans.ttf"
+          bold_font = font_root / "DejaVuSans-Bold.ttf"
+          font_license = font_root / "LICENSE"
+          for file in (fontconfig, regular_font, bold_font, font_license):
+              if not file.is_file():
+                  raise AssertionError(f"Frozen fontconfig/DejaVu asset missing: {file}")
+          os.environ["FONTCONFIG_FILE"] = str(fontconfig)
+          os.environ["FONTCONFIG_PATH"] = str(fontconfig.parent)
           os.environ["WEASYPRINT_DLL_DIRECTORIES"] = str(bundled)
           dll_handle = os.add_dll_directory(str(bundled))
           from weasyprint import HTML
@@ -275,8 +318,39 @@ jobs:
           for name in required:
               ctypes.WinDLL(str(bundled / name))
 
+          # Query the real native Fontconfig API: rendered font must resolve to
+          # our bundled TTF, not the ephemeral runner's installed system fonts.
+          fc = ctypes.WinDLL(str(bundled / "libfontconfig-1.dll"))
+          fc.FcInitLoadConfigAndFonts.argtypes = []
+          fc.FcInitLoadConfigAndFonts.restype = ctypes.c_void_p
+          cfg = fc.FcInitLoadConfigAndFonts()
+          if not cfg:
+              raise AssertionError("Fontconfig could not load bundled XML")
+          fc.FcNameParse.argtypes = [ctypes.c_char_p]
+          fc.FcNameParse.restype = ctypes.c_void_p
+          pat = fc.FcNameParse(b"DejaVu Sans")
+          if not pat:
+              raise AssertionError("Fontconfig pattern parse failure")
+          fc.FcFontMatch.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+          fc.FcFontMatch.restype = ctypes.c_void_p
+          match_status = ctypes.c_int()
+          matched = fc.FcFontMatch(cfg, pat, ctypes.byref(match_status))
+          if not matched:
+              raise AssertionError("No matching bundled font")
+          fc.FcPatternGetString.argtypes = [
+              ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int,
+              ctypes.POINTER(ctypes.c_char_p),
+          ]
+          fc.FcPatternGetString.restype = ctypes.c_int
+          selected_ptr = ctypes.c_char_p()
+          if fc.FcPatternGetString(matched, b"file", 0, ctypes.byref(selected_ptr)) != 0:
+              raise AssertionError("Fontconfig match has no file")
+          selected_font = Path(os.fsdecode(selected_ptr.value)).resolve()
+          if selected_font.parent != font_root:
+              raise AssertionError(f"Fontconfig selected an external font: {selected_font}")
+
           out = Path(os.environ["RUNNER_TEMP"]) / "fue-g04-frozen-lab-synthetic.pdf"
-          HTML(string="<html><body><h1>Frozen probe</h1><p>Fictional only.</p></body></html>").write_pdf(out)
+          HTML(string='<html><style>body { font-family: "DejaVu Sans", sans-serif; }</style><body><h1>Frozen probe</h1><p>Fictional français: été, façade, Noël.</p></body></html>').write_pdf(out)
           pdf = out.read_bytes()
           if not (pdf.startswith(b"%PDF-") and 1024 < len(pdf) < 500000):
               raise AssertionError("Bundled frozen WeasyPrint PDF invalid")
@@ -314,6 +388,11 @@ jobs:
               "pdf_bytes": len(pdf),
               "pdf_sha256": hashlib.sha256(pdf).hexdigest(),
               "bundled_dlls": 64,
+              "fontconfig_file_sha256": hashlib.sha256(fontconfig.read_bytes()).hexdigest(),
+              "font_regular_sha256": hashlib.sha256(regular_font.read_bytes()).hexdigest(),
+              "font_bold_sha256": hashlib.sha256(bold_font.read_bytes()).hexdigest(),
+              "font_license_sha256": hashlib.sha256(font_license.read_bytes()).hexdigest(),
+              "fontconfig_selected_file": str(selected_font),
               "loaded_critical_dlls": loaded,
               "notes": "Synthetic minimal PyInstaller executable only, NOT the certified Digital Crown app or installer",
           }
@@ -332,6 +411,12 @@ jobs:
                       '--workpath',$build,'--specpath',$spec)
           foreach ($dll in $dlls) {
             $pyArgs += @('--add-binary', "$($dll.FullName);native")
+          }
+          foreach ($entry in @(
+            @($regular, 'fonts'), @($bold, 'fonts'),
+            @($fontLicense, 'fonts'), @($config, 'fontconfig')
+          )) {
+            $pyArgs += @('--add-data', "$($entry[0]);$($entry[1])")
           }
           $pyArgs += $source
           & $python @pyArgs
@@ -366,8 +451,23 @@ jobs:
           $env:PATH = "$system\System32;$system;$system\System32\Wbem"
           $env:WEASYPRINT_DLL_DIRECTORIES = ''
           if ($env:PATH -match '(?i)(msys|ucrt64)') { throw 'Host PATH isolation failed' }
-          & $exe
-          if ($LASTEXITCODE -ne 0) { throw 'Frozen executable native PDF failed' }
+          $outFile = Join-Path $env:RUNNER_TEMP 'fue-g04-frozen-stdout.txt'
+          $errFile = Join-Path $env:RUNNER_TEMP 'fue-g04-frozen-stderr.txt'
+          $p = Start-Process -FilePath $exe -NoNewWindow -Wait -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+          $output = Get-Content -LiteralPath $outFile -Raw
+          $errors = Get-Content -LiteralPath $errFile -Raw
+          if ($p.ExitCode -ne 0) {
+            Write-Host $output
+            Write-Host $errors
+            throw "Frozen executable native PDF failed with exit $($p.ExitCode)"
+          }
+          if ($errors -match '(?i)Fontconfig error|Cannot load default config file') { throw "Fontconfig rejected packaged font directory: $errors" }
+          foreach ($expected in @('EXPERIMENTAL_FROZEN_NATIVE_PDF=PASS','EXPERIMENTAL_FROZEN_BUNDLED_DLL_PATHS=PASS')) {
+            if (-not $output.Contains($expected)) { throw "Frozen program did not print success: $expected" }
+          }
+          Write-Host $output
+          Write-Host 'EXPERIMENTAL_FROZEN_FONTCONFIG_LOCAL_FONT_MATCH=PASS'
+          Write-Host 'EXPERIMENTAL_FROZEN_NO_DEFAULT_FONTCONFIG_ERRORS=PASS'
           Write-Host "EXPERIMENTAL_FROZEN_EXE_SHA256=$env:FUE_G04_FROZEN_EXE_SHA256"
           Write-Host 'EXPERIMENTAL_ONLY_APP_INSTALLER_NOT_TESTED=YES'
       - name: Save experimental digest inventory for subsequent strict manifest work
