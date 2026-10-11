@@ -72,8 +72,7 @@ if os.name == "nt":
     }.items():
         _verified(fonts / name, digest)
     config = native / "fontconfig" / "fonts.conf"
-    if not config.is_file() or config.is_symlink():
-        raise RuntimeError("FUE-G04 local Fontconfig file missing")
+    _verified(config, "65247abfac13b2e4a8e1b70c879ff69ea9a26df0ceaa3db4eab758a72c5c8a13")
     if '<dir prefix="relative">../fonts</dir>' not in config.read_text(encoding="utf-8"):
         raise RuntimeError("FUE-G04 Fontconfig cannot resolve packaged fonts")
     os.environ["WEASYPRINT_DLL_DIRECTORIES"] = str(native / "bin")
