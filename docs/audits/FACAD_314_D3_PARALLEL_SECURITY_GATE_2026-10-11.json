@@ -1,0 +1,98 @@
+{
+  "schema": "FACAD_D3_PARALLEL_SECURITY_EVIDENCE_GATE_V1",
+  "date": "2026-10-11",
+  "status": "NO_GO_NATIVE_VENDOR_WRITE_OR_CAPTURE",
+  "source": {
+    "security_pr_827": {
+      "url": "https://github.com/hraaaaf/Digital_crown/pull/827",
+      "head": "6129f0f27476d6da4327559e6d922307ad31cb47",
+      "draft": true
+    },
+    "adversarial_review": "docs/audits/FACAD_314_D3E20_SECURITY_SCIENCE_REVIEW_2026-10-10.md",
+    "review_blob": "459a468e7cd93cd12d1ff385eef0bfeca340a06a",
+    "lab_protocol": "docs/audits/FACAD_314_D3E21_LAB_PROTOCOL_2026-10-10.md",
+    "passive_f04_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/38128666156",
+    "synthetic_windows_ci": "https://github.com/hraaaaf/Digital_crown/actions/runs/38094153995"
+  },
+  "scope": "SOURCE_ONLY_NO_VENDOR_EXECUTION_NO_NEW_CAPTURE",
+  "claims": {
+    "f04_passive_uia": {
+      "evidence": "Two Facad-owned visible TabItem names and immutable official/disposable .fcd hash; not application-level I/O isolation",
+      "source_run_id": 38128666156
+    },
+    "windows_4663": {
+      "evidence": "Synthetic Windows path/event matching; not confirmed Ilexis write and causal write-completion attribution",
+      "source_run_id": 38094153995
+    },
+    "official_sample": {
+      "evidence": "Robert Quick Demo file source/copy hashes unchanged, distinct from shared application storage",
+      "status": "PARTIAL_INPUT_INTEGRITY_ONLY"
+    }
+  },
+  "blockers": [
+    {
+      "id": "SEC-01",
+      "status": "BLOCKER",
+      "name": "Vendor rights and demo provenance",
+      "acceptance": "Signed official supply/rights and nonclinical data provenance independently approved; trial/EULA status rechecked"
+    },
+    {
+      "id": "SEC-02",
+      "status": "BLOCKER",
+      "name": "Live two-sided host/guest isolation",
+      "acceptance": "Authorized dedicated nonclinical host+guest actual controls and negative channel tests including PowerShell Direct and Guest Services"
+    },
+    {
+      "id": "SEC-03",
+      "status": "BLOCKER",
+      "name": "Reviewed minimal evidence egress",
+      "acceptance": "Separate privacy-approved minimum aggregate output route, guest-only raw logs and destruction proof; no hidden Copy-VMFile, clipboard, USB or network"
+    },
+    {
+      "id": "SCI-01",
+      "status": "BLOCKER",
+      "name": "Real Ilexis persisted writer attribution",
+      "acceptance": "Bound writer/process/file identity and verified write+flush/postcondition under approved nonclinical experiment"
+    },
+    {
+      "id": "SCI-02",
+      "status": "BLOCKER",
+      "name": "Trace completeness and privacy",
+      "acceptance": "Bounded authorized capture scope with event loss accounting, no raw mixed-activity trace in public GitHub"
+    },
+    {
+      "id": "SCI-03",
+      "status": "BLOCKER",
+      "name": "Actual independent reviewers",
+      "acceptance": "Two genuinely independent security/science reviews on the same immutable exact HEAD plus independent confirmation"
+    }
+  ],
+  "other_open_risks": [
+    "SEC-04 privileged host trust",
+    "SEC-05 teardown remnants",
+    "additional 2 MAJOR in D3E20 source require adjudication"
+  ],
+  "gates": {
+    "vendor_test_authorized": false,
+    "live_writer_proven": false,
+    "storage_isolation_verified": false,
+    "real_independent_reviews_complete": false,
+    "safe_export_allowed": false,
+    "clinical_edit_allowed": false,
+    "native_parity_allowed": false,
+    "d3_closed": false,
+    "converged": false
+  },
+  "allowed_now": [
+    "Read existing public source/CI metadata only",
+    "Design nonclinical pre-registered controls and decision rules",
+    "Source-only static test and peer review"
+  ],
+  "forbidden_now": [
+    "Run D3 vendor writer or covert trace collectors",
+    "Save/Load/Export actual patient or sample in unverified application session",
+    "Publish raw ETW, file paths, Security.evtx or patient metadata",
+    "Assume a green synthetic CI proves isolation",
+    "Merge or deploy"
+  ]
+}
