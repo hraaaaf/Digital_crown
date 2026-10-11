@@ -119,29 +119,39 @@ const installRoutes = async (context, state, unexpected, requests) => {
   await context.route('**/api/workstation/patient-session/config', route => json(route, { fallbackMode: 'disabled' }));
   // 04.4: model only an opaque pending QR/NFC session, never an identified
   // patient or an arrival. Any unmodelled clinical request still fails closed.
-  const documentSessionId = 'fue-documents-session';
+  let documentSessionSequence = 0;
+  const createdSessionIds = new Set();
+  const purgedSessionIds = new Set();
   await context.route('**/api/workstation/patient-session', route => {
-    requests.push({ action: 'document-session-create', method: route.request().method() });
     if (route.request().method() !== 'POST') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
+    const sessionId = 'fue-documents-session-' + (++documentSessionSequence);
+    createdSessionIds.add(sessionId);
+    requests.push({ action: 'document-session-create', method: 'POST', sessionId });
     const expiresAt = new Date(Date.now() + 120_000).toISOString();
     return json(route, {
-      sessionId: documentSessionId,
-      handoffUrl: 'https://cabinet.local/companion?stationSession=opaque-fue-lab',
-      nfcPayload: 'https://cabinet.local/companion?stationSession=opaque-fue-lab',
+      sessionId,
+      handoffUrl: 'https://cabinet.local/companion?stationSession=opaque-fue-lab-' + documentSessionSequence,
+      nfcPayload: 'https://cabinet.local/companion?stationSession=opaque-fue-lab-' + documentSessionSequence,
       qrDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
       expiresAt, fallbackMode: 'disabled',
     }, 201);
   });
-  await context.route('**/api/workstation/patient-session/fue-documents-session', route => {
-    requests.push({ action: 'document-session-status', method: route.request().method() });
+  await context.route(/\\/api\\/workstation\\/patient-session\\/fue-documents-session-\\d+(?:\\/purge)?$/, route => {
+    const url = new URL(route.request().url());
+    const sessionId = url.pathname.split('/').at(-1) === 'purge'
+      ? url.pathname.split('/').at(-2) : url.pathname.split('/').at(-1);
+    const isPurge = url.pathname.endsWith('/purge');
+    requests.push({ action: isPurge ? 'document-session-purge' : 'document-session-status',
+      method: route.request().method(), sessionId });
+    if (!createdSessionIds.has(sessionId)) return json(route, { detail: 'UNKNOWN_SESSION' }, 404);
+    if (isPurge) {
+      if (route.request().method() !== 'POST') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
+      purgedSessionIds.add(sessionId);
+      return route.fulfill({ status: 204, body: '' });
+    }
     if (route.request().method() !== 'GET') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
-    return json(route, { status: 'pending', sessionId: documentSessionId,
-      expiresAt: new Date(Date.now() + 120_000).toISOString() });
-  });
-  await context.route('**/api/workstation/patient-session/fue-documents-session/purge', route => {
-    requests.push({ action: 'document-session-purge', method: route.request().method() });
-    if (route.request().method() !== 'POST') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
-    return route.fulfill({ status: 204, body: '' });
+    return json(route, { status: purgedSessionIds.has(sessionId) ? 'expired' : 'pending',
+      sessionId, expiresAt: new Date(Date.now() + 120_000).toISOString() });
   });
   await context.route('**/api/workstation/mode', route => {
     const data = route.request().postDataJSON();
@@ -228,17 +238,18 @@ const run = async (journey, viewport) => {
       record(journey + '/' + viewport.label + '/documents-no-arrival-ui',
         await page.locator('[data-station-arrival-bridge], [data-station-staff-notified], [data-station-arrival-confirmed]').count() === 0);
       await inspect(page, '03-documents-qr-nfc-after-click', journey, viewport, issues);
-      // Subscribe before clicking: return-home must revoke the ephemeral session.
-      const purgeResponse = page.waitForResponse(response =>
-        response.url().endsWith('/api/workstation/patient-session/fue-documents-session/purge') &&
-        response.request().method() === 'POST');
       await page.getByRole('button', { name: 'Retour à l’accueil' }).click();
       await page.locator('[data-station-screen="home"]').waitFor();
-      await purgeResponse;
-      record(journey + '/' + viewport.label + '/documents-purged-on-home',
-        requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST').length >= 1 &&
-        requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST').length ===
-          requests.filter(r => r.action === 'document-session-create' && r.method === 'POST').length,
+      // Every distinct session minted by StrictMode must receive its own purge.
+      await page.waitForFunction(() => true);
+      await page.waitForTimeout(250);
+      const created = requests.filter(r => r.action === 'document-session-create' && r.method === 'POST');
+      const purged = requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST');
+      record(journey + '/' + viewport.label + '/documents-all-created-ids-purged',
+        created.length >= 1 &&
+        new Set(created.map(r => r.sessionId)).size === created.length &&
+        created.every(r => purged.some(p => p.sessionId === r.sessionId)) &&
+        purged.every(r => created.some(p => p.sessionId === r.sessionId)),
         JSON.stringify(requests));
       record(journey + '/' + viewport.label + '/documents-no-clinical-requests',
         unexpected.every(url => !/\/appointments(?:\/|$)|\/arrive(?:\/|$)|\/staff-assistance(?:\/|$)/i.test(url)),
