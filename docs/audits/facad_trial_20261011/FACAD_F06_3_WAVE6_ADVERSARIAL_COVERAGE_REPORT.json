@@ -71,7 +71,13 @@
     "drive_folder_profile_zips_metadata_only": 8,
     "missing_drive_profile_zips_not_proven_globally": true,
     "current_dc_browser_comparison_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/38149915778",
-    "DC_browser_comparison_gate": "PENDING_THEN_REVIEW"
+    "DC_browser_comparison_gate": "SUCCESS_24_SYNTHETIC_IMAGES_4_VIEWPORTS_NOT_SAME_FACAD_CASE",
+    "f06_2_closure_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/38143440439",
+    "f06_2_closure_head": "0e36da7d08962e4d1c7f840d1cd4a53f8057235b",
+    "f06_2_closure_scope": "CLOSED_DOCUMENTARY_ONLY",
+    "DC_browser_artifact_id": 11706532622,
+    "DC_browser_artifact_zip_sha256": "8f6941042653aabfd6d421d9399e320902ebedb7d86e344c601f869e32f4dc01",
+    "same_case_facad_dc": false
   },
   "primary_gates": [
     {
@@ -287,7 +293,7 @@
       "gate_excerpt": "- [ ] **F02.4 Matrice visuelle comparée CEPH07** — **PHASE DIGITAL CROWN, après ****`FACAD_EVIDENCE_PACK`**. Reprendre les captures FACAD validées et les mêmes états/viewport de Digital Crown, y compris vérification préalable que la feature existe sur mobile ; comportement, BEFORE/AFTER et écarts. Pas de score UX basé sur code seul. Preuve : dossiers images appariées, tests navigateurs et matrice source.",
       "missing_proof": {
         "blocker_code": "PAIRED_VISUAL_REFERENCE_MISSING",
-        "why": "FACAD screenshots exist; comparative DC viewport browser run started but not yet certified; same functional state unknown",
+        "why": "Actual DC browser screenshots now passed 4 viewports including FACAD 1024x768 (24 images); FACAD reference uses Robert while DC uses a different synthetic anatomy, and behavior parity still not established",
         "next_observable": "Use DC browser artifact as source, inspect both, score only overlapping features after review"
       },
       "historical_closed_evidence_replayed_this_lot": false
