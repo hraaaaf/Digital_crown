@@ -1,0 +1,99 @@
+{
+  "schema": "FACAD_B65_ARTIFACT_SOURCE_RECOVERY_V1",
+  "date": "2026-10-11",
+  "scope": "OFFICIAL_QUICK_DEMO_EDITOR_DATA_ONLY",
+  "source": "GitHub workflow ZIP bytes downloaded and SHA256 checked against Actions digest (no PHI or proprietary manual content republished)",
+  "distinction": "Recovered 2 source artifacts containing three text views each, not strict 3/3 source CSV files in Git. B65 42 present/23 missing CSV count remains unchanged until a separate verified transformation.",
+  "items": [
+    {
+      "analysis": "Steiner",
+      "source_run_id": 37857655276,
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37857655276",
+      "artifact_id": 11585052434,
+      "zip_sha256": "c9d52eb3012a426dd67bdec994a6f0ad3d7bc68b78e2bf514dd300bfc93d62f7",
+      "archive_entries": 62,
+      "strict_csv_triplets_versioned": false,
+      "archive_has_three_tab_text_views": true,
+      "editor_behavior": "OBSERVED_UNSAVED",
+      "page_c02_definition_verified": false,
+      "clinical_parity_tested": false,
+      "three_text_views": {
+        "measurements": {
+          "zip_member": "d1c-Steiner-measurements-texts.txt",
+          "sha256": "1043fd17473dd7c6134dada337813f899fc768d87f79eb41bc78834d1468a30e",
+          "bytes": 523,
+          "uia_text_lines": 87
+        },
+        "lines": {
+          "zip_member": "d1c-Steiner-lines-texts.txt",
+          "sha256": "47c2368f2ba13097f54bf83fe59784d06538a7183dd49f8fed7b9cec94ab6438",
+          "bytes": 155,
+          "uia_text_lines": 30
+        },
+        "markers": {
+          "zip_member": "d1c-Steiner-markers-texts.txt",
+          "sha256": "6f3df26ff44e25a069f7291f67c15de02c7eb2b56d144d08afb7bd09099b1499",
+          "bytes": 1347,
+          "uia_text_lines": 120
+        }
+      }
+    },
+    {
+      "analysis": "Tweed",
+      "source_run_id": 37861203066,
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37861203066",
+      "artifact_id": 11585454878,
+      "zip_sha256": "60e5ff7797cb5107d32c012ab0a8f40e5f0eaab33c152495c435f70d13ae2409",
+      "archive_entries": 47,
+      "strict_csv_triplets_versioned": false,
+      "archive_has_three_tab_text_views": true,
+      "editor_behavior": "OBSERVED_UNSAVED",
+      "page_c02_definition_verified": false,
+      "clinical_parity_tested": false,
+      "three_text_views": {
+        "measurements": {
+          "zip_member": "d1c-Tweed-measurements-texts.txt",
+          "sha256": "19b79af2e1dee90a0309eba59072229ba9b1785832061f574aa5fd4270858cb6",
+          "bytes": 333,
+          "uia_text_lines": 55
+        },
+        "lines": {
+          "zip_member": "d1c-Tweed-lines-texts.txt",
+          "sha256": "5e4c77e3cce6b7c979e0b22797bfaaadaef6bdf1ef461f346d4a70e0adf0b4cd",
+          "bytes": 141,
+          "uia_text_lines": 25
+        },
+        "markers": {
+          "zip_member": "d1c-Tweed-markers-texts.txt",
+          "sha256": "9f8e8b2d399a6e6d0776c273e91ebdc1baf93ed60d27a881dff710bdbe824361",
+          "bytes": 1286,
+          "uia_text_lines": 126
+        }
+      }
+    }
+  ],
+  "scientific_hazards": [
+    {
+      "analysis": "Steiner",
+      "evidence": "lines view text",
+      "line": "ML",
+      "observed_arguments": [
+        "Go",
+        "Gn"
+      ],
+      "conclusion": "VENDOR_UIA_LABEL_ONLY_NO_FORMULA_CERTIFIED"
+    },
+    {
+      "analysis": "Tweed",
+      "evidence": "lines view text",
+      "line": "ML",
+      "observed_arguments": [
+        "Go",
+        "Me"
+      ],
+      "conclusion": "NOT_SAME_CONSTRUCTION_AS_STEINER"
+    }
+  ],
+  "source_only_gate": "OPEN",
+  "vendor_numeric_parity": "NOT_TESTED"
+}
