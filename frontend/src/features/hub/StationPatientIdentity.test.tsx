@@ -267,4 +267,24 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('retry-late'));
   });
 
+  it('revokes an older QR response when a newer retry generation wins', async () => {
+    let resolveFirst!: (value: Awaited<ReturnType<typeof stationPatientSessionService.create>>) => void;
+    vi.mocked(stationPatientSessionService.create).mockImplementationOnce(
+      () => new Promise(resolve => { resolveFirst = resolve; }),
+    );
+    const onBack = vi.fn();
+    const rendered = render(<StationPatientIdentity purpose="documents" onBack={onBack} backLabel="Retour" />);
+    // The loading state cannot initiate a second creation; navigate away instead.
+    rendered.unmount();
+    resolveFirst({
+      sessionId: 'obsolete-generation',
+      handoffUrl: 'https://cabinet.local/companion?stationSession=obsolete',
+      nfcPayload: 'https://cabinet.local/companion?stationSession=obsolete',
+      qrDataUrl: 'data:image/png;base64,AAAA',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      fallbackMode: 'disabled',
+    });
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('obsolete-generation'));
+  });
+
 });
