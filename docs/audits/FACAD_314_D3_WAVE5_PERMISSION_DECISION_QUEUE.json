@@ -1,0 +1,80 @@
+{
+  "schema": "FACAD_D3_WAVE5_VENDOR_PERMISSION_DECISION_QUEUE_V1",
+  "date": "2026-10-11",
+  "official_vendor_contact": {
+    "general": "info@facad.com",
+    "license_and_installation": "support@facad.com",
+    "public_pages": [
+      "https://www.facad.com/fra/contact.htm",
+      "https://www.facad.com/wp/webshop/",
+      "https://www.facad.com/wp/wp-content/uploads/2020/12/FacadInstaller_UsersGuide.pdf"
+    ],
+    "source_scope": "Public contact/installation/licence pages, not a binding permission for our experiment"
+  },
+  "request_status": "PREPARED_NOT_SENT",
+  "user_account_sender": "NOT_SELECTED_NO_EXTERNAL_EMAIL_SENT",
+  "questions": [
+    {
+      "id": "RIGHT-01",
+      "question": "Does Ilexis authorize FACAD 3.14 Quick Demo on short-lived GitHub-hosted Windows runners and defined offline dedicated VM?",
+      "requires_signed_source": true,
+      "answer": "UNKNOWN"
+    },
+    {
+      "id": "RIGHT-02",
+      "question": "Does the licence permit UIA observation, automation and comparison of vendor-displayed nonclinical measurements against an independent implementation?",
+      "requires_signed_source": true,
+      "answer": "UNKNOWN"
+    },
+    {
+      "id": "RIGHT-03",
+      "question": "May the project retain CSV, screen captures, hashes and restricted excerpts from C01/C02 within private repositories/Drive?",
+      "requires_signed_source": true,
+      "answer": "UNKNOWN"
+    },
+    {
+      "id": "RIGHT-04",
+      "question": "Can Ilexis provide a permitted sanitized reference case and exact C01/C02 measurement definitions with calibration and version?",
+      "requires_signed_source": true,
+      "answer": "UNKNOWN"
+    },
+    {
+      "id": "RIGHT-05",
+      "question": "Does Ilexis permit a zero-patient test of write provenance inside a dedicated isolated guest subject to separately approved privacy protocol?",
+      "requires_signed_source": true,
+      "answer": "UNKNOWN"
+    }
+  ],
+  "reviewers": {
+    "security_privacy": {
+      "person": "NOT_NOMINATED",
+      "approval": "NOT_REQUESTED",
+      "exact_head": "NOT_REVIEWED"
+    },
+    "scientific_clinical": {
+      "person": "NOT_NOMINATED",
+      "approval": "NOT_REQUESTED",
+      "exact_head": "NOT_REVIEWED"
+    }
+  },
+  "native_test_policy": {
+    "facad_windows_experiment": "PAUSED",
+    "native_file_write": "PROHIBITED",
+    "clinical_patient_access": "PROHIBITED",
+    "raw_host_guest_trace_export": "PROHIBITED",
+    "clinical_export": "PROHIBITED"
+  },
+  "blockers": [
+    "SEC-01",
+    "SEC-02",
+    "SEC-03",
+    "SCI-01",
+    "SCI-02",
+    "SCI-03"
+  ],
+  "release_decision": "D3_OPEN_RED",
+  "incident_note": "Existing historical ephemeral GitHub experiments do not establish Ilexis authorization. This source-only request does not invalidate observed data, nor certify its legal use.",
+  "all_authorizations_proven": false,
+  "reviewers_independently_verified": false,
+  "converged": false
+}
