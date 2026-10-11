@@ -47,10 +47,46 @@ jobs:
           a="  { name: '768x1024', width: 768, height: 1024 },"
           assert s.count(a)==1
           s=s.replace(a,"  { name: '1024x768', width: 1024, height: 768 },\n"+a)
+          # Synthetic, ephemeral visual content only; do not edit the pinned product or checked-in harness.
+          fixture_needle=" visual_debug:{}, calibration_status:'verified'"
+          assert s.count(fixture_needle)==1
+          fixture_data=" visual_debug:{normative_zones:[{cx:600,cy:600,rx:48,ry:25,rotation:0}]}, t1_projection:Object.fromEntries(landmarks.map(p=>[p.id,[p.x-14,p.y-8]])), t2_projection:Object.fromEntries(landmarks.map(p=>[p.id,[p.x+18,p.y+9]])), calibration_status:'verified'"
+          s=s.replace(fixture_needle,fixture_data)
+          import_needle="import path from 'node:path';"
+          assert s.count(import_needle)==1
+          s=s.replace(import_needle,import_needle+"\nimport { createHash } from 'node:crypto';")
           needle='  const states=[];'
           assert s.count(needle)==1
           extra=r"""
           const layerAudit={viewport:viewport.name,fixture:'synthetic-only',controlled:[],hardTissueDisabled:false,valid:false};
+          // Independent browser DOM oracle: inspect SVG geometry, not the pressed control.
+          const selectors={
+            landmarks:'svg [data-ortho-layer="landmarks"]',
+            plans:'svg [data-ortho-layer="plans"]',
+            teeth:'svg path[d^="M 0,-52"]',
+            soft_tissue:'svg [data-ortho-layer="soft_tissue"]',
+            measurements:'svg [data-ortho-layer="measurements"]',
+            t1:'svg [data-cephalo-line-key]',
+            t2:'svg [data-cephalo-line-key]'
+          };
+          const svgProbe=async(id)=>{
+            const inspected=await page.evaluate(sel=>{
+              const host=document.querySelector('[data-cephalo-analysis]');
+              if(!host)throw new Error('Cephalometric SVG host is missing');
+              const elements=Array.from(host.querySelectorAll(sel));
+              return {count:elements.length,markup:elements.map(n=>n.outerHTML).join('\n')};
+            },selectors[id]);
+            return {count:inspected.count,sha256:createHash('sha256').update(inspected.markup).digest('hex')};
+          };
+          const waitForSvgCount=async(id,oldCount,changed)=>{
+            await page.waitForFunction(([selector,baseline,expectChanged,showProjection])=>{
+              const host=document.querySelector('[data-cephalo-analysis]');
+              if(!host)return false;
+              const count=host.querySelectorAll(selector).length;
+              return expectChanged?(showProjection?count>baseline:count===0):count===baseline;
+            },[selectors[id],oldCount,changed,id==='t1'||id==='t2'],{timeout:6000});
+          };
+          layerAudit.svgProbes=[];
           const hardControl=page.locator('[data-ortho-layer-control="hard_tissue"] button');
           await hardControl.waitFor({state:'visible',timeout:8000});
           layerAudit.hardTissueDisabled=await hardControl.isDisabled();
@@ -63,20 +99,36 @@ jobs:
             if(await control.isDisabled())throw new Error('Available layer unexpectedly disabled: '+id);
             const original=await control.getAttribute('aria-pressed');
             if(original!=='true'&&original!=='false')throw new Error('Missing original pressed state: '+id);
-            await control.click();
+            const beforeSvg=await svgProbe(id);
+            if(beforeSvg.count===0)throw new Error('No fixture-backed SVG geometry before toggling '+id);
             const changed=original==='true'?'false':'true';
+            // Negative control: spoof pressed state without React click; SVG MUST stay unchanged.
+            await control.evaluate((node,state)=>node.setAttribute('aria-pressed',state),changed);
+            const spoofSvg=await svgProbe(id);
+            const spoofRejected=spoofSvg.count===beforeSvg.count&&spoofSvg.sha256===beforeSvg.sha256;
+            await control.evaluate((node,state)=>node.setAttribute('aria-pressed',state),original);
+            if(!spoofRejected)throw new Error('SVG changed after only spoofing aria-pressed: '+id);
+            await control.click();
             await page.waitForFunction(([which,expected])=>
               document.querySelector('[data-ortho-layer-control="'+which+'"] button')?.getAttribute('aria-pressed')===expected,
               [id,changed],{timeout:4000});
+            await waitForSvgCount(id,beforeSvg.count,true);
+            const toggledSvg=await svgProbe(id);
+            if(toggledSvg.sha256===beforeSvg.sha256)throw new Error('Control toggled but SVG unchanged: '+id);
             if(id==='landmarks'||id==='soft_tissue')
               await page.screenshot({path:path.join(OUTPUT_DIR,'layer-toggle-'+id+'-'+viewport.name+'.png'),fullPage:false});
             await control.click();
             await page.waitForFunction(([which,expected])=>
               document.querySelector('[data-ortho-layer-control="'+which+'"] button')?.getAttribute('aria-pressed')===expected,
               [id,original],{timeout:4000});
+            await waitForSvgCount(id,beforeSvg.count,false);
+            const restoredSvg=await svgProbe(id);
+            const svgRestored=restoredSvg.sha256===beforeSvg.sha256&&restoredSvg.count===beforeSvg.count;
+            if(!svgRestored)throw new Error('SVG not faithfully restored: '+id);
+            layerAudit.svgProbes.push({id,before:beforeSvg,toggled:toggledSvg,restored:restoredSvg,spoofRejected,svg_effect_verified:true});
             layerAudit.controlled.push({id,original,toggled:changed,restored:original,click_verified:true});
           }
-          layerAudit.valid=layerAudit.hardTissueDisabled&&layerAudit.controlled.length===7;
+          layerAudit.valid=layerAudit.hardTissueDisabled&&layerAudit.controlled.length===7&&layerAudit.svgProbes.length===7&&layerAudit.svgProbes.every(x=>x.spoofRejected&&x.svg_effect_verified);
           if(!layerAudit.valid)throw new Error('Layer audit failure');
           """
           s=s.replace(needle,extra+'\n'+needle)
@@ -126,6 +178,9 @@ jobs:
             assert a['valid'] and a['hardTissueDisabled'] and a['viewport'] in viewports
             assert {x['id'] for x in a['controlled']}==expected
             assert all(x['click_verified'] and x['original']==x['restored'] and x['original']!=x['toggled'] for x in a['controlled'])
+            assert len(a['svgProbes'])==7
+            assert {x['id'] for x in a['svgProbes']}==expected
+            assert all(x['spoofRejected'] and x['svg_effect_verified'] and x['before']['count']>0 and x['before']==x['restored'] and x['before']['sha256']!=x['toggled']['sha256'] for x in a['svgProbes'])
             manifest['layer_control_probes'].append(a)
             for name in ('layer-before','layer-toggle-landmarks','layer-toggle-soft_tissue'):
               p=root/(name+'-'+a['viewport']+'.png')
@@ -136,6 +191,8 @@ jobs:
           (root/'facad-f02-4-verified-layer-action-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
           print('FACAD_F02_4_DC_ACTUAL_LAYER_TOGGLES=28_CONFIRMED_AND_RESTORED')
           print('FACAD_F02_4_DC_HARD_TISSUE_DISABLED=4_OF_4')
+          print('FACAD_F02_4B_SVG_REAL_RENDER_TOGGLES=28_PROVEN_AND_RESTORED')
+          print('FACAD_F02_4B_ARIA_SPOOF_NEGATIVES=28_REJECTED')
           print('FACAD_F02_4_MOBILE_RENDERED=390x844')
           print('FACAD_F02_4_SCREENSHOTS=12_SHA256')
           print('FACAD_F02_4_SAME_CASE_VENDOR_BEHAVIOR_PROVED=false')
