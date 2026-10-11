@@ -181,7 +181,7 @@ export function MobileNotificationCenter() {
         >
           <div className="px-5 pt-5 pb-4 border-b border-border-main/70 flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Notifications</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary-ink">Notifications</p>
               <h2 className="text-xl font-black text-text-main mt-1">À traiter</h2>
               <p className="text-[11px] font-bold text-text-muted mt-1">
                 {alerts.length ? `${alerts.length} non lue${alerts.length > 1 ? 's' : ''}` : 'Aucune alerte en attente'}
@@ -200,11 +200,11 @@ export function MobileNotificationCenter() {
           <div className="px-4 pt-4">
             <div className={`rounded-[22px] border p-4 ${pushState?.kind === 'enabled' ? 'border-success-border bg-success-surface' : 'border-border-main bg-card'}`}>
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${pushState?.kind === 'enabled' ? 'bg-success-surface text-success' : 'bg-primary/10 text-primary'}`}>
+                <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${pushState?.kind === 'enabled' ? 'bg-success-surface text-success' : 'bg-primary/10 text-primary-ink'}`}>
                   {pushState?.kind === 'enabled' ? <ShieldCheck size={18} aria-hidden="true" /> : <Bell size={18} aria-hidden="true" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Push OS</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary-ink">Push OS</p>
                   <p className="mt-1 text-xs font-black text-text-main">{pushState?.title ?? 'Vérification…'}</p>
                   <p className="mt-1 text-[10px] font-bold leading-relaxed text-text-muted">
                     {pushState?.detail ?? 'Vérification des capacités de cet appareil.'}
@@ -258,12 +258,12 @@ export function MobileNotificationCenter() {
             {alerts.map(alert => (
               <article key={alert.id} className={`rounded-[22px] border p-4 shadow-sm ${priorityTone(alert.priority)}`}>
                 <div className="flex items-start gap-3">
-                  <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${Number(alert.priority) === 1 ? 'bg-danger-surface text-danger' : 'bg-primary/10 text-primary'}`}>
+                  <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${Number(alert.priority) === 1 ? 'bg-danger-surface text-danger' : 'bg-primary/10 text-primary-ink'}`}>
                     {Number(alert.priority) === 1 ? <AlertTriangle size={17} aria-hidden="true" /> : <Bell size={17} aria-hidden="true" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-black text-text-main leading-tight">{alert.title}</h3>
-                    {alert.patient_name && <p className="text-[10px] font-black text-primary mt-1">{alert.patient_name}</p>}
+                    {alert.patient_name && <p className="text-[10px] font-black text-primary-ink mt-1">{alert.patient_name}</p>}
                     <p className="text-[11px] font-bold text-text-muted mt-2 leading-relaxed">{alert.message}</p>
                   </div>
                 </div>
@@ -306,7 +306,7 @@ export function MobileNotificationCenter() {
         aria-label={alerts.length ? `Notifications, ${alerts.length} non lues` : 'Notifications'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary active:scale-95 transition-transform"
+        className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary-ink active:scale-95 transition-transform"
         style={{ backgroundColor: 'var(--glass-bg)' }}
       >
         <Bell size={18} aria-hidden="true" />
