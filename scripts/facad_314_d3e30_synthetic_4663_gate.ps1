@@ -32,7 +32,7 @@ function Get-WinEvent {
 }
 function New-Event {
  param(
-  [string]$Pid='0xABC',[string]$Mask='0x02',
+  [string]$SyntheticPid='0xABC',[string]$Mask='0x02',
   [string]$Path='C:\Users\Synthetic\AppData\Roaming\Ilexis\CASE_A.dat',
   [string]$Type='File',[string]$Provider='Microsoft-Windows-Security-Auditing',
   [int]$Id=4663,[string]$OverrideXml='', [bool]$DuplicatePid=$false
@@ -40,7 +40,7 @@ function New-Event {
  $xml='<Event><EventData>'
  $xml+='<Data Name="ObjectType">'+$Type+'</Data>'
  $xml+='<Data Name="ObjectName">'+$Path+'</Data>'
- $xml+='<Data Name="ProcessId">'+$Pid+'</Data>'
+ $xml+='<Data Name="ProcessId">'+$SyntheticPid+'</Data>'
  $xml+='<Data Name="AccessMask">'+$Mask+'</Data>'
  if($DuplicatePid){$xml+='<Data Name="ProcessId">0x999</Data>'}
  $xml+='</EventData></Event>'
@@ -61,7 +61,7 @@ function Assert-Fails([string]$code){
 }
 $passed=0
 $valid=New-Event
-$other=New-Event -Pid '0xBCD'
+$other=New-Event -SyntheticPid '0xBCD'
 $script:Batch=@($valid,$other)
 $batch=Get-D3E30Security4663Batch -StartTime ([datetime]'2026-10-11T08:00:00')
 if($batch.queried_event_count -ne 2 -or @($batch.file_records).Count -ne 2 -or
@@ -102,9 +102,9 @@ $script:Batch=@(New-Event -OverrideXml '<<broken')
 Assert-Fails 'D3E30_AUDIT_XML_INVALID';$passed++
 $script:Batch=@(New-Event -DuplicatePid $true)
 Assert-Fails 'D3E30_AUDIT_XML_INVALID';$passed++
-$script:Batch=@(New-Event -Pid '')
+$script:Batch=@(New-Event -SyntheticPid '')
 Assert-Fails 'D3E30_AUDIT_FIELDS_MISSING';$passed++
-$script:Batch=@(New-Event -Pid 'not-hex')
+$script:Batch=@(New-Event -SyntheticPid 'not-hex')
 Assert-Fails 'D3E30_AUDIT_PID_INVALID';$passed++
 $script:Batch=@(New-Event -Mask '0x-no')
 Assert-Fails 'D3E30_AUDIT_MASK_INVALID';$passed++
