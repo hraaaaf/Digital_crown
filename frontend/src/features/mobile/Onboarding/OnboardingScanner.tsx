@@ -422,13 +422,15 @@ export const OnboardingScanner = () => {
         <p className="font-black text-2xl tracking-tight z-10 text-emerald-600">Appairage réussi</p>
         <p className="text-sm z-10 text-slate-500">Ouverture :</p>
         <p className="text-xl font-black z-10 text-primary">{destinationLabel}</p>
-        <button
-          type="button"
-          onClick={continueAfterPairing}
-          className="z-10 mt-5 min-h-[52px] w-full max-w-xs rounded-2xl bg-primary px-6 text-sm font-black text-white shadow-elite active:scale-[0.98] transition-transform"
+        {/* Genuine navigation survives an interrupted React tap handler in iOS
+            embedded browsers. The destination is from the server-bound route
+            allowlist and remains protected by MobileProtectedRoute. */}
+        <a
+          href={destinationRoute}
+          className="z-10 mt-5 min-h-[52px] w-full max-w-xs rounded-2xl bg-primary px-6 text-sm font-black text-white shadow-elite active:scale-[0.98] transition-transform flex items-center justify-center"
         >
           Continuer vers {destinationLabel}
-        </button>
+        </a>
       </div>
     );
   }
