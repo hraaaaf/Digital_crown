@@ -129,11 +129,11 @@ export function MobilePreviewDashboard() {
           {activeTab === 'agenda' && <PocketAgendaDay snapshot={snapshot} selectedDate={selectedDate} isOnline onOpenPatient={noop} />}
           {activeTab === 'waiting-room' && <WaitingRoomView snapshot={snapshot} onStatusChange={noop} />}
           {activeTab === 'patients' && <MobilePatientsView onClose={() => selectNavTab('today')} previewData={DEMO_PATIENT_COCKPIT} />}
-          {activeTab === 'finance' && <FinanceView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} openWhatsApp={noop} handleExportPDF={noop} />}
-          {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />}
+          {activeTab === 'finance' && <FinanceView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} openWhatsApp={noop} handleExportPDF={noop} pocketSummaryOnly />}
+          {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} isOnline />}
           {activeTab === 'frontdesk' && <FrontdeskView previewData={DEMO_FRONTDESK} />}
           {activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} previewData={DEMO_NOTIFICATIONS} />}
-          {activeTab === 'stock' && <StockView previewData={DEMO_STOCK} />}
+          {activeTab === 'stock' && <StockView previewData={DEMO_STOCK} quickMode />}
           {activeTab === 'library' && <LibraryView role="DENTISTE" />}
           {activeTab === 'marketplace' && <MarketplaceView previewData={DEMO_MARKETPLACE} />}
           {activeTab === 'bot' && <MobilePreviewBotView />}
