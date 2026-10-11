@@ -190,7 +190,7 @@ export function MobileBottomNav({
         aria-label="Navigation mobile principale"
         className="fixed left-3 right-3 z-[65] mx-auto h-[76px] max-w-[720px] overflow-hidden rounded-[30px] border shadow-elite isolate"
         style={{
-          backgroundColor: 'color-mix(in srgb, var(--card-bg) 88%, transparent)',
+          backgroundColor: 'var(--card-bg)',
           borderColor: 'color-mix(in srgb, var(--primary) 14%, var(--glass-border) 86%)',
           WebkitBackdropFilter: 'blur(24px) saturate(165%)',
           backdropFilter: 'blur(24px) saturate(165%)',
