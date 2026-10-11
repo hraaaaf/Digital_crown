@@ -312,6 +312,8 @@ try {
       return {
         id: document.documentElement.dataset.theme,
         primary: computed.getPropertyValue('--primary').trim(),
+        primaryInk: computed.getPropertyValue('--primary-ink').trim(),
+        textMuted: computed.getPropertyValue('--text-muted').trim(),
         textOnPrimary: computed.getPropertyValue('--text-on-primary').trim(),
         background: computed.getPropertyValue('--bg-medical-pearl').trim(),
         primaryActionText: primaryAction ? getComputedStyle(primaryAction).color : null,
