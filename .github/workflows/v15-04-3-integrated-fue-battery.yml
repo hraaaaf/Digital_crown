@@ -8,6 +8,7 @@ on:
       - "frontend/scripts/audit-v15-04-3-integrated-ux.mjs"
       - "scripts/verify_v15_04_3_pg_concurrency.py"
       - "backend/services/station_care_sheet.py"
+      - "backend/tests/test_fue_v15_04_3_unsimulated_backend_e2e.py"
   workflow_dispatch:
 
 permissions:
@@ -148,7 +149,7 @@ jobs:
           retention-days: 21
 
   insurance-coverage:
-    name: Insurance route, render + station API (PARTIAL E2E)
+    name: Insurance real renderer + station HTTP full flow (SYNTHETIC)
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -175,8 +176,8 @@ jobs:
           pip install -r /tmp/requirements-fue043.txt
       - name: Run real overlay algorithm + API contract regressions
         run: |
-          python -m pytest backend/tests/test_insurance_pdf_overlay.py backend/tests/test_insurance_finalization.py backend/tests/test_insurance_submission_api.py backend/tests/test_station_care_sheet_v15.py -q
-          echo "CLASSIFICATION=PARTIAL; finalization route test stubs canonical renderer; no full unsimulated insurance-to-station E2E" | tee /tmp/fue043-insurance-limit.txt
+          python -m pytest backend/tests/test_insurance_pdf_overlay.py backend/tests/test_insurance_finalization.py backend/tests/test_insurance_submission_api.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_fue_v15_04_3_unsimulated_backend_e2e.py -q
+          echo "CLASSIFICATION=SYNTHETIC_FULL_BACKEND_E2E; actual renderer + archive + API + station retrieval; synthetic template test configuration, not official insurer fixture" | tee /tmp/fue043-insurance-limit.txt
 
   evidence-manifest:
     name: Eight-check truth matrix (no fake physical PASS)
@@ -201,7 +202,7 @@ jobs:
             ("real_nfc_qr_scan", "BLOCKED_TERRAIN", None, "Requires real NFC sensor / physical QR scan and actual station and companion device"),
             ("real_print_pocket", "BLOCKED_TERRAIN", None, "04.5 not implemented; requires real printer/Pocket delivery receipt"),
             ("postgres_simultaneous_authorization", "REAL_DB_CI", os.environ["PG"], "8 parallel threads against isolated PostgreSQL 18 in runner, synthetic identities"),
-            ("insurance_real_full_e2e", "PARTIAL", os.environ["INSURANCE"], "Real PDF overlay algorithm + route tests separately; no unmocked finalization->retrieval E2E"),
+            ("insurance_real_full_e2e", "SYNTHETIC_FULL_BACKEND_E2E", os.environ["INSURANCE"], "Actual render/archive/staff-authorize/patient retrieve without renderer stub; synthetic validated source with test-only expected SHA override; no official insurer source or physical delivery"),
             ("human_patient_ux", "BLOCKED_HUMAN", None, "Actual patient observation and consent required; can't be simulated"),
           ]
           result = {"head": os.environ["EVALUATED_SHA"], "gate": "NOT_COMPLETE_PHYSICAL",
