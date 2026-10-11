@@ -49,7 +49,7 @@ export function MobileHeader({
       <div className="flex items-center justify-between gap-2 sm:gap-3 mb-4">
         <div data-dc-pocket-brand className="flex min-w-0 items-center gap-2">
           <img src={Logo} alt="Digital Crown Pocket" className="w-[92px] min-[430px]:w-24 sm:w-28 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
-          <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-primary">
+          <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
             Pocket
           </span>
         </div>
@@ -113,31 +113,31 @@ export function MobileHeader({
       <div>
         {(activeTab === 'today' || activeTab === 'agenda' || activeTab === 'finance') && (
           <div className="flex items-center gap-1.5 mb-1.5">
-            <Calendar size={12} className="text-primary shrink-0" />
+            <Calendar size={16} className="text-primary shrink-0" />
             <button
               aria-label="Jour précédent"
               onClick={() => setSelectedDate(moveLocalDate(selectedDate, -1))}
               className="min-h-11 min-w-11 inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
-              <ChevronLeft size={12} />
+              <ChevronLeft size={17} />
             </button>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="min-h-11 bg-transparent border-none text-text-muted font-bold text-xs capitalize outline-none px-1 py-0 cursor-pointer text-center min-w-min"
+              className="min-h-11 min-w-0 max-w-[148px] flex-1 bg-transparent border-none text-text-main font-semibold text-[16px] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
             />
             <button
               aria-label="Jour suivant"
               onClick={() => setSelectedDate(moveLocalDate(selectedDate, 1))}
               className="min-h-11 min-w-11 inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
-              <ChevronRight size={12} />
+              <ChevronRight size={17} />
             </button>
           </div>
         )}
 
-        {!(['stock', 'frontdesk', 'lab'] as Tab[]).includes(activeTab) && <h1 className="text-[29px] min-[430px]:text-[32px] font-bold tracking-tight text-text-main leading-tight">
+        {!(['stock', 'frontdesk', 'lab'] as Tab[]).includes(activeTab) && <h1 className="text-[28px] min-[430px]:text-[31px] font-bold tracking-tight text-text-main leading-tight">
           {activeTab === 'today' ? `${greeting()},` :
            activeTab === 'agenda' ? 'Agenda' :
            activeTab === 'patients' ? 'Patients' :
@@ -157,7 +157,7 @@ export function MobileHeader({
         {(activeTab === 'today' || activeTab === 'agenda') && totalCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-2.5">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 border border-primary/10 rounded-full shadow-sm">
-              <span className="text-[11px] font-bold text-primary">
+              <span className="text-[12px] font-semibold text-primary">
                 {totalCount} RDV {selectedDate === localDateKey()
                   ? "aujourd'hui"
                   : `le ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`}
@@ -165,7 +165,7 @@ export function MobileHeader({
             </div>
             {termineCount > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-success-surface border border-success-border rounded-full shadow-sm">
-                <span className="text-[11px] font-bold text-success">{termineCount} terminé{termineCount > 1 ? 's' : ''}</span>
+                <span className="text-[12px] font-semibold text-success">{termineCount} terminé{termineCount > 1 ? 's' : ''}</span>
               </div>
             )}
           </div>
