@@ -120,14 +120,34 @@ export const StationPatientIdentity = ({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const purgeStartedRef = useRef<Set<string>>(new Set());
+  const mountedRef = useRef(false);
+  const generationRef = useRef(0);
+  const sessionRef = useRef<string | null>(null);
 
   const requestPurge = useCallback((sessionId: string) => {
-    if (purgeStartedRef.current.has(sessionId)) return;
-    purgeStartedRef.current.add(sessionId);
-    void purgeSessionBestEffort(sessionId);
-  }, []);
+    if (purgeStartedRef.current.ha  const createSession = async (generation: number) => {
+    try {
+      const created = await stationPatientSessionService.create();
+      if (!mountedRef.current || generation !== generationRef.current) {
+        requestPurge(created.sessionId);
+        return;
+      }
+      sessionRef.current = created.sessionId;
+      setSession(created);
+      setStatus('pending');
+    } catch {
+      if (!mountedRef.current || generation !== generationRef.current) return;
+      setSession(null);
+      setStatus('error');
+      setError(COPY[language].unavailable);
+    }
+  };
 
-  const start = async () => {
+  const start = () => {
+    const generation = ++generationRef.current;
+    if (sessionRef.current) requestPurge(sessionRef.current);
+    sessionRef.current = null;
+    setSession(null);
     setStatus('loading');
     setError('');
     setDisplayName('');
@@ -136,35 +156,21 @@ export const StationPatientIdentity = ({
     setPhone('');
     setFirstName('');
     setLastName('');
-    try {
-      const created = await stationPatientSessionService.create();
-      setSession(created);
-      setStatus('pending');
-    } catch {
-      setSession(null);
-      setStatus('error');
-      setError(copy.unavailable);
-    }
+    void createSession(generation);
   };
 
   useEffect(() => {
-    // Ignore late create responses after unmount, and revoke their sessions.
-    let active = true;
-    const create = async () => {
-      setStatus('loading');
-      try {
-        const created = await stationPatientSessionService.create();
-        if (!active) {
-          void purgeSessionBestEffort(created.sessionId);
-          return;
-        }
-        setSession(created);
-        setStatus('pending');
-      } catch {
-        if (!active) return;
-        setSession(null);
-        setStatus('error');
-        setError(COPY[language].unavailable);
+    mountedRef.current = true;
+    const generation = ++generationRef.current;
+    void createSession(generation);
+    return () => {
+      mountedRef.current = false;
+      ++generationRef.current;
+      if (sessionRef.current) requestPurge(sessionRef.current);
+    };
+  }, []);
+
+setError(COPY[language].unavailable);
       }
     };
     void create();
@@ -199,10 +205,6 @@ export const StationPatientIdentity = ({
     };
   }, [session, status]);
 
-  useEffect(() => () => {
-    if (session) requestPurge(session.sessionId);
-  }, [requestPurge, session]);
-
   const expiresLabel = useMemo(() => {
     if (!session) return '';
     return new Date(session.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -232,10 +234,11 @@ export const StationPatientIdentity = ({
     }
   };
 
-  const leave = async () => {
-    const sessionId = session?.sessionId;
-    onBack();
+  const leave = () => {
+    ++generationRef.current;
+    const sessionId = sessionRef.current || session?.sessionId;
     if (sessionId) requestPurge(sessionId);
+    onBack();
   };
 
   if (status === 'identified' && session && purpose === 'documents') {
