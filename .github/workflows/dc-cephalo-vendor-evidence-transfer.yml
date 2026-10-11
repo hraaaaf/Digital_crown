@@ -1,0 +1,68 @@
+name: DC Cephalo FACAD evidence transfer boundary (source only)
+
+on:
+  push:
+    branches:
+      - research/dc-ceph-transfer-existing-evidence-20261011
+    paths:
+      - .github/workflows/dc-cephalo-vendor-evidence-transfer.yml
+      - docs/audits/DC_CEPHALO_FACAD_EVIDENCE_TRANSFER_V1.json
+      - scripts/certify_dc_cephalo_vendor_evidence_transfer.py
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json
+      - docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json
+
+permissions:
+  contents: read
+
+jobs:
+  dc-cephalo-transfer-gate:
+    name: Existing source provenance, no FACAD, no patient
+    if: github.event_name == 'push' && github.ref == 'refs/heads/research/dc-ceph-transfer-existing-evidence-20261011'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source-only scope and exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF" = "refs/heads/research/dc-ceph-transfer-existing-evidence-20261011"
+          echo "DC_CEPH_TRANSFER_EXACT_HEAD=$GITHUB_SHA"
+          echo "DC_CEPH_FACAD_BINARY_RUN=false"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check source contract Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/certify_dc_cephalo_vendor_evidence_transfer.py
+      - name: Certify DC-only provenance and 11 fail-closed mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/certify_dc_cephalo_vendor_evidence_transfer.py | tee dc-cephalo-transfer-safe-report.json
+          python - <<'PY'
+          import json
+          data=json.load(open('dc-cephalo-transfer-safe-report.json',encoding='utf-8'))
+          assert data['status']=='SOURCE_BOUNDARY_PASS_ONLY'
+          assert data['dc_measurement_contract_count']==38
+          assert data['facad_compatibility_dispositions_ricketts32']==26
+          assert data['vendor_direct_parity_rows']==0
+          assert data['mutation_negative_controls_passed']==11
+          assert data['facad_new_executions']==0
+          assert data['clinical_activation'] is False
+          assert data['patient_access'] is False
+          print('DC_CEPH_TRANSFER_BOUNDARY=PASS_SOURCE_ONLY')
+          print('DC_CEPH_PARITY_NUMERIC=NOT_TESTED')
+          PY
+      - name: Upload only non-identifying report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc-cephalo-vendor-evidence-transfer-safe-report
+          path: dc-cephalo-transfer-safe-report.json
+          if-no-files-found: warn
+          retention-days: 7
