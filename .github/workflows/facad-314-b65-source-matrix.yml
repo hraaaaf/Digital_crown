@@ -13,6 +13,7 @@ on:
       - docs/audits/facad_trial_20261011/FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json
       - docs/audits/facad_trial_20261011/FACAD_F01_13_WAVE5_SOURCE_CROSSWALK.json
       - docs/audits/FACAD_314_ACQUISITION_FIRST_ROADMAP_2026-10-11.md
+      - docs/audits/facad_trial_20261011/FACAD_F01_13_WAVE7_C02_PAGE_INDEX_PASSAGE.md
   workflow_dispatch:
 
 permissions:
@@ -397,4 +398,40 @@ jobs:
           print('FACAD_ACQUISITION_SOURCE_PROFILE_COVERAGE=65_EDITOR_42_GIT_23_NOT_VERSIONED')
           print('FACAD_ACQUISITION_DC_PARITY_DEFERRED=true')
           print('FACAD_ACQUISITION_D3_RELEASE_GRANTED=false')
+          PY
+
+      - name: Audit wave 7 C02 lexical coverage without false F01.13 promotion
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('research/docs/audits/facad_trial_20261011')
+          p=(root/'FACAD_F01_13_WAVE7_C02_PAGE_INDEX_PASSAGE.md').read_text(encoding='utf-8')
+          s=json.loads((root/'B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json').read_text())
+          b=json.loads((root/'B_65_PROFILE_SOURCE_GATES_20261011.json').read_text())
+          w=json.loads((root/'FACAD_F01_13_WAVE5_SOURCE_CROSSWALK.json').read_text())
+          assert s['sources']['c02_pdf_pages']==34
+          assert s['sources']['c01_pdf_pages']==12
+          assert s['sources']['c02_pdf_sha256'] in p and s['sources']['c01_pdf_sha256'] in p
+          assert len(b['items'])==65 and b['verification']['git_uiatriplets_complete']==42
+          assert b['verification']['git_uia_triplets_not_versioned_here']==23
+          assert len(w['operator_type_matrix'])==10 and len(w['priority_analyses'])==8
+          assert all(op['source_C01_C02_specific_formula']=='UNKNOWN' for op in w['operator_type_matrix'])
+          assert all(v['facad_numeric_parity']=='NOT_TESTED' for v in w['priority_analyses'])
+          for marker in (
+             '**25 tokens**','**8** avec au moins une page','**24 lignes appariées**',
+             '**7 pages indexées (5, 10, 19, 20, 22, 24, 30)**',
+             'F01.13', '**gate OPEN**', 'D3 `OPEN_RED`','`CONVERGED=false`',
+             'FACAD 21/39 = 53,8 %','GLOBAL 41/99 = 41,4 %'
+          ):
+              assert marker in p, marker
+          for forbidden in ('F01.13=CLOSED','FACAD 22/39','formule certifiée par index',
+                            'FACAD numerical parity=VERIFIED'):
+              assert forbidden not in p, forbidden
+          print('F01_13_C02_PAGE_METADATA=34_PAGES')
+          print('F01_13_LEXICAL_TOKENS=25_QUERIED_8_FOUND')
+          print('F01_13_COOCCURRENCES=24_LINES_7_PAGES')
+          print('F01_13_CERTIFIED_FORMULAS=0')
+          print('F01_13_PERCENTAGE_UNCHANGED=21_OF_39')
           PY
