@@ -1,0 +1,72 @@
+name: FAC05 source-pinned synthetic contract checks
+
+on:
+  push:
+    branches:
+      - research/facad-fac05-protocol-20261011
+    paths:
+      - .github/workflows/facad-314-fac05-synthetic-contracts.yml
+      - docs/audits/facad_trial_20261011/FAC05_SAME_TRACE_PREREGISTRATION_20261011.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-oracles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact FAC05 protocol
+        uses: actions/checkout@v4
+        with:
+          path: protocol
+          persist-credentials: false
+
+      - name: Checkout pinned research oracle source
+        uses: actions/checkout@v4
+        with:
+          ref: 068d30a5437a4bf0fe8a46a96391fa3cd8a6428d
+          path: science-source
+          persist-credentials: false
+
+      - name: Fail on candidate-oracle source drift
+        shell: bash
+        run: |
+          observed="$(git -C science-source hash-object docs/audits/scripts/facad_c02_synthetic_geometry_contract.py)"
+          if [ "$observed" != "523d556dbfec6284f6597f46618f84ea268d6822" ]; then
+            echo "ORACLE_SOURCE_DRIFT_STOP"
+            exit 1
+          fi
+          echo "EXACT_ORACLE_BLOB_PASS=$observed"
+
+      - name: Validate research-only prerequisite gates and twelve synthetic scenarios
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('protocol/docs/audits/facad_trial_20261011/FAC05_SAME_TRACE_PREREGISTRATION_20261011.json')
+          x=json.loads(p.read_text(encoding='utf-8'))
+          assert x['status']=='PROTOCOL_ONLY_NO_NUMERIC_PARITY'
+          assert x['parity_tested'] is False
+          assert x['clinical_parity_verified'] is False
+          assert x['converged'] is False
+          assert x['case_contract']['vendor_software_execution']=='BLOCKED_BY_D3'
+          assert x['case_contract']['when_any_condition_unknown']=='NOT_COMPARABLE'
+          assert x['historical_ui_only']['all_status']=='NOT_COMPARABLE'
+          assert len(x['historical_ui_only']['visible_labels'])==12
+          cases=x['synthetic_case_contracts']
+          assert len(cases)==12
+          assert len({c['id'] for c in cases})==12
+          assert all(c['id'].startswith('SYN-') and c['expected_class'] and c['why'] for c in cases)
+          print('FAC05_PROTOCOL_GATE_PASS=12_SCENARIOS_SOURCE_ONLY')
+          print('FAC05_NUMERIC_VENDOR_PARITY_TESTED=false')
+          PY
+
+      - name: Run pure Python geometry candidate-oracle tests (never FACAD binary)
+        shell: bash
+        run: |
+          python science-source/docs/audits/scripts/facad_c02_synthetic_geometry_contract.py -v
+          echo "FAC05_SYNTHETIC_CANDIDATE_ORACLE_PASS=true"
+          echo "FAC05_VENDOR_PARITY_VALIDATED=false"
