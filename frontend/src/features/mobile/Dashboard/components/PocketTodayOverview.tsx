@@ -94,7 +94,7 @@ export function PocketTodayOverview({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Digital Crown Pocket</p>
-            <h1 className="mt-1 font-outfit text-[24px] font-bold tracking-tight text-text-main">
+            <h1 className="mt-1  text-[24px] font-bold tracking-tight text-text-main">
               {isToday ? 'Aujourd’hui' : selectedDateLabel}
             </h1>
             <p className="mt-1 text-[12px] font-medium text-text-muted">
