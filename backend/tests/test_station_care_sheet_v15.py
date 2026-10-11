@@ -351,7 +351,10 @@ def test_station_care_sheet_refuses_pdf_disk_tampering_after_authorization(clien
     _set_mode(client, headers, "station")
     file_path = ArchiveService(db)._resolve_archive_storage_path(document)
     original = file_path.read_bytes()
-    file_path.write_bytes(b"%PDF-1.4\nTampered but same length?\n%%EOF\n")
+    altered = bytearray(original)
+    altered[10] ^= 1
+    file_path.write_bytes(bytes(altered))
+    assert file_path.stat().st_size == document.file_size
     try:
         denied = client.get(f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}", headers=headers)
         assert denied.status_code == 409
@@ -390,3 +393,26 @@ def test_station_care_sheet_verified_snapshot_equals_actual_response(client, db,
     assert delivered.content == expected
     assert hashlib.sha256(delivered.content).hexdigest() == document.file_hash
     assert delivered.headers["x-content-type-options"] == "nosniff"
+
+def test_station_care_sheet_rejects_symlinked_archive_even_to_same_pdf(client, db, dentiste):
+    headers, session_id, patient = _identified_session(client, db, dentiste, dossier="ST043-SYMLINK")
+    document = _care_sheet(db, patient)
+    _set_mode(client, headers, "cabinet")
+    assert client.post(f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal", headers=headers).status_code == 200
+    _set_mode(client, headers, "station")
+    archive_path = ArchiveService(db)._resolve_archive_storage_path(document)
+    backup = archive_path.with_name(archive_path.name + ".test-original")
+    archive_path.rename(backup)
+    try:
+        try:
+            archive_path.symlink_to(backup)
+        except (OSError, NotImplementedError):
+            import pytest
+            pytest.skip("Runner does not permit filesystem symlinks")
+        denied = client.get(f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}", headers=headers)
+        assert denied.status_code == 409
+        assert denied.json()["detail"] == "STATION_CARE_SHEET_FILE_UNTRUSTED"
+    finally:
+        if archive_path.is_symlink():
+            archive_path.unlink()
+        backup.rename(archive_path)
