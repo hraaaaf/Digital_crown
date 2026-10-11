@@ -8,6 +8,7 @@ on:
       - .github/workflows/facad-314-b65-source-matrix.yml
       - docs/audits/facad_trial_20261011/B_65_PROFILE_SOURCE_GATES_20261011.json
       - docs/audits/facad_trial_20261011/B_STEINER_TWEED_SOURCE_ARTIFACT_RECOVERY_20261011.json
+      - docs/audits/facad_trial_20261011/B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json
   workflow_dispatch:
 
 permissions:
@@ -109,4 +110,48 @@ jobs:
           print('B65_RECOVERY_SOURCE_REFERENCES_PASS=2_PROFILES_6_TEXT_VIEWS')
           print('B65_STRICT_UIA_CSV_TRIPLETS_PRESENT=42_UNCHANGED')
           print('B65_VENDOR_FORMULAS_VERIFIED=false')
+          PY
+
+      - name: Defend ten C01-C02 operator source claims from false page formula promotion
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess, re
+          from pathlib import Path
+          root=Path('research/docs/audits/facad_trial_20261011')
+          o=json.loads((root/'B_10_OPERATOR_EVIDENCE_GATES.json').read_text())
+          x=json.loads((root/'B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json').read_text())
+          report='docs/audits/FACAD_314_C02_LEXICAL_LANDMARK_INDEX_ADJUDICATION_2026-10-11.md'
+          blob=subprocess.check_output(['git','-C','source','hash-object',report],text=True).strip()
+          assert blob=='55b40f91d8b7090e82b58959ebea3da1cdfe2d8a'
+          doc=(Path('source')/report).read_text(encoding='utf-8')
+          assert '34 pages' in doc and '24' in doc
+          assert x['sources']['c02_pdf_sha256']=='4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548'
+          assert x['sources']['c02_minimal_index_sha256']=='011f9330320c46ce2b776506710080bc42826c4155e54a9e9600ee5ed5158a4'
+          assert x['sources']['c02_cooccurrence_sha256']=='a6903d480aa21c97b8bce40d5f13b1a3666e9b102fa4432cb4d8127fb84edf28'
+          assert x['sources']['c02_artifact_zip_sha256']=='d121d062920dea17cecb5ff43c778a93681283530b21a582f044b9f9186d0bd3'
+          assert x['sources']['operator_registry_blob']=='e6bd251f24cb2c347af8b2f1f30299090ca1e37f'
+          assert x['c02_verified_lexical_index']['pages_with_target_lines']==[5,10,19,20,22,24,30]
+          assert x['c02_verified_lexical_index']['label_matched_lines_total']==24
+          assert x['c02_verified_lexical_index']['formula_definition_verified'] is False
+          assert x['c02_verified_lexical_index']['visual_page_definition_reviewed'] is False
+          actual=x['operators']; source=o['operators']
+          assert len(actual)==len(source)==10
+          assert [v['operator'] for v in actual]==[q['operator'] for q in source]
+          for row,original in zip(actual,source):
+              assert row['observed_count_in_5_profiles']==original['ui_editor_occurrences_5_profiles']
+              assert row['operator_definition_state']=='UNKNOWN'
+              assert row['orientation_sign_and_units']=='UNKNOWN'
+              assert row['geometry_identity_verified'] is False
+              assert row['numeric_parity_tested'] is False
+              assert row['clinical_gate']=='OPEN'
+              link=row['lexical_c02_link']
+              if link:
+                  assert link['scope']=='LABEL_ONLY_NOT_OPERATOR_DEFINITION'
+                  assert set(link['pages']).issubset({5,10,19,20,22,24,30})
+          assert x['c01_provenance']['actual_formula_page_certification'] is False
+          assert x['scope']=='RESEARCH_ONLY_METADATA_WITHOUT_PROPRIETARY_PDF_TEXT'
+          print('B_WAVE3_C01_C02_10_OPERATORS_SOURCE_GATES_PASS=true')
+          print('B_WAVE3_C02_SEVEN_PAGES_24_LABEL_LINES_FORMULAS_UNKNOWN=true')
+          print('B_WAVE3_C01_C02_NUMERIC_PARITY_VALIDATED=false')
           PY
