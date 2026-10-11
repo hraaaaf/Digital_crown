@@ -148,7 +148,27 @@ export const StationPatientIdentity = ({
   };
 
   useEffect(() => {
-    void start();
+    // Ignore late create responses after unmount, and revoke their sessions.
+    let active = true;
+    const create = async () => {
+      setStatus('loading');
+      try {
+        const created = await stationPatientSessionService.create();
+        if (!active) {
+          void purgeSessionBestEffort(created.sessionId);
+          return;
+        }
+        setSession(created);
+        setStatus('pending');
+      } catch {
+        if (!active) return;
+        setSession(null);
+        setStatus('error');
+        setError(COPY[language].unavailable);
+      }
+    };
+    void create();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
