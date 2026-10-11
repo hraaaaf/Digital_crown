@@ -653,3 +653,34 @@ def mobile_create_partner_order(
     from backend.routers import partner_orders as _orders
     body = _orders.PartnerOrderCreateIn(**payload)
     return _orders.create_partner_order(body, db, mobile_user)
+
+
+# Pocket Frontdesk facade: desktop JWT endpoints remain strictly inaccessible
+# with a paired-device token. Domain transitions are reused, with the Pocket
+# pairing + role/permission + tenant checks performed before delegation.
+@router.get('/frontdesk/pending', summary='Accueil Pocket — demandes du cabinet')
+async def mobile_frontdesk_pending(
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("agenda")),
+):
+    from backend.routers import frontdesk as _frontdesk
+    return await _frontdesk.list_pending_appointments(db=db, current_user=mobile_user)
+
+
+@router.post('/frontdesk/requests/{appointment_id}/{action}', summary='Accueil Pocket — action courte')
+async def mobile_frontdesk_action(
+    appointment_id: int,
+    action: str,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("agenda")),
+):
+    from backend.routers import frontdesk as _frontdesk
+    actions = {
+        'confirm': _frontdesk.confirm_appointment,
+        'reject': _frontdesk.reject_appointment,
+        'request-confirmation': _frontdesk.request_patient_confirmation,
+    }
+    handler = actions.get(action)
+    if handler is None:
+        raise HTTPException(status_code=404, detail="Action Accueil inconnue.")
+    return await handler(appointment_id=appointment_id, db=db, current_user=mobile_user)
