@@ -35,7 +35,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1 pngjs@7.0.0
           npx playwright install --with-deps chromium
       - name: Extend checked-in R19 browser fixture temporarily with measured layer actions
         shell: bash
@@ -54,7 +54,7 @@ jobs:
           s=s.replace(fixture_needle,fixture_data)
           import_needle="import path from 'node:path';"
           assert s.count(import_needle)==1
-          s=s.replace(import_needle,import_needle+"\nimport { createHash } from 'node:crypto';")
+          s=s.replace(import_needle,import_needle+"\nimport { createHash } from 'node:crypto';\nimport pngjs from 'pngjs';\nconst { PNG } = pngjs;")
           needle='  const states=[];'
           assert s.count(needle)==1
           extra=r"""
@@ -89,10 +89,37 @@ jobs:
           // Element capture forces the tracing SVG into view on mobile (viewport capture alone can miss it).
           const traceSvg=page.locator('[data-cephalo-analysis] svg:has(image)').first();
           await traceSvg.waitFor({state:'attached',timeout:6000});
+          let lastTracePng,lastTraceBytes;
           const tracePixel=async(filename)=>{
             const bytes=await traceSvg.screenshot({animations:'disabled',timeout:20000});
+            lastTraceBytes=bytes;
+            lastTracePng=PNG.sync.read(bytes);
             if(filename)await writeFile(path.join(OUTPUT_DIR,filename),bytes);
             return {bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+          };
+          // Fixed, preregistered visual thresholds; no dynamic tuning from this run.
+          const rasterDiff=(a,b)=>{
+            if(a.width!==b.width||a.height!==b.height)throw new Error('Raster geometry changed');
+            let pixelsOver10=0,pixelsOver30=0,maxRgbDelta=0,energyRgb=0;
+            for(let i=0;i<a.data.length;i+=4){
+              const dr=Math.abs(a.data[i]-b.data[i]);
+              const dg=Math.abs(a.data[i+1]-b.data[i+1]);
+              const db=Math.abs(a.data[i+2]-b.data[i+2]);
+              const d=Math.max(dr,dg,db);
+              maxRgbDelta=Math.max(maxRgbDelta,d);
+              energyRgb+=dr+dg+db;
+              if(d>10)pixelsOver10++;
+              if(d>30)pixelsOver30++;
+            }
+            return {totalPixels:a.width*a.height,pixelsOver10,pixelsOver30,maxRgbDelta,energyRgb};
+          };
+          const visualGate=(before,toggled,restored)=>{
+            const toggle=rasterDiff(before,toggled);
+            const residual=rasterDiff(before,restored);
+            return {toggle,residual,changed:toggle.pixelsOver30>=60,
+              restored:residual.pixelsOver30===0
+                && residual.pixelsOver10<=Math.max(35,Math.ceil(residual.totalPixels*0.0003))
+                && residual.energyRgb<=Math.max(200,toggle.energyRgb*0.01)};
           };
           const geometrySegments=async()=>page.evaluate(()=>{
             const root=document.querySelector('[data-cephalo-analysis]');
@@ -113,6 +140,17 @@ jobs:
           await page.screenshot({path:path.join(OUTPUT_DIR,'layer-before-'+viewport.name+'.png'),fullPage:false});
           await page.waitForTimeout(350);
           await tracePixel('trace-before-'+viewport.name+'.png');
+          // Adversarial calibration: a single obvious corrupted pixel MUST be rejected,
+          // while a ≤10 RGB single-channel perturbation is treated as capture noise.
+          const clean=lastTracePng;
+          const corrupt={...clean,data:Buffer.from(clean.data)};
+          corrupt.data[0]=clean.data[0]>127?0:255;
+          const benign={...clean,data:Buffer.from(clean.data)};
+          benign.data[0]=clean.data[0]>127?clean.data[0]-10:clean.data[0]+10;
+          if(visualGate(clean,clean,corrupt).restored||!visualGate(clean,clean,benign).restored)
+            throw new Error('Raster visual-oracle sabotage/benign-noise controls failed');
+          layerAudit.rasterOracleSabotageRejected=true;
+          layerAudit.rasterOracleBenignNoiseAccepted=true;
           for(const id of ['landmarks','plans','teeth','soft_tissue','measurements','t1','t2']){
             const control=page.locator('[data-ortho-layer-control="'+id+'"] button');
             if(await control.isDisabled())throw new Error('Available layer unexpectedly disabled: '+id);
@@ -121,7 +159,8 @@ jobs:
             const beforeSvg=await svgProbe(id);
             if(beforeSvg.count===0)throw new Error('No fixture-backed SVG geometry before toggling '+id);
             await page.waitForTimeout(200);
-            const beforePixel=await tracePixel();
+            const beforePixel=await tracePixel('trace-layer-before-'+id+'-'+viewport.name+'.png');
+            const beforeRaster=lastTracePng;
             const baselineSegments=(id==='t1'||id==='t2')?await geometrySegments():null;
 
             const changed=original==='true'?'false':'true';
@@ -148,7 +187,10 @@ jobs:
               if(baselineSegments.length<6||!baselineSegments.every(a=>afterSegments.some(b=>matches(a,b))))
                 throw new Error('Synthetic projection geometry not attributed to '+id);
             }
-            const toggledPixel=await tracePixel(id==='landmarks'||id==='soft_tissue'?'trace-toggle-'+id+'-'+viewport.name+'.png':undefined);
+            const toggledPixel=await tracePixel('trace-layer-toggle-'+id+'-'+viewport.name+'.png');
+            const toggledRaster=lastTracePng;
+            if(id==='landmarks'||id==='soft_tissue')
+              await writeFile(path.join(OUTPUT_DIR,'trace-toggle-'+id+'-'+viewport.name+'.png'),lastTraceBytes);
             if(toggledPixel.sha256===beforePixel.sha256)
               throw new Error('SVG markup changed but rendered tracing pixels did not: '+id);
 
@@ -165,13 +207,19 @@ jobs:
             // Compare raster restoration as an observed result; transient SVG animation/capture variation
             // must not be misclassified as a clinical rendering bug without pixel-difference analysis.
             await page.waitForTimeout(400);
-            const restoredPixel=await tracePixel(id==='landmarks'||id==='soft_tissue'?'trace-restored-'+id+'-'+viewport.name+'.png':undefined);
-            layerAudit.tracePixelProbes.push({id,before:beforePixel,toggled:toggledPixel,restored:restoredPixel,spoofRejected:true,pixelsVerified:true,pixelRestoredExact:restoredPixel.sha256===beforePixel.sha256});
+            const restoredPixel=await tracePixel('trace-layer-restored-'+id+'-'+viewport.name+'.png');
+            const restoredRaster=lastTracePng;
+            if(id==='landmarks'||id==='soft_tissue')
+              await writeFile(path.join(OUTPUT_DIR,'trace-restored-'+id+'-'+viewport.name+'.png'),lastTraceBytes);
+            const rasterOracle=visualGate(beforeRaster,toggledRaster,restoredRaster);
+            if(!rasterOracle.changed)throw new Error('Raster image did not change visibly: '+viewport.name+'/'+id+' '+JSON.stringify(rasterOracle.toggle));
+            if(!rasterOracle.restored)throw new Error('Raster restoration exceeded preregistered thresholds: '+viewport.name+'/'+id+' '+JSON.stringify(rasterOracle.residual));
+            layerAudit.tracePixelProbes.push({id,before:beforePixel,toggled:toggledPixel,restored:restoredPixel,spoofRejected:true,pixelsVerified:true,pixelRestoredExact:restoredPixel.sha256===beforePixel.sha256,rasterOracle});
 
             layerAudit.svgProbes.push({id,before:beforeSvg,toggled:toggledSvg,restored:restoredSvg,spoofRejected,svg_effect_verified:true});
             layerAudit.controlled.push({id,original,toggled:changed,restored:original,click_verified:true});
           }
-          layerAudit.valid=layerAudit.hardTissueDisabled&&layerAudit.controlled.length===7&&layerAudit.svgProbes.length===7&&layerAudit.svgProbes.every(x=>x.spoofRejected&&x.svg_effect_verified)&&layerAudit.tracePixelProbes.length===7&&layerAudit.tracePixelProbes.every(x=>x.pixelsVerified&&x.before.sha256!==x.toggled.sha256);
+          layerAudit.valid=layerAudit.rasterOracleSabotageRejected&&layerAudit.rasterOracleBenignNoiseAccepted&&layerAudit.hardTissueDisabled&&layerAudit.controlled.length===7&&layerAudit.svgProbes.length===7&&layerAudit.svgProbes.every(x=>x.spoofRejected&&x.svg_effect_verified)&&layerAudit.tracePixelProbes.length===7&&layerAudit.tracePixelProbes.every(x=>x.pixelsVerified&&x.before.sha256!==x.toggled.sha256);
           if(!layerAudit.valid)throw new Error('Layer audit failure');
           """
           s=s.replace(needle,extra+'\n'+needle)
@@ -219,28 +267,36 @@ jobs:
             assert capture['valid'] and len(capture['states'])==6 and all(s['valid'] for s in capture['states'])
             a=capture['layerAudit']
             assert a['valid'] and a['hardTissueDisabled'] and a['viewport'] in viewports
+            assert a['rasterOracleSabotageRejected'] and a['rasterOracleBenignNoiseAccepted']
             assert {x['id'] for x in a['controlled']}==expected
             assert all(x['click_verified'] and x['original']==x['restored'] and x['original']!=x['toggled'] for x in a['controlled'])
             assert len(a['svgProbes'])==7
             assert {x['id'] for x in a['svgProbes']}==expected
             assert all(x['spoofRejected'] and x['svg_effect_verified'] and x['before']['count']>0 and x['before']==x['restored'] and x['before']['sha256']!=x['toggled']['sha256'] for x in a['svgProbes'])
             assert len(a['tracePixelProbes'])==7
-            assert all(x['pixelsVerified'] and x['spoofRejected'] and x['before']['sha256']!=x['toggled']['sha256'] for x in a['tracePixelProbes'])
+            assert all(x['pixelsVerified'] and x['spoofRejected'] and x['before']['sha256']!=x['toggled']['sha256'] and x['rasterOracle']['changed'] and x['rasterOracle']['restored'] for x in a['tracePixelProbes'])
             manifest.setdefault('pixel_restore_exact_counts',{})[a['viewport']]=sum(1 for x in a['tracePixelProbes'] if x['pixelRestoredExact'])
             manifest['layer_control_probes'].append(a)
             for name in ('layer-before','layer-toggle-landmarks','layer-toggle-soft_tissue','trace-before','trace-toggle-landmarks','trace-toggle-soft_tissue','trace-restored-landmarks','trace-restored-soft_tissue'):
               p=root/(name+'-'+a['viewport']+'.png')
               assert p.stat().st_size>1000,p
               manifest['captures'].append({'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
+            for probe_id in expected:
+              for phase in ('before','toggle','restored'):
+                p=root/('trace-layer-'+phase+'-'+probe_id+'-'+a['viewport']+'.png')
+                assert p.stat().st_size>1000,p
+                manifest['captures'].append({'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
           assert len(manifest['layer_control_probes'])==4
-          assert len(manifest['captures'])==32
+          assert len(manifest['captures'])==116
           (root/'facad-f02-4-verified-layer-action-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
           print('FACAD_F02_4_DC_ACTUAL_LAYER_TOGGLES=28_CONFIRMED_AND_RESTORED')
           print('FACAD_F02_4_DC_HARD_TISSUE_DISABLED=4_OF_4')
           print('FACAD_F02_4B_SVG_REAL_RENDER_TOGGLES=28_PROVEN_AND_RESTORED')
           print('FACAD_F02_4B_ARIA_SPOOF_NEGATIVES=28_REJECTED')
           print('FACAD_F02_4B_RENDERED_TRACE_PIXEL_TOGGLES=28_CHANGED_AND_SVG_RESTORED')
-          print('FACAD_F02_4B_PIXEL_RESTORATION=OBSERVED_NOT_CERTIFIED; check manifest exact count and screenshot diffs')
+          print('FACAD_F02_4C_RASTER_TOLERANT_RESTORATION=28_OF_28_PREREGISTERED_THRESHOLD_PASS')
+          print('FACAD_F02_4C_RASTER_NEGATIVE_CONTROL=SINGLE_CORRUPT_PIXEL_REJECTED_ON_4_VIEWPORTS')
+          print('FACAD_F02_4C_RASTER_EVIDENCE=116_HASHED_PNGS; T1_T2_INCLUDED')
           print('FACAD_F02_4B_PROJECTED_COORDINATES=T1_T2_DISTINCT_SYNTHETIC_ORACLE')
           print('FACAD_F02_4_MOBILE_RENDERED=390x844')
           print('FACAD_F02_4_SCREENSHOTS=12_SHA256')
