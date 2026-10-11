@@ -31,6 +31,7 @@ from backend.services.insurance_far_2021_1_profile import (
     FAR_2021_1_DERIVED_TEMPLATE_SHA256,
 )
 from backend.services.insurance_finalization import finalize_insurance_submission_pdf
+from backend.services.station_care_sheet import record_trusted_finalization
 from backend.services.insurance_preparation import prepare_insurance_draft_from_honoraires
 from backend.services.insurance_source_store import load_stored_insurance_source
 from backend.services.insurance_template_registry import (
@@ -209,6 +210,12 @@ def finalize_insurance_submission(
             overlay_profile=overlay_profile,
             filename=filename,
             uploaded_by_id=current_user.id,
+        )
+        # Only this authoritative revalidation+render route can emit station
+        # finalization provenance. User-supplied archive metadata is NOT sufficient.
+        record_trusted_finalization(
+            db, document, employer_id=int(current_user.get_employer_id()),
+            practitioner_id=int(current_user.id),
         )
     except ValueError as exc:
         raise _http_422(exc) from exc
