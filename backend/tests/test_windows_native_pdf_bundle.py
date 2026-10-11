@@ -61,6 +61,11 @@ class WindowsNativePdfBundleTest(unittest.TestCase):
             with self.assertRaises(contract.WindowsNativePdfError):
                 contract._unique_rows(rows, len(rows), "test")
 
+    def test_fontconfig_is_byte_pinned_at_build_and_runtime(self):
+        cfg = ROOT / "backend" / "windows_fontconfig" / "fonts.conf"
+        self.assertEqual(contract._sha256(cfg), contract.FONTCONFIG_XML_SHA256)
+        self.assertIn(contract.FONTCONFIG_XML_SHA256, HOOK.read_text(encoding="utf-8"))
+
     def test_native_file_tampering_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             item = Path(tmp) / "native.dll"
