@@ -319,6 +319,9 @@ export const MobileStorage = {
   async getLastSnapshot(targetDate: string): Promise<SnapshotEntry | null> {
     const creds = await rawCredentials();
     if (!creds?.device_id || !targetDate) return null;
+    // Drop legacy destructive offline mutations before trusting their possibly
+    // optimistic cached snapshot; an unconfirmed deletion is never evidence.
+    await this.getActionQueue();
     const envelope = await rawVault();
     const entry = envelope
       ? unlockedVault?.payload.snapshot ?? null
@@ -462,18 +465,20 @@ export const MobileStorage = {
       : await mobileStore().getItem<QueuedAction[]>(STORE_ACTION_QUEUE_ID) || [];
     // Purge previously queued destructive/unknown mutations before any replay.
     // This also applies to an unlocked biometric vault, not just IndexedDB.
-    const replayable = queue.filter(a =>
-      a.cabinetPublicId === creds.publicId
-      && a.deviceId === creds.device_id
-      && isReplayablePocketAction(a, creds.api_base_url)
+    const scoped = queue.filter(a =>
+      a.cabinetPublicId === creds.publicId && a.deviceId === creds.device_id
     );
+    const replayable = scoped.filter(a => isReplayablePocketAction(a, creds.api_base_url));
+    const abandonedUnsafeMutation = replayable.length !== scoped.length;
     if (replayable.length !== queue.length) {
       if (await rawVault()) {
         if (!unlockedVault) return [];
         unlockedVault.payload.actionQueue = replayable;
+        if (abandonedUnsafeMutation) unlockedVault.payload.snapshot = null;
         await persistUnlockedVault();
       } else {
         await mobileStore().setItem(STORE_ACTION_QUEUE_ID, replayable);
+        if (abandonedUnsafeMutation) await mobileStore().removeItem(STORE_SNAPSHOT_ID);
       }
     }
     return replayable;
