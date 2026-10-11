@@ -85,6 +85,7 @@ jobs:
           src/features/mobile/Dashboard/hooks/useMobileDashboard.p0.test.tsx
           src/features/mobile/Dashboard/views/PocketAgendaDay.test.tsx
           src/features/mobile/Dashboard/MobileP2Compact.test.tsx
+          src/features/mobile/Dashboard/PocketMicroPolishTheme.contract.test.ts
           src/features/mobile/bridge.test.ts
           src/test/mobileM64ContextualBridge.test.ts
           src/features/mobile/Dashboard/components/MobileQuickActionHub.test.tsx
@@ -147,6 +148,18 @@ jobs:
                   raise SystemExit('restored Pocket modules or role guards failed')
               if row['horizontalOverflow'] or row['runtimeErrors']:
                   raise SystemExit(f"runtime defect: {row}")
+          themes = json.loads((root / 'theme-evidence.json').read_text())
+          required = {'emerald', 'rose', 'prestige', 'ocean', 'graphite', 'dark', 'high-contrast'}
+          if {row['id'] for row in themes} != required or len(themes) != len(required):
+              raise SystemExit('Pocket cabinet-selected theme coverage incomplete')
+          for row in themes:
+              if row['horizontalOverflow'] or row['preview'] or not row['primaryActionText']:
+                  raise SystemExit(f"invalid Pocket theme runtime evidence: {row}")
+              for state in ('today', 'plus', 'stock'):
+                  name = f"theme-{row['id']}-{state}-430x932.png"
+                  data = (root / name).read_bytes()
+                  if data[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', data[16:24]) != (430, 932):
+                      raise SystemExit(f"invalid themed screenshot: {name}")
           PY
           printf 'head=%s\nruntime=MobileDashboard\npreview=false\nroles=DENTISTE,SECRETAIRE\nviewports=390x844,430x932,768x1024,1280x800\nstock=real-runtime-routable\nlibrary=real-runtime-routable-rbac\nrestored_modules=real-runtime-routable\nrole_guards=verified\ntouch_targets=date+plus-close>=44\ndeployment=none\n' '${{ github.event.pull_request.head.sha || github.sha }}' > artifacts/mobile-pocket-runtime/result.txt
           cp /tmp/mobile-pocket-runtime-vite.log artifacts/mobile-pocket-runtime/vite.log
