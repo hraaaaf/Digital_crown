@@ -1,6 +1,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { MobileStorage } from './zka/MobileStorage';
+import { isExplicitMobileBiometricLock } from './zka/mobileBiometricLock';
 import { resolveApiBase } from './apiBase';
 
 const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
@@ -170,7 +171,9 @@ api.interceptors.response.use(
     }
 
     if (status === 423 && typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile')) {
-      propagateMobileBiometricLock();
+      // All 423 refusals still reach the caller; only the canonical server code
+      // may switch the UI to a biometric lock screen.
+      if (isExplicitMobileBiometricLock(status, data)) propagateMobileBiometricLock();
       return Promise.reject(error);
     }
 
