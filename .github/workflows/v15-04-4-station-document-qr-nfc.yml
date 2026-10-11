@@ -115,6 +115,30 @@ jobs:
           node scripts/capture-v15-04-4-documents-identity.mjs
           test -f artifacts/v15-04-4-documents-identity-after/evidence.json
           node --input-type=module -e 'import fs from "node:fs"; const e=JSON.parse(fs.readFileSync("artifacts/v15-04-4-documents-identity-after/evidence.json")); if(e.report.length!==48 || e.report.some(r=>r.errors.length || r.scrollWidth>r.width)) process.exit(1); console.log("04.4: 48 synthetic captures verified; real scanability not certified")'
+      - name: Capture genuine base revision BEFORE evidence
+        working-directory: frontend
+        shell: bash
+        env:
+          EVALUATED_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${EVALUATED_BASE}" ]]; then
+            echo "No PR base SHA; baseline comparison not certified for push/dispatch."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
+          git worktree add --detach /tmp/v15-04-4-base "${EVALUATED_BASE}"
+          cp scripts/capture-v15-04-4-documents-identity.mjs /tmp/v15-04-4-base/frontend/capture-04-4-baseline.mjs
+          cd /tmp/v15-04-4-base/frontend
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          EVIDENCE_PHASE=before EVALUATED_SHA="${EVALUATED_BASE}" node capture-04-4-baseline.mjs
+      - name: Declare evidence scope
+        working-directory: frontend
+        run: |
+          echo "AFTER: synthetic 04.4 captures on candidate SHA"
+          echo "BEFORE: only certified if base checkout and baseline script succeed"
+          echo "Physical QR/NFC scanability and immediate offline purge are not certified"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
