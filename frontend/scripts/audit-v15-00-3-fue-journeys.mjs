@@ -136,7 +136,7 @@ const installRoutes = async (context, state, unexpected, requests) => {
       expiresAt, fallbackMode: 'disabled',
     }, 201);
   });
-  await context.route(new RegExp('/api/workstation/patient-session/fue-documents-session-[0-9]+(/purge)?
+  await context.route(new RegExp('/api/workstation/patient-session/fue-documents-session-[0-9]+(/purge)?' + String.fromCharCode(36)), route => {
     const url = new URL(route.request().url());
     const sessionId = url.pathname.split('/').at(-1) === 'purge'
       ? url.pathname.split('/').at(-2) : url.pathname.split('/').at(-1);
