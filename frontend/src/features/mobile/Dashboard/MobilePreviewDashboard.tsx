@@ -20,14 +20,7 @@ import { MobilePreviewSecurityView } from './MobilePreviewSecurityView';
 import { applyMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
 import { LabJobStatus, type LabJob } from '../../../types/labJob';
 import type { MarketplacePreviewData } from '../../partnerMarketplace/usePartnerMarketplace';
-import type { Appointment, Snapshot, Tab } from './types';
-
-const DEMO_PATIENTS = [
-  { id: 101, name: 'Patient 01', phone: '+212600000001' },
-  { id: 102, name: 'Patient 02', phone: '+212600000002' },
-  { id: 103, name: 'Patient 03', phone: null },
-  { id: 104, name: 'Patient 04', phone: null },
-];
+import type { Snapshot, Tab } from './types';
 
 const DEMO_QUICK_CAPABILITIES = {
   can_create_appointment: true,
