@@ -65,7 +65,13 @@ jobs:
           $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestFile -Encoding utf8
           $env:WEASYPRINT_DLL_DIRECTORIES = $native
           $env:PATH = "$native;$env:PATH"
-          python -m pip install --no-input --disable-pip-version-check 'weasyprint==68.1'
+          # PATH intentionally includes native MSYS2 DLLs, but the MSYS2 Python lacks pip.
+          # Always execute the CPython 3.12 selected by actions/setup-python.
+          $hostPython = Join-Path $env:pythonLocation 'python.exe'
+          if (-not (Test-Path -LiteralPath $hostPython -PathType Leaf)) { throw 'Missing setup-python interpreter' }
+          & $hostPython -c 'import sys; print("LAB_HOST_PYTHON=" + sys.executable)'
+          if ($LASTEXITCODE -ne 0) { throw 'setup-python interpreter failed' }
+          & $hostPython -m pip install --no-input --disable-pip-version-check 'weasyprint==68.1'
           if ($LASTEXITCODE -ne 0) { throw 'Exact WeasyPrint 68.1 lab dependency failed to install' }
           @'
           import os
@@ -78,7 +84,7 @@ jobs:
               raise AssertionError('Real native WeasyPrint 68.1 PDF failed size/signature')
           print('EXPERIMENTAL_WEASYPRINT_NATIVE_RENDER=PASS')
           print('DISCOVERY_PDF_BYTES=' + str(len(b)))
-          '@ | python -
+          '@ | & $hostPython -
           if ($LASTEXITCODE -ne 0) { throw 'Actual native WeasyPrint lab rendering failed' }
           Write-Host 'EXPERIMENTAL_ONLY_TRANSITIVE_PACKAGES_NOT_YET_PINNED=YES'
           Write-Host 'PRODUCTION_CODE_CERTIFIED_AND_INSTALLER=UNCHANGED'
