@@ -112,7 +112,7 @@ export const MobileDashboard = () => {
         <PWAInstallPrompt />
       </div>
 
-      <main ref={mainRef} className="min-w-0 flex-1 px-4 sm:px-6 overflow-x-hidden overflow-y-auto pb-[calc(108px+env(safe-area-inset-bottom))]">
+      <main ref={mainRef} className="min-w-0 flex-1 px-4 sm:px-6 overflow-x-hidden overflow-y-auto pb-[calc(132px+env(safe-area-inset-bottom))]">
         <AnimatePresence mode="wait">
           <motion.div
             key={state.activeTab}
