@@ -1,0 +1,2 @@
+# Preserve signed Fontconfig bytes identically on Windows and Unix.
+backend/windows_fontconfig/fonts.conf text eol=lf
