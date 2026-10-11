@@ -1,0 +1,137 @@
+{
+  "schema": "FACAD_314_FAC05_PARALLEL_PREREGISTRATION_V1",
+  "date": "2026-10-11",
+  "status": "PROTOCOL_ONLY_NO_NUMERIC_PARITY",
+  "source": {
+    "vendor_build": "3.14.1.1111",
+    "official_sample": "Robert Quick Demo nonclinical",
+    "robert_ui_source_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/37841266986",
+    "robert_source_blob": "e883f06d4bb4757cd964d4bde67cc09d705ae612",
+    "geometry_contract": "docs/audits/CEPHALO_VNEXT_LOT06_ENGINE_BASELINE.md",
+    "angle_synthetic_oracle": "docs/audits/FACAD_314_C02_ANGLE_PRESENTATION_SYNTHETIC_ORACLE_2026-10-11.md",
+    "operator_register": "docs/audits/facad_trial_20261011/B_10_OPERATOR_EVIDENCE_GATES.json"
+  },
+  "case_contract": {
+    "same_facad_build_required": true,
+    "same_trace_required": true,
+    "same_landmark_ids_and_version_required": true,
+    "same_constructed_geometry_and_profile_required": true,
+    "same_calibration_required": true,
+    "same_orientation_required": true,
+    "same_unit_and_sign_required": true,
+    "rounding_policy_required": true,
+    "pre_registered_per_measurement_tolerance_required": true,
+    "independent_math_oracle_required": true,
+    "distinct_reviewers_required": true,
+    "when_any_condition_unknown": "NOT_COMPARABLE",
+    "when_missing_or_degenerate": "NOT_COMPUTABLE",
+    "norms": "NOT_ACTIVATED",
+    "vendor_software_execution": "BLOCKED_BY_D3"
+  },
+  "historical_ui_only": {
+    "profile": "Bergen short",
+    "measurement_rows": 12,
+    "visible_labels": [
+      "SNA",
+      "SNB",
+      "ANB",
+      "SNPog",
+      "NSBa",
+      "ML/NSL",
+      "NL/NSL",
+      "ML/NL",
+      "InterIncisal",
+      "ILs/NSL",
+      "ILi/ML",
+      "Pog-NB"
+    ],
+    "source": "D3E21_ROBERT_DISPLAY_MATRIX historical UIA",
+    "all_status": "NOT_COMPARABLE",
+    "no_patient_runtime_parity_claim": true
+  },
+  "synthetic_case_contracts": [
+    {
+      "id": "SYN-01",
+      "fixture": "Zero-length geometry",
+      "expected_class": "NOT_COMPUTABLE",
+      "why": "Degenerate input must fail closed"
+    },
+    {
+      "id": "SYN-02",
+      "fixture": "Missing Co-Gn dependency for Sub(Co-Gn,Co-A)",
+      "expected_class": "NOT_COMPUTABLE",
+      "why": "No fallback zero"
+    },
+    {
+      "id": "SYN-03",
+      "fixture": "Incompatible mm/degree subtraction",
+      "expected_class": "DIMENSION_REJECTED",
+      "why": "Unit consistency"
+    },
+    {
+      "id": "SYN-04",
+      "fixture": "ML Steiner Go–Gn vs Tweed Go–Me",
+      "expected_class": "NOT_AUTO_EQUIVALENT",
+      "why": "Analysis-specific construction identity"
+    },
+    {
+      "id": "SYN-05",
+      "fixture": "Ricketts PM' constructed intersection vs generic Pm",
+      "expected_class": "NOT_AUTO_EQUIVALENT",
+      "why": "Constructed marker provenance"
+    },
+    {
+      "id": "SYN-06",
+      "fixture": "PFH=Dist2p(CF,Go) vs angular PFH label",
+      "expected_class": "DIMENSION_REJECTED",
+      "why": "Length not angle"
+    },
+    {
+      "id": "SYN-07",
+      "fixture": "Angle3p quadrant and vector-order reversal",
+      "expected_class": "CONVENTION_UNVERIFIED",
+      "why": "Visual/sign presentation differs from signed geometry"
+    },
+    {
+      "id": "SYN-08",
+      "fixture": "ProjLine vs Proj90Line",
+      "expected_class": "OPERATOR_NOT_INTERCHANGEABLE",
+      "why": "Projections and operand order are distinct"
+    },
+    {
+      "id": "SYN-09",
+      "fixture": "mm per pixel not supplied for length",
+      "expected_class": "NOT_COMPUTABLE",
+      "why": "Calibration required"
+    },
+    {
+      "id": "SYN-10",
+      "fixture": "Angle Presentation Auto, upper Norm 134.99 versus 135",
+      "expected_class": "DISPLAY_RULE_ONLY",
+      "why": "Vendor manual describes switch, not underlying angle math"
+    },
+    {
+      "id": "SYN-11",
+      "fixture": "Missing patient profile age/sex/population to interpret Norm",
+      "expected_class": "NORM_NOT_ACTIVATED",
+      "why": "Norms require source population"
+    },
+    {
+      "id": "SYN-12",
+      "fixture": "Different source trace/landmarks for same visible label",
+      "expected_class": "NOT_COMPARABLE",
+      "why": "Identical labels not identical measurements"
+    }
+  ],
+  "execution_order": [
+    "Pure synthetic independent contract tests (can run now)",
+    "Resolve C01/C02 source identity and constructions",
+    "Pre-register geometry identities and tolerance with clinical review",
+    "Verify D3 and explicit rights/privacy authorizations",
+    "Capture same-trace nonclinical vendor and DC outputs only in approved environment",
+    "Compute differences + negative controls and independent review"
+  ],
+  "parity_tested": false,
+  "clinical_parity_verified": false,
+  "converged": false
+}
