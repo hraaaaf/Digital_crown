@@ -67,6 +67,16 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.getByText('Équipe')).toBeTruthy();
     expect(screen.getByText('Assistant · En cours de construction')).toBeTruthy();
 
+    // The Safari sheet must be solid, readable and touch-friendly over clinical content.
+    const dialog = screen.getByRole('dialog', { name: 'Plus' });
+    expect(dialog.getAttribute('style')).toContain('var(--card-bg)');
+    expect(dialog.className).toContain('bg-card');
+    const stockItem = screen.getByRole('button', { name: 'Stock' });
+    expect(stockItem.className).toContain('min-h-[54px]');
+    expect(stockItem.querySelector('span.flex-1')?.className).toContain('text-[14px]');
+    const nav = document.querySelector('[data-mobile-bottom-nav]') as HTMLElement;
+    expect(nav.getAttribute('style')).toContain('var(--card-bg)');
+
     fireEvent.click(screen.getByText('Salle d’attente'));
     expect(setActiveTab).toHaveBeenCalledWith('waiting-room');
     expect(screen.queryByText('Accès secondaires')).toBeNull();
