@@ -1,0 +1,541 @@
+{
+  "schema": "FACAD_F06_3_COVERAGE_ADVERSARIAL_AUDIT_V1",
+  "date": "2026-10-11",
+  "repository": "hraaaaf/Digital_crown",
+  "notion_source": "https://app.notion.com/p/3ec77c663362811dbd9eb7d3",
+  "base_master": "c0d47f4832e6da2211c6f94eb88f0db56fcaebb6",
+  "scope": "CROSS_STAGE_COVERAGE_REVIEW_OF_NORMATIVE_ROADMAP_AND_EXISTING_MANIFESTS_NO_VENDOR_EXECUTION",
+  "snapshot_before": {
+    "total": 39,
+    "closed": 20,
+    "open": 19
+  },
+  "group_counts": {
+    "F00": {
+      "total": 4,
+      "closed": 3,
+      "open": 1
+    },
+    "F01": {
+      "total": 14,
+      "closed": 13,
+      "open": 1
+    },
+    "F02": {
+      "total": 4,
+      "closed": 1,
+      "open": 3
+    },
+    "F03": {
+      "total": 5,
+      "closed": 2,
+      "open": 3
+    },
+    "F04": {
+      "total": 4,
+      "closed": 0,
+      "open": 4
+    },
+    "F05": {
+      "total": 4,
+      "closed": 0,
+      "open": 4
+    },
+    "F06": {
+      "total": 4,
+      "closed": 1,
+      "open": 3
+    }
+  },
+  "source_manifest_blobs": {
+    "f06_2": "2198d86fc52dd7f6fb5b44d33255b053ff771cee",
+    "f01_13": "ae6155d589164b74f28efa5c7665a82a97eefad5",
+    "f02_4": "686abd878f665c74366c31ccfe3a1355a22b15b4",
+    "d3": "1952b7ea1adc6df5ea9dc9e5aaa76b18fdcb8f97"
+  },
+  "source_evidence": {
+    "profiles_seen_ui": 65,
+    "git_complete_three_tab_csv": 42,
+    "git_missing_three_tab_csv": 23,
+    "official_facad_operator_types_generic": 9,
+    "facad_d3_unresolved_blockers": 6,
+    "facad_candidate_digital_crown_synthetic_geometric_tests": 56,
+    "direct_vendor_identical_case_numeric_comparisons": 0,
+    "human_independent_reviewers_for_d3": 0,
+    "FACAD_viewer_labels_two_tabs": [
+      "Values",
+      "Properties"
+    ],
+    "F02_view_menu_app_items": 20,
+    "F02_tracing_menu_app_items": 10,
+    "drive_folder_profile_zips_metadata_only": 8,
+    "missing_drive_profile_zips_not_proven_globally": true,
+    "current_dc_browser_comparison_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/38149915778",
+    "DC_browser_comparison_gate": "PENDING_THEN_REVIEW"
+  },
+  "primary_gates": [
+    {
+      "id": "F00.1",
+      "section": "F00",
+      "title": "Installation Quick Demo officielle sur Windows jetable",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F00.1 Installation Quick Demo officielle sur Windows jetable** — tests Actions verts, sans action licence détournée ; preuve : scripts/workflow + ZIP.",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F00.2",
+      "section": "F00",
+      "title": "Menus 9/9",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F00.2 Menus 9/9** — inventaire D0, screenshots et traces UIA.",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F00.3",
+      "section": "F00",
+      "title": "Exemple Robert original/copied integrity",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F00.3 Exemple Robert original/copied integrity** — SHA256 source/copie avant/après des runs clos ; preuve : rapports session/hash.",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F00.4",
+      "section": "F00",
+      "title": "Date d'expiration et conservation",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F00.4 Date d'expiration et conservation** — relever droit d'essai exact sans contournement ; archiver légalement captures/CSV. Preuve : licence officielle + inventaire durable.",
+      "missing_proof": {
+        "blocker_code": "PERMISSION_OR_RETENTION_PROOF",
+        "why": "Formal trial expiry, legal rights and artifact-retention proof absent",
+        "next_observable": "D3 permission plus archive retention dossier"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.1",
+      "section": "F01",
+      "title": "Catalogue D1B 65/65 analyses sélectionnables",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.1 Catalogue D1B 65/65 analyses sélectionnables** — preuve : [ledger D1C et catalogue](https://github.com/hraaaaf/Digital_crown/tree/feat/cephalo-facad-direct-parity-runtime-probe/docs/audits/data) + runs D1B.",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.2",
+      "section": "F01",
+      "title": "Inventaire des 65 éditeurs D1C : 65/65 OBSERVÉS",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.2 Inventaire des 65 éditeurs D1C : 65/65 OBSERVÉS** — 65 entrées exactes du catalogue, 3 onglets captures/UIA et SHA Robert source/copie non modifiés ; pas de Save ni patient Load. [Ledger et dernier manifeste vérifiés](https://github.com/hraaaaf/Digital_crown/commit/c68fd358a2010e03048e61d72059dc30d9e61294) ; les 21 derniers ZIP + 63 CSV en Library, les 96 CSV des vagues 1–4 sur GitHub. **Exception Stein",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.3",
+      "section": "F01",
+      "title": "Vague de huit runners : succès technique ET audit de lecture seule",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.3 Vague de huit runners : succès technique ET audit de lecture seule** — 8/8 jobs SUCCESS, 8 ZIP intégralement inspectés et doublés sur [Drive](https://drive.google.com/drive/folders/17df8HYGAD-Jn4oRnXldCVt4LzvRhJFhJ), [index des preuves](https://github.com/hraaaaf/Digital_crown/blob/05916e1a1d5a86791badaa451eca2ef99e9996ee/docs/audits/data/FACAD_314_D1C_TRIAL_WAVE1_EVIDENCE_INDEX_2026-10-09.md). **20/65 ",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.4",
+      "section": "F01",
+      "title": "Audit Bergen short",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.4 Audit Bergen short** — [run #37914622966](https://github.com/hraaaaf/Digital_crown/actions/runs/37914622966) SUCCESS, [artefact #11608648140](https://github.com/hraaaaf/Digital_crown/actions/runs/37914622966/artifacts/11608648140), [copie ZIP Drive](https://drive.google.com/file/d/1gPnqOiYA2glSkY87LFezPNvqHKZXbTot/view). **12 mesures / 4 constructions / 28 marqueurs**. 3 captures + grilles UIA actives a",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.5",
+      "section": "F01",
+      "title": "Audit Bergen",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.5 Audit Bergen** — [run #37914715358](https://github.com/hraaaaf/Digital_crown/actions/runs/37914715358) SUCCESS, [artefact #11609862518](https://github.com/hraaaaf/Digital_crown/actions/runs/37914715358/artifacts/11609862518), [copie ZIP Drive](https://drive.google.com/file/d/1Z7HoLC7EdlZCeaoGvrPMousfe-XhdBth/view). **22 mesures / 8 constructions / 30 marqueurs** (27 lignes de grille dont 5 Heading). 3 c",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.6",
+      "section": "F01",
+      "title": "Audit Arnett STCA female",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.6 Audit Arnett STCA female** — [run #37914719024](https://github.com/hraaaaf/Digital_crown/actions/runs/37914719024) SUCCESS, [artefact #11609282582](https://github.com/hraaaaf/Digital_crown/actions/runs/37914719024/artifacts/11609282582), [copie ZIP Drive](https://drive.google.com/file/d/1DC8XP92k-59pf4zKFYcN6ezfBv1bpt9C/view). **38 mesures / 4 constructions / 30 marqueurs**. 3 captures + grilles UIA act",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.7",
+      "section": "F01",
+      "title": "Audit Arnett STCA male",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.7 Audit Arnett STCA male** — [run #37914723547](https://github.com/hraaaaf/Digital_crown/actions/runs/37914723547) SUCCESS, [artefact #11609242427](https://github.com/hraaaaf/Digital_crown/actions/runs/37914723547/artifacts/11609242427), [copie ZIP Drive](https://drive.google.com/file/d/1KK26UhLd_aKhoxH-JuA7xNyezpkcD9Iu/view). **38 mesures / 4 constructions / 30 marqueurs**. 3 captures + grilles UIA activ",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.8",
+      "section": "F01",
+      "title": "Audit Airway McNamara",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.8 Audit Airway McNamara** — [run #37914729075](https://github.com/hraaaaf/Digital_crown/actions/runs/37914729075) SUCCESS, [artefact #11609222785](https://github.com/hraaaaf/Digital_crown/actions/runs/37914729075/artifacts/11609222785), [copie ZIP Drive](https://drive.google.com/file/d/1ODxcO75Z0e9_KpHhFkTvwMaG33NpMCaN/view). **6 mesures / 3 constructions / 10 marqueurs**. 3 captures + grilles UIA actives",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.9",
+      "section": "F01",
+      "title": "Audit Bjork",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.9 Audit Bjork** — [run #37914735062](https://github.com/hraaaaf/Digital_crown/actions/runs/37914735062) SUCCESS, [artefact #11609157729](https://github.com/hraaaaf/Digital_crown/actions/runs/37914735062/artifacts/11609157729), [copie ZIP Drive](https://drive.google.com/file/d/102ak7uuUgpBzFD1lF2hf2_MeLttl5BBP/view). **27 mesures / 4 constructions / 28 marqueurs**. 3 captures + grilles UIA actives auditées",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.10",
+      "section": "F01",
+      "title": "Audit Wits appraisal",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.10 Audit Wits appraisal** — [run #37914739084](https://github.com/hraaaaf/Digital_crown/actions/runs/37914739084) SUCCESS, [artefact #11608478539](https://github.com/hraaaaf/Digital_crown/actions/runs/37914739084/artifacts/11608478539), [copie ZIP Drive](https://drive.google.com/file/d/14LZdWwpuZMX6Fm-sdiiBKPNmm5CYgiBS/view). **1 mesures / 2 constructions / 5 marqueurs**. 3 captures + grilles UIA actives ",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.11",
+      "section": "F01",
+      "title": "Audit ABO",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.11 Audit ABO** — [run #37914743636](https://github.com/hraaaaf/Digital_crown/actions/runs/37914743636) SUCCESS, [artefact #11609767255](https://github.com/hraaaaf/Digital_crown/actions/runs/37914743636/artifacts/11609767255), [copie ZIP Drive](https://drive.google.com/file/d/1mRil9cZm9_gR1dWq3bMDNd_9wQHEwtYR/view). **11 mesures / 6 constructions / 29 marqueurs**. 3 captures + grilles UIA actives auditées ",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.12",
+      "section": "F01",
+      "title": "— Clôture de l'extraction des 65 éditeurs",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.12 — Clôture de l'extraction des 65 éditeurs** : **65/65 observés, 0 restant** au ledger [commit ](https://github.com/hraaaaf/Digital_crown/commit/c68fd358a2010e03048e61d72059dc30d9e61294)[`c68fd358`](https://github.com/hraaaaf/Digital_crown/commit/c68fd358a2010e03048e61d72059dc30d9e61294). 21 derniers sous-lots F01.12-W5-01→21 vérifiés : job, ZIP SHA256, 3 UIA/PNG (Harvold 0 lignes justifié), headings/of",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.13",
+      "section": "F01",
+      "title": "Audit des écarts scientifiques vers CEPH08",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F01.13 Audit des écarts scientifiques vers CEPH08** — comparer nomenclature des profils, sources/versions/normes, séparer lignes source-lockées et inconnues, aucune formule réputée prouvée par UIA. Preuve : manifest Facad→contrat source→ID LOT06, BLOCKED si non démontré. **Phase 1 documentaire (2026-10-09) : 65/65 profils et 36 libellés candidats rapprochés sous statut non certifié, **[**CI #37972959707**](ht",
+      "missing_proof": {
+        "blocker_code": "FORMULA_SOURCE_MISSING",
+        "why": "Ten operator types are generic; exact per-measure pages, signs, norms unverified",
+        "next_observable": "Authorized C01/C02 page-level source adjudication for all priority measures"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F01.14",
+      "section": "F01",
+      "title": "— Conservation des CSV de la campagne",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F01.14 — Conservation des CSV de la campagne** : vagues 1–2 **48 CSV** [f8d3a12](https://github.com/hraaaaf/Digital_crown/commit/f8d3a123c6a0ce952be5468ee58ac618c3394341) / [9cf0d62](https://github.com/hraaaaf/Digital_crown/commit/9cf0d625f23a3cea29fc8cb1c42148ada80db689) ; vagues 3–4 **48 CSV** [818b580](https://github.com/hraaaaf/Digital_crown/commit/818b580ec21868be71f7a326fd4049342fb1056e), donc **96 CSV ",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F02.1",
+      "section": "F02",
+      "title": "Inventaire D2B View 19/19",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F02.1 Inventaire D2B View 19/19** — actions/vues accessibles documentées, screenshots.",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F02.2",
+      "section": "F02",
+      "title": "D2C Marker guide et Planned positions",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F02.2 D2C Marker guide et Planned positions** — BEFORE/AFTER réel, même viewport, état non destructif et aucune modification de patient. Preuve : screenshots, UIA, trace d'action exacte, analyse des incidents CI.",
+      "missing_proof": {
+        "blocker_code": "NATIVE_BEHAVIOR_NOT_TESTED",
+        "why": "Marker guide and Planned positions UIA visible; no actual toggle action performed",
+        "next_observable": "Real BEFORE/AFTER only after permitted isolated vendor state"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F02.3",
+      "section": "F02",
+      "title": "Tracing hard/soft/teeth / layers / superimposition",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F02.3 Tracing hard/soft/teeth / layers / superimposition** — exposer seulement ce qui peut être visualisé sans sauvegarde ni effet latéral; capturer menus/contrôles et variantes. Preuve : vidéos/images/états UI et limites explicites.",
+      "missing_proof": {
+        "blocker_code": "NATIVE_BEHAVIOR_NOT_TESTED",
+        "why": "Tracing 10 + View 20 commands observed; hard-soft-teeth layer behavior not executed",
+        "next_observable": "Authorized isolated UI interaction and same-viewport screenshots"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F02.4",
+      "section": "F02",
+      "title": "Matrice visuelle comparée CEPH07",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F02.4 Matrice visuelle comparée CEPH07** — **PHASE DIGITAL CROWN, après ****`FACAD_EVIDENCE_PACK`**. Reprendre les captures FACAD validées et les mêmes états/viewport de Digital Crown, y compris vérification préalable que la feature existe sur mobile ; comportement, BEFORE/AFTER et écarts. Pas de score UX basé sur code seul. Preuve : dossiers images appariées, tests navigateurs et matrice source.",
+      "missing_proof": {
+        "blocker_code": "PAIRED_VISUAL_REFERENCE_MISSING",
+        "why": "FACAD screenshots exist; comparative DC viewport browser run started but not yet certified; same functional state unknown",
+        "next_observable": "Use DC browser artifact as source, inspect both, score only overlapping features after review"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F03.1",
+      "section": "F03",
+      "title": "Static review et snapshots Windows",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F03.1 Static review et snapshots Windows** — 9 scopes BEFORE/AFTER, 0 drift observé, six scopes absents. Preuve : [run #37910256983](https://github.com/hraaaaf/Digital_crown/actions/runs/37910256983), artefact #11607045471.",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F03.2",
+      "section": "F03",
+      "title": "Instrumentation compteur processus réelle",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F03.2 Instrumentation compteur processus réelle** — 12 échantillons du processus Facad sur court intervalle, aucun transfert de write observé ; verdict strict `INCONCLUSIVE_PROCESS_IO_COUNTERS_ONLY`. Preuve : JSON startup et test témoin séparé.",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F03.3",
+      "section": "F03",
+      "title": "Traces process-aware et couverture du stockage réelle",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F03.3 Traces process-aware et couverture du stockage réelle** — parents/enfants, écritures chemin/régistre avec REDACTION et périmètres couverts, interdiction lecture secrets/valeurs licence. Preuve : event manifest, attribution, tests de capture manquante.",
+      "missing_proof": {
+        "blocker_code": "CAUSAL_WRITE_TRACE_MISSING",
+        "why": "Event process/pid nonexhaustive; paths and children/cold-warm causal effects not proven",
+        "next_observable": "Dedicated isolated instrumented test with vendor permission"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F03.4",
+      "section": "F03",
+      "title": "Banc d'isolation fail-closed",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F03.4 Banc d'isolation fail-closed** — comparer vrais chemins, démontrer non-interférence avec ressources partagées, restauration, red tests, licence/licites ; validation indépendante. Preuve : expériences contrôlées, BEFORE/AFTER, conclusions bornées.",
+      "missing_proof": {
+        "blocker_code": "ISOLATION_SECURITY_BLOCKER",
+        "why": "Host/guest shared application storage and egress boundary not demonstrated",
+        "next_observable": "Independent security negative controls on approved test hardware"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F03.5",
+      "section": "F03",
+      "title": "Décision d'ouverture clinique",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F03.5 Décision d'ouverture clinique** — seulement si isolation démontrée et validée humainement ; sinon laisser Save/Load interdits. Preuve : gate signé et revues A/B.",
+      "missing_proof": {
+        "blocker_code": "HUMAN_SIGNED_GO_NO_GO_MISSING",
+        "why": "No final clinical authorization or independent human acceptance",
+        "next_observable": "Two human reviewers, D3 complete on immutable HEAD"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F04.1",
+      "section": "F04",
+      "title": "Recenser menus/aperçus Analysis Values, Analysis Properties, Marker Positions/Object Values",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F04.1 Recenser menus/aperçus Analysis Values, Analysis Properties, Marker Positions/Object Values** — uniquement lecture si possible ; preuve screenshots UIA/versions et mode autorisé.",
+      "missing_proof": {
+        "blocker_code": "PARTIAL_UIA_SURFACES",
+        "why": "Values/Properties passive capabilities only; other four exact labels not observed as menus",
+        "next_observable": "Authorized source-only UIA state expansion and targeted captures"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F04.2",
+      "section": "F04",
+      "title": "Valider faisabilité d'export sans écriture partagée",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F04.2 Valider faisabilité d'export sans écriture partagée** — séparer export view-only, écriture locale, export modifiant données ; D3 requis pour action sensible. Preuve : classification side-effects et consentements.",
+      "missing_proof": {
+        "blocker_code": "EXPORT_EFFECTS_UNKNOWN",
+        "why": "No export issued; classification of effects unverified",
+        "next_observable": "Approved environment and effects check after D3 clearance"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F04.3",
+      "section": "F04",
+      "title": "Capturer 32F/13F Ricketts sur Robert si légalement/sûrement possible",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F04.3 Capturer 32F/13F Ricketts sur Robert si légalement/sûrement possible** — fichier brut versionné avec SHA, unités, signe, arrondi, ordre, norms, identités marker, provenance précise ; sinon BLOCKED.",
+      "missing_proof": {
+        "blocker_code": "RICKETTS_NATIVE_OUTPUT_MISSING",
+        "why": "No authorized 32F/13F same Robert tracing machine-readable export",
+        "next_observable": "Get vendor-permitted nonclinical output, version and complete signed units"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F04.4",
+      "section": "F04",
+      "title": "Rapport/PDF Facad reference",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F04.4 Rapport/PDF Facad reference** — screenshot ou export autorisé, champs, provenance, structure par chapitre. Preuve : archive non sensible + manifeste hash.",
+      "missing_proof": {
+        "blocker_code": "NATIVE_REPORT_REFERENCE_MISSING",
+        "why": "Native FACAD PDF report capture not archived with permissions",
+        "next_observable": "Authorized nonclinical report preview metadata and source hash"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F05.1",
+      "section": "F05",
+      "title": "Jeux de cas alignés",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F05.1 Jeux de cas alignés** — **préparer d'abord la moitié FACAD pendant PHASE F** : cas non clinique autorisé, image, version, géométrie, repères/calibration, valeurs si permission, SHA. **Clore l'alignement seulement en PHASE DIGITAL CROWN** avec le même exemple/tracé/landmarks et source de vérité, sans faux équivalents. Preuve : manifest immuable & hashes.",
+      "missing_proof": {
+        "blocker_code": "SAME_CASE_REFERENCE_MISSING",
+        "why": "Source facad example and synthetic DC fixture are not same image/landmarks/calibration",
+        "next_observable": "Vendor-approved exact landmark and calibration case, dual run later"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F05.2",
+      "section": "F05",
+      "title": "Comparaison facteur par facteur Ricketts 32F puis 13F",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F05.2 Comparaison facteur par facteur Ricketts 32F puis 13F** — **PHASE DIGITAL CROWN, après acquisition des sorties FACAD autorisées et du cas aligné F05.1** ; géométrie, unité, signe, arrondi, normes, couverture/NOT_COMPUTABLE, source distincte. Preuve : diff numérique même tracé, tolérances préenregistrées et revue clinique ; D3/permissions requis.",
+      "missing_proof": {
+        "blocker_code": "NUMERIC_PARITY_NOT_TESTED",
+        "why": "Ricketts 32F/13F numerical paired same case unavailable",
+        "next_observable": "After vendor rights, preregister tolerance and compare identical case"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F05.3",
+      "section": "F05",
+      "title": "Parité protocoles / UX / export",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F05.3 Parité protocoles / UX / export** — **PHASE DIGITAL CROWN, après transfert FACAD** : Steiner/Tweed/McNamara/Downs, viewer/rapports, captures mêmes états/cas, respect des droits et limites explicites. Preuve : tableau fonction par fonction, mesures/captures en conditions comparables, revue des écarts.",
+      "missing_proof": {
+        "blocker_code": "MULTIFAMILY_PARITY_NOT_TESTED",
+        "why": "Steiner/Tweed/McNamara/Downs UX/export same state unverified",
+        "next_observable": "After valid cases compare outputs and UI with human review"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F05.4",
+      "section": "F05",
+      "title": "Écarts → tickets CEPH06/07/08/12",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F05.4 Écarts → tickets CEPH06/07/08/12** — **PHASE DIGITAL CROWN** : priorités P0/P1/P2 issues de la comparaison après transfert, dépendances, preuve scientifique, tests de non-régression ; ne jamais intégrer du code ou une norme propriétaire FACAD sans droits. Preuve : issues liées à tâche canonique.",
+      "missing_proof": {
+        "blocker_code": "ISSUES_DEPEND_ON_PAIRED_GAPS",
+        "why": "Differences cannot be fully triaged into product issues until F05.2/3 tested",
+        "next_observable": "Create evidence-based work items only, await official parity run"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F06.1",
+      "section": "F06",
+      "title": "Archivage durable des ZIP/screens/CSV essentiels",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F06.1 Archivage durable des ZIP/screens/CSV essentiels** — organisation par lot/run/commit/profil/date/hash ; le ZIP Actions seul ne suffit pas, dates de rétention vérifiées.",
+      "missing_proof": {
+        "blocker_code": "ARCHIVE_DURABILITY_UNVERIFIED",
+        "why": "65 ledger runs; only 8 profile ZIPs in one Drive folder, octets and retention not rechecked",
+        "next_observable": "Recover authorized artifacts and verify SHA/expiration/custodian"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F06.2",
+      "section": "F06",
+      "title": "Registre d'exceptions et lacunes",
+      "canonical_state": "CLOSED_HISTORICAL_SOURCE",
+      "gate_excerpt": "- [x] **F06.2 Registre d'exceptions et lacunes** — profils non audités, UI manquante, absence d'accès licence, FAIL/INCONCLUSIVE, risques qualité. **CLOS DOCUMENTAIRE (2026-10-11)** : [registre 39 gates, 23 triplets non versionnés, 10 exceptions, 6 BLOCKER D3](https://github.com/hraaaaf/Digital_crown/blob/0e36da7d08962e4d1c7f840d1cd4a53f8057235b/docs/audits/facad_trial_20261011/FACAD_F06_2_CANONICAL_EXCEPTION_REGISTE",
+      "missing_proof": null,
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F06.3",
+      "section": "F06",
+      "title": "Revue finale de COUVERTURE FACAD (A/B)",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F06.3 Revue finale de COUVERTURE FACAD (A/B)** — D0/D1/D2/D3/D4 et référentiel vendor F05.1, plus 65/65 profils et exceptions/archives F06.1/F06.2 : tracer sous-périmètre observé vs inconnu/interdit, scores sévères par domaine ; 2 perspectives IA = revue interne non indépendante, **aucun faux green ni accord humain supposé**. F05.2-4 seront repris côté Digital Crown.",
+      "missing_proof": {
+        "blocker_code": "AUDIT_IN_PROGRESS",
+        "why": "Independent coverage-audit package being built on isolated branch; no reviewed-head CI yet",
+        "next_observable": "Two internal adversarial reviews and actual CI against final HEAD"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    },
+    {
+      "id": "F06.4",
+      "section": "F06",
+      "title": "Décision de clôture de l'ACQUISITION FACAD et transfert vers Digital Crown",
+      "canonical_state": "OPEN_REQUIREMENTS_UNMET",
+      "gate_excerpt": "- [ ] **F06.4 Décision de clôture de l'ACQUISITION FACAD et transfert vers Digital Crown** — uniquement après parcours exhaustif des surfaces/fonctions légalement accessibles, dictionnaire scientifique sourcé ou manques signalés, références disponibles, archives durables licites vérifiées (F06.1), registre exceptions F06.2 et audit de couverture F06.3. Remettre le `FACAD_EVIDENCE_PACK` et décider explicitement du pér",
+      "missing_proof": {
+        "blocker_code": "HANDOVER_NOT_READY",
+        "why": "Cannot close acquisition until source coverage and archives complete or explicitly accepted as blocked",
+        "next_observable": "F06.1 F06.3 + canonical pack and user acceptance of gaps"
+      },
+      "historical_closed_evidence_replayed_this_lot": false
+    }
+  ],
+  "safety_conditions": {
+    "all_facad_writer_operations_authorized": false,
+    "d3": "OPEN_RED",
+    "real_facad_numeric_parity": "NOT_TESTED",
+    "new_facad_native_execution_performed": false,
+    "converged": false
+  },
+  "review_A_science": {
+    "type": "INTERNAL_ADVERSARIAL_NOT_HUMAN_INDEPENDENT",
+    "audit_completeness_score_10": 8,
+    "clinical_source_parity_score_10": 0,
+    "blocking_findings": [
+      "BLOCKER: 10 operators have no certified per-measure FACAD formulas",
+      "BLOCKER: actual same case FACAD values not collected; 56 DC synthetic tests are not parity",
+      "MAJOR: 23 strict Git UIA triplets absent in pinned ref, do not infer vendor absence"
+    ],
+    "reviewed_scope": "All 39 canonical gates and 19 unmet acceptance proofs",
+    "audit_release_verdict": "AUDIT_REPORT_VALIDITY_CANDIDATE_NOT_RELEASE"
+  },
+  "review_B_security_program": {
+    "type": "INTERNAL_ADVERSARIAL_NOT_HUMAN_INDEPENDENT",
+    "audit_completeness_score_10": 8,
+    "security_evidence_score_10": 0,
+    "blocking_findings": [
+      "BLOCKER: no Ilexis written rights for ephemeral hosted environments",
+      "BLOCKER: host/guest application shared storage isolation and clinical export not proven",
+      "MAJOR: archive Drive metadata only, no complete SHA/retention proof or legal custodian"
+    ],
+    "reviewed_scope": "D0-D5 plus D6, original source/writer permissions",
+    "audit_release_verdict": "AUDIT_REPORT_VALIDITY_CANDIDATE_NOT_RELEASE"
+  },
+  "f06_3_report_compilation": "READY_FOR_EXACT_HEAD_CI_A_B_REVIEW",
+  "f06_3_canonical_gate": "OPEN_PENDING_AUDIT_CERTIFICATION",
+  "f06_4": "OPEN",
+  "other_gates_promoted": 0,
+  "fresh_independent_human_reviewers": false
+}
