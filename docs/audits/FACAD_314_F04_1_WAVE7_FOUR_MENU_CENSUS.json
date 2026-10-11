@@ -1,0 +1,178 @@
+{
+  "schema": "FACAD_F04_1_FOUR_MENU_READONLY_ARCHIVE_ADJUDICATION_V1",
+  "date": "2026-10-11",
+  "source_run": 38139444512,
+  "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/38139444512",
+  "artifact_id": 11702675538,
+  "artifact_zip_sha256": "526d63629b02df8837931c611e43463e99df84602e4ebeb1d6e23746328dbedb",
+  "archive_size_bytes": 6102154,
+  "zip_integrity_check": "PASS_NO_BAD_MEMBER",
+  "zip_member_count": 65,
+  "source_files": {
+    "menu_csv": "f04-1-menu-observations.csv",
+    "menu_csv_sha256": "302189f8de505f63ebae857e4ae38671d54da2103d7d14f036a812a84a0aa530",
+    "tab_allowlist_csv": "f04-1-surface-allowlist.csv",
+    "tab_allowlist_csv_sha256": "0606485eee042cfb7a5ba93ece5293241e12f0dfa484f794139f457fa926d197",
+    "surface_status": "f04-1-surface-status.txt",
+    "surface_status_sha256": "2ad5057d6dcbca09169f0f7ddbb0f47b539a17726a95fa64586710ee407c7e5b",
+    "capabilities_csv": "f04-2-tab-capabilities.csv",
+    "capabilities_csv_sha256": "af1a65ae9fcf3c4af08e5bd7334546826733110c36e9465de20e36f31c0b7cee"
+  },
+  "root_menu_counts": [
+    {
+      "name": "File",
+      "total": 16,
+      "enabled": 15,
+      "disabled": 1
+    },
+    {
+      "name": "Edit",
+      "total": 3,
+      "enabled": 1,
+      "disabled": 2
+    },
+    {
+      "name": "Cephalometry",
+      "total": 15,
+      "enabled": 8,
+      "disabled": 7
+    },
+    {
+      "name": "Tools",
+      "total": 16,
+      "enabled": 11,
+      "disabled": 5
+    }
+  ],
+  "total_menu_items": 50,
+  "all_menus_root_observed": true,
+  "leaf_clicked": false,
+  "selected_critical_menu_labels": [
+    {
+      "root": "File",
+      "label": "Print report",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "UNKNOWN_WOULD_REQUIRE_APPROVAL"
+    },
+    {
+      "root": "File",
+      "label": "Edit report",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "UNKNOWN_WOULD_REQUIRE_APPROVAL"
+    },
+    {
+      "root": "Cephalometry",
+      "label": "Save analysis...",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "WRITE_RISK_UNASSESSED"
+    },
+    {
+      "root": "Cephalometry",
+      "label": "Load analysis...",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "WRITE_RISK_UNASSESSED"
+    },
+    {
+      "root": "Cephalometry",
+      "label": "Export",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "WRITE_RISK_UNASSESSED"
+    },
+    {
+      "root": "Cephalometry",
+      "label": "Copy as Image",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "CLIPBOARD_AND_STATE_EFFECTS_UNTESTED"
+    },
+    {
+      "root": "Tools",
+      "label": "Split hard tissue",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "POTENTIAL_MUTATION_UNTESTED"
+    },
+    {
+      "root": "Tools",
+      "label": "Plan",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "POTENTIAL_MUTATION_UNTESTED"
+    },
+    {
+      "root": "Tools",
+      "label": "Calibrate...",
+      "uia_enabled": true,
+      "executed": false,
+      "effect_classification": "CALIBRATION_CHANGES_UNTESTED"
+    }
+  ],
+  "facad_tab_metadata": [
+    {
+      "name": "Values",
+      "uia_type": "ControlType.TabItem",
+      "enabled": true,
+      "offscreen": false,
+      "selected": true,
+      "keyboard_focusable": true,
+      "selection_item_pattern": true,
+      "invoke_pattern": false,
+      "child_content_read": false
+    },
+    {
+      "name": "Properties",
+      "uia_type": "ControlType.TabItem",
+      "enabled": true,
+      "offscreen": false,
+      "selected": false,
+      "keyboard_focusable": true,
+      "selection_item_pattern": true,
+      "invoke_pattern": false,
+      "child_content_read": false
+    }
+  ],
+  "not_observed_in_current_root_state": [
+    "Analysis Values",
+    "Analysis Properties",
+    "Marker Positions",
+    "Object Values"
+  ],
+  "absence_from_product_proven": false,
+  "ui_action_behavior_proven": false,
+  "facad_vendor_license_and_isolation": "UNVERIFIED",
+  "facad_native_execution_this_passage": false,
+  "d3": "OPEN_RED",
+  "gates": {
+    "F04_1": "OPEN_PARTIAL",
+    "F04_2": "OPEN",
+    "F04_3": "OPEN",
+    "F04_4": "OPEN",
+    "F02_3": "OPEN",
+    "F02_4": "OPEN"
+  },
+  "progress": {
+    "facad_closed": 21,
+    "facad_total": 39,
+    "facad_percent": 53.8,
+    "overall_closed": 41,
+    "overall_total": 99,
+    "overall_percent": 41.4,
+    "added_gate_this_passage": 0
+  },
+  "adversarial_internal_A": {
+    "scientific_provenance_score_10": 8,
+    "clinical_export_parity_score_10": 0,
+    "blocker": "UIA enabled reports/export actions are only visible, not tested; report contents unknown"
+  },
+  "adversarial_internal_B": {
+    "readonly_archive_integrity_score_10": 8,
+    "isolation_permissions_score_10": 0,
+    "blocker": "Read-only menu census does not demonstrate AppData/registry isolation or rights"
+  },
+  "converged": false
+}
