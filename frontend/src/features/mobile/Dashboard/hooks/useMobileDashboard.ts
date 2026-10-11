@@ -35,7 +35,7 @@ function isQueueableNetworkError(error: unknown): boolean {
 }
 
 export function useMobileDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('agenda');
+  const [activeTab, setActiveTab] = useState<Tab>('today');
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
