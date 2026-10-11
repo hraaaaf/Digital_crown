@@ -17,7 +17,7 @@ const OUTPUT=process.env.FACAD_ANB_BROWSER_OUTPUT||path.join(os.tmpdir(),'facad-
 const PROOF_FILE=process.env.FACAD_ANB_SYNTHETIC_FIXTURES_PATH;
 const ENTRY=path.join(FRONTEND,'src','facad-anb-workspace-http-entry.tsx');
 const HTML=path.join(FRONTEND,'facad-anb-workspace-http.html');
-const PORT=5278,API_PORT=5281,APP_URL='http://127.0.0.1:'+PORT+'/facad-anb-research-fixture.html';
+const PORT=5278,API_PORT=5281,APP_URL='http://127.0.0.1:'+PORT+'/facad-anb-workspace-http.html';
 const VIEWPORTS=[{name:'mobile',width:390,height:844},{name:'desktop',width:1280,height:900}];
 if(!PROOF_FILE||!existsSync(PROOF_FILE))throw Error('Missing pinned Python oracle output');
 const proof=JSON.parse(await readFile(PROOF_FILE,'utf8'));
@@ -60,7 +60,8 @@ const entry=[
  "}",
  "createRoot(document.getElementById('root')).render(<App/>);"
 ].join('\n').replace('FIXTURE_CASES',JSON.stringify(cases));
-const html='<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0"><div id="root"></div><script type="module" src="/src/facad-anb-research-fixture-entry.tsx"></script></body></html>';
+const html='<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0"><div id="root"></div><script type="module" src="/src/facad-anb-workspace-http-entry.tsx"></script></body></html>';
+if(!APP_URL.endsWith(path.basename(HTML))||!html.includes('/src/'+path.basename(ENTRY)))throw Error('Fixture entry and URL mismatch');
 if(existsSync(ENTRY)||existsSync(HTML))throw Error('Fixture collision: refuse overwrite');
 await mkdir(OUTPUT,{recursive:true});
 let server,browser,stub,viteLog='';
