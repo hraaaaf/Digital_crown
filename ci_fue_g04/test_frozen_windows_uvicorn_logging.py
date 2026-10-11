@@ -86,14 +86,14 @@ def test_real_asgi_loopback_with_no_console_streams():
         port = probe.getsockname()[1]
 
     server = (
-        "import os,sys,uvicorn\\n"
-        "sys.stdout = None\\n"
-        "sys.stderr = None\\n"
-        "async def app(scope, receive, send):\\n"
-        "    assert scope['type']=='http'\\n"
-        "    await send({'type':'http.response.start','status':200,'headers':[]})\\n"
-        "    await send({'type':'http.response.body','body':b'OK'})\\n"
-        "uvicorn.run(app,host='127.0.0.1',port=int(os.environ['FUE_G04_PORT']),log_config=None)\\n"
+        "import os,sys,uvicorn\n"
+        "sys.stdout = None\n"
+        "sys.stderr = None\n"
+        "async def app(scope, receive, send):\n"
+        "    assert scope['type']=='http'\n"
+        "    await send({'type':'http.response.start','status':200,'headers':[]})\n"
+        "    await send({'type':'http.response.body','body':b'OK'})\n"
+        "uvicorn.run(app,host='127.0.0.1',port=int(os.environ['FUE_G04_PORT']),log_config=None)\n"
     )
     environment = dict(os.environ)
     environment["FUE_G04_PORT"] = str(port)
