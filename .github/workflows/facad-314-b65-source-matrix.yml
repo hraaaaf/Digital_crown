@@ -12,6 +12,7 @@ on:
       - docs/audits/facad_trial_20261011/B_WAVE4_OFFICIAL_REFERENCE_OPERATOR_TYPES.json
       - docs/audits/facad_trial_20261011/FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json
       - docs/audits/facad_trial_20261011/FACAD_F01_13_WAVE5_SOURCE_CROSSWALK.json
+      - docs/audits/FACAD_314_ACQUISITION_FIRST_ROADMAP_2026-10-11.md
   workflow_dispatch:
 
 permissions:
@@ -360,4 +361,40 @@ jobs:
           print('F01_13_OPERATOR_UNKNOWN_GATES=10')
           print(f'F01_13_FALSE_PROMOTIONS_REJECTED={n}')
           print('F01_13_NUMERIC_FACAD_PARITY_VALIDATED=false')
+          PY
+
+      - name: Certify FACAD-first roadmap scope, stage boundaries and exact evidence counters
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,re
+          content=Path('research/docs/audits/FACAD_314_ACQUISITION_FIRST_ROADMAP_2026-10-11.md').read_text(encoding='utf8')
+          base=Path('research/docs/audits/facad_trial_20261011')
+          b=json.loads((base/'B_65_PROFILE_SOURCE_GATES_20261011.json').read_text())
+          f06=json.loads((base/'FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json').read_text())
+          source=json.loads((base/'B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json').read_text())
+          assert len(b['items'])==65
+          assert b['verification']['git_uiatriplets_complete']==42
+          assert b['verification']['git_uia_triplets_not_versioned_here']==23
+          assert len(f06['canonical_facad_gates_before'])==39
+          assert source['sources']['c01_pdf_pages']==12
+          assert source['sources']['c02_pdf_pages']==34
+          assert source['sources']['c01_pdf_sha256'] in content
+          assert source['sources']['c02_pdf_sha256'] in content
+          assert '**20/39 = 51,3 %**' in content
+          assert '**40/99 = 40,4 %**' in content
+          assert len(re.findall(r'^### F-[A-F] /',content,re.M))==6
+          for marker in ('PHASE F','PHASE D','GATE TRANSFERT','F02.4','F05.2','F05.3','F05.4','F06.1','F06.3','F06.4',
+                        'EXTERNAL_BLOCKER','NOT_TESTED','UNKNOWN','D3_OPEN_RED','CONVERGED=false'):
+              assert marker in content, f'MISSING_PHASE_OR_SAFETY_MARKER:{marker}'
+          assert content.index('## PHASE F') < content.index('## GATE TRANSFERT') < content.index('## PHASE D')
+          assert 'sans secret, licence bypass, patient' in content
+          assert 'FACAD ACQUISITION' in content
+          assert 'une seule checklist canonique Notion' in content
+          print('FACAD_ACQUISITION_ROADMAP_F_A_TO_F_F=6_STAGES')
+          print('FACAD_ACQUISITION_CANONICAL_CHECKLIST=39_ITEMS_UNCHANGED')
+          print('FACAD_ACQUISITION_SOURCE_PROFILE_COVERAGE=65_EDITOR_42_GIT_23_NOT_VERSIONED')
+          print('FACAD_ACQUISITION_DC_PARITY_DEFERRED=true')
+          print('FACAD_ACQUISITION_D3_RELEASE_GRANTED=false')
           PY
