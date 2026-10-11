@@ -14,6 +14,7 @@ import { MobileQuickActionHub, type MobileQuickPatientAction } from './component
 import { MobileQuickPatientFlow } from './components/MobileQuickPatientFlow';
 import { MobileQuickNewPatientModal } from './components/MobileQuickNewPatientModal';
 import { PocketTodayOverview } from './components/PocketTodayOverview';
+import { PocketAgendaDay } from './views/PocketAgendaDay';
 import './components/mobileQuickActionHub.css';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { MobilePatientsGate } from './views/MobilePatientsGate';
@@ -121,7 +122,7 @@ export const MobileDashboard = () => {
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="h-full"
           >
-            {state.activeTab === 'agenda' && (
+            {state.activeTab === 'today' && (
               <PocketTodayOverview
                 snapshot={state.snapshot}
                 selectedDate={state.selectedDate}
@@ -130,6 +131,9 @@ export const MobileDashboard = () => {
                 onOpenFrontdesk={() => selectNavTab('frontdesk')}
                 onOpenAlerts={() => selectNavTab('notifications')}
               />
+            )}
+            {state.activeTab === 'agenda' && (
+              <PocketAgendaDay snapshot={state.snapshot} selectedDate={state.selectedDate} isOnline={state.isOnline} onOpenPatient={openPatientCockpit} />
             )}
             {state.activeTab === 'waiting-room' && (
               <WaitingRoomView
@@ -143,7 +147,7 @@ export const MobileDashboard = () => {
                 initialSelectedId={initialPatientId}
                 onClose={() => {
                   setInitialPatientId(null);
-                  selectNavTab('agenda');
+                  selectNavTab('today');
                 }}
               />
             )}
