@@ -349,10 +349,16 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   // Safari must resolve the actual drawn surface and every ancestor to opaque.
   const isOpaqueColor = value => {
     if (!value || value === 'transparent') return false;
-    const rgba = value.match(/^rgba?\(([^)]*)\)$/);
-    if (!rgba) return false;
-    const channels = rgba[1].split(/[,\s/]+/).filter(Boolean);
-    return channels.length === 3 || (channels.length === 4 && Number(channels[3]) >= 0.999);
+    // WebKit may serialize resolved CSS Color 4 as color(srgb r g b / a).
+    // Fail closed on unknown formats or opacity < 1, rather than requiring
+    // only rgb()/rgba() and misclassifying an opaque Safari surface.
+    const rgb = value.match(/^rgba?\(([^)]*)\)$/);
+    const srgb = value.match(/^color\(srgb\s+([^)]*)\)$/);
+    if (!rgb && !srgb) return false;
+    const channels = (rgb?.[1] ?? srgb?.[1] ?? '').split(/[,\s/]+/).filter(Boolean);
+    return (channels.length === 3 || channels.length === 4)
+      && channels.slice(0, 3).every(channel => Number.isFinite(Number(channel)))
+      && (channels.length === 3 || Number(channels[3]) >= 0.999);
   };
   if (!isOpaqueColor(menuState.dialogBackground)
     || !isOpaqueColor(menuState.navBackground)
