@@ -1,6 +1,7 @@
 import type { Tab } from './Dashboard/types';
 
 export const MOBILE_BRIDGE_ROUTES: Record<string, string> = {
+  today: '/mobile/dashboard?tab=today',
   agenda: '/mobile/dashboard?tab=agenda',
   patients: '/mobile/dashboard?tab=patients',
   waitingRoom: '/mobile/dashboard?tab=waiting-room',
@@ -22,7 +23,7 @@ export const MOBILE_BRIDGE_LABELS: Record<string, string> = {
 };
 
 const DASHBOARD_TABS = new Set<Tab>([
-  'agenda', 'patients', 'waiting-room', 'finance', 'lab', 'bot', 'securite',
+  'today', 'agenda', 'patients', 'waiting-room', 'finance', 'lab', 'bot', 'securite',
   'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace',
 ]);
 
@@ -40,5 +41,5 @@ export function resolveBridgeLabel(destination: unknown): string {
 
 export function resolveDashboardTab(search: string): Tab {
   const requested = new URLSearchParams(search).get('tab') as Tab | null;
-  return requested && DASHBOARD_TABS.has(requested) ? requested : 'agenda';
+  return requested && DASHBOARD_TABS.has(requested) ? requested : 'today';
 }
