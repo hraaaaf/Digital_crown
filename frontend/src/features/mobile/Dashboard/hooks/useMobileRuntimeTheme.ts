@@ -70,6 +70,11 @@ export function accessiblePrimaryInk(
     const normalized = value.trim().toLowerCase();
     if (normalized === 'white') return [255, 255, 255];
     if (normalized === 'black') return [0, 0, 0];
+    // Production CSS minifiers shorten #ffffff to #fff (Ocean/Graphite/HC).
+    // Computed custom properties preserve that shorthand, unlike color props.
+    if (/^#[0-9a-f]{3}$/.test(normalized)) {
+      return [...normalized.slice(1)].map(channel => Number.parseInt(channel + channel, 16));
+    }
     if (!/^#[0-9a-f]{6}$/.test(normalized)) return null;
     return [1, 3, 5].map(offset => Number.parseInt(normalized.slice(offset, offset + 2), 16));
   };
