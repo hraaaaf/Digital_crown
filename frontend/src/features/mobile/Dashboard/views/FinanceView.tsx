@@ -167,7 +167,7 @@ export function FinanceView({
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {!pocketSummaryOnly && <button
         onClick={handleExportPDF}
