@@ -144,7 +144,7 @@ jobs:
           import re
           from pathlib import Path
           content = Path("/tmp/pocket-fue-cloudflare.log").read_text(errors="replace")
-          matches = re.findall(r"https://[a-z0-9-]+\\.trycloudflare\\.com", content)
+          matches = re.findall(r"https://[a-z0-9-]+\.trycloudflare\.com", content)
           print(matches[-1] if matches else "")
           PY
             )"
