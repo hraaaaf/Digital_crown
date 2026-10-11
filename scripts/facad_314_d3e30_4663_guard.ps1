@@ -27,10 +27,11 @@ function Get-D3E30Security4663Batch {
         throw 'D3E30_XML_EVENTDATA_UNAVAILABLE'
       }
       foreach($field in @($eventData.Data)){
-        $key=[string]$field.Name
+        $key=[string]$field.GetAttribute('Name')
         if([string]::IsNullOrWhiteSpace($key)){throw 'D3E30_XML_FIELD_NAME_INVALID'}
         if($fields.ContainsKey($key)){throw 'D3E30_XML_DUPLICATE_FIELD'}
-        $fields[$key]=[string]$field.'#text'
+        # InnerText is an empty string even when a Data node has no #text child.
+        $fields[$key]=[string]$field.InnerText
       }
     }catch{
       # The raw XML or OS error can include paths, PIDs and other personal details.
