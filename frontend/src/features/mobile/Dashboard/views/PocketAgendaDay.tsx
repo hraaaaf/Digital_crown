@@ -29,19 +29,19 @@ export function PocketAgendaDay({
 
   return (
     <section data-dc-pocket-agenda className="space-y-3 pb-8">
-      <header className="rounded-[24px] border border-glass-border bg-card p-5 shadow-elite">
+      <header className="rounded-[24px] border border-border-main bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 text-primary">
           <CalendarDays size={18} aria-hidden="true" />
-          <h2 className="text-[20px] font-black">Agenda</h2>
+          <h2 className="text-[18px] font-bold">Rendez-vous</h2>
         </div>
         <p className="mt-2 text-[12px] font-bold capitalize text-text-main">{dateLabel}</p>
-        <p className="mt-1 text-[11px] font-semibold text-text-muted">
+        <p className="mt-1 text-[12px] font-medium text-text-muted">
           {appointments.length} rendez-vous · vue rapide en lecture seule
         </p>
       </header>
 
       {!isOnline && (
-        <p role="status" className="flex items-start gap-2 rounded-[16px] border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] font-bold text-amber-700">
+        <p role="status" className="flex items-start gap-2 rounded-[16px] border border-warning-border bg-warning-surface p-3 text-[11px] font-bold text-warning">
           <WifiOff size={16} className="shrink-0" aria-hidden="true" />
           Hors ligne : agenda éventuellement en cache. Vérifiez les changements au cabinet avant toute action.
         </p>
@@ -65,10 +65,10 @@ export function PocketAgendaDay({
                   {appointment.time}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-black text-text-main">{appointment.patient_name}</p>
-                  <p className="mt-0.5 truncate text-[10px] font-semibold text-text-muted">{appointment.motif || 'Rendez-vous'}</p>
+                  <p className="truncate text-[12px] font-semibold text-text-main">{appointment.patient_name}</p>
+                  <p className="mt-0.5 truncate text-[11px] font-medium text-text-muted">{appointment.motif || 'Rendez-vous'}</p>
                   {meta && (
-                    <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black ${meta.className}`}>
+                    <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${meta.className}`}>
                       {meta.label}
                     </span>
                   )}
