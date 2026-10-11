@@ -134,7 +134,7 @@ jobs:
               viewports = ((390, 844), (430, 932), (768, 1024), (1280, 800))
               for role in roles:
                   for width, height in viewports:
-                      for state in ('today', 'agenda', 'plus', 'frontdesk', 'stock', 'library', 'finance', 'lab', 'dentists', 'marketplace', 'bot'):
+                      for state in ('today', 'agenda', 'plus', 'frontdesk', 'stock', 'library', 'finance', 'lab', 'dentists', 'marketplace', 'bot', 'securite'):
                           name = f'runtime-{role}-{state}-{width}x{height}.png'
                           data = (root / name).read_bytes()
                           if data[:8] != b'\x89PNG\r\n\x1a\n':
@@ -163,7 +163,7 @@ jobs:
               for row in themes:
                   if row['horizontalOverflow'] or row['preview'] or not row['primaryActionText']:
                       raise SystemExit(f"invalid Pocket theme runtime evidence: {row}")
-                  for state in ('today', 'plus', 'stock'):
+                  for state in ('today', 'plus', 'stock', 'securite'):
                       name = f"theme-{row['id']}-{state}-430x932.png"
                       data = (root / name).read_bytes()
                       if data[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', data[16:24]) != (430, 932):
