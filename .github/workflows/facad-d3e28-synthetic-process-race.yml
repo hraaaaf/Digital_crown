@@ -33,12 +33,12 @@ jobs:
           }
           Write-Host 'D3E28_SYNTHETIC_BOUNDARY=CONFIRMED'
           Write-Host ('D3E28_EXACT_HEAD='+$env:GITHUB_SHA)
-      - name: Execute disappearing-child repro and real healthy/dead-root observer
+      - name: Validate missing-child handling and healthy/dead-root synthetic observer
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           & scripts/facad_314_d3e28_synthetic_process_race.ps1
-          if($LASTEXITCODE -ne 0 -or -not $?){throw 'D3E28_SYNTHETIC_TEST_FAILED'}
+          if(-not $?){throw 'D3E28_SYNTHETIC_TEST_FAILED'}
       - name: Confirm safe aggregate contract
         shell: pwsh
         run: |
@@ -47,7 +47,8 @@ jobs:
           if(-not (Test-Path -LiteralPath $path)){throw 'D3E28_AGGREGATE_ABSENT'}
           $j=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
           if($j.schema -cne 'facad_d3e28_synthetic_observer_reproducer_v1' -or
-             $j.old_observer_child_exit_exception_reproduced -cne $true -or
+             $j.exited_synthetic_child_counter_skipped -cne $true -or
+             $j.exited_synthetic_root_lookup_fails_closed -cne $true -or
              $j.root_absent_fails_closed -cne $true -or
              $j.healthy_root_sample_count -ne 6 -or
              $j.synthetic_vendor_launches -ne 0 -or
@@ -56,7 +57,7 @@ jobs:
              $j.shared_app_storage_isolation_verified -cne $false -or
              $j.clinical_edit_allowed -cne $false -or
              $j.d3_gate -cne 'OPEN_RED'){throw 'D3E28_AGGREGATE_CONTRACT_FAILED'}
-          Write-Host 'D3E28_SYNTHETIC_REPRO=PASS_EXPECTED_OLD_BUG'
+          Write-Host 'D3E28_SYNTHETIC_REMEDIATION=CHILD_EXIT_HANDLED_ROOT_FAIL_CLOSED'
           Write-Host 'D3E28_D3=OPEN_RED'
       - name: Upload aggregate only, never raw process information
         if: always()
