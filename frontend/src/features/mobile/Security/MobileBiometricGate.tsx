@@ -158,7 +158,9 @@ export function MobileBiometricGate({ children }: Props) {
         <p className="mt-3 text-sm leading-relaxed text-text-muted font-semibold">
           {originError
             ? `La biométrie est liée à ${status?.expected_origin || 'digitalcrown.local'}. Ouvrez cette adresse sur le réseau du cabinet.`
-            : 'Utilisez Face ID, votre empreinte ou le verrouillage sécurisé de cet appareil. Aucune donnée biométrique n’est transmise à Digital Crown.'}
+            : recoveryError
+              ? 'Impossible de déverrouiller ce terminal dans son état actuel. La session reste protégée.'
+              : 'Utilisez Face ID, votre empreinte ou le verrouillage sécurisé de cet appareil. Aucune donnée biométrique n’est transmise à Digital Crown.'}
         </p>
         {!originError && !recoveryError && (
           <button
