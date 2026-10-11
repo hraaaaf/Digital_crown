@@ -311,6 +311,11 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   await nav.getByText('Plus', { exact: true }).click();
   const moreMenu = page.locator('[data-mobile-more-menu]');
   await moreMenu.waitFor({ state: 'visible' });
+  // The nav is visually above the dialog: Safari must not be able to reach it
+  // by touch, hardware keyboard or accessibility navigation while modal.
+  if (!(await nav.evaluate(element => element.inert && element.hasAttribute('inert')))) {
+    throw new Error('Pocket Plus modal left background navigation interactive');
+  }
   // Inspect initial menu geometry before moving the scroll position: WebKit
   // differs from Chromium when a focused overflow container opens in a portal.
   const menuState = await page.evaluate(() => {
@@ -402,6 +407,9 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   // Hard reloading hid this persistent React state in the previous harness.
   await page.getByRole('button', { name: 'Fermer Plus' }).click();
   await moreMenu.waitFor({ state: 'detached' });
+  if (await nav.evaluate(element => element.inert || element.hasAttribute('inert'))) {
+    throw new Error('Pocket nav stayed inert after dismissing Plus');
+  }
 
   await navigatePocketDeepLink(page, 'frontdesk');
   await page.getByText('Patient Web', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
@@ -580,6 +588,9 @@ try {
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-today-430x932.png`) });
     await page.locator('[data-mobile-bottom-nav]').getByText('Plus', { exact: true }).click();
     await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
+    if (!(await page.locator('[data-mobile-bottom-nav]').evaluate(element => element.inert && element.hasAttribute('inert')))) {
+      throw new Error(`Pocket theme ${theme.id}: Plus left background nav interactive`);
+    }
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-plus-430x932.png`) });
     await page.getByRole('button', { name: 'Fermer Plus' }).click();
     await page.locator('[data-mobile-more-menu]').waitFor({ state: 'detached' });
