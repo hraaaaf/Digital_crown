@@ -213,9 +213,7 @@ async function captureStableScreenshot(page, options) {
     const layer = shell?.querySelector('main > div');
     if (!(layer instanceof HTMLElement)) return false;
     const opacity = Number.parseFloat(getComputedStyle(layer).opacity);
-    return Number.isFinite(opacity) && opacity >= 0.999
-      ? { opacity, active: layer.querySelector('[data-dc-pocket-today], [data-dc-pocket-agenda], [data-mobile-stock], [data-mobile-finance], [data-mobile-frontdesk]')?.getAttribute('data-dc-pocket-today') !== null }
-      : false;
+    return Number.isFinite(opacity) && opacity >= 0.999 ? { opacity } : false;
   }, null, { timeout: 15000 });
   const state = await layerState.jsonValue();
   if (!state || state.opacity < 0.999) throw new Error('Pocket screenshot layer not fully opaque');
