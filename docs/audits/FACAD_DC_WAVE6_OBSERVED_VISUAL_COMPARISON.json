@@ -1,0 +1,110 @@
+{
+  "schema": "FACAD_DC_WAVE6_OBSERVED_VISUAL_COMPARISON_V1",
+  "date": "2026-10-11",
+  "scope": "FACAD ARCHIVED 1024x768 ROBERT VS DC SYNTHETIC 1024x768 AND MOBILE; UX COMPARISON NOT NUMERIC PARITY",
+  "source_snapshots": {
+    "facad": {
+      "run": 37967170536,
+      "artifact_id": 11634502406,
+      "artifact_zip_sha256": "e8db415cda6c4dbc27cdca1eaa25bd6f6200a95a428c902726998a4fc79c1574",
+      "viewport": "1024x768",
+      "case": "ROBERT_EXAMPLE_VENDOR_NONCLINICAL",
+      "view_menu_screenshot_sha256": "17997ea40129336be7f415c24de3e4e3f0555b2e0c81c673b74ae278e69ec4f2",
+      "tracing_menu_screenshot_sha256": "f096004d4d03742147005c369027b2fabb5da13ecf699ab729310bdfc2cf469a",
+      "vendor_tracing_behavior_executed": false
+    },
+    "digital_crown": {
+      "run": 38149915778,
+      "artifact_id": 11706532622,
+      "artifact_zip_sha256": "8f6941042653aabfd6d421d9399e320902ebedb7d86e344c601f869e32f4dc01",
+      "source_head": "c0d47f4832e6da2211c6f94eb88f0db56fcaebb6",
+      "synthetic_only": true,
+      "viewports": [
+        "390x844",
+        "1024x768",
+        "768x1024",
+        "1280x900"
+      ],
+      "modes": [
+        "all",
+        "steiner",
+        "tweed",
+        "mcnamara",
+        "com",
+        "ricketts"
+      ],
+      "screenshots_verified_by_CI": 24,
+      "invalid_screenshots": 0,
+      "blocked_external_requests": 0,
+      "desktop_all_sha256": "1043859938dfeb10cc9e3d64fd783374f1488b20284397e18ebd493d1db91857",
+      "desktop_ricketts_sha256": "f0786b4b68a96fff2a47ff4f32e52ece8b62804077a97d3686e69e6c1403121b",
+      "mobile_steiner_sha256": "436184cac0f6579879907988ac391a4d6cdbacc31d59832466f5513cc7ad092e",
+      "mobile_mode_panel_rows": {
+        "all": 15,
+        "steiner": 15,
+        "tweed": 4,
+        "mcnamara": 3,
+        "com": 10,
+        "ricketts": 2
+      }
+    }
+  },
+  "observed_differences": [
+    {
+      "code": "P0_VIEWPORT_COMPOSITION",
+      "facad": "At 1024x768, numeric value grid and most of cephalometric radiograph are simultaneously visible",
+      "digital_crown": "At the same 1024x768 viewport, correction/layer cards occupy a large region above imaging; the image starts near the bottom half of screenshot",
+      "evidence_type": "VISUAL_ANNOTATION_ARCHIVED_SCREENSHOTS",
+      "classification": "UX_GAP_NOT_SAME_CASE",
+      "candidate_product_ticket": "Optimize responsive cephalo control density, enable analysis/measurement grid alongside larger tracing canvas"
+    },
+    {
+      "code": "P0_MOBILE_FIRST_SCREEN_VISIBILITY",
+      "facad": "Desktop-only reference, no FACAD mobile behavior observed",
+      "digital_crown": "At 390x844, correction/layer cards precede the tracing canvas; only top of tracing visible above fold",
+      "evidence_type": "ACTUAL_RESPONSIVE_CHROMIUM_SCREENSHOT",
+      "classification": "DC_MOBILE_OBSERVED_FACAD_MOBILE_NOT_COMPARABLE",
+      "candidate_product_ticket": "Use collapsible controls and prioritize usable tracing area on narrow screens after product-phase gate"
+    },
+    {
+      "code": "P1_FUNCTION_CATEGORY_MAPPING",
+      "facad": "View menu lists Marker guide, Planned positions, Hard tissue, Markers, Marker names, Ceph/Lines, Analysis, Image, Profile and other controls",
+      "digital_crown": "Synthetic demo shows layer controls Points, Plans, Dents, Profil, Mesures plus analysis modes; code supports superimposition view under applicability guard",
+      "evidence_type": "ARCHIVED_FACAD_MENU_PLUS_DC_RUNTIME_AND_SOURCE",
+      "classification": "LABEL_LEVEL_CANDIDATE_ONLY",
+      "candidate_product_ticket": "Map every FACAD control to exact DC action, then execute both on authorized comparable state"
+    }
+  ],
+  "redlines": {
+    "same_anatomical_case": false,
+    "same_landmarks_calibration": false,
+    "facad_numeric_results_collected_on_dc_fixture": false,
+    "facad_software_relaunched": false,
+    "clinical_parity_validated": false,
+    "behavior_parity_certified": false,
+    "facad_mobile_implementation_known": false,
+    "d3": "OPEN_RED",
+    "f02_4": "OPEN_PARTIAL_COMPARISON",
+    "f05_2": "OPEN_NUMERIC_NOT_TESTED",
+    "f05_3": "OPEN_MULTIFAMILY_NOT_TESTED",
+    "f05_4": "OPEN_TICKETS_NOT_COMPLETE",
+    "merges_or_deployments": false
+  },
+  "review_internal_A": {
+    "lens": "CLINICAL_PROVENANCE",
+    "score_10": 7,
+    "blockers": [
+      "Never compare unlike images as numerical equivalent",
+      "No FACAD patient measurements for the DC fixture"
+    ]
+  },
+  "review_internal_B": {
+    "lens": "UI_UX_MOBILE",
+    "score_10": 7,
+    "blockers": [
+      "Behavior/canvas interactions not compared with FACAD",
+      "Mobile only tested on DC not FACAD",
+      "Fixing DC frontend deferred until user-approved product gate"
+    ]
+  }
+}
