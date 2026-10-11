@@ -118,6 +118,26 @@ describe('Mobile M6.2 behavior', () => {
     expect(await MobileStorage.getActionQueue()).toEqual([valid]);
   });
 
+  it('invalidates an optimistic cached snapshot when abandoning a legacy DELETE', async () => {
+    await MobileStorage.saveCredentials(credentials());
+    await MobileStorage.saveLastSnapshot({ appointments: [] }, '2026-10-11');
+    expect(await MobileStorage.getLastSnapshot('2026-10-11')).not.toBeNull();
+
+    memory.store.set('zka_action_queue_v2', [{
+      id: 'old-delete',
+      url: 'http://127.0.0.1:8005/api/mobile/appointments/41',
+      method: 'DELETE',
+      timestamp: Date.now(),
+      cabinetPublicId: 'abcdef1234567890',
+      deviceId: 'device-a',
+    }]);
+
+    // The abandoned operation must not make a stale cached absence look official.
+    expect(await MobileStorage.getLastSnapshot('2026-10-11')).toBeNull();
+    expect(await MobileStorage.getActionQueue()).toEqual([]);
+    expect(memory.store.has('zka_last_snapshot')).toBe(false);
+  });
+
   it('rotates the mobile refresh token and retries one 401 with the new access token', async () => {
     await MobileStorage.saveCredentials(credentials());
     const newAccess = token('new');
