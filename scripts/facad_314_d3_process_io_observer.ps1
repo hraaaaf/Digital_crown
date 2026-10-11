@@ -37,7 +37,7 @@ function Get-SafeCounters([int]$id,[int]$rootId){
     $reason=$_.Exception
     $confirmedAbsent=($reason -is [ArgumentException] -or
                       $reason.InnerException -is [ArgumentException])
-    if(-not $confirmedAbsent){throw}
+    if(-not $confirmedAbsent){throw 'D3_PROCESS_COUNTER_LOOKUP_UNAVAILABLE'}
     if($id -eq $rootId){throw 'D3_ROOT_PROCESS_ABSENT_AT_COUNTER_LOOKUP'}
     return $null
   }
