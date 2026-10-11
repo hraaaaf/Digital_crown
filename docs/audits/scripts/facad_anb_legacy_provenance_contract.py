@@ -72,7 +72,7 @@ def assertions_of(src):
  ok("backend/routers/cephalo_analysis_read.py","status_code=409")
  ok("backend/routers/__init__.py","ia.router.include_router(cephalo_analysis_read.router)")
  ok("backend/main.py",'app.include_router(ia.router, prefix="/api/ia"')
- ok("frontend/src/features/ortho/cephaloRepository.ts","api.get(\`/ia/analyses/\${analysisId}\`)")
+ ok("frontend/src/features/ortho/cephaloRepository.ts","api.get(`/ia/analyses/${analysisId}`)")
  ok("frontend/src/features/ortho/stores/useOrthoStore.ts","anglesData: { ...refreshedAngles, __calibrationData: authoritativeRead.calibration_data || null }")
  ok("frontend/src/features/ortho/stores/useOrthoStore.ts","set({ anglesData: data.results })")
  ok("frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx","all: ['SNA','SNB','ANB'")
@@ -117,7 +117,7 @@ class ProvenanceTests(unittest.TestCase):
   self.assertNotEqual(blob_sha(b"tampered"),next(iter(PINS.values())))
  def test_source_missing_legacy_endpoint_fails(self):
   s=read_verified();p="frontend/src/features/ortho/cephaloRepository.ts"
-  s[p]=s[p].replace("api.get(\`/ia/analyses/\${analysisId}\`)","api.get('/alternate')")
+  s[p]=s[p].replace("api.get(`/ia/analyses/${analysisId}`)","api.get('/alternate')")
   with self.assertRaises(ValueError): assertions_of(s)
  def test_anti_false_vendor_claim(self):
   a=audit();self.assertFalse(a["facad_numeric_parity_tested"]);self.assertFalse(a["clinical_edit_allowed"])
