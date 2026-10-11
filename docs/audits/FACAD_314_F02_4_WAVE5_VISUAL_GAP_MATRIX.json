@@ -1,0 +1,225 @@
+{
+  "schema": "FACAD_F02_4_WAVE5_VISUAL_COMPARISON_PREREG_V1",
+  "date": "2026-10-11",
+  "scope": "OFFLINE_EXACT_FACAD_ARCHIVE_PLUS_DIGITAL_CROWN_CODE_ONLY_NOT_PAIRED_SCREENSHOTS",
+  "legacy_facad": {
+    "archived_run": 37967170536,
+    "artifact": 11634502406,
+    "zip_sha256": "e8db415cda6c4dbc27cdca1eaa25bd6f6200a95a428c902726998a4fc79c1574",
+    "files_in_zip": 47,
+    "validated_viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "screenshots": [
+      {
+        "file": "f02-2-before.png",
+        "sha256": "136161a0dfd263e6358cc56538d2b709b52b5db3f5623d3f51dd9d583ad9f313"
+      },
+      {
+        "file": "f02-2-after-menu-close.png",
+        "sha256": "31cb8232ab8849b917a51bb8fa1020146f0d5051790c3a0c681fb8c973e131c8"
+      },
+      {
+        "file": "f02-3-before.png",
+        "sha256": "31cb8232ab8849b917a51bb8fa1020146f0d5051790c3a0c681fb8c973e131c8"
+      },
+      {
+        "file": "f02-3-after.png",
+        "sha256": "31cb8232ab8849b917a51bb8fa1020146f0d5051790c3a0c681fb8c973e131c8"
+      },
+      {
+        "file": "f02-3-view-menu.png",
+        "sha256": "17997ea40129336be7f415c24de3e4e3f0555b2e0c81c673b74ae278e69ec4f2"
+      },
+      {
+        "file": "f02-3-tracing-menu.png",
+        "sha256": "f096004d4d03742147005c369027b2fabb5da13ecf699ab729310bdfc2cf469a"
+      }
+    ],
+    "pixel_analysis": {
+      "f02_2_full_frame_changed_pixels": 730,
+      "f02_2_difference_bbox": [
+        119,
+        23,
+        158,
+        42
+      ],
+      "f02_3_full_frame_changed_pixels": 0,
+      "desktop_reference_only": true,
+      "behavior_from_menu_display": "NOT_VERIFIED"
+    },
+    "ui_audit": {
+      "f02_2_targets": [
+        {
+          "name": "Marker guide",
+          "enabled": true,
+          "leaf_clicked": false
+        },
+        {
+          "name": "Planned positions",
+          "enabled": true,
+          "leaf_clicked": false
+        }
+      ],
+      "f02_3_menus": {
+        "Tracing": 10,
+        "View": 20
+      },
+      "export_executed": false
+    }
+  },
+  "digital_crown": {
+    "source_head": "c0d47f4832e6da2211c6f94eb88f0db56fcaebb6",
+    "source_files": [
+      {
+        "source": "frontend/src/features/ortho/CephaloWorkspace.tsx",
+        "blob": "d2014afdc3fe940246c50d939317bbae4f11f254",
+        "mode": "studio/steps UI code exists"
+      },
+      {
+        "source": "frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx",
+        "blob": "db06f601a507af8ec8e92b14b38f3ec1b335aec0",
+        "mode": "superimposition UI code exists"
+      },
+      {
+        "source": "frontend/src/features/ortho/cephaloVisualSemantics.ts",
+        "blob": "ffa6bec9b8f76a600a5754bb2e2f21d49689df22",
+        "mode": "scientific color semantics code exists"
+      },
+      {
+        "source": "frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx",
+        "blob": "c2b3b3337bd6aa99cd6b977811749fce561a5b22",
+        "mode": "analysis workbench code exists"
+      }
+    ],
+    "actual_comparable_screenshots": 0,
+    "browser_session_in_wave5": false,
+    "mobile_implementation_tested": false,
+    "mobile_requirement": "Determine feature presence and exercise responsive viewport BEFORE any mobile UI claim"
+  },
+  "compare_rows": [
+    {
+      "facad_control": "Marker guide",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/CephaloWorkspace.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P0_RESEARCH"
+    },
+    {
+      "facad_control": "Planned positions",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P0_RESEARCH"
+    },
+    {
+      "facad_control": "Hard tissue",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/cephaloVisualSemantics.ts",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P0_RESEARCH"
+    },
+    {
+      "facad_control": "Markers",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "Marker names",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/CephaloWorkspace.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "Ceph/Lines",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "Image",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/cephaloVisualSemantics.ts",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "Tracing image",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "Analysis",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/CephaloWorkspace.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "Profile",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "View",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/cephaloVisualSemantics.ts",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    },
+    {
+      "facad_control": "Tracing",
+      "facad_ui_observation": "MENU_LABEL_ONLY",
+      "digital_crown_candidate_source": "frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx",
+      "candidate_same_state_image_available": false,
+      "behavior_parity": "NOT_TESTED",
+      "pixel_parity": "NOT_TESTED",
+      "priority": "P1_RESEARCH"
+    }
+  ],
+  "controls": {
+    "same_user_case_identical": false,
+    "same_workstation_mode_identical": false,
+    "device_viewport_pair_available": false,
+    "before_target_after_paired": false,
+    "no_facad_leaf_selected": true,
+    "full_visual_behavior_claim": false,
+    "same_trace_numeric_parity": false,
+    "facad_software_relaunched": false
+  },
+  "next": "Obtain legally approved new FACAD reference state if D3 permits; on DC run desktop 1024x768 and mobile 390x844, before/target/after screenshots on real product, test feature existence first. Do not infer visual parity from filenames or source existence.",
+  "f02_4": "OPEN",
+  "d3": "OPEN_RED",
+  "converged": false
+}
