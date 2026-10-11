@@ -37,9 +37,16 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $native = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
           if (-not (Test-Path -LiteralPath $native -PathType Container)) { throw 'No UCRT64 native bin' }
-          $archive = Join-Path $env:RUNNER_TEMP 'pango-1.58.2-1.pkg.tar.zst'
-          $url = 'https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-pango-1.58.2-1-any.pkg.tar.zst'
-          Invoke-WebRequest -Uri $url -OutFile $archive -MaximumRedirection 5 -TimeoutSec 90
+          # Package-manager cache, authenticated by MSYS2 repository; no direct mirror request.
+          $cache = Join-Path $env:MSYS2_LOCATION 'var/cache/pacman/pkg'
+          $archive = Join-Path $cache 'mingw-w64-ucrt-x86_64-pango-1.58.2-1-any.pkg.tar.zst'
+          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+            $bash = Join-Path $env:MSYS2_LOCATION 'usr/bin/bash.exe'
+            if (-not (Test-Path -LiteralPath $bash -PathType Leaf)) { throw 'Cannot use authenticated package manager' }
+            & $bash -lc 'pacman -Sw --noconfirm --cachedir /var/cache/pacman/pkg mingw-w64-ucrt-x86_64-pango'
+            if ($LASTEXITCODE -ne 0) { throw 'Official MSYS2 package manager could not cache Pango' }
+          }
+          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw 'The exact Pango archive version is unavailable; do not use floating dependency' }
           $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($hash -ne '8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8') {
             throw 'Official Pango package SHA256 mismatch: stop discovery'
