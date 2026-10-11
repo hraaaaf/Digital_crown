@@ -155,6 +155,36 @@ jobs:
           test -n "$origin"
           echo "FUE_TUNNEL_ORIGIN=$origin" >> "$GITHUB_ENV"
           echo "FUE_HTTPS_TUNNEL_CREATED=true"
+      - name: Verify candidate actually includes native Safari continuation
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'href={destinationRoute}' frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx
+          echo "FUE_SAFARI_NATIVE_LINK_PRESENT=true"
+      - name: Install browser-based WebKit certification runner
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
+      - name: Require actual paired HTTPS Agenda and responsive nav in WebKit
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py > "$RUNNER_TEMP/fue-browser-private-code.txt"
+          (cd frontend && FUE_LIVE_BROWSER_CODE_FILE="$RUNNER_TEMP/fue-browser-private-code.txt" node scripts/certify-pocket-live-https-pairing-webkit.mjs)
+          rm -f "$RUNNER_TEMP/fue-browser-private-code.txt"
+      - name: Store browser evidence only, never credentials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-webkit-qa-${{ github.sha }}
+          path: |
+            /tmp/pocket-fue-webkit-real-dashboard.png
+            /tmp/pocket-fue-webkit-failed.png
+          retention-days: 1
+          if-no-files-found: warn
       - name: Issue real five-minute pairing code 1
         shell: bash
         run: |
