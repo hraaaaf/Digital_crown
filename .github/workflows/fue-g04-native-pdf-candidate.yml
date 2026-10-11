@@ -47,6 +47,11 @@ jobs:
           echo "FUE_G04_RELEASE_APPROVAL=NOT_GRANTED"
 
   windows-native-input-parity:
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -113,3 +118,8 @@ jobs:
           path: ${{ runner.temp }}/fue-g04-native-security-audit.json
           retention-days: 7
           if-no-files-found: error
+
+      - name: Attest experimental security evidence (not release approval)
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/fue-g04-native-security-audit.json
