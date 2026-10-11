@@ -1,0 +1,80 @@
+name: FACAD B65 exact-source research gates
+
+on:
+  push:
+    branches:
+      - research/facad-b-source-gates-20261011
+    paths:
+      - .github/workflows/facad-314-b65-source-matrix.yml
+      - docs/audits/facad_trial_20261011/B_65_PROFILE_SOURCE_GATES_20261011.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: research
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 068d30a5437a4bf0fe8a46a96391fa3cd8a6428d
+          path: source
+          persist-credentials: false
+      - name: Assert exact source identities and 65/65 negative clinical gates
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv, io, json, re, subprocess
+          from pathlib import Path
+          root=Path('source')
+          doc=Path('research/docs/audits/facad_trial_20261011/B_65_PROFILE_SOURCE_GATES_20261011.json')
+          d=json.loads(doc.read_text(encoding='utf-8'))
+          assert d['status']=='RESEARCH_ONLY'
+          for pinned in d['source_files']:
+              path=pinned['path']
+              blob=subprocess.check_output(['git','-C',str(root),'hash-object',path],text=True).strip()
+              assert blob==pinned['git_blob_sha'],f'SOURCE_BLOB_DRIFT:{path}'
+          def csv_rows(path):
+              return list(csv.DictReader(io.StringIO((root/path).read_text(encoding='utf-8-sig'))))
+          catalog=csv_rows(d['source_files'][0]['path'])
+          ledger=csv_rows(d['source_files'][1]['path'])
+          cross=csv_rows(d['source_files'][2]['path'])
+          counts={}
+          for line in (root/d['source_files'][3]['path']).read_text(encoding='utf-8').splitlines():
+              m=re.match(r'^\|\s*(\d+)\s*\|\s*(.+?)\s*\|\s*[^|]+\|\s*(\d)/3\s*\|\s*[^|]+\|$',line)
+              if m:counts[int(m[1])]=(m[2],int(m[3]))
+          assert [len(catalog),len(ledger),len(cross),len(counts),len(d['items'])]==[65]*5
+          classes={}
+          complete=0
+          for i,item in enumerate(d['items']):
+              a,b,c=catalog[i],ledger[i],cross[i]
+              ordinal=i+1
+              assert all(int(v['ordinal'])==ordinal for v in (a,b,c))
+              assert a['analysis_name']==b['analysis_name']==c['facad_analysis_name']==item['analysis']==counts[ordinal][0]
+              assert item['ordinal']==ordinal
+              assert item['source_run_id']==b['github_run_id']
+              assert item['editor_observation']==b['editor_definition_state']
+              assert item['mapping_class']==c['mapping_class']
+              label='3_OF_3_FILES_PRESENT' if counts[ordinal][1]==3 else '0_OF_3_IN_THIS_REF'
+              assert item['git_uia_triplets']==label
+              complete+=counts[ordinal][1]==3
+              assert item['formula_gate']=='UNKNOWN'
+              assert item['numeric_vendor_parity']=='NOT_TESTED'
+              assert item['patient_calculation']=='NOT_TESTED'
+              assert item['population_norm_gate']=='NOT_ACTIVATED'
+              classes[item['mapping_class']]=classes.get(item['mapping_class'],0)+1
+          expected={'NO_REPO_MAPPING':56,'EXACT_NAMED_MAPPING_UNVERIFIED':4,
+                    'RICKETTS_VENDOR_VARIANT_UNRESOLVED':4,'NAME_ONLY_PROVISIONAL_PACK':1}
+          assert classes==expected
+          assert complete==42 and 65-complete==23
+          assert d['verification']['mapping_classes']==expected
+          print('B65_SOURCE_MATRIX_PASS=65_NAME_AND_ORDINAL_JOINED')
+          print('B65_UIA_GIT_TRIPLETS=42_PRESENT_23_NOT_VERSIONED_HERE')
+          print('B65_FORMULA_PARITY_VALIDATED=false')
+          PY
