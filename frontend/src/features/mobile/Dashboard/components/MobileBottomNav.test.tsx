@@ -88,7 +88,11 @@ describe('Digital Crown Pocket canonical navigation', () => {
     );
 
     const trigger = screen.getByText('Plus').closest('button') as HTMLButtonElement;
+    const nav = document.querySelector('[data-mobile-bottom-nav]') as HTMLElement;
+    expect(nav.hasAttribute('inert')).toBe(false);
     fireEvent.click(trigger);
+    // A modal cannot leave the higher z-index bottom bar pointer/keyboard active.
+    expect(nav.hasAttribute('inert')).toBe(true);
 
     const close = screen.getByRole('button', { name: 'Fermer Plus' });
     expect(document.activeElement).toBe(close);
@@ -106,6 +110,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     firstItem.focus();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByText('Accès secondaires')).toBeNull();
+    expect(nav.hasAttribute('inert')).toBe(false);
     expect(document.activeElement).toBe(trigger);
   });
 
