@@ -138,7 +138,25 @@ async function installRoutes(page, role, selectedTheme = { id: 'elite', primary:
 }
 
 async function seedPocketSession(page) {
-  await page.goto(`${baseUrl}/landing`, { waitUntil: 'domcontentloaded' });
+  // The previous seed used /landing, which boots real production JS via
+  // main.tsx -> import('./App.tsx'). Immediately navigating to Pocket while
+  // that unrelated lazy import is in flight can abort a module in WebKit and
+  // raise "Importing a module script failed" in the *next* page.
+  // Seed on the same origin using an intentionally script-free document.
+  // Actual Pocket still gets one unmodified, production-built hard navigation.
+  await page.route('**/__pocket_session_seed', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: '<!doctype html><html><head><title>Pocket session seed</title></head><body>Session seed</body></html>',
+  }));
+  await page.goto(`${baseUrl}/__pocket_session_seed`, { waitUntil: 'load' });
+  const seedState = await page.evaluate(() => ({
+    origin: location.origin,
+    scripts: document.scripts.length,
+  }));
+  if (seedState.origin !== new URL(baseUrl).origin || seedState.scripts !== 0) {
+    throw new Error('Pocket session seed must be same-origin and script-free');
+  }
   const runtimeCredentials = { ...credentials, api_base_url: baseUrl };
   await page.evaluate(async (creds) => {
     await new Promise((resolve, reject) => {
@@ -433,6 +451,18 @@ try {
       const context = await browser.newContext(screenshotContextOptions(viewport));
       const page = await context.newPage();
       const runtimeErrors = [];
+      const assetFailures = [];
+      const recordAssetFailure = (requestUrl, reason) => {
+        try {
+          const url = new URL(requestUrl);
+          if (url.origin !== new URL(baseUrl).origin || !/^\\/assets\\/.*\\.(js|css)$/.test(url.pathname)) return;
+          assetFailures.push({ path: url.pathname, reason: String(reason).slice(0, 160) });
+        } catch { /* Invalid diagnostic URL; never log opaque credentials. */ }
+      };
+      page.on('requestfailed', request => recordAssetFailure(request.url(), request.failure()?.errorText ?? 'requestfailed'));
+      page.on('response', response => {
+        if (response.status() >= 400) recordAssetFailure(response.url(), `HTTP ${response.status()}`);
+      });
       page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}`));
       page.on('console', message => {
         if (message.type() === 'error' && !message.text().toLowerCase().includes('[vite]')) {
@@ -446,10 +476,15 @@ try {
         await seedPocketSession(page);
         await navigatePocketDeepLink(page);
         const certified = await assertRuntime(page, role, viewport, runtimeErrors);
+        if (assetFailures.length) {
+          throw new Error(`Pocket production assets failed: ${JSON.stringify(assetFailures)}`);
+        }
         if (routes.passkeyStatusHits < 1) throw new Error('Pocket passkey/status fixture not observed: certification cannot assert paired UI');
         evidence.push({ ...certified, passkeyStatusHits: routes.passkeyStatusHits, serviceWorkers: 'blocked-for-route-fixtures' });
       } catch (error) {
-        await captureRuntimeFailure(page, failStage, role, viewport, runtimeErrors).catch(console.error);
+        await captureRuntimeFailure(page, failStage, role, viewport, [
+          ...runtimeErrors, ...assetFailures.map(failure => `asset:${failure.path}:${failure.reason}`),
+        ]).catch(console.error);
         throw error;
       } finally {
         await context.close();
