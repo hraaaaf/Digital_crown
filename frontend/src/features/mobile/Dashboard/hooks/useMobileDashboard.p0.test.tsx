@@ -106,3 +106,34 @@ describe('Pocket P0 — deletion must be server-confirmed online', () => {
     expect(toast.error).toHaveBeenCalledWith('Suppression refusée (403)');
   });
 });
+
+describe('Pocket P2 — neutral appointment communication', () => {
+  it('never prepopulates patient identity, treatment motif or fabricated dates into a WhatsApp URL', async () => {
+    const { result } = renderHook(() => useMobileDashboard());
+    await act(async () => {
+      result.current.actions.setWhatsappApt({
+        id: 41,
+        patient_id: 8,
+        patient_name: 'Patiente Confidentielle',
+        phone: '+212600000001',
+        date: '2026-11-20',
+        time: '09:30',
+        motif: 'Endodontie clinique',
+        status: 'PLANIFIE',
+        duration_minutes: 45,
+      });
+    });
+    expect(result.current.state.customMessage).toContain('rappel de votre rendez-vous');
+    expect(result.current.state.customMessage).not.toContain('Patiente Confidentielle');
+    expect(result.current.state.customMessage).not.toContain('Endodontie');
+    expect(result.current.state.customMessage).not.toContain('demain');
+
+    await act(async () => {
+      result.current.actions.setWhatsappTemplate('confirmation');
+    });
+    expect(result.current.state.customMessage).toContain('votre rendez-vous au cabinet est confirmé');
+    expect(result.current.state.customMessage).not.toContain('Patiente Confidentielle');
+    expect(result.current.state.customMessage).not.toContain('Endodontie');
+    expect(result.current.state.customMessage).not.toContain('09:30');
+  });
+});
