@@ -149,7 +149,9 @@ export function FinanceView({
                 </div>
                 {d.phone && (
                   <button
-                    onClick={() => openWhatsApp(d.phone, `Bonjour ${d.name}, nous vous contactons concernant un solde en attente de ${fmt(d.amount)} MAD.`)}
+                    onClick={() => openWhatsApp(d.phone, 'Bonjour, merci de contacter le cabinet lorsque vous serez disponible.')}
+                    type="button"
+                    aria-label="Contacter via WhatsApp sans données financières"
                     className="w-10 h-10 bg-primary/5 border border-primary/10 rounded-[12px] flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all active:scale-95"
                   >
                     <MessageSquare size={16} />
