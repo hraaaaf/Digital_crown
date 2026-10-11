@@ -34,8 +34,8 @@ export function PocketAgendaDay({
           <CalendarDays size={18} aria-hidden="true" />
           <h2 className="text-[18px] font-bold">Rendez-vous</h2>
         </div>
-        <p className="mt-2 text-[12px] font-bold capitalize text-text-main">{dateLabel}</p>
-        <p className="mt-1 text-[12px] font-medium text-text-muted">
+        <p className="mt-2 text-[14px] font-semibold capitalize text-text-main">{dateLabel}</p>
+        <p className="mt-1 text-[13px] font-medium text-text-muted">
           {appointments.length} rendez-vous · vue rapide en lecture seule
         </p>
       </header>
@@ -61,12 +61,12 @@ export function PocketAgendaDay({
             const meta = appointment.status ? STATUS_META[appointment.status] : null;
             const content = (
               <>
-                <div className="grid h-11 w-14 shrink-0 place-items-center rounded-[14px] bg-primary/10 text-[12px] font-black text-primary">
+                <div className="grid h-12 w-14 shrink-0 place-items-center rounded-[14px] bg-primary/10 text-[13px] font-bold text-primary">
                   {appointment.time}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-semibold text-text-main">{appointment.patient_name}</p>
-                  <p className="mt-0.5 truncate text-[11px] font-medium text-text-muted">{appointment.motif || 'Rendez-vous'}</p>
+                  <p className="truncate text-[14px] font-semibold text-text-main">{appointment.patient_name}</p>
+                  <p className="mt-0.5 truncate text-[12px] font-medium text-text-muted">{appointment.motif || 'Rendez-vous'}</p>
                   {meta && (
                     <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${meta.className}`}>
                       {meta.label}
@@ -82,19 +82,19 @@ export function PocketAgendaDay({
                 key={appointment.id}
                 aria-label={`Ouvrir le dossier de ${appointment.patient_name}`}
                 onClick={() => onOpenPatient(appointment.patient_id as number)}
-                className="flex min-h-[76px] w-full items-center gap-3 rounded-[20px] border border-glass-border bg-card px-3 py-2 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                className="flex min-h-[84px] w-full items-center gap-3 rounded-[20px] border border-glass-border bg-card px-3 py-2 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
                 {content}
               </button>
             ) : (
-              <div key={appointment.id} className="flex min-h-[76px] items-center gap-3 rounded-[20px] border border-glass-border bg-card px-3 py-2 shadow-sm">
+              <div key={appointment.id} className="flex min-h-[84px] items-center gap-3 rounded-[20px] border border-glass-border bg-card px-3 py-2 shadow-sm">
                 {content}
               </div>
             );
           })}
         </div>
       )}
-      <p className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-text-muted">
+      <p className="flex items-center justify-center gap-1.5 text-[12px] font-medium text-text-muted">
         <Clock3 size={13} aria-hidden="true" /> La planification complète reste sur le poste de travail.
       </p>
     </section>
