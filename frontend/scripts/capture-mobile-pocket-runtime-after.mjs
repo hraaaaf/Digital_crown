@@ -585,6 +585,24 @@ try {
         && getComputedStyle(action).color === foreground;
     }, { foreground: theme.foreground }, { timeout: 15000 });
 
+    // Wait for the *actual* active navigation ink to finish its CSS color
+    // transition. Dark themes otherwise yield a transient 3.1:1 during
+    // screenshot setup, even when the final token itself is WCAG-compliant.
+    // A permanent wrong CSS color still times out and fails closed.
+    await page.waitForFunction(() => {
+      const nav = document.querySelector('[data-mobile-bottom-nav]');
+      const active = nav?.querySelector('button[aria-current="page"]');
+      if (!(active instanceof HTMLElement)) return false;
+      const inkToken = getComputedStyle(document.documentElement).getPropertyValue('--primary-ink').trim();
+      if (!inkToken) return false;
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--primary-ink)';
+      document.body.appendChild(probe);
+      const expected = getComputedStyle(probe).color;
+      probe.remove();
+      return getComputedStyle(active).color === expected;
+    }, null, { timeout: 15000 });
+
     const result = await page.evaluate(() => {
       const nav = document.querySelector('[data-mobile-bottom-nav]');
       const primaryAction = nav?.querySelector('button[aria-label="Ouvrir les actions rapides"]');
