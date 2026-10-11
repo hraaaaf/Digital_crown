@@ -204,6 +204,24 @@ async function captureRuntimeFailure(page, stage, role, viewport, errors) {
   console.error('Pocket WebKit failure diagnostics:', JSON.stringify(diagnostic));
 }
 
+// Screen capture is visual evidence, not an arbitrary animation frame.
+// Framer Motion reveals the active Pocket tab from opacity 0 -> 1; WebKit
+// previously captured Today's card while it was still near-transparent.
+async function captureStableScreenshot(page, options) {
+  const layerState = await page.waitForFunction(() => {
+    const shell = document.querySelector('[data-dc-mobile-shell]');
+    const layer = shell?.querySelector('main > div');
+    if (!(layer instanceof HTMLElement)) return false;
+    const opacity = Number.parseFloat(getComputedStyle(layer).opacity);
+    return Number.isFinite(opacity) && opacity >= 0.999
+      ? { opacity, active: layer.querySelector('[data-dc-pocket-today], [data-dc-pocket-agenda], [data-mobile-stock], [data-mobile-finance], [data-mobile-frontdesk]')?.getAttribute('data-dc-pocket-today') !== null }
+      : false;
+  }, null, { timeout: 15000 });
+  const state = await layerState.jsonValue();
+  if (!state || state.opacity < 0.999) throw new Error('Pocket screenshot layer not fully opaque');
+  await page.screenshot({ ...options, animations: 'disabled' });
+}
+
 async function assertTouchTarget(locator, label) {
   const box = await locator.boundingBox();
   if (!box || box.width < 44 || box.height < 44) {
@@ -242,13 +260,13 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   if (geometry.horizontalOverflow) throw new Error(`${role.value}/${viewport.width}: overflow ${geometry.scrollWidth}>${geometry.innerWidth}`);
   await assertTouchTarget(page.locator('input[type="date"]'), 'date input');
   const todayScreenshot = `runtime-${role.slug}-today-${viewport.width}x${viewport.height}.png`;
-  await page.screenshot({ path: path.join(outputDir, todayScreenshot) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, todayScreenshot) });
 
   // P1: the Agenda must be a separate, authorized day list with no desktop mutations.
   await nav.getByText('Agenda', { exact: true }).click();
   await page.locator('[data-dc-pocket-agenda]').waitFor({ state: 'visible' });
   const agendaScreenshot = `runtime-${role.slug}-agenda-${viewport.width}x${viewport.height}.png`;
-  await page.screenshot({ path: path.join(outputDir, agendaScreenshot) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, agendaScreenshot) });
 
   await nav.getByText('Plus', { exact: true }).click();
   const moreMenu = page.locator('[data-mobile-more-menu]');
@@ -275,7 +293,7 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   });
   await fs.writeFile(path.join(outputDir, `menu-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.json`),
     JSON.stringify(menuState, null, 2));
-  await page.screenshot({ path: path.join(outputDir, `menu-before-scroll-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.png`) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, `menu-before-scroll-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.png`) });
   // Plus contains an intentionally scrollable secondary-action list. A menu
   // item can be in the DOM but outside the visible scrollport on WebKit.
   // Exercise the user's actual scrollable menu, then assert rendered labels.
@@ -307,29 +325,29 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   await assertTouchTarget(page.getByRole('button', { name: 'Fermer Plus' }), 'Plus close');
 
   const screenshot = `runtime-${role.slug}-plus-${viewport.width}x${viewport.height}.png`;
-  await page.screenshot({ path: path.join(outputDir, screenshot) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, screenshot) });
 
   await page.goto(`${baseUrl}/mobile/dashboard?tab=frontdesk`, { waitUntil: 'domcontentloaded' });
   await page.getByText('Patient Web', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   if (await page.locator('[data-mobile-restricted]').count()) throw new Error('P1: Frontdesk rejected an authorized Pocket role');
-  await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-frontdesk-${viewport.width}x${viewport.height}.png`) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-frontdesk-${viewport.width}x${viewport.height}.png`) });
 
   await page.goto(`${baseUrl}/mobile/dashboard?tab=securite`, { waitUntil: 'domcontentloaded' });
   await page.getByText('Téléphone connecté', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
-  await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-securite-${viewport.width}x${viewport.height}.png`) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-securite-${viewport.width}x${viewport.height}.png`) });
 
   await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-mobile-stock]').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
   if (await page.locator('[data-dc-preview-demo]').count()) throw new Error('Preview rendered for Stock deep-link');
   const stockScreenshot = `runtime-${role.slug}-stock-${viewport.width}x${viewport.height}.png`;
-  await page.screenshot({ path: path.join(outputDir, stockScreenshot) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, stockScreenshot) });
 
   await page.goto(`${baseUrl}/mobile/dashboard?tab=library`, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-mobile-library]').waitFor({ state: 'visible', timeout: 30000 });
   if (role.value === 'DENTISTE') await page.getByText('Bibliothèque', { exact: true }).first().waitFor({ state: 'visible' });
   else await page.getByText('Accès réservé', { exact: true }).waitFor({ state: 'visible' });
-  await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-library-${viewport.width}x${viewport.height}.png`) });
+  await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-library-${viewport.width}x${viewport.height}.png`) });
 
   if (role.value === 'DENTISTE') {
     for (const [tab, marker] of [
@@ -351,19 +369,19 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
       } else {
         await page.locator(marker).waitFor({ state: 'visible', timeout: 30000 });
       }
-      await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
+      await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
     }
   } else {
     for (const tab of ['finance', 'lab', 'marketplace']) {
       await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
       await page.locator('[data-mobile-restricted]').waitFor({ state: 'visible', timeout: 30000 });
       await page.getByText('Accès réservé', { exact: true }).waitFor({ state: 'visible' });
-      await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
+      await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
     }
     for (const [tab, marker] of [['dentists', '[data-mob5a-team]'], ['bot', '[data-mobile-assistant]']]) {
       await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
       await page.locator(marker).waitFor({ state: 'visible', timeout: 30000 });
-      await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
+      await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
     }
   }
 
@@ -466,16 +484,16 @@ try {
       || !result.primaryInk || canonicalHexColor(result.textMuted) !== canonicalHexColor(theme.muted)) {
       throw new Error(`Pocket theme ${theme.id}: invalid mobile runtime inheritance: ${JSON.stringify(result)}`);
     }
-    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-today-430x932.png`) });
+    await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-today-430x932.png`) });
     await page.locator('[data-mobile-bottom-nav]').getByText('Plus', { exact: true }).click();
     await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
-    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-plus-430x932.png`) });
+    await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-plus-430x932.png`) });
     await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
     await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
-    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-stock-430x932.png`) });
+    await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-stock-430x932.png`) });
     await page.goto(`${baseUrl}/mobile/dashboard?tab=securite`, { waitUntil: 'domcontentloaded' });
     await page.getByText('Téléphone connecté', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
-    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-securite-430x932.png`) });
+    await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-securite-430x932.png`) });
     if (routes.passkeyStatusHits < 1) throw new Error(`Pocket ${theme.id}: passkey/status fixture not observed`);
     themeEvidence.push({ ...result, passkeyStatusHits: routes.passkeyStatusHits, serviceWorkers: 'blocked-for-route-fixtures' });
     await context.close();
