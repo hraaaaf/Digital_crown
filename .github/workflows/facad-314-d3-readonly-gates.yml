@@ -1,0 +1,58 @@
+name: FACAD D3 source-only NO-GO safety gate
+
+on:
+  push:
+    branches:
+      - research/facad-d3-evidence-matrix-20261011
+    paths:
+      - .github/workflows/facad-314-d3-readonly-gates.yml
+      - docs/audits/FACAD_314_D3_PARALLEL_SECURITY_GATE_2026-10-11.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-no-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: research
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 6129f0f27476d6da4327559e6d922307ad31cb47
+          path: source
+          persist-credentials: false
+      - name: Enforce six critical safety blocks and pinned reviewer evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          source=Path('source')
+          doc=Path('research/docs/audits/FACAD_314_D3_PARALLEL_SECURITY_GATE_2026-10-11.json')
+          x=json.loads(doc.read_text(encoding='utf-8'))
+          assert x['status']=='NO_GO_NATIVE_VENDOR_WRITE_OR_CAPTURE'
+          assert x['scope']=='SOURCE_ONLY_NO_VENDOR_EXECUTION_NO_NEW_CAPTURE'
+          assert x['source']['security_pr_827']['head']=='6129f0f27476d6da4327559e6d922307ad31cb47'
+          pins={
+            'docs/audits/FACAD_314_D3E20_SECURITY_SCIENCE_REVIEW_2026-10-10.md':'459a468e7cd93cd12d1ff385eef0bfeca340a06a',
+            'docs/audits/FACAD_314_D3E21_LAB_PROTOCOL_2026-10-10.md':'797059a357067c8420bdabb980335b1587d9eede'
+          }
+          for path,expected in pins.items():
+              observed=subprocess.check_output(['git','-C',str(source),'hash-object',path],text=True).strip()
+              assert observed==expected,f'D3_SOURCE_DRIFT_STOP:{path}'
+          blockers=x['blockers']
+          assert len(blockers)==6
+          assert {v['id'] for v in blockers}=={'SEC-01','SEC-02','SEC-03','SCI-01','SCI-02','SCI-03'}
+          assert all(v['status']=='BLOCKER' and v['acceptance'] for v in blockers)
+          assert all(v is False for v in x['gates'].values())
+          assert x['claims']['windows_4663']['source_run_id']==38094153995
+          assert x['claims']['f04_passive_uia']['source_run_id']==38128666156
+          print('D3_SIX_BLOCKERS_PASS=SOURCE_ONLY_NO_GO')
+          print('D3_REAL_VENDOR_WRITER_PROVEN=false')
+          print('D3_SHARED_STORAGE_ISOLATION_VERIFIED=false')
+          PY
