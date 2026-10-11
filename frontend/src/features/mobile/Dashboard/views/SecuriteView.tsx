@@ -9,13 +9,13 @@ import {
   type MobilePasskeyStatus,
 } from '../../../../services/zka/mobilePasskey';
 
-const premiumGlass = 'relative overflow-hidden bg-glass-bg/90 border border-glass-border/90 backdrop-blur-xl shadow-[0_16px_40px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.86)]';
+const premiumGlass = 'relative overflow-hidden bg-glass-bg/90 border border-glass-border/90 backdrop-blur-xl shadow-sm';
 
 function GlassReflection() {
   return (
     <>
-      <div data-m6i-glass-reflection aria-hidden="true" className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/95 to-transparent" />
-      <div aria-hidden="true" className="pointer-events-none absolute -top-12 right-3 h-24 w-32 rounded-full bg-white/45 blur-2xl" />
+      <div data-m6i-glass-reflection aria-hidden="true" className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-border-main to-transparent" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-12 right-3 h-24 w-32 rounded-full bg-card/25 blur-2xl" />
     </>
   );
 }
@@ -82,22 +82,22 @@ export function SecuriteView({
 
   return (
     <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-[32px] p-8 flex flex-col items-center text-center gap-5 shadow-[0_20px_44px_rgba(30,64,175,0.18),inset_0_1px_0_rgba(255,255,255,0.38)]" style={{ backgroundImage: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
-        <div data-m6i-glass-reflection aria-hidden="true" className="absolute inset-x-7 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
-        <div aria-hidden="true" className="absolute -top-16 right-3 w-52 h-36 bg-white/20 rounded-full blur-3xl" />
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
-        <div className="w-20 h-20 bg-white/20 backdrop-blur-xl border border-white/35 rounded-[24px] flex items-center justify-center text-white shadow-[0_12px_26px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.5)] z-10">
+      <div className="relative overflow-hidden rounded-[24px] bg-primary p-5 flex flex-col items-center text-center gap-3 shadow-sm" >
+        <div data-m6i-glass-reflection aria-hidden="true" className="absolute inset-x-7 top-0 h-px bg-gradient-to-r from-transparent via-on-primary/25 to-transparent" />
+        <div aria-hidden="true" className="absolute -top-16 right-3 w-52 h-36 bg-on-primary/15 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-on-primary/10 rounded-full -mr-24 -mt-24 blur-3xl" />
+        <div className="w-20 h-20 bg-on-primary/15 backdrop-blur-xl border border-on-primary/20 rounded-[24px] flex items-center justify-center text-on-primary shadow-sm z-10">
           <ShieldCheck size={40} />
         </div>
         <div className="z-10">
-          <p className="font-black text-white text-xl font-outfit">Téléphone connecté</p>
-          <p className="text-[11px] text-white/70 mt-2 leading-relaxed max-w-xs">
+          <p className="font-bold text-on-primary text-xl ">Téléphone connecté</p>
+          <p className="text-[11px] text-on-primary/80 mt-2 leading-relaxed max-w-xs">
             Connexion directe et sécurisée au cabinet.
           </p>
         </div>
-        <div className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/12 backdrop-blur-xl border border-white/25 rounded-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] z-10">
-          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">Connexion chiffrée</span>
+        <div className="w-full flex items-center justify-center gap-2 py-2.5 bg-on-primary/10 backdrop-blur-xl border border-on-primary/20 rounded-[16px] shadow-sm z-10">
+          <div className="w-1.5 h-1.5 rounded-full bg-card animate-pulse" />
+          <span className="text-[10px] font-bold text-on-primary uppercase tracking-widest">Connexion chiffrée</span>
         </div>
       </div>
 
@@ -106,11 +106,11 @@ export function SecuriteView({
           <GlassReflection />
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-3">
-              {isOnline ? <Wifi size={14} className="text-emerald-500" /> : <WifiOff size={14} className="text-rose-500" />}
-              <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Réseau</span>
+              {isOnline ? <Wifi size={14} className="text-success" /> : <WifiOff size={14} className="text-danger" />}
+              <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">Réseau</span>
             </div>
-            <p className={cn('text-xs font-black', isOnline ? 'text-emerald-600' : 'text-rose-500')}>{isOnline ? 'En ligne' : 'Hors ligne'}</p>
-            <p className="text-[9px] text-text-muted mt-0.5 font-bold">{isOnline ? 'Temps réel' : 'Accès hors connexion'}</p>
+            <p className={cn('text-xs font-bold', isOnline ? 'text-success' : 'text-danger')}>{isOnline ? 'En ligne' : 'Hors ligne'}</p>
+            <p className="text-[11px] text-text-muted mt-0.5 font-bold">{isOnline ? 'Temps réel' : 'Accès hors connexion'}</p>
           </div>
         </div>
         <div className={cn(premiumGlass, 'rounded-[20px] p-4')}>
@@ -118,20 +118,20 @@ export function SecuriteView({
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-3">
               <RefreshCw size={14} className="text-primary" />
-              <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Mise à jour</span>
+              <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">Mise à jour</span>
             </div>
-            <p className="text-xs font-black text-text-main">{syncStatus === 'success' ? 'À jour' : syncStatus === 'loading' ? 'En cours…' : 'En attente'}</p>
-            <p className="text-[9px] text-text-muted mt-0.5 font-bold">{snapshot ? new Date(snapshot.generated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
+            <p className="text-xs font-bold text-text-main">{syncStatus === 'success' ? 'À jour' : syncStatus === 'loading' ? 'En cours…' : 'En attente'}</p>
+            <p className="text-[11px] text-text-muted mt-0.5 font-bold">{snapshot ? new Date(snapshot.generated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
           </div>
         </div>
       </div>
 
       <div className={cn(premiumGlass, 'rounded-[20px] p-4 flex items-center gap-3')}>
         <GlassReflection />
-        <div className="relative z-10 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <div className="relative z-10 w-2 h-2 rounded-full bg-success animate-pulse" />
         <div className="relative z-10">
-          <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">État de la connexion</p>
-          <p className="text-sm font-black text-text-main">Cabinet accessible</p>
+          <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">État de la connexion</p>
+          <p className="text-sm font-bold text-text-main">Cabinet accessible</p>
         </div>
         <FileText size={16} className="relative z-10 ml-auto text-text-muted" />
       </div>
@@ -140,14 +140,14 @@ export function SecuriteView({
         <GlassReflection />
         <div className="relative z-10">
           <div className="flex items-start gap-4">
-            <div className={cn('w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0 border border-white/60 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.92)]', passkeyEnabled ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary/10 text-primary')}>
+            <div className={cn('w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0 border border-glass-border shadow-sm', passkeyEnabled ? 'bg-success-surface text-success' : 'bg-primary/10 text-primary')}>
               {passkeyEnabled ? <CheckCircle2 size={24} /> : <Fingerprint size={25} />}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-black text-text-main">Verrouillage biométrique</p>
-                {passkeyEnabled && <span className="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-700 text-[8px] font-black uppercase tracking-widest">Activé</span>}
-                {passkeyPending && <span className="px-2 py-1 rounded-full bg-amber-500/10 text-amber-700 text-[8px] font-black uppercase tracking-widest">À terminer</span>}
+                <p className="text-sm font-bold text-text-main">Verrouillage biométrique</p>
+                {passkeyEnabled && <span className="px-2 py-1 rounded-full bg-success-surface text-success text-[10px] font-bold uppercase tracking-widest">Activé</span>}
+                {passkeyPending && <span className="px-2 py-1 rounded-full bg-warning-surface text-warning text-[10px] font-bold uppercase tracking-widest">À terminer</span>}
               </div>
               <p className="mt-1 text-[10px] leading-relaxed text-text-muted font-semibold">
                 {passkeyEnabled
@@ -161,54 +161,54 @@ export function SecuriteView({
           </div>
 
           {!passkeyOriginReady && passkey && (
-            <div className="mt-4 rounded-[16px] bg-amber-500/8 border border-amber-200/90 backdrop-blur-md px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-              <p className="text-[10px] font-black text-amber-700">Adresse sécurisée requise</p>
-              <p className="text-[9px] text-amber-700/80 mt-1 font-semibold break-all">{passkey.expected_origin}</p>
+            <div className="mt-4 rounded-[16px] bg-warning-surface border border-warning-border backdrop-blur-md px-4 py-3 shadow-sm">
+              <p className="text-[10px] font-bold text-warning">Adresse sécurisée requise</p>
+              <p className="text-[11px] text-warning mt-1 font-semibold break-all">{passkey.expected_origin}</p>
             </div>
           )}
 
           {!passkeyEnabled && passkeyOriginReady && (
-            <button data-m6i-activate type="button" onClick={activatePasskey} disabled={passkeyBusy || !passkey} className="relative overflow-hidden mt-4 min-h-[52px] w-full rounded-[18px] bg-primary text-white text-xs font-black flex items-center justify-center gap-2 shadow-[0_12px_28px_rgba(30,64,175,0.22),inset_0_1px_0_rgba(255,255,255,0.34)] active:scale-[0.98] transition-transform disabled:opacity-50">
-              <span aria-hidden="true" className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+            <button data-m6i-activate type="button" onClick={activatePasskey} disabled={passkeyBusy || !passkey} className="relative overflow-hidden mt-4 min-h-[52px] w-full rounded-[18px] bg-primary text-on-primary text-xs font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform disabled:opacity-50">
+              <span aria-hidden="true" className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-on-primary/25 to-transparent" />
               <Fingerprint size={18} /> {passkeyBusy ? 'Vérification…' : passkeyPending ? 'Terminer l’activation' : 'Activer Face ID / biométrie'}
             </button>
           )}
 
           {passkeyEnabled && !confirmingPasskeyDisable && (
-            <button type="button" onClick={() => setConfirmingPasskeyDisable(true)} className="mt-4 min-h-[48px] w-full rounded-[18px] border border-white/70 bg-white/70 backdrop-blur-xl text-text-muted text-[10px] font-black uppercase tracking-widest shadow-[0_8px_20px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.95)]">
+            <button type="button" onClick={() => setConfirmingPasskeyDisable(true)} className="mt-4 min-h-[48px] w-full rounded-[18px] border border-border-main bg-card backdrop-blur-xl text-text-muted text-[10px] font-bold uppercase tracking-widest shadow-sm">
               Désactiver le verrou biométrique
             </button>
           )}
 
           {passkeyEnabled && confirmingPasskeyDisable && (
-            <div className="mt-4 rounded-[18px] border border-rose-200 bg-rose-50/80 backdrop-blur-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-              <p className="text-[10px] font-black text-rose-700 leading-relaxed">Après vérification biométrique, l’accès biométrique sera retiré de cet appareil.</p>
+            <div className="mt-4 rounded-[18px] border border-danger-border bg-danger-surface backdrop-blur-xl p-4 shadow-sm">
+              <p className="text-[10px] font-bold text-danger leading-relaxed">Après vérification biométrique, l’accès biométrique sera retiré de cet appareil.</p>
               <div className="grid grid-cols-2 gap-2 mt-3">
-                <button type="button" onClick={() => setConfirmingPasskeyDisable(false)} className="min-h-[48px] rounded-[14px] bg-white border border-slate-200 text-[10px] font-black text-text-muted">Annuler</button>
-                <button type="button" disabled={passkeyBusy} onClick={disablePasskey} className="min-h-[48px] rounded-[14px] bg-rose-500 text-white text-[10px] font-black disabled:opacity-50">Confirmer</button>
+                <button type="button" onClick={() => setConfirmingPasskeyDisable(false)} className="min-h-[48px] rounded-[14px] bg-card border border-border-main text-[10px] font-bold text-text-muted">Annuler</button>
+                <button type="button" disabled={passkeyBusy} onClick={disablePasskey} className="min-h-[48px] rounded-[14px] bg-danger-surface text-danger text-[10px] font-bold disabled:opacity-50">Confirmer</button>
               </div>
             </div>
           )}
 
-          {passkeyError && <p role="alert" className="mt-3 text-[10px] font-bold text-rose-600">{passkeyError}</p>}
-          <p className="mt-3 text-[9px] text-text-muted leading-relaxed font-semibold">La biométrie reste gérée par votre téléphone. Digital Crown ne reçoit ni empreinte ni donnée Face ID.</p>
+          {passkeyError && <p role="alert" className="mt-3 text-[10px] font-bold text-danger">{passkeyError}</p>}
+          <p className="mt-3 text-[11px] text-text-muted leading-relaxed font-semibold">La biométrie reste gérée par votre téléphone. Digital Crown ne reçoit ni empreinte ni donnée Face ID.</p>
         </div>
       </section>
 
       {!confirming ? (
-        <button onClick={() => setConfirming(true)} className="relative overflow-hidden w-full py-5 bg-rose-500/5 backdrop-blur-xl border border-rose-200 text-rose-500 rounded-[24px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-[0_10px_26px_rgba(244,63,94,0.07),inset_0_1px_0_rgba(255,255,255,0.88)] active:scale-95 transition-all hover:bg-rose-50">
-          <span aria-hidden="true" className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent" />
+        <button onClick={() => setConfirming(true)} className="relative overflow-hidden w-full py-5 bg-danger-surface backdrop-blur-xl border border-danger-border text-danger rounded-[24px] font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-sm active:scale-95 transition-all hover:bg-danger-surface">
+          <span aria-hidden="true" className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-border-main to-transparent" />
           <LogOut size={16} /> Délier ce téléphone
         </button>
       ) : (
-        <div className="bg-rose-50/85 backdrop-blur-xl border border-rose-200 rounded-[24px] p-5 space-y-4 shadow-[0_12px_30px_rgba(244,63,94,0.08),inset_0_1px_0_rgba(255,255,255,0.9)]">
+        <div className="bg-danger-surface backdrop-blur-xl border border-danger-border rounded-[24px] p-5 space-y-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <AlertTriangle size={20} className="text-rose-500 shrink-0" />
-            <p className="text-xs font-black text-rose-700 leading-relaxed">Cela supprimera l’accès enregistré sur ce téléphone. Il faudra scanner à nouveau le QR de connexion.</p>
+            <AlertTriangle size={20} className="text-danger shrink-0" />
+            <p className="text-xs font-bold text-danger leading-relaxed">Cela supprimera l’accès enregistré sur ce téléphone. Il faudra scanner à nouveau le QR de connexion.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => setConfirming(false)} className="py-4 rounded-[16px] text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 bg-white active:scale-95 transition-all">Annuler</button>
-            <button onClick={handleLogout} className="py-4 rounded-[16px] text-xs font-black uppercase tracking-widest bg-rose-500 text-white active:scale-95 transition-all">Confirmer</button>
+            <button onClick={() => setConfirming(false)} className="py-4 rounded-[16px] text-xs font-bold uppercase tracking-widest border border-border-main text-text-muted bg-card active:scale-95 transition-all">Annuler</button>
+            <button onClick={handleLogout} className="py-4 rounded-[16px] text-xs font-bold uppercase tracking-widest bg-danger-surface text-danger active:scale-95 transition-all">Confirmer</button>
           </div>
         </div>
       )}
