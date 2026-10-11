@@ -93,6 +93,23 @@ describe('P1/P2 iOS micro-polish color inheritance', () => {
     expect(contrast(ink as string, canvas)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each([
+    ['ocean', '#0284c7', '#fff', '#ffffff', '#f0f9ff'],
+    ['graphite', '#475569', '#fff', '#ffffff', '#f1f5f9'],
+    ['high-contrast', '#000', '#fff', '#ffffff', '#fff'],
+  ])('accepts production-minified CSS hex shorthand for %s without a false safe fallback', (
+    _theme, primary, shortCard, fullCard, canvas,
+  ) => {
+    const ink = accessiblePrimaryInk(primary, shortCard, canvas);
+    expect(ink).toMatch(/^#[a-f0-9]{6}$/);
+    expect(ink).toBe(accessiblePrimaryInk(primary, fullCard, canvas));
+    const canonical = (value: string) => /^#[0-9a-f]{3}$/i.test(value)
+      ? '#' + [...value.slice(1)].map(channel => channel + channel).join('')
+      : value;
+    expect(contrast(ink as string, canonical(shortCard))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(ink as string, canonical(canvas))).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('inherits selected dark, rose and high-contrast themes without a component-owned preset', () => {
     for (const selected_theme of ['prestige', 'dark', 'rose', 'emerald', 'ocean', 'graphite', 'high-contrast']) {
       applyMobileRuntimeTheme({ selected_theme });
