@@ -1,0 +1,58 @@
+name: FACAD F01.13 ANB source-route synthetic oracle (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - docs/facad-product-science-coverage-20261011
+    paths:
+      - .github/workflows/facad-f01-13-anb-source-route-synthetic.yml
+      - docs/audits/scripts/facad_anb_source_route_oracle.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  anb-source-contract:
+    name: ANB source hash + typed/legacy dual-route boundary (NO FACAD RUNTIME)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact research HEAD
+        uses: actions/checkout@v4
+      - name: Prepare Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify exact HEAD and run source-locked negative cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+          python -m py_compile docs/audits/scripts/facad_anb_source_route_oracle.py
+          python docs/audits/scripts/facad_anb_source_route_oracle.py --self-test --report "$RUNNER_TEMP/facad-anb-source-route-metadata.json"
+          python - "$RUNNER_TEMP/facad-anb-source-route-metadata.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              d=json.load(f)
+          assert d["schema"]=="FACAD_F01_13_ANB_SOURCE_PINNED_RUNTIME_BOUNDARY_RESEARCH_V1"
+          assert len(d["git_blob_source_pins"])==6
+          assert len(d["synthetic_cases"])==4
+          assert len(d["source_route_assertions"])==8
+          assert d["vendor_reference_values"]=="NOT_ACQUIRED"
+          assert d["tested_facad_numeric_runtime"] is False
+          assert d["tested_product_legacy_service_runtime"] is False
+          assert d["clinical_edit_allowed"] is False
+          assert d["fac03_d3"]=="OPEN_RED"
+          assert d["f01_13"]=="OPEN"
+          print("ANB_VENDOR_PARITY_NOT_CERTIFIED=true")
+          print("ANB_RESEARCH_ONLY_SOURCE_PINS_PASS=6")
+          PY
+      - name: Archive ONLY source hashes and synthetic math metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-anb-synthetic-source-routing-${{ github.sha }}
+          path: ${{ runner.temp }}/facad-anb-source-route-metadata.json
+          retention-days: 14
+          if-no-files-found: error

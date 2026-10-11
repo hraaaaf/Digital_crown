@@ -1,0 +1,51 @@
+name: FACAD ANB workspace browser research (EXPERIMENTAL)
+on:
+  push:
+    branches:
+      - docs/facad-product-science-coverage-20261011
+    paths:
+      - .github/workflows/facad-anb-workspace-browser-research.yml
+      - docs/audits/scripts/facad_anb_workspace_isolated_http_browser.mjs
+      - docs/audits/scripts/facad_anb_legacy_provenance_contract.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      FACAD_ANB_SYNTHETIC_FIXTURES_PATH: anb-synthetic-input.json
+      FACAD_ANB_BROWSER_OUTPUT: anb-workspace-evidence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Synthetic math inputs
+        run: |
+          python docs/audits/scripts/facad_anb_source_route_oracle.py --self-test --report "$FACAD_ANB_SYNTHETIC_FIXTURES_PATH"
+          python docs/audits/scripts/facad_anb_legacy_provenance_contract.py --self-test --report "$FACAD_ANB_BROWSER_OUTPUT/provenance.json"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npm --prefix frontend ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Run isolated workspace browser test
+        run: |
+          node --check docs/audits/scripts/facad_anb_workspace_isolated_http_browser.mjs
+          node docs/audits/scripts/facad_anb_workspace_isolated_http_browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anb-workspace-http-proof
+          path: anb-workspace-evidence/
+          retention-days: 14
+          if-no-files-found: warn
