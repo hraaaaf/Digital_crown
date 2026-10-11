@@ -280,6 +280,9 @@ jobs:
                 all(b['proof_status']=='NOT_OBSERVED' for b in x['d3_open_blockers']) and
                 x['closure_policy']['d3_gate']=='D3_OPEN_RED' and
                 x['closure_policy']['facad_same_trace_vendor_numeric_parity']=='NOT_TESTED' and
+                x['closure_policy']['other_open_gates_not_reclassified'] is True and
+                x['closure_policy']['no_proprietary_formula_certified'] is True and
+                x['closure_policy']['two_human_independent_reviewers_observed']==0 and
                 not x['closure_policy']['converged'])
           assert valid(reg)
           mutations=[]
