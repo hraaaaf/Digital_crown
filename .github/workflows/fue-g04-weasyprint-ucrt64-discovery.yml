@@ -88,6 +88,70 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Actual native WeasyPrint lab rendering failed' }
           Write-Host 'EXPERIMENTAL_ONLY_TRANSITIVE_PACKAGES_NOT_YET_PINNED=YES'
           Write-Host 'PRODUCTION_CODE_CERTIFIED_AND_INSTALLER=UNCHANGED'
+      - name: Audit transitive package archives, native DLLs and Windows wheels (LAB only)
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkgDir = Join-Path $env:MSYS2_LOCATION 'var/cache/pacman/pkg'
+          $native = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          $bash = Join-Path $env:MSYS2_LOCATION 'usr/bin/bash.exe'
+          $hostPython = Join-Path $env:pythonLocation 'python.exe'
+          $lines = @(& $bash -lc 'pacman -Q')
+          if ($LASTEXITCODE -ne 0) { throw 'pacman inventory failed' }
+          $archives = @(Get-ChildItem -LiteralPath $pkgDir -File -Filter '*.pkg.tar.zst')
+          $pkgs = @()
+          foreach ($line in $lines) {
+            if ($line -notmatch '^(mingw-w64-ucrt-x86_64-\S+)\s+(\S+)        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g04-experimental-native-ucrt64-inventory
+          path: |
+            ${{ runner.temp }}/FUE-G04-experimental-dll-hashes.json
+            ${{ runner.temp }}/FUE-G04-experimental-complete-provenance.json
+            ${{ runner.temp }}/FUE-G04-experimental-python-requirements.txt
+          if-no-files-found: error
+          retention-days: 7
+) { continue }
+            $name = $Matches[1]; $ver = $Matches[2]
+            $found = @($archives | Where-Object { $_.Name.StartsWith("$name-$ver-", [StringComparison]::Ordinal) })
+            if ($found.Count -ne 1) { throw "Missing/ambiguous archive for $name $ver" }
+            $f = $found[0]
+            $pkgs += @{ Name=$name; Version=$ver; Archive=$f.Name; Bytes=$f.Length; Sha256=(Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          }
+          $pkgs = @($pkgs | Sort-Object Name)
+          if ($pkgs.Count -lt 5 -or @($pkgs | Where-Object { $_.Name -eq 'mingw-w64-ucrt-x86_64-pango' }).Count -ne 1) {
+            throw 'Incomplete MSYS2 UCRT64 package closure'
+          }
+          $dlls = @(Get-ChildItem -LiteralPath $native -File -Filter '*.dll' | Sort-Object Name | ForEach-Object {
+            @{ Name=$_.Name; Bytes=$_.Length; Sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          })
+          if ($dlls.Count -lt 5) { throw 'Missing native DLL inventory' }
+          $distJson = & $hostPython -m pip list --format=json
+          if ($LASTEXITCODE -ne 0) { throw 'pip distribution query failed' }
+          $dist = @($distJson | ConvertFrom-Json | Where-Object { $_.name -notin @('pip','setuptools','wheel') } | Sort-Object name)
+          if (@($dist | Where-Object { $_.name -eq 'weasyprint' -and $_.version -eq '68.1' }).Count -ne 1) { throw 'WeasyPrint missing' }
+          $reqFile = Join-Path $env:RUNNER_TEMP 'FUE-G04-experimental-python-requirements.txt'
+          @($dist | ForEach-Object { "$($_.name)==$($_.version)" }) | Set-Content -LiteralPath $reqFile -Encoding utf8
+          $wheelDir = Join-Path $env:RUNNER_TEMP 'fue-g04-wheel-discovery'
+          New-Item -Path $wheelDir -ItemType Directory -Force | Out-Null
+          & $hostPython -m pip download --no-input --disable-pip-version-check --only-binary=:all: --no-deps -r $reqFile -d $wheelDir
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned Windows wheel download failed' }
+          $wheels = @(Get-ChildItem -LiteralPath $wheelDir -File -Filter '*.whl' | Sort-Object Name | ForEach-Object {
+            @{ Name=$_.Name; Bytes=$_.Length; Sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          })
+          if ($wheels.Count -ne $dist.Count) { throw 'Wheel/distribution cardinality mismatch' }
+          $report = @{
+            Status='EXPERIMENTAL_NOT_RELEASE_APPROVED'; Sha=$env:GITHUB_SHA
+            MsYs2Packages=$pkgs; NativeDlls=$dlls; PythonDistributions=$dist; WindowsWheels=$wheels
+            Limitations='metadata-only; no PE import closure or bundled executable run; no frozen package replay'
+          }
+          $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'FUE-G04-experimental-complete-provenance.json') -Encoding utf8
+          Write-Host "EXPERIMENTAL_MSYS2_PACKAGES=$($pkgs.Count)"
+          Write-Host "EXPERIMENTAL_NATIVE_DLLS=$($dlls.Count)"
+          Write-Host "EXPERIMENTAL_PYTHON_WHEELS=$($wheels.Count)"
+          Write-Host 'EXPERIMENTAL_METADATA_ONLY=YES'
       - name: Save experimental digest inventory for subsequent strict manifest work
         if: success()
         uses: actions/upload-artifact@v4
