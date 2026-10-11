@@ -48,6 +48,36 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(setActiveTab).toHaveBeenCalledWith('agenda');
   });
 
+  it('renders one aligned WhatsApp-inspired glass row and slides the selection between tabs', () => {
+    const props = {
+      setActiveTab: vi.fn(), totalCount: 1, termineCount: 0, snapshot: SNAPSHOT,
+      quickActionsAvailable: true, onToggleQuickActions: vi.fn(),
+    };
+    const { rerender } = render(<MobileBottomNav {...props} activeTab="today" quickActionsOpen={false} />);
+    const nav = document.querySelector('[data-mobile-bottom-nav]') as HTMLElement;
+    const targets = [...nav.querySelectorAll<HTMLButtonElement>('[data-mobile-nav-item]')];
+    const indicator = nav.querySelector<HTMLElement>('[data-mobile-nav-indicator]');
+
+    expect(nav.hasAttribute('data-pocket-glass-nav')).toBe(true);
+    expect(nav.style.backgroundColor).toContain('color-mix');
+    expect(nav.style.backdropFilter).toContain('blur(24px)');
+    expect(targets.map(target => target.dataset.mobileNavItem)).toEqual([
+      'today', 'agenda', 'actions', 'patients', 'more',
+    ]);
+    expect(targets.every(target => target.className.includes('min-h-[54px]'))).toBe(true);
+    expect(targets[2].className).not.toContain('absolute');
+    expect(targets[2].className).not.toContain('-top-2.5');
+    expect(targets[2].textContent).toContain('Actions');
+    expect(indicator?.style.transform).toBe('translate(0%, -50%)');
+
+    rerender(<MobileBottomNav {...props} activeTab="patients" quickActionsOpen={false} />);
+    expect(indicator?.style.transform).toBe('translate(300%, -50%)');
+
+    rerender(<MobileBottomNav {...props} activeTab="patients" quickActionsOpen />);
+    expect(indicator?.style.transform).toBe('translate(200%, -50%)');
+    expect(screen.getByRole('button', { name: 'Fermer les actions rapides' })).toBeTruthy();
+  });
+
   it('restores merged Pocket V1 secondary destinations for practitioners', () => {
     const setActiveTab = vi.fn();
     render(
