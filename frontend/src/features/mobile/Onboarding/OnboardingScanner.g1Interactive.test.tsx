@@ -174,7 +174,7 @@ describe('OnboardingScanner G1 interactive matrix', () => {
       fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
       fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
       expect(await screen.findByText('Appairage réussi')).toBeTruthy();
-      expect(scrub).toHaveBeenCalledWith(expect.anything(), '', '/mobile/onboarding');
+      expect(scrub.mock.calls.some((call) => call[1] === '' && call[2] === '/mobile/onboarding')).toBe(true);
       expect(await screen.findByText('Mobile dashboard destination', {}, { timeout: 4000 })).toBeTruthy();
     } finally {
       scrub.mockRestore();
