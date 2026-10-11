@@ -66,7 +66,7 @@ if(existsSync(ENTRY)||existsSync(HTML))throw Error('Fixture collision: refuse ov
 await mkdir(OUTPUT,{recursive:true});
 let server,browser,stub,viteLog='';
 const httpObserved=[];
-const captures=[],traces=[],networkBlocked=[];
+const captures=[],traces=[],networkBlocked=[],occlusionObservations=[],detectorControls=[];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function waitVite(){
  for(let i=0;i<120;i++){
@@ -90,6 +90,59 @@ async function mode(page,key){
  await page.locator('[data-analysis="'+key+'"]').click();
  await page.locator('[data-r19-analysis-panel="'+key+'"]').waitFor({state:'visible'});
 }
+
+// Hit-test the actual numeric cell: DOM visibility or a valid bounding box
+// cannot prove that a fixed button is not painted on top of the ANB value.
+async function inspectNumericCellOcclusion(page,key){
+ const row=page.locator('[data-r19-metric="'+key+'"]');
+ const cell=row.locator('td').nth(1);
+ await cell.scrollIntoViewIfNeeded({timeout:10000});
+ return cell.evaluate(el=>{
+  const r=el.getBoundingClientRect();
+  const factors=[0.15,0.35,0.5,0.65,0.85];
+  const samples=[];
+  for(const fx of factors)for(const fy of factors){
+   const x=r.left+r.width*fx,y=r.top+r.height*fy;
+   if(x<0||y<0||x>=innerWidth||y>=innerHeight){
+    samples.push({fx,fy,inViewport:false,blocked:true,reason:'OUTSIDE_VIEWPORT'});
+    continue;
+   }
+   const hit=document.elementFromPoint(x,y);
+   const clear=Boolean(hit && (hit===el||el.contains(hit)));
+   samples.push({fx,fy,inViewport:true,blocked:!clear,
+    hitTag:hit?.tagName??null,
+    hitLabel:(hit?.textContent||'').trim().slice(0,65)});
+  }
+  return {cellRect:{x:r.x,y:r.y,width:r.width,height:r.height},
+    cellText:(el.textContent||'').trim().slice(0,80),
+    inViewportSamples:samples.filter(z=>z.inViewport).length,
+    obstructionSamples:samples.filter(z=>z.blocked).length,
+    blockedByOtherElement:samples.some(z=>z.blocked&&z.inViewport),samples};
+ });
+}
+
+async function assertDetectorRejectsInjectedOverlay(page,key){
+ const cell=page.locator('[data-r19-metric="'+key+'"] td').nth(1);
+ await cell.scrollIntoViewIfNeeded({timeout:10000});
+ await cell.evaluate(el=>{
+  const r=el.getBoundingClientRect();
+  const blocker=document.createElement('button');
+  blocker.type='button';blocker.dataset.anbHitTestSentinel='overlay';
+  blocker.textContent='Synthetic occlusion sentinel';
+  Object.assign(blocker.style,{position:'fixed',zIndex:'2147483600',
+   left:(r.left+r.width*0.22)+'px',top:(r.top+r.height*0.20)+'px',
+   width:(r.width*0.56)+'px',height:(r.height*0.6)+'px'});
+  document.body.appendChild(blocker);
+ });
+ try {
+  const probe=await inspectNumericCellOcclusion(page,key);
+  if(!probe.blockedByOtherElement)throw Error('NEGATIVE CONTROL FAILED: detector misses synthetic overlay');
+  return {detector_negative_control:'REJECTED_INJECTED_OVERLAY',blocked_samples:probe.obstructionSamples};
+ } finally {
+  await page.evaluate(()=>document.querySelector('[data-anb-hit-test-sentinel]')?.remove());
+ }
+}
+
 try{
  stub=createServer((req,res)=>{
   const url=new URL(req.url||'/', 'http://127.0.0.1:'+API_PORT);
@@ -152,12 +205,15 @@ try{
      const beforeBox=await beforeRow.boundingBox();
      if(!beforeBox || beforeBox.height<8 || beforeBox.y<0 || beforeBox.y+beforeBox.height>v.height)throw Error('BEFORE ANB row not visible in screenshot '+v.name);
      await page.screenshot({path:path.join(OUTPUT,v.name+'-BEFORE-all.png'),fullPage:false});
+     occlusionObservations.push({viewport:v.name,mode:'all',key:'ANB',probe:await inspectNumericCellOcclusion(page,'ANB')});
      await mode(page,'steiner');
      const afterRow=page.locator('[data-r19-metric="M_ANB_DEG_V1"]');
      await afterRow.scrollIntoViewIfNeeded({timeout:10000});
      const afterBox=await afterRow.boundingBox();
      if(!afterBox || afterBox.height<8 || afterBox.y<0 || afterBox.y+afterBox.height>v.height)throw Error('AFTER ANB row not visible in screenshot '+v.name);
      await page.screenshot({path:path.join(OUTPUT,v.name+'-AFTER-steiner.png'),fullPage:false});
+     occlusionObservations.push({viewport:v.name,mode:'steiner',key:'M_ANB_DEG_V1',probe:await inspectNumericCellOcclusion(page,'M_ANB_DEG_V1')});
+     detectorControls.push({viewport:v.name,...await assertDetectorRejectsInjectedOverlay(page,'M_ANB_DEG_V1')});
      captures.push({viewport:v.name,width:v.width,height:v.height,before:'BEFORE-all',after:'AFTER-steiner'});
     }
    }
@@ -188,12 +244,14 @@ try{
   expected_inter_mode_values_equal:true,unverified_steiner_fail_closed:true,
   explicit_divergence_visible:true,clinical_bug_confirmed:false,
   caveat:'BEFORE and AFTER are two display modes on one unchanged build, not a software change',
-  captures,traces,blocked_external_requests:[...new Set(networkBlocked)]};
+  captures,traces,occlusionObservations,detectorControls,visualNoOcclusion:occlusionObservations.every(x=>x.probe.obstructionSamples===0),blocked_external_requests:[...new Set(networkBlocked)]};
  await writeFile(path.join(OUTPUT,'report.json'),JSON.stringify(result,null,2)+'\n');
  console.log('ANB_REAL_WORKSPACE_ISOLATED_HTTP_STUB_PASS=true');
  console.log('ANB_VIEWPORTS=2 ANB_FIXTURES=4 ANB_FAIL_CLOSED=true');
  console.log('ANB_VENDOR_NUMERIC_ORACLE_NOT_TESTED=true');
+ console.log('ANB_VISUAL_OCCLUSION_OBSERVATIONS='+JSON.stringify(occlusionObservations.map(x=>({viewport:x.viewport,mode:x.mode,blocked:x.probe.obstructionSamples,rect:x.probe.cellRect}))));
  console.log(JSON.stringify({captures,traces},null,2));
+ if(result.visualNoOcclusion!==true)throw Error('F01_13_ANB_VISUAL_OCCLUSION_DETECTED: see report.json/screenshots');
 }finally{
  if(browser)await browser.close().catch(()=>{});
  if(server){server.kill('SIGTERM');await Promise.race([once(server,'exit'),sleep(1500)]).catch(()=>{})}
