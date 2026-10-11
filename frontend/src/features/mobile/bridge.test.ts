@@ -27,6 +27,8 @@ describe('Digital Crown Pocket bridge routing', () => {
   });
 
   it('fails safely to Today for unknown tabs', () => {
-    expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=unknown')).toBe('today');
+    expect(resolveDashboardTab('')).toBe('today');
+    expect(resolveDashboardTab('?tab=today')).toBe('today');
   });
 });
