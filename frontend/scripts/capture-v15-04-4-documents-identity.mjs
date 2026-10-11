@@ -120,7 +120,8 @@ try {
         await page.locator('[data-station-action="documents"]').click();
 
         if (phase === 'before') {
-          await page.getByText('Cette étape est en cours de construction.').waitFor({ timeout: 10000 });
+          await page.waitForTimeout(250);
+          // Baseline is a distinct product revision: do not assert candidate-specific copy.
         } else if (scenario.mode === 'fallback') {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
           await page.locator('[data-station-fallback-toggle]').click();
@@ -175,8 +176,9 @@ const failures = report.filter(item =>
   item.cameraInputs > 0 ||
   item.errors.length > 0 ||
   item.accidentalAppointmentFlow ||
-  (item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
-  (item.scenario === 'documents-identified' && !item.identifiedVisible)
+  (phase === 'after' && item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
+  (phase === 'after' && item.scenario === 'documents-identified' && !item.identifiedVisible) ||
+  (phase === 'before' && (item.patientSessionVisible || item.identifiedVisible))
 );
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length > 0) {
