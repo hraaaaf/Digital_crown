@@ -16,6 +16,7 @@ $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $guid='{0CCE921D-69AE-11D9-BED3-505054503030}'
 . (Join-Path $PSScriptRoot 'facad_314_d3e22_event_path_map.ps1')
+. (Join-Path $PSScriptRoot 'facad_314_d3e30_4663_guard.ps1')
 $trustedNtVolume=$null
 $diagnosticPhase='not_started'
 $root=$null;$oldAcl=$null;$enabled=$false;$wasEnabled=$null;$proc=$null
@@ -207,14 +208,10 @@ try {
  # D3E23: exact DOS path or Windows-verified matching NT device only.
  # A bare suffix could match a different volume or a similar user profile.
  $diagnosticPhase='audit_query_4663'
- $records=@(Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 4000 -ErrorAction Stop)
- if($records.Count -ge 4000){throw 'AUDIT_CAP'}
- $result.queried_event_count=$records.Count
+ $batch=Get-D3E30Security4663Batch -StartTime $start
+ $result.queried_event_count=$batch.queried_event_count
  $diagnosticPhase='audit_filter_4663'
- foreach($event in $records){
-   if($event.Id -ne 4663 -or $event.ProviderName -cne 'Microsoft-Windows-Security-Auditing'){continue}
-   [xml]$xml=$event.ToXml();$fields=@{}
-   foreach($field in $xml.Event.EventData.Data){$fields[[string]$field.Name]=[string]$field.'#text'}
+ foreach($fields in @($batch.file_records)){
    if($fields['ObjectType'] -cne 'File' -or -not $fields['ObjectName'] -or
       -not $fields['ProcessId'] -or -not $fields['AccessMask']){continue}
    $result.diagnostic_4663_file_count++
