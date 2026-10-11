@@ -140,7 +140,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
     <section className="pb-6" data-mobile-stock>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Cabinet</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Cabinet</p>
           <h1 className="mt-1 text-[22px] font-bold text-text-main">Stock</h1>
           <p className="mt-1 text-[12px] font-medium text-text-muted">{items.length} article{items.length > 1 ? 's' : ''}</p>
         </div>
@@ -176,7 +176,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
         ].map(([label, count, color]) => (
           <div key={String(label)} className="rounded-[18px] border border-glass-border bg-card px-3 py-3 text-center shadow-sm">
             <p className={`text-[18px] font-black ${color}`}>{count}</p>
-            <p className="mt-0.5 text-[9px] font-black uppercase tracking-wider text-text-muted">{label}</p>
+            <p className="mt-0.5 text-[11px] font-black uppercase tracking-wider text-text-muted">{label}</p>
           </div>
         ))}
       </div>
@@ -227,7 +227,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
             <article key={item.id} className="rounded-[22px] border border-border-main bg-card p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-black ${meta.className}`}>{meta.label}</span>
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>{meta.label}</span>
                   <h2 className="mt-2 truncate text-[14px] font-semibold text-text-main">{item.nom}</h2>
                   <p className="mt-1 text-[10px] font-bold text-text-muted">
                     {CATEGORY_LABELS[item.categorie] ?? item.categorie} · seuil {item.seuil_alerte} {item.unite}
@@ -249,7 +249,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
                 </button>
                 <div className="text-center">
                   <p className="text-[22px] font-black text-text-main">{item.quantite}</p>
-                  <p className="text-[9px] font-black uppercase tracking-wider text-text-muted">{item.unite}</p>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-text-muted">{item.unite}</p>
                 </div>
                 <button
                   type="button"
@@ -271,7 +271,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
           <section role="dialog" aria-modal="true" aria-labelledby="mobile-stock-add-title" className="mx-auto w-full max-w-[720px] rounded-[28px] border border-glass-border bg-card p-5 shadow-elite-hover">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">Mouvement rapide</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">Mouvement rapide</p>
                 <h2 id="mobile-stock-add-title" className="mt-1 text-[18px] font-black text-text-main">Ajouter un article</h2>
               </div>
               <button type="button" aria-label="Fermer" onClick={() => setAddOpen(false)} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-glass-border bg-background text-text-muted"><X size={18} /></button>
