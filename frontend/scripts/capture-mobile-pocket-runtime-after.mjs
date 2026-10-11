@@ -614,6 +614,16 @@ try {
       || !result.primaryInk || canonicalHexColor(result.textMuted) !== canonicalHexColor(theme.muted)) {
       throw new Error(`Pocket theme ${theme.id}: invalid mobile runtime inheritance: ${JSON.stringify(result)}`);
     }
+    const ratios = {
+      cardInk: contrastRatio(result.primaryInk, result.cardSurface),
+      canvasInk: contrastRatio(result.primaryInk, result.canvasSurface),
+      cardRenderedText: contrastRatio(result.activeNavInk, result.cardSurface),
+      canvasRenderedText: contrastRatio(result.activeNavInk, result.canvasSurface),
+    };
+    if (Object.values(ratios).some(value => value === null || value < 4.5)) {
+      throw new Error(`Pocket ${theme.id}: actual WCAG text contrast below 4.5:1: ${JSON.stringify({ ...result, ratios })}`);
+    }
+    result.wcagContrast = ratios;
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-today-430x932.png`) });
     await page.locator('[data-mobile-bottom-nav]').getByText('Plus', { exact: true }).click();
     await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
