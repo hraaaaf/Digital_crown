@@ -304,6 +304,12 @@ try {
       return document.documentElement.dataset.theme === id
         && computed.getPropertyValue('--primary').trim().toLowerCase() === primary.toLowerCase();
     }, { id: theme.id, primary: theme.primary }, { timeout: 20000 });
+    // Theme data can arrive before the mobile capability guard has resolved.
+    // A disabled + button is not a valid on-primary contrast oracle.
+    await page.waitForFunction(() => {
+      const action = document.querySelector('[data-mobile-bottom-nav] button[aria-label="Ouvrir les actions rapides"]');
+      return action instanceof HTMLButtonElement && !action.disabled;
+    }, null, { timeout: 20000 });
 
     const result = await page.evaluate(() => {
       const nav = document.querySelector('[data-mobile-bottom-nav]');
@@ -317,12 +323,15 @@ try {
         textOnPrimary: computed.getPropertyValue('--text-on-primary').trim(),
         background: computed.getPropertyValue('--bg-medical-pearl').trim(),
         primaryActionText: primaryAction ? getComputedStyle(primaryAction).color : null,
+        primaryActionDisabled: primaryAction instanceof HTMLButtonElement ? primaryAction.disabled : null,
+        primaryActionClass: primaryAction?.getAttribute('class') ?? null,
         navBackground: nav ? getComputedStyle(nav).backgroundColor : null,
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
         preview: Boolean(document.querySelector('[data-dc-preview-demo]')),
       };
     });
-    if (result.preview || result.horizontalOverflow || result.primaryActionText !== theme.foreground
+    if (result.preview || result.horizontalOverflow || result.primaryActionDisabled !== false
+      || result.primaryActionText !== theme.foreground
       || !result.primaryInk || result.textMuted.toLowerCase() !== theme.muted) {
       throw new Error(`Pocket theme ${theme.id}: invalid mobile runtime inheritance: ${JSON.stringify(result)}`);
     }
