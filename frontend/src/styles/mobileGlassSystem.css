@@ -40,6 +40,17 @@
   box-shadow: var(--dc-mobile-glass-shadow);
 }
 
+/* Pocket's modal navigation must remain solid. The global glass rule above
+   targets every .bg-card with !important and otherwise overrides the
+   menu's inline var(--card-bg) surface (observed alpha ~0.75 in CI).
+   This exception is limited to the paired Pocket navigation dialog:
+   clinical content must never bleed through a decision/action menu. */
+[data-dc-mobile-shell] [data-mobile-more-menu] [role="dialog"] {
+  background-color: var(--card-bg) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 /* Explicit glass surfaces are safe to enhance wherever the design system calls them glass. */
 :is(.bg-glass-bg, [style*="var(--glass-bg)"]) {
   -webkit-backdrop-filter: blur(18px) saturate(142%);
