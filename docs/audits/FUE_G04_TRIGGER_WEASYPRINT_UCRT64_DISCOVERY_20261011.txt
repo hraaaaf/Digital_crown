@@ -21,3 +21,6 @@ Previous #38104472360 failed before job scheduling because the experimental YAML
 
 RETRY_COPIED_DLL_ISOLATION=6
 2026-10-11 Gate after manifest green #38104533589: copy SHA-checked 64 UCRT64 DLLs into standalone LAB folder, strip MSYS2 PATH, generate synthetic PDF with WeasyPrint 68.1, verify GetModuleFileNameW resolves five critical DLLs exclusively to isolated folder. Experimental only, not a packaged Digital Crown app, not permission to ship binaries.
+
+RETRY_FROZEN_NATIVE_PROBE=7
+Green #38104766896 verified 64 copied DLLs and real synthetic PDF with no MSYS2 PATH. Now CI-only probe builds a minimal synthetic PyInstaller==6.22.3 onedir EXE with 64 DLLs under _internal/native, executes with system-only PATH, hashes synthetic PDF, checks five loaded DLL paths, publishes only metadata+PDF (never frozen executable). It is not a Digital Crown app installer nor clinic certification.
