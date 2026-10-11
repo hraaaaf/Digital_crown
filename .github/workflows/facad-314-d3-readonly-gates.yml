@@ -9,6 +9,7 @@ on:
       - docs/audits/FACAD_314_D3_PARALLEL_SECURITY_GATE_2026-10-11.json
       - docs/audits/FACAD_314_D3_WAVE3_RELEASE_EVIDENCE.json
       - docs/audits/FACAD_314_D3_WAVE4_VENDOR_REVIEW_PACKET_2026-10-11.md
+      - docs/audits/FACAD_314_D3_WAVE5_PERMISSION_DECISION_QUEUE.json
   workflow_dispatch:
 
 permissions:
@@ -162,4 +163,32 @@ jobs:
           print('D3_VENDOR_RIGHTS_DOCUMENTED_BUT_NOT_GRANTED=true')
           print('D3_HUMAN_REVIEWERS_INDEPENDENT_PROVEN=0_OF_2')
           print('D3_NONGO_NATIVE_EXECUTION_CONTRACT_PASS=true')
+          PY
+
+      - name: Ensure Ilexis inquiry is unsent and D3 remains no-go
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=Path('research/docs/audits/FACAD_314_D3_WAVE5_PERMISSION_DECISION_QUEUE.json')
+          x=json.loads(f.read_text())
+          assert x['schema']=='FACAD_D3_WAVE5_VENDOR_PERMISSION_DECISION_QUEUE_V1'
+          assert x['official_vendor_contact']['general']=='info@facad.com'
+          assert x['official_vendor_contact']['license_and_installation']=='support@facad.com'
+          assert x['request_status']=='PREPARED_NOT_SENT'
+          assert len(x['questions'])==5
+          assert all(v['answer']=='UNKNOWN' and v['requires_signed_source'] for v in x['questions'])
+          assert set(x['blockers'])=={'SEC-01','SEC-02','SEC-03','SCI-01','SCI-02','SCI-03'}
+          assert x['reviewers']['security_privacy']['approval']=='NOT_REQUESTED'
+          assert x['reviewers']['scientific_clinical']['approval']=='NOT_REQUESTED'
+          assert x['all_authorizations_proven'] is False
+          assert x['reviewers_independently_verified'] is False
+          assert x['converged'] is False
+          assert x['release_decision']=='D3_OPEN_RED'
+          assert x['native_test_policy']['facad_windows_experiment']=='PAUSED'
+          print('D3_WAVE5_VENDOR_EMAIL_SENT=false')
+          print('D3_WAVE5_VENDOR_PERMISSION_QUESTIONS=5_UNANSWERED')
+          print('D3_WAVE5_HUMAN_INDEPENDENT_REVIEWS=0_OF_2')
+          print('D3_WAVE5_REAL_WORLD_ISOLATION_CERTIFIED=false')
           PY
