@@ -1,15 +1,17 @@
-name: V1.5-04.4 Station Document QR NFC FUE-I (CANDIDATE)
+name: V1.5-04.4-04.6 Station Document Security Regression (CANDIDATE)
 
 on:
   push:
     branches:
       - feat/v15-04-4-station-bound-document-qr-nfc-20261011
+      - feat/v15-04-5-04-6-document-delivery-purge-20261011
     paths:
       - "backend/routers/station_patient_session.py"
       - "backend/config.py"
       - "backend/.env.example"
       - "docs/v1.5/V15_04_4_STATION_DOCUMENT_QR_NFC_HANDOFF_20261011.md"
       - "backend/tests/test_station_document_handoff_v15.py"
+      - "backend/tests/test_station_document_delivery_purge_v15.py"
       - ".github/workflows/v15-04-4-station-document-qr-nfc.yml"
       - "frontend/src/features/hub/StationPatientIdentity.tsx"
       - "frontend/src/features/hub/StationKioskShell.tsx"
@@ -69,7 +71,7 @@ jobs:
       - name: Python syntax and deterministic collection
         run: |
           python -m py_compile backend/routers/station_patient_session.py backend/tests/test_station_document_handoff_v15.py
-          python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py --collect-only -q | tee /tmp/v15-04-4-collect.txt
+          python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py --collect-only -q | tee /tmp/v15-04-4-collect.txt
           grep -Eq '[0-9]+ tests? collected' /tmp/v15-04-4-collect.txt
       - name: Execute 04.4 + 04.3 + 04.1 + 03.3/04.2 real FastAPI regressions
         run: python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py -q
