@@ -2,7 +2,6 @@ name: Mobile Pocket Real Runtime Cert
 
 on:
   pull_request:
-    branches: [master]
     paths:
       - .github/workflows/mobile-pocket-runtime-cert.yml
       - frontend/src/features/mobile/**
@@ -54,6 +53,11 @@ jobs:
           src/test/mobileM62Behavior.test.ts
           src/features/mobile/Dashboard/MobileP0UI.test.tsx
           src/features/mobile/Dashboard/hooks/useMobileDashboard.p0.test.tsx
+          src/features/mobile/Dashboard/views/PocketAgendaDay.test.tsx
+          src/features/mobile/Dashboard/MobileP2Compact.test.tsx
+          src/features/mobile/bridge.test.ts
+          src/test/mobileM64ContextualBridge.test.ts
+          src/features/mobile/Dashboard/components/MobileQuickActionHub.test.tsx
       - name: Verify production frontend build
         working-directory: frontend
         run: npm run build
@@ -86,10 +90,10 @@ jobs:
           from pathlib import Path
           root = Path('artifacts/mobile-pocket-runtime')
           roles = ('dentiste', 'secretaire')
-          viewports = ((390, 844), (430, 932), (768, 1024))
+          viewports = ((390, 844), (430, 932), (768, 1024), (1280, 800))
           for role in roles:
               for width, height in viewports:
-                  for state in ('today', 'plus', 'stock', 'library', 'finance', 'lab', 'dentists', 'marketplace', 'bot'):
+                  for state in ('today', 'agenda', 'plus', 'stock', 'library', 'finance', 'lab', 'dentists', 'marketplace', 'bot'):
                       name = f'runtime-{role}-{state}-{width}x{height}.png'
                       data = (root / name).read_bytes()
                       if data[:8] != b'\x89PNG\r\n\x1a\n':
@@ -98,8 +102,8 @@ jobs:
                       if got != (width, height):
                           raise SystemExit(f'{name}: got {got}, expected {(width, height)}')
           evidence = json.loads((root / 'runtime-evidence.json').read_text())
-          if len(evidence) != 6:
-              raise SystemExit(f'expected 6 role/viewport records, got {len(evidence)}')
+          if len(evidence) != 8:
+              raise SystemExit(f'expected 8 role/viewport records, got {len(evidence)}')
           if {row['role'] for row in evidence} != {'DENTISTE', 'SECRETAIRE'}:
               raise SystemExit('role coverage incomplete')
           for row in evidence:
@@ -112,7 +116,7 @@ jobs:
               if row['horizontalOverflow'] or row['runtimeErrors']:
                   raise SystemExit(f"runtime defect: {row}")
           PY
-          printf 'head=%s\nruntime=MobileDashboard\npreview=false\nroles=DENTISTE,SECRETAIRE\nviewports=390x844,430x932,768x1024\nstock=real-runtime-routable\nlibrary=real-runtime-routable-rbac\nrestored_modules=real-runtime-routable\nrole_guards=verified\ntouch_targets=date+plus-close>=44\ndeployment=none\n' '${{ github.event.pull_request.head.sha || github.sha }}' > artifacts/mobile-pocket-runtime/result.txt
+          printf 'head=%s\nruntime=MobileDashboard\npreview=false\nroles=DENTISTE,SECRETAIRE\nviewports=390x844,430x932,768x1024,1280x800\nstock=real-runtime-routable\nlibrary=real-runtime-routable-rbac\nrestored_modules=real-runtime-routable\nrole_guards=verified\ntouch_targets=date+plus-close>=44\ndeployment=none\n' '${{ github.event.pull_request.head.sha || github.sha }}' > artifacts/mobile-pocket-runtime/result.txt
           cp /tmp/mobile-pocket-runtime-vite.log artifacts/mobile-pocket-runtime/vite.log
       - uses: actions/upload-artifact@v4
         with:
