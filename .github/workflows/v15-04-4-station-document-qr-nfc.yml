@@ -1,0 +1,102 @@
+name: V1.5-04.4 Station Document QR NFC FUE-I (CANDIDATE)
+
+on:
+  push:
+    branches:
+      - feat/v15-04-4-station-bound-document-qr-nfc-20261011
+    paths:
+      - "backend/routers/station_patient_session.py"
+      - "backend/tests/test_station_document_handoff_v15.py"
+      - ".github/workflows/v15-04-4-station-document-qr-nfc.yml"
+      - "frontend/src/features/hub/StationPatientIdentity.tsx"
+      - "frontend/scripts/capture-v15-03-3-patient-session.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-04-4-fuei-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  station-document-handoff:
+    name: 04.4 Backend QR NFC document binding + denial regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      SECRET_KEY: v15-04-4-isolated-test-handoff-qr-nfc-secret
+      DATABASE_URL: sqlite:///./v15-04-4-station-test.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/requirements-v15-04-4.txt
+          pip install -r /tmp/requirements-v15-04-4.txt
+      - name: Python syntax and deterministic collection
+        run: |
+          python -m py_compile backend/routers/station_patient_session.py backend/tests/test_station_document_handoff_v15.py
+          python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py --collect-only -q | tee /tmp/v15-04-4-collect.txt
+          grep -Eq '[0-9]+ tests? collected' /tmp/v15-04-4-collect.txt
+      - name: Execute 04.4 + 04.3 + 04.1 + 03.3/04.2 real FastAPI regressions
+        run: python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py -q
+
+  station-fuei-visual-baseline:
+    name: FUE-I LAB patient QR NFC station mobile desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Targeted existing QR/NFC frontend contracts
+        working-directory: frontend
+        run: npx vitest run src/test/v15StationPatientSessionContract.test.ts src/features/hub/StationPatientIdentity.test.tsx --maxWorkers=1 --fileParallelism=false
+      - name: Run station FUE-I LAB matrix (simulated station backend)
+        working-directory: frontend
+        shell: bash
+        env:
+          V15_03_3_PHASE: after
+          EVALUATED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/vite --host 127.0.0.1 --port 4197 >/tmp/v15-04-4-ui.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:4197 >/dev/null; then ready=1; break; fi; sleep 1; done
+          if [[ "$ready" != 1 ]]; then cat /tmp/v15-04-4-ui.log; exit 1; fi
+          node scripts/capture-v15-03-3-patient-session.mjs
+          test -f artifacts/v15-03-3-patient-session-after/evidence.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-04-4-fuei-lab-synthetic-station-captures
+          path: frontend/artifacts/v15-03-3-patient-session-after
+          if-no-files-found: warn
+          retention-days: 21
