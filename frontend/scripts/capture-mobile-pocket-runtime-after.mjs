@@ -310,6 +310,15 @@ try {
       const action = document.querySelector('[data-mobile-bottom-nav] button[aria-label="Ouvrir les actions rapides"]');
       return action instanceof HTMLButtonElement && !action.disabled;
     }, null, { timeout: 20000 });
+    // Global .bg-primary color transitions can briefly expose an intermediate
+    // RGB even after the backend capability has enabled the button. Certify the
+    // final on-primary foreground, never a transitional animation frame.
+    await page.waitForFunction(({ foreground }) => {
+      const action = document.querySelector('[data-mobile-bottom-nav] button[aria-label="Ouvrir les actions rapides"]');
+      return action instanceof HTMLButtonElement
+        && !action.disabled
+        && getComputedStyle(action).color === foreground;
+    }, { foreground: theme.foreground }, { timeout: 15000 });
 
     const result = await page.evaluate(() => {
       const nav = document.querySelector('[data-mobile-bottom-nav]');
