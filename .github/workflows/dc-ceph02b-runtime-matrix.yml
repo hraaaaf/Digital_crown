@@ -73,6 +73,11 @@ jobs:
             assert all(row[phase] in {"AVAILABLE","NOT_COMPUTABLE","INVALID","NOT_EXPOSED"} for row in rows.values())
             assert {state:sum(row[phase]==state for row in rows.values()) for state in ("AVAILABLE","NOT_COMPUTABLE","INVALID","NOT_EXPOSED")} == x[phase]
           assert x["all_38_measurements_available"] == (x["post_correction"]["AVAILABLE"]==38)
+          assert x["previously_available_lost_after_correction"] == []
+          assert x["newly_available_contract_ids_after_correction"] == sorted(
+            mid for mid,row in rows.items() if row["calibrated"] != "AVAILABLE" and row["post_correction"] == "AVAILABLE"
+          )
+          assert x["post_correction"]["AVAILABLE"] >= x["calibrated"]["AVAILABLE"]
           assert x["typed_runtime_read_valid"] is True
           assert x["pdf_projection_invoked"] is True
           assert x["pdf_document_clinically_complete"] is False
