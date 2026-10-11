@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/facad-314-d3-readonly-gates.yml
       - docs/audits/FACAD_314_D3_PARALLEL_SECURITY_GATE_2026-10-11.json
+      - docs/audits/FACAD_314_D3_WAVE3_RELEASE_EVIDENCE.json
   workflow_dispatch:
 
 permissions:
@@ -78,4 +79,54 @@ jobs:
           assert checks==9
           print('D3_NEGATIVE_MUTATION_BLOCKED=9')
           print('D3_NO_LIVE_VENDOR_CAPTURE=true')
+          PY
+      - name: Reject fake D3 release evidence, reviewer and safety promotions
+        shell: bash
+        run: |
+          python - <<'PY'
+          import copy, json
+          from pathlib import Path
+          base=Path('research/docs/audits')
+          x=json.loads((base/'FACAD_314_D3_WAVE3_RELEASE_EVIDENCE.json').read_text())
+          assert x['status']=='NO_GO_SOURCE_ONLY_PENDING_REAL_PROOFS'
+          ids={'SEC-01','SEC-02','SEC-03','SCI-01','SCI-02','SCI-03'}
+          assert {y['blocker_id'] for y in x['requirements']}==ids
+          assert len(x['requirements'])==6 and len(x['cross_cutting'])==5
+          def fail_closed(a):
+              return (a['status']=='NO_GO_SOURCE_ONLY_PENDING_REAL_PROOFS' and
+                      a['verdict']=='D3_OPEN_RED' and
+                      a['go_live_authorized'] is False and
+                      a['clinical_edit_allowed'] is False and
+                      a['facad_live_writer_allowed'] is False and
+                      a['vendor_export_allowed'] is False and
+                      a['converged'] is False and
+                      all(q['proof_status']=='NOT_OBSERVED' and
+                          q['primary_evidence_uri'] is None and
+                          q['independent_reviewer_id'] is None and
+                          q['reviewed_exact_head'] is None and
+                          q['controls_passed'] is False
+                          for q in a['requirements']) and
+                      all(c['ready'] is False for c in a['cross_cutting']))
+          assert fail_closed(x)
+          rejected=0
+          for i in range(6):
+              m=copy.deepcopy(x)
+              m['requirements'][i]['proof_status']='VERIFIED'
+              assert not fail_closed(m)
+              rejected+=1
+          for i in range(5):
+              m=copy.deepcopy(x)
+              m['cross_cutting'][i]['ready']=True
+              assert not fail_closed(m)
+              rejected+=1
+          for key in ('go_live_authorized','clinical_edit_allowed',
+                      'facad_live_writer_allowed','vendor_export_allowed','converged'):
+              m=copy.deepcopy(x)
+              m[key]=True
+              assert not fail_closed(m)
+              rejected+=1
+          assert rejected==16
+          print('D3_WAVE3_RELEASE_EVIDENCE_NO_GO=true')
+          print('D3_WAVE3_FALSE_PROMOTIONS_REJECTED=16')
+          print('D3_REAL_ISOLATION_PROOF=false')
           PY
