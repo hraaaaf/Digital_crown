@@ -36,7 +36,7 @@ function resolveApiBaseUrl(stored: string): string {
 
 function priorityTone(priority: MobileNotification['priority']) {
   return Number(priority) === 1
-    ? 'border-rose-200 bg-rose-500/5'
+    ? 'border-danger-border bg-danger-surface'
     : 'border-border-main bg-card';
 }
 
@@ -169,7 +169,8 @@ export function MobileNotificationCenter() {
           tabIndex={-1}
           aria-label="Fermer les notifications"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-[80] bg-slate-950/25 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[80] backdrop-blur-[2px]"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--text-main) 23%, transparent)' }}
         />
         <section
           role="dialog"
@@ -190,16 +191,16 @@ export function MobileNotificationCenter() {
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Fermer"
-              className="h-12 w-12 shrink-0 rounded-2xl border border-border-main bg-white/70 flex items-center justify-center text-text-muted active:scale-95 transition-transform"
+              className="h-12 w-12 shrink-0 rounded-2xl border border-border-main bg-card flex items-center justify-center text-text-muted active:scale-95 transition-transform"
             >
               <X size={18} aria-hidden="true" />
             </button>
           </div>
 
           <div className="px-4 pt-4">
-            <div className={`rounded-[22px] border p-4 ${pushState?.kind === 'enabled' ? 'border-emerald-200 bg-emerald-500/5' : 'border-border-main bg-white/60'}`}>
+            <div className={`rounded-[22px] border p-4 ${pushState?.kind === 'enabled' ? 'border-success-border bg-success-surface' : 'border-border-main bg-card'}`}>
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${pushState?.kind === 'enabled' ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
+                <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${pushState?.kind === 'enabled' ? 'bg-success-surface text-success' : 'bg-primary/10 text-primary'}`}>
                   {pushState?.kind === 'enabled' ? <ShieldCheck size={18} aria-hidden="true" /> : <Bell size={18} aria-hidden="true" />}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -208,7 +209,7 @@ export function MobileNotificationCenter() {
                   <p className="mt-1 text-[10px] font-bold leading-relaxed text-text-muted">
                     {pushState?.detail ?? 'Vérification des capacités de cet appareil.'}
                   </p>
-                  <p className="mt-2 text-[9px] font-black text-emerald-700">Aucune donnée patient dans la notification OS.</p>
+                  <p className="mt-2 text-[9px] font-black text-success">Aucune donnée patient dans la notification OS.</p>
                 </div>
               </div>
               {canTogglePush && (
@@ -216,37 +217,37 @@ export function MobileNotificationCenter() {
                   type="button"
                   disabled={pushBusy}
                   onClick={() => void togglePush()}
-                  className={`mt-3 min-h-12 w-full rounded-xl text-xs font-black active:scale-[0.98] transition-transform disabled:opacity-50 ${pushState?.kind === 'enabled' ? 'border border-border-main bg-white/80 text-text-main' : 'bg-primary text-white'}`}
+                  className={`mt-3 min-h-12 w-full rounded-xl text-xs font-black active:scale-[0.98] transition-transform disabled:opacity-50 ${pushState?.kind === 'enabled' ? 'border border-border-main bg-card text-text-main' : 'bg-primary text-on-primary'}`}
                 >
                   {pushBusy ? 'Synchronisation…' : pushState?.kind === 'enabled' ? 'Désactiver sur cet appareil' : 'Activer les notifications OS'}
                 </button>
               )}
-              {pushError && <p className="mt-2 text-[10px] font-bold text-rose-600">{pushError}</p>}
+              {pushError && <p className="mt-2 text-[10px] font-bold text-danger">{pushError}</p>}
             </div>
           </div>
 
           <div className="overflow-y-auto px-4 py-4 space-y-3">
             {status === 'loading' && alerts.length === 0 && (
-              <div className="min-h-32 rounded-[22px] border border-border-main bg-white/60 flex flex-col items-center justify-center gap-3 text-text-muted">
+              <div className="min-h-32 rounded-[22px] border border-border-main bg-card flex flex-col items-center justify-center gap-3 text-text-muted">
                 <RefreshCw size={20} className="animate-spin" aria-hidden="true" />
                 <p className="text-xs font-black">Synchronisation des alertes…</p>
               </div>
             )}
 
             {status === 'error' && (
-              <div className="rounded-[22px] border border-amber-200 bg-amber-500/5 p-4 flex gap-3 items-start">
-                <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="rounded-[22px] border border-warning-border bg-warning-surface p-4 flex gap-3 items-start">
+                <AlertTriangle size={18} className="text-warning shrink-0 mt-0.5" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black text-amber-700">Notifications indisponibles</p>
-                  <p className="text-[11px] font-bold text-amber-700/80 mt-1 break-words">{error}</p>
-                  <button type="button" onClick={() => void load()} className="mt-3 min-h-12 px-4 rounded-xl bg-amber-100 text-amber-800 text-xs font-black active:scale-95 transition-transform">Réessayer</button>
+                  <p className="text-xs font-black text-warning">Notifications indisponibles</p>
+                  <p className="text-[11px] font-bold text-warning mt-1 break-words">{error}</p>
+                  <button type="button" onClick={() => void load()} className="mt-3 min-h-12 px-4 rounded-xl bg-warning-surface text-warning text-xs font-black active:scale-95 transition-transform">Réessayer</button>
                 </div>
               </div>
             )}
 
             {status !== 'loading' && status !== 'error' && alerts.length === 0 && (
-              <div className="min-h-40 rounded-[22px] border border-border-main bg-white/60 flex flex-col items-center justify-center gap-3 text-center px-6">
-                <BellOff size={24} className="text-emerald-500" aria-hidden="true" />
+              <div className="min-h-40 rounded-[22px] border border-border-main bg-card flex flex-col items-center justify-center gap-3 text-center px-6">
+                <BellOff size={24} className="text-success" aria-hidden="true" />
                 <div>
                   <p className="text-sm font-black text-text-main">Rien à traiter</p>
                   <p className="text-[11px] font-bold text-text-muted mt-1">Les nouvelles alertes du cabinet apparaîtront ici.</p>
@@ -257,7 +258,7 @@ export function MobileNotificationCenter() {
             {alerts.map(alert => (
               <article key={alert.id} className={`rounded-[22px] border p-4 shadow-sm ${priorityTone(alert.priority)}`}>
                 <div className="flex items-start gap-3">
-                  <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${Number(alert.priority) === 1 ? 'bg-rose-100 text-rose-600' : 'bg-primary/10 text-primary'}`}>
+                  <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${Number(alert.priority) === 1 ? 'bg-danger-surface text-danger' : 'bg-primary/10 text-primary'}`}>
                     {Number(alert.priority) === 1 ? <AlertTriangle size={17} aria-hidden="true" /> : <Bell size={17} aria-hidden="true" />}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -271,7 +272,7 @@ export function MobileNotificationCenter() {
                     type="button"
                     disabled={mutatingId === alert.id}
                     onClick={() => void mutate(alert.id, 'read')}
-                    className="min-h-12 rounded-xl bg-primary text-white text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-transform"
+                    className="min-h-12 rounded-xl bg-primary text-on-primary text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-transform"
                   >
                     <Check size={15} aria-hidden="true" /> Lu
                   </button>
@@ -279,7 +280,7 @@ export function MobileNotificationCenter() {
                     type="button"
                     disabled={mutatingId === alert.id}
                     onClick={() => void mutate(alert.id, 'snooze')}
-                    className="min-h-12 rounded-xl border border-border-main bg-white/75 text-text-main text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-transform"
+                    className="min-h-12 rounded-xl border border-border-main bg-card text-text-main text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-transform"
                   >
                     <Clock3 size={15} aria-hidden="true" /> + 24 h
                   </button>
@@ -310,7 +311,7 @@ export function MobileNotificationCenter() {
       >
         <Bell size={18} aria-hidden="true" />
         {alerts.length > 0 && (
-          <span className="absolute -right-1 -top-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center border-2 border-white" aria-hidden="true">
+          <span className="absolute -right-1 -top-1 min-w-5 h-5 px-1 rounded-full bg-danger-surface text-danger text-[9px] font-black flex items-center justify-center border-2 border-card" aria-hidden="true">
             {unreadLabel}
           </span>
         )}
