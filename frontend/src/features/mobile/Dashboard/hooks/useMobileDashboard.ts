@@ -5,7 +5,6 @@ import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { mobileApiJson } from '../../../../services/zka/mobileApi';
 import type { LabJob } from '../../../../types/labJob';
-import { LabJobStatus } from '../../../../types/labJob';
 import { formatLabJobMessage } from '../../../../services/whatsappService';
 import type { Tab, SyncStatus, Snapshot, Appointment, ApptStatus } from '../types';
 
@@ -355,23 +354,18 @@ export function useMobileDashboard() {
   };
 
   const handleWhatsAppSend = async (job: LabJob) => {
-    const plainText = formatLabJobMessage(job);
-    try {
-      await navigator.clipboard.writeText(plainText);
-    } catch (error) {
-      console.warn('[MobileDashboard] clipboard unavailable', error);
+    // Preparing a draft is not evidence that the lab received it. The status
+    // must never flip to SENT merely because WhatsApp/clipboard was opened.
+    if (!navigator.onLine) {
+      toast.error('Connexion cabinet requise avant de préparer un envoi Labo.');
+      return;
     }
     try {
-      window.location.href = `whatsapp://send?text=${encodeURIComponent(plainText)}`;
-      const updated = await mobileApiJson<LabJob>(`/lab-jobs/${job.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: LabJobStatus.SENT }),
-      });
-      setLabJobs(current => current.map(item => item.id === job.id ? updated : item));
+      await navigator.clipboard.writeText(formatLabJobMessage(job));
+      toast.success('Brouillon Labo copié. Vérifiez le destinataire avant tout envoi.');
     } catch (error) {
-      console.error('[MobileDashboard] lab WhatsApp failed:', error);
-      toast.error('WhatsApp ouvert, mais statut Labo non confirmé.');
+      console.warn('[MobileDashboard] lab clipboard unavailable', error);
+      toast.error('Copie impossible. Aucun statut Labo modifié.');
     }
   };
 
