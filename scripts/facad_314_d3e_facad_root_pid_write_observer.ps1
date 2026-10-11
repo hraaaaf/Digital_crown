@@ -87,7 +87,10 @@ $result=[ordered]@{
  shared_app_storage_isolation_verified=$false
  clinical_edit_allowed=$false
  verdict='BLOCKED_AUDIT_NOT_STARTED'
+ observer_failure_stage='NONE'
+ real_facad_start_process_returned=$false
 }
+$traceStage='input_guards'
 try {
  if($SessionId -notmatch '^[A-Za-z0-9_-]{1,128}$'){throw 'BAD_SESSION_ID'}
  if([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)){throw 'RUNNER_TEMP_REQUIRED'}
@@ -140,9 +143,11 @@ try {
  $result.selected_scope_existed_before_start=$true
  $trustedNtVolume=Get-ScopedNtVolume -ScopeRoot $root
  if([string]::IsNullOrWhiteSpace($trustedNtVolume)){throw 'D3E23_NT_DEVICE_MAPPING_UNAVAILABLE'}
+ $traceStage='preflight_checkpoint'
  Capture-PrivatePreflightCheckpoint 'observer_entry'
  $oldAcl=Get-Acl -LiteralPath $root -Audit -ErrorAction Stop
  $saclBefore=$oldAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Audit)
+ $traceStage='audit_policy_setup'
  $policy=@(& auditpol.exe /get "/subcategory:$guid" /r 2>$null)
  if($LASTEXITCODE -ne 0 -or $policy.Count -lt 2){throw 'POLICY_UNAVAILABLE'}
  $wasEnabled=([string]($policy | Select-Object -Last 1) -match 'Success')
@@ -165,6 +170,7 @@ try {
  # D3E8 passive time-matched control. No SACL mutation in this 2s interval.
  Start-Sleep -Seconds 2
  Capture-PrivateD3E8ControlCheckpoint 'passive_control_after'
+ $traceStage='sacl_apply'
  Set-Acl -LiteralPath $root -AclObject $changed -ErrorAction Stop
  $result.scope_sacl_applied=$true
  Capture-PrivatePreflightCheckpoint 'after_sacl_apply'
@@ -174,10 +180,15 @@ try {
  $start=(Get-Date).AddSeconds(-1)
  # Capture size-only Ilexis snapshot before Facad root PID can exist.
  $preLaunchEntries=Get-PrivateIlexisSizeEntries
+ $traceStage='facad_process_creation'
  $proc=Start-Process -FilePath $FacadExecutable -ArgumentList ('"'+$DisposableRobert+'"') -WorkingDirectory (Split-Path -Parent $FacadExecutable) -PassThru -ErrorAction Stop
+ $result.real_facad_start_process_returned=$true
+ $traceStage='post_launch_checkpoint'
  Capture-PrivateIlexisCheckpoint 'after_launch'
  Start-Sleep -Seconds 3
+ $traceStage='first_liveness_check'
  if($proc.HasExited){throw 'EARLY_EXIT'}
+ $traceStage='process_counter'
  & $ProcessCounterScript -TargetPid $proc.Id -DurationSeconds 6 -OutputPath $ProcessCounterOutput
  $counter=Get-Content -LiteralPath $ProcessCounterOutput -Raw | ConvertFrom-Json
  if($counter.schema -cne 'facad314_d3_process_io_v1' -or $counter.sample_count -ne 12 -or
@@ -186,18 +197,22 @@ try {
  $sampledDescendantCount=[int]$counter.related_processes_observed-1
  $result.process_counter_samples=[int]$counter.sample_count
  Start-Sleep -Seconds 6
+ $traceStage='second_liveness_check'
  if($proc.HasExited){throw 'EARLY_EXIT_AFTER_OBSERVATION'}
  $result.process_root_alive_during_observation=$true
  Capture-PrivateIlexisCheckpoint 'pre_stop'
  if($proc.HasExited){throw 'EARLY_EXIT_DURING_CHECKPOINT'}
+ $traceStage='facad_stop'
  Stop-Process -Id $proc.Id -Force -ErrorAction Stop
  Start-Sleep -Seconds 3
  Capture-PrivateIlexisCheckpoint 'post_stop'
  # D3E23: exact DOS path or Windows-verified matching NT device only.
  # A bare suffix could match a different volume or a similar user profile.
+ $traceStage='security_4663_query'
  $records=@(Get-WinEvent -FilterHashtable @{LogName='Security';Id=4663;StartTime=$start} -MaxEvents 4000 -ErrorAction Stop)
  if($records.Count -ge 4000){throw 'AUDIT_CAP'}
  $result.queried_event_count=$records.Count
+ $traceStage='security_4663_parse'
  foreach($event in $records){
    if($event.Id -ne 4663 -or $event.ProviderName -cne 'Microsoft-Windows-Security-Auditing'){continue}
    [xml]$xml=$event.ToXml();$fields=@{}
@@ -227,6 +242,7 @@ try {
 } catch {
  # Never print exception content, raw Security XML, paths, or PID.
  $result.verdict='BLOCKED_INCOMPLETE_OR_UNAVAILABLE_4663_EVIDENCE'
+ $result.observer_failure_stage=$traceStage
 } finally {
  if($null -ne $proc -and -not $proc.HasExited){
    try{Stop-Process -Id $proc.Id -Force -ErrorAction Stop}catch{$result.verdict='BLOCKED_PROCESS_STOP_FAILED'}
