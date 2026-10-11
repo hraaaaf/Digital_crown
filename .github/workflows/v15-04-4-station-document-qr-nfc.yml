@@ -12,6 +12,10 @@ on:
       - "backend/tests/test_station_document_handoff_v15.py"
       - ".github/workflows/v15-04-4-station-document-qr-nfc.yml"
       - "frontend/src/features/hub/StationPatientIdentity.tsx"
+      - "frontend/src/features/hub/StationKioskShell.tsx"
+      - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
+      - "frontend/src/features/hub/StationKioskShell.test.tsx"
+      - "frontend/scripts/capture-v15-04-4-documents-identity.mjs"
       - "frontend/scripts/capture-v15-03-3-patient-session.mjs"
   workflow_dispatch:
 
@@ -79,7 +83,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Targeted existing QR/NFC frontend contracts
         working-directory: frontend
-        run: npx vitest run src/test/v15StationPatientSessionContract.test.ts src/features/hub/StationPatientIdentity.test.tsx --maxWorkers=1 --fileParallelism=false
+        run: npx vitest run src/test/v15StationPatientSessionContract.test.ts src/features/hub/StationPatientIdentity.test.tsx src/features/hub/StationKioskShell.test.tsx --maxWorkers=1 --fileParallelism=false
       - name: Run station FUE-I LAB matrix (simulated station backend)
         working-directory: frontend
         shell: bash
@@ -96,10 +100,14 @@ jobs:
           if [[ "$ready" != 1 ]]; then cat /tmp/v15-04-4-ui.log; exit 1; fi
           node scripts/capture-v15-03-3-patient-session.mjs
           test -f artifacts/v15-03-3-patient-session-after/evidence.json
+          node scripts/capture-v15-04-4-documents-identity.mjs
+          test -f artifacts/v15-04-4-documents-identity-after/evidence.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: v15-04-4-fuei-lab-synthetic-station-captures
-          path: frontend/artifacts/v15-03-3-patient-session-after
+          path: |
+            frontend/artifacts/v15-03-3-patient-session-after
+            frontend/artifacts/v15-04-4-documents-identity-after
           if-no-files-found: warn
           retention-days: 21
