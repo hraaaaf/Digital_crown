@@ -1,11 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+from types import SimpleNamespace
 import hashlib
 
 from backend import models
 from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
 from backend.routers.patient_companion_common import create_patient_device_token
 from backend.services.archive_service import ArchiveService
-from backend.services.station_care_sheet import record_trusted_finalization, verified_care_sheet_bytes
+from backend.services.station_care_sheet import record_trusted_finalization, verified_care_sheet_bytes, is_finalized_care_sheet
 
 
 def _login(client, email: str, password: str = "TestPass123!") -> dict[str, str]:
@@ -84,7 +85,7 @@ def _identified_session(client, db, owner, *, dossier: str = "ST043-001"):
     return headers, session["sessionId"], patient
 
 
-def _care_sheet(db, patient, *, status: str = "VALIDATED"):
+def _care_sheet(db, patient, *, status: str = "VALIDATED", emit_finalization_event: bool = True):
     pdf_content = b"%PDF-1.4\n% station care sheet\n%%EOF\n"
     rendered_hash = hashlib.sha256(pdf_content).hexdigest()
     document, _ = ArchiveService(db).archive_document(
@@ -110,7 +111,7 @@ def _care_sheet(db, patient, *, status: str = "VALIDATED"):
         is_collected=False,
         payment_status=models.PaiementStatut.EN_ATTENTE,
     )
-    if status == "VALIDATED":
+    if status == "VALIDATED" and emit_finalization_event:
         record_trusted_finalization(
             db, document, employer_id=patient.employer_id,
             practitioner_id=patient.employer_id,
@@ -416,3 +417,118 @@ def test_station_care_sheet_rejects_symlinked_archive_even_to_same_pdf(client, d
         if archive_path.is_symlink():
             archive_path.unlink()
         backup.rename(archive_path)
+
+
+def test_care_sheet_expired_identified_session_fails_closed(client, db, dentiste):
+    headers, session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-EXPIRED"
+    )
+    document = _care_sheet(db, patient)
+    _set_mode(client, headers, "cabinet")
+    assert client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    ).status_code == 200
+    _set_mode(client, headers, "station")
+    session = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == session_id,
+    ).one()
+    session.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.commit()
+
+    denied = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
+        headers=headers,
+    )
+    assert denied.status_code == 409
+    assert denied.json()["detail"] == "STATION_SESSION_INVALID_OR_USED"
+    db.refresh(session)
+    assert session.purged_at is not None
+    assert session.patient_id is None
+
+
+def test_care_sheet_previous_version_fails_closed_after_authorization(client, db, dentiste):
+    headers, session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-OLD-VERSION"
+    )
+    document = _care_sheet(db, patient)
+    _set_mode(client, headers, "cabinet")
+    assert client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    ).status_code == 200
+    document.is_latest_version = False
+    db.commit()
+    _set_mode(client, headers, "station")
+
+    denied = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
+        headers=headers,
+    )
+    assert denied.status_code == 409
+    assert denied.json()["detail"] == "STATION_CARE_SHEET_NOT_ELIGIBLE"
+
+
+def test_official_finalize_route_records_provenance_before_authorization(
+    client, db, dentiste, monkeypatch,
+):
+    """Route-wiring regression: do not mistake a mocked renderer for a full rendering E2E."""
+    headers, session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-OFFICIAL-ROUTE"
+    )
+    document = _care_sheet(db, patient, emit_finalization_event=False)
+    assert not is_finalized_care_sheet(db, document, employer_id=dentiste.id)
+    _set_mode(client, headers, "cabinet")
+
+    monkeypatch.setattr(
+        "backend.routers.insurance_submissions._template_config_for",
+        lambda organization: (SimpleNamespace(version="CNSS-610-1-04"), "a" * 64, None),
+    )
+    monkeypatch.setattr(
+        "backend.routers.insurance_submissions.finalize_insurance_submission_pdf",
+        lambda *args, **kwargs: (document, False, b"%PDF-1.4\\nfixture\\n%%EOF\\n"),
+    )
+    draft = {
+        "patient_id": patient.id,
+        "organization": "CNSS",
+        "honoraires_document_id": 42,
+        "lines": [{
+            "source": {"honoraires_document_id": 42, "honoraires_line_index": 0},
+            "service_date": "2026-09-14",
+            "label": "Detartrage",
+            "amount_mad": 500.0,
+            "mapping_status": "EXACT",
+            "ngap_code": "D1",
+            "ngap_coefficient": 10.0,
+            "mapping_rule_id": "ngap-test:d1",
+        }],
+        "status": "VALIDATED",
+        "template": {
+            "template_version": "CNSS-610-1-04",
+            "template_hash": "a" * 64,
+            "source_url": "cabinet://validated/CNSS-610-1-04.pdf",
+            "trust": "CABINET_VALIDATED_BINARY",
+        },
+        "reference": {"ngap_reference_version": "ngap-test", "ngap_reference_hash": "b" * 64},
+        "validated_by_practitioner_id": dentiste.id,
+        "validated_at": "2026-10-11T08:00:00",
+    }
+    finalized = client.post(
+        "/api/documents/insurance-submissions/finalize",
+        headers=headers,
+        json=draft,
+    )
+    assert finalized.status_code == 200, finalized.text
+    assert finalized.json()["document_id"] == document.id
+    assert is_finalized_care_sheet(db, document, employer_id=dentiste.id)
+    assert client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    ).status_code == 200
+    _set_mode(client, headers, "station")
+    retrieved = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
+        headers=headers,
+    )
+    assert retrieved.status_code == 200
+    assert hashlib.sha256(retrieved.content).hexdigest() == document.file_hash
