@@ -11,6 +11,7 @@ const viewports = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
   { width: 768, height: 1024 },
+  { width: 1280, height: 800 },
 ];
 const roles = [
   { value: 'DENTISTE', slug: 'dentiste', marker: 'practitioner', label: 'Vue praticien · priorité clinique' },
@@ -166,6 +167,12 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   const todayScreenshot = `runtime-${role.slug}-today-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outputDir, todayScreenshot) });
 
+  // P1: the Agenda must be a separate, authorized day list with no desktop mutations.
+  await nav.getByText('Agenda', { exact: true }).click();
+  await page.locator('[data-dc-pocket-agenda]').waitFor({ state: 'visible' });
+  const agendaScreenshot = `runtime-${role.slug}-agenda-${viewport.width}x${viewport.height}.png`;
+  await page.screenshot({ path: path.join(outputDir, agendaScreenshot) });
+
   await nav.getByText('Plus', { exact: true }).click();
   const moreMenu = page.locator('[data-mobile-more-menu]');
   await moreMenu.waitFor({ state: 'visible' });
@@ -236,7 +243,7 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
 
   if (runtimeErrors.length) throw new Error(`${role.value}/${viewport.width}: runtime errors: ${runtimeErrors.join(' | ')}`);
 
-  return { role: role.value, viewport, path: '/mobile/dashboard', preview: false, stockRoutable: true, libraryRoutable: true, restoredModulesRoutable: true, roleGuardsVerified: true, ...geometry, runtimeErrors, todayScreenshot, screenshot, stockScreenshot };
+  return { role: role.value, viewport, path: '/mobile/dashboard', preview: false, stockRoutable: true, libraryRoutable: true, restoredModulesRoutable: true, roleGuardsVerified: true, ...geometry, runtimeErrors, todayScreenshot, agendaScreenshot, screenshot, stockScreenshot };
 }
 
 await fs.mkdir(outputDir, { recursive: true });
