@@ -33,7 +33,9 @@ jobs:
           assert len(rows)==len(f['canonical_facad_gates_before'])==39
           for row,old in zip(rows,f['canonical_facad_gates_before']):
             assert row['id']==old['id'] and row['title']==old['title'] and row['section']==row['id'][:3]
-            expect='CLOSED_HISTORICAL_SOURCE' if old['canonical_state']=='ALREADY_CHECKED' else 'OPEN_REQUIREMENTS_UNMET'
+            # F06.2 was OPEN in the pinned source snapshot, then closed by exact CI #38143440439.
+            # All other canonical states must remain identical.
+            expect='CLOSED_HISTORICAL_SOURCE' if old['canonical_state']=='ALREADY_CHECKED' or old['id']=='F06.2' else 'OPEN_REQUIREMENTS_UNMET'
             assert row['canonical_state']==expect
             assert row['historical_closed_evidence_replayed_this_lot'] is False
             if expect=='OPEN_REQUIREMENTS_UNMET':
@@ -44,6 +46,11 @@ jobs:
                 assert row['missing_proof'] is None
           open_rows=[z for z in rows if z['canonical_state']=='OPEN_REQUIREMENTS_UNMET']
           assert len(open_rows)==19 and d['snapshot_before']=={'total':39,'closed':20,'open':19}
+          assert d['source_evidence']['f06_2_closure_run']=='https://github.com/hraaaaf/Digital_crown/actions/runs/38143440439'
+          assert d['source_evidence']['f06_2_closure_head']=='0e36da7d08962e4d1c7f840d1cd4a53f8057235b'
+          assert d['source_evidence']['f06_2_closure_scope']=='CLOSED_DOCUMENTARY_ONLY'
+          assert d['source_evidence']['DC_browser_comparison_gate']=='SUCCESS_24_SYNTHETIC_IMAGES_4_VIEWPORTS_NOT_SAME_FACAD_CASE'
+          assert d['source_evidence']['same_case_facad_dc'] is False
           assert set(z['id'] for z in open_rows)=={
             'F00.4','F01.13','F02.2','F02.3','F02.4','F03.3','F03.4','F03.5',
             'F04.1','F04.2','F04.3','F04.4','F05.1','F05.2','F05.3','F05.4',
