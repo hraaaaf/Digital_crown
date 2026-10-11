@@ -38,6 +38,8 @@ def read_json(path: Path) -> dict:
 def verify(manifest: dict, measures: dict, parity: dict, backlog: dict, mapping: dict, closeout: str) -> dict:
     require(manifest.get("schema_version") == "DC_CEPHALO_VENDOR_EVIDENCE_TRANSFER_V1", "SCHEMA")
     require(manifest.get("decision") == "DC_FIRST__VENDOR_NEW_RUNS_PAUSED", "VENDOR_PAUSE")
+    require(manifest.get("canonical_repo_baseline") ==
+            "c0d47f4832e6da2211c6f94eb88f0db56fcaebb6", "SOURCE_BASELINE_SHA")
     require(manifest.get("applies_to") == "DIGITAL_CROWN_CEPHALO", "SCOPE")
     require(manifest.get("evidence_only") is True, "EVIDENCE_ONLY")
     require(manifest.get("validation_status") == "PROVISIONAL_SOURCE_ONLY", "NO_SCIENTIFIC_APPROVAL")
@@ -154,6 +156,7 @@ def self_test(args: tuple[dict, dict, dict, dict, dict, str]) -> int:
     # Every poison attempt must be rejected by the *same* validator.
     poisoned = [
         (0, lambda d: d.__setitem__("vendor_norms_authoritative", True)),
+        (0, lambda d: d.__setitem__("canonical_repo_baseline", "0" * 40)),
         (0, lambda d: d.__setitem__("numeric_parity_certified", True)),
         (0, lambda d: d.__setitem__("facad_new_executions_allowed", True)),
         (0, lambda d: d["data_sources"]["facad_ricketts_direct_parity"].__setitem__("expected_parity_rows", 1)),
@@ -188,7 +191,7 @@ def main() -> None:
     )
     result = verify(*args)
     result["mutation_negative_controls_passed"] = self_test(args)
-    assert result["mutation_negative_controls_passed"] == 11
+    assert result["mutation_negative_controls_passed"] == 12
     # No untrusted content or per-patient data in output.
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
 
