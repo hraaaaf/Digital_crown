@@ -33,6 +33,17 @@ Persona : patient avec Patient Companion déjà identifié, sans connaissance pr
 - **Durcissement QR origine désormais prévu dans le candidat 04.4 :** la route utilise `STATION_HANDOFF_PUBLIC_ORIGIN` (schéma + hôte + port uniquement, par exemple `https://cabinet.exemple.local:8005`) plutôt que le `Host` HTTP fourni par le client. En `cabinet` / `production`, **sans configuration explicite du vrai domaine HTTPS non-loopback accessible au téléphone**, le POST de création de session retourne HTTP 503 **avant** de modifier la session existante. Une origine `http://`, loopback, avec credentials ou chemin, est refusée. En `test`/`local`/`development`, fallback sans configuration seulement vers `localhost`, `127.0.0.1`, `::1` ou `testserver`; une requête avec `Host: attacker.invalid` est refusée. La lecture réelle du QR sur téléphone et la chaîne TLS/certificat/LAN restent à certifier en terrain. **Cette nouvelle variable doit être ajoutée explicitement à la configuration cabine avant d'utiliser le QR.**
 - Deux perspectives adversariales sur **même HEAD**, puis confirmation ; aucun PASS FUE-I sans une preuve UX réellement liée au produit, pas simplement une collecte GitHub.
 
+
+## Complément UX FUE-I : entrée Documents identifiée (candidat, non certifié)
+
+Le bouton **« Retirer un document »** sur la station existe déjà sur les formats mobile/tablette/desktop. Dans cette branche, il ouvre maintenant le même composant sécurisé `StationPatientIdentity` que « J'ai rendez-vous », avec `purpose="documents"`, sans duplication de jeton ni authentification. Les deux boutons ont des parcours **distincts** après identification :
+- **Rendez-vous** : `StationAppointmentArrival` (consultation des rendez-vous, éventuelle confirmation d'arrivée, assistance staff seulement selon sa règle existante).
+- **Documents** : `data-station-documents-identity-confirmed` ; affiche uniquement la confirmation d'identité, un message transparent « en cours de construction » et l'orientation vers l'accueil. Aucun appel `/appointments/today`, `/arrive`, `/staff-assistance`, aucune liste de documents ni PDF, aucun faux transfert/print. Retour et timeout purgent la session depuis la station.
+- Le compteur d'inactivité reste borné dans `StationKioskShell` ; chaque sortie de l'écran d'identité déclenche la purge (réessais bornés, expiration serveur finale).
+- Langues FR/AR/EN, RTL arabe, styles tactiles responsive déjà présents ; preuves ciblées Vitest et nouvelles captures Playwright *simulées* `frontend/scripts/capture-v15-04-4-documents-identity.mjs`, deux états pending/identified x 3 langues x 4 viewports x zoom100/200 = **48 captures attendues** sur HEAD final, distinctes de la baseline QR rendez-vous 03.3.
+
+**Important :** ce parcours apporte une première étape QR/NFC utilisable sur le bouton Documents ; il **ne** constitue **pas encore** la First Value documentaire (liste/retrait effectif). Le gate FUE-I du parcours complet reste **PARTIEL / OUVERT** tant que le patient ne peut pas obtenir un document dans les conditions autorisées. La livraison complète du PDF, impression/Pocket/QR de remise, reste au 04.5 ; la décision d'exposer une liste de documents au public nécessite une conception et des tests d'autorisation supplémentaires. Ne pas prétendre FUE-G 04.
+
 ## Périmètre du candidat
 
 - Backend : une condition sur le WorkstationMode actif, tenant et expérience Station dans la recherche et l'UPDATE du claim, sans créer de second mécanisme ni changer la durée de vie 120 s.
