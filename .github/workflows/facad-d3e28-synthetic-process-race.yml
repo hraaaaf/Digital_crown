@@ -1,0 +1,68 @@
+name: FACAD D3E28 synthetic Windows process-counter race
+
+on:
+  push:
+    branches:
+      - research/facad-d3e28-synthetic-process-observer-20261011
+    paths:
+      - .github/workflows/facad-d3e28-synthetic-process-race.yml
+      - scripts/facad_314_d3e28_synthetic_process_race.ps1
+      - scripts/facad_314_d3_process_io_observer.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-windows-only:
+    name: Synthetic process-counter oracle (NO FACAD)
+    runs-on: windows-latest
+    timeout-minutes: 12
+    if: github.event_name == 'push' && github.ref == 'refs/heads/research/facad-d3e28-synthetic-process-observer-20261011'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm vendor-free synthetic boundary
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REF -cne 'refs/heads/research/facad-d3e28-synthetic-process-observer-20261011'){
+            throw 'D3E28_WRONG_RUN_CONTEXT'
+          }
+          if((git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'D3E28_HEAD_MISMATCH'}
+          foreach($name in @('scripts/facad_314_d3_process_io_observer.ps1','scripts/facad_314_d3e28_synthetic_process_race.ps1')){
+            if(-not (Test-Path -LiteralPath $name -PathType Leaf)){throw 'D3E28_SOURCE_MISSING'}
+          }
+          Write-Host 'D3E28_SYNTHETIC_BOUNDARY=CONFIRMED'
+          Write-Host ('D3E28_EXACT_HEAD='+$env:GITHUB_SHA)
+      - name: Execute disappearing-child repro and real healthy/dead-root observer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e28_synthetic_process_race.ps1
+          if($LASTEXITCODE -ne 0 -or -not $?){throw 'D3E28_SYNTHETIC_TEST_FAILED'}
+      - name: Confirm safe aggregate contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $path='d3e28-synthetic-safe-summary.json'
+          if(-not (Test-Path -LiteralPath $path)){throw 'D3E28_AGGREGATE_ABSENT'}
+          $j=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+          if($j.schema -cne 'facad_d3e28_synthetic_observer_reproducer_v1' -or
+             $j.old_observer_child_exit_exception_reproduced -cne $true -or
+             $j.root_absent_fails_closed -cne $true -or
+             $j.healthy_root_sample_count -ne 6 -or
+             $j.synthetic_vendor_launches -ne 0 -or
+             $j.facad_executable_used -cne $false -or
+             $j.security_4663_queried -cne $false -or
+             $j.shared_app_storage_isolation_verified -cne $false -or
+             $j.clinical_edit_allowed -cne $false -or
+             $j.d3_gate -cne 'OPEN_RED'){throw 'D3E28_AGGREGATE_CONTRACT_FAILED'}
+          Write-Host 'D3E28_SYNTHETIC_REPRO=PASS_EXPECTED_OLD_BUG'
+          Write-Host 'D3E28_D3=OPEN_RED'
+      - name: Upload aggregate only, never raw process information
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e28-synthetic-safe-summary
+          path: d3e28-synthetic-safe-summary.json
+          if-no-files-found: warn
+          retention-days: 7
