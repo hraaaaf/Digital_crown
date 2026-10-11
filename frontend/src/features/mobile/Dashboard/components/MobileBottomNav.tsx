@@ -176,6 +176,7 @@ export function MobileBottomNav({
 
       <nav
         data-mobile-bottom-nav
+        inert={moreOpen}
         aria-label="Navigation mobile principale"
         className="fixed left-3 right-3 mx-auto h-[76px] max-w-[720px] rounded-[28px] border shadow-elite z-[65]"
         style={{
