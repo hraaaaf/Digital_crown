@@ -99,10 +99,12 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium webkit
-      - name: Start real application runtime
+      - name: Start production-built application runtime
         working-directory: frontend
         run: |
-          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/mobile-pocket-runtime-vite.log 2>&1 &
+          # Certify the production-built PWA and its shipped Workbox lifecycle,
+          # not Vite's development modules/development service worker.
+          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort >/tmp/mobile-pocket-runtime-vite.log 2>&1 &
           for i in {1..60}; do
             curl -fsS 'http://127.0.0.1:5173/landing' >/dev/null && exit 0
             sleep 1
